@@ -112,7 +112,10 @@ def spectrogram(signal, window_length, hop_size, window_func=np.hanning,
         fft_size = window_length
 
     window = window_func(window_length)
-    norm_factor = 2.0 / window.sum()
-
     windowed_signal = split(signal, window_length, hop_size) * window
-    return scipy.fftpack.fft(windowed_signal, n=fft_size)[:, 0:(fft_size / 2 + 1)] * norm_factor
+    spec = scipy.fftpack.fft(windowed_signal, n=fft_size)[:, 0:(fft_size / 2 + 1)]
+
+    if normalise:
+        spec *= 2.0 / window.sum()
+
+    return spec
