@@ -41,3 +41,73 @@ class LinearSpectrumTransformer(object):
                 transformed_spectrum /= transformed_spectrum.sum(axis=1)[:, np.newaxis]
 
         return transformed_spectrum
+
+
+class SemitoneSpectrum(LinearSpectrumTransformer):
+    """
+    Transforms the spectrum into a semitone scale.
+    """
+
+    def __init__(self, fft_length, sample_rate, q_factor=25.0, normalise=False):
+        """
+        Initialises the semitone transformation
+
+        :Parameters:
+          - `fft_length`: Specifies the FFT length used to obtain the magnitude
+                          spectrum
+          - `sample_rate`: Sample rate of the audio
+          - `q_factor`: Defines the width of the rectangle filters used to 
+                        transform the spectrum
+          - `normalise`: Specifies if the semitone vectors shall be normalised,
+                         i.e. divided by their sum
+        """
+        from .. import freq_scales as fs
+        super(SemitoneSpectrum, self).__init__(normalise)
+
+        mag_spec_length = fft_length / 2 + 1
+        max_note = np.floor(fs.hz_to_midi(sample_rate / 2))
+        note_freqs = fs.midi_to_hz(np.arange(0, max_note))
+        min_note_freqs = note_freqs - note_freqs / q_factor
+        max_note_freqs = note_freqs + note_freqs / q_factor
+        fft_freqs = abs(np.fft.fftfreq(fft_length) * sample_rate)[:mag_spec_length]
+
+        note_dist = abs(note_freqs[:, np.newaxis] - fft_freqs)
+        min_note_dist = abs(min_note_freqs[:, np.newaxis] - fft_freqs)
+        max_note_dist = abs(max_note_freqs[:, np.newaxis] - fft_freqs)
+
+        direct_assignments = note_dist == note_dist.min(axis=1)[:, np.newaxis]
+        range_assignments = (note_dist < min_note_dist) & (note_dist < max_note_dist)
+
+        self.bin_assignments = (direct_assignments | range_assignments).astype(float)
+
+
+class SimpleChromaComputer(LinearSpectrumTransformer):
+    """
+    A simple chroma computer. Each frequency bin of a magnitude spectrum
+    is assigned a chroma class, and all it's contents are added to this class.
+    No diffusion, just discrete assignment.
+    """
+
+    def __init__(self, fft_length, sample_rate, normalise=False):
+        from .. import freq_scales as fs
+        """
+        Initialises the computation.
+
+        :Parameters:
+          - `fft_length`: Specifies the FFT length used to obtain the magnitude
+                          spectrum
+          - `sample_rate`: Sample rate of the audio
+          - `normalise`: Specifies if the chroma vectors shall be normalised,
+                         i.e. divided by it's sum
+        """
+        super(SimpleChromaComputer, self).__init__(normalise)
+
+        mag_spec_length = fft_length / 2 + 1
+        max_note = np.floor(fs.hz_to_midi(sample_rate / 2))
+        note_freqs = fs.midi_to_hz(np.arange(0, max_note))
+        fft_freqs = abs(np.fft.fftfreq(fft_length) * sample_rate)[:mag_spec_length]
+
+        note_to_fft_distances = abs(note_freqs[:, np.newaxis] - fft_freqs)
+        note_assignments = np.argmin(note_to_fft_distances, axis=0) % 12
+
+        self.bin_assignments = np.mgrid[:12, :mag_spec_length][0] == note_assignments       
