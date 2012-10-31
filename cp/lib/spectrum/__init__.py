@@ -1,4 +1,2 @@
-__all__ = ["chroma", "linear_spectrum_transformer", "semitone_spectrum"]
+__all__ = ["linear_spectrum_transformer"]
 import linear_spectrum_transformer
-import semitone_spectrum
-import chroma
