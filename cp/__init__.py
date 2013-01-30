@@ -1,2 +1,2 @@
-__all__ = ["lib"]
-import lib
+__all__ = ["audio"]
+import audio
