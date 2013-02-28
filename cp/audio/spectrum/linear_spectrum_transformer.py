@@ -56,7 +56,7 @@ class SemitoneSpectrum(LinearSpectrumTransformer):
           - `fft_length`: Specifies the FFT length used to obtain the magnitude
                           spectrum
           - `sample_rate`: Sample rate of the audio
-          - `q_factor`: Defines the width of the rectangle filters used to 
+          - `q_factor`: Defines the width of the rectangle filters used to
                         transform the spectrum
           - `normalise`: Specifies if the semitone vectors shall be normalised,
                          i.e. divided by their sum
@@ -110,4 +110,4 @@ class SimpleChromaComputer(LinearSpectrumTransformer):
         note_to_fft_distances = abs(note_freqs[:, np.newaxis] - fft_freqs)
         note_assignments = np.argmin(note_to_fft_distances, axis=0) % 12
 
-        self.bin_assignments = np.mgrid[:12, :mag_spec_length][0] == note_assignments       
+        self.bin_assignments = np.mgrid[:12, :mag_spec_length][0] == note_assignments
