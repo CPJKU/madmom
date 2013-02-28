@@ -6,8 +6,8 @@ class LocallyNormalisedOnsetFeature:
     def __init__(self, spectrum_size, norm_window_size=100,
                  log_factor=5000, log_shift=1):
 
-        self.log_factor = 5000
-        self.log_shift = 1
+        self.log_factor = log_factor
+        self.log_shift = log_shift
         self.maxima = [0.0] * norm_window_size
         self.prev_spectrum = np.zeros(spectrum_size)
         self.diff = np.empty(spectrum_size)  # preallocate space
