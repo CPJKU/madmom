@@ -311,27 +311,6 @@ class Spectrogram(object):
         assert add > 0, 'a positive value must be added before taking the logarithm'
         self.spec = np.log10(mul * self.spec + add)
 
-    def diff(self, pos=True, diff_frames=None):
-        """
-        Calculate the first order difference (as used for the spectral flux).
-
-        """
-        diff = np.zeros_like(self.spec)  # zeros at the first (few) frames
-        if diff_frames is None:
-            # get the first sample with a higher magnitude than given ratio
-            sample = np.argmax(self.window > 0.22)
-            diff_samples = self.window.size / 2 - sample
-            # convert to frames
-            diff_frames = int(round(diff_samples / self.hop_size))
-            # it has to be at least the frame before
-            diff_frames = max(diff_frames, 1)
-        # calc the difference
-        diff[diff_frames:, :] = self.spec[diff_frames:, :] - self.spec[:-diff_frames, :]
-        if pos:
-            # keep only the positive differences
-            diff = diff * (diff > 0)
-        return diff
-
     def filter(self, filterbank):
         """
         Filter the magnitude spectrogram.
