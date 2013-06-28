@@ -110,7 +110,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
 def stft_strided(signal, window, hop_size, phase=True):
     """
     This function is only for completeness. It is faster in rare circumstances.
-    
+
     Please note that the seeking to the right position is not always working
     properly, i.e. only for integer hop_sizes.
 
@@ -184,20 +184,6 @@ def lgd(phase):
     return lgd
 
 
-#def hz2midi(f, bands=12, a=440.):
-#    """
-#    Returns the MIDI note corresponding to frequency.
-#
-#    :param f: input frequency
-#    :param a: frequency of the concert pitch A [default=440Hz]
-#    :returns: MIDI note corresponding to the frequency
-#
-#    Note: this function does not necessarily return a valid MIDI note.
-#
-#    """
-#    return (bands * np.log2(f / a)) + 69
-
-
 class Spectrogram(object):
     """
     Spectrogram Class.
@@ -208,12 +194,14 @@ class Spectrogram(object):
         Creates a new Spectrogram object instance and performs a STFT on the given audio.
 
         :param wav: a Wav object
-        :param window: window function [default = Hann window with 2048 samples]
-        :param fps: is the desired frame rate [default = 100 fps]
-        :param online: work in online mode [default = False]
-        :param phase: include phase information [default = False] (slows down calculation)
-        :param norm_window: set area of window function to 1 [default = False]
+        :param window: window function [default=Hann window with 2048 samples]
+        :param fps: is the desired frame rate [frames per second, default=100]
+        :param online: work in online mode [default=False]
+        :param phase: include phase information [default=False]
+        :param norm_window: set area of window function to 1 [default=False]
         :param fft_size: use given size for FFT [default=size of window]
+
+        Note: including the phase slows down calculation.
 
         """
         # init variables
@@ -304,8 +292,8 @@ class Spectrogram(object):
         """
         Takes the logarithm of the magnitude spectrogram.
 
-        :param mul: multiply the magnitude spectrogram with given value [default = 5]
-        :param add: add the given value to the magnitude spectrogram [default = 1]
+        :param mul: multiply the magnitude spectrogram with given value [default=5]
+        :param add: add the given value to the magnitude spectrogram [default=1]
 
         """
         assert add > 0, 'a positive value must be added before taking the logarithm'

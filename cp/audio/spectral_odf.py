@@ -135,7 +135,7 @@ class SpectralODF(object):
         Creates a new ODF object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
-        :param ratio: calculate the difference to the frame which has the given magnitude ratio [default=0.22]
+        :param ratio: calculate the difference to the frame which has the given magnitude ratio [default=0.5]
         :param diff_frames: calculate the difference to the N-th previous frame [default=None]
         :param diff_bins: calculate the maximum to N neighboring bins [default=None]
 

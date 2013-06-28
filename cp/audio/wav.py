@@ -88,7 +88,7 @@ class Wav(object):
         """
         Attenuate the audio signal.
 
-        :param attenuation: attenuation level in dB
+        :param attenuation: attenuation level [dB]
 
         """
         if attenuation <= 0:
@@ -137,7 +137,7 @@ class Wav(object):
         """
         Down-samples the audio signal by the given factor.
 
-        :param factor: down-sampling factor [default: 2]
+        :param factor: down-sampling factor [default=2]
 
         """
         from scipy.signal import decimate
