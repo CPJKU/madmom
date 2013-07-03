@@ -1,0 +1,6 @@
+All evaluation methods of this package can be used as scripts directly, if the
+package is in $PYTHONPATH.
+
+Example:
+
+python -m cp.evaluation.onsets /dir/to/be/evaluated
