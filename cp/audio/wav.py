@@ -228,7 +228,6 @@ class SplittedWav(Wav):
                 # step back half of the window size
                 # the current position is the center of the frame
                 seek = int(index * self.hop_size - self.frame_size / 2.)
-            print index, seek, self.samples
             # read in the right portion of the audio
             if seek < - self.frame_size:
                 # more padding than a whole frame size needed
