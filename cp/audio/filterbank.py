@@ -297,6 +297,8 @@ def triang_filterbank(frequencies, ffts, fs, norm=True):
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # only keep unique bins
+    # this is important to do so, otherwise the lower frequency bins are given
+    # too much weight if simply summed up (as in the spectral flux)
     frequencies = np.unique(frequencies)
     # number of bands
     bands = len(frequencies) - 2

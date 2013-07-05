@@ -30,6 +30,8 @@ import scipy.fftpack as fft
 
 
 def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
+    # TODO: this function is here only for completeness reason, its
+    # functionality is also implemented by the iterable Wav class
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
@@ -204,21 +206,66 @@ class Spectrogram(object):
         Note: including the phase slows down calculation.
 
         """
-        # init variables
-        self.wav = wav
-        self.window = window
-        self.fps = fps
-        self.online = online
-        if fft_size is None:
-            fft_size = window.size
-        self.fft_size = fft_size
+        # imports
+        from wav import SplittedWav
 
+        # check wav type
+        if isinstance(wav, SplittedWav):
+            # already the right format
+            self.wav = wav
+        else:
+            # try to convert
+            self.wav = SplittedWav(wav)
+
+        # if just a window size is given, create a Hann window with that size
+        if isinstance(window, int):
+            window = np.hanning(window)
+        self.window = window
         # normalize the window
         if norm_window:
             self.window /= np.sum(self.window)
 
+        # frames per second
+        self.fps = fps
+
+        # online mode (use only past information)
+        self.online = online
+        # FFT size to use
+        if fft_size is None:
+            fft_size = window.size
+
+        # set window and hop size of the wav object
+        self.wav.frame_size = self.window.size
+        self.wav.hop_size = self.hop_size
+
         # perform STFT
-        self.stft = stft(self.wav.audio, self.window, self.hop_size, online, phase, fft_size)
+        # if the signal is not scaled, scale the window function accordingly
+        try:
+            window = window[:] / np.iinfo(self.wav.audio.dtype).max
+        except ValueError:
+            window = window[:]
+
+        # size of window
+        window_size = self.window.size
+        # number of resulting FFT bins
+        fft_bins = fft_size >> 1
+
+        # init spec matrix
+        self.stft = np.empty([self.wav.frames, fft_bins], np.complex)
+        index = 0
+        for frame in self.wav:
+            # multiply the signal with the window function
+            fft_signal = np.multiply(frame, window)
+            # only shift and perform complex DFT if needed
+            if phase:
+                # circular shift the signal (needed for correct phase)
+                #fft_signal = fft.fftshift(fft_signal)  # slower!
+                fft_signal = np.append(fft_signal[window_size / 2:], fft_signal[:window_size / 2])
+            # perform DFT
+            self.stft[index] = fft.fft(fft_signal, fft_size)[:fft_bins]
+            index += 1
+            # next frame
+
         # magnitude spectrogram
         self.spec = np.abs(self.stft)
         # phase
@@ -235,7 +282,7 @@ class Spectrogram(object):
     def frames(self):
         """Number of frames."""
         # use ceil to not truncate the signal
-        return int(np.ceil(self.wav.samples / self.hop_size))
+        return int(np.ceil(self.wav.frames / self.hop_size))
 
     @property
     def hop_size(self):

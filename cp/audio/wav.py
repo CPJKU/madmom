@@ -29,20 +29,22 @@ import numpy as np
 
 
 class Wav(object):
+    """
+    Wav Class is a wrapper around scipy.io.wavfile.
 
-    """Wav Class is a simple wrapper around scipy.io.wavfile"""
+    """
 
-    def __init__(self, filename=None):
+    def __init__(self, filename):
         """
         Creates a new Wav object instance.
 
-        :param filename: name of the .wav file
+        :param filename: name of the .wav file or file handle
 
         """
         # init variables
-        self.filename = filename  # the name of the file
-        self.audio = None         # the real audio (unscaled)
-        self.samplerate = None    # with that samplerate
+        self.filename = filename        # the name of the file
+        self.audio = None               # the real audio (unscaled)
+        self.samplerate = None          # with that samplerate
         # if a filename is given, read in audio
         if filename:
             self.load(filename)
@@ -151,3 +153,115 @@ class Wav(object):
 
         """
         self.audio = np.trim_zeros(self.audio, 'fb')
+
+
+class SplittedWav(Wav):
+    """
+    SplittedWav Class is an iterable extension of the Wav Class.
+
+    """
+
+    def __init__(self, wav, frame_size=2048, hop_size=441.0, online=False):
+        """
+        Creates a new SplittedWav object instance or makes an existing Wav
+        object iterable.
+
+        :param wav: the existing Wav object (or any filename)
+
+        :param frame_size: size of one frame [default=2048]
+        :param hop_size: progress N samples between adjacent frames [default=441.0]
+        :param online: use only past information [default=False]
+
+        Note: the Wav class is implemented as an iterator. It splits the audio
+        automatically into frames (of frame_size length) and progresses hop_size
+        samples (can be float, with normal rounding applied) between frames.
+
+        In offline mode, the frame is centered around the current position;
+        whereas in online mode, the frame is always positioned left to the
+        current position.
+
+        """
+        # arguments for splitting the audio into frames
+        self.frame_size = frame_size
+        self.hop_size = hop_size
+        self.online = online
+        # filename or object given?
+        if isinstance(wav, Wav):
+            # a Wav object was given, make it iterable
+            # usually the copying does not use additional memory
+            super(SplittedWav, self).__init__(wav.filename)
+        else:
+            # create Wav object
+            super(SplittedWav, self).__init__(wav)
+
+    # make the Object iterable
+    def __getitem__(self, index):
+        """
+        This makes the SplittedWav class an iterable object.
+
+        The audio is split into frames (of length frame_size) automatically.
+        Two frames are located hop_size frames apart. hop_size can be float,
+        normal rounding applies.
+
+        Note: index -1 refers NOT to the last frame, but to the frame directly
+        left of frame 0. Although this is contrary to common behavior, being
+        able to access these frames is important, because if the frames overlap
+        frame -1 contains parts of the audio signal of frame 0.
+
+        """
+        # a slice is given
+        if isinstance(index, slice):
+            # return the frames given by the slice
+            print slice
+            return [self[i] for i in xrange(*index.indices(self.frames))]
+        # a single index is given
+        elif isinstance(index, int):
+#            # TODO: use this code if normal indexing behavior is needed
+#            if index < 0:
+#                index += self.frames
+            # seek to the correct position in the audio signal
+            if self.online:
+                # the current position is the right edge of the frame
+                # step back a complete frame size
+                seek = int(index * self.hop_size - self.frame_size)
+            else:
+                # step back half of the window size
+                # the current position is the center of the frame
+                seek = int(index * self.hop_size - self.frame_size / 2.)
+            print index, seek, self.samples
+            # read in the right portion of the audio
+            if seek < - self.frame_size:
+                # more padding than a whole frame size needed
+                raise IndexError("seek before start of audio")
+            elif seek < 0:
+                # start before the actual audio start, pad zeros accordingly
+                zeros = np.zeros(-seek, dtype=self.audio.dtype)
+                return np.append(zeros, self.audio[0:seek + self.frame_size])
+            elif seek >= self.samples:
+                # seek after end of audio
+                raise IndexError("seek after end of audio")
+            elif seek + self.frame_size > self.samples:
+                # end behind the actual audio end, append zeros accordingly
+                zeros = np.zeros(seek + self.frame_size - self.samples, dtype=self.audio.dtype)
+                return np.append(self.audio[seek:], zeros)
+            else:
+                # normal read operation
+                return self.audio[seek:seek + self.frame_size]
+        # other index types are invalid
+        else:
+            raise TypeError("Invalid argument type.")
+
+    # FIXME: what is the length? samples, frames?
+    def __len__(self):
+        return self.frames
+
+    @property
+    def frames(self):
+        """Number of frames."""
+        # add half a frame size to the number of samples in offline mode, since
+        # the frames can cover up to this amount of data
+        if self.online:
+            samples = self.samples
+        else:
+            samples = self.samples + self.frame_size / 2.
+        return int(np.ceil((samples) / self.hop_size))
