@@ -63,7 +63,10 @@ class Wav(object):
             # TODO: overwrite filename or just read in the new file?
             self.filename = filename
         # read in the audio
+        # TODO: setting the samples attribute here has some speed improvements
+        # but is less flexible than defining it as a property as below.
         self.samplerate, self.audio = wavfile.read(self.filename)
+        # self.samples = np.shape(self.audio)[0]
 
     @property
     def samples(self):
@@ -212,7 +215,6 @@ class SplittedWav(Wav):
         # a slice is given
         if isinstance(index, slice):
             # return the frames given by the slice
-            print slice
             return [self[i] for i in xrange(*index.indices(self.frames))]
         # a single index is given
         elif isinstance(index, int):
