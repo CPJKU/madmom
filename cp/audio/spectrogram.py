@@ -256,12 +256,12 @@ class Spectrogram(object):
     @property
     def mapping(self):
         """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.wav.samplerate / 2.0 / self.ffts
+        return self.wav.samplerate / 2.0 / self.fft_bins
 
     @property
     def fft_freqs(self):
         """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.ffts] * self.wav.samplerate
+        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.wav.samplerate
 
     def aw(self, floor=0.5, relaxation=10):
         """
@@ -309,7 +309,7 @@ class Spectrogram(object):
         if filterbank is None:
             from filterbank import CQFilter
             # construct a standard filterbank
-            filterbank = CQFilter(ffts=self.fft_bins, fs=self.wav.samplerate).filterbank
+            filterbank = CQFilter(fft_bins=self.fft_bins, fs=self.wav.samplerate).filterbank
         self.spec = np.dot(self.spec, filterbank)
 
 
@@ -338,8 +338,8 @@ class FilteredSpectrogram(Spectrogram):
         # fetch the arguments special to the filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands', 12)
-        fmin = kwargs.pop('fmin', 12)
-        fmax = kwargs.pop('fmax', 16000)
+        fmin = kwargs.pop('fmin', 27)
+        fmax = kwargs.pop('fmax', 17000)
         norm = kwargs.pop('norm', True)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
@@ -347,7 +347,7 @@ class FilteredSpectrogram(Spectrogram):
         if filterbank is None:
             from filterbank import CQFilter
             # construct a standard filterbank
-            fb = CQFilter(ffts=self.ffts, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
+            fb = CQFilter(fft_binsbinsbinsbinsbinsbins=self.fft_bins, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
         # TODO: use super.filter(filterbank) ?
         self.spec = np.dot(self.spec, fb)
 
@@ -355,54 +355,29 @@ class FilteredSpectrogram(Spectrogram):
 FS = FilteredSpectrogram
 
 
-class LogarithmicFilteredSpectrogram(Spectrogram):
+class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
     """
-    LogarithmicFilteredSpectrogram is a subclass of Spectrogram which filters
-    the magnitude spectrogram based on the given filterbank and converts it to
-    a logarithmic scale.
+    LogarithmicFilteredSpectrogram is a subclass of FilteredSpectrogram which
+    filters the magnitude spectrogram based on the given filterbank and converts
+    it to a logarithmic scale.
 
     """
     def __init__(self, *args, **kwargs):
         """
         Creates a new LogarithmicFilteredSpectrogram object instance.
 
-        :param filterbank: filterbank for dimensionality reduction
-
-        If no filterbank is given, one with the following parameters is created
-        automatically.
-
-        :param bands_per_oktave: number of filter bands per octave [default=12]
-        :param fmin: the minimum frequency [Hz, default=27]
-        :param fmax: the maximum frequency [Hz, default=17000]
-        :param norm: normalize the area of the filter to 1 [default=True]
-        :param a4: tuning frequency of A4 [Hz, default=440]
-
-        The magnitudes of filtered spectrogram are then converted to a
+        The magnitudes of the filtered spectrogram are then converted to a
         logarithmic scale.
 
         :param mul: multiply the magnitude spectrogram with given value [default=5]
         :param add: add the given value to the magnitude spectrogram [default=1]
 
         """
-        # fetch the arguments special to the filterbank creation (or set defaults)
-        filterbank = kwargs.pop('filterbank', None)
-        bands_per_octave = kwargs.pop('bands', 12)
-        fmin = kwargs.pop('fmin', 27)
-        fmax = kwargs.pop('fmax', 16000)
-        norm = kwargs.pop('norm', True)
-        a4 = kwargs.pop('a4', 440)
         # fetch the arguments special to the logarithmic magnitude (or set defaults)
         mul = kwargs.pop('mul', 5)
         add = kwargs.pop('add', 1)
         # create Spectrogram object
         super(LogarithmicFilteredSpectrogram, self).__init__(*args, **kwargs)
-        # create a filterbank if needed
-        if filterbank is None:
-            from filterbank import CQFilter
-            # construct a standard filterbank
-            fb = CQFilter(ffts=self.ffts, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm, a4=a4).filterbank
-        # TODO: use super.filter(filterbank) ?
-        self.spec = np.dot(self.spec, fb)
         # take the logarithm
         self.log(mul, add)
 
