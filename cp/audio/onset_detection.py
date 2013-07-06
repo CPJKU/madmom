@@ -719,9 +719,13 @@ def main():
             if args.log:
                 s.log(args.mul, args.add)
             # use the spectrogram to create an SpectralODF object
-            sodf = SpectralODF(s, args.ratio, args.max_bins, args.diff_frames)
+            sodf = SpectralODF(s, args.ratio, args.diff_frames)
             # perform detection function on the object
-            act = getattr(sodf, args.odf)()
+            # e.g. act = sodf.superflux(args.max_bins)
+            if args.odf == 'superflux':
+                act = getattr(sodf, args.odf)(args.max_bins)
+            else:
+                act = getattr(sodf, args.odf)()
             # create an Onset object with the activations
             o = Onset(act, args.fps, args.online)
             if args.save:
