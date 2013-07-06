@@ -30,8 +30,8 @@ import scipy.fftpack as fft
 
 
 def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
-    # TODO: this function is here only for completeness reason, its
-    # functionality is also implemented by the iterable Wav class
+    # TODO: this function is here only for completeness, its functionality is
+    # also included in the iterable SplittedWav class used by the Spectrogram
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
@@ -39,8 +39,9 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     :param window: window function
     :param hop_size: the hop size in samples between adjacent frames
     :param online: only use past information of signal [default=False]
+    :param phase: circular shift for correct phase [default=False]
     :param fft_size: use given size for FFT [default=size of window]
-    :returns: the (complex) STFT of the signal
+    :returns: the complex STFT of the signal
 
     Note: in offline mode, the window function is centered around the current
     position; whereas in online mode, the window is always positioned left to
@@ -64,7 +65,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
         fft_size = window_size
     # number of resulting FFT bins
     fft_bins = fft_size >> 1
-    # init spec matrix
+    # init stft matrix
     stft = np.empty([frames, fft_bins], np.complex)
     # perform STFT
     for frame in range(frames):
@@ -111,10 +112,18 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
 
 def stft_strided(signal, window, hop_size, phase=True):
     """
-    This function is only for completeness. It is faster in rare circumstances.
+    Calculates the Short-Time-Fourier-Transform of the given signal.
 
-    Please note that the seeking to the right position is not always working
-    properly, i.e. only for integer hop_sizes.
+    :param signal: the discrete signal
+    :param window: window function
+    :param hop_size: the hop size in samples between adjacent frames
+    :param phase: circular shift for correct phase [default=False]
+    :returns: the complex STFT of the signal
+
+    Note: This function is here only for completeness.
+          It is faster only in rare circumstances.
+          Also, seeking to the right position is only working properly, if
+          integer hop_sizes are used.
 
     """
     # init variables
@@ -123,51 +132,10 @@ def stft_strided(signal, window, hop_size, phase=True):
     # FIXME: does not perform the seeking the proper way
     as_strided = np.lib.stride_tricks.as_strided
     if phase:
-        return fft.fft(fft.fftshift(as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window))[:, :ffts]
+        signal = fft.fftshift(as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window)
     else:
-        return fft.fft(as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window)[:, :ffts]
-
-
-# TODO: remove this function?
-def spec(stft):
-    """
-    Calculates the magnitude spectrogram of the Short-Time-Fourier-Transform.
-
-    :param stft: the STFT of the signal
-    :returns: the magnitude spectrogram of the STFT
-
-    """
-    return np.abs(stft)
-
-
-def diff(spec, frames, pos=True):
-    """
-    Calculates the difference on the magnitude spectrogram.
-
-    :param spec: the magnitude spectrogram
-    :param frames: number of frames to calculate the difference to
-    :param pos: only keep positive values [default=True]
-    :returns: the difference spectrogram
-
-    """
-    diff = np.zeros_like(spec)
-    # calculate the diff
-    diff[frames:] = spec[frames:] - spec[:-frames]
-    if pos:
-        diff = diff * (diff > 0)
-    return diff
-
-
-# TODO: remove this function?
-def angle(stft):
-    """
-    Calculates the phase of the Short-Time-Fourier-Transform.
-
-    :param stft: the STFT of the signal
-    :returns: the phase of the STFT
-
-    """
-    return np.angle(stft)
+        signal = as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window
+    return fft.fft(signal)[:, :ffts]
 
 
 class Spectrogram(object):

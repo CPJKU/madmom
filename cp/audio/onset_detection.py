@@ -363,19 +363,17 @@ class SpectralODF(object):
     based on the magnitude or phase information of a spectrogram.
 
     """
-    def __init__(self, spectrogram, ratio=0.5, max_bins=3, diff_frames=None):
+    def __init__(self, spectrogram, ratio=0.5, diff_frames=None):
         """
         Creates a new ODF object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
         :param ratio: calculate the difference to the frame which has the given magnitude ratio [default=0.5]
-        :param max_bins: number of bins for the maximum filter [default=3]
         :param diff_frames: calculate the difference to the N-th previous frame [default=None]
 
         """
         # import
         from spectrogram import Spectrogram
-
         # check spectrogram type
         if isinstance(spectrogram, Spectrogram):
             # already the right format
@@ -383,7 +381,6 @@ class SpectralODF(object):
         else:
             # try to convert
             self.s = Spectrogram(spectrogram)
-
         # determine the number off diff frames
         if diff_frames is None:
             # get the first sample with a higher magnitude than given ratio
@@ -399,10 +396,6 @@ class SpectralODF(object):
             raise ValueError("number of diff_frames must be >= 1")
         self.diff_frames = diff_frames
 
-        # bins used for maximum filter
-        # TODO: get rid of it here?
-        self.max_bins = max_bins
-
     # Onset Detection Functions
     def hfc(self):
         """High Frequency Content."""
@@ -416,9 +409,14 @@ class SpectralODF(object):
         """Spectral Flux."""
         return spectral_flux(self.s.spec, self.diff_frames)
 
-    def superflux(self):
-        """SuperFlux."""
-        return superflux(self.s.spec, self.diff_frames, self.max_bins)
+    def superflux(self, max_bins=3):
+        """
+        SuperFlux.
+
+        :param max_bins: number of bins for the maximum filter [default=3]
+
+        """
+        return superflux(self.s.spec, self.diff_frames, max_bins)
 
     def mkl(self):
         """Modified Kullback-Leibler."""
@@ -465,6 +463,9 @@ class Onset(object):
         self.online = online        # online peak-picking
         self.detections = []        # list of detected onsets (in seconds)
         # set / load activations
+        # TODO: decide whether we should go the common way and accept a file
+        # here and go up the hierachy by creating a SpectralODF object and
+        # perform a default onset detection function (e.g. superflux())
         if isinstance(activations, np.ndarray):
             # activations are given as an array
             self.activations = activations
