@@ -157,6 +157,10 @@ class Wav(object):
         """
         self.audio = np.trim_zeros(self.audio, 'fb')
 
+    # TODO: make this nicer!
+    def __str__(self):
+        return "%s file: %s length: %i samplerate: %i" % (self.__class__, self.filename, self.samples, self.samplerate)
+
 
 class SplittedWav(Wav):
     """
@@ -252,7 +256,7 @@ class SplittedWav(Wav):
         else:
             raise TypeError("Invalid argument type.")
 
-    # FIXME: what is the length? samples, frames?
+    # len() should return the number of frames, since it iterates over frames
     def __len__(self):
         return self.frames
 
@@ -266,3 +270,7 @@ class SplittedWav(Wav):
         else:
             samples = self.samples + self.frame_size / 2.
         return int(np.ceil((samples) / self.hop_size))
+
+    # TODO: make this nicer!
+    def __str__(self):
+        return "%s file: %s length: %i samplerate: %i frames: %i (%i samples %.1f hopsize)" % (self.__class__, self.filename, self.samples, self.samplerate, self.frames, self.frame_size, self.hop_size)

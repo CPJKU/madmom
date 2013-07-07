@@ -201,7 +201,7 @@ class Spectrogram(object):
             # multiply the signal with the window function
             signal = np.multiply(frame, window)
             # only shift and perform complex DFT if needed
-            if phase:
+            if phase or lgd:
                 # circular shift the signal (needed for correct phase)
                 #fft_signal = fft.fftshift(fft_signal)  # slower!
                 centre = self.window.size / 2
