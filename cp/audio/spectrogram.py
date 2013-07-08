@@ -347,7 +347,7 @@ class FilteredSpectrogram(Spectrogram):
         if filterbank is None:
             from filterbank import CQFilter
             # construct a standard filterbank
-            fb = CQFilter(fft_binsbinsbinsbinsbinsbins=self.fft_bins, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
+            fb = CQFilter(fft_bins=self.fft_bins, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
         # TODO: use super.filter(filterbank) ?
         self.spec = np.dot(self.spec, fb)
 

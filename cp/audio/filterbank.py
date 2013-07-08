@@ -326,6 +326,8 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=True):
     factor = (fs / 2.0) / fft_bins
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
+    # filter out all frequencies outside the valid range
+    frequencies = [f for f in frequencies if f < fft_bins]
     # only keep unique bins
     # Note: this is important to do so, otherwise the lower frequency bins are
     # given too much weight if simply summed up (as in the spectral flux)
@@ -361,7 +363,11 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=True):
     factor = (fs / 2.0) / fft_bins
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
+    # filter out all frequencies outside the valid range
+    frequencies = [f for f in frequencies if f < fft_bins]
     # only keep unique bins
+    # Note: this is important to do so, otherwise the lower frequency bins are
+    # given too much weight if simply summed up (as in the spectral flux)
     frequencies = np.unique(frequencies)
     # number of bands
     bands = len(frequencies) - 1
