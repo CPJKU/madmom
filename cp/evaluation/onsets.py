@@ -26,128 +26,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-from helpers import load_events, combine_events
+import numpy as np
 
-import numpy as np  # needed only for mean and std.dev in Counter.print_errors()
+from simple import load_events, combine_events
+from simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
-class Counter(object):
+# evaluation function for onset detection
+def count_errors(detections, targets, window):
     """
-    Simple class for counting errors.
-
-    """
-    def __init__(self):
-        """
-        Creates a new Counter object instance.
-
-        """
-        # for simple events like onsets or beats
-        self.num = 0    # number of targets
-        self.tp = 0     # number of true positives
-        self.fp = 0     # number of false positives
-        self.fn = 0     # number of false negatives
-        self.dev = []   # array for deviations
-
-    # for adding 2 Counters
-    def __add__(self, other):
-        if isinstance(other, Counter):
-            self.num += other.num
-            self.tp += other.tp
-            self.fp += other.fp
-            self.fn += other.fn
-            self.dev.extend(other.dev)
-            return self
-        else:
-            return NotImplemented
-
-    @property
-    def precision(self):
-        """Precision."""
-        try:
-            return self.tp / float(self.tp + self.fp)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def recall(self):
-        """Recall."""
-        try:
-            return self.tp / float(self.tp + self.fn)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def fmeasure(self):
-        """F-measure."""
-        try:
-            return 2. * self.precision * self.recall / (self.precision + self.recall)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def accuracy(self):
-        """Accuracy."""
-        try:
-            return self.tp / float(self.fp + self.fn + self.tp)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def true_positive_rate(self):
-        """True positive rate."""
-        try:
-            return self.tp / float(self.num)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def false_positive_rate(self):
-        """False positive rate."""
-        try:
-            return self.fp / float(self.fp + self.tp)
-        except ZeroDivisionError:
-            return 0.
-
-    @property
-    def false_negative_rate(self):
-        """False negative rate."""
-        try:
-            return self.fn / float(self.fn + self.tp)
-        except ZeroDivisionError:
-            return 0.
-
-    def print_errors(self, tex=False):
-        """
-        Print errors.
-
-        :param tex: output format to be used in .tex files [default=False]
-
-        """
-        # print the errors
-        print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f f=%.3f' % (self.num, self.tp, self.fp, self.fn, self.precision, self.recall, self.fmeasure)
-        print '  tp: %.1f%% fp: %.1f%% acc: %.1f%% mean: %.1f ms std: %.1f ms' % (self.true_positive_rate * 100., self.false_positive_rate * 100., self.accuracy * 100., np.mean(self.dev) * 1000., np.std(self.dev) * 1000.)
-        if tex:
-            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % (self.num)
-            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, self.true_positive_rate, self.false_positive_rate, self.accuracy, np.mean(self.dev) * 1000., np.std(self.dev) * 1000.)
-
-
-def evaluate(detections, targets, window, delay=0):
-    """
-    Evaluate the errors for the given detections and targets.
+    Count the true and false detections of the given detections and targets.
 
     :param detections: a list of events [seconds]
     :param targets: a list of events [seconds]
     :param window: detection window [seconds]
-    :param delay: add delay to all detections [seconds, default=0]
-    :return: a Counter object instance
+    :return: tp, fp, fn lists
+
+    tp: list with true positive detections
+    fp: list with false positive detections
+    fn: list with false negative detections
 
     """
-    # sort the detections and targets
-    detections.sort()
-    targets.sort()
-    # counter for evaluation
-    counter = Counter()
-    counter.num = len(targets)
+    # lists for storing the true / false detections
+    tp = []
+    fp = []
+    fn = []
     # evaluate
     det_length = len(detections)
     tar_length = len(targets)
@@ -161,34 +64,49 @@ def evaluate(detections, targets, window, delay=0):
         det = detections[det_index]
         # fetch the first target
         tar = targets[tar_index]
-        # shift with delay
-        if abs(det + delay - tar) <= window:
+        # compare the two events
+        if abs(det - tar) <= window:
             # TP detection
-            counter.tp += 1
-            # save the deviation
-            counter.dev.append(det + delay - tar)
+            tp.append(det)
             # increase the detection and target index
             det_index += 1
             tar_index += 1
-        elif det + delay < tar:
+        elif det < tar:
             # FP detection
-            counter.fp += 1
+            fp.append(det)
             # increase the detection index
             det_index += 1
             # do not increase the target index
-        elif det + delay > tar:
+        elif det > tar:
             # we missed a target, thus FN
-            counter.fn += 1
+            fn.append(tar)
             # do not increase the detection index
             # increase the target index
             tar_index += 1
     # the remaining detections are FP
-    counter.fp += det_length - det_index
+    fp.extend(detections[det_index:])
     # the remaining targets are FN
-    counter.fn += tar_length - tar_index
-    assert counter.tp == counter.num - counter.fn, "too stupid to count correctly"
-    # return the counter
-    return counter
+    fn.extend(targets[tar_index:])
+    # return the lists
+    return tp, fp, fn
+
+
+# simple evaluation of Presicion, Recall, F-measure
+class OnsetEvaluation(Evaluation):
+    """
+    Simple class for measuring Precision, Recall and F-measure.
+
+    """
+    def __init__(self, detections, targets, window=0.025):
+        super(OnsetEvaluation, self).__init__(detections, targets, count_errors, window=window)
+
+
+class SumOnsetEvaluation(SumEvaluation):
+    pass
+
+
+class MeanOnsetEvaluation(MeanEvaluation):
+    pass
 
 
 def main():
@@ -251,23 +169,32 @@ def main():
     assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
 
     # sum counter for all files
-    sum_counter = Counter()
+    sum_counter = SumOnsetEvaluation()
+    mean_counter = MeanOnsetEvaluation()
     # evaluate all files
     for i in range(len(det_files)):
         detections = load_events(det_files[i])
         targets = load_events(tar_files[i])
+        # combine the targets if needed
         if args.combine > 0:
             targets = combine_events(targets, args.combine)
-        counter = evaluate(detections, targets, args.window, args.delay)
+        # shift the detections if needed
+        if args.delay != 0:
+            detections = (np.asarray(detections) + args.delay).tolist()
+        # evaluate the onsets
+        oe = OnsetEvaluation(detections, targets, args.window)
         # print stats for each file
         if args.verbose:
             print det_files[i]
-            counter.print_errors(args.tex)
+            oe.print_errors(args.tex)
         # add to sum counter
-        sum_counter += counter
+        sum_counter += oe
+        mean_counter += oe
     # print summary
-    print 'summary for %i files; detection window %.1f ms (+- %.1f ms)' % (len(det_files), args.window * 2000, args.window * 1000)
+    print 'sum for %i files; detection window %.1f ms (+- %.1f ms)' % (len(det_files), args.window * 2000, args.window * 1000)
     sum_counter.print_errors(args.tex)
+    print 'mean for %i files; detection window %.1f ms (+- %.1f ms)' % (len(det_files), args.window * 2000, args.window * 1000)
+    mean_counter.print_errors(args.tex)
 
 if __name__ == '__main__':
     main()

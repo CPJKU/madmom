@@ -39,118 +39,29 @@ Centre for Digital Music, Queen Mary University of London, 2009
 
 Please note that this is a complete re-implementation, which took some other
 design decisions. For example, the beat detections and targets are not quantized
-before being evaluated with the F-measure, P-score and other metrics. Hence
-these evaluation functions DO NOT report the exact same results/scores. This
-approach was chosen, because it produces more accurate results.
+before being evaluated with F-measure, P-score and other metrics. Hence these
+evaluation functions DO NOT report the exact same results/scores. This approach
+was chosen, because it is simpler and produces more accurate results.
 
 Please send any comments, enhancements, errata, etc. to the main author.
 """
 
-from helpers import load_events
-
 import math
 import numpy as np
 
+from simple import load_events, find_closest_match
 
-class Score(object):
-    """
-    Simple class for aggregating scores.
-
-    """
-    def __init__(self, p_score=0, cemgil=0, cmlc=0, cmlt=0, amlc=0, amlt=0, information_gain=0, error_histogram=0):
-        """
-        Creates a new Score object instance.
-
-        """
-        # for simple events like onsets or beats
-        self.p_score = p_score
-        self.cemgil = cemgil
-        self.cmlc = cmlc
-        self.cmlt = cmlt
-        self.amlc = amlc
-        self.amlt = amlt
-        self.information_gain = information_gain
-        self.error_histogram = error_histogram
-        self.global_information_gain = None
-        self.__num = 0.
-
-    # for adding 2 ScoreAggregators
-    def __add__(self, other):
-        if isinstance(other, Score):
-            self.p_score += other.p_score
-            self.cemgil += other.cemgil
-            self.cmlc += other.cmlc
-            self.cmlt += other.cmlt
-            self.amlc += other.amlc
-            self.amlt += other.amlt
-            self.information_gain += other.information_gain
-            self.error_histogram += other.error_histogram
-            self.__num += 1
-            return self
-        else:
-            return NotImplemented
-
-    def average(self):
-        """Average all scores."""
-        # most scores are just averaged
-        self.p_score /= self.__num
-        self.cemgil /= self.__num
-        self.cmlc /= self.__num
-        self.cmlt /= self.__num
-        self.amlc /= self.__num
-        self.amlt /= self.__num
-        self.information_gain /= self.__num
-        # for calculation of the global information gain, re-calculate it on the
-        # basis of the sum of all error histograms
-        self.global_information_gain = calc_information_gain(self.error_histogram)
-
-    def print_errors(self, tex=False):
-        """
-        Print errors.
-
-        param: tex: output format to be used in .tex files [default=False]
-
-        """
-        # print the errors
-        # report the scores always in the range 0..1, because of formatting
-        if self.global_information_gain is None:
-            print '  P-score: %.4f Cemgil: %.4f CMLc: %.4f CMLt: %.4f AMLc: %.4f AMLt: %.4f D: %.3f' % (self.p_score, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain)
-        else:
-            print '  P-score: %.4f Cemgil: %.4f CMLc: %.4f CMLt: %.4f AMLc: %.4f AMLt: %.4f D: %.3f Dg: %.3f' % (self.p_score, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
-        if tex:
-            print "%i files & P-score & Cemgil & CMLc & CMLt & AMLc & AMLt & I_g\\\\" % (self.__num)
-            print "tex & %.2f & %.2f & %.2f & %.2f & %.2f & %.2f & %.2f\\\\" % (self.p_score * 100, self.cemgil * 100, self.cmlc * 100, self.cmlt * 100, self.amlc * 100, self.amlt * 100, self.information_gain)
+from onsets import OnsetEvaluation
 
 
-# helper functions
-def find_closest_match(detections, targets):
-    """
-    Find the closest matches in targets to all detections.
-
-    :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :returns: a list of indices with closest matches
-
-    """
-    # solution found at: http://stackoverflow.com/questions/8914491/finding-the-nearest-value-and-return-the-index-of-array-in-python
-    detections = np.array(detections)
-    targets = np.array(targets)
-    idx = detections.searchsorted(targets)
-    idx = np.clip(idx, 1, len(detections) - 1)
-    left = detections[idx - 1]
-    right = detections[idx]
-    idx -= targets - left < right - targets
-    return idx
-
-
-# evaluation functions
-def p_score(detections, targets, window=0.2):
+# evaluation function for beat detection
+def pscore(detections, targets, tolerance):
     """
     Calculate the P-Score accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param window: tolerance window (fraction of the median beat interval) [default=0.2]
+    :param tolerance: tolerance window (fraction of the median beat interval)
     :returns: p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
@@ -158,16 +69,18 @@ def p_score(detections, targets, window=0.2):
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
-    # init p-score
-    p_score = 0
-    # no detections: score=0
-    if not detections:
-        return p_score
-    # error window is the given fraction of the median beat interval
-    window *= np.median(np.diff(targets))
-    # evaluate
+    # init
     det_length = len(detections)
     tar_length = len(targets)
+    p = 0
+    # no detections: p-score=0
+    # since we need an interval for the calculation of the score, at least two
+    # targets must be given
+    # TODO: which score should be returned otherwise
+    if not detections or tar_length < 2:
+        return p
+    # error window is the given fraction of the median beat interval
+    window = tolerance * np.median(np.diff(targets))
     # start with the first detection and target
     det = 0
     tar = 0
@@ -175,7 +88,7 @@ def p_score(detections, targets, window=0.2):
         # calculate the diff between first detection and target
         if abs(detections[det] - targets[tar]) < window:
             # correct detection
-            p_score += 1
+            p += 1
             # continue with the detection and target
             det += 1
             tar += 1
@@ -188,51 +101,18 @@ def p_score(detections, targets, window=0.2):
             # continue with the next target
             tar += 1
     # normalize by the max number of detections/targets
-    p_score /= float(max(det_length, tar_length))
+    p /= float(max(det_length, tar_length))
     # return p-score
-    return p_score
-
-# NOTE: this is not faster!
-#def p_score(detections, targets, window=0.2):
-#    """
-#    Calculate the P-Score accuracy.
-#
-#    :param detections: sequence of estimated beat times [seconds]
-#    :param targets: sequence of ground truth beat annotations [seconds]
-#    :param window: error window (fraction of the median beat interval) [default=0.2]
-#    :returns: p-score
-#
-#    "Evaluation of audio beat tracking and music tempo extraction algorithms"
-#    M. F. McKinney, D. Moelants, M. E. P. Davies, and A. Klapuri
-#    Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
-#
-#    """
-#    # error window is the given fraction of the median beat interval
-#    window *= np.median(np.diff(targets))
-#    # find closest targets to detections
-#    closest = find_closest_match(targets, detections)
-#    # init p-score as float
-#    p_score = 0.
-#    # evaluate
-#    for det in range(len(detections)):
-#        # get the closest target
-#        tar = closest[det]
-#        if abs(detections[det] - targets[tar]) <= window:
-#            # correct detection
-#            p_score += 1
-#    # normalize by the max number of detections/targets
-#    p_score /= max(len(targets), len(detections))
-#    # return p-score
-#    return p_score
+    return p
 
 
-def cemgil(detections, targets, sigma=0.04):
+def cemgil(detections, targets, sigma):
     """
     Calculate the Cemgil accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param sigma: sigma for Gaussian window [default=0.04]
+    :param sigma: sigma for Gaussian window
     :returns: beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
@@ -246,7 +126,7 @@ def cemgil(detections, targets, sigma=0.04):
     if not detections:
         return acc
     # find closest detections to targets
-    closest = find_closest_match(detections, targets)
+    closest = find_closest_match(targets, detections)
     for tar in range(len(targets)):
         # calculate the difference between the target and its closets match
         diff = abs(detections[closest[tar]] - targets[tar])
@@ -258,13 +138,14 @@ def cemgil(detections, targets, sigma=0.04):
     return acc
 
 
-def continuity(detections, targets, tolerance=0.175):
+def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt, amlc, amlt for the given detection and target sequences.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param tolerance: tolerance window [default=0.175]
+    :param tempo_tolerance: tempo tolerance window
+    :param phase_tolerance: phase (interval) tolerance window
     :returns: cmlc, cmlt, amlc, amlt beat tracking accuracies
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
@@ -304,18 +185,18 @@ def continuity(detections, targets, tolerance=0.175):
     variations.append(targets[::3])
 
     # evaluate correct tempo
-    cmlc, cmlt = cml(detections, targets, tolerance)
+    cmlc, cmlt = cml(detections, targets, tempo_tolerance, phase_tolerance)
     # evaluate other metrical levels
     amlc = cmlc
     amlt = cmlt
-    for tar in variations:
+    for targets_variation in variations:
         # speed up calculation by skipping other metrical levels if the score
         # is higher than 0.5 already. We must have tested the correct metrical
-        # level already
+        # level already, otherwise the score would be lower.
         if amlc > 0.5:
             continue
         # if other metrical levels achieve a higher accuracy, take these values
-        c, t = cml(detections, tar, tolerance)
+        c, t = cml(detections, targets_variation, tempo_tolerance, phase_tolerance)
         amlc = max(amlc, c)
         amlt = max(amlt, t)
 
@@ -323,13 +204,14 @@ def continuity(detections, targets, tolerance=0.175):
     return cmlc, cmlt, amlc, amlt
 
 
-def cml(detections, targets, tolerance=0.175):
+def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt for the given detection and target sequences.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param tolerance: tolerance window [default=0.175]
+    :param tempo_tolerance: tempo tolerance window
+    :param phase_tolerance: phase (interval) tolerance window
     :returns: cmlc, cmlt
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
@@ -344,14 +226,14 @@ def cml(detections, targets, tolerance=0.175):
     IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1, pp. 342–355, 2006.
 
     """
-    # needs at least 2 detections and targets to calculate the intervals
+    # at least 2 detections and targets are needed to calculate the intervals
     if min(len(targets), len(detections)) < 2:
         return 0, 0
     # list for collecting correct detections / intervals
     correct = []
     correct_interval = []
     # determine closest targets to detections
-    closest = find_closest_match(targets, detections)
+    closest = find_closest_match(detections, targets)
     # iterate over all detections
     for det in range(len(detections)):
         # look for nearest target to current detections
@@ -366,26 +248,22 @@ def cml(detections, targets, tolerance=0.175):
             tar_interval = targets[1] - targets[0]
         else:
             tar_interval = targets[tar] - targets[tar - 1]
-        # determine detection indices which are within the tolerance window
-        if abs(detections[det] - targets[tar]) < tolerance * tar_interval:
-            # add a fake beat if the first beat is correct
-#            TODO: add these 2 lines if condition 2) is included
-#            if det == 0:
-#                correct.append(-1)
+        # determine detections which are within the tempo tolerance window
+        if abs(detections[det] - targets[tar]) < tempo_tolerance * tar_interval:
+            # add the detection to the correct list
             correct.append(det)
-        # determine intervals which are within the tolerance window
-        if abs(1 - (det_interval / tar_interval)) < tolerance:
-            # add a fake beat if the first beat is correct
-#            TODO: add these 2 lines if condition 2) is included
-#            if det == 0:
-#                correct_interval.append(-1)
+        # determine intervals which are within the phase tolerance window
+        if abs(1 - (det_interval / tar_interval)) < phase_tolerance:
+            # add the detection to the correct interval list
             correct_interval.append(det)
     # a detection is correct, if it fulfills 3 conditions:
     # 1) must match an annotation within a certain tolerance window
     # only detections which satisfy this condition are in the correct list
     # 2) same must be true for the previous detection / target combination
-#   TODO: if condition 2) is included, uncomment the 4 lines above
-#    correct = [c for c in correct if c - 1 in correct]
+    # Note: Not enforced, since this condition is kind of pointless. Why not
+    #       count a beat if it is correct only because the one before is not?
+    #       Also, the original Matlab implementation does not enforce it.
+    # correct = [c for c in correct if c - 1 in correct]
     # 3) the interval must not be apart more than the threshold
     correct = [c for c in correct if c in correct_interval]
     # split into groups of continuous sequences
@@ -408,29 +286,28 @@ def cml(detections, targets, tolerance=0.175):
     return cmlc, cmlt
 
 
-def information_gain(detections, targets, bins=40):
+def information_gain(detections, targets, bins):
     """
     Calculate information gain.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param bins: number of histogram bins [default=40]
+    :param bins: number of bins for the error histogram
     :returns: infromation gain, beat error histogram
-
 
     "Measuring the performance of beat tracking algorithms algorithms using a beat error histogram"
     M. E. P. Davies, N. Degara and M. D. Plumbley
     IEEE Signal Processing Letters, vol. 18, vo. 3, 2011
-
-    Note: even number of bins results in having a bin at the centre for all
-          beats with an error close to 0 - which is desirable.
-
 
     """
     # in case of no detections
     if not detections or len(targets) < 2:
         # return information gain = 0 and a uniform beat error histogram
         return 0, np.ones(bins) * len(targets) / bins
+
+    # only allow even number of bins
+    if bins % 2 != 0:
+        raise ValueError("Number of error histogram bins must be even")
 
     # create histogram bin borders
     # make the first and last bin just half as wide as the rest, thus the offset
@@ -441,14 +318,12 @@ def information_gain(detections, targets, bins=40):
     histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
 
     # evaluate detections against targets
-    errors = beat_errors(detections, targets)
-    fwd_histogram = map_errors(errors, histogram_bins)
+    fwd_histogram = error_histogram(detections, targets, histogram_bins)
     fwd_ig = calc_information_gain(fwd_histogram)
 
     # in case of underdetection, the errors could be very small; thus evaluate
     # also the targets against the detections (i.e. simulate a lot of FPs)
-    errors = beat_errors(targets, detections)
-    bwd_histogram = map_errors(errors, histogram_bins)
+    bwd_histogram = error_histogram(targets, detections, histogram_bins)
     bwd_ig = calc_information_gain(bwd_histogram)
 
     # use the lower information gain
@@ -459,20 +334,22 @@ def information_gain(detections, targets, bins=40):
 
 
 # information gain helper functions
-def beat_errors(detections, targets):
+def error_histogram(detections, targets, bins):
     """
-    Calculate the relative errors of the given detection wrt. the targets.
+    Calculate the relative errors of the given detection wrt. the targets and
+    map them to an error histogram with the given bins.
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :returns: relative beat errors
+    :param bins: histogram bins for mapping
+    :returns: error histogram
 
     """
-    # array for relative detection errors
+    # TODO: move calculation of relative detection errors to an extra function?
     # use a numpy array instead of a list, so we can do some math on it later
     errors = np.zeros(len(detections))
     # determine closest targets to detections
-    closest = find_closest_match(targets, detections)
+    closest = find_closest_match(detections, targets)
     # store the number of targets
     last_target = len(targets) - 1
     # iterate over all detections
@@ -500,31 +377,16 @@ def beat_errors(detections, targets):
                 interval = targets[tar] - targets[tar - 1]
         # set the error in the array
         errors[det] = diff / interval
-    # return the beat errors
-    return errors
-
-
-def map_errors(errors, bins):
-    """
-    Map the errors to the given histogram bins.
-
-    :param errors: sequence of relative errors
-    :param bins: histogram bins for mapping
-    :returns: error histogram
-
-    """
-    # function [entropy,rawBinVals] = FindEntropy(beatError,hist_bins)
-    #
     # map the relative beat errors to the range of -0.5..0.5
-    mapped_errors = np.mod(errors + 0.5, -1) + 0.5
+    errors = np.mod(errors + 0.5, -1) + 0.5
     # get bin counts for the given errors over the distribution
-    error_histogram = np.histogram(mapped_errors, bins)[0].astype(np.float)
+    histogram = np.histogram(errors, bins)[0].astype(np.float)
     # make the histogram circular by adding the last bin to the first one
-    error_histogram[0] = error_histogram[0] + error_histogram[-1]
+    histogram[0] = histogram[0] + histogram[-1]
     # then remove the last bin
-    error_histogram = error_histogram[:-1]
+    histogram = histogram[:-1]
     # return error histogram
-    return error_histogram
+    return histogram
 
 
 def calc_information_gain(error_histogram):
@@ -545,6 +407,235 @@ def calc_information_gain(error_histogram):
     return np.log2(len(error_histogram)) - entropy
 
 
+# basic beat evaluation
+class BeatEvaluation(OnsetEvaluation):
+    """
+    Beat evaluation class.
+
+    """
+    def __init__(self, detections, targets, window=0.07, tolerance=0.2, sigma=0.04, tempo_tolerance=0.175, phase_tolerance=0.175, bins=40):
+        """
+        Evaluate the given detection and target sequences.
+
+        :param detections: sequence of estimated beat times [seconds]
+        :param targets: sequence of ground truth beat annotations [seconds]
+        :param window: F-measure evaluation window [seconds, default=0.07]
+        :param tolerance: P-Score tolerance of median beat interval [default=0.2]
+        :param sigma: sigma of Gaussian window for Cemgil accuracy [default=0.04]
+        :param tempo_tolerance: tempo tolerance window for [AC]ML[ct] [default=0.175]
+        :param phase_tolerance: phase (interval) tolerance window for [AC]ML[ct] [default=0.175]
+        :param bins: number of bins for the error histogram
+
+        """
+        # set the window for precision, recall & fmeasure to 0.07
+        super(BeatEvaluation, self).__init__(detections, targets, window)
+        self.tolerance = tolerance
+        self.sigma = sigma
+        self.tempo_tolerance = tempo_tolerance
+        self.phase_tolerance = phase_tolerance
+        self.bins = bins
+        # continuity scores
+        self.__cmlc = None
+        self.__cmlt = None
+        self.__amlc = None
+        self.__amlt = None
+        # information gain stuff
+        self.__information_gain = None
+        self.__error_histogram = None
+
+    @property
+    def pscore(self):
+        """P-Score."""
+        return pscore(self.detections, self.targets, self.tolerance)
+
+    @property
+    def cemgil(self):
+        """Cemgil accuracy."""
+        return cemgil(self.detections, self.targets, self.sigma)
+
+    def _calc_continuity(self):
+        """Perform continuity evaluation."""
+        # calculate scores
+        self.__cmlc, self.__cmlt, self.__amlc, self.__amlt = continuity(self.detections, self.targets, self.tempo_tolerance, self.phase_tolerance)
+
+    @property
+    def cmlc(self):
+        """CMLc."""
+        if not self.__cmlc:
+            self._calc_continuity()
+        return self.__cmlc
+
+    @property
+    def cmlt(self):
+        """CMLt."""
+        if not self.__cmlt:
+            self._calc_continuity()
+        return self.__cmlt
+
+    @property
+    def amlc(self):
+        """AMLc."""
+        if not self.__amlc:
+            self._calc_continuity()
+        return self.__amlc
+
+    @property
+    def amlt(self):
+        """AMLt."""
+        if not self.__amlt:
+            self._calc_continuity()
+        return self.__amlt
+
+    def _calc_information_gain(self):
+        """Perform continuity evaluation."""
+        # calculate score and error histogram
+        self.__information_gain, self.__error_histogram = information_gain(self.detections, self.targets, self.bins)
+
+    @property
+    def information_gain(self):
+        """Information gain."""
+        if not self.__information_gain:
+            self._calc_information_gain()
+        return self.__information_gain
+
+    @property
+    def error_histogram(self):
+        """Error histogram."""
+        if self.__error_histogram is None:
+            self._calc_information_gain()
+        return self.__error_histogram
+
+    def print_errors(self, tex=False):
+        """
+        Print errors.
+
+        :param tex: output format to be used in .tex files [default=False]
+
+        """
+        # print the errors
+        # report the scores always in the range 0..1, because of formatting
+        try:
+            # try to output the global information gain
+            print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
+        except AttributeError:
+            # if this is not present, skip it
+            print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain)
+#        if tex:
+#            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % (self.num)
+#            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.f_measure, self.true_positive_rate, self.false_positive_rate, self.accuracy, np.mean(self.dev) * 1000., np.std(self.dev) * 1000.)
+
+
+class MeanBeatEvaluation(BeatEvaluation):
+    """
+    Class for averaging beat evaluation scores.
+
+    """
+    def __init__(self, other=None):
+        """
+        MeanBeatEvaluation object can be either instanciated as an empty object
+        or by passing in a BeatEvaluation object with the scores taken from that
+        object.
+
+        :param other: BeatEvaluation object
+
+        """
+        # simple scores
+        self.__fmeasure = []
+        self.__pscore = []
+        self.__cemgil = []
+        # continuity scores
+        self.__cmlc = []
+        self.__cmlt = []
+        self.__amlc = []
+        self.__amlt = []
+        # information gain stuff
+        self.__information_gain = []
+        self.__error_histogram = None
+        # instance can be initialized with a Evaluation object
+        if isinstance(other, BeatEvaluation):
+            # add this object to self
+            self += other
+
+    # for adding another BeatEvaluation object
+    def __add__(self, other):
+        """
+        Apends the scores of another BeatEvaluation object to the repsective
+        lists.
+
+        :param other: BeatEvaluation object
+
+        """
+        if isinstance(other, BeatEvaluation):
+            self.__fmeasure.append(other.fmeasure)
+            self.__pscore.append(other.pscore)
+            self.__cemgil.append(other.cemgil)
+            self.__cmlc.append(other.cmlc)
+            self.__cmlt.append(other.cmlt)
+            self.__amlc.append(other.amlc)
+            self.__amlt.append(other.amlt)
+            self.__information_gain.append(other.information_gain)
+            # the error histograms needs special treatment
+            if self.__error_histogram is None:
+                # if it is the first, just take this histogram
+                self.__error_histogram = other.error_histogram
+            else:
+                # otherwise just add them
+                self.__error_histogram += other.error_histogram
+            return self
+        else:
+            return NotImplemented
+
+    @property
+    def fmeasure(self):
+        """F-measure."""
+        return np.mean(self.__fmeasure)
+
+    @property
+    def pscore(self):
+        """P-Score."""
+        return np.mean(self.__pscore)
+
+    @property
+    def cemgil(self):
+        """Cemgil accuracy."""
+        return np.mean(self.__cemgil)
+
+    @property
+    def cmlc(self):
+        """CMLc."""
+        return np.mean(self.__cmlc)
+
+    @property
+    def cmlt(self):
+        """CMLt."""
+        return np.mean(self.__cmlt)
+
+    @property
+    def amlc(self):
+        """AMLc."""
+        return np.mean(self.__amlc)
+
+    @property
+    def amlt(self):
+        """AMLt."""
+        return np.mean(self.__amlt)
+
+    @property
+    def information_gain(self):
+        """Information gain."""
+        return np.mean(self.__information_gain)
+
+    @property
+    def global_information_gain(self):
+        """Global information gain."""
+        return calc_information_gain(self.__error_histogram)
+
+    @property
+    def error_histogram(self):
+        """Error histogram."""
+        return self.__error_histogram
+
+
 def main():
     import os.path
     import argparse
@@ -563,15 +654,18 @@ def main():
     p.add_argument('-d', dest='detections', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='targets', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
-    p.add_argument('--window', action='store', default=0.2, type=float, help='evaluation window for P-score [default=0.2]')
+    # TODO: define an extra parser, which can be used for BeatEvaluation object instanciation?
+    p.add_argument('--window', action='store', default=0.07, type=float, help='evaluation window for F-measure [seconds, default=0.07]')
+    p.add_argument('--tolerance', action='store', default=0.2, type=float, help='evaluation tolerance for P-score [default=0.2]')
     p.add_argument('--sigma', action='store', default=0.04, type=float, help='sigma for Cemgil accuracy [default=0.04]')
-    p.add_argument('--tolerance', action='store', default=0.175, type=float, help='tolerance window for continuity accuracies [default=0.175]')
+    p.add_argument('--tempo_tolerance', action='store', default=0.175, type=float, help='tempo tolerance window for continuity accuracies [default=0.175]')
+    p.add_argument('--phase_tolerance', action='store', default=0.175, type=float, help='phase tolerance window for continuity accuracies [default=0.175]')
     p.add_argument('--bins', action='store', default=40, type=int, help='number of histogram bins for information gain [default=0.40]')
     p.add_argument('--skip', action='store', default=5., type=float, help='skip first N seconds for evaluation [default=5]')
     # output options
     p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
     # version
-    p.add_argument('--version', action='version', version='%(prog)s 1.0 (2013-07-01)')
+    p.add_argument('--version', action='version', version='%(prog)s 0.1 (2013-07-17)')
     # parse the arguments
     args = p.parse_args()
 
@@ -597,23 +691,18 @@ def main():
     assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
 
     # sum counter for all files
-    avg_scores = Score()
+    avg_scores = MeanBeatEvaluation()
     # evaluate all files
     for i in range(len(det_files)):
         # load the beat and annoation sequences
         detections = load_events(det_files[i])
         targets = load_events(tar_files[i])
-
-        # remove beats and annotations that are within the first skip seconds (default=5)
+        # remove beats and annotations that are within the first N seconds
+        # FIXME: this definitely alters the results
         detections = filter(lambda a: a >= args.skip, detections)
         targets = filter(lambda a: a >= args.skip, targets)
-
         # evaluate
-        score = Score()
-        score.p_score = p_score(detections, targets, args.window)
-        score.cemgil = cemgil(detections, targets, args.sigma)
-        score.cmlc, score.cmlt, score.amlc, score.amlt = continuity(detections, targets, args.tolerance)
-        score.information_gain, score.error_histogram = information_gain(detections, targets, args.bins)
+        score = BeatEvaluation(detections, targets, window=args.window, tolerance=args.tolerance, sigma=args.sigma, tempo_tolerance=args.tempo_tolerance, phase_tolerance=args.phase_tolerance, bins=args.bins)
         # print stats for each file
         if args.verbose:
             print det_files[i]
@@ -621,8 +710,7 @@ def main():
         # add to sum counter
         avg_scores += score
     # print summary
-    print 'summary for %i files' % (len(det_files))
-    avg_scores.average()
+    print 'mean for %i files' % (len(det_files))
     avg_scores.print_errors(args.tex)
 
 if __name__ == '__main__':
