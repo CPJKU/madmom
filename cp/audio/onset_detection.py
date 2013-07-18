@@ -692,22 +692,24 @@ def main():
         # do the processing stuff unless the activations are loaded from file
         if args.load:
             # load the activations from file
+            # FIXME: fps must be encoded in the file
             o = Onset("%s.%s" % (filename, args.odf), args.fps, args.online)
         else:
             # open the wav file
-            w = Wav(f)
+            w = Wav(f, frame_size=args.window, online=args.online)
+            w.hop_size = w.samplerate / float(args.fps)
             # normalize audio
             if args.norm:
                 w.normalize()
                 args.online = False  # switch to offline mode
             # downmix to mono
-            if w.channels > 1:
+            if w.num_channels > 1:
                 w.downmix()
             # attenuate signal
             if args.att:
                 w.attenuate(args.att)
             # spectrogram
-            s = Spectrogram(w, args.window, args.fps, args.online)
+            s = Spectrogram(w)
             # filter
             if args.filter:
                 # (re-)create filterbank if the samplerate of the audio changes

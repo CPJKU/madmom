@@ -30,9 +30,13 @@ import scipy.fftpack as fft
 
 
 def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
-    # TODO: this function is here only for completeness, its functionality is
-    # also included in the iterable SplittedWav class used by the Spectrogram
+    # FIXME: this function is deprcated, its functionality is also included in
+    # the iterable FramedAudio class used by the Spectrogram.
+    # TODO: if kept, make sure the framing is performed correctly or split
+    # into 2 functions which can be used by the FramedAudio class, too.
     """
+    This function is DEPRECATED! use the FramedAudio and Spectrogram classes.
+
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
     :param signal: the discrete signal
@@ -111,6 +115,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
 
 
 def stft_strided(signal, window, hop_size, phase=True):
+    # TODO: split into 2 functions and put the framing stuff into audio.py
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
@@ -143,13 +148,13 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, wav, window=np.hanning(2048), fps=100, online=False, phase=False, lgd=False, norm_window=False, fft_size=None):
+    def __init__(self, audio, window=np.hanning(2048), hop_size=441., online=False, phase=False, lgd=False, norm_window=False, fft_size=None):
         """
         Creates a new Spectrogram object instance and performs a STFT on the given audio.
 
-        :param wav: a Wav object
+        :param audio: a FramedAudio object
         :param window: window function [default=Hann window with 2048 samples]
-        :param fps: is the desired frame rate [frames per second, default=100]
+        :param hop_size: progress N samples between adjacent frames [default=441.0]
         :param online: work in online mode [default=False]
         :param phase: include phase information [default=False]
         :param lgd: include local group delay information [default=False]
@@ -161,43 +166,48 @@ class Spectrogram(object):
 
         """
         # imports
-        from wav import SplittedWav
-        # check wav type
-        if isinstance(wav, SplittedWav):
-            # already the right format
-            self.wav = wav
-        else:
-            # try to convert
-            self.wav = SplittedWav(wav)
-        # if a window size is given, create a Hann window with that size
+        from wav import FramedAudio, Wav
+
+        # window stuff
         if isinstance(window, int):
+            # if a window size is given, create a Hann window with that size
             window = np.hanning(window)
-        self.window = window
-        # normalize the window
+        elif isinstance(window, np.ndarray):
+            # otherwise use the window directly
+            self.window = window
+        else:
+            # other types are not supported
+            raise TypeError("Invalid window type.")
         if norm_window:
+            # normalize the window if needed
             self.window /= np.sum(self.window)
-        # frames per second
-        self.fps = fps
-        # online mode (use only past information)
-        self.online = online
+
+        # audio stuff
+        if issubclass(audio.__class__, FramedAudio):
+            # already the right format
+            self.audio = audio
+        else:
+            # assume a file name, try to instantiate a Wav object with the given parameters
+            self.audio = Wav(audio, frame_size=window.size, hop_size=hop_size, online=online)
+
         # FFT size to use
         if fft_size is None:
-            fft_size = window.size
+            fft_size = self.window.size
         self.fft_size = fft_size
-        # set frame and hop size of the wav object
-        self.wav.frame_size = self.window.size
-        self.wav.hop_size = self.hop_size
+
         # init STFT matrix
-        self.stft = np.empty([self.wav.frames, self.fft_bins], np.complex)
+        self.stft = np.empty([self.audio.num_frames, self.fft_bins], np.complex)
         # if the audio signal is not scaled, scale the window function accordingly
-        # leave self.window untouched, thus copy the window!
+        # copy the window, and leave self.window untouched
         try:
-            window = self.window[:] / np.iinfo(self.wav.audio.dtype).max
+            window = np.copy(self.window) / np.iinfo(self.audio.audio.dtype).max
         except ValueError:
-            window = self.window[:]
+            window = np.copy(self.window)
+
         # calculate STFT
+        # TODO: use yield instead of the index counting stuff
         index = 0
-        for frame in self.wav:
+        for frame in self.audio:
             # multiply the signal with the window function
             signal = np.multiply(frame, window)
             # only shift and perform complex DFT if needed
@@ -210,12 +220,15 @@ class Spectrogram(object):
             self.stft[index] = fft.fft(signal, fft_size)[:self.fft_bins]
             # increase index for next frame
             index += 1
+
         # magnitude spectrogram
         self.spec = np.abs(self.stft)
+
         # phase
         if phase or lgd:
             # init array
             self.phase = np.angle(self.stft)
+
         # local group delay
         if lgd:
             # init array
@@ -230,18 +243,17 @@ class Spectrogram(object):
     def frames(self):
         """Number of frames."""
         # use ceil to not truncate the signal
-        return int(np.ceil(self.wav.frames / self.hop_size))
+        return self.audio.frames
 
     @property
     def hop_size(self):
         """Hop-size between two adjacent frames."""
-        # use floats to make seeking work properly
-        return float(self.wav.samplerate) / float(self.fps)
+        return self.audio.hop_size
 
     @property
-    def overlap(self):
+    def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
-        return 1.0 - self.hop_size / self.window.size
+        return self.audio.overlap_factor
 
     @property
     def fft_bins(self):
@@ -256,12 +268,12 @@ class Spectrogram(object):
     @property
     def mapping(self):
         """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.wav.samplerate / 2.0 / self.fft_bins
+        return self.audio.samplerate / 2.0 / self.fft_bins
 
     @property
     def fft_freqs(self):
         """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.wav.samplerate
+        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.samplerate
 
     def aw(self, floor=0.5, relaxation=10):
         """
@@ -309,7 +321,7 @@ class Spectrogram(object):
         if filterbank is None:
             from filterbank import CQFilter
             # construct a standard filterbank
-            filterbank = CQFilter(fft_bins=self.fft_bins, fs=self.wav.samplerate).filterbank
+            filterbank = CQFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate).filterbank
         self.spec = np.dot(self.spec, filterbank)
 
 
@@ -336,7 +348,7 @@ class FilteredSpectrogram(Spectrogram):
 
         """
         # fetch the arguments special to the filterbank creation (or set defaults)
-        filterbank = kwargs.pop('filterbank', None)
+        fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands', 12)
         fmin = kwargs.pop('fmin', 27)
         fmax = kwargs.pop('fmax', 17000)
@@ -344,11 +356,11 @@ class FilteredSpectrogram(Spectrogram):
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # create a filterbank if needed
-        if filterbank is None:
+        if fb is None:
             from filterbank import CQFilter
             # construct a standard filterbank
-            fb = CQFilter(fft_bins=self.fft_bins, fs=self.wav.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
-        # TODO: use super.filter(filterbank) ?
+            fb = CQFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
+        # TODO: use super.filter(fb) ?
         self.spec = np.dot(self.spec, fb)
 
 # alias
