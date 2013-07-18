@@ -1,121 +1,287 @@
+#!/usr/bin/env python
+# encoding: utf-8
 """
-    Some useful functions for audio processing
-"""
+Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
+All rights reserved.
 
-__docformat__ = "restructuredtext en"
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 
 import numpy as np
-import scipy.fftpack
-import scikits.audiolab
-from utilities import segment_axis
 
 
-def read(filename):
+def signal_frame(signal, index, frame_size, hop_size, online):
     """
-    Reads an audio file into a numpy array. This is just a wrapper for
-    scikits.audiolab. Supports all formats supported by
-    libsndfile (http://www.mega-nerd.com/libsndfile/).
+    This function returns frame[index] of the signal.
 
-    :Parameters:
-        - `filename`: filename of the audiofile to read
+    :param signal: the audio signal
+    :param frame_size: size of one frame
+    :param hop_size: progress N samples between adjacent frames
+    :param online: use only past information
 
-    :Returns:
-        - A tuple (data, samplerate)
-          For single-channel audio `data` is an one-dimensional array, for
-          multi-channel audio `data` will be a two-dimensional array of shape
-          (number_of_channels, audio_length)
     """
-    sound_file = scikits.audiolab.Sndfile(filename, 'r')
-    data = sound_file.read_frames(sound_file.nframes)
-    return (data.T, sound_file.samplerate)
+    # length of the signal
+    samples = np.shape(signal)[0]
+    # seek to the correct position in the audio signal
+    seek = int(index * hop_size)
+    if seek < 0:
+        # seek before the start of signal
+        raise IndexError("seek before start of signal")
+    if seek > samples:
+        # seek after end of signal
+        raise IndexError("seek after end of signal")
+    # depending on online/offline mode position the moving window
+    if online:
+        # the current position is the right edge of the frame
+        # step back a complete frame size
+        start = seek - frame_size
+        stop = seek
+    else:
+        # the current position is the center of the frame
+        # step back half of the window size
+        start = seek - frame_size / 2
+        stop = seek + frame_size / 2
+    # return the right portion of the signal
+    if start < 0:
+        # start before the actual signal start, pad zeros accordingly
+        zeros = np.zeros(-start, dtype=signal.dtype)
+        return np.append(zeros, signal[0:stop])
+    elif stop > samples:
+        # end behind the actual signal end, append zeros accordingly
+        zeros = np.zeros(stop - samples, dtype=signal.dtype)
+        return np.append(signal[start:], zeros)
+    else:
+        # normal read operation
+        return signal[start:stop]
 
 
-def split(signal, window_length, hop_size, end='cut', endvalue=0):
+def strided_frames(signal, frame_size, hop_size):
     """
-    Splits the signal into chunks of the specified length using the specified
-    hop_size.
+    Returns a 2D representation of the signal with overlapping frames.
 
-    :Parameters:
-        - `signal`: np.array containing the signal to split
-        - `window_length`: desired length of the audio chunks
-        - `hop_size`: desired distance in samples between the audio chunks
-        - `end`: What to do with the last frame, if the signal is not evenly
-                 divisible into pieces. Options are:
+    :param signal: the discrete signal
+    :param frame_size: size of each frame
+    :param hop_size: the hop size in samples between adjacent frames
+    :returns: the complex STFT of the signal
 
-                 - 'cut': Discard the extra values
-                 - 'wrap': Copy values from the beginning of the array
-                 - 'pad': Pad with a constant value
-        - `endvalue`: Value to use for end='pad'
+    Note: This function is here only for completeness.
+          It is faster only in rare circumstances.
+          Also, seeking to the right position is only working properly, if
+          integer hop_sizes are used.
 
-    :Returns:
-          A reshaped array of audio chunks of length `window_length`, spaced
-          by hop_size samples
     """
-    return segment_axis(signal, window_length, window_length - hop_size,
-                        end=end, endvalue=endvalue)
+    # init variables
+    samples = np.shape(signal)[0]
+    # FIXME: does not perform the seeking the right way (only int working properly)
+    as_strided = np.lib.stride_tricks.as_strided
+    # return the strided array
+    return as_strided(signal, (samples, frame_size), (signal.strides[0], signal.strides[0]))[::hop_size]
 
 
-def join(splits, hop_size):
+class Audio(object):
     """
-    Joins a set of audio chunks to a single audio signal. For overlapping
-    segments the mean of all values is used.
+    Audio is a very simple class which just stores the signal and the samplerate
+    and provides some basic methods for signal processing.
 
-    This function can be used to join splits obtained by the split() function.
-
-    :Parameters:
-        - `splits`: Numpy array or list of audio chunks of same length
-        - `hop_size`: Distance in samples between the beginnings of each
-                      audio chunk. This should be smaller than the chunk
-                      length
-
-    :Returns:
-          Joined audio signal computed from the audio chunks
     """
-    window_length = len(splits[0])
-    signal_length = (len(splits) - 1) * hop_size + window_length
-    signal = np.zeros(signal_length)
-    normalisation = np.zeros(signal_length)
+    def __init__(self, signal, samplerate):
+        """
+        Creates a new Audio object instance.
 
-    sig_pos = 0
-    for split in splits:
-        signal[sig_pos:sig_pos + window_length] += split
-        normalisation[sig_pos:sig_pos + window_length] += 1
-        sig_pos += hop_size
+        :param signal: the audio signal [numpy array]
+        :param samplerate: samplerate of the signal
 
-    return signal / normalisation
+        """
+        if not isinstance(signal, np.ndarray):
+            # make sure the signal is a numpy array
+            raise TypeError("Invalid type for audio signal.")
+        self.signal = signal
+        self.samplerate = samplerate
+
+    @property
+    def num_samples(self):
+        """Number of samples."""
+        return np.shape(self.signal)[0]
+
+    @property
+    def num_channels(self):
+        """Number of channels."""
+        try:
+            # multi channel files
+            return np.shape(self.signal)[1]
+        except IndexError:
+            # catch mono files
+            return 1
+
+    @property
+    def length(self):
+        """Length of signal in seconds."""
+        return float(self.num_samples) / float(self.samplerate)
+
+    # downmix to mono
+    def downmix(self):
+        """Down-mix the audio signal to mono."""
+        if self.num_channels > 1:
+            self.signal = np.mean(self.signal, -1)
+
+    # normalize the signal
+    def normalize(self):
+        """Normalise the audio signal."""
+        self.signal = self.signal.astype(float) / np.max(self.signal)
+
+    # truncate
+    def truncate(self, offset=None, length=None):
+        """
+        Truncate the audio signal permanently.
+
+        :param offset: given in seconds
+        :param length: given in seconds
+
+        """
+        # truncate the beginning
+        if offset != None:
+            # check offset
+            if offset <= 0:
+                raise ValueError("offset must be positive")
+            if offset * self.samplerate > self.num_samples:
+                raise ValueError("offset must be < length of signal")
+            self.signal = self.signal[(offset * self.samplerate):]
+        # truncate the end
+        if length != None:
+            # check length
+            if length <= 0:
+                raise ValueError("a positive value must given")
+            if length * self.samplerate > self.num_samples:
+                raise ValueError("length must be < length of signal")
+            self.signal = self.signal[:length * self.samplerate + 1]
+
+    # downsample
+    def downsample(self, factor=2):
+        """
+        Downsamples the audio signal by the given factor.
+
+        :param factor: down-sampling factor [default=2]
+
+        """
+        from scipy.signal import decimate
+        self.signal = np.hstack(decimate(self.signal, factor))
+        self.samplerate /= factor
+
+    # trim zeros
+    def trim(self):
+        """
+        Trim leading and trailing zeros of the audio signal permanently.
+
+        """
+        self.signal = np.trim_zeros(self.signal, 'fb')
+
+    # TODO: make this nicer!
+    def __str__(self):
+        return "%s length: %i samples (%.2f seconds) samplerate: %i" % (self.__class__, self.num_samples, self.length, self.samplerate)
 
 
-def spectrogram(signal, window_length, hop_size, window_func=np.hanning,
-                fft_size=None, normalise=True):
+class FramedAudio(Audio):
     """
-    Convenience function that computes the spectrogram of a signal. It assumes
-    a real-valued input.
+    FramedAudio splits an audio signal into frames and makes them iterable.
 
-    :Parameters:
-        - `signal`: Audio signal to compute the spectrogram on
-        - `window_length`: Desired length of audio chunks
-        - `hop_size`: Desired distance in samples between spectrogram frames
-        - `window_func`: Window function to apply on each audio chunk. This
-                         function must return a real-valued numpy array of
-                         length `window_length`
-        - `fft_size`: Length of the array used for fft-transformation. If
-                      this is larger than window_length, each audio chunk will
-                      be zero-padded.
-    :Returns:
-          Spectrogram of the passed signal
     """
-    # using the scipy.fftpack.fft function, is has proven faster than
-    # np.fft AND np.rfft. scipy.fftpack.rfft is even faster, but returns a
-    # strange format to work with.
+    def __init__(self, signal, samplerate, frame_size=2048, hop_size=441., online=False):
+        """
+        Creates a new FramedAudio object instance.
 
-    if fft_size is None:
-        fft_size = window_length
+        :param signal: the audio signal [numpy array]
+        :param samplerate: samplerate of the signal
 
-    window = window_func(window_length)
-    windowed_signal = split(signal, window_length, hop_size) * window
-    spec = scipy.fftpack.fft(windowed_signal, n=fft_size)[:, 0:(fft_size / 2 + 1)]
+        :param frame_size: size of one frame [default=2048]
+        :param hop_size: progress N samples between adjacent frames [default=441]
+        :param online: use only past information [default=False]
 
-    if normalise:
-        spec *= 2.0 / window.sum()
+        Note: the FramedAudio class is implemented as an iterator. It splits the
+        signal automatically into frames (of frame_size length) and progresses
+        hop_size samples (can be float, with normal rounding applied) between
+        frames.
 
-    return spec
+        In offline mode, the frame is centered around the current position;
+        whereas in online mode, the frame is always positioned left to the
+        current position.
+
+        """
+        # instantiate a Audio object
+        super(FramedAudio, self).__init__(signal, samplerate)
+        # arguments for splitting the signal into frames
+        self.frame_size = frame_size
+        self.hop_size = hop_size
+        self.online = online
+
+    # make the Object iterable
+    def __getitem__(self, index):
+        """
+        This makes the FramedAudio class an iterable object.
+
+        The signal is split into frames (of length frame_size) automatically.
+        Two frames are located hop_size samples apart. hop_size can be float,
+        normal rounding applies.
+
+        Note: index -1 refers NOT to the last frame, but to the frame directly
+        left of frame 0. Although this is contrary to common behavior, being
+        able to access these frames is important, because if the frames overlap
+        frame -1 contains parts of the audio signal of frame 0.
+
+        """
+        # a slice is given
+        if isinstance(index, slice):
+            # return the frames given by the slice
+            return [self[i] for i in xrange(*index.indices(len(self)))]
+        # a single index is given
+        elif isinstance(index, int):
+            # TODO: use this code if normal indexing behavior is needed
+            if index < 0:
+                index += self.num_frames
+            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.online)
+        # other index types are invalid
+        else:
+            raise TypeError("Invalid argument type.")
+
+    # len() should return the number of frames, since it iterates over frames
+    def __len__(self):
+        return self.num_frames
+
+    @property
+    def num_frames(self):
+        """Number of frames."""
+        # TODO: add a complete frame_size, to cover the whole audio signal?
+        # modifications to signal_frame() needed
+        #return int(np.ceil(((np.shape(self.signal)[0]) + self.frame_size) / self.hop_size))
+        return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
+
+    @property
+    def fps(self):
+        """Frames per second."""
+        return float(self.wav.samplerate) / float(self.hop_size)
+
+    @property
+    def overlap_factor(self):
+        """Overlap factor of two adjacent frames."""
+        return 1.0 - self.hop_size / self.window.size
+
+    # TODO: make this nicer!
+    def __str__(self):
+        return "%s length: %i samples (%.2f seconds) samplerate: %i frames: %i (%i num_samples %.1f hopsize)" % (self.__class__, self.num_samples, self.length, self.samplerate, self.frames, self.frame_size, self.hop_size)

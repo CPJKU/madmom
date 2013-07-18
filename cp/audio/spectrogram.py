@@ -30,13 +30,7 @@ import scipy.fftpack as fft
 
 
 def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
-    # FIXME: this function is deprcated, its functionality is also included in
-    # the iterable FramedAudio class used by the Spectrogram.
-    # TODO: if kept, make sure the framing is performed correctly or split
-    # into 2 functions which can be used by the FramedAudio class, too.
     """
-    This function is DEPRECATED! use the FramedAudio and Spectrogram classes.
-
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
     :param signal: the discrete signal
@@ -52,7 +46,8 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     the current position.
 
     """
-    # init variables
+    from audio import signal_frame
+
     # if the signal is not scaled, scale the window function accordingly
     try:
         window = window[:] / np.iinfo(signal.dtype).max
@@ -73,33 +68,8 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     stft = np.empty([frames, fft_bins], np.complex)
     # perform STFT
     for frame in range(frames):
-        # seek to the correct position in the audio signal
-        if online:
-            # step back a complete window size and move forward 1 hop size
-            # so that the current position is at the end of the window
-            #seek = int((frame + 1) * hop_size - window_size)
-            # step back a complete window size
-            # the current position is the right edge of the window
-            seek = int(frame * hop_size - window_size)
-        else:
-            # step back half of the window size
-            # the current position is the center of the window
-            seek = int(frame * hop_size - window_size / 2.)
-        # read in the right portion of the audio
-        if seek >= samples:
-            # end of file reached
-            break
-        elif seek + window_size >= samples:
-            # end behind the actual audio end, append zeros accordingly
-            zeros = np.zeros(seek + window_size - samples)
-            fft_signal = np.append(signal[seek:], zeros)
-        elif seek < 0:
-            # start before the actual audio start, pad zeros accordingly
-            zeros = np.zeros(-seek)
-            fft_signal = np.append(zeros, signal[0:seek + window_size])
-        else:
-            # normal read operation
-            fft_signal = signal[seek:seek + window_size]
+        # get the right portion of the signal
+        fft_signal = signal_frame(signal, frame, window_size, hop_size, online)
         # multiply the signal with the window function
         fft_signal = np.multiply(fft_signal, window)
         # only shift and perform complex DFT if needed
@@ -114,8 +84,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     return stft
 
 
-def stft_strided(signal, window, hop_size, phase=True):
-    # TODO: split into 2 functions and put the framing stuff into audio.py
+def strided_stft(signal, window, hop_size, phase=True):
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
@@ -131,16 +100,19 @@ def stft_strided(signal, window, hop_size, phase=True):
           integer hop_sizes are used.
 
     """
+    from audio import strided_frames
+
     # init variables
-    samples = np.shape(signal)[0]
     ffts = window.size >> 1
-    # FIXME: does not perform the seeking the proper way
-    as_strided = np.lib.stride_tricks.as_strided
+    # get a strided version of the signal
+    fft_signal = strided_frames(signal, window.size, hop_size)
+    # circular shift the signal
     if phase:
-        signal = fft.fftshift(as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window)
-    else:
-        signal = as_strided(signal, (samples, window.size), (signal.strides[0], signal.strides[0]))[::hop_size] * window
-    return fft.fft(signal)[:, :ffts]
+        fft_signal = fft.fftshift(fft_signal)
+    # apply window function
+    fft_signal *= window
+    # perform the FFT
+    return fft.fft(fft_signal)[:, :ffts]
 
 
 class Spectrogram(object):
@@ -152,7 +124,7 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance and performs a STFT on the given audio.
 
-        :param audio: a FramedAudio object
+        :param signal: a FramedAudio object (or file name)
         :param window: window function [default=Hann window with 2048 samples]
         :param hop_size: progress N samples between adjacent frames [default=441.0]
         :param online: work in online mode [default=False]
@@ -165,8 +137,8 @@ class Spectrogram(object):
         calculation considerably (phase: x2; lgd: x3)!
 
         """
-        # imports
-        from wav import FramedAudio, Wav
+        from audio import FramedAudio
+        from wav import Wav
 
         # window stuff
         if isinstance(window, int):
@@ -182,12 +154,13 @@ class Spectrogram(object):
             # normalize the window if needed
             self.window /= np.sum(self.window)
 
-        # audio stuff
+        # signal stuff
         if issubclass(audio.__class__, FramedAudio):
             # already the right format
             self.audio = audio
         else:
             # assume a file name, try to instantiate a Wav object with the given parameters
+            # TODO: make an intelligent class which handles a lot of different file types
             self.audio = Wav(audio, frame_size=window.size, hop_size=hop_size, online=online)
 
         # FFT size to use
@@ -200,7 +173,7 @@ class Spectrogram(object):
         # if the audio signal is not scaled, scale the window function accordingly
         # copy the window, and leave self.window untouched
         try:
-            window = np.copy(self.window) / np.iinfo(self.audio.audio.dtype).max
+            window = np.copy(self.window) / np.iinfo(self.audio.signal.dtype).max
         except ValueError:
             window = np.copy(self.window)
 
@@ -213,7 +186,7 @@ class Spectrogram(object):
             # only shift and perform complex DFT if needed
             if phase or lgd:
                 # circular shift the signal (needed for correct phase)
-                #fft_signal = fft.fftshift(fft_signal)  # slower!
+                #signal = fft.fftshift(signal)  # slower!
                 centre = self.window.size / 2
                 signal = np.append(signal[centre:], signal[:centre])
             # perform DFT
@@ -240,10 +213,9 @@ class Spectrogram(object):
         # TODO: set self.phase and self.lgd to None otherwise?
 
     @property
-    def frames(self):
+    def num_frames(self):
         """Number of frames."""
-        # use ceil to not truncate the signal
-        return self.audio.frames
+        return self.audio.num_frames
 
     @property
     def hop_size(self):
