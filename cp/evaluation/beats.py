@@ -49,7 +49,7 @@ Please send any comments, enhancements, errata, etc. to the main author.
 import math
 import numpy as np
 
-from simple import load_events, find_closest_match
+from helpers import load_events, find_closest_match
 
 from onsets import OnsetEvaluation
 
@@ -138,6 +138,90 @@ def cemgil(detections, targets, sigma):
     return acc
 
 
+# helper function for continuity calculation
+def cml(detections, targets, tempo_tolerance, phase_tolerance):
+    """
+    Calculate cmlc, cmlt for the given detection and target sequences.
+
+    :param detections: sequence of estimated beat times [seconds]
+    :param targets: sequence of ground truth beat annotations [seconds]
+    :param tempo_tolerance: tempo tolerance window
+    :param phase_tolerance: phase (interval) tolerance window
+    :returns: cmlc, cmlt
+
+    cmlc: beat tracking accuracy, continuity required at the correct metrical level
+    cmlt: beat tracking accuracy, continuity not required at the correct metrical level
+
+    "Techniques for the automated analysis of musical audio"
+    S. Hainsworth
+    Ph.D. dissertation, Department of Engineering, Cambridge University, 2004.
+
+    "Analysis of the meter of acoustic musical signals"
+    A. P. Klapuri, A. Eronen, and J. Astola
+    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1, pp. 342–355, 2006.
+
+    """
+    # at least 2 detections and targets are needed to calculate the intervals
+    if min(len(targets), len(detections)) < 2:
+        return 0, 0
+    # list for collecting correct detections / intervals
+    correct = []
+    correct_interval = []
+    # TODO: put the following part into re-usable functions in helpers.py
+    # determine closest targets to detections
+    closest = find_closest_match(detections, targets)
+    # iterate over all detections
+    for det in range(len(detections)):
+        # look for nearest target to current detections
+        tar = closest[det]
+        # interval between this and the previous detection
+        if det == 0:
+            det_interval = detections[1] - detections[0]
+        else:
+            det_interval = detections[det] - detections[det - 1]
+        # interval between this and the previous target
+        if tar == 0:
+            tar_interval = targets[1] - targets[0]
+        else:
+            tar_interval = targets[tar] - targets[tar - 1]
+        # determine detections which are within the tempo tolerance window
+        if abs(detections[det] - targets[tar]) < tempo_tolerance * tar_interval:
+            # add the detection to the correct list
+            correct.append(det)
+        # determine intervals which are within the phase tolerance window
+        if abs(1 - (det_interval / tar_interval)) < phase_tolerance:
+            # add the detection to the correct interval list
+            correct_interval.append(det)
+    # a detection is correct, if it fulfills 3 conditions:
+    # 1) must match an annotation within a certain tolerance window
+    # only detections which satisfy this condition are in the correct list
+    # 2) same must be true for the previous detection / target combination
+    # Note: Not enforced, since this condition is kind of pointless. Why not
+    #       count a beat if it is correct only because the one before is not?
+    #       Also, the original Matlab implementation does not enforce it.
+    # correct = [c for c in correct if c - 1 in correct]
+    # 3) the interval must be within the phase tolerance
+    correct = [c for c in correct if c in correct_interval]
+    # split into groups of continuous sequences
+    # solution to a similar problem found at:
+    # http://stackoverflow.com/questions/10420464/group-list-of-ints-by-continuous-sequence
+    from itertools import groupby, count
+    cont_detections = [list(g) for _, g in groupby(correct, key=lambda n, c=count(): n - next(c))]
+    # determine the longest continuous detection
+    if cont_detections:
+        cont = max([len(cont) for cont in cont_detections])
+    else:
+        cont = 0
+    # maximal length of the given sequences
+    length = float(max(len(detections), len(targets)))
+    # accuracy for the longest continuous detections
+    cmlc = cont / length
+    # accuracy of all correct detections
+    cmlt = len(correct) / length
+    # return a tuple
+    return cmlc, cmlt
+
+
 def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt, amlc, amlt for the given detection and target sequences.
@@ -202,88 +286,6 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
 
     # return a tuple
     return cmlc, cmlt, amlc, amlt
-
-
-def cml(detections, targets, tempo_tolerance, phase_tolerance):
-    """
-    Calculate cmlc, cmlt for the given detection and target sequences.
-
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param tempo_tolerance: tempo tolerance window
-    :param phase_tolerance: phase (interval) tolerance window
-    :returns: cmlc, cmlt
-
-    cmlc: beat tracking accuracy, continuity required at the correct metrical level
-    cmlt: beat tracking accuracy, continuity not required at the correct metrical level
-
-    "Techniques for the automated analysis of musical audio"
-    S. Hainsworth
-    Ph.D. dissertation, Department of Engineering, Cambridge University, 2004.
-
-    "Analysis of the meter of acoustic musical signals"
-    A. P. Klapuri, A. Eronen, and J. Astola
-    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1, pp. 342–355, 2006.
-
-    """
-    # at least 2 detections and targets are needed to calculate the intervals
-    if min(len(targets), len(detections)) < 2:
-        return 0, 0
-    # list for collecting correct detections / intervals
-    correct = []
-    correct_interval = []
-    # determine closest targets to detections
-    closest = find_closest_match(detections, targets)
-    # iterate over all detections
-    for det in range(len(detections)):
-        # look for nearest target to current detections
-        tar = closest[det]
-        # interval between this and the previous detection
-        if det == 0:
-            det_interval = detections[1] - detections[0]
-        else:
-            det_interval = detections[det] - detections[det - 1]
-        # interval between this and the previous target
-        if tar == 0:
-            tar_interval = targets[1] - targets[0]
-        else:
-            tar_interval = targets[tar] - targets[tar - 1]
-        # determine detections which are within the tempo tolerance window
-        if abs(detections[det] - targets[tar]) < tempo_tolerance * tar_interval:
-            # add the detection to the correct list
-            correct.append(det)
-        # determine intervals which are within the phase tolerance window
-        if abs(1 - (det_interval / tar_interval)) < phase_tolerance:
-            # add the detection to the correct interval list
-            correct_interval.append(det)
-    # a detection is correct, if it fulfills 3 conditions:
-    # 1) must match an annotation within a certain tolerance window
-    # only detections which satisfy this condition are in the correct list
-    # 2) same must be true for the previous detection / target combination
-    # Note: Not enforced, since this condition is kind of pointless. Why not
-    #       count a beat if it is correct only because the one before is not?
-    #       Also, the original Matlab implementation does not enforce it.
-    # correct = [c for c in correct if c - 1 in correct]
-    # 3) the interval must not be apart more than the threshold
-    correct = [c for c in correct if c in correct_interval]
-    # split into groups of continuous sequences
-    # solution to a similar problem found at:
-    # http://stackoverflow.com/questions/10420464/group-list-of-ints-by-continuous-sequence
-    from itertools import groupby, count
-    cont_detections = [list(g) for _, g in groupby(correct, key=lambda n, c=count(): n - next(c))]
-    # determine the longest continuous detection
-    if cont_detections:
-        cont = max([len(cont) for cont in cont_detections])
-    else:
-        cont = 0
-    # maximal length of the given sequences
-    length = float(max(len(detections), len(targets)))
-    # accuracy for the longest continuous detections
-    cmlc = cont / length
-    # accuracy of all correct detections
-    cmlt = len(correct) / length
-    # return a tuple
-    return cmlc, cmlt
 
 
 def information_gain(detections, targets, bins):

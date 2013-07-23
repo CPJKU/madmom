@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
 
-from simple import load_events, combine_events
+from helpers import load_events, combine_events
 from simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
@@ -91,7 +91,39 @@ def count_errors(detections, targets, window):
     return tp, fp, fn
 
 
-# simple evaluation of Presicion, Recall, F-measure
+## although it looks straight forward, this version is slower!
+#def count_errors_(detections, targets, window):
+#    """
+#    Count the true and false detections of the given detections and targets.
+#
+#    :param detections: a list of events [seconds]
+#    :param targets: a list of events [seconds]
+#    :param window: detection window [seconds]
+#    :return: tp, fp, fn lists
+#
+#    tp: list with true positive detections
+#    fp: list with false positive detections
+#    fn: list with false negative detections
+#
+#    """
+#    from helpers import absolute_errors
+#    # calc the absolute errors of detections wrt. targets
+#    errors = np.asarray(absolute_errors(detections, targets))
+#    det = np.asarray(detections)
+#    tar = np.asarray(targets)
+#    # true positive detections
+#    tp = det[errors <= window]
+#    # the remaining detections are FP
+#    fp = det[errors > window]
+#    # calc the absolute errors of detections wrt. targets
+#    errors = np.asarray(absolute_errors(targets, detections))
+#    fn = tar[errors > window]
+#    # return the lists
+#    return tp.tolist(), fp.tolist(), fn.tolist()
+
+
+# for onset evaluation with Presicion, Recall, F-measure use the Evaluation
+# class and just define the evaluation function
 class OnsetEvaluation(Evaluation):
     """
     Simple class for measuring Precision, Recall and F-measure.
