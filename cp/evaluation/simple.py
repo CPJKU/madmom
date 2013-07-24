@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
 
-from helpers import absolute_errors
+from helpers import calc_absolute_errors
 
 
 class SimpleEvaluation(object):
@@ -87,11 +87,13 @@ class SimpleEvaluation(object):
     @property
     def mean_error(self):
         """Mean of the errors."""
+        # FIXME: is returning 0 ok?
         return 0
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
+        # FIXME: is returning 0 ok?
         return 0
 
     def print_errors(self, tex=False):
@@ -164,12 +166,12 @@ class MeanEvaluation(SimpleEvaluation):
         Creates a new MeanEvaluation object instance.
 
         """
-        self.__precision = []
-        self.__recall = []
-        self.__fmeasure = []
-        self.__accuracy = []
-        self.__mean = []
-        self.__std = []
+        self.__precision = np.empty(0)
+        self.__recall = np.empty(0)
+        self.__fmeasure = np.empty(0)
+        self.__accuracy = np.empty(0)
+        self.__mean = np.empty(0)
+        self.__std = np.empty(0)
         self.num = 0
         self.num_tp = 0
         self.num_fp = 0
@@ -182,12 +184,14 @@ class MeanEvaluation(SimpleEvaluation):
     # for adding a OnsetEvaluation object
     def __add__(self, other):
         if isinstance(other, Evaluation):
-            self.__precision.append(other.precision)
-            self.__recall.append(other.recall)
-            self.__fmeasure.append(other.fmeasure)
-            self.__accuracy.append(other.accuracy)
-            self.__mean.append(other.mean_error)
-            self.__std.append(other.std_error)
+            self.__precision = np.append(self.__precision, other.precision)
+            self.__recall = np.append(self.__recall, other.recall)
+            self.__fmeasure = np.append(self.__fmeasure, other.fmeasure)
+            self.__accuracy = np.append(self.__accuracy, other.accuracy)
+            self.__mean = np.append(self.__mean, other.mean_error)
+            self.__std = np.append(self.__std, other.std_error)
+            # TODO: those numbers are some kind of meaningless, since we just
+            # sum them up. Maybe use also the mean on these?
             self.num += 1
             self.num_tp += other.num_tp
             self.num_fp += other.num_fp
@@ -241,8 +245,8 @@ class Evaluation(SimpleEvaluation):
         :param targets: sequence of ground truth beat annotations [seconds]
         :param eval_function: evaluation function (see below)
 
-        The evaluation function can be any function which returns a tuple of
-        lists containing the true positive, false positive and false negative
+        The evaluation function can be any function which returns a tuple of 3
+        numpy arrays containing the true / false positive and false negative
         detections: ([true positives], [false positives], [false negatives])
 
         """
@@ -265,46 +269,46 @@ class Evaluation(SimpleEvaluation):
     @property
     def tp(self):
         """True positive detections."""
-        if not self._tp:
+        if self._tp is None:
             self._calc_tp_fp_fn()
         return self._tp
 
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return len(self.tp)
+        return self.tp.size
 
     @property
     def fp(self):
         """False positive detections."""
-        if not self._fp:
+        if self._fp is None:
             self._calc_tp_fp_fn()
         return self._fp
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return len(self.fp)
+        return self.fp.size
 
     @property
     def fn(self):
         """False negative detections."""
-        if not self._fn:
+        if self._fn is None:
             self._calc_tp_fp_fn()
         return self._fn
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return len(self.fn)
+        return self.fn.size
 
-    def absolute_errors(self):
+    def calc_absolute_errors(self):
         """
         Absolute errors of all true positive detections relative to the closest
         targets.
 
         """
-        return absolute_errors(self.detections, self.targets)
+        return calc_absolute_errors(self.detections, self.targets)
 
     @property
     def mean_error(self):

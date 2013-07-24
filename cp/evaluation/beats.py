@@ -46,11 +46,9 @@ was chosen, because it is simpler and produces more accurate results.
 Please send any comments, enhancements, errata, etc. to the main author.
 """
 
-import math
 import numpy as np
 
-from helpers import load_events, find_closest_match
-
+from helpers import load_events, find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
 from onsets import OnsetEvaluation
 
 
@@ -69,39 +67,19 @@ def pscore(detections, targets, tolerance):
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
-    # init
-    det_length = len(detections)
-    tar_length = len(targets)
-    p = 0
-    # no detections: p-score=0
     # since we need an interval for the calculation of the score, at least two
     # targets must be given
-    # TODO: which score should be returned otherwise
-    if not detections or tar_length < 2:
-        return p
+    # FIXME: what if only 1 target and detection are given; same with none?
+    if detections.size == 0 or targets.size < 2:
+        return 0
     # error window is the given fraction of the median beat interval
     window = tolerance * np.median(np.diff(targets))
-    # start with the first detection and target
-    det = 0
-    tar = 0
-    while det < det_length and tar < tar_length:
-        # calculate the diff between first detection and target
-        if abs(detections[det] - targets[tar]) < window:
-            # correct detection
-            p += 1
-            # continue with the detection and target
-            det += 1
-            tar += 1
-        elif detections[det] < targets[tar]:
-            # detection is before target and outside tolerance window
-            # continue with the next detection
-            det += 1
-        elif detections[det] > targets[tar]:
-            # detection is after target and outside tolerance window
-            # continue with the next target
-            tar += 1
+    # errors
+    errors = calc_absolute_errors(detections, targets)
+    # count the instances where the error is smaller the tolerance window
+    p = detections[errors < window].size
     # normalize by the max number of detections/targets
-    p /= float(max(det_length, tar_length))
+    p /= float(max(detections.size, targets.size))
     # return p-score
     return p
 
@@ -112,7 +90,7 @@ def cemgil(detections, targets, sigma):
 
     :param detections: sequence of estimated beat times [seconds]
     :param targets: sequence of ground truth beat annotations [seconds]
-    :param sigma: sigma for Gaussian window
+    :param sigma: sigma for Gaussian error function
     :returns: beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
@@ -123,16 +101,19 @@ def cemgil(detections, targets, sigma):
     # beat accuracy is initially zero
     acc = 0
     # no detections
-    if not detections:
+    if detections.size == 0:
         return acc
-    # find closest detections to targets
-    closest = find_closest_match(targets, detections)
-    for tar in range(len(targets)):
-        # calculate the difference between the target and its closets match
-        diff = abs(detections[closest[tar]] - targets[tar])
-        # determine the value on the Gaussian error function and add to the acc.
-        acc += math.exp(-(diff ** 2.) / (2. * (sigma ** 2.)))
-    # normalize by the mean of the number of detections and targets
+    # determine the absolute errors of the detections to the closest targets
+    # Note: the original implementation searches for the closest matches of
+    # detections to given targets. Since absolute errors > a usual beat interval
+    # produce high errors (and thus in turn add negligible values to the
+    # accurary), it is safe to swap those two.
+    errors = calc_absolute_errors(detections, targets)
+    # apply a Gaussian error function with the given std. dev. on the errors
+    acc = np.exp(-(errors ** 2.) / (2. * (sigma ** 2.)))
+    # and sum up the accuracy
+    acc = np.sum(acc)
+    # normalized by the mean of the number of detections and targets
     acc /= 0.5 * (len(targets) + len(detections))
     # return accuracy
     return acc
@@ -162,56 +143,45 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
 
     """
     # at least 2 detections and targets are needed to calculate the intervals
-    if min(len(targets), len(detections)) < 2:
+    if min(detections.size, targets.size) < 2:
         return 0, 0
-    # list for collecting correct detections / intervals
-    correct = []
-    correct_interval = []
-    # TODO: put the following part into re-usable functions in helpers.py
     # determine closest targets to detections
-    closest = find_closest_match(detections, targets)
-    # iterate over all detections
-    for det in range(len(detections)):
-        # look for nearest target to current detections
-        tar = closest[det]
-        # interval between this and the previous detection
-        if det == 0:
-            det_interval = detections[1] - detections[0]
-        else:
-            det_interval = detections[det] - detections[det - 1]
-        # interval between this and the previous target
-        if tar == 0:
-            tar_interval = targets[1] - targets[0]
-        else:
-            tar_interval = targets[tar] - targets[tar - 1]
-        # determine detections which are within the tempo tolerance window
-        if abs(detections[det] - targets[tar]) < tempo_tolerance * tar_interval:
-            # add the detection to the correct list
-            correct.append(det)
-        # determine intervals which are within the phase tolerance window
-        if abs(1 - (det_interval / tar_interval)) < phase_tolerance:
-            # add the detection to the correct interval list
-            correct_interval.append(det)
+    closest = find_closest_matches(detections, targets)
+    # errors of the detections wrt. to the targets
+    errors = calc_absolute_errors(detections, targets, closest)
+    # detection intervals
+    det_interval = calc_intervals(detections)
+    # target intervals (get those intervals at the correct positions)
+    tar_interval = calc_intervals(targets)[closest]
     # a detection is correct, if it fulfills 3 conditions:
     # 1) must match an annotation within a certain tolerance window
-    # only detections which satisfy this condition are in the correct list
+    correct = detections[errors < tempo_tolerance * tar_interval]
     # 2) same must be true for the previous detection / target combination
     # Note: Not enforced, since this condition is kind of pointless. Why not
     #       count a beat if it is correct only because the one before is not?
     #       Also, the original Matlab implementation does not enforce it.
     # correct = [c for c in correct if c - 1 in correct]
     # 3) the interval must be within the phase tolerance
-    correct = [c for c in correct if c in correct_interval]
-    # split into groups of continuous sequences
-    # solution to a similar problem found at:
-    # http://stackoverflow.com/questions/10420464/group-list-of-ints-by-continuous-sequence
-    from itertools import groupby, count
-    cont_detections = [list(g) for _, g in groupby(correct, key=lambda n, c=count(): n - next(c))]
-    # determine the longest continuous detection
-    if cont_detections:
-        cont = max([len(cont) for cont in cont_detections])
+    correct_interval = detections[abs(1 - (det_interval / tar_interval)) < phase_tolerance]
+    # now combine the conditions
+    correct = np.intersect1d(correct, correct_interval)
+    # convert on indices
+    correct_idx = np.searchsorted(detections, correct)
+    # add a fake start and end
+    correct_idx = np.append(-5, correct_idx)
+    correct_idx = np.append(correct_idx, detections.size + 5)
+    # get continuous segment
+    segments = np.nonzero(np.diff(correct_idx) != 1)[0]
+    # determine the max length of those segment
+    if segments.size == 0:
+        # all detections are coorect
+        cont = detections.size
+    elif segments.size == 1:
+        # only one long segment
+        cont = segments
     else:
-        cont = 0
+        # multiple segments
+        cont = np.max(np.diff(segments))
     # maximal length of the given sequences
     length = float(max(len(detections), len(targets)))
     # accuracy for the longest continuous detections
@@ -280,6 +250,7 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
         if amlc > 0.5:
             continue
         # if other metrical levels achieve a higher accuracy, take these values
+        # note: do not use the cached values for the closest matches
         c, t = cml(detections, targets_variation, tempo_tolerance, phase_tolerance)
         amlc = max(amlc, c)
         amlt = max(amlt, t)
@@ -303,7 +274,7 @@ def information_gain(detections, targets, bins):
 
     """
     # in case of no detections
-    if not detections or len(targets) < 2:
+    if detections.size == 0 or targets.size < 2:
         # return information gain = 0 and a uniform beat error histogram
         return 0, np.ones(bins) * len(targets) / bins
 
@@ -311,24 +282,30 @@ def information_gain(detections, targets, bins):
     if bins % 2 != 0:
         raise ValueError("Number of error histogram bins must be even")
 
-    # create histogram bin borders
-    # make the first and last bin just half as wide as the rest, thus the offset
+    # create bins for the error histogram that cover the range from -0.5 to 0.5
+    # make the first and last bin half as wide as the rest, so that the last
+    # and the first can be added together later (make the histogram circular)
+
+    # since np.histogram uses bin borders, determine offset for the outer edges
     offset = 0.5 / bins
-    # since np.histogram uses borders and not the centres as bins, one bin must
-    # be added; + another, because the last bin is wraped around to the first
-    # one later
+    # also one bin must be added because of this + another one, because the last
+    # bin is wraped around to the first one later
     histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
 
     # evaluate detections against targets
     fwd_histogram = error_histogram(detections, targets, histogram_bins)
     fwd_ig = calc_information_gain(fwd_histogram)
 
-    # in case of underdetection, the errors could be very small; thus evaluate
-    # also the targets against the detections (i.e. simulate a lot of FPs)
+    # FIXME: can we speed up this? I.e. is it safe to always evaluate the longer
+    # sequence against the shorter one?
+
+    # in case of only few (but correct) detections, the errors could be small
+    # thus evaluate also the targets against the detections, i.e. simulate a lot
+    # of false positive detections. Do not use the cached matches!
     bwd_histogram = error_histogram(targets, detections, histogram_bins)
     bwd_ig = calc_information_gain(bwd_histogram)
 
-    # use the lower information gain
+    # only use the lower information gain
     if fwd_ig < bwd_ig:
         return fwd_ig, fwd_histogram
     else:
@@ -347,38 +324,8 @@ def error_histogram(detections, targets, bins):
     :returns: error histogram
 
     """
-    # TODO: move calculation of relative detection errors to an extra function?
-    # use a numpy array instead of a list, so we can do some math on it later
-    errors = np.zeros(len(detections))
-    # determine closest targets to detections
-    closest = find_closest_match(detections, targets)
-    # store the number of targets
-    last_target = len(targets) - 1
-    # iterate over all detections
-    for det in range(len(detections)):
-        # find closest target
-        tar = closest[det]
-        # difference to this target
-        diff = detections[det] - targets[tar]
-        # calculate the relative error for this target
-        if tar == 0:
-            # closet target is the first one or before the current beat
-            # calculate the diff to the next target
-            interval = targets[tar + 1] - targets[tar]
-        elif tar == last_target:
-            # closet target is the last one or after the current beat
-            # calculate the diff to the previous target
-            interval = targets[tar] - targets[tar - 1]
-        else:
-            # normal
-            if diff > 0:
-                # closet target is before the current beat
-                interval = targets[tar + 1] - targets[tar]
-            else:
-                # closet target is after the current beat
-                interval = targets[tar] - targets[tar - 1]
-        # set the error in the array
-        errors[det] = diff / interval
+    # get the relative errors of the detections to the targets
+    errors = calc_relative_errors(detections, targets)
     # map the relative beat errors to the range of -0.5..0.5
     errors = np.mod(errors + 0.5, -1) + 0.5
     # get bin counts for the given errors over the distribution
@@ -444,6 +391,11 @@ class BeatEvaluation(OnsetEvaluation):
         # information gain stuff
         self.__information_gain = None
         self.__error_histogram = None
+#        # cache stuff
+#        self.__matches = None
+#
+#    def cache(self):
+#        self.__matches = find_closest_matches(self.detections, self.targets)
 
     @property
     def pscore(self):
@@ -463,28 +415,28 @@ class BeatEvaluation(OnsetEvaluation):
     @property
     def cmlc(self):
         """CMLc."""
-        if not self.__cmlc:
+        if self.__cmlc is None:
             self._calc_continuity()
         return self.__cmlc
 
     @property
     def cmlt(self):
         """CMLt."""
-        if not self.__cmlt:
+        if self.__cmlt is None:
             self._calc_continuity()
         return self.__cmlt
 
     @property
     def amlc(self):
         """AMLc."""
-        if not self.__amlc:
+        if self.__amlc is None:
             self._calc_continuity()
         return self.__amlc
 
     @property
     def amlt(self):
         """AMLt."""
-        if not self.__amlt:
+        if self.__amlt is None:
             self._calc_continuity()
         return self.__amlt
 
@@ -496,7 +448,7 @@ class BeatEvaluation(OnsetEvaluation):
     @property
     def information_gain(self):
         """Information gain."""
-        if not self.__information_gain:
+        if self.__information_gain is None:
             self._calc_information_gain()
         return self.__information_gain
 
@@ -542,16 +494,16 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         # simple scores
-        self.__fmeasure = []
-        self.__pscore = []
-        self.__cemgil = []
+        self.__fmeasure = np.empty(0)
+        self.__pscore = np.empty(0)
+        self.__cemgil = np.empty(0)
         # continuity scores
-        self.__cmlc = []
-        self.__cmlt = []
-        self.__amlc = []
-        self.__amlt = []
+        self.__cmlc = np.empty(0)
+        self.__cmlt = np.empty(0)
+        self.__amlc = np.empty(0)
+        self.__amlt = np.empty(0)
         # information gain stuff
-        self.__information_gain = []
+        self.__information_gain = np.empty(0)
         self.__error_histogram = None
         # instance can be initialized with a Evaluation object
         if isinstance(other, BeatEvaluation):
@@ -568,14 +520,14 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         if isinstance(other, BeatEvaluation):
-            self.__fmeasure.append(other.fmeasure)
-            self.__pscore.append(other.pscore)
-            self.__cemgil.append(other.cemgil)
-            self.__cmlc.append(other.cmlc)
-            self.__cmlt.append(other.cmlt)
-            self.__amlc.append(other.amlc)
-            self.__amlt.append(other.amlt)
-            self.__information_gain.append(other.information_gain)
+            self.__fmeasure = np.append(self.__fmeasure, other.fmeasure)
+            self.__pscore = np.append(self.__pscore, other.pscore)
+            self.__cemgil = np.append(self.__cemgil, other.cemgil)
+            self.__cmlc = np.append(self.__cmlc, other.cmlc)
+            self.__cmlt = np.append(self.__cmlt, other.cmlt)
+            self.__amlc = np.append(self.__amlc, other.amlc)
+            self.__amlt = np.append(self.__amlt, other.amlt)
+            self.__information_gain = np.append(self.__information_gain, other.information_gain)
             # the error histograms needs special treatment
             if self.__error_histogram is None:
                 # if it is the first, just take this histogram
@@ -700,11 +652,13 @@ def main():
         detections = load_events(det_files[i])
         targets = load_events(tar_files[i])
         # remove beats and annotations that are within the first N seconds
-        # FIXME: this definitely alters the results
-        detections = filter(lambda a: a >= args.skip, detections)
-        targets = filter(lambda a: a >= args.skip, targets)
+        if args.skip > 0:
+            # FIXME: this definitely alters the results
+            detections = detections[np.where(detections > args.skip)]
+            targets = targets[np.where(targets > args.skip)]
         # evaluate
         score = BeatEvaluation(detections, targets, window=args.window, tolerance=args.tolerance, sigma=args.sigma, tempo_tolerance=args.tempo_tolerance, phase_tolerance=args.phase_tolerance, bins=args.bins)
+#        score.cache()
         # print stats for each file
         if args.verbose:
             print det_files[i]

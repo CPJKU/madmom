@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
+Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
+# helper functions to read/write events from files to sequences (lists)
+# and do some stuff with those sequences
 
 import numpy as np
 
 
-# helper functions to read/write events from files and combine these events
 def load_events(filename):
     """
     Load a list of events from file.
@@ -38,6 +39,7 @@ def load_events(filename):
     :return: list of events
 
     """
+    # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
     # array for events
     events = []
     # try to read in the onsets from the file
@@ -45,9 +47,11 @@ def load_events(filename):
         # read in each line of the file
         for line in f:
             # append the event (1st column) to the list, ignore the rest
+            # TODO: make these tuples, with all the evaluation methods just
+            # take the needed values (columns) an evaluate accordingly.
             events.append(float(line.split()[0]))
     # return
-    return events
+    return np.asarray(events)
 
 
 def write_events(events, filename):
@@ -101,14 +105,17 @@ def combine_events(events, delta):
     return comb
 
 
-# helper functions for two sequences
-def find_closest_match(detections, targets):
+def filter_events(events, key):
+    raise NotImplemented
+
+
+def find_closest_matches(detections, targets):
     """
     Find the closest matches for detections in targets.
 
     :param detections: sequence of events to be matched [seconds]
     :param targets: sequence of possible matches [seconds]
-    :returns: a list of indices with closest matches
+    :returns: a numpy array of indices with closest matches
 
     Note: the sequences must be ordered!
 
@@ -124,10 +131,6 @@ def find_closest_match(detections, targets):
         # return an array as long as the detections with indices 0
         return np.zeros(len(detections), dtype=np.int)
     # solution found at: http://stackoverflow.com/questions/8914491/finding-the-nearest-value-and-return-the-index-of-array-in-python
-    if not isinstance(detections, np.ndarray):
-        detections = np.array(detections)
-    if not isinstance(targets, np.ndarray):
-        targets = np.array(targets)
     indices = targets.searchsorted(detections)
     indices = np.clip(indices, 1, len(targets) - 1)
     left = targets[indices - 1]
@@ -137,86 +140,143 @@ def find_closest_match(detections, targets):
     return indices
 
 
-## this is slower!
-#def find_closest_match_loop(detections, targets):
-#    """
-#    Find the closest matches for detections in targets.
-#
-#    :param detections: sequence of events to be matched [seconds]
-#    :param targets: sequence of possible matches [seconds]
-#    :returns: a list of indices with closest matches
-#
-#    """
-#    # list of indices
-#    indices = []
-#    # evaluate
-#    det_length = len(detections)
-#    tar_length = len(targets)
-#    det_index = 0
-#    tar_index = 0
-#    prev_error = None
-#    while det_index < det_length and tar_index < tar_length:
-#        # compare the two events
-#        error = detections[det_index] - targets[tar_index]
-#        if prev_error is None:
-#            # this is the first error, continue with the next target
-#            tar_index += 1
-#        else:
-#            # absulte error is smaller than the previous one, add the previous target to the list
-#            if abs(error) < abs(prev_error):
-#                # the previous target was closer, add it to the list
-#                indices.append(tar_index - 1)
-#            if error <= 0:
-#                # continue with the next detection
-#                det_index += 1
-#            else:
-#                # continue with the next target
-#                tar_index += 1
-#        # save the error
-#        prev_error = error
-#    # all remaining detections have the last target as their closest match
-#    tar_index = [tar_index - 1]
-#    # the number of missing targets is the det_length - det_index
-#    indices.extend(tar_index * (det_length - det_index))
-#    # return the list
-#    return indices
-
-
-def errors(detections, targets):
+def find_closest_intervals(detections, targets, matches=None):
     """
-    Errors of the detections relative to the closest targets.
+    Find the closest target interval surrounding the detections.
 
     :param detections: sequence of events to be matched [seconds]
     :param targets: sequence of possible matches [seconds]
+    :param matches: indices of the closest matches [default=None]
+    :returns: a list of closest target intervals [seconds]
+
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
+
+    """
+    # init array
+    closest_interval = np.ones_like(detections)
+    # init array for intervals
+    # Note: if we combine the formward and backward intervals this is faster,
+    # but we need expand the size accordingly
+    intervals = np.zeros(len(targets) + 1)
+    # intervals to previous target
+    intervals[1:-1] = np.diff(targets)
+    # the interval from the first target to the left is the same as to the right
+    intervals[0] = intervals[1]
+    # the interval from the last target to the right is the same as to the left
+    intervals[-1] = intervals[-2]
+    # Note: intervals to the next target are always those at the next index
+    # determine the closest targets
+    if matches is None:
+        matches = find_closest_matches(detections, targets)
+    # calculate the absolute errors
+    errors = calc_errors(detections, targets, matches)
+    # if the errors are positive, the detection is after the target
+    # thus, the needed interval is from the closest target towards the next one
+    closest_interval[errors > 0] = intervals[matches[errors > 0] + 1]
+    # if before, interval to previous target accordingly
+    closest_interval[errors < 0] = intervals[matches[errors < 0]]
+    # return the closest interval
+    return closest_interval
+
+
+#def find_closest_intervals_(detections, targets, matches=None):
+#    """
+#    Find the closest target interval surrounding the detections.
+#
+#    :param detections: sequence of events to be matched [seconds]
+#    :param targets: sequence of possible matches [seconds]
+#    :param matches: indices of the closest matches [default=None]
+#    :returns: a list of closest target intervals [seconds]
+#
+#    Note: the sequences must be ordered! To speed up the calculation, a list of
+#          pre-computed indices of the closest matches can be used.
+#
+#    """
+#    # init array
+#    closest_interval = np.ones_like(detections)
+#    # intervals to next target
+#    fwd_intervals = calc_intervals(targets, fwd=True)
+#    # intervals to previous target
+#    bwd_intervals = calc_intervals(targets)
+#    # determine the closest targets
+#    if matches is None:
+#        matches = find_closest_matches(detections, targets)
+#    # calculate the absolute errors
+#    errors = calc_errors(detections, targets, matches)
+#    # if the errors are positive, the detection is after the target
+#    # thus, the needed interval is from the closest target towards the next one
+#    closest_interval[errors > 0] = fwd_intervals[matches[errors > 0]]
+#    # if before, interval to previous target accordingly
+#    closest_interval[errors < 0] = bwd_intervals[matches[errors < 0]]
+#    # return the closest interval
+#    return closest_interval
+
+
+def calc_errors(detections, targets, matches=None):
+    """
+    Calculates the errors of the detections relative to the closest targets.
+
+    :param detections: sequence of events to be matched [seconds]
+    :param targets: sequence of possible matches [seconds]
+    :param matches: indices of the closest matches [default=None]
     :returns: a list of errors to closest matches [seconds]
 
-    Note: the sequences must be ordered!
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
 
     """
     # determine the closest targets
-    indices = find_closest_match(detections, targets)
+    if matches is None:
+        matches = find_closest_matches(detections, targets)
     # calc error relative to those targets
-    errors = np.asarray(detections) - np.asarray(targets)[indices]
+    errors = detections - targets[matches]
     # return the errors
     return errors
 
 
-def absolute_errors(detections, targets):
+def calc_intervals(events, fwd=False):
     """
-    Absolute errors of the detections relative to the closest targets.
+    Calculate the intervals of all events to the previous / next event.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :returns: a list of errors to closest matches [seconds]
+    :param events: sequence of events to be matched [seconds]
+    :param fwd: calculate the intervals to the next event [default=False]
+    :returns: the intervals [seconds]
 
     Note: the sequences must be ordered!
 
     """
+    interval = np.zeros_like(events)
+    if fwd:
+        interval[:-1] = np.diff(events)
+        # the interval of the first event is the same as the one of the second event
+        interval[-1] = interval[-2]
+    else:
+        interval[1:] = np.diff(events)
+        # the interval of the first event is the same as the one of the second event
+        interval[0] = interval[1]
+    # return
+    return interval
+
+
+def calc_absolute_errors(detections, targets, matches=None):
+    """
+    Calculate absolute errors of the detections relative to the closest targets.
+
+    :param detections: sequence of events to be matched [seconds]
+    :param targets: sequence of possible matches [seconds]
+    :param matches: indices of the closest matches [default=None]
+    :returns: a list of errors to closest matches [seconds]
+
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
+
+    """
     # return the errors
-    return np.abs(errors(detections, targets))
+    return np.abs(calc_errors(detections, targets, matches))
 
 
-def relative_errors(detections, targets):
+def calc_relative_errors(detections, targets, matches=None):
     """
     Relative errors of the detections to the closest targets.
     The absolute error is weighted by the interval of two targets surrounding
@@ -224,75 +284,19 @@ def relative_errors(detections, targets):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets: sequence of possible matches [seconds]
+    :param matches: indices of the closest matches [default=None]
     :returns: a list of relative errors to closest matches [seconds]
 
-    Note: the sequences must be ordered!
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
 
     """
-    # init array for intervals; expand the size by one so we can combine the
-    # intervals to the previous and next item into one array
-    intervals = np.zeros(len(targets) + 1)
-    # intervals to previous target
-    intervals[1:-1] = np.diff(targets)
-    # the interval from the first target to the left is the same as the right
-    intervals[0] = intervals[1]
-    # the interval from the last target to the right is the same as the left
-    intervals[-1] = intervals[-2]
-    # note: intervals to the next target are always those at the next index
     # determine the closest targets
-    closest = find_closest_match(detections, targets)
-    # calculate the absolute errors (note: same method as in function above, but
-    # doubled here to not calculate the closest targets twice)
-    errors = np.asarray(detections) - np.asarray(targets)[closest]
-    # if the errors are positive, the detection is after the target
-    # thus, the needed interval is from the closest target towards the next one
-    errors[errors > 0] /= intervals[closest[errors > 0] + 1]
-    # if before, interval to previous target accordingly
-    errors[errors < 0] /= intervals[closest[errors < 0]]
+    if matches is None:
+        matches = find_closest_matches(detections, targets)
+    # calculate the absolute errors
+    errors = calc_errors(detections, targets, matches)
+    # get the closest intervals
+    intervals = find_closest_intervals(detections, targets, matches)
     # return the relative errors
-    return errors
-
-
-#def relative_errors_loop(detections, targets):
-#    """
-#    Relative errors of the detections to the closest targets.
-#    The absolute error is weighted by the interval of two targets surrounding
-#    each detection.
-#
-#    :param detections: sequence of events to be matched [seconds]
-#    :param targets: sequence of possible matches [seconds]
-#    :returns: a list of relative errors to closest matches [seconds]
-#
-#    Note: the sequences must be ordered!
-#    """
-#    errors = np.zeros(len(detections))
-#    # determine closest targets to detections
-#    closest = find_closest_match(detections, targets)
-#    # store the number of targets
-#    last_target = len(targets) - 1
-#    # iterate over all detections
-#    for det in range(len(detections)):
-#        # find closest target
-#        tar = closest[det]
-#        # difference to this target
-#        diff = detections[det] - targets[tar]
-#        # calculate the relative error for this target
-#        if tar == 0:
-#            # closet target is the first one or before the current beat
-#            # calculate the diff to the next target
-#            interval = targets[tar + 1] - targets[tar]
-#        elif tar == last_target:
-#            # closet target is the last one or after the current beat
-#            # calculate the diff to the previous target
-#            interval = targets[tar] - targets[tar - 1]
-#        else:
-#            # normal
-#            if diff > 0:
-#                # closet target is before the current beat
-#                interval = targets[tar + 1] - targets[tar]
-#            else:
-#                # closet target is after the current beat
-#                interval = targets[tar] - targets[tar - 1]
-#        # set the error in the array
-#        errors[det] = diff / interval
-#    return errors
+    return errors / intervals

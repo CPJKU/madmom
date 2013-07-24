@@ -47,79 +47,18 @@ def count_errors(detections, targets, window):
     fn: list with false negative detections
 
     """
-    # lists for storing the true / false detections
-    tp = []
-    fp = []
-    fn = []
-    # evaluate
-    det_length = len(detections)
-    tar_length = len(targets)
-    det_index = 0
-    tar_index = 0
-    while det_index < det_length and tar_index < tar_length:
-        # TODO: right now the first detection is compared to the first target
-        # but we should compare the closets to get correct mean/std.dev values
-        # besides that the evaluation is correct
-        # fetch the first detection
-        det = detections[det_index]
-        # fetch the first target
-        tar = targets[tar_index]
-        # compare the two events
-        if abs(det - tar) <= window:
-            # TP detection
-            tp.append(det)
-            # increase the detection and target index
-            det_index += 1
-            tar_index += 1
-        elif det < tar:
-            # FP detection
-            fp.append(det)
-            # increase the detection index
-            det_index += 1
-            # do not increase the target index
-        elif det > tar:
-            # we missed a target, thus FN
-            fn.append(tar)
-            # do not increase the detection index
-            # increase the target index
-            tar_index += 1
+    from helpers import calc_absolute_errors
+    # calc the absolute errors of detections wrt. targets
+    errors = calc_absolute_errors(detections, targets)
+    # true positive detections
+    tp = detections[errors <= window]
     # the remaining detections are FP
-    fp.extend(detections[det_index:])
-    # the remaining targets are FN
-    fn.extend(targets[tar_index:])
+    fp = detections[errors > window]
+    # calc the absolute errors of detections wrt. targets
+    errors = np.asarray(calc_absolute_errors(targets, detections))
+    fn = targets[errors > window]
     # return the lists
     return tp, fp, fn
-
-
-## although it looks straight forward, this version is slower!
-#def count_errors_(detections, targets, window):
-#    """
-#    Count the true and false detections of the given detections and targets.
-#
-#    :param detections: a list of events [seconds]
-#    :param targets: a list of events [seconds]
-#    :param window: detection window [seconds]
-#    :return: tp, fp, fn lists
-#
-#    tp: list with true positive detections
-#    fp: list with false positive detections
-#    fn: list with false negative detections
-#
-#    """
-#    from helpers import absolute_errors
-#    # calc the absolute errors of detections wrt. targets
-#    errors = np.asarray(absolute_errors(detections, targets))
-#    det = np.asarray(detections)
-#    tar = np.asarray(targets)
-#    # true positive detections
-#    tp = det[errors <= window]
-#    # the remaining detections are FP
-#    fp = det[errors > window]
-#    # calc the absolute errors of detections wrt. targets
-#    errors = np.asarray(absolute_errors(targets, detections))
-#    fn = tar[errors > window]
-#    # return the lists
-#    return tp.tolist(), fp.tolist(), fn.tolist()
 
 
 # for onset evaluation with Presicion, Recall, F-measure use the Evaluation
