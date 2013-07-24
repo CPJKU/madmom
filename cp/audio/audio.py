@@ -28,6 +28,50 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 
 
+def root_mean_square(signal):
+    """
+    Computes the root mean square of the signal. This can be used as
+    a measurement of power.
+
+    :param signal: the audio signal
+    :returns: root mean square of the signal
+
+    """
+    # make sure the signal is a numpy array
+    if not isinstance(signal, np.ndarray):
+        raise TypeError("Invalid type for audio signal.")
+    # Note: type conversion needed because of integer overflows
+    if signal.dtype != np.float:
+        signal = signal.astype(np.float)
+    # return
+    return np.sqrt(np.dot(signal, signal) / signal.size)
+
+
+def sound_pressure_level(signal, p_ref=1.0):
+    """
+    Computes the sound pressure level of a signal.
+
+    :param signal: the audio signal
+    :param signal: reference sound pressure level [default=1.0]
+    :returns: sound pressure level of the signal
+
+    From en.wikipedia.org/wiki/Sound_pressure:
+    Sound pressure level (SPL) or sound level is a logarithmic measure of the
+    effective sound pressure of a sound relative to a reference value.
+    It is measured in decibels (dB) above a standard reference level.
+
+    """
+    # compute the RMS
+    rms = root_mean_square(signal)
+    # compute the SPL
+    if rms == 0:
+        # return the largest possible negative number
+        return -np.finfo(float).max
+    else:
+        # normal SPL computation
+        return 20.0 * np.log10(rms / p_ref)
+
+
 def signal_frame(signal, index, frame_size, hop_size, online):
     """
     This function returns frame[index] of the signal.
@@ -36,8 +80,12 @@ def signal_frame(signal, index, frame_size, hop_size, online):
     :param frame_size: size of one frame
     :param hop_size: progress N samples between adjacent frames
     :param online: use only past information
+    :returns: the single frame of the audio signal
 
     """
+    # make sure the signal is a numpy array
+    if not isinstance(signal, np.ndarray):
+        raise TypeError("Invalid type for audio signal.")
     # length of the signal
     samples = np.shape(signal)[0]
     # seek to the correct position in the audio signal
@@ -80,7 +128,7 @@ def strided_frames(signal, frame_size, hop_size):
     :param signal: the discrete signal
     :param frame_size: size of each frame
     :param hop_size: the hop size in samples between adjacent frames
-    :returns: the complex STFT of the signal
+    :returns: the framed audio signal
 
     Note: This function is here only for completeness.
           It is faster only in rare circumstances.
