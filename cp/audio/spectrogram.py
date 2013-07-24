@@ -312,7 +312,7 @@ class FilteredSpectrogram(Spectrogram):
         If no filterbank is given, one with the following parameters is created
         automatically.
 
-        :param bands_per_oktave: number of filter bands per octave [default=12]
+        :param bands_per_octave: number of filter bands per octave [default=12]
         :param fmin: the minimum frequency [Hz, default=27]
         :param fmax: the maximum frequency [Hz, default=17000]
         :param norm: normalize the area of the filter to 1 [default=True]

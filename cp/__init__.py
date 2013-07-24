@@ -1,2 +1,4 @@
-__all__ = ["audio"]
+__all__ = ["audio", "evaluation", "utils"]
 import audio
+import evaluation
+import utils
