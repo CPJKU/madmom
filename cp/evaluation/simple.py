@@ -28,21 +28,58 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
 
-from helpers import calc_absolute_errors
+from helpers import calc_errors
+
+
+def calc_overlap(detections, targets, threshold=0.5):
+    """
+    Very simple overlap calculation based on two numpy array of the same shape.
+
+    :param detections: array with detections
+    :param targets: array with targets
+    :param threshold: binary decision threshold [default=0.5]
+
+    """
+    # detections and targets must have the same dimensions
+    if detections.size != targets.size:
+        raise ValueError("dimension mismatch")
+    if detections.ndim > 1:
+        # TODO: implement for multi-dimensional arrays
+        raise NotImplementedError("please add multi-dimensional functionality")
+    # threshold detections
+    detections = detections >= threshold
+    # threshold targets
+    targets = targets >= threshold
+    # calculate overlap
+    tp = np.nonzero(detections * targets)[0]
+    fp = np.nonzero(detections > targets)[0]
+    tn = np.nonzero(-detections * -targets)[0]
+    fn = np.nonzero(detections < targets)[0]
+    # sum up
+    tp = np.sum(tp)
+    tn = np.sum(tn)
+    fp = np.sum(fp)
+    fn = np.sum(fn)
+    assert tp + tn + fp + fn == detections.size, 'bad overlap calculation'
+    # return
+    return tp, tn, fp, fn
 
 
 class SimpleEvaluation(object):
     """
     Simple evaluation class for calculating Precision, Recall and F-measure
-    based on the numbers of true/false positive/(negative) detections.
+    based on the numbers of true/false positive/negative detections.
+
+    Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
-    def __init__(self, num_tp=0, num_fp=0, num_fn=0):
+    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
         Creates a new SimpleEvaluation object instance.
 
         :param num_tp: number of true positive detections
         :param num_fp: number of false positive detections
+        :param num_tn: number of true negative detections
         :param num_fn: number of false negative detections
 
         """
@@ -50,11 +87,13 @@ class SimpleEvaluation(object):
         # FIXME: invalidate (i.e. reset to None) if detections/targets change
         self.num_tp = num_tp
         self.num_fp = num_fp
+        self.num_tn = num_tn
         self.num_fn = num_fn
 
     @property
     def precision(self):
         """Precision."""
+        # correct / retrieved
         try:
             return self.num_tp / float(self.num_tp + self.num_fp)
         except ZeroDivisionError:
@@ -63,6 +102,7 @@ class SimpleEvaluation(object):
     @property
     def recall(self):
         """Recall."""
+        # correct / relevant
         try:
             return self.num_tp / float(self.num_tp + self.num_fn)
         except ZeroDivisionError:
@@ -79,8 +119,9 @@ class SimpleEvaluation(object):
     @property
     def accuracy(self):
         """Accuracy."""
+        # acc: (TP + TN) / (TP + FP + TN + FN)
         try:
-            return self.num_tp / float(self.num_fp + self.num_fn + self.num_tp)
+            return (self.num_tp + self.num_tn) / float(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
         except ZeroDivisionError:
             return 0.
 
@@ -125,6 +166,7 @@ class SumEvaluation(SimpleEvaluation):
     def __init__(self, other=None):
         self.num_tp = 0
         self.num_fp = 0
+        self.num_tn = 0
         self.num_fn = 0
         self.__errors = []
         # instance can be initialized with an Evaluation object
@@ -139,6 +181,7 @@ class SumEvaluation(SimpleEvaluation):
             # extend
             self.num_tp += other.num_tp
             self.num_fp += other.num_fp
+            self.num_tn += other.num_tn
             self.num_fn += other.num_fn
             self.__errors.extend(other.errors)
             return self
@@ -175,6 +218,7 @@ class MeanEvaluation(SimpleEvaluation):
         self.num = 0
         self.num_tp = 0
         self.num_fp = 0
+        self.num_tn = 0
         self.num_fn = 0
         # instance can be initialized with a Evaluation object
         if isinstance(other, Evaluation):
@@ -195,6 +239,7 @@ class MeanEvaluation(SimpleEvaluation):
             self.num += 1
             self.num_tp += other.num_tp
             self.num_fp += other.num_fp
+            self.num_tn += other.num_tn
             self.num_fn += other.num_fn
             return self
         else:
@@ -260,17 +305,19 @@ class Evaluation(SimpleEvaluation):
         # TODO: rename _ to __ again?
         self._tp = None
         self._fp = None
+        self._tn = None
         self._fn = None
+        self._errors = None
 
-    def _calc_tp_fp_fn(self):
+    def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        self._tp, self._fp, self._fn, = self.eval_function(self.detections, self.targets, **self.__kwargs)
+        self._tp, self._fp, self._tn, self._fn = self.eval_function(self.detections, self.targets, **self.__kwargs)
 
     @property
     def tp(self):
         """True positive detections."""
         if self._tp is None:
-            self._calc_tp_fp_fn()
+            self._calc_tp_fp_tn_fn()
         return self._tp
 
     @property
@@ -282,7 +329,7 @@ class Evaluation(SimpleEvaluation):
     def fp(self):
         """False positive detections."""
         if self._fp is None:
-            self._calc_tp_fp_fn()
+            self._calc_tp_fp_tn_fn()
         return self._fp
 
     @property
@@ -291,10 +338,22 @@ class Evaluation(SimpleEvaluation):
         return self.fp.size
 
     @property
+    def tn(self):
+        """True negative detections."""
+        if self._tn is None:
+            self._calc_tp_fp_tn_fn()
+        return self._tn
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        return self.tn.size
+
+    @property
     def fn(self):
         """False negative detections."""
         if self._fn is None:
-            self._calc_tp_fp_fn()
+            self._calc_tp_fp_tn_fn()
         return self._fn
 
     @property
@@ -302,13 +361,20 @@ class Evaluation(SimpleEvaluation):
         """Number of false negative detections."""
         return self.fn.size
 
-    def calc_absolute_errors(self):
+    @property
+    def errors(self):
         """
         Absolute errors of all true positive detections relative to the closest
         targets.
 
         """
-        return calc_absolute_errors(self.detections, self.targets)
+        if self._errors is None:
+            if self.num_tp == 0:
+                # FIXME: what is the error in case of no TPs
+                self._errors = np.zeros(1)
+            else:
+                self._errors = calc_errors(self.tp, self.targets)
+        return self._errors
 
     @property
     def mean_error(self):
@@ -317,7 +383,7 @@ class Evaluation(SimpleEvaluation):
         the closest targets.
 
         """
-        if not self.errors:
+        if self.errors is None:
             return 0
         return np.mean(self.errors)
 
@@ -328,6 +394,6 @@ class Evaluation(SimpleEvaluation):
         detections relative to the clostest targets.
 
         """
-        if not self.errors:
+        if self.errors is None:
             return 0
         return np.std(self.errors)

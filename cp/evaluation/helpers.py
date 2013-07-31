@@ -76,33 +76,109 @@ def combine_events(events, delta):
     :return: list of combined events
 
     """
-    # sort the events
-    events.sort()
-    events_length = len(events)
-    events_index = 0
+    # return array if no events must be combined
+    errors = calc_intervals(events)
+    if not (events[errors <= delta].any()):
+        return events
     # array for combined events
     comb = []
     # iterate over all events
-    while events_index < events_length - 1:
+    idx = 0
+    while idx < events.size - 1:
         # get the first event
-        first = events[events_index]
-        # always increase the events index
-        events_index += 1
+        first = events[idx]
+        # increase the events index
+        idx += 1
         # get the second event
-        second = events[events_index]
+        second = events[idx]
         # combine the two events?
         if second - first <= delta:
             # two events within the combination window, combine them and replace
             # the second event in the original list with the mean of the events
-            events[events_index] = (first + second) / 2.
+            events[idx] = (first + second) / 2.
         else:
             # the two events can not be combined,
             # store the first event in the new list
             comb.append(first)
     # always append the last element of the list
     comb.append(events[-1])
-    # return the combined onsets
-    return comb
+    # return the combined events
+    return np.asarray(comb)
+
+
+def combine_events_(events, delta):
+    """
+    Combine all events within a certain range.
+
+    :param events: list of events [seconds]
+    :param delta: combination length [seconds]
+    :return: list of combined events
+
+    """
+    # return array if no events must be combined
+    fwd_errors = calc_intervals(events, fwd=True)
+    if not (events[fwd_errors <= delta].any()):
+        return events
+    # array for combined events
+    bwd_errors = calc_intervals(events)
+    # if the events are located far enough apart, just use them
+    indices = np.intersect1d(np.nonzero(fwd_errors > delta)[0], np.nonzero(bwd_errors > delta)[0])
+    print indices
+    comb = events[indices].tolist()
+    print 'ok', comb
+    # the remaining must be merged
+    indices = np.unique(np.append(np.nonzero(fwd_errors <= delta)[0], np.nonzero(bwd_errors <= delta)[0]))
+    print indices
+    # iterate over all events with errors <= delta
+    events_ = np.copy(events)
+    first = None
+    for idx in indices:
+        print idx
+        # exit the loop
+        if idx + 1 not in indices:
+            # store the merged event in the new list
+            comb.append(first)
+            # reset the counters
+            first = None
+            second = None
+            # continue with next segment
+            continue
+        # check if we already have an event to merge
+        if first is None:
+            # get the first event
+            first = events_[idx]
+            print 'first', first
+        else:
+            # treat this event as the second one
+            second = events_[idx]
+            print 'second', second
+        # ok, we have two events to merge
+        if first and second:
+            # merge them and replace the first
+            first = (first + second) / 2.
+    # return all events without zeros
+    comb.sort()
+    return np.asarray(comb)
+
+#def combine_events_(events, delta):
+#    """
+#    Combine all events within a certain range.
+#
+#    :param events: array with events [seconds]
+#    :param delta: combination length [seconds]
+#    :return: array with combined events
+#
+#    """
+#    #
+#    comb = np.zeros_like(events)
+#    errors = calc_intervals(events)
+#    # if the events are located far enough apart, just use them
+#    comb[errors > delta] = events[errors > delta]
+#    comb[errors <= delta] = np.mean((events[errors <= delta], events[1:][errors <= delta]), axis=0)
+#    print comb
+#    # always append the last element of the list
+#    # return the combined events
+#    return np.asarray(comb)
 
 
 def filter_events(events, key):

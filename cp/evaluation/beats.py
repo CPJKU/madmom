@@ -72,12 +72,12 @@ def pscore(detections, targets, tolerance):
     # FIXME: what if only 1 target and detection are given; same with none?
     if detections.size == 0 or targets.size < 2:
         return 0
-    # error window is the given fraction of the median beat interval
+    # the error window is the given fraction of the median beat interval
     window = tolerance * np.median(np.diff(targets))
     # errors
     errors = calc_absolute_errors(detections, targets)
-    # count the instances where the error is smaller the tolerance window
-    p = detections[errors < window].size
+    # count the instances where the error is smaller or equal than the window
+    p = detections[errors <= window].size
     # normalize by the max number of detections/targets
     p /= float(max(detections.size, targets.size))
     # return p-score
@@ -160,7 +160,6 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     # Note: Not enforced, since this condition is kind of pointless. Why not
     #       count a beat if it is correct only because the one before is not?
     #       Also, the original Matlab implementation does not enforce it.
-    # correct = [c for c in correct if c - 1 in correct]
     # 3) the interval must be within the phase tolerance
     correct_interval = detections[abs(1 - (det_interval / tar_interval)) < phase_tolerance]
     # now combine the conditions

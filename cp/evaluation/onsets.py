@@ -40,10 +40,11 @@ def count_errors(detections, targets, window):
     :param detections: a list of events [seconds]
     :param targets: a list of events [seconds]
     :param window: detection window [seconds]
-    :return: tp, fp, fn lists
+    :return: tuple of tp, fp, tn, fn numpy arrays
 
     tp: list with true positive detections
     fp: list with false positive detections
+    tn: list with true negative detections (this one is empty!)
     fn: list with false negative detections
 
     """
@@ -57,8 +58,8 @@ def count_errors(detections, targets, window):
     # calc the absolute errors of detections wrt. targets
     errors = np.asarray(calc_absolute_errors(targets, detections))
     fn = targets[errors > window]
-    # return the lists
-    return tp, fp, fn
+    # return the arrays
+    return tp, fp, np.empty(0), fn
 
 
 # for onset evaluation with Presicion, Recall, F-measure use the Evaluation
@@ -151,7 +152,7 @@ def main():
             targets = combine_events(targets, args.combine)
         # shift the detections if needed
         if args.delay != 0:
-            detections = (np.asarray(detections) + args.delay).tolist()
+            detections += args.delay
         # evaluate the onsets
         oe = OnsetEvaluation(detections, targets, args.window)
         # print stats for each file
