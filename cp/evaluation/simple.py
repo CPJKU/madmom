@@ -55,12 +55,7 @@ def calc_overlap(detections, targets, threshold=0.5):
     fp = np.nonzero(detections > targets)[0]
     tn = np.nonzero(-detections * -targets)[0]
     fn = np.nonzero(detections < targets)[0]
-    # sum up
-    tp = np.sum(tp)
-    tn = np.sum(tn)
-    fp = np.sum(fp)
-    fn = np.sum(fn)
-    assert tp + tn + fp + fn == detections.size, 'bad overlap calculation'
+    assert tp.size + tn.size + fp.size + fn.size == detections.size, 'bad overlap calculation'
     # return
     return tp, tn, fp, fn
 
