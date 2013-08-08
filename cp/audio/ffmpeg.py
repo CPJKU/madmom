@@ -27,6 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import tempfile
 import subprocess
+import os
+import sys
 import numpy as np
 
 from audio import FramedAudio
@@ -52,6 +54,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     :param tmpsuffix: The file extension for the temporary file if
         no outfile was given. Example: ".pcm" (include the dot!)
     :returns: The output file name.
+
     """
     # create temp file if no outfile is given
     if outfile is None:
@@ -72,6 +75,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
         raise
     return outfile
 
+
 def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None):
     """
     Decodes the given audio file, downmixes it to mono and
@@ -85,6 +89,7 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, s
     :param skip: Number of seconds to skip at beginning of file.
     :param maxlen: Maximum number of seconds to decode.
     :returns: A binary string of samples.
+
     """
     call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, skip, maxlen)
     if hasattr(subprocess, 'check_output'):
@@ -97,6 +102,7 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, s
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, call)
     return signal
+
 
 def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None, bufsize=-1):
     """
@@ -117,6 +123,7 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
         other value is the buffer size in bytes.
     :returns: A file-like object for reading the decoded samples, and a process
         object for the decoding process.
+
     """
     # Implementation note: Closing the file-like object only stops decoding
     # because ffmpeg reacts on that. A cleaner solution would be calling
@@ -129,12 +136,14 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
             )
     return proc.stdout, proc
 
+
 def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None):
     """
     Internal function. Creates a sequence of strings indicating the application
     (ffmpeg) to be called as well as the parameters necessary to decode the
     given input file to the given format, at the given offset and for the given
     length to the given output.
+
     """
     if isinstance(infile, unicode):
         infile = infile.encode(sys.getfilesystemencoding())
@@ -187,4 +196,3 @@ class FFmpegFile(FramedAudio):
     # TODO: make this nicer!
     def __str__(self):
         return "%s file: %s length: %i samples (%.2f seconds) samplerate: %i frames: %i (%i samples %.1f hopsize)" % (self.__class__, self.filename, self.num_samples, self.length, self.samplerate, self.frames, self.frame_size, self.hop_size)
-
