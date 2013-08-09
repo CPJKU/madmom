@@ -251,7 +251,7 @@ class FramedAudio(Audio):
     FramedAudio splits an audio signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, samplerate, frame_size=2048, hop_size=441., online=False):
+    def __init__(self, signal, samplerate, frame_size=2048, hop_size=441, online=False):
         """
         Creates a new FramedAudio object instance.
 
@@ -276,7 +276,7 @@ class FramedAudio(Audio):
         super(FramedAudio, self).__init__(signal, samplerate)
         # arguments for splitting the signal into frames
         self.frame_size = frame_size
-        self.hop_size = hop_size
+        self.hop_size = float(hop_size)
         self.online = online
 
     # make the Object iterable

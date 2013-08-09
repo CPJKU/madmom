@@ -120,25 +120,42 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, audio, window=np.hanning(2048), hop_size=441., online=False, phase=False, lgd=False, norm_window=False, fft_size=None):
+    def __init__(self, audio, window=np.hanning(2048), hop_size=441,
+                 filterbank=None, log=False, mul=1, add=0,
+                 stft=False, phase=False, lgd=False,
+                 online=False, norm_window=False, fft_size=None):
         """
-        Creates a new Spectrogram object instance and performs a STFT on the given audio.
+        Creates a new Spectrogram object instance of the given audio.
 
-        :param signal: a FramedAudio object (or file name)
+        :param signal: a FramedAudio object (or file name or tuple (signal, samplerate))
         :param window: window function [default=Hann window with 2048 samples]
         :param hop_size: progress N samples between adjacent frames [default=441.0]
-        :param online: work in online mode [default=False]
+
+        Magnitude spectrogram manipulation parameters:
+
+        :param filterbank: filterbank used for dimensionality reduction of the
+                           magnitude spectrogram [default=None]
+        :param log: take the logarithm of the magnitudes [default=True]
+        :param mul: multiplier before taking the logarithm of the magnitudes [default=1]
+        :param add: add this value before taking the logarithm of the magnitudes [default=0]
+
+        Additional computations:
+
+        :param stft: save the raw complex STFT [default=False]
         :param phase: include phase information [default=False]
         :param lgd: include local group delay information [default=False]
+
+        Computation parameters:
+
+        :param online: work in online mode [default=False]
         :param norm_window: set area of window function to 1 [default=False]
         :param fft_size: use this size for FFT [default=size of window]
 
         Note: including phase and/or local group delay information slows down
-        calculation considerably (phase: x2; lgd: x3)!
+              calculation considerably (phase: x2; lgd: x3)!
 
         """
         from audio import FramedAudio
-        from wav import Wav
 
         # window stuff
         if isinstance(window, int):
@@ -155,73 +172,253 @@ class Spectrogram(object):
             self.window /= np.sum(self.window)
 
         # signal stuff
+        # TODO: make an intelligent class which can handle a lot of different file types automatically
         if issubclass(audio.__class__, FramedAudio):
             # already the right format
             self.audio = audio
+        elif issubclass(audio.__class__, tuple):
+            # assume a tuple (signal, samplerate)
+            self.audio = FramedAudio(audio[0], audio[1], frame_size=window.size, hop_size=hop_size, online=online)
         else:
             # assume a file name, try to instantiate a Wav object with the given parameters
-            # TODO: make an intelligent class which handles a lot of different file types
+            from wav import Wav
             self.audio = Wav(audio, frame_size=window.size, hop_size=hop_size, online=online)
 
-        # FFT size to use
-        if fft_size is None:
-            fft_size = self.window.size
-        self.fft_size = fft_size
+        # magnitude spectrogram (+ others)
+        self.__spec = None
+        self.__stft = None
+        self.__phase = None
+        self.__lgd = None
 
-        # init STFT matrix
-        self.stft = np.empty([self.audio.num_frames, self.fft_bins], np.complex)
+        # additional calculations
+        # Note: the naming might be a bit confusing but is short
+        self._stft = stft
+        self._phase = phase
+        self._lgd = lgd
+
+        # parameters used for the STFT
+        self.online = online
+        if fft_size is None:
+            self.fft_size = self.window.size
+        else:
+            self.fft_size = fft_size
+
+        # parameters for magnitude spectrogram processing
+        # FIXME: if these change, recalculation is needed!
+        self.filterbank = filterbank
+        self.log = log
+        self.mul = mul
+        self.add = add
+
+    def _fft_window(self):
+        """
+        Returns the window function to be used for FFT.
+        The window is scaled automatically, depending on whether the audio
+        is scaled to the range of -1..+1 or present in signed int16.
+
+        """
         # if the audio signal is not scaled, scale the window function accordingly
         # copy the window, and leave self.window untouched
         try:
-            window = np.copy(self.window) / np.iinfo(self.audio.signal.dtype).max
+            return np.copy(self.window) / np.iinfo(self.audio.signal.dtype).max
         except ValueError:
-            window = np.copy(self.window)
+            return np.copy(self.window)
 
-        # calculate STFT
-        # TODO: use yield instead of the index counting stuff
-        index = 0
-        for frame in self.audio:
+    def compute_stft(self, index=None, filterbank=None, log=None, mul=None, add=None, stft=None, phase=None, lgd=None, fft_size=None):
+        """
+        This is a memory saving method to cbatch-ompute different spectrograms.
+
+        :param filterbank: filterbank used for dimensionality reduction of the
+                           magnitude spectrogram
+        :param log: take the logarithm of the magnitudes
+        :param mul: multiplier before takign the logarithm of the magnitudes
+        :param add: add this value before taking the logarithm of the magnitudes
+        :param stft: save the raw complex STFT to the "stft" attribute
+        :param phase: save the phase of the STFT to the "phase" attribute
+        :param lgd: save the local group delay of the STFT to the "lgd" attribute
+
+        """
+        # determine the number of time frames needed
+        # a slice is given
+        if isinstance(index, slice):
+            frames = (index.stop + 1 - index.start) / index.step
+        # a single index is given
+        elif isinstance(index, int):
+            frames = 1
+        # all frames
+        else:
+            index = slice(None)
+            frames = self.audio.num_frames
+
+        # filterbank
+        if filterbank is not None:
+            self.filterbank = filterbank
+        # logarithm
+        if log is not None:
+            self.log = log
+        if mul is not None:
+            self.mul = mul
+        if add is not None:
+            self.add = add
+
+        # determine the number of frequency bins needed for the magnitude spectrogram
+        if isinstance(self.filterbank, np.ndarray):
+            # the second dimension is the number of desired bins
+            bins = np.shape(self.filterbank)[1]
+        else:
+            bins = self.fft_bins
+
+        # init spectrogram matrix
+        self.__spec = np.empty([frames, bins], np.float)
+        # init STFT matrix
+        if stft:
+            self._stft = True
+        if self._stft:
+            self.__stft = np.empty([frames, self.fft_bins], np.complex)
+        # init phase matrix
+        if phase:
+            self._phase = True
+        if self._phase:
+            self.__phase = np.empty([frames, self.fft_bins], np.float)
+        # init local group delay matrix
+        if lgd:
+            self._lgd = True
+        if self._lgd:
+            self.__lgd = np.empty([frames, self.fft_bins], np.float)
+
+        # get a scaled windowing function
+        window = self._fft_window()
+
+        # FFT size to use
+        if fft_size is None:
+            fft_size = self.fft_size
+        if fft_size is None:
+            fft_size = self.window.size
+
+        # TODO: use yield instead of the index counting stuff and cache the results
+        # maybe similar to the solution proposed in:
+        # http://stackoverflow.com/questions/2322642/index-and-slice-a-generator-in-python
+        frame_index = 0
+        for frame in self.audio[index]:
             # multiply the signal with the window function
             signal = np.multiply(frame, window)
             # only shift and perform complex DFT if needed
-            if phase or lgd:
+            if self._phase or self._lgd:
                 # circular shift the signal (needed for correct phase)
                 #signal = fft.fftshift(signal)  # slower!
                 centre = self.window.size / 2
                 signal = np.append(signal[centre:], signal[:centre])
             # perform DFT
-            self.stft[index] = fft.fft(signal, fft_size)[:self.fft_bins]
-            # increase index for next frame
-            index += 1
+            dft = fft.fft(signal, fft_size)[:self.fft_bins]
 
-        # magnitude spectrogram
-        self.spec = np.abs(self.stft)
+            # save raw stft
+            if self._stft:
+                self.__stft[frame_index] = dft
+            # phase / lgd
+            if self._phase or self._lgd:
+                angle = np.angle(dft)
+            if self._phase:
+                self.__phase[frame_index] = angle
+            if self._lgd:
+                # unwrap phase over frequency axis
+                unwrapped_phase = np.unwrap(angle, axis=1)
+                # local group delay is the derivative over frequency
+                self.__lgd[frame_index, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
-        # phase
-        if phase or lgd:
-            # init array
-            self.phase = np.angle(self.stft)
+            # magnitude spectrogram
+            spec = np.abs(dft)
+            # filter with a given filterbank
+            if self.filterbank is not None:
+                spec = np.dot(spec, self.filterbank)
+            # take the logarithm if needed
+            if self.log:
+                spec = np.log10(self.mul * spec + self.add)
+            self.__spec[frame_index] = spec
 
-        # local group delay
-        if lgd:
-            # init array
-            self.lgd = np.zeros_like(self.phase)
-            # unwrap phase over frequency axis
-            unwrapped_phase = np.unwrap(self.phase, axis=1)
-            # local group delay is the derivative over frequency
-            self.lgd[:, :-1] = unwrapped_phase[:, :-1] - unwrapped_phase[:, 1:]
-        # TODO: set self.phase and self.lgd to None otherwise?
+            # increase index counter for next frame
+            frame_index += 1
+
+    @property
+    def stft(self):
+        """Short Time Fourier Transform of the signal."""
+        # TODO: this is highly inefficient, if more properties are accessed
+        # better call compute_stft() only once with appropriate parameters.
+        if self.__stft is None:
+            self.compute_stft(stft=True)
+        return self.__stft
+
+    @property
+    def spec(self):
+        """Magnitude spectrogram of the STFT."""
+        # TODO: this is highly inefficient, if more properties are accessed
+        # better call compute_stft() only once with appropriate parameters.
+        if self.__spec is None:
+            # check if STFT was computed already
+            if self.__stft is not None:
+                # use it
+                self.__spec = np.abs(self.__stft)
+                # filter if needed
+                if self.filterbank is not None:
+                    self.__spec = np.dot(self.__spec, self.filterbank)
+                # take the logarithm
+                if self.log:
+                    self.__spec = np.log10(self.mul * self.__spec + self.add)
+            else:
+                # compute the spec
+                self.compute_stft()
+        return self.__spec
+
+    @property
+    def phase(self):
+        """Phase of the STFT."""
+        # TODO: this is highly inefficient, if more properties are accessed
+        # better call compute_stft() only once with appropriate parameters.
+        if self.__phase is None:
+            # check if STFT was computed already
+            if self.__stft is not None:
+                # use it
+                self.__phase = np.angle(self.__stft)
+            else:
+                # compute the phase
+                self.compute_stft(phase=True)
+        return self.__phase
+
+    @property
+    def lgd(self):
+        """Local group delay of the STFT."""
+        # TODO: this is highly inefficient, if more properties are accessed
+        # better call compute_stft() only once with appropriate parameters.
+        if self.__lgd is None:
+            # if the STFT was computed already, but not the phase
+            if self.__stft is not None and self.__phase is None:
+                # save the phase as well
+                # FIXME: this uses unneeded memory, if only STFT and LGD are of
+                # interest, but not the phase (very rare case only)
+                self.__phase = np.angle(self.__stft)
+            # check if phase was computed already
+            if self.__phase is not None:
+                # FIXME: remove duplicate code
+                # unwrap phase over frequency axis
+                unwrapped_phase = np.unwrap(self.__phase, axis=1)
+                # local group delay is the derivative over frequency
+                self.__lgd[:, :-1] = unwrapped_phase[:, -1] - unwrapped_phase[:, 1:]
+            else:
+                # compute the local group delay
+                self.compute_stft(lgd=True)
+        return self.__lgd
 
     @property
     def num_frames(self):
         """Number of frames."""
-        return self.audio.num_frames
+        return np.shape(self.spec)[0]
 
+    # TODO: remove this?
     @property
     def hop_size(self):
         """Hop-size between two adjacent frames."""
         return self.audio.hop_size
 
+    # TODO: remove this?
     @property
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
@@ -332,8 +529,8 @@ class FilteredSpectrogram(Spectrogram):
             from filterbank import CQFilter
             # construct a standard filterbank
             fb = CQFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
-        # TODO: use super.filter(fb) ?
-        self.spec = np.dot(self.spec, fb)
+        # set the filterbank, so it gets used when the magnitude spectrogram gets computed
+        self.filterbank = fb
 
 # alias
 FS = FilteredSpectrogram
@@ -362,8 +559,10 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         add = kwargs.pop('add', 1)
         # create Spectrogram object
         super(LogarithmicFilteredSpectrogram, self).__init__(*args, **kwargs)
-        # take the logarithm
-        self.log(mul, add)
+        # set the parameters, so they get used when the magnitude spectrogram gets computed
+        self.log = True
+        self.mul = mul
+        self.add = add
 
 # alias
 LFS = LogarithmicFilteredSpectrogram
