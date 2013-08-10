@@ -488,9 +488,9 @@ class Spectrogram(object):
         # TODO: should the default filter stuff be included here? It is handy
         # to just call .filter() without having to create a filterbank first.
         if filterbank is None:
-            from filterbank import CQFilter
+            from filterbank import LogFilter
             # construct a standard filterbank
-            filterbank = CQFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate).filterbank
+            filterbank = LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate)
         self.spec = np.dot(self.spec, filterbank)
 
 
@@ -526,9 +526,9 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # create a filterbank if needed
         if fb is None:
-            from filterbank import CQFilter
+            from filterbank import LogFilter
             # construct a standard filterbank
-            fb = CQFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm).filterbank
+            fb = LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
         # set the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 

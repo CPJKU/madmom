@@ -100,7 +100,7 @@ def bark2hz(z):
     return 1960. / (26.81 / (z + 0.53) - 1.)
 
 
-def bark_frequencies():
+def bark_frequencies(fmin=20, fmax=15500):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
 
@@ -108,10 +108,14 @@ def bark_frequencies():
     # frequencies aligned to the Bark-scale
     f = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000,
          2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500]
+    # filter frequencies
+    f = f[f >= fmin]
+    f = f[f <= fmax]
+    # return
     return f
 
 
-def bark_double_frequencies():
+def bark_double_frequencies(fmin=20, fmax=15500):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
     The list includes also center frequencies between the corner frequencies.
@@ -122,6 +126,10 @@ def bark_double_frequencies():
          840, 920, 1000, 1080, 1170, 1270, 1370, 1480, 1600, 1720, 1850, 2000,
          2150, 2320, 2500, 2700, 2900, 3150, 3400, 3700, 4000, 4400, 4800, 5300,
          5800, 6400, 7000, 7700, 8500, 9500, 10500, 12000, 13500, 15500]
+    # filter frequencies
+    f = f[f >= fmin]
+    f = f[f <= fmax]
+    # return
     return f
 
 # (pseudo) Constant-Q frequency scale
@@ -166,6 +174,33 @@ def cq_frequencies(bands_per_octave, fmin, fmax, a4=440):
     frequencies.sort()
     # return the list
     return frequencies
+
+
+def log_frequencies(bands_per_octave, fmin=27.5, fmax=17000, a4=440):
+    """
+    Generates a list of frequencies aligned on a logarithmic frequency scale.
+
+    :param bands_per_octave: number of filter bands per octave
+    :param fmin: the minimum frequency [Hz, default=27.5]
+    :param fmax: the maximum frequency [Hz, default=17000]
+    :param a4: tuning frequency of A4 [Hz, default=440]
+    :returns: a list of frequencies
+
+    NOTE: if 12 bands per octave and a4=440 are used, the frequencies are
+          equivalent to MIDI notes.
+
+    """
+    # get the range
+    left = np.floor(np.log2(float(fmin) / a4) * bands_per_octave)
+    right = np.ceil(np.log2(float(fmax) / a4) * bands_per_octave)
+    # generate frequencies
+    freqs = a4 * 2 ** (np.arange(left, right) / float(bands_per_octave))
+    # filter frequencies
+    # (needed, because range might be bigger because of the use of floor/ceil)
+    freqs = freqs[freqs >= fmin]
+    freqs = freqs[freqs <= fmax]
+    # return
+    return freqs
 
 
 def semitone_frequencies(fmin, fmax, a4=440):
@@ -250,7 +285,7 @@ def erb2hz(e):
 
 
 # Cent Scale
-# TODO: check the formulas
+# FIXME: check the formulas, they seem to generate weird results
 #def hz2cent(f, a4=440):
 #    """
 #    Convert Hz to Cent.
@@ -279,6 +314,11 @@ def erb2hz(e):
 
 
 # helper functions for filter creation
+def fft_freqs(fft_bins, fs):
+    # faster than: np.fft.fftfreq(fft_bins * 2)[:fft_bins] * fs
+    return np.linspace(0, fs / 2., fft_bins + 1)
+
+
 def triang_filter(start, center, stop, norm=False):
     """
     Calculate a triangular window of the given size.
@@ -394,7 +434,7 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=True):
     return filterbank
 
 
-class Filter(object):
+class OldFilter(object):
     """
     Generic Filter Class.
 
@@ -428,12 +468,60 @@ class Filter(object):
         return self.filterbank.shape[1]
 
 
+class Filter(np.ndarray):
+
+    def __new__(cls, data, fs):
+        # input is an numpy ndarray instance
+        if isinstance(data, np.ndarray):
+            # cast as Wav
+            obj = np.asarray(data).view(cls)
+            # can't set sample rate, default values are set in __array_finalize__
+        else:
+            raise TypeError("wrong input data for Filter")
+        # set attributes
+        obj.__fft_bins, obj.__bands = obj.shape
+        obj.__fs = fs
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__fft_bins = getattr(obj, '__fft_bins')
+        self.__bands = getattr(obj, '__bands')
+
+    @property
+    def fft_bins(self):
+        return self.__fft_bins
+
+    @property
+    def bands(self):
+        return self.__bands
+
+    @property
+    def fs(self):
+        return self.__fs
+
+    @property
+    def bin_freqs(self):
+        return fft_freqs(self.fft_bins, self.fs)
+
+    @property
+    def fmin(self):
+        return self.bin_freqs[np.nonzero(self)[0][0]]
+
+    @property
+    def fmax(self):
+        return self.bin_freqs[np.nonzero(self)[0][-1]]
+
+
 class MelFilter(Filter):
     """
     Mel Filter Class.
 
     """
-    def __init__(self, fft_bins, fs, fmin=30, fmax=16000, bands=40, norm=True):
+    def __new__(cls, fft_bins, fs, fmin=30, fmax=16000, bands=40, norm=True):
         """
         Creates a new Mel Filter object instance.
 
@@ -445,15 +533,26 @@ class MelFilter(Filter):
         :param norm: normalize the area of the filter to 1 [default=True]
 
         """
-        # set variables of base class
-        super(MelFilter, self).__init__(fft_bins, fs, fmin, fmax)
-        # set variables
-        self.bands = bands
-        self.norm = norm
         # get a list of frequencies
-        self.frequencies = mel_frequencies(bands, fmin, fmax)
+        frequencies = mel_frequencies(bands, fmin, fmax)
         # create filterbank
-        self.filterbank = triang_filterbank(self.frequencies, self.fft_bins, self.fs, self.norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        # cast to Filter type
+        obj = Filter.__new__(cls, filterbank, fs)
+        # set additional attributes
+        obj.__norm = norm
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__norm = getattr(obj, '__norm', True)
+
+    @property
+    def norm(self):
+        return self.__norm
 
 
 class BarkFilter(Filter):
@@ -461,7 +560,7 @@ class BarkFilter(Filter):
     Bark Filter CLass.
 
     """
-    def __init__(self, fft_bins, fs, fmin=20, fmax=15500, double=False, norm=True):
+    def __new__(cls, fft_bins, fs, fmin=20, fmax=15500, double=False, norm=True):
         """
         Creates a new Bark Filter object instance.
 
@@ -473,58 +572,90 @@ class BarkFilter(Filter):
         :param norm: normalize the area of the filter to 1 [default=True]
 
         """
-        # set variables of base class
-        super(BarkFilter, self).__init__(fft_bins, fs, fmin, fmax)
-        # set additional variables
-        self.norm = norm
         # get a list of frequencies
         if double:
-            self.frequencies = bark_double_frequencies(fmin, fmax)
+            frequencies = bark_double_frequencies(fmin, fmax)
         else:
-            self.frequencies = bark_frequencies(fmin, fmax)
-        # use only frequencies within [fmin, fmax]
-        # TODO: move this to bark_frequencies & bark_double_frequencies?
-        self.frequencies = [x for x in self.frequencies if (x >= fmin and x <= fmax)]
+            frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
-        self.filterbank = triang_filterbank(self.frequencies, self.fft_bins, self.fs, self.norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        # cast to Filter type
+        obj = Filter.__new__(cls, filterbank, fs)
+        # set additional attributes
+        obj.__norm = norm
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__norm = getattr(obj, '__norm', True)
+
+    @property
+    def norm(self):
+        return self.__norm
 
 
 # TODO: this is very similar to the Cent-Scale. Unify it?
-class CQFilter(Filter):
+class LogFilter(Filter):
     """
-    Constant-Q Filter class.
+    Logarithmic Filter class.
 
     """
-    def __init__(self, fft_bins, fs, bands_per_octave=6, fmin=27, fmax=17000, norm=True, a4=440):
+    def __new__(cls, fft_bins, fs, bands_per_octave=6, fmin=20, fmax=17000, norm=True, a4=440):
         """
-        Creates a new Constant-Q Filter object instance.
+        Creates a new Logarithmic Filter object instance.
 
         :param fft_bins: number of FFT bins (= half the window size of the FFT)
         :param fs: sample rate of the audio file [Hz]
-        :param bands_per_oktave: number of filter bands per octave [default=6]
-        :param fmin: the minimum frequency [Hz, default=27]
+        :param bands_per_octave: number of filter bands per octave [default=6]
+        :param fmin: the minimum frequency [Hz, default=20]
         :param fmax: the maximum frequency [Hz, default=17000]
         :param norm: normalize the area of the filter to 1 [default=True]
         :param a4: tuning frequency of A4 [Hz, default=440]
 
         """
-        # set variables of base class
-        super(CQFilter, self).__init__(fft_bins, fs, fmin, fmax)
-        # set additional variables
-        self.bands_per_octave = bands_per_octave
-        self.norm = norm
         # get a list of frequencies
-        self.frequencies = cq_frequencies(bands_per_octave, fmin, fmax, a4)
+        frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
-        self.filterbank = triang_filterbank(self.frequencies, self.fft_bins, self.fs, self.norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        # cast to Filter type
+        obj = Filter.__new__(cls, filterbank, fs)
+        # set additional attributes
+        obj.__bands_per_octave = bands_per_octave
+        obj.__norm = norm
+        obj.__a4 = a4
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__bands_per_octave = getattr(obj, '__bands_per_octave', 6)
+        self.__norm = getattr(obj, '__norm', True)
+        self.__a4 = getattr(obj, '__a4', 440)
+
+    @property
+    def bands_per_octave(self):
+        return self.__bands_per_octave
+
+    @property
+    def norm(self):
+        return self.__norm
+
+    @property
+    def a4(self):
+        return self.__a4
 
 
-class SemitoneFilter(Filter):
+class SemitoneFilter(LogFilter):
     """
     Semitone Filter class.
 
     """
-    def __init__(self, fft_bins, fs, fmin=27, fmax=17000, norm=True, a4=440):
+    def __new__(cls, fft_bins, fs, fmin=27, fmax=17000, norm=True, a4=440):
         """
         Creates a new Semitone Filter object instance.
 
@@ -536,42 +667,5 @@ class SemitoneFilter(Filter):
         :param a4: tuning frequency of A4 [Hz, default=440]
 
         """
-        # set variables of base class
-        super(SemitoneFilter, self).__init__(fft_bins, fs, fmin, fmax)
-        # set additional variables
-        self.norm = norm
-        # get a list of frequencies
-        self.frequencies = semitone_frequencies(fmin, fmax, a4)
-        # create filterbank
-        self.filterbank = triang_filterbank(self.frequencies, self.fft_bins, self.fs, self.norm)
-
-
-# FIXME: this code is taken from Reini, make it nice and behave the same
-#class CentFilter(Filter):
-#    """Cent Scale Filter"""
-#
-#    def create_cent_filterbank(self, cent_start, cent_hop, num_linear_filters):
-#        """Computes cent-scale filterbank bounds."""
-#        # for each bin, the corresponding frequency expressed in Hz
-#        #bins_hz = [(float(fs) / self.fft_bins) * i for i in np.arange(self.fft_bins / 2)]
-#        bins_hz = np.fft.fftfreq(self.fft_bins)[:self.fft_bins / 2] * self.fs
-#        bins_cent = map(self.hz2cent, bins_hz)
-#        bins_cent[0] = float("-inf")
-#
-#        linear_filters = num_linear_filters
-#        start = cent_start
-#        upper_bounds = []
-#        upper_bounds.append(0)
-#        createLinearFilters = True
-#        for i in range(self.fft_bins / 2):
-#            if bins_cent[i] > start:
-#                if createLinearFilters is True:
-#                    sizeInBins = float(i + 1) / linear_filters
-#                    cur = 0
-#                    for _ in range(linear_filters - 1):
-#                        cur = cur + sizeInBins
-#                        upper_bounds.append(np.floor(cur))
-#                    createLinearFilters = False
-#                upper_bounds.append(i + 1)
-#                start = start + cent_hop
-#        return upper_bounds
+        # return a LogFilter with 12 bands per octave
+        return LogFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
