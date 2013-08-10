@@ -434,40 +434,6 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=True):
     return filterbank
 
 
-class OldFilter(object):
-    """
-    Generic Filter Class.
-
-    """
-
-    def __init__(self, fft_bins, fs, fmin=20, fmax=20000):
-        """
-        Creates a new Filter object instance.
-
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
-        :param fmin: the minimum frequency [Hz, default=20]
-        :param fmax: the maximum frequency [Hz, default=20000]
-
-        """
-        # TODO: modify this class, so that a spectrogram object can be used
-        # directly for init. It has all the needed information (# of fft_bins & fs).
-        self.fft_bins = fft_bins
-        self.fs = fs
-        self.fmin = fmin
-        self.fmax = fmax
-        # reduce fmax if necessary
-        if self.fmax > self.fs / 2.:
-            self.fmax = self.fs / 2.
-        # init filterbank
-        self.filterbank = None
-
-    @property
-    def bands(self):
-        """Number of bands."""
-        return self.filterbank.shape[1]
-
-
 class Filter(np.ndarray):
 
     def __new__(cls, data, fs):

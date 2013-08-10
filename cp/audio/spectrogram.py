@@ -197,18 +197,61 @@ class Spectrogram(object):
         self._lgd = lgd
 
         # parameters used for the STFT
-        self.online = online
+        self.__online = online
         if fft_size is None:
             self.fft_size = self.window.size
         else:
             self.fft_size = fft_size
 
         # parameters for magnitude spectrogram processing
-        # FIXME: if these change, recalculation is needed!
-        self.filterbank = filterbank
-        self.log = log
-        self.mul = mul
-        self.add = add
+        self.__filterbank = filterbank
+        self.__log = log
+        self.__mul = mul
+        self.__add = add
+
+    @property
+    def filterbank(self):
+        return self.__filterbank
+
+    @filterbank.setter
+    def filterbank(self, filterbank):
+        # set new filterbank
+        self.__filterbank = filterbank
+        # invalidate the magnitude spectrogram
+        self.__spec = None
+
+    @property
+    def log(self):
+        return self.__log
+
+    @log.setter
+    def log(self, log):
+        # set logarithm attribute
+        self.__log = log
+        # invalidate the magnitude spectrogram
+        self.__spec = None
+
+    @property
+    def mul(self):
+        return self.__mul
+
+    @mul.setter
+    def mul(self, mul):
+        # set new multiplication factor
+        self.__mul = mul
+        # invalidate the magnitude spectrogram
+        self.__spec = None
+
+    @property
+    def add(self):
+        return self.__add
+
+    @add.setter
+    def add(self, add):
+        # set new addition for logarithm
+        self.__add = add
+        # invalidate the magnitude spectrogram
+        self.__spec = None
 
     def _fft_window(self):
         """
@@ -226,12 +269,13 @@ class Spectrogram(object):
 
     def compute_stft(self, index=None, filterbank=None, log=None, mul=None, add=None, stft=None, phase=None, lgd=None, fft_size=None):
         """
-        This is a memory saving method to cbatch-ompute different spectrograms.
+        This is a memory saving method to batch-compute different spectrograms.
 
+        :param index: slice for which the computation should be perfomed
         :param filterbank: filterbank used for dimensionality reduction of the
                            magnitude spectrogram
         :param log: take the logarithm of the magnitudes
-        :param mul: multiplier before takign the logarithm of the magnitudes
+        :param mul: multiplier before taking the logarithm of the magnitudes
         :param add: add this value before taking the logarithm of the magnitudes
         :param stft: save the raw complex STFT to the "stft" attribute
         :param phase: save the phase of the STFT to the "phase" attribute
@@ -467,32 +511,6 @@ class Spectrogram(object):
         # adjust spec
         self.spec /= P
 
-    def log(self, mul=5, add=1):
-        """
-        Takes the logarithm of the magnitude spectrogram.
-
-        :param mul: multiply the magnitude spectrogram with given value [default=5]
-        :param add: add the given value to the magnitude spectrogram [default=1]
-
-        """
-        assert add > 0, 'a positive value must be added before taking the logarithm'
-        self.spec = np.log10(mul * self.spec + add)
-
-    def filter(self, filterbank=None):
-        """
-        Filter the magnitude spectrogram with the given filterbank.
-
-        :param filterbank: filterbank for dimensionality reduction
-
-        """
-        # TODO: should the default filter stuff be included here? It is handy
-        # to just call .filter() without having to create a filterbank first.
-        if filterbank is None:
-            from filterbank import LogFilter
-            # construct a standard filterbank
-            filterbank = LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate)
-        self.spec = np.dot(self.spec, filterbank)
-
 
 class FilteredSpectrogram(Spectrogram):
     """
@@ -540,7 +558,7 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
     """
     LogarithmicFilteredSpectrogram is a subclass of FilteredSpectrogram which
     filters the magnitude spectrogram based on the given filterbank and converts
-    it to a logarithmic scale.
+    it to a logarithmic (magnitude) scale.
 
     """
     def __init__(self, *args, **kwargs):
