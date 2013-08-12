@@ -357,6 +357,8 @@ def calc_information_gain(error_histogram):
 
 # basic beat evaluation
 class BeatEvaluation(OnsetEvaluation):
+    # this class inherits from OnsetEvaluation the Precision, Recall, and
+    # F-measure evaluation stuff; only the evaluation window is adjusted
     """
     Beat evaluation class.
 
@@ -382,7 +384,10 @@ class BeatEvaluation(OnsetEvaluation):
         self.tempo_tolerance = tempo_tolerance
         self.phase_tolerance = phase_tolerance
         self.bins = bins
-        # continuity scores
+        # scores
+        self.__fmeasure = None
+        self.__pscore = None
+        self.__cemgil = None
         self.__cmlc = None
         self.__cmlt = None
         self.__amlc = None
@@ -397,14 +402,23 @@ class BeatEvaluation(OnsetEvaluation):
 #        self.__matches = find_closest_matches(self.detections, self.targets)
 
     @property
+    def num(self):
+        """Number of evaluated files."""
+        return 1
+
+    @property
     def pscore(self):
         """P-Score."""
-        return pscore(self.detections, self.targets, self.tolerance)
+        if self.__pscore is None:
+            self.__pscore = pscore(self.detections, self.targets, self.tolerance)
+        return self.__pscore
 
     @property
     def cemgil(self):
         """Cemgil accuracy."""
-        return cemgil(self.detections, self.targets, self.sigma)
+        if self.__cemgil is None:
+            self.__cemgil = cemgil(self.detections, self.targets, self.sigma)
+        return self.__cemgil
 
     def _calc_continuity(self):
         """Perform continuity evaluation."""
@@ -452,6 +466,12 @@ class BeatEvaluation(OnsetEvaluation):
         return self.__information_gain
 
     @property
+    def global_information_gain(self):
+        """Global information gain."""
+        # NOTE: if only 1 file is evaluated, it is the same as information gain
+        return self.information_gain
+
+    @property
     def error_histogram(self):
         """Error histogram."""
         if self.__error_histogram is None:
@@ -465,17 +485,11 @@ class BeatEvaluation(OnsetEvaluation):
         :param tex: output format to be used in .tex files [default=False]
 
         """
-        # print the errors
         # report the scores always in the range 0..1, because of formatting
-        try:
-            # try to output the global information gain
-            print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
-        except AttributeError:
-            # if this is not present, skip it
-            print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain)
-#        if tex:
-#            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % (self.num)
-#            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.f_measure, self.true_positive_rate, self.false_positive_rate, self.accuracy, np.mean(self.dev) * 1000., np.std(self.dev) * 1000.)
+        print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
+        if tex:
+            print "tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & AMLt & D & Dg \\\\"
+            print "%i file(s) & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f\\\\" % (self.num, self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
 
 
 class MeanBeatEvaluation(BeatEvaluation):
@@ -537,6 +551,11 @@ class MeanBeatEvaluation(BeatEvaluation):
             return self
         else:
             return NotImplemented
+
+    @property
+    def num(self):
+        """Number of evaluated files."""
+        return len(self.__fmeasure)
 
     @property
     def fmeasure(self):

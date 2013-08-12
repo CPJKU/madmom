@@ -34,6 +34,7 @@ from helpers import calc_errors
 def calc_overlap(detections, targets, threshold=0.5):
     """
     Very simple overlap calculation based on two numpy array of the same shape.
+    The arrays should be a quantized version of any event lists.
 
     :param detections: array with detections
     :param targets: array with targets
@@ -78,59 +79,77 @@ class SimpleEvaluation(object):
         :param num_fn: number of false negative detections
 
         """
-        # init some hidden variables as None, calculate them on demand
-        # FIXME: invalidate (i.e. reset to None) if detections/targets change
-        self.num_tp = num_tp
-        self.num_fp = num_fp
-        self.num_tn = num_tn
-        self.num_fn = num_fn
+        # use hidden variables, because the properties get overridden in subclasses
+        self.__num_tp = num_tp
+        self.__num_fp = num_fp
+        self.__num_tn = num_tn
+        self.__num_fn = num_fn
+
+    @property
+    def num_tp(self):
+        """Number of true positive detections."""
+        return self.__num_tp
+
+    @property
+    def num_fp(self):
+        """Number of false positive detections."""
+        return self.__num_fp
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        return self.__num_tn
+
+    @property
+    def num_fn(self):
+        """Number of false negative detections."""
+        return self.__num_fn
 
     @property
     def precision(self):
         """Precision."""
         # correct / retrieved
-        try:
-            return self.num_tp / float(self.num_tp + self.num_fp)
-        except ZeroDivisionError:
-            return 0.
+        return self.num_tp / np.float64(self.num_tp + self.num_fp)
 
     @property
     def recall(self):
         """Recall."""
         # correct / relevant
-        try:
-            return self.num_tp / float(self.num_tp + self.num_fn)
-        except ZeroDivisionError:
-            return 0.
+        return self.num_tp / np.float64(self.num_tp + self.num_fn)
 
     @property
     def fmeasure(self):
         """F-measure."""
-        try:
-            return 2. * self.precision * self.recall / (self.precision + self.recall)
-        except ZeroDivisionError:
-            return 0.
+        numerator = 2 * self.precision * self.recall
+        if numerator == 0:
+            # FIXME: why is this hack still needed? If not, we get a
+            # RuntimeWarning: invalid value encountered in double_scalars
+            return 0
+        return numerator / np.float64(self.precision + self.recall)
 
     @property
     def accuracy(self):
         """Accuracy."""
         # acc: (TP + TN) / (TP + FP + TN + FN)
-        try:
-            return (self.num_tp + self.num_tn) / float(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
-        except ZeroDivisionError:
-            return 0.
+        return (self.num_tp + self.num_tn) / np.float64(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
 
     @property
     def mean_error(self):
         """Mean of the errors."""
         # FIXME: is returning 0 ok?
-        return 0
+        return 0.
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
         # FIXME: is returning 0 ok?
-        return 0
+        return 0.
+
+    @property
+    def errors(self):
+        """Errors."""
+        # FIXME: is returning an empty list?
+        return np.empty(0)
 
     def print_errors(self, tex=False):
         """
@@ -159,38 +178,63 @@ class SumEvaluation(SimpleEvaluation):
     # inherit from Evaluation class, since this is basically the same
     # this class just sums all the attributes and evaluates accordingly
     def __init__(self, other=None):
-        self.num_tp = 0
-        self.num_fp = 0
-        self.num_tn = 0
-        self.num_fn = 0
-        self.__errors = []
-        # instance can be initialized with an Evaluation object
-        if isinstance(other, Evaluation):
+        super(SumEvaluation, self).__init__()
+        self.__num_tp = 0
+        self.__num_fp = 0
+        self.__num_tn = 0
+        self.__num_fn = 0
+        self.__errors = np.empty(0)
+        # instance can be initialized with a Evaluation object
+        if other:
             # add this object to self
             self += other
 
     # for adding an Evaluation object
     def __add__(self, other):
         #if isinstance(other, Evaluation):
-        if issubclass(other.__class__, Evaluation):
+        if issubclass(other.__class__, SimpleEvaluation):
             # extend
-            self.num_tp += other.num_tp
-            self.num_fp += other.num_fp
-            self.num_tn += other.num_tn
-            self.num_fn += other.num_fn
-            self.__errors.extend(other.errors)
+            self.__num_tp += other.num_tp
+            self.__num_fp += other.num_fp
+            self.__num_tn += other.num_tn
+            self.__num_fn += other.num_fn
+            self.__errors = np.append(self.__errors, other.errors)
             return self
         else:
             return NotImplemented
 
     @property
+    def num_tp(self):
+        """Number of true positive detections."""
+        return self.__num_tp
+
+    @property
+    def num_fp(self):
+        """Number of false positive detections."""
+        return self.__num_fp
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        return self.__num_tn
+
+    @property
+    def num_fn(self):
+        """Number of false negative detections."""
+        return self.__num_fn
+
+    @property
     def mean_error(self):
         """Mean of the errors."""
+        if not self.__errors.any():
+            return 0
         return np.mean(self.__errors)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
+        if not self.__errors.any():
+            return 0
         return np.std(self.__errors)
 
 
@@ -204,41 +248,63 @@ class MeanEvaluation(SimpleEvaluation):
         Creates a new MeanEvaluation object instance.
 
         """
+        super(MeanEvaluation, self).__init__()
+        # redefine most of the stuff
         self.__precision = np.empty(0)
         self.__recall = np.empty(0)
         self.__fmeasure = np.empty(0)
         self.__accuracy = np.empty(0)
         self.__mean = np.empty(0)
         self.__std = np.empty(0)
+        self.__errors = np.empty(0)
+        self.__num_tp = np.empty(0)
+        self.__num_fp = np.empty(0)
+        self.__num_tn = np.empty(0)
+        self.__num_fn = np.empty(0)
         self.num = 0
-        self.num_tp = 0
-        self.num_fp = 0
-        self.num_tn = 0
-        self.num_fn = 0
         # instance can be initialized with a Evaluation object
-        if isinstance(other, Evaluation):
+        if other:
             # add this object to self
             self += other
 
     # for adding a OnsetEvaluation object
     def __add__(self, other):
-        if isinstance(other, Evaluation):
+        if issubclass(other.__class__, SimpleEvaluation):
             self.__precision = np.append(self.__precision, other.precision)
             self.__recall = np.append(self.__recall, other.recall)
             self.__fmeasure = np.append(self.__fmeasure, other.fmeasure)
             self.__accuracy = np.append(self.__accuracy, other.accuracy)
             self.__mean = np.append(self.__mean, other.mean_error)
             self.__std = np.append(self.__std, other.std_error)
-            # TODO: those numbers are some kind of meaningless, since we just
-            # sum them up. Maybe use also the mean on these?
+            self.__errors = np.append(self.__errors, other.errors)
+            self.__num_tp = np.append(self.__num_tp, other.num_tp)
+            self.__num_fp = np.append(self.__num_fp, other.num_fp)
+            self.__num_tn = np.append(self.__num_tn, other.num_tn)
+            self.__num_fn = np.append(self.__num_fn, other.num_fn)
             self.num += 1
-            self.num_tp += other.num_tp
-            self.num_fp += other.num_fp
-            self.num_tn += other.num_tn
-            self.num_fn += other.num_fn
             return self
         else:
             return NotImplemented
+
+    @property
+    def num_tp(self):
+        """Number of true positive detections."""
+        return np.mean(self.__num_tp)
+
+    @property
+    def num_fp(self):
+        """Number of false positive detections."""
+        return np.mean(self.__num_fp)
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        return np.mean(self.__num_tn)
+
+    @property
+    def num_fn(self):
+        """Number of false negative detections."""
+        return np.mean(self.__num_fn)
 
     @property
     def precision(self):
@@ -261,6 +327,11 @@ class MeanEvaluation(SimpleEvaluation):
         return np.mean(self.__accuracy)
 
     @property
+    def errors(self):
+        """Errors."""
+        return self.__errors
+
+    @property
     def mean_error(self):
         """Mean of the errors."""
         return np.mean(self.__mean)
@@ -268,7 +339,7 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        return np.std(self.__std)
+        return np.mean(self.__std)
 
 
 # simple class for evaluation of Presicion, Recall, F-measure
@@ -290,30 +361,30 @@ class Evaluation(SimpleEvaluation):
         detections: ([true positives], [false positives], [false negatives])
 
         """
-        self.detections = detections
-        self.targets = targets
-        self.eval_function = eval_function
+        # detections, targets and evaluation function
+        self.__detections = detections
+        self.__targets = targets
+        self.__eval_function = eval_function
         # save additional arguments and pass them to the evaluation function
         self.__kwargs = kwargs
         # init some hidden variables as None, calculate them on demand
-        # FIXME: invalidate (i.e. reset to None) if detections/targets change
         # TODO: rename _ to __ again?
-        self._tp = None
-        self._fp = None
-        self._tn = None
-        self._fn = None
-        self._errors = None
+        self.__tp = None
+        self.__fp = None
+        self.__tn = None
+        self.__fn = None
+        self.__errors = None
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        self._tp, self._fp, self._tn, self._fn = self.eval_function(self.detections, self.targets, **self.__kwargs)
+        self.__tp, self.__fp, self.__tn, self.__fn = self.__eval_function(self.__detections, self.__targets, **self.__kwargs)
 
     @property
     def tp(self):
         """True positive detections."""
-        if self._tp is None:
+        if self.__tp is None:
             self._calc_tp_fp_tn_fn()
-        return self._tp
+        return self.__tp
 
     @property
     def num_tp(self):
@@ -323,9 +394,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def fp(self):
         """False positive detections."""
-        if self._fp is None:
+        if self.__fp is None:
             self._calc_tp_fp_tn_fn()
-        return self._fp
+        return self.__fp
 
     @property
     def num_fp(self):
@@ -335,9 +406,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def tn(self):
         """True negative detections."""
-        if self._tn is None:
+        if self.__tn is None:
             self._calc_tp_fp_tn_fn()
-        return self._tn
+        return self.__tn
 
     @property
     def num_tn(self):
@@ -347,9 +418,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def fn(self):
         """False negative detections."""
-        if self._fn is None:
+        if self.__fn is None:
             self._calc_tp_fp_tn_fn()
-        return self._fn
+        return self.__fn
 
     @property
     def num_fn(self):
@@ -363,13 +434,13 @@ class Evaluation(SimpleEvaluation):
         targets.
 
         """
-        if self._errors is None:
+        if self.__errors is None:
             if self.num_tp == 0:
                 # FIXME: what is the error in case of no TPs
-                self._errors = np.zeros(1)
+                self.__errors = np.empty(0)
             else:
-                self._errors = calc_errors(self.tp, self.targets)
-        return self._errors
+                self.__errors = calc_errors(self.tp, self.__targets)
+        return self.__errors
 
     @property
     def mean_error(self):
@@ -378,7 +449,7 @@ class Evaluation(SimpleEvaluation):
         the closest targets.
 
         """
-        if self.errors is None:
+        if not self.errors.any():
             return 0
         return np.mean(self.errors)
 
@@ -389,6 +460,129 @@ class Evaluation(SimpleEvaluation):
         detections relative to the clostest targets.
 
         """
-        if self.errors is None:
+        if not self.errors.any():
             return 0
         return np.std(self.errors)
+
+
+def parser():
+    import argparse
+    # define parser
+    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    The script evaluates a file or folder with detections against a file or
+    folder with targets. Extensions can be given to filter the detection and
+    target file lists.
+
+    """)
+    # files used for evaluation
+    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
+    p.add_argument('targets', nargs='*', help='file (or folder) with targets (files being filtered according to the -t argument)')
+    # extensions used for evaluation
+    p.add_argument('-d', dest='det_ext', action='store', default=None, help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default=None, help='extension of the target files')
+    # parameters for evaluation
+    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
+    # verbose
+    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
+    # version
+    p.add_argument('--version', action='version', version='%(prog)s 0.1 (2013-08-05)')
+    # parse the arguments
+    args = p.parse_args()
+    # print the args
+    if args.verbose >= 2:
+        print args
+    # return
+    return args
+
+
+def match_targets_to_detections(det_files, tar_files=None, det_ext='*', tar_ext='*'):
+    """Get a list of detection and corresponding target files."""
+    import os.path
+    from helpers import files
+    # if no targets are given, use the same as the detections
+    if len(tar_files) == 0:
+        tar_files = [det_files]
+    # determine the detection files
+    det_files = files(det_files, det_ext)
+    # determine the target files
+    tar_files = files(tar_files, tar_ext)
+    # file list to return
+    file_list = []
+    # find matching target files for each detection file
+    for det_file in det_files:
+        # strip of possible extensions
+        if det_ext:
+            det_file_name = os.path.splitext(det_file)[0]
+        else:
+            det_file_name = det_file
+        # get the base name without the path
+        det_file_name = os.path.basename(det_file_name)
+        # look for files with the same base name in the targets
+        # TODO: is there a nice one-liner to achieve the same?
+        #tar_files_ = [os.path.join(p, f) for p, f in os.path.split(tar_files) if f == det_file_name]
+        tar_files_ = []
+        for tar_file in tar_files:
+            p, f = os.path.split(tar_file)
+            if f == det_file_name:
+                tar_files_.append(os.path.join(p, f))
+        # append a tuple of the matching pair
+        file_list.append((det_file, tar_files_))
+    # return
+    return file_list
+
+
+def main():
+    from helpers import load_events
+
+    # parse arguments
+    args = parser()
+    # match detections to targets
+    files = match_targets_to_detections(args.detections, args.targets, args.det_ext, args.tar_ext)
+
+    # exit if no files were given
+    if len(files) == 0:
+        print 'no matching pairs found'
+        exit(1)
+
+    # sum and mean counter for all files
+    sum_counter = SumEvaluation()
+    mean_counter = MeanEvaluation()
+    # evaluate all files
+    for det_file, tar_file in files:
+        if not tar_file:
+            print 'no target file for %s found' % det_file
+            exit(1)
+        # get the detections file
+        detections = load_events(det_file)
+        # process all corresponding target files
+        # if more than 1 files are found, do a mean evaluation over all of them
+        me = MeanEvaluation()
+        for f in tar_file:
+            targets = load_events(f)
+#            # test with onsets
+#            from onsets import count_errors
+#            e = Evaluation(detections, targets, count_errors, window=0.07)
+            # evaluate the detections
+            e = Evaluation(detections, targets, calc_overlap)
+            # add to mean evaluation
+            me += e
+            # process the next target file
+        # print stats for each file
+        if args.verbose:
+            if args.verbose >= 2:
+                print det_file, tar_file
+            else:
+                print det_file
+            me.print_errors(args.tex)
+        # add the resulting sum counter
+        sum_counter += me
+        mean_counter += me
+        # process the next detection file
+    # print summary
+    print 'sum for %i files:' % (len(files))
+    sum_counter.print_errors(args.tex)
+    print 'mean for %i files:' % (len(files))
+    mean_counter.print_errors(args.tex)
+
+if __name__ == '__main__':
+    main()

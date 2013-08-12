@@ -31,6 +31,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 
 
+def files(path, extension):
+    """
+    Returns a list of files in path matching the given extension.
+
+    :param path: folder to be searched for files
+    :param extension: only return files with this extension
+    :returns: list of files
+
+    """
+    import os.path
+    import glob
+    import fnmatch
+    # determine the detection files
+    if type(path) == list:
+        # a list of files or paths is given
+        file_list = []
+        for f in path:
+            file_list.extend(files(f, extension))
+    elif os.path.isdir(path):
+        # use all files in the given path
+        file_list = glob.glob("%s/*" % path)
+    elif os.path.isfile(path):
+        # just use this file
+        file_list = [path]
+    else:
+        raise ValueError("only files or folders are supported")
+    # sort files
+    file_list.sort()
+    # filter file list
+    if extension:
+        file_list = fnmatch.filter(file_list, "*%s" % extension)
+    # return list
+    return file_list
+
+
 def load_events(filename):
     """
     Load a list of events from file.

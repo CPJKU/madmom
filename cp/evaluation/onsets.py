@@ -49,6 +49,10 @@ def count_errors(detections, targets, window):
 
     """
     from helpers import calc_absolute_errors
+    # no detections
+    if detections.size == 0:
+        # all targets are FNs
+        return np.empty(0), np.empty(0), np.empty(0), targets
     # calc the absolute errors of detections wrt. targets
     errors = calc_absolute_errors(detections, targets)
     # true positive detections
@@ -108,7 +112,7 @@ def main():
     p.add_argument('-w', dest='window', action='store', default=50, type=float, help='evaluation window [in milliseconds]')
     p.add_argument('-c', dest='combine', action='store', default=30, type=float, help='combine target events within this range [in milliseconds]')
     p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [in milliseconds]')
-    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
+    p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
     # version
     p.add_argument('--version', action='version', version='%(prog)s 1.0 (2012-10-01)')
     # parse the arguments
