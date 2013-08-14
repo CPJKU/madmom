@@ -103,6 +103,7 @@ def write_events(events, filename):
 
 
 def combine_events(events, delta):
+    # TODO: numpyfy
     """
     Combine all events within a certain range.
 
@@ -117,6 +118,8 @@ def combine_events(events, delta):
         return events
     # array for combined events
     comb = []
+    # copy the events, because the array is modified later
+    events = np.copy(events)
     # iterate over all events
     idx = 0
     while idx < events.size - 1:
@@ -129,7 +132,7 @@ def combine_events(events, delta):
         # combine the two events?
         if second - first <= delta:
             # two events within the combination window, combine them and replace
-            # the second event in the original list with the mean of the events
+            # the second event in the original array with the mean of the events
             events[idx] = (first + second) / 2.
         else:
             # the two events can not be combined,
@@ -141,83 +144,31 @@ def combine_events(events, delta):
     return np.asarray(comb)
 
 
-def combine_events_(events, delta):
-    """
-    Combine all events within a certain range.
-
-    :param events: list of events [seconds]
-    :param delta: combination length [seconds]
-    :return: list of combined events
-
-    """
-    # return array if no events must be combined
-    fwd_errors = calc_intervals(events, fwd=True)
-    if not (events[fwd_errors <= delta].any()):
-        return events
-    # array for combined events
-    bwd_errors = calc_intervals(events)
-    # if the events are located far enough apart, just use them
-    indices = np.intersect1d(np.nonzero(fwd_errors > delta)[0], np.nonzero(bwd_errors > delta)[0])
-    print indices
-    comb = events[indices].tolist()
-    print 'ok', comb
-    # the remaining must be merged
-    indices = np.unique(np.append(np.nonzero(fwd_errors <= delta)[0], np.nonzero(bwd_errors <= delta)[0]))
-    print indices
-    # iterate over all events with errors <= delta
-    events_ = np.copy(events)
-    first = None
-    for idx in indices:
-        print idx
-        # exit the loop
-        if idx + 1 not in indices:
-            # store the merged event in the new list
-            comb.append(first)
-            # reset the counters
-            first = None
-            second = None
-            # continue with next segment
-            continue
-        # check if we already have an event to merge
-        if first is None:
-            # get the first event
-            first = events_[idx]
-            print 'first', first
-        else:
-            # treat this event as the second one
-            second = events_[idx]
-            print 'second', second
-        # ok, we have two events to merge
-        if first and second:
-            # merge them and replace the first
-            first = (first + second) / 2.
-    # return all events without zeros
-    comb.sort()
-    return np.asarray(comb)
-
-#def combine_events_(events, delta):
-#    """
-#    Combine all events within a certain range.
-#
-#    :param events: array with events [seconds]
-#    :param delta: combination length [seconds]
-#    :return: array with combined events
-#
-#    """
-#    #
-#    comb = np.zeros_like(events)
-#    errors = calc_intervals(events)
-#    # if the events are located far enough apart, just use them
-#    comb[errors > delta] = events[errors > delta]
-#    comb[errors <= delta] = np.mean((events[errors <= delta], events[1:][errors <= delta]), axis=0)
-#    print comb
-#    # always append the last element of the list
-#    # return the combined events
-#    return np.asarray(comb)
-
-
 def filter_events(events, key):
     raise NotImplemented
+
+
+def quantize_events(events, fps, length=None):
+    """
+    Quantize the events.
+
+    :param events: sequence of events [seconds]
+    :param fps: quantize with N frames per second
+    :param length: length of the returned array [frames, default=last event]
+    :returns: a quantized numpy array
+
+    """
+    # length of the array
+    if length is None:
+        length = int(round(events[-1] * fps)) + 1
+    # init array
+    quantized = np.zeros(length)
+    # set the events
+    for event in events:
+        idx = int(round(event * float(fps)))
+        quantized[idx] = 1
+    # return the events
+    return quantized
 
 
 def find_closest_matches(detections, targets):

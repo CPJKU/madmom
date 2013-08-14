@@ -559,11 +559,11 @@ def main():
         me = MeanEvaluation()
         for f in tar_file:
             targets = load_events(f)
-#            # test with onsets
-#            from onsets import count_errors
-#            e = Evaluation(detections, targets, count_errors, window=0.07)
-            # evaluate the detections
-            e = Evaluation(detections, targets, calc_overlap)
+            # test with onsets
+            from onsets import count_errors
+            e = Evaluation(detections, targets, count_errors, window=0.07)
+#            # evaluate the detections
+#            e = Evaluation(detections, targets, calc_overlap)
             # add to mean evaluation
             me += e
             # process the next target file
