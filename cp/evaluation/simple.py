@@ -109,12 +109,20 @@ class SimpleEvaluation(object):
     def precision(self):
         """Precision."""
         # correct / retrieved
+        if self.num_tp == 0:
+            # FIXME: why is this hack still needed? If not, we get a
+            # RuntimeWarning: invalid value encountered in double_scalars
+            return 0
         return self.num_tp / np.float64(self.num_tp + self.num_fp)
 
     @property
     def recall(self):
         """Recall."""
         # correct / relevant
+        if self.num_tp == 0:
+            # FIXME: why is this hack still needed? If not, we get a
+            # RuntimeWarning: invalid value encountered in double_scalars
+            return 0
         return self.num_tp / np.float64(self.num_tp + self.num_fn)
 
     @property
@@ -131,7 +139,12 @@ class SimpleEvaluation(object):
     def accuracy(self):
         """Accuracy."""
         # acc: (TP + TN) / (TP + FP + TN + FN)
-        return (self.num_tp + self.num_tn) / np.float64(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
+        numerator = self.num_tp + self.num_tn
+        if numerator == 0:
+            # FIXME: why is this hack still needed? If not, we get a
+            # RuntimeWarning: invalid value encountered in double_scalars
+            return 0
+        return numerator / np.float64(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
 
     @property
     def mean_error(self):
@@ -484,8 +497,6 @@ def parser():
     p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
     # verbose
     p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
-    # version
-    p.add_argument('--version', action='version', version='%(prog)s 0.1 (2013-08-05)')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -495,8 +506,18 @@ def parser():
     return args
 
 
-def match_targets_to_detections(det_files, tar_files=None, det_ext='*', tar_ext='*'):
-    """Get a list of detection and corresponding target files."""
+def match_files(det_files, tar_files=None, det_ext='*', tar_ext='*'):
+    """
+    Match a list of target files to the corresponding detection files.
+
+    :param det_files: list of detection files
+    :param tar_files: list of target files [default=None]
+    :param det_ext: use only detection files with that extension [default='*']
+    :param tar_ext: use only target files with that extension [default='*']
+
+    Note: if no target files are given, the same list as the detections is used.
+          This is handy, if one list contains both the detections and targets.
+    """
     import os.path
     from helpers import files
     # if no targets are given, use the same as the detections
@@ -537,7 +558,7 @@ def main():
     # parse arguments
     args = parser()
     # match detections to targets
-    files = match_targets_to_detections(args.detections, args.targets, args.det_ext, args.tar_ext)
+    files = match_files(args.detections, args.targets, args.det_ext, args.tar_ext)
 
     # exit if no files were given
     if len(files) == 0:
@@ -559,7 +580,7 @@ def main():
         me = MeanEvaluation()
         for f in tar_file:
             targets = load_events(f)
-            # test with onsets
+            # test with onsets (but use the beat detection window of 70ms)
             from onsets import count_errors
             e = Evaluation(detections, targets, count_errors, window=0.07)
 #            # evaluate the detections

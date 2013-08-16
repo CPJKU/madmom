@@ -85,11 +85,8 @@ class MeanOnsetEvaluation(MeanEvaluation):
     pass
 
 
-def main():
-    import os.path
+def parser():
     import argparse
-    import glob
-    import fnmatch
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -104,44 +101,39 @@ def main():
 
     """)
     p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')
-    p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
     # extensions used for evaluation
     p.add_argument('-d', dest='detections', action='store', default='.onsets.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='targets', action='store', default='.onsets', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', default=50, type=float, help='evaluation window [in milliseconds]')
-    p.add_argument('-c', dest='combine', action='store', default=30, type=float, help='combine target events within this range [in milliseconds]')
-    p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [in milliseconds]')
+    p.add_argument('-w', dest='window', action='store', default=0.05, type=float, help='evaluation window [seconds, default=0.05]')
+    p.add_argument('-c', dest='combine', action='store', default=0.03, type=float, help='combine target events within this range [seconds, default=0.03]')
+    p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [seconds]')
     p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
-    # version
-    p.add_argument('--version', action='version', version='%(prog)s 1.0 (2012-10-01)')
+    # verbose
+    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
+    # print the args
+    if args.verbose >= 2:
+        print args
+    # return
+    return args
 
-    # convert the detection, combine, and delay values to seconds
-    args.window /= 2000.  # also halve the size of the detection window
-    args.combine /= 1000.
-    args.delay /= 1000.
 
-    # determine the files to process
-    files = []
-    for f in args.files:
-        # check what we have (file/path)
-        if os.path.isdir(f):
-            # use all files in the given path
-            files = glob.glob(f + '/*')
-        else:
-            # file was given, append to list
-            files.append(f)
-    # sort files
-    files.sort()
+def main():
+    from helpers import files
 
-    # TODO: find a better way to determine the corresponding detection/target files from a given list/path of files
+    # parse the arguments
+    args = parser()
+
+    # TODO: find a better way to determine the corresponding detection/target
+    # files from a given list/path of files
+
     # filter target files
-    tar_files = fnmatch.filter(files, "*%s" % args.targets)
+    tar_files = files(args.files, args.targets)
     # filter detection files
-    det_files = fnmatch.filter(files, "*%s" % args.detections)
-    # must be the same number
+    det_files = files(args.files, args.detections)
+    # must be the same number FIXME: find better solution which checks the names
     assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
 
     # sum counter for all files

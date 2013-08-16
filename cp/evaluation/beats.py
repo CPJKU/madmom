@@ -249,7 +249,7 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
         if amlc > 0.5:
             continue
         # if other metrical levels achieve a higher accuracy, take these values
-        # note: do not use the cached values for the closest matches
+        # Note: do not use the cached values for the closest matches
         c, t = cml(detections, targets_variation, tempo_tolerance, phase_tolerance)
         amlc = max(amlc, c)
         amlt = max(amlt, t)
@@ -285,18 +285,14 @@ def information_gain(detections, targets, bins):
     # make the first and last bin half as wide as the rest, so that the last
     # and the first can be added together later (make the histogram circular)
 
-    # since np.histogram uses bin borders, determine offset for the outer edges
+    # since np.histogram uses bin borders, we need to apply an offset
     offset = 0.5 / bins
-    # also one bin must be added because of this + another one, because the last
-    # bin is wraped around to the first one later
+    # add another bin, because the last bin is wraped around to the first one later
     histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
 
     # evaluate detections against targets
     fwd_histogram = error_histogram(detections, targets, histogram_bins)
     fwd_ig = calc_information_gain(fwd_histogram)
-
-    # FIXME: can we speed up this? I.e. is it safe to always evaluate the longer
-    # sequence against the shorter one?
 
     # in case of only few (but correct) detections, the errors could be small
     # thus evaluate also the targets against the detections, i.e. simulate a lot
@@ -345,14 +341,22 @@ def calc_information_gain(error_histogram):
     :returns: information gain
 
     """
-    # make sure the bins heights sum to unity
-    histogram = error_histogram / np.sum(error_histogram)
+    # copy the error_histogram, because it must not be altered
+    histogram = np.copy(error_histogram)
+    # all bins are 0, make a uniform distribution with values != 0
+    if not histogram.any():
+        # Note: this is needed, otherwise a historgram with all bins = 0 would
+        # return the maximum possible information gain because the normalization
+        # in the next step would fail
+        histogram += 1
+    # normalize the histogram
+    histogram /= np.sum(histogram)
     # set 0 values to 1, to make entropy calculation well-behaved
     histogram[histogram == 0] = 1
     # calculate entropy
     entropy = - np.sum(histogram * np.log2(histogram))
     # return information gain
-    return np.log2(len(error_histogram)) - entropy
+    return np.log2(histogram.size) - entropy
 
 
 # basic beat evaluation
@@ -377,6 +381,8 @@ class BeatEvaluation(OnsetEvaluation):
         :param bins: number of bins for the error histogram
 
         """
+        self.detections = detections
+        self.targets = targets
         # set the window for precision, recall & fmeasure to 0.07
         super(BeatEvaluation, self).__init__(detections, targets, window)
         self.tolerance = tolerance
@@ -453,7 +459,7 @@ class BeatEvaluation(OnsetEvaluation):
             self._calc_continuity()
         return self.__amlt
 
-    def _calc_information_gain(self):
+    def _information_gain(self):
         """Perform continuity evaluation."""
         # calculate score and error histogram
         self.__information_gain, self.__error_histogram = information_gain(self.detections, self.targets, self.bins)
@@ -462,20 +468,20 @@ class BeatEvaluation(OnsetEvaluation):
     def information_gain(self):
         """Information gain."""
         if self.__information_gain is None:
-            self._calc_information_gain()
+            self._information_gain()
         return self.__information_gain
 
     @property
     def global_information_gain(self):
         """Global information gain."""
-        # NOTE: if only 1 file is evaluated, it is the same as information gain
+        # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
 
     @property
     def error_histogram(self):
         """Error histogram."""
         if self.__error_histogram is None:
-            self._calc_information_gain()
+            self._information_gain()
         return self.__error_histogram
 
     def print_errors(self, tex=False):
@@ -600,7 +606,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     @property
     def global_information_gain(self):
         """Global information gain."""
-        return calc_information_gain(self.__error_histogram)
+        return calc_information_gain(self.error_histogram)
 
     @property
     def error_histogram(self):
@@ -608,11 +614,8 @@ class MeanBeatEvaluation(BeatEvaluation):
         return self.__error_histogram
 
 
-def main():
-    import os.path
+def parser():
     import argparse
-    import glob
-    import fnmatch
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -621,7 +624,6 @@ def main():
     files with one beat timestamp per line.
     """)
     p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')
-    p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
     # extensions used for evaluation
     p.add_argument('-d', dest='detections', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='targets', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
@@ -635,30 +637,31 @@ def main():
     p.add_argument('--bins', action='store', default=40, type=int, help='number of histogram bins for information gain [default=0.40]')
     p.add_argument('--skip', action='store', default=5., type=float, help='skip first N seconds for evaluation [default=5]')
     # output options
-    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
-    # version
-    p.add_argument('--version', action='version', version='%(prog)s 0.1 (2013-07-17)')
+    p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
+    # verbose
+    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
+    # print the args
+    if args.verbose >= 2:
+        print args
+    # return
+    return args
 
-    # determine the files to process
-    files = []
-    for f in args.files:
-        # check what we have (file/path)
-        if os.path.isdir(f):
-            # use all files in the given path
-            files = glob.glob(f + '/*')
-        else:
-            # file was given, append to list
-            files.append(f)
-    # sort files
-    files.sort()
 
-    # TODO: find a better way to determine the corresponding detection/target files from a given list/path of files
+def main():
+    from helpers import files
+
+    # parse the arguments
+    args = parser()
+
+    # TODO: find a better way to determine the corresponding detection/target
+    # files from a given list/path of files
+
     # filter target files
-    tar_files = fnmatch.filter(files, "*%s" % args.targets)
+    tar_files = files(args.files, args.targets)
     # filter detection files
-    det_files = fnmatch.filter(files, "*%s" % args.detections)
+    det_files = files(args.files, args.detections)
     # must be the same number FIXME: find better solution which checks the names
     assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
 
