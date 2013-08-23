@@ -1,7 +1,30 @@
-import argparse
-import yaml
-import yaml_ordered_dict
-import os
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Copyright (c) 2013 Rainer Kelz <rainer.kelz@jku.at>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
 
 #######################################
 # abstract:
@@ -15,9 +38,50 @@ import os
 # - allowing them to be overridden by specifying them on the commandline
 # - merging them with additionally specified (mostly positional) parameters
 #
-# author: rainer.kelz@jku.at
-#
-###
+#######################################
+
+import argparse
+import os
+import yaml.constructor
+from collections import OrderedDict
+
+
+# retrieved from https://gist.github.com/enaeseth/844388
+class OrderedDictYAMLLoader(yaml.Loader):
+    """
+    A YAML loader that loads mappings into ordered dictionaries.
+    """
+
+    def __init__(self, *args, **kwargs):
+        yaml.Loader.__init__(self, *args, **kwargs)
+
+        self.add_constructor(u'tag:yaml.org,2002:map', type(self).construct_yaml_map)
+        self.add_constructor(u'tag:yaml.org,2002:omap', type(self).construct_yaml_map)
+
+    def construct_yaml_map(self, node):
+        data = OrderedDict()
+        yield data
+        value = self.construct_mapping(node)
+        data.update(value)
+
+    def construct_mapping(self, node, deep=False):
+        if isinstance(node, yaml.MappingNode):
+            self.flatten_mapping(node)
+        else:
+            raise yaml.constructor.ConstructorError(None, None,
+                'expected a mapping node, but found %s' % node.id, node.start_mark)
+
+        mapping = OrderedDict()
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                hash(key)
+            except TypeError, exc:
+                raise yaml.constructor.ConstructorError('while constructing a mapping',
+                    node.start_mark, 'found unacceptable key (%s)' % exc, key_node.start_mark)
+            value = self.construct_object(value_node, deep=deep)
+            mapping[key] = value
+        return mapping
 
 
 class OverridableParameters():
@@ -53,9 +117,8 @@ class OverridableParameters():
         self.parser = argparse.ArgumentParser(description=description,
                                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-        config = yaml.load(open(pre_args.actualconfigfilename),
-                           yaml_ordered_dict.OrderedDictYAMLLoader)
-        
+        config = yaml.load(open(pre_args.actualconfigfilename), OrderedDictYAMLLoader)
+
         for section in self.sectionnames:
             if section in config:
                 group = self.parser.add_argument_group(section)
@@ -69,7 +132,6 @@ class OverridableParameters():
                                        help=optionhelptxt)
             else:
                 raise ValueError('invalid section name encountered "' + section + '"')
-
 
     def add_argument(self, *args, **kwords):
         self.parser.add_argument(*args, **kwords)
