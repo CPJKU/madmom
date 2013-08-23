@@ -152,7 +152,7 @@ def cq_frequencies(bands_per_octave, fmin, fmax, a4=440):
     :param a4: tuning frequency of A4 [Hz, default=440]
     :returns: a list of frequencies
 
-    NOTE: frequencies are aligned to MIDI notes with the default a4=440 and
+    Note: frequencies are aligned to MIDI notes with the default a4=440 and
     12 bands_per_octave.
 
     """
@@ -186,7 +186,7 @@ def log_frequencies(bands_per_octave, fmin=27.5, fmax=17000, a4=440):
     :param a4: tuning frequency of A4 [Hz, default=440]
     :returns: a list of frequencies
 
-    NOTE: if 12 bands per octave and a4=440 are used, the frequencies are
+    Note: if 12 bands per octave and a4=440 are used, the frequencies are
           equivalent to MIDI notes.
 
     """
@@ -212,7 +212,7 @@ def semitone_frequencies(fmin, fmax, a4=440):
     :param a4: tuning frequency of A4 [Hz, default=440]
     :returns: a list of frequencies of semitones
 
-    NOTE: frequencies are aligned to MIDI notes with the default a4=440.
+    Note: frequencies are aligned to MIDI notes with the default a4=440.
 
     """
     # return MIDI frequencies
@@ -244,7 +244,7 @@ def hz2midi(f, a4=440):
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
 
-    Note: This function does not necessarily return a valid MIDI note, you may
+    Note: This function does not necessarily return a valid MIDI Note, you may
     need to round it to the nearest integer.
 
     """

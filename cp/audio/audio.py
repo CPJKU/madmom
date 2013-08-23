@@ -192,16 +192,26 @@ class Audio(object):
 
     # normalize the signal
     def normalize(self):
-        """Normalise the audio signal."""
+        """Normalize the audio signal."""
         self.signal = self.signal.astype(float) / np.max(self.signal)
+
+    # attenuate the signal
+    def attenuate(self, attenuation):
+        """
+        Attenuate the audio signal.
+
+        :param attenuation: attenuation level [dB]
+
+        """
+        self.signal /= np.power(np.sqrt(10.), attenuation / 10.)
 
     # truncate
     def truncate(self, offset=None, length=None):
         """
-        Truncate the audio signal permanently.
+        Truncate the audio signal.
 
-        :param offset: given in seconds
-        :param length: given in seconds
+        :param offset: offset / start [seconds]
+        :param length: length [seconds]
 
         """
         # truncate the beginning
@@ -315,15 +325,18 @@ class FramedAudio(Audio):
     @property
     def num_frames(self):
         """Number of frames."""
-        # TODO: add a complete frame_size, to cover the whole audio signal?
-        # modifications to signal_frame() needed
-        #return int(np.ceil(((np.shape(self.signal)[0]) + self.frame_size) / self.hop_size))
         return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
 
     @property
     def fps(self):
         """Frames per second."""
-        return float(self.wav.samplerate) / float(self.hop_size)
+        return float(self.samplerate) / float(self.hop_size)
+
+    @fps.setter
+    def fps(self, fps):
+        """Frames per second."""
+        # set the hop size accordingly
+        self.hop_size = self.samplerate / float(fps)
 
     @property
     def overlap_factor(self):

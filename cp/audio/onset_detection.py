@@ -363,13 +363,14 @@ class SpectralODF(object):
     based on the magnitude or phase information of a spectrogram.
 
     """
-    def __init__(self, spectrogram, ratio=0.5, diff_frames=None):
+    def __init__(self, spectrogram, ratio=0.5, diff_frames=None, max_bins=3):
         """
         Creates a new ODF object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
         :param ratio: calculate the difference to the frame which window overlaps to this ratio [default=0.5]
         :param diff_frames: calculate the difference to the N-th previous frame [default=None]
+        :param max_bins: number of bins for the maximum filter (for SuperFlux) [default=3]
 
         """
         # import
@@ -395,6 +396,7 @@ class SpectralODF(object):
         if diff_frames < 1:
             raise ValueError("number of diff_frames must be >= 1")
         self.diff_frames = diff_frames
+        self.max_bins = max_bins
 
     # Onset Detection Functions
     def hfc(self):
@@ -409,14 +411,17 @@ class SpectralODF(object):
         """Spectral Flux."""
         return spectral_flux(self.s.spec, self.diff_frames)
 
-    def superflux(self, max_bins=3):
+    def superflux(self, max_bins=None):
         """
         SuperFlux.
 
-        :param max_bins: number of bins for the maximum filter [default=3]
+        :param max_bins: number of bins for the maximum filter [default=None]
 
         """
-        return superflux(self.s.spec, self.diff_frames, max_bins)
+        if max_bins:
+            # overwrite the number of bins used for maximum filtering
+            self.max_bins = max_bins
+        return superflux(self.s.spec, self.diff_frames, self.max_bins)
 
     def mkl(self):
         """Modified Kullback-Leibler."""
@@ -530,18 +535,20 @@ class Onset(object):
                 # save last reported onset
                 last_onset = onset
 
-    def write(self, filename):
+    def write(self, output):
         """
-        Write the detected onsets to the given file.
+        Write the detected onsets to the given output.
 
-        :param filename: the target file name
+        :param output: output file name or file handle
 
-        Only useful if detect() was invoked before.
+        Note: only useful if detect() was invoked before.
 
         """
-        with open(filename, 'w') as f:
+        if not isinstance(output, file):
+            output = open(output, 'w')
+        with output:
             for pos in self.detections:
-                f.write(str(pos) + '\n')
+                output.write(str(pos) + '\n')
 
     def save(self, filename):
         """
@@ -562,12 +569,14 @@ class Onset(object):
         self.activations = np.fromfile(filename)
 
 
-def _parser():
+def parser():
     """
-    Parses the command line arguments.
+    Command line argument parser for onset detection.
 
     """
     import argparse
+    import cp.utils.params
+
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters, the software detects all onsets in
@@ -584,46 +593,15 @@ def _parser():
     p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
     p.add_argument('-s', dest='save', action='store_true', default=False, help='save the activations of the onset detection functions')
     p.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the onset detection functions')
-    # online / offline mode
-    p.add_argument('--offline', dest='online', action='store_false', default=True, help='operate in offline mode')
-    # wav options
-    wav = p.add_argument_group('audio arguments')
-    wav.add_argument('--norm', action='store_true', default=None, help='normalize the audio [switches to offline mode]')
-    wav.add_argument('--att', action='store', type=float, default=None, help='attenuate the audio by ATT dB')
-    # spectrogram options
-    spec = p.add_argument_group('spectrogram arguments')
-    spec.add_argument('--fps', action='store', default=200, type=int, help='frames per second')
-    spec.add_argument('--window', action='store', type=int, default=2048, help='Hanning window length')
-    spec.add_argument('--ratio', action='store', type=float, default=0.5, help='window magnitude ratio to calc number of diff frames')
-    spec.add_argument('--diff_frames', action='store', type=int, default=None, help='diff frames')
-    spec.add_argument('--max_bins', action='store', type=int, default=3, help='bins used for maximum filtering [default=3]')
-    # spec-processing
-    pre = p.add_argument_group('pre-processing arguments')
-    # filter
-    pre.add_argument('--filter', action='store_true', default=None, help='filter the magnitude spectrogram with a filterbank')
-    pre.add_argument('--fmin', action='store', default=27.5, type=float, help='minimum frequency of filter in Hz [default=27.5]')
-    pre.add_argument('--fmax', action='store', default=16000, type=float, help='maximum frequency of filter in Hz [default=16000]')
-    pre.add_argument('--bands', action='store', type=int, default=24, help='number of bands per octave [default=24]')
-    pre.add_argument('--equal', action='store_true', default=False, help='equalize triangular windows to have equal area')
-    # logarithm
-    pre.add_argument('--log', action='store_true', default=None, help='logarithmic magnitude')
-    pre.add_argument('--mul', action='store', default=1, type=float, help='multiplier (before taking the log) [default=1]')
-    pre.add_argument('--add', action='store', default=1, type=float, help='value added (before taking the log) [default=1]')
-    # onset detection
-    onset = p.add_argument_group('onset detection arguments')
+    # add other argument groups
+    cp.utils.params.add_audio_arguments(p)
+    cp.utils.params.add_spec_arguments(p)
+    cp.utils.params.add_filter_arguments(p, switch=True)
+    cp.utils.params.add_log_arguments(p, switch=True)
+    onset = cp.utils.params.add_onset_arguments(p)
     onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [superflux,spectral_flux,sfc,sft]')
-    onset.add_argument('-t', dest='threshold', action='store', type=float, default=1.25, help='detection threshold')
-    onset.add_argument('--combine', action='store', type=float, default=30, help='combine onsets within N miliseconds [default=30]')
-    onset.add_argument('--pre_avg', action='store', type=float, default=100, help='build average over N previous miliseconds [default=100]')
-    onset.add_argument('--pre_max', action='store', type=float, default=30, help='search maximum over N previous miliseconds [default=30]')
-    onset.add_argument('--post_avg', action='store', type=float, default=70, help='build average over N following miliseconds [default=70]')
-    onset.add_argument('--post_max', action='store', type=float, default=30, help='search maximum over N following miliseconds [default=30]')
-    onset.add_argument('--delay', action='store', type=float, default=0, help='report the onsets N miliseconds delayed [default=0]')
-    # version
-    p.add_argument('--version', action='version', version='%(prog)spec 1.0 (2013-04-14)')
     # parse arguments
     args = p.parse_args()
-
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd', 'cd', 'rcd']
     # use default values if no ODF is given
@@ -636,11 +614,9 @@ def _parser():
     # remove mistyped methods
     if args.odf not in methods:
         raise ValueError("at least one valid onset detection function must be given")
-
     # print arguments
     if args.verbose:
         print args
-
     # return args
     return args
 
@@ -656,10 +632,10 @@ def main():
 
     from wav import Wav
     from spectrogram import Spectrogram
-    from filterbank import CQFilter
+    from filterbank import LogFilter
 
     # parse arguments
-    args = _parser()
+    args = parser()
 
     # determine the files to process
     files = []
@@ -708,26 +684,17 @@ def main():
             # attenuate signal
             if args.att:
                 w.attenuate(args.att)
-            # spectrogram
-            s = Spectrogram(w)
-            # filter
+            # create filterbank if needed
             if args.filter:
                 # (re-)create filterbank if the samplerate of the audio changes
                 if filt is None or filt.fs != w.samplerate:
-                    filt = CQFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
-                # filter the spectrogram
-                s.filter(filt.filterbank)
-            # log
-            if args.log:
-                s.log(args.mul, args.add)
+                    filt = LogFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
+            # create a spectrogram object
+            s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
             # use the spectrogram to create an SpectralODF object
-            sodf = SpectralODF(s, args.ratio, args.diff_frames)
+            sodf = SpectralODF(s, ratio=args.ratio, diff_frames=args.diff_frames, max_bins=args.max_bins)
             # perform detection function on the object
-            # e.g. act = sodf.superflux(args.max_bins)
-            if args.odf == 'superflux':
-                act = getattr(sodf, args.odf)(args.max_bins)
-            else:
-                act = getattr(sodf, args.odf)()
+            act = getattr(sodf, args.odf)()
             # create an Onset object with the activations
             o = Onset(act, args.fps, args.online)
             if args.save:
