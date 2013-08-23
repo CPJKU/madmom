@@ -635,3 +635,95 @@ class SemitoneFilter(LogFilter):
         """
         # return a LogFilter with 12 bands per octave
         return LogFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
+
+
+class ChromaFilter(Filter):
+    # FIXME: check if the result is the one expected
+    """
+    A simple chroma filter. Each frequency bin of a magnitude spectrum
+    is assigned a chroma class, and all it's contents are added to this class.
+    No diffusion, just discrete assignment.
+    """
+
+    def __new__(cls, fft_bins, fs, fmin=20, fmax=15500, norm=True, a4=440):
+        """
+        Creates a new Chroma Filter object instance.
+
+        :param fft_bins: number of FFT bins (= half the window size of the FFT)
+        :param fs: sample rate of the audio file [Hz]
+        :param fmin: the minimum frequency [Hz, default=20]
+        :param fmax: the maximum frequency [Hz, default=15500]
+        :param norm: normalize the area of the filter to 1 [default=True]
+        :param a4: tuning frequency of A4 [Hz, default=440]
+
+        """
+        # get a list of frequencies
+        frequencies = semitone_frequencies(fmin, fmax, a4)
+        # conversion factor for mapping of frequencies to spectrogram bins
+        factor = (fs / 2.0) / fft_bins
+        # map the frequencies to the spectrogram bins
+        frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
+        # filter out all frequencies outside the valid range
+        frequencies = [f for f in frequencies if f < fft_bins]
+        # init the filter matrix with size: fft_bins x filter bands
+        filterbank = np.zeros([fft_bins, 12])
+        # process all bands
+        for band in range(frequencies):
+            # edge frequencies
+            # the start bin is included in the filter,
+            # the stop bin is not (=start bin of the next filter)
+            start, stop = frequencies[band:band + 1]
+            # set the height of the filter
+            height = 1.
+            # normalize the area of the filter
+            if norm:
+                # a standard filter is at least 2 bins wide, and stop - start = 1
+                # thus the filter has an area of 1 if the height is set to
+                height /= (stop - start)
+            # create a rectangular filter and map it to the 12 bins
+            filterbank[start:stop, band % 12] = height
+        # cast filterbank to Filter type
+        obj = Filter.__new__(cls, filterbank, fs)
+        # set additional attributes
+        obj.__norm = norm
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__norm = getattr(obj, '__norm', True)
+
+    @property
+    def norm(self):
+        return self.__norm
+
+    @property
+    def a4(self):
+        return self.__a4
+
+### original code from Filip
+#    def __init__(self, fft_length, sample_rate, normalise=False):
+#        from .. import freq_scales as fs
+#        """
+#        Initialises the computation.
+#
+#        :Parameters:
+#          - `fft_length`: Specifies the FFT length used to obtain the magnitude
+#                          spectrum
+#          - `sample_rate`: Sample rate of the audio
+#          - `normalise`: Specifies if the chroma vectors shall be normalised,
+#                         i.e. divided by it's sum
+#        """
+#        super(SimpleChromaComputer, self).__init__(normalise)
+#
+#        mag_spec_length = fft_length / 2 + 1
+#        max_note = np.floor(fs.hz_to_midi(sample_rate / 2))
+#        note_freqs = fs.midi_to_hz(np.arange(0, max_note))
+#        fft_freqs = abs(np.fft.fftfreq(fft_length) * sample_rate)[:mag_spec_length]
+#
+#        note_to_fft_distances = abs(note_freqs[:, np.newaxis] - fft_freqs)
+#        note_assignments = np.argmin(note_to_fft_distances, axis=0) % 12
+#
+#        self.bin_assignments = np.mgrid[:12, :mag_spec_length][0] == note_assignments

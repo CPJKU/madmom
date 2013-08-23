@@ -1,3 +1,5 @@
-- Add documentation to onset features
-- See if lib.audio.join function can be improved speedwise
+- add documentation to onset features
+- see if lib.audio.join function can be improved speed-wise
+- check that the new ChromaFilter does roughly the same as the removed
+  SimpleChromaComputer
 
