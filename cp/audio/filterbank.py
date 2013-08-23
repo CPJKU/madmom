@@ -216,7 +216,7 @@ def semitone_frequencies(fmin, fmax, a4=440):
 
     """
     # return MIDI frequencies
-    return cq_frequencies(12, fmin, fmax, a4)
+    return log_frequencies(12, fmin, fmax, a4)
 
 
 # MIDI
@@ -637,7 +637,7 @@ class SemitoneFilter(LogFilter):
         return LogFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
 
 
-class ChromaFilter(Filter):
+class SimpleChromaFilter(Filter):
     # FIXME: check if the result is the one expected
     """
     A simple chroma filter. Each frequency bin of a magnitude spectrum
@@ -664,15 +664,18 @@ class ChromaFilter(Filter):
         # map the frequencies to the spectrogram bins
         frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
         # filter out all frequencies outside the valid range
-        frequencies = [f for f in frequencies if f < fft_bins]
+#        frequencies = [f for f in frequencies if f < fft_bins]
+        frequencies = frequencies[frequencies < fft_bins]
+#        print frequencies
         # init the filter matrix with size: fft_bins x filter bands
         filterbank = np.zeros([fft_bins, 12])
         # process all bands
-        for band in range(frequencies):
+        for band in range(len(frequencies) - 1):
             # edge frequencies
             # the start bin is included in the filter,
             # the stop bin is not (=start bin of the next filter)
-            start, stop = frequencies[band:band + 1]
+            start = frequencies[band]
+            stop = frequencies[band + 1] + 1
             # set the height of the filter
             height = 1.
             # normalize the area of the filter
@@ -686,6 +689,7 @@ class ChromaFilter(Filter):
         obj = Filter.__new__(cls, filterbank, fs)
         # set additional attributes
         obj.__norm = norm
+        obj.__a4 = a4
         # return the object
         return obj
 
@@ -694,6 +698,7 @@ class ChromaFilter(Filter):
             return
         # set default values here
         self.__norm = getattr(obj, '__norm', True)
+        self.__a4 = getattr(obj, '__a4', 440)
 
     @property
     def norm(self):
