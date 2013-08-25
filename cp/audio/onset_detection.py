@@ -35,7 +35,7 @@ def wraptopi(phase):
     Wrap the phase information to the range -π...π.
 
     :param phase: phase spectrogram
-    :returns: wrapped phase spectrogram
+    :returns:     wrapped phase spectrogram
 
     """
     return np.mod(phase + np.pi, 2.0 * np.pi) - np.pi
@@ -45,10 +45,10 @@ def diff(spec, diff_frames=1, pos=False):
     """
     Calculates the difference of the magnitude spectrogram.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :param pos: only keep positive values [default=False]
-    :returns: (positive) magnitude spectrogram differences
+    :param pos:         only keep positive values [default=False]
+    :returns:           (positive) magnitude spectrogram differences
 
     """
     # init the matrix with 0s, the first N rows are 0 then
@@ -71,11 +71,11 @@ def correlation_diff(self, spec, diff_frames=1, pos=False, diff_bins=1):
     N-th previous frame shifted in frequency to achieve the highest
     correlation between these two frames.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :param pos: only keep positive values [default=False]
-    :param diff_bins: maximum number of bins shifted for correlation calculation [default=1]
-    :returns: (positive) magnitude spectrogram differences
+    :param pos:         only keep positive values [default=False]
+    :param diff_bins:   maximum number of bins shifted for correlation calculation [default=1]
+    :returns:           (positive) magnitude spectrogram differences
 
     """
     # init diff matrix
@@ -110,7 +110,7 @@ def high_frequency_content(spec):
     High Frequency Content.
 
     :param spec: the magnitude spectrogram
-    :returns: high frequency content onset detection function
+    :returns:    high frequency content onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical Signals"
     Paul Masri
@@ -125,9 +125,9 @@ def spectral_diff(spec, diff_frames=1):
     """
     Spectral Diff.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :returns: spectral diff onset detection function
+    :returns:           spectral diff onset detection function
 
     "A hybrid approach to musical note onset detection"
     Chris Duxbury, Mark Sandler and Matthew Davis
@@ -142,9 +142,9 @@ def spectral_flux(spec, diff_frames=1):
     """
     Spectral Flux.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :returns: spectral flux onset detection function
+    :returns:           spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical Signals"
     Paul Masri
@@ -162,10 +162,10 @@ def superflux(spec, diff_frames=1, max_bins=3):
     Calculates the difference of bin k of the magnitude spectrogram relative to
     the N-th previous frame with a maximum filter (in the frequency axis) applied.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :param max_bins: number of neighboring bins used for maximum filtering [default=3]
-    :returns: SuperFlux onset detection function
+    :param max_bins:    number of neighboring bins used for maximum filtering [default=3]
+    :returns:           SuperFlux onset detection function
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
@@ -194,10 +194,10 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=0.000001):
     """
     Modified Kullback-Leibler.
 
-    :param spec: the magnitude spectrogram
+    :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :param epsilon: add epsilon to avoid division by 0 [default=0.000001]
-    :returns: MKL onset detection function
+    :param epsilon:     add epsilon to avoid division by 0 [default=0.000001]
+    :returns:           MKL onset detection function
 
     Note: the implenmentation presented in:
     "Automatic Annotation of Musical Audio for Interactive Applications"
@@ -223,7 +223,7 @@ def _phase_deviation(phase):
     Helper method used by phase_deviation() & weighted_phase_deviation().
 
     :param phase: the phase spectrogram
-    :returns: phase deviation
+    :returns:     phase deviation
 
     """
     pd = np.zeros_like(phase)
@@ -239,7 +239,7 @@ def phase_deviation(phase):
     Phase Deviation.
 
     :param phase: the phase spectrogram
-    :returns: phase deviation onset detection function
+    :returns:     phase deviation onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
@@ -254,9 +254,9 @@ def weighted_phase_deviation(spec, phase):
     """
     Weighted Phase Deviation.
 
-    :param spec: the magnitude spectrogram
+    :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns: weighted phase deviation onset detection function
+    :returns:     weighted phase deviation onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon
@@ -274,10 +274,10 @@ def normalized_weighted_phase_deviation(spec, phase, epsilon=0.000001):
     """
     Normalized Weighted Phase Deviation.
 
-    :param spec: the magnitude spectrogram
-    :param phase: the phase spectrogram
+    :param spec:    the magnitude spectrogram
+    :param phase:   the phase spectrogram
     :param epsilon: add epsilon to avoid division by 0 [default=0.000001]
-    :returns: normalized weighted phase deviation onset detection function
+    :returns:       normalized weighted phase deviation onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon
@@ -294,9 +294,9 @@ def _complex_domain(spec, phase):
     """
     Helper method used by complex_domain() & rectified_complex_domain().
 
-    :param spec: the magnitude spectrogram
+    :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns: complex domain
+    :returns:     complex domain
 
     Note: we use the simple implementation presented in:
     "Onset Detection Revisited"
@@ -323,9 +323,9 @@ def complex_domain(spec, phase):
     """
     Complex Domain.
 
-    :param spec: the magnitude spectrogram
+    :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns: complex domain onset detection function
+    :returns:     complex domain onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
@@ -340,9 +340,9 @@ def rectified_complex_domain(spec, phase):
     """
     Rectified Complex Domain.
 
-    :param spec: the magnitude spectrogram
+    :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns: recified complex domain onset detection function
+    :returns:     recified complex domain onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon
@@ -357,20 +357,26 @@ def rectified_complex_domain(spec, phase):
     return np.sum(np.abs(rcd), axis=1)
 
 
+# SpectralODF default values
+RATIO = 0.5
+DIFF_FRAMES = None
+MAX_BINS = 3
+
+
 class SpectralODF(object):
     """
     The SpectralODF class implements most of the common onset detection function
     based on the magnitude or phase information of a spectrogram.
 
     """
-    def __init__(self, spectrogram, ratio=0.5, diff_frames=None, max_bins=3):
+    def __init__(self, spectrogram, ratio=RATIO, diff_frames=DIFF_FRAMES, max_bins=MAX_BINS):
         """
         Creates a new ODF object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
-        :param ratio: calculate the difference to the frame which window overlaps to this ratio [default=0.5]
+        :param ratio:       calculate the difference to the frame which window overlaps to this ratio [default=0.5]
         :param diff_frames: calculate the difference to the N-th previous frame [default=None]
-        :param max_bins: number of bins for the maximum filter (for SuperFlux) [default=3]
+        :param max_bins:    number of bins for the maximum filter (for SuperFlux) [default=3]
 
         """
         # import
@@ -448,6 +454,90 @@ class SpectralODF(object):
         return rectified_complex_domain(self.s.spec, self.s.phase)
 
 
+# universal peak-picking method
+def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre_max=1, post_max=1):
+    """
+    Perform thresholding and peak-picking on the given activation function.
+
+    :param activations: the onset activation function
+    :param threshold:   threshold for peak-picking
+    :param smooth:      smooth the activation function with the given window [default=None]
+    :param pre_avg:     use N frames past information for moving average [default=0]
+    :param post_avg:    use N frames future information for moving average [default=0]
+    :param pre_max:     use N frames past information for moving maximum [default=1]
+    :param post_max:    use N frames future information for moving maximum [default=1]
+
+    Notes: If no moving average is needed (e.g. the activations are independent
+           of the signal's level as for neural network activations), pre_avg and
+           post_avg should be set to 0.
+
+           For offline peak picking set pre_max=1, post_max=1.
+
+           For online peak picking set all post_ parameters to 0.
+
+    """
+    # smooth activations
+    # TODO: make this use an integer or a window function
+    if smooth:
+        win = np.hamming(smooth)
+        activations = np.convolve(activations, win, 'same')
+    # threshold activations
+    avg_length = pre_avg + post_avg + 1
+    if avg_length > 1:
+        # compute a moving average
+        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
+        # TODO: make the averaging function exchangable (mean/median/etc.)
+        mov_avg = sim.filters.uniform_filter1d(activations, avg_length, mode='constant', origin=avg_origin)
+    else:
+        # do not use a moving average
+        mov_avg = 0
+    # detections are those activations above the moving average + the threshold
+    detections = activations * (activations >= mov_avg + threshold)
+    # peak-picking
+    max_length = pre_max + post_max + 1
+    if max_length > 1:
+        # compute a moving maximum
+        max_origin = int(np.floor((pre_max - post_max) / 2))
+        mov_max = sim.filters.maximum_filter1d(detections, max_length, mode='constant', origin=max_origin)
+        # detections are peak positions
+        detections *= (detections == mov_max)
+    # return indices of detections
+    return np.nonzero(detections)[0]
+
+
+def nn_peak_picking(activations, network, threshold):
+    """
+    Perform the peak-picking method described in:
+
+    "Enhanced peak picking for Onset Detection with Recurrent Neural Networks"
+    Sebastian Böck, Jan Schlüter and Gerhard Widmer
+    Proceedings of the 6th International Workshop on Machine Learning and Music (MML13)
+    Prague, Czech Republic, September 2013
+
+    on the given activation function.
+
+    :param activations: the onset activation function
+    :param network: the trained network with weights
+    :param threshold: threshold for peak-picking
+    :param combine: only report 1 onset within N seconds [default=0.03]
+
+    """
+    # TODO: implement the paper in pure python
+    raise NotImplementedError
+
+
+# default values for onset peak-picking
+THRESHOLD = 1.25
+SMOOTH = 0
+PRE_AVG = 0.1
+POST_AVG = 0.03
+PRE_MAX = 0.03
+POST_MAX = 0.07
+# default values for onset reporting
+COMBINE = 0.03
+DELAY = 0
+
+
 class Onset(object):
     """
     Onset Class.
@@ -463,110 +553,156 @@ class Onset(object):
         :param online: work in online mode (i.e. use only past information) [default=True]
 
         """
-        self.activations = None     # activations of the ODF
-        self.fps = fps              # framerate of the activation function
-        self.online = online        # online peak-picking
-        self.detections = []        # list of detected onsets (in seconds)
+        self.activations = None  # onset activation function
+        self.fps = fps           # frame rate of the activation function
+        self.online = online     # online peak-picking
+        # TODO: is it better to init the detections as np.empty(0)?
+        # this way the write() method would not throw an error, but the
+        # evaluation might not be correct?!
+        self.detections = None   # list of detected onsets [seconds]
+        self.targets = None      # list of target onsets [seconds]
         # set / load activations
         # TODO: decide whether we should go the common way and accept a file
         # here and go up the hierachy by creating a SpectralODF object and
         # perform a default onset detection function (e.g. superflux())
+        # or: load the activations (/targets?) from a file
         if isinstance(activations, np.ndarray):
             # activations are given as an array
             self.activations = activations
         else:
             # read in the activations from a file
-            self.load(activations)
+            self.load_activations(activations)
 
-    def detect(self, threshold, combine=30, pre_avg=100, pre_max=30, post_avg=30, post_max=70, delay=0):
+    def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
+               pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX, post_max=POST_AVG):
         """
-        Detects the onsets.
+        Detect the onsets with a given peak-picking method.
 
         :param threshold: threshold for peak-picking
-        :param combine: only report 1 onset for N miliseconds [default=30]
-        :param pre_avg: use N miliseconds past information for moving average [default=100]
-        :param pre_max: use N miliseconds past information for moving maximum [default=30]
-        :param post_avg: use N miliseconds future information for moving average [default=0]
-        :param post_max: use N miliseconds future information for moving maximum [default=40]
-        :param delay: report the onset N miliseconds delayed [default=0]
+        :param combine:   only report one onset within N seconds [default=0.03]
+        :param delay:     report the onset N seconds delayed [default=0]
+        :param smooth:    smooth the activation function over N seconde [default=0]
+        :param pre_avg:   use N seconds past information for moving average [default=0.1]
+        :param post_avg:  use N seconds future information for moving average [default=0.03]
+        :param pre_max:   use N seconds past information for moving maximum [default=0.03]
+        :param post_max:  use N seconds future information for moving maximum [default=0.07]
 
-        In online mode, post_avg and post_max are set to 0.
+        Notes: If no moving average is needed (e.g. the activations are independent
+               of the signal's level as for neural network activations), pre_avg and
+               post_avg should be set to 0.
 
-        Implements the peak-picking method described in:
+               For offline peak picking set pre_max >= 1/fps, post_max >= 1/fps
 
-        "Evaluating the Online Capabilities of Onset Detection Methods"
-        Sebastian Böck, Florian Krebs and Markus Schedl
-        Proceedings of the 13th International Society for Music Information Retrieval Conference (ISMIR), 2012
+               For online peak picking set all post_ parameters to 0.
+
 
         """
-        # online mode?
-        if self.online:
-            post_max = 0
-            post_avg = 0
-        # convert timing information to frames
-        pre_avg = int(round(self.fps * pre_avg / 1000.))
-        pre_max = int(round(self.fps * pre_max / 1000.))
-        post_max = int(round(self.fps * post_max / 1000.))
-        post_avg = int(round(self.fps * post_avg / 1000.))
-        # convert to seconds
-        combine /= 1000.
-        delay /= 1000.
-        # init detections
-        self.detections = []
-        # moving maximum
-        max_length = pre_max + post_max + 1
-        max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = sim.filters.maximum_filter1d(self.activations, max_length, mode='constant', origin=max_origin)
-        # moving average
-        avg_length = pre_avg + post_avg + 1
-        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
-        mov_avg = sim.filters.uniform_filter1d(self.activations, avg_length, mode='constant', origin=avg_origin)
-        # detections are activation equal to the maximum
-        detections = self.activations * (self.activations == mov_max)
-        # detections must be greater or equal than the moving average + threshold
-        detections = detections * (detections >= mov_avg + threshold)
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        smooth = int(round(self.fps * smooth))
+        pre_avg = int(round(self.fps * pre_avg))
+        post_avg = int(round(self.fps * post_avg))
+        pre_max = int(round(self.fps * pre_max))
+        post_max = int(round(self.fps * post_max))
+        # detect onsets
+        detections = peak_picking(self.activations, threshold, smooth, pre_avg, post_avg, pre_max, post_max)
+        # TODO: do not smooth in online mode
         # convert detected onsets to a list of timestamps
-        last_onset = 0
-        for i in np.nonzero(detections)[0]:
-            onset = float(i) / float(self.fps) + delay
-            # only report an onset if the last N miliseconds none was reported
-            if onset > last_onset + combine:
-                self.detections.append(onset)
-                # save last reported onset
-                last_onset = onset
+        detections = detections / float(self.fps)
+        # shift if neccessary
+        if delay != 0:
+            detections += delay
+        # always use the first detection and all others if none was reported within the last 'combine' seconds
+        if detections.size > 1:
+            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > combine])
+        else:
+            self.detections = detections
 
-    def write(self, output):
+#    def detect_simpl
+
+    def write(self, filename):
         """
-        Write the detected onsets to the given output.
+        Write the detected onsets to a file.
 
-        :param output: output file name or file handle
+        :param filename: output file name or file handle
 
-        Note: only useful if detect() was invoked before.
+        Note: detect() method must be called first.
 
         """
-        if not isinstance(output, file):
-            output = open(output, 'w')
-        with output:
+        if not isinstance(filename, file):
+            # open the file if neccesary
+            filename = open(filename, 'w')
+        with filename:
+            # write the onsets, one per line
             for pos in self.detections:
-                output.write(str(pos) + '\n')
-
-    def save(self, filename):
-        """
-        Save the onset activations to the given file.
-
-        :param filename: the target file name
-
-        """
-        self.activations.tofile(filename)
+                filename.write(str(pos) + '\n')
 
     def load(self, filename):
         """
-        Load the onset activations from the given file.
+        Load the target onsets from a file.
 
-        :param filename: the target file name
+        :param filename: input file name or file handle
 
         """
-        self.activations = np.fromfile(filename)
+        if not isinstance(filename, file):
+            # open the file if neccesary
+            filename = open(filename, 'w')
+        with filename:
+            # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
+            onsets = []
+            # read in the onsets, one per line
+            for line in filename:
+                # 1st column is the onset time, ignore the rest if present
+                onsets.append(float(line.split()[0]))
+        self.targets = np.asarray(onsets)
+
+    def evaluate(self, filename=None, window=0.025):
+        """
+        Evaluate the detected onsets against this target file.
+
+        :param filename: target file name or file handle
+        :param window: evaluation window [seconds, default=0.025]
+
+        """
+        if filename:
+            # load the targets
+            self.load(filename)
+        if self.targets is None:
+            # no targets given, can't evaluate
+            return None
+        # evaluate
+        from cp.evaluation.onsets import OnsetEvaluation
+        return OnsetEvaluation(self.detections, self.targets, window)
+
+    def save_activations(self, filename, sep=''):
+        """
+        Save the onset activations to a file.
+
+        :param filename: output file name or file handle
+        :param sep: separator between activation values [default='']
+
+        Note: empty (“”) separator means the file should be treated as binary;
+              spaces (” ”) in the separator match zero or more whitespace;
+              separator consisting only of spaces must match at least one whitespace.
+
+        """
+        # save the activations
+        self.activations.tofile(filename, sep=sep)
+
+    def load_activations(self, filename, sep=''):
+        """
+        Load the onset activations from a file.
+
+        :param filename: the target file name
+        :param sep: separator between activation values [default='']
+
+        Note: empty (“”) separator means the file should be treated as binary;
+              spaces (” ”) in the separator match zero or more whitespace;
+              separator consisting only of spaces must match at least one whitespace.
+
+        """
+        # load the activations
+        self.activations = np.fromfile(filename, sep=sep)
 
 
 def parser():
@@ -595,9 +731,9 @@ def parser():
     p.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the onset detection functions')
     # add other argument groups
     cp.utils.params.add_audio_arguments(p)
-    cp.utils.params.add_spec_arguments(p)
     cp.utils.params.add_filter_arguments(p, switch=True)
     cp.utils.params.add_log_arguments(p, switch=True)
+    cp.utils.params.add_spectral_odf_arguments(p)
     onset = cp.utils.params.add_onset_arguments(p)
     onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [superflux,spectral_flux,sfc,sft]')
     # parse arguments
@@ -643,14 +779,17 @@ def main():
         # check what we have (file/path)
         if os.path.isdir(f):
             # use all files in the given path
-            files = glob.glob(f + '/*.wav')
+            files = glob.glob(f + '/*')
         else:
             # file was given, append to list
             files.append(f)
+    # sort files
+    files.sort()
 
     # only process .wav files
     files = fnmatch.filter(files, '*.wav')
-    files.sort()
+    # TODO: also add an option for evaluation and load the targets accordingly
+    # see cp.evaluation.helpers.match_files()
 
     # init filterbank
     filt = None
@@ -699,10 +838,10 @@ def main():
             o = Onset(act, args.fps, args.online)
             if args.save:
                 # save the raw ODF activations
-                o.save("%s.%s" % (filename, args.odf))
+                o.save_activations("%s.%s" % (filename, args.odf))
 
         # detect the onsets
-        o.detect(args.threshold, args.combine, args.pre_avg, args.pre_max, args.post_avg, args.post_max, args.delay)
+        o.detect(threshold=args.threshold, combine=args.combine, delay=args.delay, pre_avg=args.pre_avg, pre_max=args.pre_max, post_avg=args.post_avg, post_max=args.post_max)
         # write the onsets to a file
         o.write("%s.onsets.txt" % (filename))
         # also output them to stdout if vebose

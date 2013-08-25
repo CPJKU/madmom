@@ -27,8 +27,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
 
+# get the default values from the corresponding modules
+import cp.audio.audio as a
+import cp.audio.spectrogram as s
+import cp.audio.filterbank as f
+import cp.audio.onset_detection as od
 
-def add_audio_arguments(parser, online=True, norm=False, att=None, fps=200, window=2048):
+
+def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.FPS, window=a.FRAME_SIZE):
     """
     Add audio related arguments to an existing parser object.
 
@@ -50,9 +56,9 @@ def add_audio_arguments(parser, online=True, norm=False, att=None, fps=200, wind
     return wav
 
 
-def add_spec_arguments(parser, diff_frames=None, ratio=0.5, max_bins=3):
+def add_spectral_odf_arguments(parser, diff_frames=od.DIFF_FRAMES, ratio=od.RATIO, max_bins=od.MAX_BINS):
     """
-    Add spectrogram related arguments to an existing parser object.
+    Add spectral ODF related arguments to an existing parser object.
 
     :param parser: existing argparse parser object
     :return: the modified parser object
@@ -60,15 +66,15 @@ def add_spec_arguments(parser, diff_frames=None, ratio=0.5, max_bins=3):
     """
     # add spec related options to the existing parser
     # spectrogram options
-    spec = parser.add_argument_group('spectrogram arguments')
+    spec = parser.add_argument_group('spectral onset detection function arguments')
     spec.add_argument('--diff_frames', action='store', type=int, default=diff_frames, help='diff frames [default=%s]' % diff_frames)
-    spec.add_argument('--ratio', action='store', type=float, default=ratio, help='window magnitude ratio to calc number of diff frames [default=%f]' % ratio)
+    spec.add_argument('--ratio', action='store', type=float, default=ratio, help='window magnitude ratio to calc number of diff frames [default=%.1f]' % ratio)
     spec.add_argument('--max_bins', action='store', type=int, default=max_bins, help='bins used for maximum filtering [default=%i]' % max_bins)
     # return the argument group so it can be modified if needed
     return spec
 
 
-def add_log_arguments(parser, switch=False, mul=1, add=1):
+def add_log_arguments(parser, switch=False, mul=s.MUL, add=s.ADD):
     """
     Add logarithmic magnitude related arguments to an existing parser object.
 
@@ -82,13 +88,14 @@ def add_log_arguments(parser, switch=False, mul=1, add=1):
     if switch:
         # add a switch
         log.add_argument('--log', action='store_true', default=False, help='logarithmic magnitude [default=False]')
-    log.add_argument('--mul', action='store', type=float, default=mul, help='multiplier (before taking the log) [default=1]')
-    log.add_argument('--add', action='store', type=float, default=add, help='value added (before taking the log) [default=1]')
+    log.add_argument('--mul', action='store', type=float, default=mul, help='multiplier (before taking the log) [default=%i]' % mul)
+    log.add_argument('--add', action='store', type=float, default=add, help='value added (before taking the log) [default=%i]' % add)
     # return the argument group so it can be modified if needed
     return log
 
 
-def add_filter_arguments(parser, switch=False, fmin=27.5, fmax=16000, bands=24, equal=False):
+def add_filter_arguments(parser, switch=False, fmin=f.FMIN, fmax=f.FMAX,
+                         bands=f.BANDS_PER_OCTAVE, equal=f.NORM_FILTER):
     """
     Add filter related arguments to an existing parser object.
 
@@ -102,15 +109,16 @@ def add_filter_arguments(parser, switch=False, fmin=27.5, fmax=16000, bands=24, 
     if switch:
         # add a switch
         filt.add_argument('--filter', action='store_true', default=False, help='filter the magnitude spectrogram with a filterbank [default=False]')
-    filt.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%f]' % fmin)
-    filt.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%f]' % fmax)
+    filt.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%i]' % fmin)
+    filt.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
     filt.add_argument('--bands', action='store', type=int, default=bands, help='number of bands per octave [default=%i]' % bands)
-    filt.add_argument('--equal', action='store_true', default=equal, help='equalize triangular windows to have equal area [default=%s]' % equal)
+    filt.add_argument('--equal', action='store_true', default=equal, help='equalize filters to have equal area [default=%s]' % equal)
     # return the argument group so it can be modified if needed
     return filt
 
 
-def add_onset_arguments(parser):
+def add_onset_arguments(parser, threshold=od.THRESHOLD, combine=od.COMBINE, delay=od.DELAY,
+                        pre_avg=od.PRE_AVG, pre_max=od.PRE_MAX, post_avg=od.POST_AVG, post_max=od.POST_MAX):
     """
     Add onset detection related arguments to an existing parser object.
 
@@ -122,13 +130,13 @@ def add_onset_arguments(parser):
     # add onset detection related options to the existing parser
     onset = parser.add_argument_group('onset detection arguments')
     #onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [superflux,sf,sfc,sft]')
-    onset.add_argument('-t', dest='threshold', action='store', type=float, default=1.25, help='detection threshold [default=1.25]')
-    onset.add_argument('--combine', action='store', type=float, default=30, help='combine onsets within N miliseconds [default=30]')
-    onset.add_argument('--pre_avg', action='store', type=float, default=100, help='build average over N previous miliseconds [default=100]')
-    onset.add_argument('--pre_max', action='store', type=float, default=30, help='search maximum over N previous miliseconds [default=30]')
-    onset.add_argument('--post_avg', action='store', type=float, default=70, help='build average over N following miliseconds [default=70]')
-    onset.add_argument('--post_max', action='store', type=float, default=30, help='search maximum over N following miliseconds [default=30]')
-    onset.add_argument('--delay', action='store', type=float, default=0, help='report the onsets N miliseconds delayed [default=0]')
+    onset.add_argument('-t', dest='threshold', action='store', type=float, default=threshold, help='detection threshold [default=%.2f]' % threshold)
+    onset.add_argument('--combine', action='store', type=float, default=combine, help='combine onsets within N seconds [default=%.2f]' % combine)
+    onset.add_argument('--pre_avg', action='store', type=float, default=pre_avg, help='build average over N previous seconds [default=%.2f]' % pre_avg)
+    onset.add_argument('--post_avg', action='store', type=float, default=post_avg, help='build average over N following seconds [default=%.2f]' % post_avg)
+    onset.add_argument('--pre_max', action='store', type=float, default=pre_max, help='search maximum over N previous seconds [default=%.2f]' % pre_max)
+    onset.add_argument('--post_max', action='store', type=float, default=post_max, help='search maximum over N following seconds [default=%.2f]' % post_max)
+    onset.add_argument('--delay', action='store', type=float, default=delay, help='report the onsets N seconds delayed [default=%i]' % delay)
     # return the argument group so it can be modified if needed
     return onset
 
@@ -159,9 +167,9 @@ def parser():
     p.add_argument('--sep', action='store', default='', help='separater for saving/loading the onset detection functions [default=numpy binary]')
     # add other argument groups
     add_audio_arguments(p)
-    add_spec_arguments(p)
     add_filter_arguments(p)
     add_log_arguments(p)
+    add_spectral_odf_arguments(p)
     onset = add_onset_arguments(p)
     onset.add_argument('--not_needed', action='store_true', default=True, help="we usually don't need this option")
     # version

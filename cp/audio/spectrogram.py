@@ -115,15 +115,27 @@ def strided_stft(signal, window, hop_size, phase=True):
     return fft.fft(fft_signal)[:, :ffts]
 
 
+# Spectrogram defaults
+FILTERBANK = None
+LOG = False  # default = linear spectrogram
+MUL = 5
+ADD = 1
+ONLINE = False
+STFT = False
+PHASE = False
+LGD = False
+NORM_WINDOW = False
+FFT_SIZE = None
+
+
 class Spectrogram(object):
     """
     Spectrogram Class.
 
     """
-    def __init__(self, audio, window=np.hanning(2048), hop_size=441,
-                 filterbank=None, log=False, mul=1, add=0,
-                 stft=False, phase=False, lgd=False,
-                 online=False, norm_window=False, fft_size=None):
+    def __init__(self, audio, window=np.hanning(2048), hop_size=441.,
+                 filterbank=FILTERBANK, log=LOG, mul=MUL, add=ADD, online=ONLINE,
+                 stft=STFT, phase=PHASE, lgd=LGD, norm_window=NORM_WINDOW, fft_size=FFT_SIZE):
         """
         Creates a new Spectrogram object instance of the given audio.
 
@@ -158,6 +170,8 @@ class Spectrogram(object):
         from audio import FramedAudio
 
         # window stuff
+        # TODO: if just a window function (without size) is given, use it and
+        # determine the size on the basis of the audio frame size
         if isinstance(window, int):
             # if a window size is given, create a Hann window with that size
             window = np.hanning(window)
@@ -215,7 +229,7 @@ class Spectrogram(object):
 
     @filterbank.setter
     def filterbank(self, filterbank):
-        # set new filterbank
+        # set filterbank
         self.__filterbank = filterbank
         # invalidate the magnitude spectrogram
         self.__spec = None
@@ -237,7 +251,7 @@ class Spectrogram(object):
 
     @mul.setter
     def mul(self, mul):
-        # set new multiplication factor
+        # set multiplication factor
         self.__mul = mul
         # invalidate the magnitude spectrogram
         self.__spec = None
@@ -248,7 +262,7 @@ class Spectrogram(object):
 
     @add.setter
     def add(self, add):
-        # set new addition for logarithm
+        # set addition for logarithm
         self.__add = add
         # invalidate the magnitude spectrogram
         self.__spec = None
@@ -534,20 +548,19 @@ class FilteredSpectrogram(Spectrogram):
         :param a4: tuning frequency of A4 [Hz, default=440]
 
         """
+        import filterbank
         # fetch the arguments special to the filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
-        bands_per_octave = kwargs.pop('bands', 12)
-        fmin = kwargs.pop('fmin', 27)
-        fmax = kwargs.pop('fmax', 17000)
-        norm = kwargs.pop('norm', True)
+        bands_per_octave = kwargs.pop('bands', filterbank.BANDS_PER_OCTAVE)
+        fmin = kwargs.pop('fmin', filterbank.FMIN)
+        fmax = kwargs.pop('fmax', filterbank.FMAX)
+        norm = kwargs.pop('norm', filterbank.NORM_FILTER)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
-        # create a filterbank if needed
+        # if no filterbank was given, create one
         if fb is None:
-            from filterbank import LogFilter
-            # construct a standard filterbank
-            fb = LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
-        # set the filterbank, so it gets used when the magnitude spectrogram gets computed
+            fb = filterbank.LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
+        # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 
 # alias
@@ -573,8 +586,8 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
 
         """
         # fetch the arguments special to the logarithmic magnitude (or set defaults)
-        mul = kwargs.pop('mul', 5)
-        add = kwargs.pop('add', 1)
+        mul = kwargs.pop('mul', MUL)
+        add = kwargs.pop('add', ADD)
         # create Spectrogram object
         super(LogarithmicFilteredSpectrogram, self).__init__(*args, **kwargs)
         # set the parameters, so they get used when the magnitude spectrogram gets computed

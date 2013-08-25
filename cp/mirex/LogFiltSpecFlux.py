@@ -47,10 +47,10 @@ def parser():
     cp.utils.params.add_mirex_io(p)
     # add other argument groups
     cp.utils.params.add_audio_arguments(p, fps=100)
-    cp.utils.params.add_spec_arguments(p)
-    cp.utils.params.add_filter_arguments(p, bands=12)
-    cp.utils.params.add_log_arguments(p)
-    cp.utils.params.add_onset_arguments(p, t=2.75)
+    cp.utils.params.add_filter_arguments(p, bands=12, equal=False)
+    cp.utils.params.add_log_arguments(p, mul=1, add=1)
+    cp.utils.params.add_spectral_odf_arguments(p)
+    cp.utils.params.add_onset_arguments(p, threshold=2.75)
     # version
     p.add_argument('--version', action='version', version='LogFiltSpecFlux MIREX submission 2013')
     # parse arguments
@@ -70,21 +70,8 @@ def main():
     # parse arguments
     args = parser()
 
-    # open the wav file
-    w = Wav(args.input, frame_size=args.window, online=args.online)
-    # set the hop_size
-    w.hop_size = w.samplerate / float(args.fps)
-    # normalize audio
-    if args.norm:
-        w.normalize()
-        args.online = False  # switch to offline mode
-    # downmix to mono
-    if w.num_channels > 1:
-        w.downmix()
-    # attenuate signal
-    if args.att:
-        w.attenuate(args.att)
-
+    # create a wav object
+    w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
     # create a spectrogram object
     s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add)
     # create an SpectralODF object and perform detection function on the object
@@ -92,7 +79,7 @@ def main():
     # create an Onset object with the activations
     o = Onset(act, args.fps, args.online)
     # detect the onsets
-    o.detect(args.threshold, args.combine, args.pre_avg, args.pre_max, args.post_avg, args.post_max, args.delay)
+    o.detect(args.threshold, combine=args.combine, delay=args.delay, pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
     # write the onsets to a file
     o.write(args.output)
 

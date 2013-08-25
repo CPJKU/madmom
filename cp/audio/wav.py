@@ -36,14 +36,11 @@ class Wav(FramedAudio):
 
     """
 
-    def __init__(self, filename, frame_size=2048, hop_size=441.0, online=False):
+    def __init__(self, filename, *args, **kwargs):
         """
         Creates a new Wav object instance.
 
         :param filename: name of the .wav file or file handle
-        :param frame_size: size of one frame [default=2048]
-        :param hop_size: progress N samples between adjacent frames [default=441.0]
-        :param online: use only past information [default=False]
 
         """
         # init variables
@@ -51,7 +48,7 @@ class Wav(FramedAudio):
         # read in the audio from the file
         samplerate, signal = wavfile.read(self.filename)
         # instantiate a FramedAudio object
-        super(Wav, self).__init__(signal, samplerate, frame_size, hop_size, online)
+        super(Wav, self).__init__(signal, samplerate, *args, **kwargs)
 
     # TODO: make this nicer!
     def __str__(self):

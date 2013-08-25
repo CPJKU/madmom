@@ -144,18 +144,27 @@ def strided_frames(signal, frame_size, hop_size):
     return as_strided(signal, (samples, frame_size), (signal.strides[0], signal.strides[0]))[::hop_size]
 
 
+# default values
+MONO = False
+NORM = False
+ATT = 0
+
+
 class Audio(object):
     """
     Audio is a very simple class which just stores the signal and the samplerate
     and provides some basic methods for signal processing.
 
     """
-    def __init__(self, signal, samplerate):
+    def __init__(self, signal, samplerate, mono=MONO, norm=NORM, att=ATT):
         """
         Creates a new Audio object instance.
 
-        :param signal: the audio signal [numpy array]
+        :param signal:     the audio signal [numpy array]
         :param samplerate: samplerate of the signal
+        :param mono:       downmix the signal to mono [default=False]
+        :param norm:       normalize the signal [default=False]
+        :param att:        attenuate the signal by N dB [default=0]
 
         """
         if not isinstance(signal, np.ndarray):
@@ -163,6 +172,17 @@ class Audio(object):
             raise TypeError("Invalid type for audio signal.")
         self.signal = signal
         self.samplerate = samplerate
+
+        # convenience handling of mono down-mixing and normalization
+        if mono:
+            # down-mix to mono
+            self.downmix()
+        if norm:
+            # normalize signal
+            self.normalize()
+        if att != 0:
+            # attenuate signal
+            self.attenuate(att)
 
     @property
     def num_samples(self):
@@ -256,12 +276,20 @@ class Audio(object):
         return "%s length: %i samples (%.2f seconds) samplerate: %i" % (self.__class__, self.num_samples, self.length, self.samplerate)
 
 
+# default values
+FRAME_SIZE = 2048
+HOP_SIZE = 441.0
+FPS = 100
+ONLINE = False
+
+
 class FramedAudio(Audio):
     """
     FramedAudio splits an audio signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, samplerate, frame_size=2048, hop_size=441, online=False):
+    def __init__(self, signal, samplerate, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+                 online=ONLINE, fps=None, *args, **kwargs):
         """
         Creates a new FramedAudio object instance.
 
@@ -271,6 +299,8 @@ class FramedAudio(Audio):
         :param frame_size: size of one frame [default=2048]
         :param hop_size: progress N samples between adjacent frames [default=441]
         :param online: use only past information [default=False]
+        :param fps: use N frames per second instead of setting the hop_size;
+                    if set, this overwrites the hop_size value [default=None]
 
         Note: the FramedAudio class is implemented as an iterator. It splits the
         signal automatically into frames (of frame_size length) and progresses
@@ -283,11 +313,18 @@ class FramedAudio(Audio):
 
         """
         # instantiate a Audio object
-        super(FramedAudio, self).__init__(signal, samplerate)
+        super(FramedAudio, self).__init__(signal, samplerate, *args, **kwargs)
         # arguments for splitting the signal into frames
         self.frame_size = frame_size
         self.hop_size = float(hop_size)
         self.online = online
+
+        # set fps instead of hop_size
+        if fps:
+            # set the fps
+            # Note: the default FPS is not used in __init__(), because usually
+            # FRAME_SIZE and HOP_SIZE are used
+            self.fps = fps
 
     # make the Object iterable
     def __getitem__(self, index):

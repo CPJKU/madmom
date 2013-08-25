@@ -28,6 +28,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 
 
+# default values for filters
+FMIN = 30
+FMAX = 17000
+MEL_BANDS = 40
+BARK_DOUBLE = False
+BANDS_PER_OCTAVE = 12
+NORM_FILTER = True
+A4 = 440
+
+
 # Mel frequency scale
 def hz2mel(f):
     """
@@ -53,7 +63,7 @@ def mel2hz(m):
 
 def mel_frequencies(bands, fmin, fmax):
     """
-    Generates a list of corner frequencies aligned on the Mel scale.
+    Generates a list of frequencies aligned on the Mel scale.
 
     :param bands: number of bands
     :param fmin: the minimum frequency [Hz]
@@ -64,13 +74,8 @@ def mel_frequencies(bands, fmin, fmax):
     # convert fmin and fmax to the Mel scale
     mmin = hz2mel(fmin)
     mmax = hz2mel(fmax)
-    # calculate the width of each Mel filter
-    mwidth = (mmax - mmin) / (bands + 1)
-    # create a list of frequencies
-    frequencies = []
-    for i in range(bands + 2):
-        frequencies.append(mel2hz(mmin + mwidth * i))
-    return frequencies
+    # return a list of frequencies
+    return mel2hz(np.linspace(mmin, mmax, bands))
 
 
 # Bark frequency scale
@@ -104,15 +109,20 @@ def bark_frequencies(fmin=20, fmax=15500):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
 
+    :param fmin: the minimum frequency [Hz, default=20]
+    :param fmax: the maximum frequency [Hz, default=15550]
+    :returns: a list of frequencies
+
     """
     # frequencies aligned to the Bark-scale
-    f = [20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000,
-         2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500]
+    freqs = np.array([20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270,
+                      1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300,
+                      6400, 7700, 9500, 12000, 15500])
     # filter frequencies
-    f = f[f >= fmin]
-    f = f[f <= fmax]
+    freqs = freqs[freqs >= fmin]
+    freqs = freqs[freqs <= fmax]
     # return
-    return f
+    return freqs
 
 
 def bark_double_frequencies(fmin=20, fmax=15500):
@@ -120,69 +130,75 @@ def bark_double_frequencies(fmin=20, fmax=15500):
     Generates a list of corner frequencies aligned on the Bark-scale.
     The list includes also center frequencies between the corner frequencies.
 
+    :param fmin: the minimum frequency [Hz, default=20]
+    :param fmax: the maximum frequency [Hz, default=15550]
+    :returns: a list of frequencies
+
     """
     # frequencies aligned to the Bark-scale, does also including center frequencies
-    f = [20, 50, 100, 150, 200, 250, 300, 350, 400, 450, 510, 570, 630, 700, 770,
-         840, 920, 1000, 1080, 1170, 1270, 1370, 1480, 1600, 1720, 1850, 2000,
-         2150, 2320, 2500, 2700, 2900, 3150, 3400, 3700, 4000, 4400, 4800, 5300,
-         5800, 6400, 7000, 7700, 8500, 9500, 10500, 12000, 13500, 15500]
+    freqs = np.array([20, 50, 100, 150, 200, 250, 300, 350, 400, 450, 510, 570,
+                      630, 700, 770, 840, 920, 1000, 1080, 1170, 1270, 1370,
+                      1480, 1600, 1720, 1850, 2000, 2150, 2320, 2500, 2700,
+                      2900, 3150, 3400, 3700, 4000, 4400, 4800, 5300, 5800,
+                      6400, 7000, 7700, 8500, 9500, 10500, 12000, 13500, 15500])
     # filter frequencies
-    f = f[f >= fmin]
-    f = f[f <= fmax]
+    freqs = freqs[freqs >= fmin]
+    freqs = freqs[freqs <= fmax]
     # return
-    return f
-
-# (pseudo) Constant-Q frequency scale
-
-## FIXME: this is NOT faster!
-#def cq_frequencies(bands, fmin, fmax, a=440):
-#    emin = np.floor(np.log2(float(fmin) / a))
-#    emax = np.ceil(np.log2(float(fmax) / a))
-#    freqs = np.logspace(emin, emax, (emax - emin) * bands, base=2, endpoint=False) * a
-#    return [x for x in freqs if (x >= fmin and x <= fmax)]
+    return freqs
 
 
-def cq_frequencies(bands_per_octave, fmin, fmax, a4=440):
+## (pseudo) Constant-Q frequency scale
+#
+### FIXME: this is NOT faster!
+##def cq_frequencies(bands, fmin, fmax, a=440):
+##    emin = np.floor(np.log2(float(fmin) / a))
+##    emax = np.ceil(np.log2(float(fmax) / a))
+##    freqs = np.logspace(emin, emax, (emax - emin) * bands, base=2, endpoint=False) * a
+##    return [x for x in freqs if (x >= fmin and x <= fmax)]
+#
+#
+#def cq_frequencies(bands_per_octave, fmin, fmax, a4=440):
+#    """
+#    Generates a list of frequencies aligned on a logarithmic frequency scale.
+#
+#    :param bands_per_octave: number of filter bands per octave
+#    :param fmin: the minimum frequency [Hz]
+#    :param fmax: the maximum frequency [Hz]
+#    :param a4: tuning frequency of A4 [Hz, default=440]
+#    :returns: a list of frequencies
+#
+#    Note: frequencies are aligned to MIDI notes with the default a4=440 and
+#    12 bands_per_octave.
+#
+#    """
+#    # factor by which 2 frequencies are located apart from each other
+#    factor = 2.0 ** (1.0 / bands_per_octave)
+#    # start with A4
+#    freq = a4
+#    frequencies = []
+#    # go upwards till fmax
+#    while freq <= fmax:
+#        frequencies.append(freq)
+#        freq *= factor
+#    # restart with a and go downwards till fmin
+#    freq = a4 / factor
+#    while freq >= fmin:
+#        frequencies.append(freq)
+#        freq /= factor
+#    # sort frequencies
+#    frequencies.sort()
+#    # return the list
+#    return frequencies
+
+
+def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     """
     Generates a list of frequencies aligned on a logarithmic frequency scale.
 
     :param bands_per_octave: number of filter bands per octave
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :param a4: tuning frequency of A4 [Hz, default=440]
-    :returns: a list of frequencies
-
-    Note: frequencies are aligned to MIDI notes with the default a4=440 and
-    12 bands_per_octave.
-
-    """
-    # factor by which 2 frequencies are located apart from each other
-    factor = 2.0 ** (1.0 / bands_per_octave)
-    # start with A4
-    freq = a4
-    frequencies = []
-    # go upwards till fmax
-    while freq <= fmax:
-        frequencies.append(freq)
-        freq *= factor
-    # restart with a and go downwards till fmin
-    freq = a4 / factor
-    while freq >= fmin:
-        frequencies.append(freq)
-        freq /= factor
-    # sort frequencies
-    frequencies.sort()
-    # return the list
-    return frequencies
-
-
-def log_frequencies(bands_per_octave, fmin=27.5, fmax=17000, a4=440):
-    """
-    Generates a list of frequencies aligned on a logarithmic frequency scale.
-
-    :param bands_per_octave: number of filter bands per octave
-    :param fmin: the minimum frequency [Hz, default=27.5]
-    :param fmax: the maximum frequency [Hz, default=17000]
     :param a4: tuning frequency of A4 [Hz, default=440]
     :returns: a list of frequencies
 
@@ -196,14 +212,14 @@ def log_frequencies(bands_per_octave, fmin=27.5, fmax=17000, a4=440):
     # generate frequencies
     freqs = a4 * 2 ** (np.arange(left, right) / float(bands_per_octave))
     # filter frequencies
-    # (needed, because range might be bigger because of the use of floor/ceil)
+    # needed, because range might be bigger because of the use of floor/ceil
     freqs = freqs[freqs >= fmin]
     freqs = freqs[freqs <= fmax]
     # return
     return freqs
 
 
-def semitone_frequencies(fmin, fmax, a4=440):
+def semitone_frequencies(fmin, fmax, a4=A4):
     """
     Generates a list of frequencies separated by semitones.
 
@@ -220,7 +236,7 @@ def semitone_frequencies(fmin, fmax, a4=440):
 
 
 # MIDI
-def midi2hz(m, a4=440):
+def midi2hz(m, a4=A4):
     """
     Convert frequencies to the corresponding MIDI notes.
 
@@ -234,7 +250,7 @@ def midi2hz(m, a4=440):
     return 2. ** ((m - 69.) / 12.) * a4
 
 
-def hz2midi(f, a4=440):
+def hz2midi(f, a4=A4):
     """
     Convert MIDI notes to corresponding frequencies.
 
@@ -319,15 +335,15 @@ def fft_freqs(fft_bins, fs):
     return np.linspace(0, fs / 2., fft_bins + 1)
 
 
-def triang_filter(start, center, stop, norm=False):
+def triang_filter(start, center, stop, norm):
     """
     Calculate a triangular window of the given size.
 
     :param start: starting bin (with value 0, included in the returned filter)
     :param center: center bin (of height 1, unless norm is True)
     :param stop: end bin (with value 0, not included in the returned filter)
-    :param norm: normalize the area of the filter to 1 [default=False]
-    :returns: a triangular shaped filter with height 1
+    :param norm: normalize the area of the filter to 1
+    :returns: a triangular shaped filter with height 1 (unless normalized)
 
     """
     # set the height of the filter
@@ -347,7 +363,7 @@ def triang_filter(start, center, stop, norm=False):
     return triang_filter
 
 
-def triang_filterbank(frequencies, fft_bins, fs, norm=True):
+def triang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
     """
     Creates a filterbank with overlapping triangular filters.
 
@@ -367,7 +383,8 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=True):
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # filter out all frequencies outside the valid range
-    frequencies = [f for f in frequencies if f < fft_bins]
+    frequencies = frequencies[frequencies < fft_bins]
+    # FIXME: skip the DC bin 0?
     # only keep unique bins
     # Note: this is important to do so, otherwise the lower frequency bins are
     # given too much weight if simply summed up (as in the spectral flux)
@@ -388,7 +405,7 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=True):
     return filterbank
 
 
-def rectang_filterbank(frequencies, fft_bins, fs, norm=True):
+def rectang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
     """
     Creates a filterbank with rectangular filters.
 
@@ -405,6 +422,7 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=True):
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # filter out all frequencies outside the valid range
     frequencies = [f for f in frequencies if f < fft_bins]
+    # FIXME: skip the DC bin 0?
     # only keep unique bins
     # Note: this is important to do so, otherwise the lower frequency bins are
     # given too much weight if simply summed up (as in the spectral flux)
@@ -439,9 +457,8 @@ class Filter(np.ndarray):
     def __new__(cls, data, fs):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
-            # cast as Wav
+            # cast as Filter
             obj = np.asarray(data).view(cls)
-            # can't set sample rate, default values are set in __array_finalize__
         else:
             raise TypeError("wrong input data for Filter")
         # set attributes
@@ -487,7 +504,7 @@ class MelFilter(Filter):
     Mel Filter Class.
 
     """
-    def __new__(cls, fft_bins, fs, fmin=30, fmax=16000, bands=40, norm=True):
+    def __new__(cls, fft_bins, fs, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER):
         """
         Creates a new Mel Filter object instance.
 
@@ -500,10 +517,11 @@ class MelFilter(Filter):
 
         """
         # get a list of frequencies
-        frequencies = mel_frequencies(bands, fmin, fmax)
+        # request 2 more bands, becuase these are the edge frequencies
+        frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
-        # cast to Filter type
+        # cast to Filter
         obj = Filter.__new__(cls, filterbank, fs)
         # set additional attributes
         obj.__norm = norm
@@ -526,7 +544,7 @@ class BarkFilter(Filter):
     Bark Filter CLass.
 
     """
-    def __new__(cls, fft_bins, fs, fmin=20, fmax=15500, double=False, norm=True):
+    def __new__(cls, fft_bins, fs, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER):
         """
         Creates a new Bark Filter object instance.
 
@@ -545,7 +563,7 @@ class BarkFilter(Filter):
             frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
-        # cast to Filter type
+        # cast to Filter
         obj = Filter.__new__(cls, filterbank, fs)
         # set additional attributes
         obj.__norm = norm
@@ -569,7 +587,9 @@ class LogFilter(Filter):
     Logarithmic Filter class.
 
     """
-    def __new__(cls, fft_bins, fs, bands_per_octave=6, fmin=20, fmax=17000, norm=True, a4=440):
+    def __new__(cls, fft_bins, fs,
+                bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
+                norm=NORM_FILTER, a4=A4):
         """
         Creates a new Logarithmic Filter object instance.
 
@@ -586,7 +606,7 @@ class LogFilter(Filter):
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
-        # cast to Filter type
+        # cast to Filter
         obj = Filter.__new__(cls, filterbank, fs)
         # set additional attributes
         obj.__bands_per_octave = bands_per_octave
@@ -599,9 +619,9 @@ class LogFilter(Filter):
         if obj is None:
             return
         # set default values here
-        self.__bands_per_octave = getattr(obj, '__bands_per_octave', 6)
+        self.__bands_per_octave = getattr(obj, '__bands_per_octave', BANDS_PER_OCTAVE)
         self.__norm = getattr(obj, '__norm', True)
-        self.__a4 = getattr(obj, '__a4', 440)
+        self.__a4 = getattr(obj, '__a4', A4)
 
     @property
     def bands_per_octave(self):
@@ -621,7 +641,8 @@ class SemitoneFilter(LogFilter):
     Semitone Filter class.
 
     """
-    def __new__(cls, fft_bins, fs, fmin=27, fmax=17000, norm=True, a4=440):
+    def __new__(cls, fft_bins, fs,
+                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
         """
         Creates a new Semitone Filter object instance.
 
@@ -645,7 +666,8 @@ class SimpleChromaFilter(Filter):
     No diffusion, just discrete assignment.
     """
 
-    def __new__(cls, fft_bins, fs, fmin=20, fmax=15500, norm=True, a4=440):
+    def __new__(cls, fft_bins, fs,
+                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
         """
         Creates a new Chroma Filter object instance.
 
@@ -664,9 +686,7 @@ class SimpleChromaFilter(Filter):
         # map the frequencies to the spectrogram bins
         frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
         # filter out all frequencies outside the valid range
-#        frequencies = [f for f in frequencies if f < fft_bins]
         frequencies = frequencies[frequencies < fft_bins]
-#        print frequencies
         # init the filter matrix with size: fft_bins x filter bands
         filterbank = np.zeros([fft_bins, 12])
         # process all bands
@@ -685,7 +705,7 @@ class SimpleChromaFilter(Filter):
                 height /= (stop - start)
             # create a rectangular filter and map it to the 12 bins
             filterbank[start:stop, band % 12] = height
-        # cast filterbank to Filter type
+        # cast to Filter
         obj = Filter.__new__(cls, filterbank, fs)
         # set additional attributes
         obj.__norm = norm
@@ -697,8 +717,8 @@ class SimpleChromaFilter(Filter):
         if obj is None:
             return
         # set default values here
-        self.__norm = getattr(obj, '__norm', True)
-        self.__a4 = getattr(obj, '__a4', 440)
+        self.__norm = getattr(obj, '__norm', NORM_FILTER)
+        self.__a4 = getattr(obj, '__a4', A4)
 
     @property
     def norm(self):
