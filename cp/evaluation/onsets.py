@@ -93,14 +93,9 @@ def parser():
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters the script evaluates pairs of files
-    with the targets (.onsets) and detection (.onsets.txt) as simple text
-    files with one onset timestamp per line according to the rules given in
-
-    "Evaluating the Online Capabilities of Onset Detection Methods"
-    by Sebastian Böck, Florian Krebs and Markus Schedl
-    in Proceedings of the 13th International Society for
-    Music Information Retrieval Conference (ISMIR 2012)
+    If invoked without any parameters the script evaluates pairs of files with
+    the targets (.onsets) and detection (.onsets.txt) as simple text files with
+    one onset time-stamp per line.
 
     """)
     p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')

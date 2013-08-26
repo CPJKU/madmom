@@ -52,7 +52,7 @@ def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.F
         online = False
     # add wav options to the existing parser
     wav = parser.add_argument_group('audio arguments')
-    wav.add_argument('--offline', dest='online', action='store_false', default=online, help='operate in offline mode')
+    wav.add_argument('--online', dest='online', action='store_true', default=online, help='operate in offline mode')
     wav.add_argument('--norm', action='store_true', default=norm, help='normalize the audio signal (switches to offline mode)')
     wav.add_argument('--att', action='store', type=float, default=att, help='attenuate the audio signal [dB]')
     wav.add_argument('--fps', action='store', type=int, default=fps, help="frames per second [default=%i]" % fps)

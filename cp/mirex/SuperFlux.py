@@ -54,6 +54,11 @@ def parser():
     p.add_argument('--version', action='version', version='SuperFlux MIREX submission 2013 by Sebastian Böck')
     # parse arguments
     args = p.parse_args()
+    # switch to offline mode
+    if args.norm:
+        args.online = False
+        args.post_avg = 0
+        args.post_max = 0
     # print arguments
     if args.verbose:
         print args
@@ -68,9 +73,6 @@ def main():
 
     # parse arguments
     args = parser()
-    # switch to offline mode
-    if args.norm:
-        args.online = False
 
     # create a Wav object
     w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)

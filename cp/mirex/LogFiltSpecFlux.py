@@ -55,6 +55,11 @@ def parser():
     p.add_argument('--version', action='version', version='LogFiltSpecFlux MIREX submission 2013')
     # parse arguments
     args = p.parse_args()
+    # switch to offline mode
+    if args.norm:
+        args.online = False
+        args.post_avg = 0
+        args.post_max = 0
     # print arguments
     if args.verbose:
         print args

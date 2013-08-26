@@ -461,15 +461,15 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
 
     :param activations: the onset activation function
     :param threshold:   threshold for peak-picking
-    :param smooth:      smooth the activation function with the given window [default=None]
+    :param smooth:      smooth the activation function with the kernel [default=None]
     :param pre_avg:     use N frames past information for moving average [default=0]
     :param post_avg:    use N frames future information for moving average [default=0]
     :param pre_max:     use N frames past information for moving maximum [default=1]
     :param post_max:    use N frames future information for moving maximum [default=1]
 
     Notes: If no moving average is needed (e.g. the activations are independent
-           of the signal's level as for neural network activations), pre_avg and
-           post_avg should be set to 0.
+           of the signal's level as for neural network activations), set pre_avg
+           and post_avg to 0.
 
            For offline peak picking set pre_max=1, post_max=1.
 
@@ -477,10 +477,15 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
 
     """
     # smooth activations
-    # TODO: make this use an integer or a window function
-    if smooth:
-        win = np.hamming(smooth)
-        activations = np.convolve(activations, win, 'same')
+    if isinstance(smooth, int):
+        # size for the smoothing kernel is given
+        kernel = np.hamming(smooth)
+    elif isinstance(smooth, np.ndarray):
+        # otherwise use the given smooth kernel directly
+        kernel = smooth
+    if kernel:
+        # convolve with the kernel
+        activations = np.convolve(activations, kernel, 'same')
     # threshold activations
     avg_length = pre_avg + post_avg + 1
     if avg_length > 1:
@@ -543,7 +548,7 @@ class Onset(object):
     Onset Class.
 
     """
-    def __init__(self, activations, fps, online=True):
+    def __init__(self, activations, fps, online=False):
         """
         Creates a new Onset object instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read in from a file.
@@ -593,8 +598,7 @@ class Onset(object):
 
                For offline peak picking set pre_max >= 1/fps, post_max >= 1/fps
 
-               For online peak picking set all post_ parameters to 0.
-
+               For online peak picking, all post_ parameters are set to 0.
 
         """
         # convert timing information to frames and set default values
@@ -604,9 +608,13 @@ class Onset(object):
         post_avg = int(round(self.fps * post_avg))
         pre_max = int(round(self.fps * pre_max))
         post_max = int(round(self.fps * post_max))
+        # adjust some params for online mode
+        if self.online:
+            smooth = 0
+            post_avg = 0
+            post_max = 0
         # detect onsets
         detections = peak_picking(self.activations, threshold, smooth, pre_avg, post_avg, pre_max, post_max)
-        # TODO: do not smooth in online mode
         # convert detected onsets to a list of timestamps
         detections = detections / float(self.fps)
         # shift if neccessary
@@ -768,7 +776,7 @@ def main():
 
     from wav import Wav
     from spectrogram import Spectrogram
-    from filterbank import LogFilter
+    from filterbank import LogarithmicFilter
 
     # parse arguments
     args = parser()
@@ -827,7 +835,7 @@ def main():
             if args.filter:
                 # (re-)create filterbank if the samplerate of the audio changes
                 if filt is None or filt.fs != w.samplerate:
-                    filt = LogFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
+                    filt = LogarithmicFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
             # create a spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
             # use the spectrogram to create an SpectralODF object

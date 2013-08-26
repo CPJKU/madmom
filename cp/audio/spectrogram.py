@@ -120,7 +120,6 @@ FILTERBANK = None
 LOG = False         # default: linear spectrogram
 MUL = 1
 ADD = 1
-ONLINE = False      # default: offline mode
 STFT = False
 PHASE = False
 LGD = False
@@ -133,15 +132,14 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, audio, window=np.hanning(2048), hop_size=441.,
-                 filterbank=FILTERBANK, log=LOG, mul=MUL, add=ADD, online=ONLINE,
+    def __init__(self, audio, window=np.hanning,
+                 filterbank=FILTERBANK, log=LOG, mul=MUL, add=ADD,
                  stft=STFT, phase=PHASE, lgd=LGD, norm_window=NORM_WINDOW, fft_size=FFT_SIZE):
         """
         Creates a new Spectrogram object instance of the given audio.
 
         :param signal:   a FramedAudio object; or file name or tuple (signal, samplerate)
-        :param window:   window function [default=Hann window with 2048 samples]
-        :param hop_size: progress N samples between adjacent frames [default=441.0]
+        :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
 
@@ -158,9 +156,8 @@ class Spectrogram(object):
         :param phase: include phase information [default=False]
         :param lgd:   include local group delay information [default=False]
 
-        Computation parameters:
+        FFT parameters:
 
-        :param online:      work in online mode [default=False]
         :param norm_window: set area of window function to 1 [default=False]
         :param fft_size:    use this size for FFT [default=size of window]
 
@@ -169,15 +166,25 @@ class Spectrogram(object):
 
         """
         from audio import FramedAudio
+        # audio signal stuff
+        if issubclass(audio.__class__, FramedAudio):
+            # already the right format
+            self.audio = audio
+        elif issubclass(audio.__class__, tuple):
+            # assume a tuple (signal, sample rate)
+            self.audio = FramedAudio(audio[0], audio[1])
+        else:
+            # assume a file name, try to instantiate a Wav object
+            # TODO: make an intelligent class which can handle a lot of different file types automatically
+            from wav import Wav
+            self.audio = Wav(audio)
 
         # window stuff
-        # TODO: if just a window function (without size) is given, use it and
-        # determine the size on the basis of the audio frame size
-        if isinstance(window, int):
-            # if a window size is given, create a Hann window with that size
-            window = np.hanning(window)
+        if hasattr(window, '__call__'):
+            # a window function is given, set the size to the audio frame size
+            self.window = window(self.audio.frame_size)
         elif isinstance(window, np.ndarray):
-            # otherwise use the window directly
+            # otherwise use the given window directly
             self.window = window
         else:
             # other types are not supported
@@ -185,19 +192,6 @@ class Spectrogram(object):
         if norm_window:
             # normalize the window if needed
             self.window /= np.sum(self.window)
-
-        # signal stuff
-        # TODO: make an intelligent class which can handle a lot of different file types automatically
-        if issubclass(audio.__class__, FramedAudio):
-            # already the right format
-            self.audio = audio
-        elif issubclass(audio.__class__, tuple):
-            # assume a tuple (signal, samplerate)
-            self.audio = FramedAudio(audio[0], audio[1], frame_size=window.size, hop_size=hop_size, online=online)
-        else:
-            # assume a file name, try to instantiate a Wav object with the given parameters
-            from wav import Wav
-            self.audio = Wav(audio, frame_size=window.size, hop_size=hop_size, online=online)
 
         # magnitude spectrogram (+ others)
         self.__spec = None
@@ -211,8 +205,7 @@ class Spectrogram(object):
         self._phase = phase
         self._lgd = lgd
 
-        # parameters used for the STFT
-        self.__online = online
+        # parameters used for the DFT
         if fft_size is None:
             self.fft_size = self.window.size
         else:
@@ -560,11 +553,12 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
-            fb = filterbank.LogFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
+            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 
-# alias
+# aliases
+FiltSpec = FilteredSpectrogram
 FS = FilteredSpectrogram
 
 
@@ -596,5 +590,6 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         self.mul = mul
         self.add = add
 
-# alias
+# aliases
+LogFiltSpec = LogarithmicFilteredSpectrogram
 LFS = LogarithmicFilteredSpectrogram

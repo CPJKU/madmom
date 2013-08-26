@@ -55,7 +55,7 @@ def sound_pressure_level(signal, p_ref=1.0):
     :param signal: reference sound pressure level [default=1.0]
     :returns:      sound pressure level of the signal
 
-    From en.wikipedia.org/wiki/Sound_pressure:
+    From http://en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
     effective sound pressure of a sound relative to a reference value.
     It is measured in decibels (dB) above a standard reference level.
@@ -130,15 +130,15 @@ def strided_frames(signal, frame_size, hop_size):
     :param hop_size:   the hop size in samples between adjacent frames
     :returns:          the framed audio signal
 
-    Note: This function is here only for completeness.
-          It is faster only in rare circumstances.
-          Also, seeking to the right position is only working properly, if
-          integer hop_sizes are used.
+    Note: This function is here only for completeness. It is faster only in rare
+          circumstances. Also, seeking to the right position is only working
+          properly, if integer hop_sizes are used.
 
     """
     # init variables
     samples = np.shape(signal)[0]
     # FIXME: does not perform the seeking the right way (only int working properly)
+    # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
     as_strided = np.lib.stride_tricks.as_strided
     # return the strided array
     return as_strided(signal, (samples, frame_size), (signal.strides[0], signal.strides[0]))[::hop_size]
@@ -302,14 +302,14 @@ class FramedAudio(Audio):
         :param fps:        use N frames per second instead of setting the hop_size;
                            if set, this overwrites the hop_size value [default=None]
 
-        Note: the FramedAudio class is implemented as an iterator. It splits the
-        signal automatically into frames (of frame_size length) and progresses
-        hop_size samples (can be float, with normal rounding applied) between
-        frames.
+        Note: The FramedAudio class is implemented as an iterator. It splits the
+              signal automatically into frames (of frame_size length) and
+              progresses hop_size samples (can be float, with normal rounding
+              applied) between frames.
 
-        In offline mode, the frame is centered around the current position;
-        whereas in online mode, the frame is always positioned left to the
-        current position.
+              In offline mode the frame is centered around the current position;
+              whereas in online mode, the frame is always positioned left to the
+              current position.
 
         """
         # instantiate a Audio object

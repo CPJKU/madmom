@@ -583,7 +583,7 @@ class BarkFilter(Filter):
 
 
 # TODO: this is very similar to the Cent-Scale. Unify it?
-class LogFilter(Filter):
+class LogarithmicFilter(Filter):
     """
     Logarithmic Filter class.
 
@@ -636,8 +636,11 @@ class LogFilter(Filter):
     def a4(self):
         return self.__a4
 
+# alias
+LogFilter = LogarithmicFilter
 
-class SemitoneFilter(LogFilter):
+
+class SemitoneFilter(LogarithmicFilter):
     """
     Semitone Filter class.
 
@@ -655,8 +658,8 @@ class SemitoneFilter(LogFilter):
         :param a4:       tuning frequency of A4 [Hz, default=440]
 
         """
-        # return a LogFilter with 12 bands per octave
-        return LogFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
+        # return a LogarithmicFilter with 12 bands per octave
+        return LogarithmicFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
 
 
 class SimpleChromaFilter(Filter):
