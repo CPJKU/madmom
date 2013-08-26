@@ -58,9 +58,9 @@ def pscore(detections, targets, tolerance):
     Calculate the P-Score accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param tolerance: tolerance window (fraction of the median beat interval)
-    :returns: p-score
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param tolerance:  tolerance window (fraction of the median beat interval)
+    :returns:          p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. F. McKinney, D. Moelants, M. E. P. Davies, and A. Klapuri
@@ -89,9 +89,9 @@ def cemgil(detections, targets, sigma):
     Calculate the Cemgil accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param sigma: sigma for Gaussian error function
-    :returns: beat tracking accuracy
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param sigma:      sigma for Gaussian error function
+    :returns:          beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
     A.T. Cemgil, B. Kappen, P. Desain, and H. Honing
@@ -124,11 +124,11 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt for the given detection and target sequences.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
+    :param detections:      sequence of estimated beat times [seconds]
+    :param targets:         sequence of ground truth beat annotations [seconds]
     :param tempo_tolerance: tempo tolerance window
     :param phase_tolerance: phase (interval) tolerance window
-    :returns: cmlc, cmlt
+    :returns:               cmlc, cmlt
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
     cmlt: beat tracking accuracy, continuity not required at the correct metrical level
@@ -195,11 +195,11 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt, amlc, amlt for the given detection and target sequences.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
+    :param detections:      sequence of estimated beat times [seconds]
+    :param targets:         sequence of ground truth beat annotations [seconds]
     :param tempo_tolerance: tempo tolerance window
     :param phase_tolerance: phase (interval) tolerance window
-    :returns: cmlc, cmlt, amlc, amlt beat tracking accuracies
+    :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
     cmlt: beat tracking accuracy, continuity not required at the correct metrical level
@@ -263,9 +263,9 @@ def information_gain(detections, targets, bins):
     Calculate information gain.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param bins: number of bins for the error histogram
-    :returns: infromation gain, beat error histogram
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param bins:       number of bins for the error histogram
+    :returns:          infromation gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a beat error histogram"
     M. E. P. Davies, N. Degara and M. D. Plumbley
@@ -314,9 +314,9 @@ def error_histogram(detections, targets, bins):
     map them to an error histogram with the given bins.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param bins: histogram bins for mapping
-    :returns: error histogram
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param bins:       histogram bins for mapping
+    :returns:          error histogram
 
     """
     # get the relative errors of the detections to the targets
@@ -338,7 +338,7 @@ def calc_information_gain(error_histogram):
     Calculate the information gain from the given error histogram.
 
     :param error_histogram: error histogram
-    :returns: information gain
+    :returns:               information gain
 
     """
     # copy the error_histogram, because it must not be altered
@@ -371,14 +371,14 @@ class BeatEvaluation(OnsetEvaluation):
         """
         Evaluate the given detection and target sequences.
 
-        :param detections: sequence of estimated beat times [seconds]
-        :param targets: sequence of ground truth beat annotations [seconds]
-        :param window: F-measure evaluation window [seconds, default=0.07]
-        :param tolerance: P-Score tolerance of median beat interval [default=0.2]
-        :param sigma: sigma of Gaussian window for Cemgil accuracy [default=0.04]
+        :param detections:      sequence of estimated beat times [seconds]
+        :param targets:         sequence of ground truth beat annotations [seconds]
+        :param window:          F-measure evaluation window [seconds, default=0.07]
+        :param tolerance:       P-Score tolerance of median beat interval [default=0.2]
+        :param sigma:           sigma of Gaussian window for Cemgil accuracy [default=0.04]
         :param tempo_tolerance: tempo tolerance window for [AC]ML[ct] [default=0.175]
         :param phase_tolerance: phase (interval) tolerance window for [AC]ML[ct] [default=0.175]
-        :param bins: number of bins for the error histogram
+        :param bins:            number of bins for the error histogram [default=40]
 
         """
         self.detections = detections
@@ -533,7 +533,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     def __add__(self, other):
         """
         Apends the scores of another BeatEvaluation object to the repsective
-        lists.
+        arrays.
 
         :param other: BeatEvaluation object
 

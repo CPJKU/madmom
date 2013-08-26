@@ -34,7 +34,7 @@ def root_mean_square(signal):
     a measurement of power.
 
     :param signal: the audio signal
-    :returns: root mean square of the signal
+    :returns:      root mean square of the signal
 
     """
     # make sure the signal is a numpy array
@@ -53,7 +53,7 @@ def sound_pressure_level(signal, p_ref=1.0):
 
     :param signal: the audio signal
     :param signal: reference sound pressure level [default=1.0]
-    :returns: sound pressure level of the signal
+    :returns:      sound pressure level of the signal
 
     From en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
@@ -76,11 +76,11 @@ def signal_frame(signal, index, frame_size, hop_size, online):
     """
     This function returns frame[index] of the signal.
 
-    :param signal: the audio signal
+    :param signal:     the audio signal
     :param frame_size: size of one frame
-    :param hop_size: progress N samples between adjacent frames
-    :param online: use only past information
-    :returns: the single frame of the audio signal
+    :param hop_size:   progress N samples between adjacent frames
+    :param online:     use only past information
+    :returns:          the single frame of the audio signal
 
     """
     # make sure the signal is a numpy array
@@ -125,10 +125,10 @@ def strided_frames(signal, frame_size, hop_size):
     """
     Returns a 2D representation of the signal with overlapping frames.
 
-    :param signal: the discrete signal
+    :param signal:     the discrete signal
     :param frame_size: size of each frame
-    :param hop_size: the hop size in samples between adjacent frames
-    :returns: the framed audio signal
+    :param hop_size:   the hop size in samples between adjacent frames
+    :returns:          the framed audio signal
 
     Note: This function is here only for completeness.
           It is faster only in rare circumstances.
@@ -293,14 +293,14 @@ class FramedAudio(Audio):
         """
         Creates a new FramedAudio object instance.
 
-        :param signal: the audio signal [numpy array]
+        :param signal:     the audio signal [numpy array]
         :param samplerate: samplerate of the signal
 
         :param frame_size: size of one frame [default=2048]
-        :param hop_size: progress N samples between adjacent frames [default=441]
-        :param online: use only past information [default=False]
-        :param fps: use N frames per second instead of setting the hop_size;
-                    if set, this overwrites the hop_size value [default=None]
+        :param hop_size:   progress N samples between adjacent frames [default=441]
+        :param online:     use only past information [default=False]
+        :param fps:        use N frames per second instead of setting the hop_size;
+                           if set, this overwrites the hop_size value [default=None]
 
         Note: the FramedAudio class is implemented as an iterator. It splits the
         signal automatically into frames (of frame_size length) and progresses

@@ -66,9 +66,9 @@ def mel_frequencies(bands, fmin, fmax):
     Generates a list of frequencies aligned on the Mel scale.
 
     :param bands: number of bands
-    :param fmin: the minimum frequency [Hz]
-    :param fmax: the maximum frequency [Hz]
-    :returns: a list of frequencies
+    :param fmin:  the minimum frequency [Hz]
+    :param fmax:  the maximum frequency [Hz]
+    :returns:     a list of frequencies
 
     """
     # convert fmin and fmax to the Mel scale
@@ -111,7 +111,7 @@ def bark_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz, default=20]
     :param fmax: the maximum frequency [Hz, default=15550]
-    :returns: a list of frequencies
+    :returns:    a list of frequencies
 
     """
     # frequencies aligned to the Bark-scale
@@ -132,7 +132,7 @@ def bark_double_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz, default=20]
     :param fmax: the maximum frequency [Hz, default=15550]
-    :returns: a list of frequencies
+    :returns:    a list of frequencies
 
     """
     # frequencies aligned to the Bark-scale, does also including center frequencies
@@ -197,10 +197,10 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     Generates a list of frequencies aligned on a logarithmic frequency scale.
 
     :param bands_per_octave: number of filter bands per octave
-    :param fmin: the minimum frequency [Hz]
-    :param fmax: the maximum frequency [Hz]
-    :param a4: tuning frequency of A4 [Hz, default=440]
-    :returns: a list of frequencies
+    :param fmin:             the minimum frequency [Hz]
+    :param fmax:             the maximum frequency [Hz]
+    :param a4:               tuning frequency of A4 [Hz, default=440]
+    :returns:                a list of frequencies
 
     Note: if 12 bands per octave and a4=440 are used, the frequencies are
           equivalent to MIDI notes.
@@ -225,8 +225,8 @@ def semitone_frequencies(fmin, fmax, a4=A4):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :param a4: tuning frequency of A4 [Hz, default=440]
-    :returns: a list of frequencies of semitones
+    :param a4:   tuning frequency of A4 [Hz, default=440]
+    :returns:    a list of frequencies of semitones
 
     Note: frequencies are aligned to MIDI notes with the default a4=440.
 
@@ -240,9 +240,9 @@ def midi2hz(m, a4=A4):
     """
     Convert frequencies to the corresponding MIDI notes.
 
-    :param m: input MIDI notes
+    :param m:  input MIDI notes
     :param a4: tuning frequency of A4 [Hz, default=440]
-    :returns: frequencies in Hz
+    :returns:  frequencies in Hz
 
     For details see: http://www.phys.unsw.edu.au/jw/notes.html
 
@@ -254,14 +254,14 @@ def hz2midi(f, a4=A4):
     """
     Convert MIDI notes to corresponding frequencies.
 
-    :param f: input frequencies [Hz]
+    :param f:  input frequencies [Hz]
     :param a4: tuning frequency of A4 [Hz, default=440]
-    :returns: MIDI notes
+    :returns:  MIDI notes
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
 
     Note: This function does not necessarily return a valid MIDI Note, you may
-    need to round it to the nearest integer.
+          need to round it to the nearest integer.
 
     """
     return (12. * np.log2(f / float(a4))) + 69.
@@ -339,11 +339,11 @@ def triang_filter(start, center, stop, norm):
     """
     Calculate a triangular window of the given size.
 
-    :param start: starting bin (with value 0, included in the returned filter)
+    :param start:  starting bin (with value 0, included in the returned filter)
     :param center: center bin (of height 1, unless norm is True)
-    :param stop: end bin (with value 0, not included in the returned filter)
-    :param norm: normalize the area of the filter to 1
-    :returns: a triangular shaped filter with height 1 (unless normalized)
+    :param stop:   end bin (with value 0, not included in the returned filter)
+    :param norm:   normalize the area of the filter to 1
+    :returns:      a triangular shaped filter with height 1 (unless normalized)
 
     """
     # set the height of the filter
@@ -368,14 +368,15 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
     Creates a filterbank with overlapping triangular filters.
 
     :param frequencies: a list of frequencies used for filter creation [Hz]
-    :param fft_bins: number of fft bins
-    :param fs: sample rate of the audio signal [Hz]
-    :param norm: normalize the area of the filters to 1 [default=True]
-    :returns: the filterbank
+    :param fft_bins:    number of fft bins
+    :param fs:          sample rate of the audio signal [Hz]
+    :param norm:        normalize the area of the filters to 1 [default=True]
+    :returns:           filterbank
 
     Note: each filter is characterized by 3 frequencies, the start, center and
-    stop frequency. Thus the frequencies array must contain the first starting
-    frequency, all center frequencies and the last stopping frequency.
+          stop frequency. Thus the frequencies array must contain the first
+          starting frequency, all center frequencies and the last stopping
+          frequency.
 
     """
     # conversion factor for mapping of frequencies to spectrogram bins
@@ -410,10 +411,10 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
     Creates a filterbank with rectangular filters.
 
     :param frequencies: a list of frequencies used for filter creation [Hz]
-    :param fft_bins: number of fft bins
-    :param fs: sample rate of the audio signal [Hz]
-    :param norm: normalize the area of the filters to 1 [default=True]
-    :returns: the filterbank
+    :param fft_bins:    number of fft bins
+    :param fs:          sample rate of the audio signal [Hz]
+    :param norm:        normalize the area of the filters to 1 [default=True]
+    :returns:           filterbank
 
     """
     # conversion factor for mapping of frequencies to spectrogram bins
@@ -509,11 +510,11 @@ class MelFilter(Filter):
         Creates a new Mel Filter object instance.
 
         :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
-        :param fmin: the minimum frequency [Hz, default=30]
-        :param fmax: the maximum frequency [Hz, default=16000]
-        :param bands: number of filter bands [default=40]
-        :param norm: normalize the area of the filter to 1 [default=True]
+        :param fs:       sample rate of the audio file [Hz]
+        :param fmin:     the minimum frequency [Hz, default=30]
+        :param fmax:     the maximum frequency [Hz, default=16000]
+        :param bands:    number of filter bands [default=40]
+        :param norm:     normalize the area of the filter to 1 [default=True]
 
         """
         # get a list of frequencies
@@ -549,11 +550,11 @@ class BarkFilter(Filter):
         Creates a new Bark Filter object instance.
 
         :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
-        :param fmin: the minimum frequency [Hz, default=20]
-        :param fmax: the maximum frequency [Hz, default=15500]
-        :param double: double the number of frequency bands [default=False]
-        :param norm: normalize the area of the filter to 1 [default=True]
+        :param fs:       sample rate of the audio file [Hz]
+        :param fmin:     the minimum frequency [Hz, default=20]
+        :param fmax:     the maximum frequency [Hz, default=15500]
+        :param double:   double the number of frequency bands [default=False]
+        :param norm:     normalize the area of the filter to 1 [default=True]
 
         """
         # get a list of frequencies
@@ -593,13 +594,13 @@ class LogFilter(Filter):
         """
         Creates a new Logarithmic Filter object instance.
 
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
+        :param fft_bins:         number of FFT bins (= half the window size of the FFT)
+        :param fs:               sample rate of the audio file [Hz]
         :param bands_per_octave: number of filter bands per octave [default=6]
-        :param fmin: the minimum frequency [Hz, default=20]
-        :param fmax: the maximum frequency [Hz, default=17000]
-        :param norm: normalize the area of the filter to 1 [default=True]
-        :param a4: tuning frequency of A4 [Hz, default=440]
+        :param fmin:             the minimum frequency [Hz, default=20]
+        :param fmax:             the maximum frequency [Hz, default=17000]
+        :param norm:             normalize the area of the filter to 1 [default=True]
+        :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
         # get a list of frequencies
@@ -647,11 +648,11 @@ class SemitoneFilter(LogFilter):
         Creates a new Semitone Filter object instance.
 
         :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
-        :param fmin: the minimum frequency [Hz, default=27]
-        :param fmax: the maximum frequency [Hz, default=17000]
-        :param norm: normalize the area of the filter to 1 [default=True]
-        :param a4: tuning frequency of A4 [Hz, default=440]
+        :param fs:       sample rate of the audio file [Hz]
+        :param fmin:     the minimum frequency [Hz, default=27]
+        :param fmax:     the maximum frequency [Hz, default=17000]
+        :param norm:     normalize the area of the filter to 1 [default=True]
+        :param a4:       tuning frequency of A4 [Hz, default=440]
 
         """
         # return a LogFilter with 12 bands per octave
@@ -672,11 +673,11 @@ class SimpleChromaFilter(Filter):
         Creates a new Chroma Filter object instance.
 
         :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs: sample rate of the audio file [Hz]
-        :param fmin: the minimum frequency [Hz, default=20]
-        :param fmax: the maximum frequency [Hz, default=15500]
-        :param norm: normalize the area of the filter to 1 [default=True]
-        :param a4: tuning frequency of A4 [Hz, default=440]
+        :param fs:       sample rate of the audio file [Hz]
+        :param fmin:     the minimum frequency [Hz, default=20]
+        :param fmax:     the maximum frequency [Hz, default=15500]
+        :param norm:     normalize the area of the filter to 1 [default=True]
+        :param a4:       tuning frequency of A4 [Hz, default=440]
 
         """
         # get a list of frequencies

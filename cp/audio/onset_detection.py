@@ -580,7 +580,7 @@ class Onset(object):
 
         :param threshold: threshold for peak-picking
         :param combine:   only report one onset within N seconds [default=0.03]
-        :param delay:     report the onset N seconds delayed [default=0]
+        :param delay:     report onsets N seconds delayed [default=0]
         :param smooth:    smooth the activation function over N seconde [default=0]
         :param pre_avg:   use N seconds past information for moving average [default=0.1]
         :param post_avg:  use N seconds future information for moving average [default=0.03]
@@ -661,7 +661,7 @@ class Onset(object):
         Evaluate the detected onsets against this target file.
 
         :param filename: target file name or file handle
-        :param window: evaluation window [seconds, default=0.025]
+        :param window:   evaluation window [seconds, default=0.025]
 
         """
         if filename:
@@ -679,7 +679,7 @@ class Onset(object):
         Save the onset activations to a file.
 
         :param filename: output file name or file handle
-        :param sep: separator between activation values [default='']
+        :param sep:      separator between activation values [default='']
 
         Note: empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
@@ -694,7 +694,7 @@ class Onset(object):
         Load the onset activations from a file.
 
         :param filename: the target file name
-        :param sep: separator between activation values [default='']
+        :param sep:      separator between activation values [default='']
 
         Note: empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;

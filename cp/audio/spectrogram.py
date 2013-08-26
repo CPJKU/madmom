@@ -33,13 +33,13 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
-    :param signal: the discrete signal
-    :param window: window function
+    :param signal:   the discrete signal
+    :param window:   window function
     :param hop_size: the hop size in samples between adjacent frames
-    :param online: only use past information of signal [default=False]
-    :param phase: circular shift for correct phase [default=False]
+    :param online:   only use past information of signal [default=False]
+    :param phase:    circular shift for correct phase [default=False]
     :param fft_size: use given size for FFT [default=size of window]
-    :returns: the complex STFT of the signal
+    :returns:        the complex STFT of the signal
 
     Note: in offline mode, the window function is centered around the current
     position; whereas in online mode, the window is always positioned left to
@@ -88,11 +88,11 @@ def strided_stft(signal, window, hop_size, phase=True):
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
-    :param signal: the discrete signal
-    :param window: window function
+    :param signal:   the discrete signal
+    :param window:   window function
     :param hop_size: the hop size in samples between adjacent frames
-    :param phase: circular shift for correct phase [default=False]
-    :returns: the complex STFT of the signal
+    :param phase:    circular shift for correct phase [default=False]
+    :returns:        the complex STFT of the signal
 
     Note: This function is here only for completeness.
           It is faster only in rare circumstances.
@@ -117,10 +117,10 @@ def strided_stft(signal, window, hop_size, phase=True):
 
 # Spectrogram defaults
 FILTERBANK = None
-LOG = False  # default = linear spectrogram
-MUL = 5
+LOG = False         # default: linear spectrogram
+MUL = 1
 ADD = 1
-ONLINE = False
+ONLINE = False      # default: offline mode
 STFT = False
 PHASE = False
 LGD = False
@@ -139,29 +139,30 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param signal: a FramedAudio object (or file name or tuple (signal, samplerate))
-        :param window: window function [default=Hann window with 2048 samples]
+        :param signal:   a FramedAudio object; or file name or tuple (signal, samplerate)
+        :param window:   window function [default=Hann window with 2048 samples]
         :param hop_size: progress N samples between adjacent frames [default=441.0]
 
         Magnitude spectrogram manipulation parameters:
 
         :param filterbank: filterbank used for dimensionality reduction of the
                            magnitude spectrogram [default=None]
-        :param log: take the logarithm of the magnitudes [default=True]
+
+        :param log: take the logarithm of the magnitudes [default=False]
         :param mul: multiplier before taking the logarithm of the magnitudes [default=1]
         :param add: add this value before taking the logarithm of the magnitudes [default=0]
 
         Additional computations:
 
-        :param stft: save the raw complex STFT [default=False]
+        :param stft:  save the raw complex STFT [default=False]
         :param phase: include phase information [default=False]
-        :param lgd: include local group delay information [default=False]
+        :param lgd:   include local group delay information [default=False]
 
         Computation parameters:
 
-        :param online: work in online mode [default=False]
+        :param online:      work in online mode [default=False]
         :param norm_window: set area of window function to 1 [default=False]
-        :param fft_size: use this size for FFT [default=size of window]
+        :param fft_size:    use this size for FFT [default=size of window]
 
         Note: including phase and/or local group delay information slows down
               calculation considerably (phase: x2; lgd: x3)!
@@ -285,15 +286,15 @@ class Spectrogram(object):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
-        :param index: slice for which the computation should be perfomed
+        :param index:      slice for which the computation should be perfomed
         :param filterbank: filterbank used for dimensionality reduction of the
                            magnitude spectrogram
-        :param log: take the logarithm of the magnitudes
-        :param mul: multiplier before taking the logarithm of the magnitudes
-        :param add: add this value before taking the logarithm of the magnitudes
-        :param stft: save the raw complex STFT to the "stft" attribute
-        :param phase: save the phase of the STFT to the "phase" attribute
-        :param lgd: save the local group delay of the STFT to the "lgd" attribute
+        :param log:        take the logarithm of the magnitudes
+        :param mul:        multiplier before taking the logarithm of the magnitudes
+        :param add:        add this value before taking the logarithm of the magnitudes
+        :param stft:       save the raw complex STFT to the "stft" attribute
+        :param phase:      save the phase of the STFT to the "phase" attribute
+        :param lgd:        save the local group delay of the STFT to the "lgd" attribute
 
         """
         # determine the number of time frames needed
@@ -506,7 +507,7 @@ class Spectrogram(object):
         """
         Perform adaptive whitening on the magnitude spectrogram.
 
-        :param floor: floor coefficient [default=0.5]
+        :param floor:      floor coefficient [default=0.5]
         :param relaxation: relaxation time [frames, default=10]
 
         "Adaptive Whitening For Improved Real-time Audio Onset Detection"
@@ -542,10 +543,10 @@ class FilteredSpectrogram(Spectrogram):
         automatically.
 
         :param bands_per_octave: number of filter bands per octave [default=12]
-        :param fmin: the minimum frequency [Hz, default=27]
-        :param fmax: the maximum frequency [Hz, default=17000]
-        :param norm: normalize the area of the filter to 1 [default=True]
-        :param a4: tuning frequency of A4 [Hz, default=440]
+        :param fmin:             the minimum frequency [Hz, default=27]
+        :param fmax:             the maximum frequency [Hz, default=17000]
+        :param norm:             normalize the area of the filter to 1 [default=True]
+        :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
         import filterbank
@@ -581,7 +582,7 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         The magnitudes of the filtered spectrogram are then converted to a
         logarithmic scale.
 
-        :param mul: multiply the magnitude spectrogram with given value [default=5]
+        :param mul: multiply the magnitude spectrogram with given value [default=1]
         :param add: add the given value to the magnitude spectrogram [default=1]
 
         """

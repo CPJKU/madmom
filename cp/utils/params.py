@@ -39,7 +39,12 @@ def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.F
     Add audio related arguments to an existing parser object.
 
     :param parser: existing argparse parser object
-    :return: the modified parser object
+    :param online: online mode
+    :param norm:   normalize the signal
+    :param att:    attenuate the signal by N dB
+    :param fps:    frames per second
+    :param window: window / frame size
+    :return:       the modified parser object
 
     """
     # if audio gets normalized, switch to offline mode
@@ -56,12 +61,15 @@ def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.F
     return wav
 
 
-def add_spectral_odf_arguments(parser, diff_frames=od.DIFF_FRAMES, ratio=od.RATIO, max_bins=od.MAX_BINS):
+def add_spectral_odf_arguments(parser, ratio=od.RATIO, diff_frames=od.DIFF_FRAMES, max_bins=od.MAX_BINS):
     """
     Add spectral ODF related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :return: the modified parser object
+    :param parser:      existing argparse parser object
+    :param ratio:       calculate the difference to the frame which window overlaps to this ratio
+    :param diff_frames: calculate the difference to the N-th previous frame
+    :param max_bins:    number of bins for the maximum filter (for SuperFlux)
+    :return:            the modified parser object
 
     """
     # add spec related options to the existing parser
@@ -74,13 +82,42 @@ def add_spectral_odf_arguments(parser, diff_frames=od.DIFF_FRAMES, ratio=od.RATI
     return spec
 
 
+def add_filter_arguments(parser, switch=False, fmin=f.FMIN, fmax=f.FMAX,
+                         bands=f.BANDS_PER_OCTAVE, equal=f.NORM_FILTER):
+    """
+    Add filter related arguments to an existing parser object.
+
+    :param parser: existing argparse parser object
+    :param switch: add a switch for the whole group
+    :param bands:  number of filter bands per octave
+    :param fmin:   the minimum frequency
+    :param fmax:   the maximum frequency
+    :param equal:  equal (normalize) the area of the filter
+    :return:       the modified parser object
+
+    """
+    # add filter related options to the existing parser
+    filt = parser.add_argument_group('filter arguments')
+    if switch:
+        # add a switch
+        filt.add_argument('--filter', action='store_true', default=False, help='filter the magnitude spectrogram with a filterbank [default=False]')
+    filt.add_argument('--bands', action='store', type=int, default=bands, help='number of bands per octave [default=%i]' % bands)
+    filt.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%i]' % fmin)
+    filt.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
+    filt.add_argument('--equal', action='store_true', default=equal, help='equalize filters to have equal area [default=%s]' % equal)
+    # return the argument group so it can be modified if needed
+    return filt
+
+
 def add_log_arguments(parser, switch=False, mul=s.MUL, add=s.ADD):
     """
     Add logarithmic magnitude related arguments to an existing parser object.
 
     :param parser: existing argparse parser object
     :param switch: add a switch for the whole group
-    :return: the modified parser object
+    :param mul:    multiply the magnitude spectrogram with given value
+    :param add:    add the given value to the magnitude spectrogram
+    :return:       the modified parser object
 
     """
     # add log related options to the existing parser
@@ -94,37 +131,20 @@ def add_log_arguments(parser, switch=False, mul=s.MUL, add=s.ADD):
     return log
 
 
-def add_filter_arguments(parser, switch=False, fmin=f.FMIN, fmax=f.FMAX,
-                         bands=f.BANDS_PER_OCTAVE, equal=f.NORM_FILTER):
-    """
-    Add filter related arguments to an existing parser object.
-
-    :param parser: existing argparse parser object
-    :param switch: add a switch for the whole group
-    :return: the modified parser object
-
-    """
-    # add filter related options to the existing parser
-    filt = parser.add_argument_group('filter arguments')
-    if switch:
-        # add a switch
-        filt.add_argument('--filter', action='store_true', default=False, help='filter the magnitude spectrogram with a filterbank [default=False]')
-    filt.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%i]' % fmin)
-    filt.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
-    filt.add_argument('--bands', action='store', type=int, default=bands, help='number of bands per octave [default=%i]' % bands)
-    filt.add_argument('--equal', action='store_true', default=equal, help='equalize filters to have equal area [default=%s]' % equal)
-    # return the argument group so it can be modified if needed
-    return filt
-
-
 def add_onset_arguments(parser, threshold=od.THRESHOLD, combine=od.COMBINE, delay=od.DELAY,
                         pre_avg=od.PRE_AVG, pre_max=od.PRE_MAX, post_avg=od.POST_AVG, post_max=od.POST_MAX):
     """
     Add onset detection related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :param switch: add a switch for the whole group
-    :return: the modified parser object
+    :param parser:    existing argparse parser object
+    :param threshold: threshold for peak-picking
+    :param combine:   only report one onset within N seconds
+    :param delay:     report onsets N seconds delayed
+    :param pre_avg:   use N seconds past information for moving average
+    :param post_avg:  use N seconds future information for moving average
+    :param pre_max:   use N seconds past information for moving maximum
+    :param post_max:  use N seconds future information for moving maximum
+    :return:          the modified parser object
 
     """
     # add onset detection related options to the existing parser
@@ -146,7 +166,7 @@ def add_mirex_io(parser):
     Add MIREX related input / output related arguments to an existing parser object.
 
     :param parser: existing argparse parser object
-    :return: the modified parser object
+    :return:       the modified parser object
 
     """
     import sys

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012 Sebastian Böck <sebastian.boeck@jku.at>
+Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,18 @@ def count_errors(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
 
-    :param detections: a list of events [seconds]
-    :param targets: a list of events [seconds]
-    :param window: detection window [seconds]
-    :return: tuple of tp, fp, tn, fn numpy arrays
+    :param detections: array with detected onsets [seconds]
+    :param targets:    array with target onsets [seconds]
+    :param window:     detection window [seconds]
+    :return:           tuple of tp, fp, tn, fn numpy arrays
 
-    tp: list with true positive detections
-    fp: list with false positive detections
-    tn: list with true negative detections (this one is empty!)
-    fn: list with false negative detections
+    tp: array with true positive detections
+    fp: array with false positive detections
+    tn: array with true negative detections (this one is empty!)
+    fn: array with false negative detections
+
+    Note: the true negative array is empty, because we are not interested in
+          this class, since it is ~20 times as big as the onset class.
 
     """
     from helpers import calc_absolute_errors
@@ -53,13 +56,13 @@ def count_errors(detections, targets, window):
     if detections.size == 0:
         # all targets are FNs
         return np.empty(0), np.empty(0), np.empty(0), targets
-    # calc the absolute errors of detections wrt. targets
+    # for TP & FP, calc the absolute errors of detections wrt. targets
     errors = calc_absolute_errors(detections, targets)
     # true positive detections
     tp = detections[errors <= window]
     # the remaining detections are FP
     fp = detections[errors > window]
-    # calc the absolute errors of detections wrt. targets
+    # for FN, calc the absolute errors of targets wrt. detections
     errors = np.asarray(calc_absolute_errors(targets, detections))
     fn = targets[errors > window]
     # return the arrays

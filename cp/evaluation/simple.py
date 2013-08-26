@@ -37,8 +37,8 @@ def calc_overlap(detections, targets, threshold=0.5):
     The arrays should be a quantized version of any event lists.
 
     :param detections: array with detections
-    :param targets: array with targets
-    :param threshold: binary decision threshold [default=0.5]
+    :param targets:    array with targets
+    :param threshold:  binary decision threshold [default=0.5]
 
     """
     # detections and targets must have the same dimensions
@@ -358,20 +358,23 @@ class MeanEvaluation(SimpleEvaluation):
 # simple class for evaluation of Presicion, Recall, F-measure
 class Evaluation(SimpleEvaluation):
     """
-    Simple evaluation class for measuring Precision, Recall and F-measure.
+    Evaluation class for measuring Precision, Recall and F-measure.
 
     """
     def __init__(self, detections, targets, eval_function, **kwargs):
         """
         Creates a new Evaluation object instance.
 
-        :param detections: sequence of estimated beat times [seconds]
-        :param targets: sequence of ground truth beat annotations [seconds]
+        :param detections:    sequence of estimated detections [seconds]
+        :param targets:       sequence of ground truth targets [seconds]
         :param eval_function: evaluation function (see below)
 
-        The evaluation function can be any function which returns a tuple of 3
-        numpy arrays containing the true / false positive and false negative
-        detections: ([true positives], [false positives], [false negatives])
+        The evaluation function can be any function which returns a tuple of 4
+        numpy arrays containing the true/false positive and negative detections:
+        ([true positive], [false positive], [true negative], [false negative])
+
+        Note: All arrays can be multi-dimensional with events aligned on axis 0.
+              Additional information in other columns/axes is not used.
 
         """
         # detections, targets and evaluation function
@@ -381,7 +384,6 @@ class Evaluation(SimpleEvaluation):
         # save additional arguments and pass them to the evaluation function
         self.__kwargs = kwargs
         # init some hidden variables as None, calculate them on demand
-        # TODO: rename _ to __ again?
         self.__tp = None
         self.__fp = None
         self.__tn = None
@@ -402,7 +404,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return self.tp.size
+        return self.tp.shape[0]
 
     @property
     def fp(self):
@@ -414,7 +416,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return self.fp.size
+        return self.fp.shape[0]
 
     @property
     def tn(self):
@@ -426,7 +428,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return self.tn.size
+        return self.tn.shape[0]
 
     @property
     def fn(self):
@@ -438,7 +440,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return self.fn.size
+        return self.fn.shape[0]
 
     @property
     def errors(self):
@@ -506,54 +508,8 @@ def parser():
     return args
 
 
-def match_files(det_files, tar_files=None, det_ext='*', tar_ext='*'):
-    """
-    Match a list of target files to the corresponding detection files.
-
-    :param det_files: list of detection files
-    :param tar_files: list of target files [default=None]
-    :param det_ext: use only detection files with that extension [default='*']
-    :param tar_ext: use only target files with that extension [default='*']
-
-    Note: if no target files are given, the same list as the detections is used.
-          This is handy, if one list contains both the detections and targets.
-    """
-    import os.path
-    from helpers import files
-    # if no targets are given, use the same as the detections
-    if len(tar_files) == 0:
-        tar_files = [det_files]
-    # determine the detection files
-    det_files = files(det_files, det_ext)
-    # determine the target files
-    tar_files = files(tar_files, tar_ext)
-    # file list to return
-    file_list = []
-    # find matching target files for each detection file
-    for det_file in det_files:
-        # strip of possible extensions
-        if det_ext:
-            det_file_name = os.path.splitext(det_file)[0]
-        else:
-            det_file_name = det_file
-        # get the base name without the path
-        det_file_name = os.path.basename(det_file_name)
-        # look for files with the same base name in the targets
-        # TODO: is there a nice one-liner to achieve the same?
-        #tar_files_ = [os.path.join(p, f) for p, f in os.path.split(tar_files) if f == det_file_name]
-        tar_files_ = []
-        for tar_file in tar_files:
-            p, f = os.path.split(tar_file)
-            if f == det_file_name:
-                tar_files_.append(os.path.join(p, f))
-        # append a tuple of the matching pair
-        file_list.append((det_file, tar_files_))
-    # return
-    return file_list
-
-
 def main():
-    from helpers import load_events
+    from helpers import match_files, load_events
 
     # parse arguments
     args = parser()

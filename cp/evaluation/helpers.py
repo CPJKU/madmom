@@ -35,9 +35,9 @@ def files(path, extension):
     """
     Returns a list of files in path matching the given extension.
 
-    :param path: folder to be searched for files
+    :param path:      folder to be searched for files
     :param extension: only return files with this extension
-    :returns: list of files
+    :returns:         list of files
 
     """
     import os.path
@@ -66,18 +66,63 @@ def files(path, extension):
     return file_list
 
 
+def match_files(det_files, tar_files=None, det_ext='*', tar_ext='*'):
+    """
+    Match a list of target files to the corresponding detection files.
+
+    :param det_files: list of detection files
+    :param tar_files: list of target files [default=None]
+    :param det_ext:  use only detection files with that extension [default='*']
+    :param tar_ext:  use only target files with that extension [default='*']
+
+    Note: if no target files are given, the same list as the detections is used.
+          Handy, if the first list contains both the detections and targets.
+    """
+    import os.path
+    # if no targets are given, use the same as the detections
+    if len(tar_files) == 0:
+        tar_files = [det_files]
+    # determine the detection files
+    det_files = files(det_files, det_ext)
+    # determine the target files
+    tar_files = files(tar_files, tar_ext)
+    # file list to return
+    file_list = []
+    # find matching target files for each detection file
+    for det_file in det_files:
+        # strip of possible extensions
+        if det_ext:
+            det_file_name = os.path.splitext(det_file)[0]
+        else:
+            det_file_name = det_file
+        # get the base name without the path
+        det_file_name = os.path.basename(det_file_name)
+        # look for files with the same base name in the targets
+        # TODO: is there a nice one-liner to achieve the same?
+        #tar_files_ = [os.path.join(p, f) for p, f in os.path.split(tar_files) if f == det_file_name]
+        tar_files_ = []
+        for tar_file in tar_files:
+            p, f = os.path.split(tar_file)
+            if f == det_file_name:
+                tar_files_.append(os.path.join(p, f))
+        # append a tuple of the matching pair
+        file_list.append((det_file, tar_files_))
+    # return
+    return file_list
+
+
 def load_events(filename):
     """
     Load a list of events from file.
 
     :param filename: name of the file
-    :return: list of events
+    :return:         list of events
 
     """
     # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
     # array for events
     events = []
-    # try to read in the onsets from the file
+    # try to read in the events from the file
     with open(filename, 'rb') as f:
         # read in each line of the file
         for line in f:
@@ -93,7 +138,7 @@ def write_events(events, filename):
     """
     Write the detected onsets to the given file.
 
-    :param events: list of events [seconds]
+    :param events:   list of events [seconds]
     :param filename: output file name
 
     """
@@ -108,8 +153,8 @@ def combine_events(events, delta):
     Combine all events within a certain range.
 
     :param events: list of events [seconds]
-    :param delta: combination length [seconds]
-    :return: list of combined events
+    :param delta:  combination length [seconds]
+    :return:       list of combined events
 
     """
     # return array if no events must be combined
@@ -153,9 +198,9 @@ def quantize_events(events, fps, length=None):
     Quantize the events.
 
     :param events: sequence of events [seconds]
-    :param fps: quantize with N frames per second
+    :param fps:    quantize with N frames per second
     :param length: length of the returned array [frames, default=last event]
-    :returns: a quantized numpy array
+    :returns:      a quantized numpy array
 
     """
     # length of the array
@@ -176,8 +221,8 @@ def find_closest_matches(detections, targets):
     Find the closest matches for detections in targets.
 
     :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :returns: a numpy array of indices with closest matches
+    :param targets:    sequence of possible matches [seconds]
+    :returns:          a numpy array of indices with closest matches
 
     Note: the sequences must be ordered!
 
@@ -207,9 +252,9 @@ def find_closest_intervals(detections, targets, matches=None):
     Find the closest target interval surrounding the detections.
 
     :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :param matches: indices of the closest matches [default=None]
-    :returns: a list of closest target intervals [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of closest target intervals [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
@@ -242,47 +287,14 @@ def find_closest_intervals(detections, targets, matches=None):
     return closest_interval
 
 
-#def find_closest_intervals_(detections, targets, matches=None):
-#    """
-#    Find the closest target interval surrounding the detections.
-#
-#    :param detections: sequence of events to be matched [seconds]
-#    :param targets: sequence of possible matches [seconds]
-#    :param matches: indices of the closest matches [default=None]
-#    :returns: a list of closest target intervals [seconds]
-#
-#    Note: the sequences must be ordered! To speed up the calculation, a list of
-#          pre-computed indices of the closest matches can be used.
-#
-#    """
-#    # init array
-#    closest_interval = np.ones_like(detections)
-#    # intervals to next target
-#    fwd_intervals = calc_intervals(targets, fwd=True)
-#    # intervals to previous target
-#    bwd_intervals = calc_intervals(targets)
-#    # determine the closest targets
-#    if matches is None:
-#        matches = find_closest_matches(detections, targets)
-#    # calculate the absolute errors
-#    errors = calc_errors(detections, targets, matches)
-#    # if the errors are positive, the detection is after the target
-#    # thus, the needed interval is from the closest target towards the next one
-#    closest_interval[errors > 0] = fwd_intervals[matches[errors > 0]]
-#    # if before, interval to previous target accordingly
-#    closest_interval[errors < 0] = bwd_intervals[matches[errors < 0]]
-#    # return the closest interval
-#    return closest_interval
-
-
 def calc_errors(detections, targets, matches=None):
     """
     Calculates the errors of the detections relative to the closest targets.
 
     :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :param matches: indices of the closest matches [default=None]
-    :returns: a list of errors to closest matches [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
@@ -302,8 +314,8 @@ def calc_intervals(events, fwd=False):
     Calculate the intervals of all events to the previous / next event.
 
     :param events: sequence of events to be matched [seconds]
-    :param fwd: calculate the intervals to the next event [default=False]
-    :returns: the intervals [seconds]
+    :param fwd:    calculate the intervals to the next event [default=False]
+    :returns:      the intervals [seconds]
 
     Note: the sequences must be ordered!
 
@@ -326,9 +338,9 @@ def calc_absolute_errors(detections, targets, matches=None):
     Calculate absolute errors of the detections relative to the closest targets.
 
     :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :param matches: indices of the closest matches [default=None]
-    :returns: a list of errors to closest matches [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
@@ -345,9 +357,9 @@ def calc_relative_errors(detections, targets, matches=None):
     each detection.
 
     :param detections: sequence of events to be matched [seconds]
-    :param targets: sequence of possible matches [seconds]
-    :param matches: indices of the closest matches [default=None]
-    :returns: a list of relative errors to closest matches [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of relative errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
