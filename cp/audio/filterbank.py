@@ -533,7 +533,7 @@ class MelFilter(Filter):
         if obj is None:
             return
         # set default values here
-        self.__norm = getattr(obj, '__norm', True)
+        self.__norm = getattr(obj, '__norm', NORM_FILTER)
 
     @property
     def norm(self):
@@ -575,7 +575,7 @@ class BarkFilter(Filter):
         if obj is None:
             return
         # set default values here
-        self.__norm = getattr(obj, '__norm', True)
+        self.__norm = getattr(obj, '__norm', NORM_FILTER)
 
     @property
     def norm(self):
@@ -621,7 +621,7 @@ class LogarithmicFilter(Filter):
             return
         # set default values here
         self.__bands_per_octave = getattr(obj, '__bands_per_octave', BANDS_PER_OCTAVE)
-        self.__norm = getattr(obj, '__norm', True)
+        self.__norm = getattr(obj, '__norm', NORM_FILTER)
         self.__a4 = getattr(obj, '__a4', A4)
 
     @property

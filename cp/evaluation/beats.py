@@ -48,7 +48,7 @@ Please send any comments, enhancements, errata, etc. to the main author.
 
 import numpy as np
 
-from helpers import load_events, find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
+from helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
 from onsets import OnsetEvaluation
 
 
@@ -650,7 +650,7 @@ def parser():
 
 
 def main():
-    from helpers import files
+    from cp.utils.helpers import files, load_events
 
     # parse the arguments
     args = parser()

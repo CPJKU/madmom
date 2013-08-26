@@ -509,7 +509,7 @@ def parser():
 
 
 def main():
-    from helpers import match_files, load_events
+    from cp.utils.helpers import match_files, load_events
 
     # parse arguments
     args = parser()

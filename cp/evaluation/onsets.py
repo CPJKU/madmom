@@ -28,7 +28,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
 
-from helpers import load_events, combine_events
 from simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
@@ -119,7 +118,7 @@ def parser():
 
 
 def main():
-    from helpers import files
+    from cp.utils.helpers import files, load_events, combine_events
 
     # parse the arguments
     args = parser()

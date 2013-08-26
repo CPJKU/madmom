@@ -818,27 +818,16 @@ def main():
             # FIXME: fps must be encoded in the file
             o = Onset("%s.%s" % (filename, args.odf), args.fps, args.online)
         else:
-            # open the wav file
-            w = Wav(f, frame_size=args.window, online=args.online)
-            w.hop_size = w.samplerate / float(args.fps)
-            # normalize audio
-            if args.norm:
-                w.normalize()
-                args.online = False  # switch to offline mode
-            # downmix to mono
-            if w.num_channels > 1:
-                w.downmix()
-            # attenuate signal
-            if args.att:
-                w.attenuate(args.att)
+            # create a Wav object
+            w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
             # create filterbank if needed
             if args.filter:
                 # (re-)create filterbank if the samplerate of the audio changes
                 if filt is None or filt.fs != w.samplerate:
                     filt = LogarithmicFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
-            # create a spectrogram object
+            # create a Spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
-            # use the spectrogram to create an SpectralODF object
+            # create a SpectralODF object
             sodf = SpectralODF(s, ratio=args.ratio, diff_frames=args.diff_frames, max_bins=args.max_bins)
             # perform detection function on the object
             act = getattr(sodf, args.odf)()
@@ -849,7 +838,7 @@ def main():
                 o.save_activations("%s.%s" % (filename, args.odf))
 
         # detect the onsets
-        o.detect(threshold=args.threshold, combine=args.combine, delay=args.delay, pre_avg=args.pre_avg, pre_max=args.pre_max, post_avg=args.post_avg, post_max=args.post_max)
+        o.detect(args.threshold, combine=args.combine, delay=args.delay, pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
         # write the onsets to a file
         o.write("%s.onsets.txt" % (filename))
         # also output them to stdout if vebose
