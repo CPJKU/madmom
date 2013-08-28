@@ -125,6 +125,8 @@ PHASE = False
 LGD = False
 NORM_WINDOW = False
 FFT_SIZE = None
+RATIO = 0.5
+DIFF_FRAMES = None
 
 
 class Spectrogram(object):
@@ -132,9 +134,10 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, audio, window=np.hanning,
-                 filterbank=FILTERBANK, log=LOG, mul=MUL, add=ADD,
-                 stft=STFT, phase=PHASE, lgd=LGD, norm_window=NORM_WINDOW, fft_size=FFT_SIZE):
+    def __init__(self, audio, window=np.hanning, filterbank=FILTERBANK,
+                 log=LOG, mul=MUL, add=ADD, stft=STFT, phase=PHASE, lgd=LGD,
+                 norm_window=NORM_WINDOW, fft_size=FFT_SIZE,
+                 ratio=RATIO, diff_frames=DIFF_FRAMES):
         """
         Creates a new Spectrogram object instance of the given audio.
 
@@ -161,6 +164,12 @@ class Spectrogram(object):
         :param norm_window: set area of window function to 1 [default=False]
         :param fft_size:    use this size for FFT [default=size of window]
 
+        Diff parameters:
+
+        :param ratio:       calculate the difference to the frame which window overlaps to this ratio [default=0.5]
+        :param diff_frames: calculate the difference to the N-th previous frame [default=None]
+                            If set, this overrides the value calculated from the ratio.
+
         Note: including phase and/or local group delay information slows down
               calculation considerably (phase: x2; lgd: x3)!
 
@@ -181,7 +190,7 @@ class Spectrogram(object):
 
         # window stuff
         if hasattr(window, '__call__'):
-            # a window function is given, set the size to the audio frame size
+            # if only function is given, use the size to the audio frame size
             self.window = window(self.audio.frame_size)
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
@@ -198,6 +207,8 @@ class Spectrogram(object):
         self.__stft = None
         self.__phase = None
         self.__lgd = None
+        # TODO: does this attribute belong to this class?
+        self.__diff = None
 
         # additional calculations
         # Note: the naming might be a bit confusing but is short
@@ -216,6 +227,10 @@ class Spectrogram(object):
         self.__log = log
         self.__mul = mul
         self.__add = add
+
+        # diff parameters
+        self.ratio = ratio
+        self.__diff_frames = diff_frames
 
     @property
     def filterbank(self):
@@ -421,6 +436,54 @@ class Spectrogram(object):
         return self.__spec
 
     @property
+    def num_diff_frames(self):
+        """Number of frames used for difference calculation of the magnitude spectrogram."""
+        if self.__diff_frames is None:
+            # calculate on basis of the ratio
+            # get the first sample with a higher magnitude than given ratio
+            sample = np.argmax(self.window > self.ratio * max(self.window))
+            diff_samples = self.window.size / 2 - sample
+            # convert to frames
+            diff_frames = int(round(diff_samples / self.hop_size))
+            # set the minimum to 1
+            if diff_frames < 1:
+                diff_frames = 1
+            # return
+            return diff_frames
+        else:
+            # return the set value
+            return self.__diff_frames
+
+    @num_diff_frames.setter
+    def num_diff_frames(self, diff_frames):
+        """
+        Set the number of diff frames.
+
+        :param diff_frames: number of frames used for difference calculation
+
+        Note: if set to None, the number is calculated dynamically on the ratio
+              to which extend the windows overlap.
+
+        """
+        self.__diff_frames = diff_frames
+
+    @property
+    def diff(self):
+        """Differences of the magnitude spectrogram."""
+        if self.__diff is None:
+            # init array
+            self.__diff = np.zeros_like(self.spec)
+            # calculate the diff
+            self.__diff[self.num_diff_frames:] = self.spec[self.num_diff_frames:] - self.spec[:-self.num_diff_frames]
+            # TODO: make the filling of the first diff_frames frames work properly
+        return self.__diff
+
+    @property
+    def pos_diff(self):
+        """Positive differences of the magnitude spectrogram."""
+        return self.diff * (self.diff > 0)
+
+    @property
     def phase(self):
         """Phase of the STFT."""
         # TODO: this is highly inefficient, if more properties are accessed
@@ -545,7 +608,7 @@ class FilteredSpectrogram(Spectrogram):
         import filterbank
         # fetch the arguments special to the filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
-        bands_per_octave = kwargs.pop('bands', filterbank.BANDS_PER_OCTAVE)
+        bands_per_octave = kwargs.pop('bands_per_octave', filterbank.BANDS_PER_OCTAVE)
         fmin = kwargs.pop('fmin', filterbank.FMIN)
         fmax = kwargs.pop('fmax', filterbank.FMAX)
         norm = kwargs.pop('norm', filterbank.NORM_FILTER)

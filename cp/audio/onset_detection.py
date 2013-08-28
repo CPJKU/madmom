@@ -358,8 +358,6 @@ def rectified_complex_domain(spec, phase):
 
 
 # SpectralODF default values
-RATIO = 0.5
-DIFF_FRAMES = None
 MAX_BINS = 3
 
 
@@ -369,13 +367,11 @@ class SpectralODF(object):
     based on the magnitude or phase information of a spectrogram.
 
     """
-    def __init__(self, spectrogram, ratio=RATIO, diff_frames=DIFF_FRAMES, max_bins=MAX_BINS):
+    def __init__(self, spectrogram, max_bins=MAX_BINS):
         """
         Creates a new ODF object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
-        :param ratio:       calculate the difference to the frame which window overlaps to this ratio [default=0.5]
-        :param diff_frames: calculate the difference to the N-th previous frame [default=None]
         :param max_bins:    number of bins for the maximum filter (for SuperFlux) [default=3]
 
         """
@@ -386,23 +382,12 @@ class SpectralODF(object):
             # already the right format
             self.s = spectrogram
         else:
-            # try to convert
+            # assume a file name, try to instantiate a Spectrogram object
             self.s = Spectrogram(spectrogram)
-        # determine the number off diff frames
-        if diff_frames is None:
-            # get the first sample with a higher magnitude than given ratio
-            sample = np.argmax(self.s.window > ratio)
-            diff_samples = self.s.window.size / 2 - sample
-            # convert to frames
-            diff_frames = int(round(diff_samples / self.s.hop_size))
-            # set the minimum to 1
-            if diff_frames < 1:
-                diff_frames = 1
-        # sanity check
-        if diff_frames < 1:
-            raise ValueError("number of diff_frames must be >= 1")
-        self.diff_frames = diff_frames
         self.max_bins = max_bins
+
+    # FIXME: do use s.spec and s.diff directly instead of passing the number of
+    # diff_frames to all these functions?
 
     # Onset Detection Functions
     def hfc(self):
@@ -411,11 +396,11 @@ class SpectralODF(object):
 
     def sd(self):
         """Spectral Diff."""
-        return spectral_diff(self.s.spec, self.diff_frames)
+        return spectral_diff(self.s.spec, self.s.num_diff_frames)
 
     def sf(self):
         """Spectral Flux."""
-        return spectral_flux(self.s.spec, self.diff_frames)
+        return spectral_flux(self.s.spec, self.s.num_diff_frames)
 
     def superflux(self, max_bins=None):
         """
@@ -427,11 +412,11 @@ class SpectralODF(object):
         if max_bins:
             # overwrite the number of bins used for maximum filtering
             self.max_bins = max_bins
-        return superflux(self.s.spec, self.diff_frames, self.max_bins)
+        return superflux(self.s.spec, self.s.num_diff_frames, self.max_bins)
 
     def mkl(self):
         """Modified Kullback-Leibler."""
-        return modified_kullback_leibler(self.s.spec, self.diff_frames)
+        return modified_kullback_leibler(self.s.spec, self.s.num_diff_frames)
 
     def pd(self):
         """Phase Deviation."""
@@ -477,13 +462,16 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
 
     """
     # smooth activations
+    kernel = None
     if isinstance(smooth, int):
         # size for the smoothing kernel is given
-        kernel = np.hamming(smooth)
+        if smooth > 1:
+            kernel = np.hamming(smooth)
     elif isinstance(smooth, np.ndarray):
         # otherwise use the given smooth kernel directly
-        kernel = smooth
-    if kernel:
+        if smooth.size > 1:
+            kernel = smooth
+    if kernel is not None:
         # convolve with the kernel
         activations = np.convolve(activations, kernel, 'same')
     # threshold activations
@@ -548,14 +536,15 @@ class Onset(object):
     Onset Class.
 
     """
-    def __init__(self, activations, fps, online=False):
+    def __init__(self, activations, fps, online=False, sep=''):
         """
         Creates a new Onset object instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read in from a file.
 
-        :param activations: an array containing the activations of the ODF
-        :param fps: frame rate of the activations
-        :param online: work in online mode (i.e. use only past information) [default=True]
+        :param activations: array with ODF activations or a file handle
+        :param fps:         frame rate of the activations
+        :param online:      work in online mode (i.e. use only past information) [default=False]
+        :param sep:         separator if activations are read from file
 
         """
         self.activations = None  # onset activation function
@@ -576,7 +565,7 @@ class Onset(object):
             self.activations = activations
         else:
             # read in the activations from a file
-            self.load_activations(activations)
+            self.load_activations(activations, sep)
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX, post_max=POST_AVG):
@@ -637,13 +626,8 @@ class Onset(object):
         Note: detect() method must be called first.
 
         """
-        if not isinstance(filename, file):
-            # open the file if neccesary
-            filename = open(filename, 'w')
-        with filename:
-            # write the onsets, one per line
-            for pos in self.detections:
-                filename.write(str(pos) + '\n')
+        from cp.utils.helpers import write_events
+        write_events(self.detections, filename)
 
     def load(self, filename):
         """
@@ -652,17 +636,8 @@ class Onset(object):
         :param filename: input file name or file handle
 
         """
-        if not isinstance(filename, file):
-            # open the file if neccesary
-            filename = open(filename, 'w')
-        with filename:
-            # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
-            onsets = []
-            # read in the onsets, one per line
-            for line in filename:
-                # 1st column is the onset time, ignore the rest if present
-                onsets.append(float(line.split()[0]))
-        self.targets = np.asarray(onsets)
+        from cp.utils.helpers import load_events
+        self.targets = load_events(filename)
 
     def evaluate(self, filename=None, window=0.025):
         """

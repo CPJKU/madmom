@@ -29,104 +29,100 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 
 
-def files(path, extension):
+def files(path, ext=None):
     """
     Returns a list of files in path matching the given extension.
 
-    :param path:      folder to be searched for files
-    :param extension: only return files with this extension
-    :returns:         list of files
+    :param path: path or list of files to be filtered / searched
+    :param ext:  only return files with this extension
+    :returns:    list of files
 
     """
     import os.path
     import glob
-    import fnmatch
     # determine the detection files
     if type(path) == list:
         # a list of files or paths is given
         file_list = []
+        # recursively call the function
         for f in path:
-            file_list.extend(files(f, extension))
+            file_list.extend(files(f, ext))
     elif os.path.isdir(path):
         # use all files in the given path
-        file_list = glob.glob("%s/*" % path)
+        if ext is None:
+            file_list = glob.glob("%s/*" % path)
+        else:
+            file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
         # just use this file
-        file_list = [path]
+        if ext is None:
+            file_list = [path]
+        elif path.endswith(ext):
+            file_list = [path]
+        else:
+            file_list = []
     else:
-        raise ValueError("only files or folders are supported")
+        raise ValueError("only files or folders are supported.")
     # sort files
     file_list.sort()
-    # filter file list
-    if extension:
-        file_list = fnmatch.filter(file_list, "*%s" % extension)
     # return list
     return file_list
 
 
-def match_files(det_files, tar_files=None, det_ext='*', tar_ext='*'):
+def stripext(filename, ext=None):
+    """Strip of the extension."""
+    if ext is not None and filename.endswith(ext):
+        return filename[:-len(ext)]
+    return filename
+
+
+def match_file(filename, match_list, ext=None, match_ext=None):
     """
-    Match a list of target files to the corresponding detection files.
+    Match a file against a list of other files.
 
-    :param det_files: list of detection files
-    :param tar_files: list of target files [default=None]
-    :param det_ext:  use only detection files with that extension [default='*']
-    :param tar_ext:  use only target files with that extension [default='*']
+    :param filename:     file to be matched
+    :param match_list:   match to this list of files
 
-    Note: if no target files are given, the same list as the detections is used.
-          Handy, if the first list contains both the detections and targets.
     """
     import os.path
-    # if no targets are given, use the same as the detections
-    if len(tar_files) == 0:
-        tar_files = [det_files]
-    # determine the detection files
-    det_files = files(det_files, det_ext)
-    # determine the target files
-    tar_files = files(tar_files, tar_ext)
-    # file list to return
-    file_list = []
-    # find matching target files for each detection file
-    for det_file in det_files:
-        # strip of possible extensions
-        if det_ext:
-            det_file_name = os.path.splitext(det_file)[0]
-        else:
-            det_file_name = det_file
-        # get the base name without the path
-        det_file_name = os.path.basename(det_file_name)
-        # look for files with the same base name in the targets
-        # TODO: is there a nice one-liner to achieve the same?
-        #tar_files_ = [os.path.join(p, f) for p, f in os.path.split(tar_files) if f == det_file_name]
-        tar_files_ = []
-        for tar_file in tar_files:
-            p, f = os.path.split(tar_file)
-            if f == det_file_name:
-                tar_files_.append(os.path.join(p, f))
-        # append a tuple of the matching pair
-        file_list.append((det_file, tar_files_))
-    # return
-    return file_list
+    import fnmatch
+    # get the base name without the path
+    basename = os.path.basename(stripext(filename, ext))
+    # look for files with the same base name in the files_list
+    matches = fnmatch.filter(match_list, "*%s*%s" % (basename, match_ext))
+    exact_matches = []
+    # base names must match exactly
+    for match in matches:
+        if basename == os.path.basename(stripext(match, match_ext)):
+            exact_matches.append(match)
+    # depending on the number of matches
+    if len(exact_matches) == 0:
+        # return None
+        exact_matches = None
+    elif len(exact_matches) == 1:
+        # return a single entry
+        exact_matches = exact_matches[0]
+    # return a list
+    return exact_matches
 
 
 def load_events(filename):
     """
     Load a list of events from file.
 
-    :param filename: name of the file
+    :param filename: name of the file or file handle
     :return:         list of events
 
     """
-    # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
-    # array for events
-    events = []
-    # try to read in the events from the file
-    with open(filename, 'rb') as f:
-        # read in each line of the file
-        for line in f:
-            # append the event (1st column) to the list, ignore the rest
-            # TODO: make these tuples, with all the evaluation methods just
-            # take the needed values (columns) an evaluate accordingly.
+    if not isinstance(filename, file):
+        # open the file if necessary
+        filename = open(filename, 'r')
+    with filename:
+        # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
+        events = []
+        # read in the events, one per line
+        for line in filename:
+            # 1st column is the events time, ignore the rest if present
             events.append(float(line.split()[0]))
     # return
     return np.asarray(events)
@@ -137,12 +133,22 @@ def write_events(events, filename):
     Write the detected onsets to the given file.
 
     :param events:   list of events [seconds]
-    :param filename: output file name
+    :param filename: output file name or file handle
 
     """
-    with open(filename, 'w') as f:
-        for e in events:
-            f.write(str(e) + '\n')
+    was_closed = False
+    if not isinstance(filename, file):
+        # open the file if necessary
+        filename = open(filename, 'w')
+        was_closed = True
+    # FIXME: if we use "with filename:" here, the file handle gets closed
+    # after write and the called object is not accessible afterwards. Is this
+    # expected? Is this the right way to circumvent this?
+    for e in events:
+        filename.write(str(e) + '\n')
+    # close the file again?
+    if was_closed:
+        filename.close()
 
 
 def combine_events(events, delta):

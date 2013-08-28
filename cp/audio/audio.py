@@ -347,7 +347,10 @@ class FramedAudio(Audio):
             return [self[i] for i in xrange(*index.indices(len(self)))]
         # a single index is given
         elif isinstance(index, int):
-            # TODO: use this code if normal indexing behavior is needed
+            # use this code if normal indexing behavior is needed
+            # TODO: make index -1 work so that the diff of a spectrogram for the
+            # first frame can be calculated in the correct way. Right now it is
+            # just 0...
             if index < 0:
                 index += self.num_frames
             return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.online)
