@@ -330,9 +330,9 @@ def erb2hz(e):
 
 
 # helper functions for filter creation
-def fft_freqs(fft_bins, fs):
-    # faster than: np.fft.fftfreq(fft_bins * 2)[:fft_bins] * fs
-    return np.linspace(0, fs / 2., fft_bins + 1)
+def fft_freqs(fft_bins, sample_rate):
+    # faster than: np.fft.fftfreq(fft_bins * 2)[:fft_bins] * sample_rate
+    return np.linspace(0, sample_rate / 2., fft_bins + 1)
 
 
 def triang_filter(start, center, stop, norm):
@@ -363,13 +363,13 @@ def triang_filter(start, center, stop, norm):
     return triang_filter
 
 
-def triang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
+def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     """
     Creates a filterbank with overlapping triangular filters.
 
     :param frequencies: a list of frequencies used for filter creation [Hz]
     :param fft_bins:    number of fft bins
-    :param fs:          sample rate of the audio signal [Hz]
+    :param sample_rate: sample rate of the audio signal [Hz]
     :param norm:        normalize the area of the filters to 1 [default=True]
     :returns:           filterbank
 
@@ -380,7 +380,7 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
 
     """
     # conversion factor for mapping of frequencies to spectrogram bins
-    factor = (fs / 2.0) / fft_bins
+    factor = (sample_rate / 2.0) / fft_bins
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # filter out all frequencies outside the valid range
@@ -406,19 +406,19 @@ def triang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
     return filterbank
 
 
-def rectang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
+def rectang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     """
     Creates a filterbank with rectangular filters.
 
     :param frequencies: a list of frequencies used for filter creation [Hz]
     :param fft_bins:    number of fft bins
-    :param fs:          sample rate of the audio signal [Hz]
+    :param sample_rate: sample rate of the audio signal [Hz]
     :param norm:        normalize the area of the filters to 1 [default=True]
     :returns:           filterbank
 
     """
     # conversion factor for mapping of frequencies to spectrogram bins
-    factor = (fs / 2.0) / fft_bins
+    factor = (sample_rate / 2.0) / fft_bins
     # map the frequencies to the spectrogram bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # filter out all frequencies outside the valid range
@@ -455,7 +455,7 @@ def rectang_filterbank(frequencies, fft_bins, fs, norm=NORM_FILTER):
 
 class Filter(np.ndarray):
 
-    def __new__(cls, data, fs):
+    def __new__(cls, data, sample_rate):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
             # cast as Filter
@@ -464,7 +464,7 @@ class Filter(np.ndarray):
             raise TypeError("wrong input data for Filter")
         # set attributes
         obj.__fft_bins, obj.__bands = obj.shape
-        obj.__fs = fs
+        obj.__sample_rate = sample_rate
         # return the object
         return obj
 
@@ -484,12 +484,12 @@ class Filter(np.ndarray):
         return self.__bands
 
     @property
-    def fs(self):
-        return self.__fs
+    def sample_rate(self):
+        return self.__sample_rate
 
     @property
     def bin_freqs(self):
-        return fft_freqs(self.fft_bins, self.fs)
+        return fft_freqs(self.fft_bins, self.sample_rate)
 
     @property
     def fmin(self):
@@ -505,25 +505,25 @@ class MelFilter(Filter):
     Mel Filter Class.
 
     """
-    def __new__(cls, fft_bins, fs, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER):
         """
         Creates a new Mel Filter object instance.
 
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs:       sample rate of the audio file [Hz]
-        :param fmin:     the minimum frequency [Hz, default=30]
-        :param fmax:     the maximum frequency [Hz, default=16000]
-        :param bands:    number of filter bands [default=40]
-        :param norm:     normalize the area of the filter to 1 [default=True]
+        :param fft_bins:    number of FFT bins (= half the window size of the FFT)
+        :param sample_rate: sample rate of the audio file [Hz]
+        :param fmin:        the minimum frequency [Hz, default=30]
+        :param fmax:        the maximum frequency [Hz, default=16000]
+        :param bands:       number of filter bands [default=40]
+        :param norm:        normalize the area of the filter to 1 [default=True]
 
         """
         # get a list of frequencies
         # request 2 more bands, becuase these are the edge frequencies
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, fs)
+        obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         # return the object
@@ -545,16 +545,16 @@ class BarkFilter(Filter):
     Bark Filter CLass.
 
     """
-    def __new__(cls, fft_bins, fs, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER):
         """
         Creates a new Bark Filter object instance.
 
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs:       sample rate of the audio file [Hz]
-        :param fmin:     the minimum frequency [Hz, default=20]
-        :param fmax:     the maximum frequency [Hz, default=15500]
-        :param double:   double the number of frequency bands [default=False]
-        :param norm:     normalize the area of the filter to 1 [default=True]
+        :param fft_bins:    number of FFT bins (= half the window size of the FFT)
+        :param sample_rate: sample rate of the audio file [Hz]
+        :param fmin:        the minimum frequency [Hz, default=20]
+        :param fmax:        the maximum frequency [Hz, default=15500]
+        :param double:      double the number of frequency bands [default=False]
+        :param norm:        normalize the area of the filter to 1 [default=True]
 
         """
         # get a list of frequencies
@@ -563,9 +563,9 @@ class BarkFilter(Filter):
         else:
             frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, fs)
+        obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         # return the object
@@ -588,14 +588,14 @@ class LogarithmicFilter(Filter):
     Logarithmic Filter class.
 
     """
-    def __new__(cls, fft_bins, fs,
+    def __new__(cls, fft_bins, sample_rate,
                 bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTER, a4=A4):
         """
         Creates a new Logarithmic Filter object instance.
 
         :param fft_bins:         number of FFT bins (= half the window size of the FFT)
-        :param fs:               sample rate of the audio file [Hz]
+        :param sample_rate:      sample rate of the audio file [Hz]
         :param bands_per_octave: number of filter bands per octave [default=6]
         :param fmin:             the minimum frequency [Hz, default=20]
         :param fmax:             the maximum frequency [Hz, default=17000]
@@ -606,9 +606,9 @@ class LogarithmicFilter(Filter):
         # get a list of frequencies
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, fs, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, fs)
+        obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__bands_per_octave = bands_per_octave
         obj.__norm = norm
@@ -645,21 +645,21 @@ class SemitoneFilter(LogarithmicFilter):
     Semitone Filter class.
 
     """
-    def __new__(cls, fft_bins, fs,
+    def __new__(cls, fft_bins, sample_rate,
                 fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
         """
         Creates a new Semitone Filter object instance.
 
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs:       sample rate of the audio file [Hz]
-        :param fmin:     the minimum frequency [Hz, default=27]
-        :param fmax:     the maximum frequency [Hz, default=17000]
-        :param norm:     normalize the area of the filter to 1 [default=True]
-        :param a4:       tuning frequency of A4 [Hz, default=440]
+        :param fft_bins:    number of FFT bins (= half the window size of the FFT)
+        :param sample_rate: sample rate of the audio file [Hz]
+        :param fmin:        the minimum frequency [Hz, default=27]
+        :param fmax:        the maximum frequency [Hz, default=17000]
+        :param norm:        normalize the area of the filter to 1 [default=True]
+        :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """
         # return a LogarithmicFilter with 12 bands per octave
-        return LogarithmicFilter.__new__(cls, fft_bins, fs, 12, fmin, fmax, norm, a4)
+        return LogarithmicFilter.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, a4)
 
 
 class SimpleChromaFilter(Filter):
@@ -670,23 +670,23 @@ class SimpleChromaFilter(Filter):
     No diffusion, just discrete assignment.
     """
 
-    def __new__(cls, fft_bins, fs,
+    def __new__(cls, fft_bins, sample_rate,
                 fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
         """
         Creates a new Chroma Filter object instance.
 
-        :param fft_bins: number of FFT bins (= half the window size of the FFT)
-        :param fs:       sample rate of the audio file [Hz]
-        :param fmin:     the minimum frequency [Hz, default=20]
-        :param fmax:     the maximum frequency [Hz, default=15500]
-        :param norm:     normalize the area of the filter to 1 [default=True]
-        :param a4:       tuning frequency of A4 [Hz, default=440]
+        :param fft_bins:    number of FFT bins (= half the window size of the FFT)
+        :param sample_rate: sample rate of the audio file [Hz]
+        :param fmin:        the minimum frequency [Hz, default=20]
+        :param fmax:        the maximum frequency [Hz, default=15500]
+        :param norm:        normalize the area of the filter to 1 [default=True]
+        :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """
         # get a list of frequencies
         frequencies = semitone_frequencies(fmin, fmax, a4)
         # conversion factor for mapping of frequencies to spectrogram bins
-        factor = (fs / 2.0) / fft_bins
+        factor = (sample_rate / 2.0) / fft_bins
         # map the frequencies to the spectrogram bins
         frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
         # filter out all frequencies outside the valid range
@@ -710,7 +710,7 @@ class SimpleChromaFilter(Filter):
             # create a rectangular filter and map it to the 12 bins
             filterbank[start:stop, band % 12] = height
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, fs)
+        obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         obj.__a4 = a4

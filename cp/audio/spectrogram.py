@@ -141,7 +141,7 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param signal:   a FramedAudio object; or file name or tuple (signal, samplerate)
+        :param signal:   a FramedAudio object; or file name or tuple (signal, sample rate)
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
@@ -552,12 +552,12 @@ class Spectrogram(object):
     @property
     def mapping(self):
         """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.audio.samplerate / 2.0 / self.fft_bins
+        return self.audio.sample_rate / 2.0 / self.fft_bins
 
     @property
     def fft_freqs(self):
         """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.samplerate
+        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.sample_rate
 
     def aw(self, floor=0.5, relaxation=10):
         """
@@ -616,7 +616,7 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
-            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
+            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 

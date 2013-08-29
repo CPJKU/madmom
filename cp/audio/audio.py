@@ -152,26 +152,26 @@ ATT = 0
 
 class Audio(object):
     """
-    Audio is a very simple class which just stores the signal and the samplerate
-    and provides some basic methods for signal processing.
+    Audio is a very simple class which just stores the signal and the sample
+    rate and provides some basic methods for signal processing.
 
     """
-    def __init__(self, signal, samplerate, mono=MONO, norm=NORM, att=ATT):
+    def __init__(self, signal, sample_rate, mono=MONO, norm=NORM, att=ATT):
         """
         Creates a new Audio object instance.
 
-        :param signal:     the audio signal [numpy array]
-        :param samplerate: samplerate of the signal
-        :param mono:       downmix the signal to mono [default=False]
-        :param norm:       normalize the signal [default=False]
-        :param att:        attenuate the signal by N dB [default=0]
+        :param signal:      the audio signal [numpy array]
+        :param sample_rate: sample rate of the signal
+        :param mono:        downmix the signal to mono [default=False]
+        :param norm:        normalize the signal [default=False]
+        :param att:         attenuate the signal by N dB [default=0]
 
         """
         if not isinstance(signal, np.ndarray):
             # make sure the signal is a numpy array
             raise TypeError("Invalid type for audio signal.")
         self.signal = signal
-        self.samplerate = samplerate
+        self.sample_rate = sample_rate
 
         # convenience handling of mono down-mixing and normalization
         if mono:
@@ -202,7 +202,7 @@ class Audio(object):
     @property
     def length(self):
         """Length of signal in seconds."""
-        return float(self.num_samples) / float(self.samplerate)
+        return float(self.num_samples) / float(self.sample_rate)
 
     # downmix to mono
     def downmix(self):
@@ -239,17 +239,17 @@ class Audio(object):
             # check offset
             if offset <= 0:
                 raise ValueError("offset must be positive")
-            if offset * self.samplerate > self.num_samples:
+            if offset * self.sample_rate > self.num_samples:
                 raise ValueError("offset must be < length of signal")
-            self.signal = self.signal[(offset * self.samplerate):]
+            self.signal = self.signal[(offset * self.sample_rate):]
         # truncate the end
         if length != None:
             # check length
             if length <= 0:
                 raise ValueError("a positive value must given")
-            if length * self.samplerate > self.num_samples:
+            if length * self.sample_rate > self.num_samples:
                 raise ValueError("length must be < length of signal")
-            self.signal = self.signal[:length * self.samplerate + 1]
+            self.signal = self.signal[:length * self.sample_rate + 1]
 
     # downsample
     def downsample(self, factor=2):
@@ -261,7 +261,7 @@ class Audio(object):
         """
         from scipy.signal import decimate
         self.signal = np.hstack(decimate(self.signal, factor))
-        self.samplerate /= factor
+        self.sample_rate /= factor
 
     # trim zeros
     def trim(self):
@@ -273,7 +273,7 @@ class Audio(object):
 
     # TODO: make this nicer!
     def __str__(self):
-        return "%s length: %i samples (%.2f seconds) samplerate: %i" % (self.__class__, self.num_samples, self.length, self.samplerate)
+        return "%s length: %i samples (%.2f seconds) sample rate: %i" % (self.__class__, self.num_samples, self.length, self.sample_rate)
 
 
 # default values
@@ -288,19 +288,18 @@ class FramedAudio(Audio):
     FramedAudio splits an audio signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, samplerate, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+    def __init__(self, signal, sample_rate, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  online=ONLINE, fps=None, *args, **kwargs):
         """
         Creates a new FramedAudio object instance.
 
-        :param signal:     the audio signal [numpy array]
-        :param samplerate: samplerate of the signal
-
-        :param frame_size: size of one frame [default=2048]
-        :param hop_size:   progress N samples between adjacent frames [default=441]
-        :param online:     use only past information [default=False]
-        :param fps:        use N frames per second instead of setting the hop_size;
-                           if set, this overwrites the hop_size value [default=None]
+        :param signal:      the audio signal [numpy array]
+        :param sample_rate: sample_rate of the signal
+        :param frame_size:  size of one frame [default=2048]
+        :param hop_size:    progress N samples between adjacent frames [default=441]
+        :param online:      use only past information [default=False]
+        :param fps:         use N frames per second instead of setting the hop_size;
+                            if set, this overwrites the hop_size value [default=None]
 
         Note: The FramedAudio class is implemented as an iterator. It splits the
               signal automatically into frames (of frame_size length) and
@@ -313,7 +312,7 @@ class FramedAudio(Audio):
 
         """
         # instantiate a Audio object
-        super(FramedAudio, self).__init__(signal, samplerate, *args, **kwargs)
+        super(FramedAudio, self).__init__(signal, sample_rate, *args, **kwargs)
         # arguments for splitting the signal into frames
         self.frame_size = frame_size
         self.hop_size = float(hop_size)
@@ -370,13 +369,13 @@ class FramedAudio(Audio):
     @property
     def fps(self):
         """Frames per second."""
-        return float(self.samplerate) / float(self.hop_size)
+        return float(self.sample_rate) / float(self.hop_size)
 
     @fps.setter
     def fps(self, fps):
         """Frames per second."""
         # set the hop size accordingly
-        self.hop_size = self.samplerate / float(fps)
+        self.hop_size = self.sample_rate / float(fps)
 
     @property
     def overlap_factor(self):
@@ -385,4 +384,4 @@ class FramedAudio(Audio):
 
     # TODO: make this nicer!
     def __str__(self):
-        return "%s length: %i samples (%.2f seconds) samplerate: %i frames: %i (%i num_samples %.1f hopsize)" % (self.__class__, self.num_samples, self.length, self.samplerate, self.frames, self.frame_size, self.hop_size)
+        return "%s length: %i samples (%.2f seconds) sample rate: %i frames: %i (%i num_samples %.1f hop size)" % (self.__class__, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)

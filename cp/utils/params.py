@@ -85,23 +85,23 @@ def add_spec_arguments(parser, ratio=s.RATIO, diff_frames=s.DIFF_FRAMES):
     return group
 
 
-def add_filter_arguments(parser, filter=None, fmin=f.FMIN, fmax=f.FMAX,
+def add_filter_arguments(parser, filtering=None, fmin=f.FMIN, fmax=f.FMAX,
                          bands=f.BANDS_PER_OCTAVE, norm_filter=f.NORM_FILTER):
     """
     Add filter related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :param filter: add a switch for the whole filter group
-    :param bands:  number of filter bands per octave
-    :param fmin:   the minimum frequency
-    :param fmax:   the maximum frequency
-    :param equal:  equal (normalize) the area of the filter
-    :return:       the modified parser object
+    :param parser:    existing argparse parser object
+    :param filtering: add a switch for the whole filter group
+    :param bands:     number of filter bands per octave
+    :param fmin:      the minimum frequency
+    :param fmax:      the maximum frequency
+    :param equal:     equal (normalize) the area of the filter
+    :return:          the modified parser object
 
     """
     # add filter related options to the existing parser
     group = parser.add_argument_group('filter arguments')
-    if filter is not None:
+    if filtering is not None:
         group.add_argument('--filter', action='store_true', default=False, help='filter the magnitude spectrogram with a filterbank [default=False]')
     if bands is not None:
         group.add_argument('--bands', action='store', type=int, default=bands, help='number of bands per octave [default=%i]' % bands)

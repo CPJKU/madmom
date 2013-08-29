@@ -797,9 +797,9 @@ def main():
             w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
             # create filterbank if needed
             if args.filter:
-                # (re-)create filterbank if the samplerate of the audio changes
-                if filt is None or filt.fs != w.samplerate:
-                    filt = LogarithmicFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
+                # (re-)create filterbank if the sample rate of the audio changes
+                if filt is None or filt.sample_rate != w.sample_rate:
+                    filt = LogarithmicFilter(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
             # create a Spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
             # create a SpectralODF object
