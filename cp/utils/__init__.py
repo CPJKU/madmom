@@ -1,2 +1,3 @@
-__all__ = ["stats"]
+__all__ = ["stats", "rnnlib"]
 import stats
+import rnnlib

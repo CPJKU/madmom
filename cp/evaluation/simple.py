@@ -509,40 +509,42 @@ def parser():
 
 
 def main():
-    from cp.utils.helpers import match_files, load_events
+    from cp.utils.helpers import files, match_file, load_events
 
     # parse arguments
     args = parser()
-    # match detections to targets
-    files = match_files(args.detections, args.targets, args.det_ext, args.tar_ext)
-
-    # exit if no files were given
-    if len(files) == 0:
-        print 'no matching pairs found'
-        exit(1)
+    # get detection and target files
+    det_files = files(args.detections, args.det_ext)
+    if not args.targets:
+        args.targets = args.detections
+    tar_files = files(args.targets, args.tar_ext)
 
     # sum and mean counter for all files
     sum_counter = SumEvaluation()
     mean_counter = MeanEvaluation()
     # evaluate all files
-    for det_file, tar_file in files:
+    for det_file in det_files:
+        # get the matching target file(s)
+        tar_file = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         if not tar_file:
             print 'no target file for %s found' % det_file
             exit(1)
         # get the detections file
         detections = load_events(det_file)
-        # process all corresponding target files
+        # evaluation Object
+        e = None
+        # process corresponding target file(s)
+        if not isinstance(tar_file, list):
+            # make targets a list
+            tar_file = [tar_file]
         # if more than 1 files are found, do a mean evaluation over all of them
-        me = MeanEvaluation()
+        e = MeanEvaluation()
         for f in tar_file:
             targets = load_events(f)
             # test with onsets (but use the beat detection window of 70ms)
             from onsets import count_errors
-            e = Evaluation(detections, targets, count_errors, window=0.07)
-#            # evaluate the detections
-#            e = Evaluation(detections, targets, calc_overlap)
-            # add to mean evaluation
-            me += e
+            # add the Evaluation to mean evaluation
+            e += Evaluation(detections, targets, count_errors, window=0.07)
             # process the next target file
         # print stats for each file
         if args.verbose:
@@ -550,15 +552,15 @@ def main():
                 print det_file, tar_file
             else:
                 print det_file
-            me.print_errors(args.tex)
+            e.print_errors(args.tex)
         # add the resulting sum counter
-        sum_counter += me
-        mean_counter += me
+        sum_counter += e
+        mean_counter += e
         # process the next detection file
     # print summary
-    print 'sum for %i files:' % (len(files))
+    print 'sum for %i files:' % (len(det_files))
     sum_counter.print_errors(args.tex)
-    print 'mean for %i files:' % (len(files))
+    print 'mean for %i files:' % (len(det_files))
     mean_counter.print_errors(args.tex)
 
 if __name__ == '__main__':
