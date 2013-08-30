@@ -1,44 +1,20 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Rainer Kelz <rainer.kelz@jku.at>
-All rights reserved.
+Abstract:
+convenience wrapper to be able to override values from configuration file
+from the commandline
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+Description:
+this wrapper reads in values from different sections of a YAML/JSON configuration file,
+whose name is specifiable on the commandline via '--config'
+it then adds each of the values as a commandline parameter,
+- allowing them to be overridden by specifying them on the commandline
+- merging them with additionally specified (mostly positional) parameters
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
+@author: Rainer Kelz <rainer.kelz@jku.at>
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-
-
-#######################################
-# abstract:
-# convenience wrapper to be able to override values from configuration file
-# from the commandline
-#
-# description:
-# this wrapper reads in values from different sections of a YAML/JSON configuration file,
-# whose name is specifiable on the commandline via '--config'
-# it then adds each of the values as a commandline parameter,
-# - allowing them to be overridden by specifying them on the commandline
-# - merging them with additionally specified (mostly positional) parameters
-#
-#######################################
 
 import argparse
 import os

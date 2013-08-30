@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains wav file handling functionality.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from scipy.io import wavfile
@@ -46,10 +28,10 @@ class Wav(FramedAudio):
         # init variables
         self.filename = filename        # the name of the file
         # read in the audio from the file
-        samplerate, signal = wavfile.read(self.filename)
+        sample_rate, signal = wavfile.read(self.filename)
         # instantiate a FramedAudio object
-        super(Wav, self).__init__(signal, samplerate, *args, **kwargs)
+        super(Wav, self).__init__(signal, sample_rate, *args, **kwargs)
 
     # TODO: make this nicer!
     def __str__(self):
-        return "%s file: %s length: %i samples (%.2f seconds) samplerate: %i frames: %i (%i samples %.1f hopsize)" % (self.__class__, self.filename, self.num_samples, self.length, self.samplerate, self.frames, self.frame_size, self.hop_size)
+        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)

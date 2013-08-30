@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains all parser functionality used by other modules.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import argparse
@@ -85,23 +67,23 @@ def add_spec_arguments(parser, ratio=s.RATIO, diff_frames=s.DIFF_FRAMES):
     return group
 
 
-def add_filter_arguments(parser, filter=None, fmin=f.FMIN, fmax=f.FMAX,
+def add_filter_arguments(parser, filtering=None, fmin=f.FMIN, fmax=f.FMAX,
                          bands=f.BANDS_PER_OCTAVE, norm_filter=f.NORM_FILTER):
     """
     Add filter related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :param filter: add a switch for the whole filter group
-    :param bands:  number of filter bands per octave
-    :param fmin:   the minimum frequency
-    :param fmax:   the maximum frequency
-    :param equal:  equal (normalize) the area of the filter
-    :return:       the modified parser object
+    :param parser:    existing argparse parser object
+    :param filtering: add a switch for the whole filter group
+    :param bands:     number of filter bands per octave
+    :param fmin:      the minimum frequency
+    :param fmax:      the maximum frequency
+    :param equal:     equal (normalize) the area of the filter
+    :return:          the modified parser object
 
     """
     # add filter related options to the existing parser
     group = parser.add_argument_group('filter arguments')
-    if filter is not None:
+    if filtering is not None:
         group.add_argument('--filter', action='store_true', default=False, help='filter the magnitude spectrogram with a filterbank [default=False]')
     if bands is not None:
         group.add_argument('--bands', action='store', type=int, default=bands, help='number of bands per octave [default=%i]' % bands)
@@ -129,7 +111,7 @@ def add_log_arguments(parser, log=None, mul=s.MUL, add=s.ADD):
     # add log related options to the existing parser
     group = parser.add_argument_group('logarithic magnitude arguments')
     if log is not None:
-        group.add_argument('--log', action='store_true', default=False, help='logarithmic magnitude [default=False]')
+        group.add_argument('--log', action='store_true', default=log, help='logarithmic magnitude [default=%s]' % log)
     if mul is not None:
         group.add_argument('--mul', action='store', type=float, default=mul, help='multiplier (before taking the log) [default=%i]' % mul)
     if add is not None:
@@ -189,7 +171,7 @@ def add_onset_arguments(parser, threshold=od.THRESHOLD, smooth=od.SMOOTH, combin
     group.add_argument('--pre_max', action='store', type=float, default=pre_max, help='search maximum over N previous seconds [default=%.2f]' % pre_max)
     group.add_argument('--post_max', action='store', type=float, default=post_max, help='search maximum over N following seconds [default=%.2f]' % post_max)
     group.add_argument('--delay', action='store', type=float, default=delay, help='report the onsets N seconds delayed [default=%i]' % delay)
-    group.add_argument('--sep', action='store', default='', help='separater for saving/loading the onset detection functions [default=\'\' (numpy binary format)]')
+    group.add_argument('--sep', action='store', default='', help='separator for saving/loading the onset detection functions [default=\'\' (numpy binary format)]')
     # return the argument group so it can be modified if needed
     return group
 
@@ -214,7 +196,7 @@ def parser():
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""This is just an example parser.""")
     # general options
     p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
+    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
     # add other argument groups
     add_audio_arguments(p)
     add_filter_arguments(p)

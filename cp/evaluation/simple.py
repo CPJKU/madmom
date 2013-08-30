@@ -1,28 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains basic evaluation functionality used by cp.evaluation modules.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
 
@@ -524,38 +505,24 @@ def main():
     mean_counter = MeanEvaluation()
     # evaluate all files
     for det_file in det_files:
-        # get the matching target file(s)
-        tar_file = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
-        if not tar_file:
-            print 'no target file for %s found' % det_file
-            exit(1)
         # get the detections file
         detections = load_events(det_file)
-        # evaluation Object
-        e = None
-        # process corresponding target file(s)
-        if not isinstance(tar_file, list):
-            # make targets a list
-            tar_file = [tar_file]
-        # if more than 1 files are found, do a mean evaluation over all of them
-        e = MeanEvaluation()
-        for f in tar_file:
+        # do a mean evaluation with all matched target files
+        me = MeanEvaluation()
+        for f in match_file(det_file, tar_files, args.det_ext, args.tar_ext):
+            # load the targets
             targets = load_events(f)
             # test with onsets (but use the beat detection window of 70ms)
             from onsets import count_errors
             # add the Evaluation to mean evaluation
-            e += Evaluation(detections, targets, count_errors, window=0.07)
+            me += Evaluation(detections, targets, count_errors, window=0.07)
             # process the next target file
         # print stats for each file
         if args.verbose:
-            if args.verbose >= 2:
-                print det_file, tar_file
-            else:
-                print det_file
-            e.print_errors(args.tex)
+            me.print_errors(args.tex)
         # add the resulting sum counter
-        sum_counter += e
-        mean_counter += e
+        sum_counter += me
+        mean_counter += me
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

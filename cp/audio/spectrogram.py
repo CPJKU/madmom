@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains spectrogram related functionality.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import numpy as np
@@ -141,7 +123,7 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param signal:   a FramedAudio object; or file name or tuple (signal, samplerate)
+        :param signal:   a FramedAudio object; or file name or tuple (signal, sample rate)
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
@@ -552,12 +534,12 @@ class Spectrogram(object):
     @property
     def mapping(self):
         """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.audio.samplerate / 2.0 / self.fft_bins
+        return self.audio.sample_rate / 2.0 / self.fft_bins
 
     @property
     def fft_freqs(self):
         """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.samplerate
+        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.sample_rate
 
     def aw(self, floor=0.5, relaxation=10):
         """
@@ -616,7 +598,7 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
-            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, fs=self.audio.samplerate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
+            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 

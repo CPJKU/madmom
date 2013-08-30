@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012, Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
 
 Redistribution in any form is not permitted!
 """
@@ -53,7 +52,7 @@ def main():
     from cp.audio.spectrogram import LogFiltSpec
     from cp.audio.onset_detection import Onset
     from cp.utils.helpers import files
-    from cp.utils.rnnlib import create_nc_file, test_nc_file
+    from cp.utils.rnnlib import create_nc_file, test_nc_files
 
     # parse arguments
     args = parser()
@@ -82,12 +81,12 @@ def main():
         nc_targets[0] = 1
         # create a .nc file
         create_nc_file(args.nc_file, nc_data, nc_targets)
-        # delete objects not needed any more
         # test the file against all saved neural nets
         nn_files = files(args.configs, '.save')
-        act = test_nc_file(args.nc_file, nn_files, threads=args.threads, verbose=(args.verbose >= 2))
-        # create an Onset object with the activations
-        o = Onset(act, args.fps, args.online)
+        # Note: test_nc_files() always expects a list of .nc_files
+        acts = test_nc_files([args.nc_file], nn_files, threads=args.threads, verbose=(args.verbose >= 2))
+        # create an Onset object with the first activations of the list
+        o = Onset(acts[0], args.fps, args.online)
 
     # save onset activations or detect onsets
     if args.save:

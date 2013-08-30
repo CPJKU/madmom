@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains all onset detection realted functionality.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import numpy as np
@@ -710,29 +692,17 @@ def parser():
     # general options
     p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
     p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
-    p.add_argument('-s', dest='save', action='store_true', default=False, help='save the activations of the onset detection functions')
-    p.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the onset detection functions')
     # add other argument groups
     cp.utils.params.add_audio_arguments(p)
-    cp.utils.params.add_filter_arguments(p, switch=True)
-    cp.utils.params.add_log_arguments(p, switch=True)
+    cp.utils.params.add_filter_arguments(p, filtering=True)
+    cp.utils.params.add_log_arguments(p, log=True)
     cp.utils.params.add_spectral_odf_arguments(p)
     onset = cp.utils.params.add_onset_arguments(p)
-    onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [superflux,spectral_flux,sfc,sft]')
-    # parse arguments
-    args = p.parse_args()
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd', 'cd', 'rcd']
-    # use default values if no ODF is given
-    if args.odf is None:
-        args.odf = 'superflux'
-        if args.log is None:
-            args.log = True
-        if args.filter is None:
-            args.filter = True
-    # remove mistyped methods
-    if args.odf not in methods:
-        raise ValueError("at least one valid onset detection function must be given")
+    onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [%s]' % methods)
+    # parse arguments
+    args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
@@ -769,8 +739,18 @@ def main():
     # sort files
     files.sort()
 
-    # only process .wav files
-    files = fnmatch.filter(files, '*.wav')
+    # which files to process
+    if args.load:
+        # load the activations of the given ODF
+        if args.odf:
+            files = fnmatch.filter(files, '*.%odf' % args.odf)
+        # load .activations
+        else:
+            files = fnmatch.filter(files, '*.activations')
+    else:
+        # only process .wav files
+        files = fnmatch.filter(files, '*.wav')
+
     # TODO: also add an option for evaluation and load the targets accordingly
     # see cp.evaluation.helpers.match_files()
 
@@ -791,15 +771,15 @@ def main():
         if args.load:
             # load the activations from file
             # FIXME: fps must be encoded in the file
-            o = Onset("%s.%s" % (filename, args.odf), args.fps, args.online)
+            o = Onset(f, args.fps, args.online)
         else:
             # create a Wav object
-            w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
+            w = Wav(f, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
             # create filterbank if needed
             if args.filter:
-                # (re-)create filterbank if the samplerate of the audio changes
-                if filt is None or filt.fs != w.samplerate:
-                    filt = LogarithmicFilter(args.window / 2, w.samplerate, args.bands, args.fmin, args.fmax, args.equal)
+                # (re-)create filterbank if the sample rate of the audio changes
+                if filt is None or filt.sample_rate != w.sample_rate:
+                    filt = LogarithmicFilter(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
             # create a Spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
             # create a SpectralODF object

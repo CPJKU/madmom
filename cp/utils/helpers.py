@@ -1,30 +1,15 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains various helper functions used by all other modules.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
+
+import os.path
+import glob
+import fnmatch
 
 import numpy as np
 
@@ -38,8 +23,6 @@ def files(path, ext=None):
     :returns:    list of files
 
     """
-    import os.path
-    import glob
     # determine the detection files
     if type(path) == list:
         # a list of files or paths is given
@@ -82,28 +65,20 @@ def match_file(filename, match_list, ext=None, match_ext=None):
 
     :param filename:     file to be matched
     :param match_list:   match to this list of files
+    :returns:            list of matched files
 
     """
-    import os.path
-    import fnmatch
     # get the base name without the path
     basename = os.path.basename(stripext(filename, ext))
+    # init return list
+    matches = []
     # look for files with the same base name in the files_list
-    matches = fnmatch.filter(match_list, "*%s*%s" % (basename, match_ext))
-    exact_matches = []
-    # base names must match exactly
-    for match in matches:
+    for match in fnmatch.filter(match_list, "*%s*%s" % (basename, match_ext)):
+        # base names must match exactly
         if basename == os.path.basename(stripext(match, match_ext)):
-            exact_matches.append(match)
-    # depending on the number of matches
-    if len(exact_matches) == 0:
-        # return None
-        exact_matches = None
-    elif len(exact_matches) == 1:
-        # return a single entry
-        exact_matches = exact_matches[0]
-    # return a list
-    return exact_matches
+            matches.append(match)
+    # return the matches
+    return matches
 
 
 def load_events(filename):
@@ -214,6 +189,9 @@ def quantize_events(events, fps, length=None):
     # set the events
     for event in events:
         idx = int(round(event * float(fps)))
-        quantized[idx] = 1
+        try:
+            quantized[idx] = 1
+        except IndexError:
+            pass
     # return the events
     return quantized
