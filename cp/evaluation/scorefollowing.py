@@ -146,7 +146,7 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
 
 class ScoreFollowingEvaluation(object):
     """
-        Score following evaluation class for beat-level score followers.
+    Score following evaluation class for beat-level score followers.
     Beat-level score followers output beat positions for points in time,
     rather than computing a timestep for each individual note in the
     score.
@@ -179,12 +179,20 @@ class ScoreFollowingEvaluation(object):
 
     @property
     def event_alignment(self):
+        """
+        2d numpy array of event alignments corresponding to the elements
+        present in the ground truth data.
+        """
         if self._event_alignment is None:
             self._event_alignment = compute_event_alignment(self.alignment, self.ground_truth)
         return self._event_alignment
 
     @property
     def cont_metrics(self):
+        """
+        Most of the evaluation metrics presented in Cont's paper contained
+        in a dictionary.
+        """
         if self._cont_metrics is None:
             self._cont_metrics = compute_cont_metrics(self.event_alignment, self.ground_truth, self.tolerance)
         return self._cont_metrics
