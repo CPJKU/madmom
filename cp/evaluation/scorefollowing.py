@@ -176,6 +176,9 @@ class ScoreFollowingEvaluation(object):
 
         self._cont_metrics = None
         self._event_alignment = None
+        self._fields_sorted = ['misalign_rate', 'miss_rate', 'piece_completion',
+                               'avg_imprecision', 'stddev_imprecision',
+                               'avg_error', 'stddev_error']
 
     @property
     def event_alignment(self):
@@ -196,6 +199,10 @@ class ScoreFollowingEvaluation(object):
         if self._cont_metrics is None:
             self._cont_metrics = compute_cont_metrics(self.event_alignment, self.ground_truth, self.tolerance)
         return self._cont_metrics
+
+    @property
+    def cont_metrics_sorted(self):
+        return [self.cont_metrics[f] for f in self._fields_sorted]
 
     @property
     def miss_rate(self):
@@ -228,11 +235,7 @@ class ScoreFollowingEvaluation(object):
     def print_eval(self, table_row=False):
         metrics = self.cont_metrics
         if table_row:
-            fields = ['misalign_rate', 'miss_rate', 'piece_completion',
-                      'avg_imprecision', 'stddev_imprecision',
-                      'avg_error', 'stddev_error']
-
-            print '%f %f %f %f %f %f %f' % tuple(metrics[f] for f in fields)
+            print '%f %f %f %f %f %f %f' % tuple(self.cont_metrics_sorted)
 
         else:
             print 'Misalign rate: %f' % metrics['misalign_rate']
