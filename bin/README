@@ -1,0 +1,6 @@
+This folder contains executable scripts, which make use of all the nice things
+included in this package. They can be run in the following way:
+
+bin/name_of_script.py INFILE [OUTFILE]
+
+There should be an option `--help` which describes all the options.
