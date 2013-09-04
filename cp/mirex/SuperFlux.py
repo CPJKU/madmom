@@ -16,7 +16,7 @@ def parser():
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all onsets in
     the given input file and writes them to the output file with the SuperFlux
-    algorithm introduced in:
+    algorithm described in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
@@ -57,30 +57,19 @@ def main():
     # parse arguments
     args = parser()
 
-    # load or create onset activations
-    if args.load:
-        # load activations
-        o = Onset(args.input, args.fps, args.online, args.sep)
-    else:
-        # create a Wav object
-        w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
-        # create a Spectrogram object
-        s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add)
-        # create an SpectralODF object and perform detection function on the object
-        act = SpectralODF(s).superflux()
-        # create an Onset object with the activations
-        o = Onset(act, args.fps, args.online)
-
-    # save onset activations or detect onsets
-    if args.save:
-        # save activations
-        o.save_activations(args.output, sep=args.sep)
-    else:
-        # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                 pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
-        # write the onsets to output
-        o.write(args.output)
+    # create a Wav object
+    w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
+    # create a Spectrogram object
+    s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add)
+    # create an SpectralODF object and perform detection function on the object
+    act = SpectralODF(s).superflux()
+    # create an Onset object with the activations
+    o = Onset(act, args.fps, args.online)
+    # detect the onsets
+    o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
+             pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+    # write the onsets to output
+    o.write(args.output)
 
 if __name__ == '__main__':
     main()

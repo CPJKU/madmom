@@ -142,7 +142,7 @@ def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bin
     return group
 
 
-def add_onset_arguments(parser, threshold=od.THRESHOLD, smooth=od.SMOOTH, combine=od.COMBINE, delay=od.DELAY,
+def add_onset_arguments(parser, io=False, threshold=od.THRESHOLD, smooth=od.SMOOTH, combine=od.COMBINE, delay=od.DELAY,
                         pre_avg=od.PRE_AVG, post_avg=od.POST_AVG, pre_max=od.PRE_MAX, post_max=od.POST_MAX):
     """
     Add onset detection related arguments to an existing parser object.
@@ -161,8 +161,10 @@ def add_onset_arguments(parser, threshold=od.THRESHOLD, smooth=od.SMOOTH, combin
     """
     # add onset detection related options to the existing parser
     group = parser.add_argument_group('onset detection arguments')
-    group.add_argument('-s', dest='save', action='store_true', default=False, help='save the activations of the onset detection function')
-    group.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the onset detection function')
+    if io:
+        # add options for saving and loading the activations
+        group.add_argument('-s', dest='save', action='store_true', default=False, help='save the activations of the onset detection function')
+        group.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the onset detection function')
     group.add_argument('-t', dest='threshold', action='store', type=float, default=threshold, help='detection threshold [default=%.2f]' % threshold)
     group.add_argument('--smooth', action='store', type=float, default=smooth, help='smooth the onset activations over N seconds [default=%.2f]' % smooth)
     group.add_argument('--combine', action='store', type=float, default=combine, help='combine onsets within N seconds [default=%.2f]' % combine)

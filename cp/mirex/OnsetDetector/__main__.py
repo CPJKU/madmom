@@ -11,6 +11,9 @@ import tempfile
 import numpy as np
 
 FPS = 100
+BANDS_PER_OCTAVE = 6
+MUL = 1
+ADD = 1
 
 
 def parser():
@@ -31,7 +34,7 @@ def parser():
     nn.add_argument('--nc_file', action='store', type=str, default=tempfile.mkstemp()[1], help='temporary file')
     # add other argument groups
     cp.utils.params.add_audio_arguments(p, norm=False)
-    cp.utils.params.add_onset_arguments(p, threshold=0.3, combine=0.04, smooth=0.07, pre_avg=0, post_avg=0, pre_max=1. / FPS, post_max=1. / FPS)
+    cp.utils.params.add_onset_arguments(p, io=True, threshold=0.3, combine=0.04, smooth=0.07, pre_avg=0, post_avg=0, pre_max=1. / FPS, post_max=1. / FPS)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -66,15 +69,15 @@ def main():
         w = Wav(args.input, fps=args.fps, mono=True, norm=args.norm)
         # 1st spec
         w.frame_size = 1024
-        s = LogFiltSpec(w, bands_per_octave=6)
+        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
         w.frame_size = 2048
-        s = LogFiltSpec(w, bands_per_octave=6)
+        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # 3rd spec
         w.frame_size = 4096
-        s = LogFiltSpec(w, bands_per_octave=6)
+        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # create a fake onset vector
         nc_targets = np.zeros(w.num_frames)
