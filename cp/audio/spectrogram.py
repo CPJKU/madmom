@@ -583,7 +583,7 @@ class FilteredSpectrogram(Spectrogram):
         :param bands_per_octave: number of filter bands per octave [default=12]
         :param fmin:             the minimum frequency [Hz, default=27]
         :param fmax:             the maximum frequency [Hz, default=17000]
-        :param norm:             normalize the area of the filter to 1 [default=True]
+        :param norm_filter:      normalize the area of the filter to 1 [default=True]
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
@@ -593,12 +593,12 @@ class FilteredSpectrogram(Spectrogram):
         bands_per_octave = kwargs.pop('bands_per_octave', filterbank.BANDS_PER_OCTAVE)
         fmin = kwargs.pop('fmin', filterbank.FMIN)
         fmax = kwargs.pop('fmax', filterbank.FMAX)
-        norm = kwargs.pop('norm', filterbank.NORM_FILTER)
+        norm_filter = kwargs.pop('norm_filter', filterbank.NORM_FILTER)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
-            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm)
+            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = fb
 

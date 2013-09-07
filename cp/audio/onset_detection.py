@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains all onset detection realted functionality.
+This file contains all onset detection related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -339,19 +339,19 @@ def rectified_complex_domain(spec, phase):
     return np.sum(np.abs(rcd), axis=1)
 
 
-# SpectralODF default values
+# SpectralOnsetDetection default values
 MAX_BINS = 3
 
 
-class SpectralODF(object):
+class SpectralOnsetDetection(object):
     """
-    The SpectralODF class implements most of the common onset detection function
-    based on the magnitude or phase information of a spectrogram.
+    The SpectralOnsetDetection class implements most of the common onset detection
+    functions based on the magnitude or phase information of a spectrogram.
 
     """
     def __init__(self, spectrogram, max_bins=MAX_BINS):
         """
-        Creates a new ODF object instance.
+        Creates a new SpectralOnsetDetection object instance.
 
         :param spectrogram: the spectrogram object on which the detections functions operate
         :param max_bins:    number of bins for the maximum filter (for SuperFlux) [default=3]
@@ -539,7 +539,7 @@ class Onset(object):
         self.targets = None      # list of target onsets [seconds]
         # set / load activations
         # TODO: decide whether we should go the common way and accept a file
-        # here and go up the hierachy by creating a SpectralODF object and
+        # here and go up the hierachy by creating a SpectralOnsetDetection object and
         # perform a default onset detection function (e.g. superflux())
         # or: load the activations (/targets?) from a file
         if isinstance(activations, np.ndarray):
@@ -557,7 +557,7 @@ class Onset(object):
         :param threshold: threshold for peak-picking
         :param combine:   only report one onset within N seconds [default=0.03]
         :param delay:     report onsets N seconds delayed [default=0]
-        :param smooth:    smooth the activation function over N seconde [default=0]
+        :param smooth:    smooth the activation function over N seconds [default=0]
         :param pre_avg:   use N seconds past information for moving average [default=0.1]
         :param post_avg:  use N seconds future information for moving average [default=0.03]
         :param pre_max:   use N seconds past information for moving maximum [default=0.03]
@@ -588,7 +588,7 @@ class Onset(object):
         detections = peak_picking(self.activations, threshold, smooth, pre_avg, post_avg, pre_max, post_max)
         # convert detected onsets to a list of timestamps
         detections = detections / float(self.fps)
-        # shift if neccessary
+        # shift if necessary
         if delay != 0:
             detections += delay
         # always use the first detection and all others if none was reported within the last 'combine' seconds
@@ -596,6 +596,8 @@ class Onset(object):
             self.detections = np.append(detections[0], detections[1:][np.diff(detections) > combine])
         else:
             self.detections = detections
+        # also return the detections
+        return self.detections
 
 #    def detect_simpl
 
@@ -646,9 +648,10 @@ class Onset(object):
         :param filename: output file name or file handle
         :param sep:      separator between activation values [default='']
 
-        Note: empty (“”) separator means the file should be treated as binary;
+        Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one whitespace.
+              separator consisting only of spaces must match at least one
+              whitespace. Binary files are not platform independen.
 
         """
         # save the activations
@@ -661,9 +664,10 @@ class Onset(object):
         :param filename: the target file name
         :param sep:      separator between activation values [default='']
 
-        Note: empty (“”) separator means the file should be treated as binary;
+        Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one whitespace.
+              separator consisting only of spaces must match at least one
+              whitespace. Binary files are not platform independen.
 
         """
         # load the activations
@@ -697,7 +701,7 @@ def parser():
     cp.utils.params.add_filter_arguments(p, filtering=True)
     cp.utils.params.add_log_arguments(p, log=True)
     cp.utils.params.add_spectral_odf_arguments(p)
-    onset = cp.utils.params.add_onset_arguments(p)
+    onset = cp.utils.params.add_onset_arguments(p, io=True)
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd', 'cd', 'rcd']
     onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [%s]' % methods)
@@ -782,24 +786,25 @@ def main():
                     filt = LogarithmicFilter(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
             # create a Spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
-            # create a SpectralODF object
-            sodf = SpectralODF(s, ratio=args.ratio, diff_frames=args.diff_frames, max_bins=args.max_bins)
+            # create a SpectralOnsetDetection object
+            sodf = SpectralOnsetDetection(s, ratio=args.ratio, diff_frames=args.diff_frames, max_bins=args.max_bins)
             # perform detection function on the object
             act = getattr(sodf, args.odf)()
             # create an Onset object with the activations
             o = Onset(act, args.fps, args.online)
-            if args.save:
-                # save the raw ODF activations
-                o.save_activations("%s.%s" % (filename, args.odf))
-
-        # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
-        # write the onsets to a file
-        o.write("%s.onsets.txt" % (filename))
-        # also output them to stdout if vebose
-        if args.verbose:
-            print 'detections:', o.detections
-
+        # save onset activations or detect onsets
+        if args.save:
+            # save the raw ODF activations
+            o.save_activations("%s.%s" % (filename, args.odf))
+        else:
+            # detect the onsets
+            o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
+                     pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+            # write the onsets to a file
+            o.write("%s.onsets.txt" % (filename))
+            # also output them to stdout if vebose
+            if args.verbose:
+                print 'detections:', o.detections
         # continue with next file
 
 if __name__ == '__main__':

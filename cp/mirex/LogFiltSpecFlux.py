@@ -51,7 +51,7 @@ def parser():
 def main():
     from cp.audio.wav import Wav
     from cp.audio.spectrogram import LogarithmicFilteredSpectrogram
-    from cp.audio.onset_detection import SpectralODF, Onset
+    from cp.audio.onset_detection import SpectralOnsetDetection, Onset
 
     # parse arguments
     args = parser()
@@ -60,8 +60,8 @@ def main():
     w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
     # create a Spectrogram object
     s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add)
-    # create an SpectralODF object and perform detection function on the object
-    act = SpectralODF(s).sf()
+    # create an SpectralOnsetDetection object and perform detection function on the object
+    act = SpectralOnsetDetection(s).sf()
     # create an Onset object with the activations
     o = Onset(act, args.fps, args.online)
     # detect the onsets
