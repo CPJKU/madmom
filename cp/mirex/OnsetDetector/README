@@ -1,0 +1,32 @@
+MIREX 2013 Onset Detection submission
+
+OnsetDetector.2013
+
+REDISTRIBUTION IN ANY FORM IS NOT PERMITTED!
+
+
+• Author:
+
+Sebastian Böck <sebastian.boeck@jku.at>
+
+
+• Invoke the program with:
+
+python cp/mirex/OnsetDetector %input %output
+
+
+• The program needs the following software to run on either Linux or Mac OS X 64bit:
+
+python >= 2.7 (or >= 2.6 with argparse module)
+numpy
+scipy
+netcdf libraries
+
+
+• expected runtime: ~ 5 sec for 1 min of audio
+
+
+• expected memory usage: ~ max(25 * size of audio, threads * 15 * size of audio)
+
+
+• software can use up to 8 threads (default=2)

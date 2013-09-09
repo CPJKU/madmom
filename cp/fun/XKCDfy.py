@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# encoding: utf-8
 """
 XKCD plot generator
 -------------------
@@ -8,7 +10,8 @@ to an XKCD-style plot.  It will work for plots with line & text elements,
 including axes labels and titles (but not axes tick labels).
 
 The idea for this comes from work by Damon McDougall
-  http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg25499.html
+http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg25499.html
+
 """
 import numpy as np
 import pylab as pl

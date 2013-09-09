@@ -1,34 +1,21 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains onset evaluation functionality.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+It is described in:
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
+"Evaluating the Online Capabilities of Onset Detection Methods"
+by Sebastian Böck, Florian Krebs and Markus Schedl
+in Proceedings of the 13th International Society for Music Information
+Retrieval Conference (ISMIR), 2012
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
 
 import numpy as np
 
-from helpers import load_events, combine_events
 from simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
@@ -37,15 +24,18 @@ def count_errors(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
 
-    :param detections: a list of events [seconds]
-    :param targets: a list of events [seconds]
-    :param window: detection window [seconds]
-    :return: tuple of tp, fp, tn, fn numpy arrays
+    :param detections: array with detected onsets [seconds]
+    :param targets:    array with target onsets [seconds]
+    :param window:     detection window [seconds]
+    :return:           tuple of tp, fp, tn, fn numpy arrays
 
-    tp: list with true positive detections
-    fp: list with false positive detections
-    tn: list with true negative detections (this one is empty!)
-    fn: list with false negative detections
+    tp: array with true positive detections
+    fp: array with false positive detections
+    tn: array with true negative detections (this one is empty!)
+    fn: array with false negative detections
+
+    Note: the true negative array is empty, because we are not interested in
+          this class, since it is ~20 times as big as the onset class.
 
     """
     from helpers import calc_absolute_errors
@@ -53,13 +43,13 @@ def count_errors(detections, targets, window):
     if detections.size == 0:
         # all targets are FNs
         return np.empty(0), np.empty(0), np.empty(0), targets
-    # calc the absolute errors of detections wrt. targets
+    # for TP & FP, calc the absolute errors of detections wrt. targets
     errors = calc_absolute_errors(detections, targets)
     # true positive detections
     tp = detections[errors <= window]
     # the remaining detections are FP
     fp = detections[errors > window]
-    # calc the absolute errors of detections wrt. targets
+    # for FN, calc the absolute errors of targets wrt. detections
     errors = np.asarray(calc_absolute_errors(targets, detections))
     fn = targets[errors > window]
     # return the arrays
@@ -90,14 +80,9 @@ def parser():
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters the script evaluates pairs of files
-    with the targets (.onsets) and detection (.onsets.txt) as simple text
-    files with one onset timestamp per line according to the rules given in
-
-    "Evaluating the Online Capabilities of Onset Detection Methods"
-    by Sebastian Böck, Florian Krebs and Markus Schedl
-    in Proceedings of the 13th International Society for
-    Music Information Retrieval Conference (ISMIR 2012)
+    If invoked without any parameters the script evaluates pairs of files with
+    the targets (.onsets) and detection (.onsets.txt) as simple text files with
+    one onset time-stamp per line.
 
     """)
     p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')
@@ -105,7 +90,7 @@ def parser():
     p.add_argument('-d', dest='detections', action='store', default='.onsets.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='targets', action='store', default='.onsets', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', default=0.05, type=float, help='evaluation window [seconds, default=0.05]')
+    p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window [seconds, default=0.05]')
     p.add_argument('-c', dest='combine', action='store', default=0.03, type=float, help='combine target events within this range [seconds, default=0.03]')
     p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [seconds]')
     p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
@@ -121,7 +106,7 @@ def parser():
 
 
 def main():
-    from helpers import files
+    from cp.utils.helpers import files, load_events, combine_events
 
     # parse the arguments
     args = parser()

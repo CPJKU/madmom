@@ -1,31 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013, Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
-"""
 This software serves as a Python implementation of the beat evaluation toolkit,
 which can be downloaded from:
 http://code.soundsoftware.ac.uk/projects/beat-evaluation/repository
@@ -43,12 +18,13 @@ before being evaluated with F-measure, P-score and other metrics. Hence these
 evaluation functions DO NOT report the exact same results/scores. This approach
 was chosen, because it is simpler and produces more accurate results.
 
-Please send any comments, enhancements, errata, etc. to the main author.
+@author: Sebastian Böck <sebastian.boeck@jku.at>
+
 """
 
 import numpy as np
 
-from helpers import load_events, find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
+from helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
 from onsets import OnsetEvaluation
 
 
@@ -58,9 +34,9 @@ def pscore(detections, targets, tolerance):
     Calculate the P-Score accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param tolerance: tolerance window (fraction of the median beat interval)
-    :returns: p-score
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param tolerance:  tolerance window (fraction of the median beat interval)
+    :returns:          p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. F. McKinney, D. Moelants, M. E. P. Davies, and A. Klapuri
@@ -89,9 +65,9 @@ def cemgil(detections, targets, sigma):
     Calculate the Cemgil accuracy.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param sigma: sigma for Gaussian error function
-    :returns: beat tracking accuracy
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param sigma:      sigma for Gaussian error function
+    :returns:          beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
     A.T. Cemgil, B. Kappen, P. Desain, and H. Honing
@@ -124,11 +100,11 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt for the given detection and target sequences.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
+    :param detections:      sequence of estimated beat times [seconds]
+    :param targets:         sequence of ground truth beat annotations [seconds]
     :param tempo_tolerance: tempo tolerance window
     :param phase_tolerance: phase (interval) tolerance window
-    :returns: cmlc, cmlt
+    :returns:               cmlc, cmlt
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
     cmlt: beat tracking accuracy, continuity not required at the correct metrical level
@@ -195,11 +171,11 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt, amlc, amlt for the given detection and target sequences.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
+    :param detections:      sequence of estimated beat times [seconds]
+    :param targets:         sequence of ground truth beat annotations [seconds]
     :param tempo_tolerance: tempo tolerance window
     :param phase_tolerance: phase (interval) tolerance window
-    :returns: cmlc, cmlt, amlc, amlt beat tracking accuracies
+    :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
 
     cmlc: beat tracking accuracy, continuity required at the correct metrical level
     cmlt: beat tracking accuracy, continuity not required at the correct metrical level
@@ -263,9 +239,9 @@ def information_gain(detections, targets, bins):
     Calculate information gain.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param bins: number of bins for the error histogram
-    :returns: infromation gain, beat error histogram
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param bins:       number of bins for the error histogram
+    :returns:          infromation gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a beat error histogram"
     M. E. P. Davies, N. Degara and M. D. Plumbley
@@ -314,9 +290,9 @@ def error_histogram(detections, targets, bins):
     map them to an error histogram with the given bins.
 
     :param detections: sequence of estimated beat times [seconds]
-    :param targets: sequence of ground truth beat annotations [seconds]
-    :param bins: histogram bins for mapping
-    :returns: error histogram
+    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param bins:       histogram bins for mapping
+    :returns:          error histogram
 
     """
     # get the relative errors of the detections to the targets
@@ -338,7 +314,7 @@ def calc_information_gain(error_histogram):
     Calculate the information gain from the given error histogram.
 
     :param error_histogram: error histogram
-    :returns: information gain
+    :returns:               information gain
 
     """
     # copy the error_histogram, because it must not be altered
@@ -371,14 +347,14 @@ class BeatEvaluation(OnsetEvaluation):
         """
         Evaluate the given detection and target sequences.
 
-        :param detections: sequence of estimated beat times [seconds]
-        :param targets: sequence of ground truth beat annotations [seconds]
-        :param window: F-measure evaluation window [seconds, default=0.07]
-        :param tolerance: P-Score tolerance of median beat interval [default=0.2]
-        :param sigma: sigma of Gaussian window for Cemgil accuracy [default=0.04]
+        :param detections:      sequence of estimated beat times [seconds]
+        :param targets:         sequence of ground truth beat annotations [seconds]
+        :param window:          F-measure evaluation window [seconds, default=0.07]
+        :param tolerance:       P-Score tolerance of median beat interval [default=0.2]
+        :param sigma:           sigma of Gaussian window for Cemgil accuracy [default=0.04]
         :param tempo_tolerance: tempo tolerance window for [AC]ML[ct] [default=0.175]
         :param phase_tolerance: phase (interval) tolerance window for [AC]ML[ct] [default=0.175]
-        :param bins: number of bins for the error histogram
+        :param bins:            number of bins for the error histogram [default=40]
 
         """
         self.detections = detections
@@ -533,7 +509,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     def __add__(self, other):
         """
         Apends the scores of another BeatEvaluation object to the repsective
-        lists.
+        arrays.
 
         :param other: BeatEvaluation object
 
@@ -650,7 +626,7 @@ def parser():
 
 
 def main():
-    from helpers import files
+    from cp.utils.helpers import files, load_events
 
     # parse the arguments
     args = parser()

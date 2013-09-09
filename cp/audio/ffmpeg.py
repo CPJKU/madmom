@@ -1,28 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013 Jan Schlüter <jan.schlueter@ofai.at>
-All rights reserved.
+@author: Jan Schlüter <jan.schlueter@ofai.at>
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import tempfile
@@ -91,7 +71,7 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, s
     :returns: A binary string of samples.
 
     """
-    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, skip, maxlen)
+    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, num_channels, skip, maxlen)
     if hasattr(subprocess, 'check_output'):
         # call ffmpeg (throws exception on error)
         signal = subprocess.check_output(call)
@@ -129,7 +109,7 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     # because ffmpeg reacts on that. A cleaner solution would be calling
     # proc.terminate explicitly, but this is only available in Python 2.6+.
     # proc.wait needs to be called in any case.
-    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, skip, maxlen)
+    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, num_channels, skip, maxlen)
     proc = subprocess.Popen(call,
             stdout=subprocess.PIPE,  # stdout is redirected to a pipe
             bufsize=bufsize,  # the pipe is buffered as requested
@@ -173,12 +153,12 @@ class FFmpegFile(FramedAudio):
         """
         Creates a new FFmpegFile object instance.
 
-        :param filename: name of the audio file to decode
-        :param sample_rate: samplerate to resample the file to
+        :param filename:     name of the audio file to decode
+        :param sample_rate:  sample_rate to re-sample the file to
         :param num_channels: number of channels to reduce the file to
-        :param frame_size: size of one frame [default=2048]
-        :param hop_size: progress N samples between adjacent frames [default=441.0]
-        :param online: use only past information [default=False]
+        :param frame_size:   size of one frame [default=2048]
+        :param hop_size:     progress N samples between adjacent frames [default=441.0]
+        :param online:       use only past information [default=False]
 
         """
         # init variables
@@ -195,4 +175,4 @@ class FFmpegFile(FramedAudio):
 
     # TODO: make this nicer!
     def __str__(self):
-        return "%s file: %s length: %i samples (%.2f seconds) samplerate: %i frames: %i (%i samples %.1f hopsize)" % (self.__class__, self.filename, self.num_samples, self.length, self.samplerate, self.frames, self.frame_size, self.hop_size)
+        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)

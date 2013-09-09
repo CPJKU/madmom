@@ -1,28 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
-All rights reserved.
+This file contains basic evaluation functionality used by cp.evaluation modules.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
 
@@ -37,8 +18,8 @@ def calc_overlap(detections, targets, threshold=0.5):
     The arrays should be a quantized version of any event lists.
 
     :param detections: array with detections
-    :param targets: array with targets
-    :param threshold: binary decision threshold [default=0.5]
+    :param targets:    array with targets
+    :param threshold:  binary decision threshold [default=0.5]
 
     """
     # detections and targets must have the same dimensions
@@ -358,20 +339,23 @@ class MeanEvaluation(SimpleEvaluation):
 # simple class for evaluation of Presicion, Recall, F-measure
 class Evaluation(SimpleEvaluation):
     """
-    Simple evaluation class for measuring Precision, Recall and F-measure.
+    Evaluation class for measuring Precision, Recall and F-measure.
 
     """
     def __init__(self, detections, targets, eval_function, **kwargs):
         """
         Creates a new Evaluation object instance.
 
-        :param detections: sequence of estimated beat times [seconds]
-        :param targets: sequence of ground truth beat annotations [seconds]
+        :param detections:    sequence of estimated detections [seconds]
+        :param targets:       sequence of ground truth targets [seconds]
         :param eval_function: evaluation function (see below)
 
-        The evaluation function can be any function which returns a tuple of 3
-        numpy arrays containing the true / false positive and false negative
-        detections: ([true positives], [false positives], [false negatives])
+        The evaluation function can be any function which returns a tuple of 4
+        numpy arrays containing the true/false positive and negative detections:
+        ([true positive], [false positive], [true negative], [false negative])
+
+        Note: All arrays can be multi-dimensional with events aligned on axis 0.
+              Additional information in other columns/axes is not used.
 
         """
         # detections, targets and evaluation function
@@ -381,7 +365,6 @@ class Evaluation(SimpleEvaluation):
         # save additional arguments and pass them to the evaluation function
         self.__kwargs = kwargs
         # init some hidden variables as None, calculate them on demand
-        # TODO: rename _ to __ again?
         self.__tp = None
         self.__fp = None
         self.__tn = None
@@ -402,7 +385,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return self.tp.size
+        return self.tp.shape[0]
 
     @property
     def fp(self):
@@ -414,7 +397,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return self.fp.size
+        return self.fp.shape[0]
 
     @property
     def tn(self):
@@ -426,7 +409,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return self.tn.size
+        return self.tn.shape[0]
 
     @property
     def fn(self):
@@ -438,7 +421,7 @@ class Evaluation(SimpleEvaluation):
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return self.fn.size
+        return self.fn.shape[0]
 
     @property
     def errors(self):
@@ -506,103 +489,45 @@ def parser():
     return args
 
 
-def match_files(det_files, tar_files=None, det_ext='*', tar_ext='*'):
-    """
-    Match a list of target files to the corresponding detection files.
-
-    :param det_files: list of detection files
-    :param tar_files: list of target files [default=None]
-    :param det_ext: use only detection files with that extension [default='*']
-    :param tar_ext: use only target files with that extension [default='*']
-
-    Note: if no target files are given, the same list as the detections is used.
-          This is handy, if one list contains both the detections and targets.
-    """
-    import os.path
-    from helpers import files
-    # if no targets are given, use the same as the detections
-    if len(tar_files) == 0:
-        tar_files = [det_files]
-    # determine the detection files
-    det_files = files(det_files, det_ext)
-    # determine the target files
-    tar_files = files(tar_files, tar_ext)
-    # file list to return
-    file_list = []
-    # find matching target files for each detection file
-    for det_file in det_files:
-        # strip of possible extensions
-        if det_ext:
-            det_file_name = os.path.splitext(det_file)[0]
-        else:
-            det_file_name = det_file
-        # get the base name without the path
-        det_file_name = os.path.basename(det_file_name)
-        # look for files with the same base name in the targets
-        # TODO: is there a nice one-liner to achieve the same?
-        #tar_files_ = [os.path.join(p, f) for p, f in os.path.split(tar_files) if f == det_file_name]
-        tar_files_ = []
-        for tar_file in tar_files:
-            p, f = os.path.split(tar_file)
-            if f == det_file_name:
-                tar_files_.append(os.path.join(p, f))
-        # append a tuple of the matching pair
-        file_list.append((det_file, tar_files_))
-    # return
-    return file_list
-
-
 def main():
-    from helpers import load_events
+    from cp.utils.helpers import files, match_file, load_events
 
     # parse arguments
     args = parser()
-    # match detections to targets
-    files = match_files(args.detections, args.targets, args.det_ext, args.tar_ext)
-
-    # exit if no files were given
-    if len(files) == 0:
-        print 'no matching pairs found'
-        exit(1)
+    # get detection and target files
+    det_files = files(args.detections, args.det_ext)
+    if not args.targets:
+        args.targets = args.detections
+    tar_files = files(args.targets, args.tar_ext)
 
     # sum and mean counter for all files
     sum_counter = SumEvaluation()
     mean_counter = MeanEvaluation()
     # evaluate all files
-    for det_file, tar_file in files:
-        if not tar_file:
-            print 'no target file for %s found' % det_file
-            exit(1)
+    for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
-        # process all corresponding target files
-        # if more than 1 files are found, do a mean evaluation over all of them
+        # do a mean evaluation with all matched target files
         me = MeanEvaluation()
-        for f in tar_file:
+        for f in match_file(det_file, tar_files, args.det_ext, args.tar_ext):
+            # load the targets
             targets = load_events(f)
             # test with onsets (but use the beat detection window of 70ms)
             from onsets import count_errors
-            e = Evaluation(detections, targets, count_errors, window=0.07)
-#            # evaluate the detections
-#            e = Evaluation(detections, targets, calc_overlap)
-            # add to mean evaluation
-            me += e
+            # add the Evaluation to mean evaluation
+            me += Evaluation(detections, targets, count_errors, window=0.07)
             # process the next target file
         # print stats for each file
         if args.verbose:
-            if args.verbose >= 2:
-                print det_file, tar_file
-            else:
-                print det_file
             me.print_errors(args.tex)
         # add the resulting sum counter
         sum_counter += me
         mean_counter += me
         # process the next detection file
     # print summary
-    print 'sum for %i files:' % (len(files))
+    print 'sum for %i files:' % (len(det_files))
     sum_counter.print_errors(args.tex)
-    print 'mean for %i files:' % (len(files))
+    print 'mean for %i files:' % (len(det_files))
     mean_counter.print_errors(args.tex)
 
 if __name__ == '__main__':
