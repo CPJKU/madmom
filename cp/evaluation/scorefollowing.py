@@ -59,12 +59,10 @@ def compute_event_alignment(alignment, ground_truth):
              row representing the alignment of the corresponding ground truth
              element.
     """
-    #TODO: Find out why this is set to this value, and find a more sensible
-    #      way to deal with that
-    DUMMY_TIME = 10000000000000
 
     # first a dummy event at the very end of the alignment is added to be
     # able to process score events with were not reached by the tracker
+    dummy_time = alignment[:, 0].max() + 1
     dummy = [[DUMMY_TIME, _MISSED_NOTE_POS, _MISSED_NOTE_TEMPO]]
     alignment = np.concatenate((alignment, dummy))
 
@@ -271,13 +269,6 @@ def parse_arguments():
                         help='Enable output as a row with a space seperator',
                         dest='table_output')
 
-    # TODO: unclear, for what this option was used...
-    # parser.add_argument('-co', '--condensed-output',
-    #                     help='File where to save a condensed output of the '
-    #                          'segmentation. Only alignment times of events in '
-    #                          'the ground truth will be stored.',
-    #                     dest='condensed_output_filename')
-
     return parser.parse_args()
 
 
@@ -289,9 +280,6 @@ def main():
 
     window = float(args.tolerance) / 1000
     sf_eval = ScoreFollowingEvaluation(alignment, ground_truth, window)
-
-    # if args.condensed_output_filename is not None:
-    #     np.savetxt(args.condensed_output_filename, sf_eval.event_alignment)
 
     sf_eval.print_eval(args.table_output)
 
