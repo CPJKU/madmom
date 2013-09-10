@@ -1,28 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2013, Filip Korzeniowski <filip.korzeniowski@jku.at>
-All rights reserved.
+This file contains score following evaluation functionality.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 import numpy as np
@@ -44,16 +26,16 @@ def compute_event_alignment(alignment, ground_truth):
     positions than notes in the score, e.g. if it is designed to output the
     current alignment at constant intervals.
 
-    :param alignment: The score follower's resulting alignment. 
-                        List of tuples, 2d numpy array or similar. First
-                        value is the time in seconds, second value is the
-                        beat position.
+    :param alignment:    The score follower's resulting alignment.
+                         List of tuples, 2d numpy array or similar. First
+                         value is the time in seconds, second value is the
+                         beat position.
     :param ground_truth: Ground truth of the aligned performance.
-                        List of tuples, 2d numpy array of similar. First
-                        value is the time in seconds, second value is the
-                        beat position. It can contain the alignment
-                        positions for each individual note. In this case,
-                        the deviation for each note is taken into account.
+                         List of tuples, 2d numpy array of similar. First
+                         value is the time in seconds, second value is the
+                         beat position. It can contain the alignment
+                         positions for each individual note. In this case,
+                         the deviation for each note is taken into account.
 
     :return: 2d numpy array of the same size as ground_truth, with each
              row representing the alignment of the corresponding ground truth
@@ -63,7 +45,7 @@ def compute_event_alignment(alignment, ground_truth):
     # first a dummy event at the very end of the alignment is added to be
     # able to process score events with were not reached by the tracker
     dummy_time = alignment[:, 0].max() + 1
-    dummy = [[DUMMY_TIME, _MISSED_NOTE_POS, _MISSED_NOTE_TEMPO]]
+    dummy = [[_MISSED_NOTE_TIME, _MISSED_NOTE_POS, _MISSED_NOTE_TEMPO]]
     alignment = np.concatenate((alignment, dummy))
 
     # find the spots where the alignment passes the score
@@ -154,7 +136,7 @@ class ScoreFollowingEvaluation(object):
         """
         Inits the evaluation with the given data and window threshold.
 
-        :param alignment: The score follower's resulting alignment. 
+        :param alignment: The score follower's resulting alignment.
                           List of tuples, 2d numpy array or similar. First
                           value is the time in seconds, second value is the
                           beat position.

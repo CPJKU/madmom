@@ -90,7 +90,7 @@ def parser():
     p.add_argument('-d', dest='detections', action='store', default='.onsets.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='targets', action='store', default='.onsets', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window [seconds, default=0.05]')
+    p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window (+/- the given size) [seconds, default=0.025]')
     p.add_argument('-c', dest='combine', action='store', default=0.03, type=float, help='combine target events within this range [seconds, default=0.03]')
     p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [seconds]')
     p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
