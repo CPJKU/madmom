@@ -8,12 +8,14 @@ This file contains all parser functionality used by other modules.
 """
 
 import argparse
+import tempfile
 
 # get the default values from the corresponding modules
 import cp.audio.audio as a
 import cp.audio.spectrogram as s
 import cp.audio.filterbank as f
-import cp.audio.onset_detection as od
+import cp.features.onsets as o
+import cp.features.beats as b
 
 
 def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.FPS, window=a.FRAME_SIZE):
@@ -93,6 +95,7 @@ def add_filter_arguments(parser, filtering=None, fmin=f.FMIN, fmax=f.FMAX,
         group.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
     if norm_filter is not None:
         group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='equalize filters to have equal area [default=%s]' % norm_filter)
+        group.add_argument('--no_norm_filter', dest='norm_filter', action='store_false', default=norm_filter, help='do not equalize filters to have equal area')
     # return the argument group so it can be modified if needed
     return group
 
@@ -120,7 +123,7 @@ def add_log_arguments(parser, log=None, mul=s.MUL, add=s.ADD):
     return group
 
 
-def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bins=od.MAX_BINS):
+def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bins=o.MAX_BINS):
     """
     Add spectral ODF related arguments to an existing parser object.
 
@@ -142,8 +145,8 @@ def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bin
     return group
 
 
-def add_onset_arguments(parser, io=False, threshold=od.THRESHOLD, smooth=od.SMOOTH, combine=od.COMBINE, delay=od.DELAY,
-                        pre_avg=od.PRE_AVG, post_avg=od.POST_AVG, pre_max=od.PRE_MAX, post_max=od.POST_MAX):
+def add_onset_arguments(parser, io=False, threshold=o.THRESHOLD, smooth=o.SMOOTH, combine=o.COMBINE, delay=o.DELAY,
+                        pre_avg=o.PRE_AVG, post_avg=o.POST_AVG, pre_max=o.PRE_MAX, post_max=o.POST_MAX):
     """
     Add onset detection related arguments to an existing parser object.
 
@@ -172,8 +175,58 @@ def add_onset_arguments(parser, io=False, threshold=od.THRESHOLD, smooth=od.SMOO
     group.add_argument('--post_avg', action='store', type=float, default=post_avg, help='build average over N following seconds [default=%.2f]' % post_avg)
     group.add_argument('--pre_max', action='store', type=float, default=pre_max, help='search maximum over N previous seconds [default=%.2f]' % pre_max)
     group.add_argument('--post_max', action='store', type=float, default=post_max, help='search maximum over N following seconds [default=%.2f]' % post_max)
+    group.add_argument('--delay', action='store', type=float, default=delay, help='report the beats N seconds delayed [default=%i]' % delay)
+    group.add_argument('--sep', action='store', default='', help='separator for saving/loading the onset detection functions [default=\'\' (numpy binary format)]')
+    # return the argument group so it can be modified if needed
+    return group
+
+
+def add_beat_arguments(parser, io=False, threshold=b.THRESHOLD, smooth=b.SMOOTH, delay=b.DELAY,
+                        min_bpm=b.MIN_BPM, max_bpm=b.MAX_BPM):
+    """
+    Add beat tracking related arguments to an existing parser object.
+
+    :param parser:    existing argparse parser object
+    :param threshold: threshold the beat activation function
+    :param smooth:    smooth the beat activations over N seconds
+    :param delay:     report beats N seconds delayed
+    :param min_bpm:   minimum tempo [bpm]
+    :param max_bpm:   maximum tempo [bpm]
+    :return:          the modified parser object
+
+    """
+    # add onset detection related options to the existing parser
+    group = parser.add_argument_group('beat detection arguments')
+    if io:
+        # add options for saving and loading the activations
+        group.add_argument('-s', dest='save', action='store_true', default=False, help='save the activations of the beat detection function')
+        group.add_argument('-l', dest='load', action='store_true', default=False, help='load the activations of the beat detection function')
+    group.add_argument('-t', dest='threshold', action='store', type=float, default=threshold, help='detection threshold [default=%.2f]' % threshold)
+    group.add_argument('--smooth', action='store', type=float, default=smooth, help='smooth the onset activations over N seconds [default=%.2f]' % smooth)
+    group.add_argument('--min_bpm', action='store', type=float, default=min_bpm, help='minimum tempo [bpm, default=%.2f]' % min_bpm)
+    group.add_argument('--max_bpm', action='store', type=float, default=max_bpm, help='maximum tempo [bpm, default=%.2f]' % max_bpm)
     group.add_argument('--delay', action='store', type=float, default=delay, help='report the onsets N seconds delayed [default=%i]' % delay)
     group.add_argument('--sep', action='store', default='', help='separator for saving/loading the onset detection functions [default=\'\' (numpy binary format)]')
+    # return the argument group so it can be modified if needed
+    return group
+
+
+def add_nn_arguments(parser, threads=2, nc_file=tempfile.mkstemp()[1], nn_files=None):
+    """
+    Add beat tracking related arguments to an existing parser object.
+
+    :param parser:   existing argparse parser object
+    :param threads:  number of threads
+    :param nc_file:  temporary .nc file to use
+    :param nn_files: list of pre-trained neual network files
+    :return:         the modified parser object
+
+    """
+    # add onset detection related options to the existing parser
+    group = parser.add_argument_group('neural network arguments')
+    group.add_argument('--threads', action='store', type=int, default=threads, help='number of threads [default=2]')
+    group.add_argument('--nc_file', action='store', type=str, default=nc_file, help='temporary file to use')
+    group.add_argument('--nn_files', action='append', type=str, default=nn_files, help='use these pre-trained neural networks (one per argument)')
     # return the argument group so it can be modified if needed
     return group
 
@@ -188,7 +241,7 @@ def add_mirex_io(parser):
     """
     import sys
     # general options
-    parser.add_argument('input', type=argparse.FileType('r'), help='input file (.wav or saved onset activations)')
+    parser.add_argument('input', type=argparse.FileType('r'), help='input file (.wav or saved activation function)')
     parser.add_argument('output', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help='output file [default: STDOUT]')
     parser.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
 

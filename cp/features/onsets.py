@@ -349,7 +349,7 @@ class SpectralOnsetDetection(object):
     functions based on the magnitude or phase information of a spectrogram.
 
     """
-    def __init__(self, spectrogram, max_bins=MAX_BINS):
+    def __init__(self, spectrogram, max_bins=MAX_BINS, *args, **kwargs):
         """
         Creates a new SpectralOnsetDetection object instance.
 
@@ -358,14 +358,14 @@ class SpectralOnsetDetection(object):
 
         """
         # import
-        from spectrogram import Spectrogram
+        from cp.audio.spectrogram import Spectrogram
         # check spectrogram type
         if isinstance(spectrogram, Spectrogram):
             # already the right format
             self.s = spectrogram
         else:
             # assume a file name, try to instantiate a Spectrogram object
-            self.s = Spectrogram(spectrogram)
+            self.s = Spectrogram(spectrogram, *args, **kwargs)
         self.max_bins = max_bins
 
     # FIXME: do use s.spec and s.diff directly instead of passing the number of
@@ -419,6 +419,64 @@ class SpectralOnsetDetection(object):
     def rcd(self):
         """Rectified Complex Domain."""
         return rectified_complex_domain(self.s.spec, self.s.phase)
+
+
+class NNOnsetDetection(object):
+    """
+    The NNOnsetDetection class implements neural network based onset detection algorithms.
+
+    """
+    def __init__(self, audio, nn_files):
+        """
+        Creates a new NNOnsetDetection object instance.
+
+        :param audio:    file name or Wav or Spectrogram object
+        :param nn_files: pre-trained neural networks
+
+        """
+        # import
+        from cp.audio.wav import Wav
+        from cp.audio.spectrogram import Spectrogram
+        # check wav type
+        if isinstance(audio, Wav):
+            # already the right format
+            self.w = audio
+        elif isinstance(audio, Spectrogram):
+            # spectrogram given, extract the wav object
+            self.w = audio.audio
+        else:
+            # assume a file name, try to instantiate a Wav object
+            self.w = Wav(audio, fps=100, mono=True)
+        # TODO: include code
+        self.nn_files = nn_files
+        raise NotImplementedError
+
+    def process_input(self, frame_sizes=[1024, 2048, 4096], bands_per_octave=6, mul=5, add=1):
+        """Process the audio input."""
+        import tempfile
+        from cp.audio.spectrogram import LogFiltSpec
+        from cp.utils.rnnlib import create_nc_file
+        # stack specs
+        nc_data = np.empty((self.w.frames, 0))
+        for frame_size in frame_sizes:
+            self.w.frame_size = frame_size
+            s = LogFiltSpec(self.w, bands_per_octave=bands_per_octave, mul=mul, add=add)
+            nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+        # create a fake onset vector
+        nc_targets = np.zeros(self.w.num_frames)
+        nc_targets[0] = 1
+        # create a .nc file
+        self.__nc_file = tempfile.mktemp()
+        create_nc_file(self.__nc_file, nc_data, nc_targets)
+        return self.__nc_file
+
+    def test_neural_networks(self, threads=2, verbose=False):
+        import os
+        from cp.utils.rnnlib import test_nc_files
+        act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
+        os.rmdir(self.__nc_file)
+        # return activations
+        return act
 
 
 # universal peak-picking method
@@ -513,6 +571,7 @@ COMBINE = 0.03
 DELAY = 0
 
 
+# TODO: common stuff should be moved into an Event class
 class Onset(object):
     """
     Onset Class.
@@ -610,6 +669,7 @@ class Onset(object):
         Note: detect() method must be called first.
 
         """
+        # TODO: put this (and the same in the Beat class) to an Event class
         from cp.utils.helpers import write_events
         write_events(self.detections, filename)
 
@@ -620,6 +680,7 @@ class Onset(object):
         :param filename: input file name or file handle
 
         """
+        # TODO: put this (and the same in the Beat class) to an Event class
         from cp.utils.helpers import load_events
         self.targets = load_events(filename)
 
@@ -654,6 +715,7 @@ class Onset(object):
               whitespace. Binary files are not platform independen.
 
         """
+        # TODO: put this (and the same in the Beat class) to an Event class
         # save the activations
         self.activations.tofile(filename, sep=sep)
 
@@ -670,6 +732,7 @@ class Onset(object):
               whitespace. Binary files are not platform independen.
 
         """
+        # TODO: put this (and the same in the Beat class) to an Event class
         # load the activations
         self.activations = np.fromfile(filename, sep=sep)
 
@@ -723,9 +786,9 @@ def main():
     import glob
     import fnmatch
 
-    from wav import Wav
-    from spectrogram import Spectrogram
-    from filterbank import LogarithmicFilter
+    from cp.audio.wav import Wav
+    from cp.audio.spectrogram import Spectrogram
+    from cp.audio.filterbank import LogarithmicFilter
 
     # parse arguments
     args = parser()
@@ -801,7 +864,7 @@ def main():
             o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
                      pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
             # write the onsets to a file
-            o.write("%s.onsets.txt" % (filename))
+            o.write("%s.txt" % (filename))
             # also output them to stdout if vebose
             if args.verbose:
                 print 'detections:', o.detections

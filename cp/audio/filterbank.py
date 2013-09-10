@@ -284,6 +284,7 @@ def erb2hz(e):
 
 # Cent Scale
 # FIXME: check the formulas, they seem to generate weird results
+#        additionally, cents are intervals and not absolute values...
 #def hz2cent(f, a4=440):
 #    """
 #    Convert Hz to Cent.

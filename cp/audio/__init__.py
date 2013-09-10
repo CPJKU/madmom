@@ -1,6 +1,5 @@
-__all__ = ["wav", "ffmpeg", "spectrogram", "filterbank", "onset_detection"]
+__all__ = ["wav", "ffmpeg", "spectrogram", "filterbank"]
 import wav
 import ffmpeg
 import spectrogram
 import filterbank
-import onset_detection
