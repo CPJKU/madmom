@@ -1,9 +1,0 @@
-All scripts of this package can be run in the following way:
-
-cp/mirex/SuperFlux.py INFILE [OUTFILE]
-
-or if the package is included in $PYTHONPATH:
-
-python -m cp.mirex.SuperFlux INFILE [OUTFILE]
-
-There's an option `--help` which describes all other options
