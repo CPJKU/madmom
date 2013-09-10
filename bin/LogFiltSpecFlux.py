@@ -52,7 +52,7 @@ def parser():
 def main():
     from cp.audio.wav import Wav
     from cp.audio.spectrogram import LogarithmicFilteredSpectrogram
-    from cp.audio.onset_detection import SpectralOnsetDetection, Onset
+    from cp.features.onsets import SpectralOnsetDetection, Onset
 
     # parse arguments
     args = parser()

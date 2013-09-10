@@ -31,8 +31,8 @@ def parser():
     # add onset detection related options to the existing parser
     cp.utils.params.add_audio_arguments(p, fps=100, norm=False)
     cp.utils.params.add_spec_arguments(p)
-    cp.utils.params.add_filter_arguments(p, bands=12, norm_filter=True)
-    cp.utils.params.add_log_arguments(p, log=True, mul=1, add=1)
+    cp.utils.params.add_filter_arguments(p, bands=12)
+    cp.utils.params.add_log_arguments(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -77,15 +77,15 @@ def main():
         w = Wav(wav_files[0], fps=args.fps, mono=True, norm=args.norm)
         # 1st spec
         w.frame_size = 1024
-        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio)
+        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio, norm_filter=args.norm_filter)
         nc_data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
         w.frame_size = 2048
-        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio)
+        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio, norm_filter=args.norm_filter)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # 3rd spec
         w.frame_size = 4096
-        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio)
+        s = LogFiltSpec(w, bands_per_octave=args.bands, fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add, ratio=args.ratio, norm_filter=args.norm_filter)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # targets
         targets = load_events(f)

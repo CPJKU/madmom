@@ -1,0 +1,2 @@
+This package includes lower level features. Your definition of "lower" may
+vary, but all "higher" level features can usually be found in cp.features.* 

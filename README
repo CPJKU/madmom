@@ -1,5 +1,10 @@
 This package is used internally by the department of computational perception,
 Johannes Kepler University, Linz, Austria (http://www.cp.jku.at)
 
-Unless otherwise indicated, all files are published under the BSD license which
+Unless indicated otherwise, all files are published under the BSD license which
 can be found in the LICENSE file.
+
+All features can change without prior notice. Do NOT expect these to stay the
+same forever! If you need stable features, create a branch and set the needed
+parameters accordingly.
+
