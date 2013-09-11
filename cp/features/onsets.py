@@ -759,6 +759,7 @@ def parser():
     # general options
     p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
     p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
+    p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
     # add other argument groups
     cp.utils.params.add_audio_arguments(p)
     cp.utils.params.add_filter_arguments(p, filtering=True)
@@ -783,9 +784,8 @@ def main():
 
     """
     import os.path
-    import glob
-    import fnmatch
 
+    from cp.utils.helpers import files
     from cp.audio.wav import Wav
     from cp.audio.spectrogram import Spectrogram
     from cp.audio.filterbank import LogarithmicFilter
@@ -793,39 +793,21 @@ def main():
     # parse arguments
     args = parser()
 
-    # determine the files to process
-    files = []
-    for f in args.files:
-        # check what we have (file/path)
-        if os.path.isdir(f):
-            # use all files in the given path
-            files = glob.glob(f + '/*')
-        else:
-            # file was given, append to list
-            files.append(f)
-    # sort files
-    files.sort()
-
-    # which files to process
-    if args.load:
-        # load the activations of the given ODF
-        if args.odf:
-            files = fnmatch.filter(files, '*.%odf' % args.odf)
-        # load .activations
-        else:
-            files = fnmatch.filter(files, '*.activations')
-    else:
-        # only process .wav files
-        files = fnmatch.filter(files, '*.wav')
-
     # TODO: also add an option for evaluation and load the targets accordingly
     # see cp.evaluation.helpers.match_files()
 
     # init filterbank
     filt = None
 
+    # which files to process
+    if args.load:
+        # load the activations
+        ext = '.activations'
+    else:
+        # only process .wav files
+        ext = '.wav'
     # process the files
-    for f in files:
+    for f in files(args.files, ext):
         if args.verbose:
             print f
 
@@ -833,7 +815,7 @@ def main():
         filename = os.path.splitext(f)[0]
 
         # init Onset object
-        o = None
+#        o = None
         # do the processing stuff unless the activations are loaded from file
         if args.load:
             # load the activations from file
@@ -864,7 +846,7 @@ def main():
             o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
                      pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
             # write the onsets to a file
-            o.write("%s.txt" % (filename))
+            o.write("%s.%s" % (filename, args.ext))
             # also output them to stdout if vebose
             if args.verbose:
                 print 'detections:', o.detections

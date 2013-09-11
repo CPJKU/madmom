@@ -1,5 +1,5 @@
 This folder contains executable scripts, which make use of all the nice things
-included in this package. They can be run in the following way:
+included in this package. Most of them can be run in the following way:
 
 bin/name_of_script.py INFILE [OUTFILE]
 
@@ -7,7 +7,7 @@ There should be an `--help` option which describes all the other options.
 
 The scripts should be considered as examples of usage, which can change without
 prior notice. Do NOT rely on any feature output of these scripts! If you need
-stable features, create a branch and fix all parameters accordingly.
+stable features, create a branch and set all parameters accordingly.
 
 Since some of the scripts are used directly for the annual MIREX evaluation,
 tagged branches reflecting the settings of these submitted algorithms should be

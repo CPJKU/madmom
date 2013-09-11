@@ -256,10 +256,16 @@ class Beat(object):
         # detect beats based on this interval
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
-        self.detections = detections / float(self.fps)
+        detections = detections / float(self.fps)
         # shift if necessary
         if delay != 0:
-            self.detections += delay
+            detections += delay
+        # always use the first detection and all others if none was reported
+        # within the duration equivalent to max_bpm
+        if detections.size > 1:
+            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > (60. / max_bpm)])
+        else:
+            self.detections = detections
         # also return the detections
         return self.detections
 
@@ -311,10 +317,16 @@ class Beat(object):
             pos += interval
 
         # convert detected beats to a list of timestamps
-        self.detections = np.array(detections) / float(self.fps)
+        detections = np.array(detections) / float(self.fps)
         # shift if necessary
         if delay != 0:
-            self.detections += delay
+            detections += delay
+        # always use the first detection and all others if none was reported
+        # within the duration equivalent to max_bpm
+        if detections.size > 1:
+            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > 60. / max_bpm])
+        else:
+            self.detections = detections
         # also return the detections
         return self.detections
 
@@ -417,6 +429,7 @@ def parser():
     p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
     p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
     p.add_argument('--track', action='store_true', default=False, help='track, not detect')
+    p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
     # add other argument groups
     cp.utils.params.add_audio_arguments(p, fps=100)
     cp.utils.params.add_filter_arguments(p, filtering=True)
@@ -501,7 +514,7 @@ def main():
                 b.track(args.threshold, delay=args.delay, smooth=args.smooth,
                          min_bpm=args.min_bpm, max_bpm=args.max_bpm)
             # write the beats to a file
-            b.write("%s.txt" % (filename))
+            b.write("%s.%s" % (filename, args.ext))
             # also output them to stdout if vebose
             if args.verbose > 2:
                 print 'tempo:     ', 60. / np.median(np.diff(b.detections))

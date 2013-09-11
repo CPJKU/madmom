@@ -1,2 +1,3 @@
-This package includes lower level features. Your definition of "lower" may
-vary, but all "higher" level features can usually be found in cp.features.* 
+This package includes audio handling functionality and lower level features.
+The definition of "lower" may vary, but all "higher" level features (e.g. beats,
+onsets, etc.) should be put into cp.features.*.

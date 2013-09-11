@@ -76,8 +76,8 @@ def find_closest_intervals(detections, targets, matches=None):
     # if the errors are positive, the detection is after the target
     # thus, the needed interval is from the closest target towards the next one
     closest_interval[errors > 0] = intervals[matches[errors > 0] + 1]
-    # if before, interval to previous target accordingly
-    closest_interval[errors < 0] = intervals[matches[errors < 0]]
+    # if before (or same position) use the interval to previous target accordingly
+    closest_interval[errors <= 0] = intervals[matches[errors <= 0]]
     # return the closest interval
     return closest_interval
 

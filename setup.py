@@ -1,6 +1,6 @@
 from setuptools import setup
 
-setup(name='python_cpjku',
+setup(name='cpjku',
       version='0.01',
       description='Python package used at cp.jku.at',
       long_description=open('README').read(),
