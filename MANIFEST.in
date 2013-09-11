@@ -1,0 +1,11 @@
+# always include those files
+include README
+include LICENSE
+recursive-include cp *
+recursive-include bin *
+global-exclude *.pyc
+global-exclude .DS_Store
+exclude cp/audio/mfcc.py
+exclude cp/utils/hdf5.py
+prune cp/test
+prune cp/fun
