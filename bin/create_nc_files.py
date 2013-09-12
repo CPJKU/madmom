@@ -27,7 +27,6 @@ def parser():
     p.add_argument('-p', dest='path', default=None, help='path for audio files')
     annotations = ['.onsets', '.beats']
     p.add_argument('-a', dest='annotations', default=annotations, help='annotations to use [default=%s]' % annotations)
-    p.add_argument('--widen', action='store', type=int, default=None, help='widen the targets [default=None]')
     # add onset detection related options to the existing parser
     cp.utils.params.add_audio_arguments(p, fps=100, norm=False)
     cp.utils.params.add_spec_arguments(p)
@@ -90,11 +89,8 @@ def main():
         # targets
         targets = load_events(f)
         targets = quantize_events(targets, args.fps, length=w.num_frames)
-        if args.widen:
-            wide_targets = np.convolve(targets, np.ones(args.widen), 'same')
-            targets = wide_targets * (wide_targets > 0)
         # tags
-        tags = tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | norm_filter=%s | log=%s | mul=%s | add=%s" % (f, args.fps, [1024, 2048, 4096], args.bands, args.fmin, args.fmax, args.norm_filter, args.log, args.mul, args.add)
+        tags = tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" % (f, args.fps, [1024, 2048, 4096], args.bands, args.fmin, args.fmax, args.norm_filter, args.log, args.mul, args.add, args.ratio)
         # .nc file name
         if args.output:
             nc_file = "%s/%s.nc" % (args.output, f)

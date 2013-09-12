@@ -127,6 +127,128 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1, m
     return interval
 
 
+def interval_histogram(activations, threshold=0, smooth=None, min_tau=1, max_tau=None):
+    """
+    Compute the interval histogram of the given activation function.
+
+    :param activations: the onset activation function
+    :param threshold:   threshold for activation function before auto-correlation [default=0]
+    :param smooth:      smooth the activation function with the kernel [default=None]
+    :param min_tau:     minimal delta for correlation function [frames, default=1]
+    :param max_tau:     maximal delta for correlation function [frames, default=length of activation function]
+    :returns:           histogram
+
+    """
+    # smooth activations
+    kernel = None
+    if isinstance(smooth, int):
+        # size for the smoothing kernel is given
+        if smooth > 1:
+            kernel = np.hamming(smooth)
+    elif isinstance(smooth, np.ndarray):
+        # otherwise use the given smooth kernel directly
+        if smooth.size > 1:
+            kernel = smooth
+    if kernel is not None:
+        # convolve with the kernel
+        activations = np.convolve(activations, kernel, 'same')
+
+    # threshold function if needed
+    if threshold > 0:
+        activations = activations * (activations >= threshold)
+
+    if max_tau is None:
+        max_tau = len(activations) - min_tau
+
+    # test all possible intervals
+    taus = range(min_tau, max_tau)
+    sums = []
+    # TODO: make this processing parallel or numpyfy if possible
+    for tau in taus:
+        sums.append(np.sum(np.abs(activations[tau:] * activations[0:-tau])))
+
+    # return histogram
+    return (np.array(sums), np.array(taus))
+
+
+def dominant_interval(histogram, smooth=None):
+    """
+    Extract the dominant interval of the given histogram.
+
+    :param histogram: histogram with interval distribution
+    :param smooth:    smooth the histogram with the kernel [default=None]
+    :returns:         dominant interval
+
+    """
+    # smooth histogram
+    kernel = None
+    if isinstance(smooth, int):
+        # size for the smoothing kernel is given
+        if smooth > 1:
+            kernel = np.hamming(smooth)
+    elif isinstance(smooth, np.ndarray):
+        # otherwise use the given smooth kernel directly
+        if smooth.size > 1:
+            kernel = smooth
+    if kernel is not None:
+        # convolve with the kernel
+        values = np.convolve(histogram[0], kernel, 'same')
+    else:
+        values = histogram[0]
+    # return the dominant interval
+    return histogram[1][np.argmax(values)]
+
+
+# TODO: unify with dominant interval
+def detect_tempo(histogram, fps, smooth=None):
+    """
+    Extract the dominant interval of the given histogram.
+
+    :param histogram: histogram with interval distribution
+    :param fps:       frame rate of the original beat activations
+    :param smooth:    smooth the histogram with the kernel [default=None]
+    :returns:         dominant interval
+
+    """
+    # smooth histogram
+    kernel = None
+    if isinstance(smooth, int):
+        # size for the smoothing kernel is given
+        if smooth > 1:
+            kernel = np.hamming(smooth)
+    elif isinstance(smooth, np.ndarray):
+        # otherwise use the given smooth kernel directly
+        if smooth.size > 1:
+            kernel = smooth
+    if kernel is not None:
+        # convolve with the kernel
+        values = np.convolve(histogram[0], kernel, 'same')
+    else:
+        values = histogram[0]
+    # to get the two dominant tempi, just keep peaks
+    values[:-1] = values[:-1] * ((values[1:] > values[:-1]) == False)
+    # zero out values if predecessor is greater
+    values[1:] = values[1:] * ((values[:-1] > values[1:]) == False)
+    # strongest tempo
+    interval1 = histogram[1][np.argmax(values)]
+    weight1 = values[np.argmax(values)]
+    tempo1 = 60.0 * fps / interval1
+    # set it to 0
+    values[np.argmax(values)] = 0
+    # get the second strongest tempo
+    interval2 = histogram[1][np.argmax(values)]
+    weight2 = values[np.argmax(values)]
+    tempo2 = 60.0 * fps / interval2
+    # determine their relative strength
+    try:
+        weight = weight1 / (weight1 + weight2)
+    except:
+        # just make sure we have some values
+        weight = 1.0
+    # return the 2 dominant tempi and their relative weight
+    return tempo1, tempo2, weight
+
+
 def detect_beats(activations, interval, look_aside=0.2):
     """
     Detects the beats in the given activation function.
@@ -329,6 +451,31 @@ class Beat(object):
             self.detections = detections
         # also return the detections
         return self.detections
+
+    # TODO: make an extra Tempo class!
+    def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM, mirex=False):
+        """
+        Track the beats with a simple auto-correlation method.
+
+        :param threshold: threshold for peak-picking [default=0]
+        :param smooth:    smooth the activation function over N seconds [default=0.9]
+        :param min_bpm:   minimum tempo used for beat tracking [default=60]
+        :param max_bpm:   maximum tempo used for beat tracking [default=240]
+        :param mirex:     always output the lower tempo first [default=False]
+        :returns:         a tuple of the two most dominant tempi with a weighting
+
+        """
+        # convert the arguments to frames
+        smooth = int(round(self.fps * smooth))
+        min_tau = int(np.floor(60. * self.fps / max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / min_bpm))
+        # generate a histogram of beat intervals
+        hist = interval_histogram(self.activations, threshold, smooth=smooth, min_tau=min_tau, max_tau=max_tau)
+        t1, t2, weight = detect_tempo(hist, self.fps, smooth=None)
+        # for MIREX, the lower tempo must be given first
+        if mirex and t1 > t2:
+            return t2, t1, 1 - weight
+        return t1, t2, weight
 
     def write(self, filename):
         """

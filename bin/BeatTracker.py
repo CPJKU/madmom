@@ -41,7 +41,7 @@ def parser():
     b = cp.utils.params.add_beat_arguments(p, io=True)
     b.add_argument('--look_ahead', action='store', type=float, default=4, help='look ahead N seconds [default=4]')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
+    p.add_argument('--version', action='version', version='BeatTracker.2013')
     # parse arguments
     args = p.parse_args()
     # set some defaults
@@ -55,7 +55,7 @@ def parser():
 
 
 def main():
-    """OnsetDetector.2013"""
+    """BeatTracker.2013"""
 
     # parse arguments
     args = parser()

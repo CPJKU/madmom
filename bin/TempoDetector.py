@@ -30,8 +30,8 @@ def parser():
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all beats in
-    the given input (file) and writes them to the output (file).
+    If invoked without any parameters, the software detects the dominant tempi
+    in the given input (file) and writes them to the output (file).
     ''')
     # mirex options
     cp.utils.params.add_mirex_io(p)
@@ -40,7 +40,7 @@ def parser():
     cp.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
     cp.utils.params.add_beat_arguments(p, io=True)
     # version
-    p.add_argument('--version', action='version', version='BeatDetector.2013')
+    p.add_argument('--version', action='version', version='TempoDetector.2013')
     # parse arguments
     args = p.parse_args()
     # set some defaults
@@ -54,7 +54,7 @@ def parser():
 
 
 def main():
-    """BeatDetector.2013"""
+    """TempoDetector.2013"""
 
     # parse arguments
     args = parser()
@@ -95,10 +95,17 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # detect the onsets
-        b.detect(args.threshold, delay=args.delay, smooth=args.smooth,
-                         min_bpm=args.min_bpm, max_bpm=args.max_bpm)
-        # write the onsets to output
-        b.write(args.output)
+        t1, t2, weight = b.tempo(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm, mirex=True)
+        # write to output
+        was_closed = False
+        if not isinstance(args.output, file):
+            # open the file if necessary
+            args.output = open(args.output, 'w')
+            was_closed = True
+        args.output.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, weight))
+        # close the output again?
+        if was_closed:
+            args.output.close()
 
     # clean up
     os.remove(args.nc_file)
