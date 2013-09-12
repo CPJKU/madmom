@@ -94,7 +94,7 @@ def main():
         # save activations
         b.save_activations(args.output, sep=args.sep)
     else:
-        # detect the onsets
+        # detect the beats
         b.detect(args.threshold, delay=args.delay, smooth=args.smooth,
                          min_bpm=args.min_bpm, max_bpm=args.max_bpm)
         # write the onsets to output

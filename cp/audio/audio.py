@@ -260,8 +260,8 @@ class Audio(object):
 
 # default values
 FRAME_SIZE = 2048
-HOP_SIZE = 441.0
-FPS = 100
+HOP_SIZE = 441.
+FPS = 100.
 ONLINE = False
 
 
@@ -302,9 +302,9 @@ class FramedAudio(Audio):
 
         # set fps instead of hop_size
         if fps:
-            # set the fps
             # Note: the default FPS is not used in __init__(), because usually
-            # FRAME_SIZE and HOP_SIZE are used
+            # FRAME_SIZE and HOP_SIZE are used, but setting the fps overwrites
+            # the hop_size automatically
             self.fps = fps
 
     # make the Object iterable
@@ -346,6 +346,9 @@ class FramedAudio(Audio):
     @property
     def num_frames(self):
         """Number of frames."""
+        # FIXME: should 1 be added? the index 0 is the first sample, thus if the
+        # length would be exactly 1 hop_size, the length would only be 1 frame,
+        # although it should be 2?
         return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
 
     @property

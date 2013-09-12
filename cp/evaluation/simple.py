@@ -9,7 +9,7 @@ This file contains basic evaluation functionality used by cp.evaluation modules.
 
 import numpy as np
 
-from helpers import calc_errors
+from cp.evaluation.helpers import calc_errors
 
 
 def calc_overlap(detections, targets, threshold=0.5):
@@ -263,6 +263,13 @@ class MeanEvaluation(SimpleEvaluation):
 
     # for adding a OnsetEvaluation object
     def __add__(self, other):
+        """
+        Appends the scores of another SimpleEvaluation object to the respective
+        arrays.
+
+        :param other: SimpleEvaluation object
+
+        """
         if issubclass(other.__class__, SimpleEvaluation):
             self.__precision = np.append(self.__precision, other.precision)
             self.__recall = np.append(self.__recall, other.recall)
@@ -513,7 +520,7 @@ def main():
             # load the targets
             targets = load_events(f)
             # test with onsets (but use the beat detection window of 70ms)
-            from onsets import count_errors
+            from cp.evaluation.onsets import count_errors
             # add the Evaluation to mean evaluation
             me += Evaluation(detections, targets, count_errors, window=0.07)
             # process the next target file

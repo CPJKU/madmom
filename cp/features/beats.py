@@ -328,7 +328,7 @@ class Beat(object):
         Creates a new Onset object instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read in from a file.
 
-        :param activations: array with ODF activations or a file handle
+        :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
         :param online:      work in online mode (i.e. use only past information) [default=False]
         :param sep:         separator if activations are read from file
@@ -345,10 +345,6 @@ class Beat(object):
         self.detections = None   # list of detected onsets [seconds]
         self.targets = None      # list of target onsets [seconds]
         # set / load activations
-        # TODO: decide whether we should go the common way and accept a file
-        # here and go up the hierachy by creating a SpectralODF object and
-        # perform a default onset detection function (e.g. superflux())
-        # or: load the activations (/targets?) from a file
         if isinstance(activations, np.ndarray):
             # activations are given as an array
             self.activations = activations
@@ -366,6 +362,14 @@ class Beat(object):
         :param min_bpm:    minimum tempo used for beat tracking [default=60]
         :param max_bpm:    maximum tempo used for beat tracking [default=240]
         :param look_aside: look this fraction of a beat interval to the side [default=0.2]
+
+        First the global tempo is estimated and then the beats are aligned
+        according to:
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        by Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio Effects
+        (DAFx-11), Paris, France, September 2011
 
         """
         # convert timing information to frames and set default values
@@ -403,6 +407,14 @@ class Beat(object):
         :param look_aside: look this fraction of a beat interval to the side [default=0.2]
         :param look_ahead: look N seconds ahead (and back) to determine the tempo [default=4]
 
+        First local tempo (in a range +- look_ahead seconds around the actual
+        position) is estimated and then the next beat is tracked accordingly.
+        Then the same procedure is repeated from this new position.
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        by Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio Effects
+        (DAFx-11), Paris, France, September 2011
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
@@ -455,7 +467,7 @@ class Beat(object):
     # TODO: make an extra Tempo class!
     def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM, mirex=False):
         """
-        Track the beats with a simple auto-correlation method.
+        Detect the tempo on basis of the beat activation function.
 
         :param threshold: threshold for peak-picking [default=0]
         :param smooth:    smooth the activation function over N seconds [default=0.9]

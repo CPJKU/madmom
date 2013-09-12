@@ -28,7 +28,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     the current position.
 
     """
-    from audio import signal_frame
+    from cp.audio.audio import signal_frame
 
     # if the signal is not scaled, scale the window function accordingly
     try:
@@ -82,7 +82,7 @@ def strided_stft(signal, window, hop_size, phase=True):
           integer hop_sizes are used.
 
     """
-    from audio import strided_frames
+    from cp.audio.audio import strided_frames
 
     # init variables
     ffts = window.size >> 1
@@ -156,7 +156,7 @@ class Spectrogram(object):
               calculation considerably (phase: x2; lgd: x3)!
 
         """
-        from audio import FramedAudio
+        from cp.audio.audio import FramedAudio
         # audio signal stuff
         if issubclass(audio.__class__, FramedAudio):
             # already the right format
@@ -167,7 +167,7 @@ class Spectrogram(object):
         else:
             # assume a file name, try to instantiate a Wav object
             # TODO: make an intelligent class which can handle a lot of different file types automatically
-            from wav import Wav
+            from cp.audio.wav import Wav
             self.audio = Wav(audio)
 
         # window stuff
@@ -192,7 +192,7 @@ class Spectrogram(object):
         # TODO: does this attribute belong to this class?
         self.__diff = None
 
-        # additional calculations
+        # perform these additional computations
         # Note: the naming might be a bit confusing but is short
         self._stft = stft
         self._phase = phase
@@ -581,26 +581,26 @@ class FilteredSpectrogram(Spectrogram):
         automatically.
 
         :param bands_per_octave: number of filter bands per octave [default=12]
-        :param fmin:             the minimum frequency [Hz, default=27]
+        :param fmin:             the minimum frequency [Hz, default=30]
         :param fmax:             the maximum frequency [Hz, default=17000]
         :param norm_filter:      normalize the area of the filter to 1 [default=True]
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        import filterbank
+        import cp.audio.filterbank as fb
         # fetch the arguments special to the filterbank creation (or set defaults)
-        fb = kwargs.pop('filterbank', None)
-        bands_per_octave = kwargs.pop('bands_per_octave', filterbank.BANDS_PER_OCTAVE)
-        fmin = kwargs.pop('fmin', filterbank.FMIN)
-        fmax = kwargs.pop('fmax', filterbank.FMAX)
-        norm_filter = kwargs.pop('norm_filter', filterbank.NORM_FILTER)
+        filterbank = kwargs.pop('filterbank', None)
+        bands_per_octave = kwargs.pop('bands_per_octave', fb.BANDS_PER_OCTAVE)
+        fmin = kwargs.pop('fmin', fb.FMIN)
+        fmax = kwargs.pop('fmax', fb.FMAX)
+        norm_filter = kwargs.pop('norm_filter', fb.NORM_FILTER)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
-        if fb is None:
-            fb = filterbank.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+        if filterbank is None:
+            filterbank = fb.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
-        self.filterbank = fb
+        self.filterbank = filterbank
 
 # aliases
 FiltSpec = FilteredSpectrogram

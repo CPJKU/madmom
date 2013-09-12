@@ -582,7 +582,7 @@ class Onset(object):
         Creates a new Onset object instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read in from a file.
 
-        :param activations: array with ODF activations or a file handle
+        :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
         :param online:      work in online mode (i.e. use only past information) [default=False]
         :param sep:         separator if activations are read from file
@@ -597,10 +597,6 @@ class Onset(object):
         self.detections = None   # list of detected onsets [seconds]
         self.targets = None      # list of target onsets [seconds]
         # set / load activations
-        # TODO: decide whether we should go the common way and accept a file
-        # here and go up the hierachy by creating a SpectralOnsetDetection object and
-        # perform a default onset detection function (e.g. superflux())
-        # or: load the activations (/targets?) from a file
         if isinstance(activations, np.ndarray):
             # activations are given as an array
             self.activations = activations
@@ -657,8 +653,6 @@ class Onset(object):
             self.detections = detections
         # also return the detections
         return self.detections
-
-#    def detect_simpl
 
     def write(self, filename):
         """

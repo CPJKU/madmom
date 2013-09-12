@@ -94,7 +94,7 @@ def main():
         # save activations
         b.save_activations(args.output, sep=args.sep)
     else:
-        # detect the onsets
+        # detect the tempo
         t1, t2, weight = b.tempo(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm, mirex=True)
         # write to output
         was_closed = False

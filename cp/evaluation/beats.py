@@ -24,8 +24,8 @@ was chosen, because it is simpler and produces more accurate results.
 
 import numpy as np
 
-from helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
-from onsets import OnsetEvaluation
+from cp.evaluation.helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
+from cp.evaluation.onsets import OnsetEvaluation
 
 
 # evaluation function for beat detection
@@ -508,7 +508,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     # for adding another BeatEvaluation object
     def __add__(self, other):
         """
-        Apends the scores of another BeatEvaluation object to the repsective
+        Appends the scores of another BeatEvaluation object to the respective
         arrays.
 
         :param other: BeatEvaluation object
