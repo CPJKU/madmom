@@ -16,10 +16,5 @@ setup(name='cpjku',
       author='Sebastian Böck, Department of Computational Perception, Johannes Kepler University, Linz, Austria',
       author_email='sebastian.boeck@jku.at',
       url='http://www.cp.jku.at',
-      license='BSD, with some exclusions',
-      include_package_data=True,
-      install_requires=[
-          'numpy',
-          'scipy'
-      ],
-      zip_safe=False)
+      license='BSD, with some exclusions'
+      )
