@@ -45,7 +45,7 @@ def compute_event_alignment(alignment, ground_truth):
     # first a dummy event at the very end of the alignment is added to be
     # able to process score events with were not reached by the tracker
     dummy_time = alignment[:, 0].max() + 1
-    dummy = [[_MISSED_NOTE_TIME, _MISSED_NOTE_POS, _MISSED_NOTE_TEMPO]]
+    dummy = [[dummy_time, _MISSED_NOTE_POS, _MISSED_NOTE_TEMPO]]
     alignment = np.concatenate((alignment, dummy))
 
     # find the spots where the alignment passes the score
