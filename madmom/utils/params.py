@@ -11,14 +11,15 @@ import argparse
 import tempfile
 
 # get the default values from the corresponding modules
-import cp.audio.audio as a
-import cp.audio.spectrogram as s
-import cp.audio.filterbank as f
-import cp.features.onsets as o
-import cp.features.beats as b
+from ..audio.audio import ONLINE, NORM, ATT, FPS, FRAME_SIZE
+from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
+from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTER
+from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
+                               PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
+from ..features.beats import THRESHOLD as bt, SMOOTH as bs, MIN_BPM, MAX_BPM
 
 
-def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.FPS, window=a.FRAME_SIZE):
+def add_audio_arguments(parser, online=ONLINE, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     """
     Add audio related arguments to an existing parser object.
 
@@ -50,7 +51,7 @@ def add_audio_arguments(parser, online=a.ONLINE, norm=a.NORM, att=a.ATT, fps=a.F
     return group
 
 
-def add_spec_arguments(parser, ratio=s.RATIO, diff_frames=s.DIFF_FRAMES):
+def add_spec_arguments(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
     """
     Add spectrogram related arguments to an existing parser object.
 
@@ -69,8 +70,8 @@ def add_spec_arguments(parser, ratio=s.RATIO, diff_frames=s.DIFF_FRAMES):
     return group
 
 
-def add_filter_arguments(parser, filtering=None, fmin=f.FMIN, fmax=f.FMAX,
-                         bands=f.BANDS_PER_OCTAVE, norm_filter=f.NORM_FILTER):
+def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
+                         bands=BANDS_PER_OCTAVE, norm_filter=NORM_FILTER):
     """
     Add filter related arguments to an existing parser object.
 
@@ -100,7 +101,7 @@ def add_filter_arguments(parser, filtering=None, fmin=f.FMIN, fmax=f.FMAX,
     return group
 
 
-def add_log_arguments(parser, log=None, mul=s.MUL, add=s.ADD):
+def add_log_arguments(parser, log=None, mul=MUL, add=ADD):
     """
     Add logarithmic magnitude related arguments to an existing parser object.
 
@@ -123,7 +124,7 @@ def add_log_arguments(parser, log=None, mul=s.MUL, add=s.ADD):
     return group
 
 
-def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bins=o.MAX_BINS):
+def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bins=MAX_BINS):
     """
     Add spectral ODF related arguments to an existing parser object.
 
@@ -145,8 +146,8 @@ def add_spectral_odf_arguments(parser, method='superflux', methods=None, max_bin
     return group
 
 
-def add_onset_arguments(parser, io=False, threshold=o.THRESHOLD, smooth=o.SMOOTH, combine=o.COMBINE, delay=o.DELAY,
-                        pre_avg=o.PRE_AVG, post_avg=o.POST_AVG, pre_max=o.PRE_MAX, post_max=o.POST_MAX):
+def add_onset_arguments(parser, io=False, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE, delay=DELAY,
+                        pre_avg=PRE_AVG, post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX):
     """
     Add onset detection related arguments to an existing parser object.
 
@@ -181,8 +182,8 @@ def add_onset_arguments(parser, io=False, threshold=o.THRESHOLD, smooth=o.SMOOTH
     return group
 
 
-def add_beat_arguments(parser, io=False, threshold=b.THRESHOLD, smooth=b.SMOOTH, delay=b.DELAY,
-                        min_bpm=b.MIN_BPM, max_bpm=b.MAX_BPM):
+def add_beat_arguments(parser, io=False, threshold=bt, smooth=bs,
+                        min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     """
     Add beat tracking related arguments to an existing parser object.
 
@@ -205,7 +206,6 @@ def add_beat_arguments(parser, io=False, threshold=b.THRESHOLD, smooth=b.SMOOTH,
     group.add_argument('--smooth', action='store', type=float, default=smooth, help='smooth the onset activations over N seconds [default=%.2f]' % smooth)
     group.add_argument('--min_bpm', action='store', type=float, default=min_bpm, help='minimum tempo [bpm, default=%.2f]' % min_bpm)
     group.add_argument('--max_bpm', action='store', type=float, default=max_bpm, help='maximum tempo [bpm, default=%.2f]' % max_bpm)
-    group.add_argument('--delay', action='store', type=float, default=delay, help='report the onsets N seconds delayed [default=%i]' % delay)
     group.add_argument('--sep', action='store', default='', help='separator for saving/loading the onset detection functions [default=\'\' (numpy binary format)]')
     # return the argument group so it can be modified if needed
     return group

@@ -9,7 +9,7 @@ This file contains basic evaluation functionality used by cp.evaluation modules.
 
 import numpy as np
 
-from cp.evaluation.helpers import calc_errors
+from .helpers import calc_errors
 
 
 def calc_overlap(detections, targets, threshold=0.5):
@@ -497,7 +497,7 @@ def parser():
 
 
 def main():
-    from cp.utils.helpers import files, match_file, load_events
+    from ..utils.helpers import files, match_file, load_events
 
     # parse arguments
     args = parser()
@@ -520,7 +520,7 @@ def main():
             # load the targets
             targets = load_events(f)
             # test with onsets (but use the beat detection window of 70ms)
-            from cp.evaluation.onsets import count_errors
+            from .onsets import count_errors
             # add the Evaluation to mean evaluation
             me += Evaluation(detections, targets, count_errors, window=0.07)
             # process the next target file

@@ -358,7 +358,7 @@ class SpectralOnsetDetection(object):
 
         """
         # import
-        from cp.audio.spectrogram import Spectrogram
+        from ..audio.spectrogram import Spectrogram
         # check spectrogram type
         if isinstance(spectrogram, Spectrogram):
             # already the right format
@@ -435,8 +435,8 @@ class NNOnsetDetection(object):
 
         """
         # import
-        from cp.audio.wav import Wav
-        from cp.audio.spectrogram import Spectrogram
+        from ..audio.wav import Wav
+        from ..audio.spectrogram import Spectrogram
         # check wav type
         if isinstance(audio, Wav):
             # already the right format
@@ -454,8 +454,8 @@ class NNOnsetDetection(object):
     def process_input(self, frame_sizes=[1024, 2048, 4096], bands_per_octave=6, mul=5, add=1):
         """Process the audio input."""
         import tempfile
-        from cp.audio.spectrogram import LogFiltSpec
-        from cp.utils.rnnlib import create_nc_file
+        from ..audio.spectrogram import LogFiltSpec
+        from ..utils.rnnlib import create_nc_file
         # stack specs
         nc_data = np.empty((self.w.frames, 0))
         for frame_size in frame_sizes:
@@ -472,7 +472,7 @@ class NNOnsetDetection(object):
 
     def test_neural_networks(self, threads=2, verbose=False):
         import os
-        from cp.utils.rnnlib import test_nc_files
+        from ..utils.rnnlib import test_nc_files
         act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
         os.rmdir(self.__nc_file)
         # return activations
@@ -664,7 +664,7 @@ class Onset(object):
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class
-        from cp.utils.helpers import write_events
+        from ..utils.helpers import write_events
         write_events(self.detections, filename)
 
     def load(self, filename):
@@ -675,7 +675,7 @@ class Onset(object):
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class
-        from cp.utils.helpers import load_events
+        from ..utils.helpers import load_events
         self.targets = load_events(filename)
 
     def evaluate(self, filename=None, window=0.025):
@@ -693,7 +693,7 @@ class Onset(object):
             # no targets given, can't evaluate
             return None
         # evaluate
-        from cp.evaluation.onsets import OnsetEvaluation
+        from ..evaluation.onsets import OnsetEvaluation
         return OnsetEvaluation(self.detections, self.targets, window)
 
     def save_activations(self, filename, sep=''):
@@ -737,7 +737,9 @@ def parser():
 
     """
     import argparse
-    import cp.utils.params
+    from ..utils.params import (add_audio_arguments, add_filter_arguments,
+                                add_log_arguments, add_spectral_odf_arguments,
+                                add_onset_arguments)
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -755,11 +757,11 @@ def parser():
     p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
     p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
     # add other argument groups
-    cp.utils.params.add_audio_arguments(p)
-    cp.utils.params.add_filter_arguments(p, filtering=True)
-    cp.utils.params.add_log_arguments(p, log=True)
-    cp.utils.params.add_spectral_odf_arguments(p)
-    onset = cp.utils.params.add_onset_arguments(p, io=True)
+    add_audio_arguments(p)
+    add_filter_arguments(p, filtering=True)
+    add_log_arguments(p, log=True)
+    add_spectral_odf_arguments(p)
+    onset = add_onset_arguments(p, io=True)
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd', 'cd', 'rcd']
     onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [%s]' % methods)
@@ -779,10 +781,10 @@ def main():
     """
     import os.path
 
-    from cp.utils.helpers import files
-    from cp.audio.wav import Wav
-    from cp.audio.spectrogram import Spectrogram
-    from cp.audio.filterbank import LogarithmicFilter
+    from ..utils.helpers import files
+    from ..audio.wav import Wav
+    from ..audio.spectrogram import Spectrogram
+    from ..audio.filterbank import LogarithmicFilter
 
     # parse arguments
     args = parser()

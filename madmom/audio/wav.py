@@ -8,7 +8,7 @@ This file contains wav file handling functionality.
 """
 
 from scipy.io import wavfile
-from cp.audio.audio import FramedAudio
+from .audio import FramedAudio
 
 
 class Wav(FramedAudio):

@@ -11,7 +11,7 @@ import os
 import sys
 import numpy as np
 
-from cp.audio.audio import FramedAudio
+from .audio import FramedAudio
 
 
 def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None, outfile=None, tmpdir=None, tmpsuffix=None):

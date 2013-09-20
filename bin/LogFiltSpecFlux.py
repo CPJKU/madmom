@@ -7,7 +7,7 @@ LogFiltSpecFlux onset detection algorithm.
 
 """
 
-import cp.utils.params
+import madmom.utils.params
 
 
 def parser():
@@ -26,13 +26,13 @@ def parser():
 
     ''')
     # general options
-    cp.utils.params.add_mirex_io(p)
+    madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    cp.utils.params.add_audio_arguments(p, fps=100)
-    cp.utils.params.add_spec_arguments(p)
-    cp.utils.params.add_filter_arguments(p, bands=12, norm_filter=False)
-    cp.utils.params.add_log_arguments(p, mul=1, add=1)
-    cp.utils.params.add_onset_arguments(p, io=True, threshold=2.75)
+    madmom.utils.params.add_audio_arguments(p, fps=100)
+    madmom.utils.params.add_spec_arguments(p)
+    madmom.utils.params.add_filter_arguments(p, bands=12, norm_filter=False)
+    madmom.utils.params.add_log_arguments(p, mul=1, add=1)
+    madmom.utils.params.add_onset_arguments(p, io=True, threshold=2.75)
     # version
     p.add_argument('--version', action='version', version='LogFiltSpecFlux.2013')
     # parse arguments
@@ -50,9 +50,9 @@ def parser():
 
 
 def main():
-    from cp.audio.wav import Wav
-    from cp.audio.spectrogram import LogarithmicFilteredSpectrogram
-    from cp.features.onsets import SpectralOnsetDetection, Onset
+    from madmom.audio.wav import Wav
+    from madmom.audio.spectrogram import LogarithmicFilteredSpectrogram
+    from madmom.features.onsets import SpectralOnsetDetection, Onset
 
     # parse arguments
     args = parser()

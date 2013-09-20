@@ -24,8 +24,8 @@ was chosen, because it is simpler and produces more accurate results.
 
 import numpy as np
 
-from cp.evaluation.helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
-from cp.evaluation.onsets import OnsetEvaluation
+from .helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
+from .onsets import OnsetEvaluation
 
 
 # evaluation function for beat detection
@@ -626,7 +626,7 @@ def parser():
 
 
 def main():
-    from cp.utils.helpers import files, load_events
+    from ..utils.helpers import files, load_events
 
     # parse the arguments
     args = parser()

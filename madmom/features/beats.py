@@ -499,7 +499,7 @@ class Beat(object):
 
         """
         # TODO: put this (and the same in the Onset class) to an Event class
-        from cp.utils.helpers import write_events
+        from ..utils.helpers import write_events
         write_events(self.detections, filename)
 
     def load(self, filename):
@@ -510,7 +510,7 @@ class Beat(object):
 
         """
         # TODO: put this (and the same in the Onset class) to an Event class
-        from cp.utils.helpers import load_events
+        from ..utils.helpers import load_events
         self.targets = load_events(filename)
 
     def evaluate(self, filename=None, *args, **kwargs):
@@ -527,7 +527,7 @@ class Beat(object):
             # no targets given, can't evaluate
             return None
         # evaluate
-        from cp.evaluation.beats import BeatEvaluation
+        from ..evaluation.beats import BeatEvaluation
         return BeatEvaluation(self.detections, self.targets, *args, **kwargs)
 
     def save_activations(self, filename, sep=''):
@@ -571,7 +571,9 @@ def parser():
 
     """
     import argparse
-    import cp.utils.params
+    from ..utils.params import (add_audio_arguments, add_filter_arguments,
+                                add_log_arguments, add_spectral_odf_arguments,
+                                add_beat_arguments)
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -590,11 +592,11 @@ def parser():
     p.add_argument('--track', action='store_true', default=False, help='track, not detect')
     p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
     # add other argument groups
-    cp.utils.params.add_audio_arguments(p, fps=100)
-    cp.utils.params.add_filter_arguments(p, filtering=True)
-    cp.utils.params.add_log_arguments(p, log=True)
-    cp.utils.params.add_spectral_odf_arguments(p)
-    cp.utils.params.add_beat_arguments(p, io=True)
+    add_audio_arguments(p, fps=100)
+    add_filter_arguments(p, filtering=True)
+    add_log_arguments(p, log=True)
+    add_spectral_odf_arguments(p)
+    add_beat_arguments(p, io=True)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -611,10 +613,10 @@ def main():
     """
     import os.path
 
-    from cp.utils.helpers import files
-    from cp.audio.wav import Wav
-    from cp.audio.spectrogram import Spectrogram
-    from cp.audio.filterbank import LogarithmicFilter
+    from ..utils.helpers import files
+    from ..audio.wav import Wav
+    from ..audio.spectrogram import Spectrogram
+    from ..audio.filterbank import LogarithmicFilter
 
     # parse arguments
     args = parser()

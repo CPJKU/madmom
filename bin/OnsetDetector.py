@@ -9,10 +9,10 @@ Redistribution in any form is not permitted!
 import os
 import numpy as np
 
-from cp.audio.wav import Wav
-from cp.audio.spectrogram import LogFiltSpec
-from cp.features.onsets import Onset
-from cp.utils.rnnlib import create_nc_file, test_nc_files, NN_ONSET_FILES
+from madmom.audio.wav import Wav
+from madmom.audio.spectrogram import LogFiltSpec
+from madmom.features.onsets import Onset
+from madmom.utils.rnnlib import create_nc_file, test_nc_files, NN_ONSET_FILES
 
 FPS = 100
 BANDS_PER_OCTAVE = 6
@@ -25,7 +25,7 @@ RATIO = 0.25
 
 def parser():
     import argparse
-    import cp.utils.params
+    import madmom.utils.params
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
@@ -33,11 +33,11 @@ def parser():
     the given input (file) and writes them to the output (file).
     ''')
     # mirex options
-    cp.utils.params.add_mirex_io(p)
+    madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    cp.utils.params.add_nn_arguments(p, nn_files=NN_ONSET_FILES)
-    cp.utils.params.add_audio_arguments(p, norm=False)
-    cp.utils.params.add_onset_arguments(p, io=True, threshold=0.35, combine=0.03, smooth=0.07, pre_avg=0, post_avg=0, pre_max=1. / FPS, post_max=1. / FPS)
+    madmom.utils.params.add_nn_arguments(p, nn_files=NN_ONSET_FILES)
+    madmom.utils.params.add_audio_arguments(p, norm=False)
+    madmom.utils.params.add_onset_arguments(p, io=True, threshold=0.35, combine=0.03, smooth=0.07, pre_avg=0, post_avg=0, pre_max=1. / FPS, post_max=1. / FPS)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments

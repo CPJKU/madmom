@@ -16,7 +16,7 @@ Retrieval Conference (ISMIR), 2012
 
 import numpy as np
 
-from cp.evaluation.simple import Evaluation, SumEvaluation, MeanEvaluation
+from .simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection
@@ -38,7 +38,7 @@ def count_errors(detections, targets, window):
           this class, since it is ~20 times as big as the onset class.
 
     """
-    from cp.evaluation.helpers import calc_absolute_errors
+    from .helpers import calc_absolute_errors
     # no detections
     if detections.size == 0:
         # all targets are FNs
@@ -106,7 +106,7 @@ def parser():
 
 
 def main():
-    from cp.utils.helpers import files, load_events, combine_events
+    from ..utils.helpers import files, load_events, combine_events
 
     # parse the arguments
     args = parser()
