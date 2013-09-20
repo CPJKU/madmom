@@ -10,7 +10,7 @@ This file contains all MFCC related functionality.
 # TODO: move this to cp.audio.spectrogram? It's closely related
 
 import scipy.fftpack as fft
-from cp.audio.spectrogram import Spectrogram
+from .spectrogram import Spectrogram
 
 # from https://en.wikipedia.org/wiki/Mel-frequency_cepstrum:
 #
@@ -46,25 +46,25 @@ class MFCC(Spectrogram):
         :param norm_filter: normalize the area of the filter to 1 [default=True]
 
         """
-        import cp.audio.filterbank as fb
-        import cp.audio.spectrogram as s
+        from .filterbank import MelFilter, MEL_BANDS, FMIN, FMAX, NORM_FILTER
+        from .spectrogram import MUL, ADD
 
         # fetch the arguments special to the filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
-        mel_bands = kwargs.pop('mel_bands', fb.MEL_BANDS)
-        fmin = kwargs.pop('fmin', fb.FMIN)
-        fmax = kwargs.pop('fmax', fb.FMAX)
-        norm_filter = kwargs.pop('norm_filter', fb.NORM_FILTER)
+        mel_bands = kwargs.pop('mel_bands', MEL_BANDS)
+        fmin = kwargs.pop('fmin', FMIN)
+        fmax = kwargs.pop('fmax', FMAX)
+        norm_filter = kwargs.pop('norm_filter', NORM_FILTER)
 
         # fetch the arguments special to the logarithmic magnitude (or set defaults)
-        mul = kwargs.pop('mul', s.MUL)
-        add = kwargs.pop('add', s.ADD)
+        mul = kwargs.pop('mul', MUL)
+        add = kwargs.pop('add', ADD)
 
         # create Spectrogram object
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = fb.MelFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = MelFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
 
         # set the parameters, so they get used when the magnitude spectrogram gets computed
         self.filterbank = filterbank

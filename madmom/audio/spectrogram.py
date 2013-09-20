@@ -28,7 +28,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     the current position.
 
     """
-    from cp.audio.audio import signal_frame
+    from .audio import signal_frame
 
     # if the signal is not scaled, scale the window function accordingly
     try:
@@ -82,7 +82,7 @@ def strided_stft(signal, window, hop_size, phase=True):
           integer hop_sizes are used.
 
     """
-    from cp.audio.audio import strided_frames
+    from .audio import strided_frames
 
     # init variables
     ffts = window.size >> 1
@@ -156,7 +156,7 @@ class Spectrogram(object):
               calculation considerably (phase: x2; lgd: x3)!
 
         """
-        from cp.audio.audio import FramedAudio
+        from .audio import FramedAudio
         # audio signal stuff
         if issubclass(audio.__class__, FramedAudio):
             # already the right format
@@ -167,7 +167,7 @@ class Spectrogram(object):
         else:
             # assume a file name, try to instantiate a Wav object
             # TODO: make an intelligent class which can handle a lot of different file types automatically
-            from cp.audio.wav import Wav
+            from .wav import Wav
             self.audio = Wav(audio)
 
         # window stuff
@@ -587,18 +587,18 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        import cp.audio.filterbank as fb
+        from .filterbank import LogarithmicFilter, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTER
         # fetch the arguments special to the filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
-        bands_per_octave = kwargs.pop('bands_per_octave', fb.BANDS_PER_OCTAVE)
-        fmin = kwargs.pop('fmin', fb.FMIN)
-        fmax = kwargs.pop('fmax', fb.FMAX)
-        norm_filter = kwargs.pop('norm_filter', fb.NORM_FILTER)
+        bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
+        fmin = kwargs.pop('fmin', FMIN)
+        fmax = kwargs.pop('fmax', FMAX)
+        norm_filter = kwargs.pop('norm_filter', NORM_FILTER)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = fb.LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
 

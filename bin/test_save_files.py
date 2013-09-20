@@ -9,8 +9,8 @@ Script for testing RNNLIB .save files.
 
 import os
 import argparse
-from cp.utils.helpers import files, combine_activations
-from cp.utils.rnnlib import RnnConfig
+from madmom.utils.helpers import files, combine_activations
+from madmom.utils.rnnlib import RnnConfig
 
 
 def parser():

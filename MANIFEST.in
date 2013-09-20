@@ -1,18 +1,18 @@
 # always include those files
 include README
 include LICENSE
-recursive-include cp *
+recursive-include madmom *
 recursive-include bin *
 global-exclude *.pyc
 global-exclude .DS_Store
-exclude cp/audio/mfcc.py
-exclude cp/audio/ffmpeg.py
-exclude cp/evaluation/scorefollowing.py
-exclude cp/evaluation/notes.py
-exclude cp/evaluation/multidim.py
-exclude cp/evaluation/beats_goto.py
-exclude cp/utils/hdf5.py
-exclude cp/utils/overparams.py
-exclude cp/utils/stats.py
-prune cp/test
-prune cp/fun
+exclude madmom/audio/mfcc.py
+exclude madmom/audio/ffmpeg.py
+exclude madmom/evaluation/scorefollowing.py
+exclude madmom/evaluation/notes.py
+exclude madmom/evaluation/multidim.py
+exclude madmom/evaluation/beats_goto.py
+exclude madmom/utils/hdf5.py
+exclude madmom/utils/overparams.py
+exclude madmom/utils/stats.py
+prune madmom/test
+prune madmom/fun

@@ -8,12 +8,12 @@ Script for creating .nc files for use with RNNLIB.
 """
 
 import numpy as np
-from cp.utils.rnnlib import create_nc_file
+from madmom.utils.rnnlib import create_nc_file
 
 
 def parser():
     import argparse
-    import cp.utils.params
+    import madmom.utils.params
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -28,10 +28,10 @@ def parser():
     annotations = ['.onsets', '.beats']
     p.add_argument('-a', dest='annotations', default=annotations, help='annotations to use [default=%s]' % annotations)
     # add onset detection related options to the existing parser
-    cp.utils.params.add_audio_arguments(p, fps=100, norm=False)
-    cp.utils.params.add_spec_arguments(p)
-    cp.utils.params.add_filter_arguments(p, bands=12)
-    cp.utils.params.add_log_arguments(p, log=True, mul=5, add=1)
+    madmom.utils.params.add_audio_arguments(p, fps=100, norm=False)
+    madmom.utils.params.add_spec_arguments(p)
+    madmom.utils.params.add_filter_arguments(p, bands=12)
+    madmom.utils.params.add_log_arguments(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -46,9 +46,9 @@ def main():
     args = parser()
 
     import os
-    from cp.audio.wav import Wav
-    from cp.audio.spectrogram import LogFiltSpec
-    from cp.utils.helpers import files, match_file, load_events, quantize_events
+    from madmom.audio.wav import Wav
+    from madmom.audio.spectrogram import LogFiltSpec
+    from madmom.utils.helpers import files, match_file, load_events, quantize_events
 
     # treat all files as annotation files and try to create .nc files
     for f in args.files:

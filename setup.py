@@ -9,12 +9,12 @@ This file contains the setup for setuptools to distribute as a package.
 
 from distutils.core import setup
 
-setup(name='cpjku',
+setup(name='madmom',
       version='0.01',
-      description='Python package used at cp.jku.at',
+      description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
-      author='Sebastian Böck, Department of Computational Perception, Johannes Kepler University, Linz, Austria',
-      author_email='sebastian.boeck@jku.at',
-      url='http://www.cp.jku.at',
+      author='Department of Computational Perception, Johannes Kepler University, Linz, Austria and Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria',
+      author_email='python-sigk@jku.at',
+      url='https://jobim.ofai.at/gitlab/madmom/madmom',
       license='BSD, with some exclusions'
       )

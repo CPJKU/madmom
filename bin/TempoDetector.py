@@ -9,10 +9,10 @@ Redistribution in any form is not permitted!
 import os
 import numpy as np
 
-from cp.audio.wav import Wav
-from cp.audio.spectrogram import LogFiltSpec
-from cp.features.beats import Beat
-from cp.utils.rnnlib import create_nc_file, test_nc_files, NN_BEAT_FILES
+from madmom.audio.wav import Wav
+from madmom.audio.spectrogram import LogFiltSpec
+from madmom.features.beats import Beat
+from madmom.utils.rnnlib import create_nc_file, test_nc_files, NN_BEAT_FILES
 
 FPS = 100
 BANDS_PER_OCTAVE = 3
@@ -26,7 +26,7 @@ NORM_FILTER = True
 
 def parser():
     import argparse
-    import cp.utils.params
+    import madmom.utils.params
 
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
@@ -34,11 +34,11 @@ def parser():
     in the given input (file) and writes them to the output (file).
     ''')
     # mirex options
-    cp.utils.params.add_mirex_io(p)
+    madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    cp.utils.params.add_nn_arguments(p, nn_files=NN_BEAT_FILES)
-    cp.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
-    cp.utils.params.add_beat_arguments(p, io=True)
+    madmom.utils.params.add_nn_arguments(p, nn_files=NN_BEAT_FILES)
+    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
+    madmom.utils.params.add_beat_arguments(p, io=True)
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2013')
     # parse arguments
