@@ -56,6 +56,10 @@ def count_errors(detections, targets, window):
     return tp, fp, np.empty(0), fn
 
 
+# default values
+WINDOW = 0.025
+
+
 # for onset evaluation with Presicion, Recall, F-measure use the Evaluation
 # class and just define the evaluation function
 class OnsetEvaluation(Evaluation):
@@ -63,7 +67,7 @@ class OnsetEvaluation(Evaluation):
     Simple class for measuring Precision, Recall and F-measure.
 
     """
-    def __init__(self, detections, targets, window=0.025):
+    def __init__(self, detections, targets, window=WINDOW):
         super(OnsetEvaluation, self).__init__(detections, targets, count_errors, window=window)
 
 

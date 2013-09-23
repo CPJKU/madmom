@@ -12,17 +12,18 @@ import numpy as np
 from .simple import Evaluation, SumEvaluation, MeanEvaluation
 
 
-def load_notes(filename):
+def load_notes(filename, delimiter=None):
     """
     Load a list of notes from file.
 
-    :param filename: name of the file
-    :return: list of events
+    :param filename:  name of the file
+    :param delimiter: string used to separate values [default=any whitespace]
+    :return:          array with events
 
     Expected file format: onset_time, MIDI_note, [length, [velocity]]
 
     """
-    return np.loadtxt(filename)
+    return np.loadtxt(filename, delimiter=delimiter)
 
 
 # evaluation function for note detection
@@ -59,14 +60,19 @@ def count_errors(detections, targets, window):
     return tp, fp, np.empty(0), fn
 
 
-# for onset evaluation with Presicion, Recall, F-measure use the Evaluation
+# default evaluation values
+WINDOW = 0.025
+
+
+# for note evaluation with Presicion, Recall, F-measure use the Evaluation
 # class and just define the evaluation function
+# TODO: extend to also report the measures without octave errors
 class NoteEvaluation(Evaluation):
     """
-    Simple class for measuring Precision, Recall and F-measure.
+    Simple class for measuring Precision, Recall and F-measure of notes.
 
     """
-    def __init__(self, detections, targets, window=0.025):
+    def __init__(self, detections, targets, window=WINDOW):
         super(NoteEvaluation, self).__init__(detections, targets, count_errors, window=window)
 
 

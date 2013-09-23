@@ -24,11 +24,102 @@ was chosen, because it is simpler and produces more accurate results.
 
 import numpy as np
 
-from .helpers import find_closest_matches, calc_absolute_errors, calc_relative_errors, calc_intervals
+from .helpers import find_closest_matches, calc_errors, calc_absolute_errors
 from .onsets import OnsetEvaluation
 
 
-# evaluation function for beat detection
+# helper functions for beat evaluation
+def calc_intervals(events, fwd=False):
+    """
+    Calculate the intervals of all events to the previous / next event.
+
+    :param events: sequence of events to be matched [seconds]
+    :param fwd:    calculate the intervals to the next event [default=False]
+    :returns:      the intervals [seconds]
+
+    Note: the sequences must be ordered!
+
+    """
+    interval = np.zeros_like(events)
+    if fwd:
+        interval[:-1] = np.diff(events)
+        # the interval of the first event is the same as the one of the second event
+        interval[-1] = interval[-2]
+    else:
+        interval[1:] = np.diff(events)
+        # the interval of the first event is the same as the one of the second event
+        interval[0] = interval[1]
+    # return
+    return interval
+
+
+def find_closest_intervals(detections, targets, matches=None):
+    """
+    Find the closest target interval surrounding the detections.
+
+    :param detections: sequence of events to be matched [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of closest target intervals [seconds]
+
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
+
+    """
+    # init array
+    closest_interval = np.ones_like(detections)
+    # init array for intervals
+    # Note: if we combine the formward and backward intervals this is faster,
+    # but we need expand the size accordingly
+    intervals = np.zeros(len(targets) + 1)
+    # intervals to previous target
+    intervals[1:-1] = np.diff(targets)
+    # the interval from the first target to the left is the same as to the right
+    intervals[0] = intervals[1]
+    # the interval from the last target to the right is the same as to the left
+    intervals[-1] = intervals[-2]
+    # Note: intervals to the next target are always those at the next index
+    # determine the closest targets
+    if matches is None:
+        matches = find_closest_matches(detections, targets)
+    # calculate the absolute errors
+    errors = calc_errors(detections, targets, matches)
+    # if the errors are positive, the detection is after the target
+    # thus, the needed interval is from the closest target towards the next one
+    closest_interval[errors > 0] = intervals[matches[errors > 0] + 1]
+    # if before (or same position) use the interval to previous target accordingly
+    closest_interval[errors <= 0] = intervals[matches[errors <= 0]]
+    # return the closest interval
+    return closest_interval
+
+
+def calc_relative_errors(detections, targets, matches=None):
+    """
+    Relative errors of the detections to the closest targets.
+    The absolute error is weighted by the interval of two targets surrounding
+    each detection.
+
+    :param detections: sequence of events to be matched [seconds]
+    :param targets:    sequence of possible matches [seconds]
+    :param matches:    indices of the closest matches [default=None]
+    :returns:          a list of relative errors to closest matches [seconds]
+
+    Note: the sequences must be ordered! To speed up the calculation, a list of
+          pre-computed indices of the closest matches can be used.
+
+    """
+    # determine the closest targets
+    if matches is None:
+        matches = find_closest_matches(detections, targets)
+    # calculate the absolute errors
+    errors = calc_errors(detections, targets, matches)
+    # get the closest intervals
+    intervals = find_closest_intervals(detections, targets, matches)
+    # return the relative errors
+    return errors / intervals
+
+
+# evaluation functions for beat detection
 def pscore(detections, targets, tolerance):
     """
     Calculate the P-Score accuracy.
@@ -335,6 +426,15 @@ def calc_information_gain(error_histogram):
     return np.log2(histogram.size) - entropy
 
 
+# default evaluation values
+WINDOW = 0.07
+TOLERANCE = 0.2
+SIGMA = 0.04
+TEMPO_TOLERANCE = 0.175
+PHASE_TOLERANCE = 0.175
+BINS = 40
+
+
 # basic beat evaluation
 class BeatEvaluation(OnsetEvaluation):
     # this class inherits from OnsetEvaluation the Precision, Recall, and
@@ -343,7 +443,9 @@ class BeatEvaluation(OnsetEvaluation):
     Beat evaluation class.
 
     """
-    def __init__(self, detections, targets, window=0.07, tolerance=0.2, sigma=0.04, tempo_tolerance=0.175, phase_tolerance=0.175, bins=40):
+    def __init__(self, detections, targets, window=WINDOW, tolerance=TOLERANCE,
+                 sigma=SIGMA, tempo_tolerance=TEMPO_TOLERANCE,
+                 phase_tolerance=PHASE_TOLERANCE, bins=BINS):
         """
         Evaluate the given detection and target sequences.
 
@@ -590,6 +692,9 @@ class MeanBeatEvaluation(BeatEvaluation):
         return self.__error_histogram
 
 
+SKIP = 5.
+
+
 def parser():
     import argparse
 
@@ -605,13 +710,13 @@ def parser():
     p.add_argument('-t', dest='targets', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
     # TODO: define an extra parser, which can be used for BeatEvaluation object instanciation?
-    p.add_argument('--window', action='store', default=0.07, type=float, help='evaluation window for F-measure [seconds, default=0.07]')
-    p.add_argument('--tolerance', action='store', default=0.2, type=float, help='evaluation tolerance for P-score [default=0.2]')
-    p.add_argument('--sigma', action='store', default=0.04, type=float, help='sigma for Cemgil accuracy [default=0.04]')
-    p.add_argument('--tempo_tolerance', action='store', default=0.175, type=float, help='tempo tolerance window for continuity accuracies [default=0.175]')
-    p.add_argument('--phase_tolerance', action='store', default=0.175, type=float, help='phase tolerance window for continuity accuracies [default=0.175]')
-    p.add_argument('--bins', action='store', default=40, type=int, help='number of histogram bins for information gain [default=0.40]')
-    p.add_argument('--skip', action='store', default=5., type=float, help='skip first N seconds for evaluation [default=5]')
+    p.add_argument('--window', action='store', default=WINDOW, type=float, help='evaluation window for F-measure [seconds, default=%f]' % WINDOW)
+    p.add_argument('--tolerance', action='store', default=TOLERANCE, type=float, help='evaluation tolerance for P-score [default=%f]' % TOLERANCE)
+    p.add_argument('--sigma', action='store', default=SIGMA, type=float, help='sigma for Cemgil accuracy [default=%f]' % SIGMA)
+    p.add_argument('--tempo_tolerance', action='store', default=TEMPO_TOLERANCE, type=float, help='tempo tolerance window for continuity accuracies [default=%f]' % TEMPO_TOLERANCE)
+    p.add_argument('--phase_tolerance', action='store', default=PHASE_TOLERANCE, type=float, help='phase tolerance window for continuity accuracies [default=%f]' % PHASE_TOLERANCE)
+    p.add_argument('--bins', action='store', default=BINS, type=int, help='number of histogram bins for information gain [default=%i]' % BINS)
+    p.add_argument('--skip', action='store', default=SKIP, type=float, help='skip first N seconds for evaluation [default=%f]' % SKIP)
     # output options
     p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
     # verbose
