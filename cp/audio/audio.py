@@ -72,13 +72,14 @@ def signal_frame(signal, index, frame_size, hop_size, online):
     samples = np.shape(signal)[0]
     # seek to the correct position in the audio signal
     seek = int(index * hop_size)
+    # out of region
     if seek < 0:
-        # seek before the start of signal
+        # seek is before the first signal sample
         raise IndexError("seek before start of signal")
-    if seek > samples:
-        # seek after end of signal
+    if seek > samples + hop_size:
+        # seek is after the last signal sample + hop size
         raise IndexError("seek after end of signal")
-    # depending on online/offline mode position the moving window
+    # depending on online / offline mode position the moving window
     if online:
         # the current position is the right edge of the frame
         # step back a complete frame size
@@ -94,6 +95,9 @@ def signal_frame(signal, index, frame_size, hop_size, online):
         # start before the actual signal start, pad zeros accordingly
         zeros = np.zeros(-start, dtype=signal.dtype)
         return np.append(zeros, signal[0:stop])
+    elif start > samples:
+        # start behind the actual signal end, return just zeros
+        return np.zeros(frame_size, dtype=signal.dtype)
     elif stop > samples:
         # end behind the actual signal end, append zeros accordingly
         zeros = np.zeros(stop - samples, dtype=signal.dtype)
@@ -346,10 +350,7 @@ class FramedAudio(Audio):
     @property
     def num_frames(self):
         """Number of frames."""
-        # FIXME: should 1 be added? the index 0 is the first sample, thus if the
-        # length would be exactly 1 hop_size, the length would only be 1 frame,
-        # although it should be 2?
-        return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
+        return int(np.floor((np.shape(self.signal)[0]) / self.hop_size) + 1)
 
     @property
     def fps(self):
