@@ -138,7 +138,7 @@ class MeanTempoEvaluation(TempoEvaluation):
     """
     def __init__(self, other=None):
         """
-        MeanTempoEvaluation object can be either instanciated as an empty object
+        MeanTempoEvaluation object can be either instantiated as an empty object
         or by passing in a TempoEvaluation object with the scores taken from that
         object.
 
@@ -189,8 +189,8 @@ def parser():
     p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
     p.add_argument('targets', nargs='*', help='file (or folder) with targets (files being filtered according to the -t argument)')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default=None, help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default=None, help='extension of the target files')
+    p.add_argument('-d', dest='det_ext', action='store', default='.bpm.txt', help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.bpm', help='extension of the target files')
     p.add_argument('--tolerance', dest='tolerance', action='store', default=TOLERANCE, help='tolerance for tempo detection')
     # parameters for evaluation
     p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
@@ -210,8 +210,10 @@ def main():
 
     # parse arguments
     args = parser()
-    # get detection and target files
+
+    # detection files
     det_files = files(args.detections, args.det_ext)
+    # target files
     if not args.targets:
         args.targets = args.detections
     tar_files = files(args.targets, args.tar_ext)
@@ -220,7 +222,7 @@ def main():
     mean_counter = MeanTempoEvaluation()
     # evaluate all files
     for det_file in det_files:
-        # get the detections file
+        # load the detections
         detections = load_events(det_file)
         # do a mean evaluation with all matched target files
         me = MeanTempoEvaluation()

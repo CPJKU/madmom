@@ -583,7 +583,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     """
     def __init__(self, other=None):
         """
-        MeanBeatEvaluation object can be either instanciated as an empty object
+        MeanBeatEvaluation object can be either instantiated as an empty object
         or by passing in a BeatEvaluation object with the scores taken from that
         object.
 
