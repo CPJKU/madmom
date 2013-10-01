@@ -90,20 +90,20 @@ class SimpleEvaluation(object):
     def precision(self):
         """Precision."""
         # correct / retrieved
+        denominator = self.num_tp + self.num_fp
+        # precision should be 100% if there are neither detections nor targets
+        if denominator == 0:
+            return 1.
         if self.num_tp == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
-        return self.num_tp / np.float64(self.num_tp + self.num_fp)
+            return 0.
+        return self.num_tp / np.float64(denominator)
 
     @property
     def recall(self):
         """Recall."""
         # correct / relevant
         if self.num_tp == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
+            return 0.
         return self.num_tp / np.float64(self.num_tp + self.num_fn)
 
     @property
@@ -111,9 +111,7 @@ class SimpleEvaluation(object):
         """F-measure."""
         numerator = 2 * self.precision * self.recall
         if numerator == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
+            return 0.
         return numerator / np.float64(self.precision + self.recall)
 
     @property
@@ -122,9 +120,7 @@ class SimpleEvaluation(object):
         # acc: (TP + TN) / (TP + FP + TN + FN)
         numerator = self.num_tp + self.num_tn
         if numerator == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
+            return 0.
         return numerator / np.float64(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
 
     @property
