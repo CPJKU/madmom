@@ -87,47 +87,51 @@ def match_file(filename, match_list, ext=None, match_ext=None):
 
 def load_events(filename):
     """
-    Load a list of events from file.
+    Load a list of events from a text file, one floating point number per line.
 
     :param filename: name of the file or file handle
-    :return:         list of events
+    :return:         numpy array of events
 
     """
-    if not isinstance(filename, file):
-        # open the file if necessary
-        filename = open(filename, 'r')
-    with filename:
-        # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
-        events = []
+    own_fid = False
+    # open file if needed
+    if isinstance(filename, basestring):
+        fid = open(filename, 'rb')
+        own_fid = True
+    else:
+        fid = filename
+    try:
         # read in the events, one per line
-        for line in filename:
-            # 1st column is the events time, ignore the rest if present
-            events.append(float(line.split()[0]))
-    # return
-    return np.asarray(events)
+        # 1st column is the event's time, the rest is ignored
+        return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
+                dtype=np.double)
+    finally:
+        # close file if needed
+        if own_fid:
+            fid.close()
 
 
 def write_events(events, filename):
     """
-    Write the detected onsets to the given file.
+    Write a list of events to a text file, one floating point number per line.
 
     :param events:   list of events [seconds]
     :param filename: output file name or file handle
 
     """
-    was_closed = False
-    if not isinstance(filename, file):
-        # open the file if necessary
-        filename = open(filename, 'w')
-        was_closed = True
-    # FIXME: if we use "with filename:" here, the file handle gets closed
-    # after write and the called object is not accessible afterwards. Is this
-    # expected? Is this the right way to circumvent this?
-    for e in events:
-        filename.write(str(e) + '\n')
-    # close the file again?
-    if was_closed:
-        filename.close()
+    own_fid = False
+    # open file if needed
+    if isinstance(filename, basestring):
+        fid = open(filename, 'wb')
+        own_fid = True
+    else:
+        fid = filename
+    try:
+        fid.writelines('%g\n' % e for e in events)
+    finally:
+        # close file if needed
+        if own_fid:
+            fid.close()
 
 
 def combine_events(events, delta):
