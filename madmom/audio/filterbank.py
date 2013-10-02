@@ -17,6 +17,7 @@ MEL_BANDS = 40
 BARK_DOUBLE = False
 BANDS_PER_OCTAVE = 12
 NORM_FILTER = True
+OMIT_DUPLICATES = True
 A4 = 440
 
 
@@ -346,7 +347,7 @@ def triang_filter(start, center, stop, norm):
     return triang_filter
 
 
-def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
+def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
     """
     Creates a filterbank with overlapping triangular filters.
 
@@ -354,6 +355,8 @@ def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     :param fft_bins:    number of fft bins
     :param sample_rate: sample rate of the audio signal [Hz]
     :param norm:        normalize the area of the filters to 1 [default=True]
+    :param omit_duplicates: omit duplicate filters resulting from insufficient
+        resolution of low frequencies [default=True]
     :returns:           filterbank
 
     Note: each filter is characterized by 3 frequencies, the start, center and
@@ -369,10 +372,11 @@ def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     # filter out all frequencies outside the valid range
     frequencies = frequencies[frequencies < fft_bins]
     # FIXME: skip the DC bin 0?
-    # only keep unique bins
+    # only keep unique bins if requested
     # Note: this is important to do so, otherwise the lower frequency bins are
     # given too much weight if simply summed up (as in the spectral flux)
-    frequencies = np.unique(frequencies)
+    if omit_duplicates:
+        frequencies = np.unique(frequencies)
     # number of bands
     bands = len(frequencies) - 2
     if bands < 3:
@@ -383,6 +387,10 @@ def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     for band in range(bands):
         # edge & center frequencies
         start, mid, stop = frequencies[band:band + 3]
+        # consistently handle too-small filters
+        if not omit_duplicates and (stop - start < 2):
+            mid = start
+            stop = start + 1
         # create a triangular filter
         filterbank[start:stop, band] = triang_filter(start, mid, stop, norm)
     # return the filterbank
@@ -488,7 +496,7 @@ class MelFilter(Filter):
     Mel Filter Class.
 
     """
-    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
         Creates a new Mel Filter object instance.
 
@@ -498,13 +506,15 @@ class MelFilter(Filter):
         :param fmax:        the maximum frequency [Hz, default=16000]
         :param bands:       number of filter bands [default=40]
         :param norm:        normalize the area of the filter to 1 [default=True]
+        :param omit_duplicates: omit duplicate filters resulting from
+            insufficient resolution of low frequencies [default=True]
 
         """
         # get a list of frequencies
         # request 2 more bands, becuase these are the edge frequencies
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
         obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
@@ -528,7 +538,7 @@ class BarkFilter(Filter):
     Bark Filter CLass.
 
     """
-    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
         Creates a new Bark Filter object instance.
 
@@ -538,6 +548,8 @@ class BarkFilter(Filter):
         :param fmax:        the maximum frequency [Hz, default=15500]
         :param double:      double the number of frequency bands [default=False]
         :param norm:        normalize the area of the filter to 1 [default=True]
+        :param omit_duplicates: omit duplicate filters resulting from
+            insufficient resolution of low frequencies [default=True]
 
         """
         # get a list of frequencies
@@ -546,7 +558,7 @@ class BarkFilter(Filter):
         else:
             frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
         obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
@@ -573,7 +585,7 @@ class LogarithmicFilter(Filter):
     """
     def __new__(cls, fft_bins, sample_rate,
                 bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTER, a4=A4):
+                norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
         Creates a new Logarithmic Filter object instance.
 
@@ -583,13 +595,15 @@ class LogarithmicFilter(Filter):
         :param fmin:             the minimum frequency [Hz, default=20]
         :param fmax:             the maximum frequency [Hz, default=17000]
         :param norm:             normalize the area of the filter to 1 [default=True]
+        :param omit_duplicates: omit duplicate filters resulting from
+            insufficient resolution of low frequencies [default=True]
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
         # get a list of frequencies
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
-        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm)
+        filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
         obj = Filter.__new__(cls, filterbank, sample_rate)
         # set additional attributes
@@ -629,7 +643,7 @@ class SemitoneFilter(LogarithmicFilter):
 
     """
     def __new__(cls, fft_bins, sample_rate,
-                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
+                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
         Creates a new Semitone Filter object instance.
 
@@ -638,11 +652,13 @@ class SemitoneFilter(LogarithmicFilter):
         :param fmin:        the minimum frequency [Hz, default=27]
         :param fmax:        the maximum frequency [Hz, default=17000]
         :param norm:        normalize the area of the filter to 1 [default=True]
+        :param omit_duplicates: omit duplicate filters resulting from
+            insufficient resolution of low frequencies [default=True]
         :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """
         # return a LogarithmicFilter with 12 bands per octave
-        return LogarithmicFilter.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, a4)
+        return LogarithmicFilter.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, omit_duplicates, a4)
 
 
 class SimpleChromaFilter(Filter):
