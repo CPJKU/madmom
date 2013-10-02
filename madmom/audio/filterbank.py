@@ -17,6 +17,7 @@ MEL_BANDS = 40
 BARK_DOUBLE = False
 BANDS_PER_OCTAVE = 12
 NORM_FILTER = True
+OMIT_DUPLICATES = True
 A4 = 440
 
 
@@ -346,7 +347,7 @@ def triang_filter(start, center, stop, norm):
     return triang_filter
 
 
-def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER, omit_duplicates=True):
+def triang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
     """
     Creates a filterbank with overlapping triangular filters.
 
@@ -495,7 +496,7 @@ class MelFilter(Filter):
     Mel Filter Class.
 
     """
-    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER, omit_duplicates=True):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
         Creates a new Mel Filter object instance.
 
@@ -537,7 +538,7 @@ class BarkFilter(Filter):
     Bark Filter CLass.
 
     """
-    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER, omit_duplicates=True):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
         Creates a new Bark Filter object instance.
 
@@ -584,7 +585,7 @@ class LogarithmicFilter(Filter):
     """
     def __new__(cls, fft_bins, sample_rate,
                 bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTER, omit_duplicates=True, a4=A4):
+                norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
         Creates a new Logarithmic Filter object instance.
 
@@ -642,7 +643,7 @@ class SemitoneFilter(LogarithmicFilter):
 
     """
     def __new__(cls, fft_bins, sample_rate,
-                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, omit_duplicates=True, a4=A4):
+                fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
         Creates a new Semitone Filter object instance.
 
