@@ -37,11 +37,13 @@ def files(path, ext=None):
         else:
             file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
-        # just use this file
+        # no matchin needed
         if ext is None:
             file_list = [path]
+        # file must have the correct extension
         elif path.endswith(ext):
             file_list = [path]
+        # file does not match any condition
         else:
             file_list = []
     else:
@@ -63,24 +65,30 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     """
     Match a file against a list of other files.
 
-    :param filename:     file to be matched
-    :param match_list:   match to this list of files
-    :returns:            list of matched files
+    :param filename:   file to be matched
+    :param match_list: match to this list of files (or folders)
+    :param ext:        strip this extension from file for name matching
+    :param match_ext:  strip this extension from file for name matching
+    :returns:          list of matched files
 
     """
-    # get the base name without the path
+    # get the base name without the path (this part must match later)
     basename = os.path.basename(stripext(filename, ext))
     # init return list
     matches = []
-    # look for files with the same base name in the files_list
-    if match_ext is not None:
-        pattern = "*%s*%s" % (basename, match_ext)
-    else:
-        pattern = "*%s" % (basename)
-    for match in fnmatch.filter(match_list, pattern):
-        # base names must match exactly
-        if basename == os.path.basename(stripext(match, match_ext)):
-            matches.append(match)
+    # look for files with the same base name in the match_list
+    for match in match_list:
+        # TODO: remove duplicate code with files()
+        # if we have a path, take all files in there
+        if os.path.isdir(match):
+            if ext is None:
+                matches.extend(glob.glob("%s/%s*" % (match, basename)))
+            else:
+                matches.extend(glob.glob("%s/%s*.%s" % (match, basename, match_ext)))
+        elif os.path.isfile(match):
+            # just use this file if the name matches
+            if os.path.basename(stripext(match, match_ext)) == basename:
+                matches.append(match)
     # return the matches
     return matches
 

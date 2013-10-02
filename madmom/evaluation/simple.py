@@ -286,56 +286,78 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
+        if self.__num_tp.size == 0:
+            return 0
         return np.mean(self.__num_tp)
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
+        if self.__num_fp.size == 0:
+            return 0
         return np.mean(self.__num_fp)
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
+        if self.__num_tn.size == 0:
+            return 0
         return np.mean(self.__num_tn)
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
+        if self.__num_fn.size == 0:
+            return 0
         return np.mean(self.__num_fn)
 
     @property
     def precision(self):
         """Precision."""
+        if self.__precision.size == 0:
+            return 0
         return np.mean(self.__precision)
 
     @property
     def recall(self):
         """Recall."""
+        if self.__recall.size == 0:
+            return 0
         return np.mean(self.__recall)
 
     @property
     def fmeasure(self):
         """F-measure."""
+        if self.__fmeasure.size == 0:
+            return 0
         return np.mean(self.__fmeasure)
 
     @property
     def accuracy(self):
         """Accuracy."""
+        if self.__accuracy.size == 0:
+            return 0
         return np.mean(self.__accuracy)
 
     @property
     def errors(self):
         """Errors."""
+        if self.__errors.size == 0:
+            return 0
         return self.__errors
 
     @property
     def mean_error(self):
         """Mean of the errors."""
+        if self.__mean.size == 0:
+            return 0
         return np.mean(self.__mean)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
+        if self.__std.size == 0:
+            return 0
         return np.mean(self.__std)
 
 
