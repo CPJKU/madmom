@@ -65,7 +65,7 @@ def main():
         # create a Wav object
         w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
         # create a Spectrogram object
-        s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add)
+        s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add, norm_filter=args.norm_filter)
         # create an SpectralOnsetDetection object and perform detection function on the object
         act = SpectralOnsetDetection(s).superflux()
         # create an Onset object with the activations

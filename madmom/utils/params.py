@@ -94,8 +94,10 @@ def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
         group.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%i]' % fmin)
     if fmax is not None:
         group.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
-    if norm_filter is not None:
-        group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='equalize filters to have equal area [default=%s]' % norm_filter)
+    if norm_filter is False:
+        # switch to turn it on
+        group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='equalize filters to have equal area')
+    if norm_filter is True:
         group.add_argument('--no_norm_filter', dest='norm_filter', action='store_false', default=norm_filter, help='do not equalize filters to have equal area')
     # return the argument group so it can be modified if needed
     return group
