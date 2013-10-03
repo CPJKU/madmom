@@ -145,33 +145,6 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-# function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None):
-    """
-    Load the uadio data from the given file and return it as a numpy array.
-
-    :param filename:    name of the file or file handle
-    :param sample_rate: sample rate of the signal [default=None]
-    :returns:           tuple (signal, sample_rate)
-
-    """
-    # determine the name of the file
-    if isinstance(filename, file):
-        # open file handle
-        filename = filename.name
-    # how to handle the file?
-    if filename.endswith(".wav"):
-        # wav file
-        from scipy.io import wavfile
-        sample_rate, signal = wavfile.read(filename)
-    # generic signal converter
-    else:
-        # FIXME: use sox instead to convert from different input signals
-        # use the given sample rate to resample the signal on the fly if needed
-        raise NotImplementedError('please integrate sox signal handling.')
-    return signal, sample_rate
-
-
 # default Signal values
 MONO = False
 NORM = False
@@ -188,7 +161,7 @@ class Signal(object):
         """
         Creates a new Signal object instance.
 
-        :param data:     audio signal (numpy array or file or file handle)
+        :param data:        signal data (numpy array or file or file handle)
         :param sample_rate: sample rate of the signal [default=None]
         :param mono:        downmix the signal to mono [default=False]
         :param norm:        normalize the signal [default=False]
@@ -202,6 +175,7 @@ class Signal(object):
             self.sample_rate = sample_rate
         else:
             # try the load_audio_file
+            from .io import load_audio_file
             self.data, self.sample_rate = load_audio_file(data, sample_rate)
 
         # convenience handling of mono down-mixing and normalization

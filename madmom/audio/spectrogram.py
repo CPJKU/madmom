@@ -28,7 +28,7 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     the current position.
 
     """
-    from .audio import signal_frame
+    from .signal import signal_frame
 
     # if the signal is not scaled, scale the window function accordingly
     try:
@@ -82,7 +82,7 @@ def strided_stft(signal, window, hop_size, phase=True):
           integer hop_sizes are used.
 
     """
-    from .audio import strided_frames
+    from .signal import strided_frames
 
     # init variables
     ffts = window.size >> 1
@@ -156,7 +156,7 @@ class Spectrogram(object):
               calculation considerably (phase: x2; lgd: x3)!
 
         """
-        from .audio import FramedSignal
+        from .signal import FramedSignal
         # audio signal stuff
         if isinstance(frames, FramedSignal):
             # already the right format

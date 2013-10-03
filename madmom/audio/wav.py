@@ -8,7 +8,7 @@ This file contains wav file handling functionality.
 """
 
 from scipy.io import wavfile
-from .audio import Signal
+from .signal import Signal
 
 
 class Wav(Signal):
