@@ -9,9 +9,6 @@ import tempfile
 import subprocess
 import os
 import sys
-import numpy as np
-
-from .audio import FramedAudio
 
 
 def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None, outfile=None, tmpdir=None, tmpsuffix=None):
@@ -142,37 +139,38 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_cha
     return call
 
 
-class FFmpegFile(FramedAudio):
-    """
-    FFmpegFile takes an audio file, decodes it to memory and provides it in
-    samples or frames.
-
-    """
-
-    def __init__(self, filename, sample_rate=44100, num_channels=1, frame_size=2048, hop_size=441.0, online=False):
-        """
-        Creates a new FFmpegFile object instance.
-
-        :param filename:     name of the audio file to decode
-        :param sample_rate:  sample_rate to re-sample the file to
-        :param num_channels: number of channels to reduce the file to
-        :param frame_size:   size of one frame [default=2048]
-        :param hop_size:     progress N samples between adjacent frames [default=441.0]
-        :param online:       use only past information [default=False]
-
-        """
-        # init variables
-        self.filename = filename        # the name of the file
-        # decode the file to memory
-        signal = decode_to_memory(filename, sample_rate=sample_rate, num_channels=num_channels)
-        signal = np.frombuffer(signal, dtype=np.float32)
-        if num_channels > 1:
-            raise NotImplementedError("Check which of the following two versions is correct")
-            signal = signal.reshape((num_channels, -1))
-            #signal = signal.reshape((-1, num_channels)).T
-        # instantiate a FramedAudio object
-        super(FFmpegFile, self).__init__(signal, sample_rate, frame_size, hop_size, online)
-
-    # TODO: make this nicer!
-    def __str__(self):
-        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)
+# FIXME: remove this class completely or make it fit into the new inheritance scheme
+#class FFmpegFile(FramedAudio):
+#    """
+#    FFmpegFile takes an audio file, decodes it to memory and provides it in
+#    samples or frames.
+#
+#    """
+#
+#    def __init__(self, filename, sample_rate=44100, num_channels=1, frame_size=2048, hop_size=441.0, online=False):
+#        """
+#        Creates a new FFmpegFile object instance.
+#
+#        :param filename:     name of the audio file to decode
+#        :param sample_rate:  sample_rate to re-sample the file to
+#        :param num_channels: number of channels to reduce the file to
+#        :param frame_size:   size of one frame [default=2048]
+#        :param hop_size:     progress N samples between adjacent frames [default=441.0]
+#        :param online:       use only past information [default=False]
+#
+#        """
+#        # init variables
+#        self.filename = filename        # the name of the file
+#        # decode the file to memory
+#        signal = decode_to_memory(filename, sample_rate=sample_rate, num_channels=num_channels)
+#        signal = np.frombuffer(signal, dtype=np.float32)
+#        if num_channels > 1:
+#            raise NotImplementedError("Check which of the following two versions is correct")
+#            signal = signal.reshape((num_channels, -1))
+#            #signal = signal.reshape((-1, num_channels)).T
+#        # instantiate a FramedAudio object
+#        super(FFmpegFile, self).__init__(signal, sample_rate, frame_size, hop_size, online)
+#
+#    # TODO: make this nicer!
+#    def __str__(self):
+#        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)

@@ -123,7 +123,7 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param frames:   a FramedAudio object; or file name or tuple (signal, sample rate)
+        :param frames:   a FramedSignal object; or file name or tuple (signal, sample rate)
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
@@ -156,14 +156,14 @@ class Spectrogram(object):
               calculation considerably (phase: x2; lgd: x3)!
 
         """
-        from .audio import FramedAudio
+        from .audio import FramedSignal
         # audio signal stuff
-        if issubclass(frames.__class__, FramedAudio):
+        if isinstance(frames, FramedSignal):
             # already the right format
             self.frames = frames
         else:
             # try to instantiate a Framed object
-            self.frames = FramedAudio(frames, *args, **kwargs)
+            self.frames = FramedSignal(frames, *args, **kwargs)
 
         # window stuff
         if hasattr(window, '__call__'):
@@ -263,7 +263,7 @@ class Spectrogram(object):
         # if the audio signal is not scaled, scale the window function accordingly
         # copy the window, and leave self.window untouched
         try:
-            return np.copy(self.window) / np.iinfo(self.frames.audio.signal.dtype).max
+            return np.copy(self.window) / np.iinfo(self.frames.signal.data.dtype).max
         except ValueError:
             return np.copy(self.window)
 
@@ -581,7 +581,7 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.frames.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
 
