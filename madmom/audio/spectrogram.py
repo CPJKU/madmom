@@ -116,14 +116,14 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, audio, window=np.hanning, filterbank=FILTERBANK,
+    def __init__(self, frames, window=np.hanning, filterbank=FILTERBANK,
                  log=LOG, mul=MUL, add=ADD, stft=STFT, phase=PHASE, lgd=LGD,
                  norm_window=NORM_WINDOW, fft_size=FFT_SIZE,
-                 ratio=RATIO, diff_frames=DIFF_FRAMES):
+                 ratio=RATIO, diff_frames=DIFF_FRAMES, *args, **kwargs):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param signal:   a FramedAudio object; or file name or tuple (signal, sample rate)
+        :param frames:   a FramedAudio object; or file name or tuple (signal, sample rate)
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
@@ -158,22 +158,17 @@ class Spectrogram(object):
         """
         from .audio import FramedAudio
         # audio signal stuff
-        if issubclass(audio.__class__, FramedAudio):
+        if issubclass(frames.__class__, FramedAudio):
             # already the right format
-            self.audio = audio
-        elif issubclass(audio.__class__, tuple):
-            # assume a tuple (signal, sample rate)
-            self.audio = FramedAudio(audio[0], audio[1])
+            self.frames = frames
         else:
-            # assume a file name, try to instantiate a Wav object
-            # TODO: make an intelligent class which can handle a lot of different file types automatically
-            from .wav import Wav
-            self.audio = Wav(audio)
+            # try to instantiate a Framed object
+            self.frames = FramedAudio(frames, *args, **kwargs)
 
         # window stuff
         if hasattr(window, '__call__'):
             # if only function is given, use the size to the audio frame size
-            self.window = window(self.audio.frame_size)
+            self.window = window(self.frames.frame_size)
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
             self.window = window
@@ -268,7 +263,7 @@ class Spectrogram(object):
         # if the audio signal is not scaled, scale the window function accordingly
         # copy the window, and leave self.window untouched
         try:
-            return np.copy(self.window) / np.iinfo(self.audio.signal.dtype).max
+            return np.copy(self.window) / np.iinfo(self.frames.audio.signal.dtype).max
         except ValueError:
             return np.copy(self.window)
 
@@ -297,7 +292,7 @@ class Spectrogram(object):
         # all frames
         else:
             index = slice(None)
-            frames = self.audio.num_frames
+            frames = self.frames.num_frames
 
         # filterbank
         if filterbank is not None:
@@ -348,7 +343,7 @@ class Spectrogram(object):
         # maybe similar to the solution proposed in:
         # http://stackoverflow.com/questions/2322642/index-and-slice-a-generator-in-python
         frame_index = 0
-        for frame in self.audio[index]:
+        for frame in self.frames[index]:
             # multiply the signal with the window function
             signal = np.multiply(frame, window)
             # only shift and perform complex DFT if needed
@@ -513,13 +508,13 @@ class Spectrogram(object):
     @property
     def hop_size(self):
         """Hop-size between two adjacent frames."""
-        return self.audio.hop_size
+        return self.frames.hop_size
 
     # TODO: remove this?
     @property
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
-        return self.audio.overlap_factor
+        return self.frames.overlap_factor
 
     @property
     def fft_bins(self):
@@ -534,12 +529,12 @@ class Spectrogram(object):
     @property
     def mapping(self):
         """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.audio.sample_rate / 2.0 / self.fft_bins
+        return self.frames.audio.sample_rate / 2.0 / self.fft_bins
 
     @property
     def fft_freqs(self):
         """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.audio.sample_rate
+        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.frames.audio.sample_rate
 
     def aw(self, floor=0.5, relaxation=10):
         """
@@ -598,7 +593,7 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.frames.audio.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
 

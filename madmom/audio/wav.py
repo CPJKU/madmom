@@ -8,13 +8,12 @@ This file contains wav file handling functionality.
 """
 
 from scipy.io import wavfile
-from .audio import FramedAudio
+from .audio import Audio
 
 
-class Wav(FramedAudio):
+class Wav(Audio):
     """
-    Wav Class is a simple wrapper around scipy.io.wavfile and makes the .wav
-    file iterable.
+    Wav Class is a subclass of Audio and simple wrapper around scipy.io.wavfile.
 
     """
 

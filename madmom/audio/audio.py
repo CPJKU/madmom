@@ -10,18 +10,108 @@ This file contains basic signal processing functionality.
 import numpy as np
 
 
+# signal functions
+def attenuate(signal, attenuation):
+    """"
+    Attenuate the audio signal.
+
+    :param signal:      signal
+    :param attenuation: attenuation level [dB]
+    :returns:           attenuated signal
+
+    """
+    # FIXME: attenuating the signal and keeping the original dtype makes the
+    # following signal processing steps well-behaved, since these rely on
+    # the dtype of the array to determine the correct value range.
+    # But this introduces rounding (truncating) errors in case of signals
+    # with int dtypes. But these errors should be negligible.
+    return np.asarray(signal / np.power(np.sqrt(10.), attenuation / 10.), dtype=signal.dtype)
+
+
+def normalize(signal):
+    """
+    Normalize the audio signal to the range -1..+1
+
+    :param signal: signal
+    :returns:      normalized signal
+
+    """
+    return signal.astype(float) / np.max(signal)
+
+
+def downmix(signal):
+    """
+    Down-mix the audio signal to mono.
+
+    :param signal: signal
+    :returns:      mono signal
+
+    """
+    if signal.ndim > 1:
+        # FIXME: taking the mean and keeping the original dtype makes the
+        # following signal processing steps well-behaved, since these rely on
+        # the dtype of the array to determine the correct value range.
+        # But this introduces rounding (truncating) errors in case of signals
+        # with int dtypes. But these errors should be negligible.
+        return np.mean(signal, axis=-1, dtype=signal.dtype)
+    else:
+        return signal
+
+
+def downsample(signal, factor=2):
+    """
+    Down-samples the audio signal by the given factor
+
+    :param signal: signal
+    :param factor: down-sampling factor [default=2]
+    :returns:      down-sampled signal
+
+    """
+    # signal must be mono
+    if signal.ndim > 1:
+        # FIXME: please implement stereo (or multi-channel) handling
+        raise NotImplementedError("please implement stereo functionality")
+    # when downsampling by an integer factor, a simple view is more efficient
+    if type(factor) == int:
+        return signal[::factor]
+    # otherwise do more or less propoer down-sampling
+    # TODO: maybe use sox to implement this
+    from scipy.signal import decimate
+    # naive down-sampling
+    return np.hstack(decimate(signal, factor))
+
+
+def trim(signal):
+    """
+    Trim leading and trailing zeros of the audio signal.
+
+    :param signal: signal
+    :returns:      trimmed signal
+
+    """
+    # signal must be mono
+    if signal.ndim > 1:
+        # FIXME: please implement stereo (or multi-channel) handling
+        raise NotImplementedError("please implement stereo functionality")
+    return np.trim_zeros(signal, 'fb')
+
+
 def root_mean_square(signal):
     """
-    Computes the root mean square of the signal. This can be used as
-    a measurement of power.
+    Computes the root mean square of the signal. This can be used as a
+    measurement of power.
 
     :param signal: the audio signal
     :returns:      root mean square of the signal
 
     """
     # make sure the signal is a numpy array
-    if not isinstance(signal, np.ndarray):
+    if not issubclass(signal.__class__, np.ndarray):
         raise TypeError("Invalid type for audio signal.")
+    # signal must be mono
+    if signal.ndim > 1:
+        # FIXME: please implement stereo (or multi-channel) handling
+        raise NotImplementedError("please implement stereo functionality")
     # Note: type conversion needed because of integer overflows
     if signal.dtype != np.float:
         signal = signal.astype(np.float)
@@ -34,7 +124,7 @@ def sound_pressure_level(signal, p_ref=1.0):
     Computes the sound pressure level of a signal.
 
     :param signal: the audio signal
-    :param signal: reference sound pressure level [default=1.0]
+    :param p_ref:  reference sound pressure level [default=1.0]
     :returns:      sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
@@ -47,11 +137,173 @@ def sound_pressure_level(signal, p_ref=1.0):
     rms = root_mean_square(signal)
     # compute the SPL
     if rms == 0:
-        # return the largest possible negative number
+        # return the smallest possible negative number
         return -np.finfo(float).max
     else:
         # normal SPL computation
         return 20.0 * np.log10(rms / p_ref)
+
+
+# function for automatically determining how to open audio files
+def magic_signal_handler(filename):
+    """
+    Magic Signal opener. Tries to guess how to open a file.
+
+    :param filename: name of the file
+    :returns:        tuple (signal, sample_rate)
+
+    Note: the signal must be a numpy array of type int or float.
+
+    """
+    # determine the name of the file
+    if isinstance(filename, file):
+        # open file handle
+        filename = filename.name
+    # how to handle the file?
+    if filename.endswith(".wav"):
+        # wav file
+        from scipy.io import wavfile
+        sample_rate, signal = wavfile.read(filename)
+    # generic signal converter
+    else:
+        # FIXME: use sox instead to convert from different input signals
+        raise NotImplementedError('please integrate sox signal handling.')
+    return signal, sample_rate
+
+
+# default Audio values
+MONO = False
+NORM = False
+ATT = 0
+
+
+class Audio(object):
+    """
+    Audio is a very simple class which just stores the signal and the sample
+    rate and provides some basic methods for signal processing.
+
+    """
+    def __init__(self, signal, sample_rate, mono=MONO, norm=NORM, att=ATT):
+        """
+        Creates a new Audio object instance.
+
+        :param signal:      the audio signal [numpy array]
+        :param sample_rate: sample rate of the signal
+        :param mono:        downmix the signal to mono [default=False]
+        :param norm:        normalize the signal [default=False]
+        :param att:         attenuate the signal by N dB [default=0]
+
+        """
+        if not isinstance(signal, np.ndarray):
+            # make sure the signal is a numpy array
+            raise TypeError("Invalid type for audio signal.")
+        self.signal = signal
+        self.sample_rate = sample_rate
+
+        # convenience handling of mono down-mixing and normalization
+        if mono:
+            # down-mix to mono
+            self.downmix()
+        if norm:
+            # normalize signal
+            self.normalize()
+        if att != 0:
+            # attenuate signal
+            self.attenuate(att)
+
+    @property
+    def num_samples(self):
+        """Number of samples."""
+        # TODO: cache this value and invalidate when signal changes
+        return np.shape(self.signal)[0]
+
+    @property
+    def num_channels(self):
+        """Number of channels."""
+        try:
+            # multi channel files
+            return np.shape(self.signal)[1]
+        except IndexError:
+            # catch mono files
+            return 1
+
+    @property
+    def length(self):
+        """Length of signal in seconds."""
+        return float(self.num_samples) / float(self.sample_rate)
+
+    # downmix to mono
+    def downmix(self):
+        """Down-mix the audio signal to mono."""
+        self.signal = downmix(self.signal)
+
+    # normalize the signal
+    def normalize(self):
+        """Normalize the audio signal."""
+        self.signal = normalize(self.signal)
+
+    # attenuate the signal
+    def attenuate(self, attenuation):
+        """
+        Attenuate the audio signal.
+
+        :param attenuation: attenuation level [dB]
+
+        """
+        self.signal = attenuate(self.signal, attenuation)
+
+    # truncate
+    # FIXME: remove this method, since we can limit the range of interest in
+    # the FramedAudio for example without having to write a new array.
+    def truncate(self, offset=None, length=None):
+        """
+        Truncate the audio signal.
+
+        :param offset: offset / start [seconds]
+        :param length: length [seconds]
+
+        """
+        # truncate the beginning
+        if offset != None:
+            # check offset
+            if offset <= 0:
+                raise ValueError("offset must be positive")
+            if offset * self.sample_rate > self.num_samples:
+                raise ValueError("offset must be < length of signal")
+            self.signal = self.signal[(offset * self.sample_rate):]
+        # truncate the end
+        if length != None:
+            # check length
+            if length <= 0:
+                raise ValueError("a positive value must given")
+            if length * self.sample_rate > self.num_samples:
+                raise ValueError("length must be < length of signal")
+            self.signal = self.signal[:length * self.sample_rate + 1]
+
+    # downsample
+    def downsample(self, factor=2):
+        """
+        Downsamples the audio signal by the given factor.
+
+        :param factor: down-sampling factor [default=2]
+
+        """
+        self.signal = downsample(self.signal, factor)
+        self.sample_rate /= factor
+
+    # trim zeros
+    # FIXME: remove this methods, since we can adjust the range of interest in
+    # the FramedAudio for example without having to write a new array.
+    def trim(self):
+        """
+        Trim leading and trailing zeros of the audio signal permanently.
+
+        """
+        self.signal = np.trim_zeros(self.signal, 'fb')
+
+    # TODO: make this nicer!
+    def __str__(self):
+        return "%s length: %i samples (%.2f seconds) sample rate: %i" % (self.__class__, self.num_samples, self.length, self.sample_rate)
 
 
 def signal_frame(signal, index, frame_size, hop_size, online):
@@ -127,156 +379,23 @@ def strided_frames(signal, frame_size, hop_size):
 
 
 # default values
-MONO = False
-NORM = False
-ATT = 0
-
-
-class Audio(object):
-    """
-    Audio is a very simple class which just stores the signal and the sample
-    rate and provides some basic methods for signal processing.
-
-    """
-    def __init__(self, signal, sample_rate, mono=MONO, norm=NORM, att=ATT):
-        """
-        Creates a new Audio object instance.
-
-        :param signal:      the audio signal [numpy array]
-        :param sample_rate: sample rate of the signal
-        :param mono:        downmix the signal to mono [default=False]
-        :param norm:        normalize the signal [default=False]
-        :param att:         attenuate the signal by N dB [default=0]
-
-        """
-        if not isinstance(signal, np.ndarray):
-            # make sure the signal is a numpy array
-            raise TypeError("Invalid type for audio signal.")
-        self.signal = signal
-        self.sample_rate = sample_rate
-
-        # convenience handling of mono down-mixing and normalization
-        if mono:
-            # down-mix to mono
-            self.downmix()
-        if norm:
-            # normalize signal
-            self.normalize()
-        if att != 0:
-            # attenuate signal
-            self.attenuate(att)
-
-    @property
-    def num_samples(self):
-        """Number of samples."""
-        return np.shape(self.signal)[0]
-
-    @property
-    def num_channels(self):
-        """Number of channels."""
-        try:
-            # multi channel files
-            return np.shape(self.signal)[1]
-        except IndexError:
-            # catch mono files
-            return 1
-
-    @property
-    def length(self):
-        """Length of signal in seconds."""
-        return float(self.num_samples) / float(self.sample_rate)
-
-    # downmix to mono
-    def downmix(self):
-        """Down-mix the audio signal to mono."""
-        if self.num_channels > 1:
-            self.signal = np.mean(self.signal, -1)
-
-    # normalize the signal
-    def normalize(self):
-        """Normalize the audio signal."""
-        self.signal = self.signal.astype(float) / np.max(self.signal)
-
-    # attenuate the signal
-    def attenuate(self, attenuation):
-        """
-        Attenuate the audio signal.
-
-        :param attenuation: attenuation level [dB]
-
-        """
-        self.signal /= np.power(np.sqrt(10.), attenuation / 10.)
-
-    # truncate
-    def truncate(self, offset=None, length=None):
-        """
-        Truncate the audio signal.
-
-        :param offset: offset / start [seconds]
-        :param length: length [seconds]
-
-        """
-        # truncate the beginning
-        if offset != None:
-            # check offset
-            if offset <= 0:
-                raise ValueError("offset must be positive")
-            if offset * self.sample_rate > self.num_samples:
-                raise ValueError("offset must be < length of signal")
-            self.signal = self.signal[(offset * self.sample_rate):]
-        # truncate the end
-        if length != None:
-            # check length
-            if length <= 0:
-                raise ValueError("a positive value must given")
-            if length * self.sample_rate > self.num_samples:
-                raise ValueError("length must be < length of signal")
-            self.signal = self.signal[:length * self.sample_rate + 1]
-
-    # downsample
-    def downsample(self, factor=2):
-        """
-        Downsamples the audio signal by the given factor.
-
-        :param factor: down-sampling factor [default=2]
-
-        """
-        from scipy.signal import decimate
-        self.signal = np.hstack(decimate(self.signal, factor))
-        self.sample_rate /= factor
-
-    # trim zeros
-    def trim(self):
-        """
-        Trim leading and trailing zeros of the audio signal permanently.
-
-        """
-        self.signal = np.trim_zeros(self.signal, 'fb')
-
-    # TODO: make this nicer!
-    def __str__(self):
-        return "%s length: %i samples (%.2f seconds) sample rate: %i" % (self.__class__, self.num_samples, self.length, self.sample_rate)
-
-
-# default values
 FRAME_SIZE = 2048
 HOP_SIZE = 441.
 FPS = 100.
 ONLINE = False
 
 
-class FramedAudio(Audio):
+class FramedAudio(object):
     """
     FramedAudio splits an audio signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, sample_rate, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+    def __init__(self, audio, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  online=ONLINE, fps=None, *args, **kwargs):
         """
         Creates a new FramedAudio object instance.
 
-        :param signal:      the audio signal [numpy array]
-        :param sample_rate: sample_rate of the signal
+        :param audio:       an Audio object
         :param frame_size:  size of one frame [default=2048]
         :param hop_size:    progress N samples between adjacent frames [default=441]
         :param online:      use only past information [default=False]
@@ -284,7 +403,7 @@ class FramedAudio(Audio):
                             if set, this overwrites the hop_size value [default=None]
 
         Note: The FramedAudio class is implemented as an iterator. It splits the
-              signal automatically into frames (of frame_size length) and
+              given Audio automatically into frames (of frame_size length) and
               progresses hop_size samples (can be float, with normal rounding
               applied) between frames.
 
@@ -293,8 +412,11 @@ class FramedAudio(Audio):
               current position.
 
         """
-        # instantiate a Audio object
-        super(FramedAudio, self).__init__(signal, sample_rate, *args, **kwargs)
+        # instantiate a Audio object if needed
+        if isinstance(audio, Audio):
+            self.audio = audio
+        else:
+            self.audio = Audio(audio, *args, **kwargs)
         # arguments for splitting the signal into frames
         self.frame_size = frame_size
         self.hop_size = float(hop_size)
@@ -334,7 +456,7 @@ class FramedAudio(Audio):
             # just 0...
             if index < 0:
                 index += self.num_frames
-            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.online)
+            return signal_frame(self.audio.signal, index, self.frame_size, self.hop_size, self.online)
         # other index types are invalid
         else:
             raise TypeError("Invalid argument type.")
@@ -346,21 +468,18 @@ class FramedAudio(Audio):
     @property
     def num_frames(self):
         """Number of frames."""
-        # FIXME: should 1 be added? the index 0 is the first sample, thus if the
-        # length would be exactly 1 hop_size, the length would only be 1 frame,
-        # although it should be 2?
-        return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
+        return int(np.ceil(self.audio.num_samples / float(self.hop_size)))
 
     @property
     def fps(self):
         """Frames per second."""
-        return float(self.sample_rate) / float(self.hop_size)
+        return float(self.audio.sample_rate) / float(self.hop_size)
 
     @fps.setter
     def fps(self, fps):
         """Frames per second."""
         # set the hop size accordingly
-        self.hop_size = self.sample_rate / float(fps)
+        self.hop_size = self.audio.sample_rate / float(fps)
 
     @property
     def overlap_factor(self):

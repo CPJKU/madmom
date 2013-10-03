@@ -65,21 +65,18 @@ def main():
         b = Beat(args.input, args.fps, args.online, args.sep)
     else:
         # create a Wav object
-        w = Wav(args.input, fps=FPS, mono=True, norm=args.norm, online=False)
+        w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
-        w.frame_size = 1024
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
-        w.frame_size = 2048
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # 3rd spec
-        w.frame_size = 4096
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # create a fake onset vector
-        nc_targets = np.zeros(w.num_frames)
+        nc_targets = np.zeros(s.num_frames)
         nc_targets[0] = 1
         # create a .nc file
         create_nc_file(args.nc_file, nc_data, nc_targets)
@@ -95,8 +92,7 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(args.threshold, delay=args.delay, smooth=args.smooth,
-                         min_bpm=args.min_bpm, max_bpm=args.max_bpm)
+        b.detect(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm)
         # write the onsets to output
         b.write(args.output)
 
