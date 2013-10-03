@@ -504,18 +504,6 @@ class Spectrogram(object):
         """Number of frames."""
         return np.shape(self.spec)[0]
 
-    # TODO: remove this?
-    @property
-    def hop_size(self):
-        """Hop-size between two adjacent frames."""
-        return self.frames.hop_size
-
-    # TODO: remove this?
-    @property
-    def overlap_factor(self):
-        """Overlap factor of two adjacent frames."""
-        return self.frames.overlap_factor
-
     @property
     def fft_bins(self):
         """Number of FFT bins."""
@@ -599,7 +587,7 @@ class FilteredSpectrogram(Spectrogram):
 
 # aliases
 FiltSpec = FilteredSpectrogram
-FS = FilteredSpectrogram
+FS = FiltSpec
 
 
 class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
@@ -632,4 +620,4 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
 
 # aliases
 LogFiltSpec = LogarithmicFilteredSpectrogram
-LFS = LogarithmicFilteredSpectrogram
+LFS = LogFiltSpec

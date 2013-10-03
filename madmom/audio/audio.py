@@ -92,6 +92,7 @@ def trim(signal):
     # signal must be mono
     if signal.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
+        # maybe it works, haven't checked
         raise NotImplementedError("please implement stereo functionality")
     return np.trim_zeros(signal, 'fb')
 
@@ -106,7 +107,7 @@ def root_mean_square(signal):
 
     """
     # make sure the signal is a numpy array
-    if not issubclass(signal.__class__, np.ndarray):
+    if not isinstance(signal, np.ndarray):
         raise TypeError("Invalid type for audio signal.")
     # signal must be mono
     if signal.ndim > 1:
@@ -145,14 +146,13 @@ def sound_pressure_level(signal, p_ref=1.0):
 
 
 # function for automatically determining how to open audio files
-def magic_signal_handler(filename):
+def magic_signal_handler(filename, sample_rate=None):
     """
     Magic Signal opener. Tries to guess how to open a file.
 
-    :param filename: name of the file
-    :returns:        tuple (signal, sample_rate)
-
-    Note: the signal must be a numpy array of type int or float.
+    :param filename:    name of the file or file handle
+    :param sample_rate: sample rate of the signal [default=None]
+    :returns:           tuple (signal, sample_rate)
 
     """
     # determine the name of the file
@@ -167,6 +167,7 @@ def magic_signal_handler(filename):
     # generic signal converter
     else:
         # FIXME: use sox instead to convert from different input signals
+        # use the given sample rate to resample the signal on the fly if needed
         raise NotImplementedError('please integrate sox signal handling.')
     return signal, sample_rate
 
@@ -183,22 +184,25 @@ class Audio(object):
     rate and provides some basic methods for signal processing.
 
     """
-    def __init__(self, signal, sample_rate, mono=MONO, norm=NORM, att=ATT):
+    def __init__(self, signal, sample_rate=None, mono=MONO, norm=NORM, att=ATT):
         """
         Creates a new Audio object instance.
 
-        :param signal:      the audio signal [numpy array]
-        :param sample_rate: sample rate of the signal
+        :param signal:      audio signal (numpy array or file or file handle)
+        :param sample_rate: sample rate of the signal [default=None]
         :param mono:        downmix the signal to mono [default=False]
         :param norm:        normalize the signal [default=False]
         :param att:         attenuate the signal by N dB [default=0]
 
         """
-        if not isinstance(signal, np.ndarray):
-            # make sure the signal is a numpy array
-            raise TypeError("Invalid type for audio signal.")
-        self.signal = signal
-        self.sample_rate = sample_rate
+        # signal handling
+        if isinstance(signal, np.ndarray) and sample_rate is not None:
+            # input is an numpy array + sample rate, use as is
+            self.signal = signal
+            self.sample_rate = sample_rate
+        else:
+            # try the magic_signal_handler
+            self.signal, self.sample_rate = magic_signal_handler(signal, sample_rate)
 
         # convenience handling of mono down-mixing and normalization
         if mono:
