@@ -86,27 +86,23 @@ class MeanNoteEvaluation(MeanEvaluation):
 
 def parser():
     import argparse
-
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters the script evaluates pairs of files
-    with the targets (.onsets) and detection (.onsets.txt) as simple text
-    files with one onset timestamp per line according to the rules given in
-
-    "Evaluating the Online Capabilities of Onset Detection Methods"
-    by Sebastian Böck, Florian Krebs and Markus Schedl
-    in Proceedings of the 13th International Society for
-    Music Information Retrieval Conference (ISMIR 2012)
+    The script evaluates a file or folder with detections against a file or
+    folder with targets. Extensions can be given to filter the detection and
+    target file lists.
 
     """)
-    p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')
+    # files used for evaluation
+    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
+    p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
     # extensions used for evaluation
-    p.add_argument('-d', dest='detections', action='store', default='.onsets.txt', help='extensions of the detections [default: .onsets.txt]')
-    p.add_argument('-t', dest='targets', action='store', default='.onsets', help='extensions of the targets [default: .onsets]')
+    p.add_argument('-d', dest='det_ext', action='store', default='.notes.txt', help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.notes', help='extension of the target files')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', default=0.05, type=float, help='evaluation window [seconds, default=0.05]')
+    p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window (+/- the given size) [seconds, default=0.025]')
     p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [seconds]')
-    p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
+    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
     # verbose
     p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
     # parse the arguments
@@ -119,45 +115,51 @@ def parser():
 
 
 def main():
-    from ..utils.helpers import files
+    from ..utils.helpers import files, match_file, load_events
 
-    # parse the arguments
+    # parse arguments
     args = parser()
 
-    # TODO: find a better way to determine the corresponding detection/target
-    # files from a given list/path of files
+    # get detection and target files
+    det_files = files(args.detections, args.det_ext)
+    if not args.targets:
+        args.targets = args.detections
 
-    # filter target files
-    tar_files = files(args.files, args.targets)
-    # filter detection files
-    det_files = files(args.files, args.detections)
-    # must be the same number FIXME: find better solution which checks the names
-    assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
+    # sum and mean evaluation for all files
+    sum_eval = SumNoteEvaluation()
+    mean_eval = MeanNoteEvaluation()
 
-    # sum counter for all files
-    sum_counter = SumNoteEvaluation()
-    mean_counter = MeanNoteEvaluation()
     # evaluate all files
-    for i in range(len(det_files)):
-        detections = load_notes(det_files[i])
-        targets = load_notes(tar_files[i])
-        # shift the detections if needed
-        if args.delay != 0:
-            detections += args.delay
-        # evaluate the onsets
-        oe = NoteEvaluation(detections, targets, args.window)
+    for det_file in det_files:
+        # get the detections file
+        detections = load_events(det_file)
+        # get the matching target files
+        tar_files = match_file(det_file, args.targets, args.det_ext, args.tar_ext)
+        if len(tar_files) == 0:
+            continue
+        # do a mean evaluation with all matched target files
+        me = MeanNoteEvaluation()
+        for tar_file in tar_files:
+            # load the targets
+            targets = load_events(tar_file)
+            # shift the detections if needed
+            if args.delay != 0:
+                detections += args.delay
+            # add the NoteEvaluation to mean evaluation
+            me += NoteEvaluation(detections, targets, window=args.window)
+            # process the next target file
         # print stats for each file
         if args.verbose:
-            print det_files[i]
-            oe.print_errors(args.tex)
-        # add to sum counter
-        sum_counter += oe
-        mean_counter += oe
+            me.print_errors(args.tex)
+        # add this file's mean evaluation to the global evaluation
+        sum_eval += me
+        mean_eval += me
+        # process the next detection file
     # print summary
-    print 'sum for %i files; detection window %.1f ms (+- %.1f ms)' % (len(det_files), args.window * 2000, args.window * 1000)
-    sum_counter.print_errors(args.tex)
-    print 'mean for %i files; detection window %.1f ms (+- %.1f ms)' % (len(det_files), args.window * 2000, args.window * 1000)
-    mean_counter.print_errors(args.tex)
+    print 'sum for %i files:' % (len(det_files))
+    sum_eval.print_errors(args.tex)
+    print 'mean for %i files:' % (len(det_files))
+    mean_eval.print_errors(args.tex)
 
 if __name__ == '__main__':
     main()

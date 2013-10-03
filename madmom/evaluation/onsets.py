@@ -107,6 +107,8 @@ def count_errors(detections, targets, window):
 #          this class, since it is ~20 times as big as the onset class.
 #
 #    """
+#     FIXME: is there a nice numpy like way to achieve the same behavior as above
+#     i.e. detections and targets can match only once?
 #    from .helpers import calc_absolute_errors
 #    # no detections
 #    if detections.size == 0:
@@ -161,8 +163,8 @@ def parser():
     p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
     p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default=None, help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default=None, help='extension of the target files')
+    p.add_argument('-d', dest='det_ext', action='store', default='.onsets.txt', help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.onsets', help='extension of the target files')
     # parameters for evaluation
     p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window (+/- the given size) [seconds, default=0.025]')
     p.add_argument('-c', dest='combine', action='store', default=0.03, type=float, help='combine target events within this range [seconds, default=0.03]')
@@ -184,13 +186,16 @@ def main():
 
     # parse arguments
     args = parser()
+
     # get detection and target files
     det_files = files(args.detections, args.det_ext)
     if not args.targets:
         args.targets = args.detections
-    # sum and mean counter for all files
-    sum_counter = SumOnsetEvaluation()
-    mean_counter = MeanOnsetEvaluation()
+
+    # sum and mean evaluation for all files
+    sum_eval = SumOnsetEvaluation()
+    mean_eval = MeanOnsetEvaluation()
+
     # evaluate all files
     for det_file in det_files:
         # get the detections file
@@ -217,14 +222,14 @@ def main():
         if args.verbose:
             me.print_errors(args.tex)
         # add the resulting sum counter
-        sum_counter += me
-        mean_counter += me
+        sum_eval += me
+        mean_eval += me
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))
-    sum_counter.print_errors(args.tex)
+    sum_eval.print_errors(args.tex)
     print 'mean for %i files:' % (len(det_files))
-    mean_counter.print_errors(args.tex)
+    mean_eval.print_errors(args.tex)
 
 if __name__ == '__main__':
     main()

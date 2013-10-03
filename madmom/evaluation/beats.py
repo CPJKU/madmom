@@ -684,6 +684,8 @@ class MeanBeatEvaluation(BeatEvaluation):
     @property
     def global_information_gain(self):
         """Global information gain."""
+        if self.error_histogram is None:
+            return 0.
         return calc_information_gain(self.error_histogram)
 
     @property
@@ -704,10 +706,11 @@ def parser():
     with the targets (.beats) and detection (.beats.txt) as simple text
     files with one beat timestamp per line.
     """)
-    p.add_argument('files', metavar='files', nargs='+', help='path or files to be evaluated (list of files being filtered according to -d and -t arguments)')
+    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
+    p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
     # extensions used for evaluation
-    p.add_argument('-d', dest='detections', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
-    p.add_argument('-t', dest='targets', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
+    p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
     # TODO: define an extra parser, which can be used for BeatEvaluation object instanciation?
     p.add_argument('--window', action='store', default=WINDOW, type=float, help='evaluation window for F-measure [seconds, default=%f]' % WINDOW)
@@ -731,45 +734,51 @@ def parser():
 
 
 def main():
-    from ..utils.helpers import files, load_events
+    from ..utils.helpers import files, match_file, load_events
 
-    # parse the arguments
+    # parse arguments
     args = parser()
 
-    # TODO: find a better way to determine the corresponding detection/target
-    # files from a given list/path of files
+    # get detection and target files
+    det_files = files(args.detections, args.det_ext)
+    if not args.targets:
+        args.targets = args.detections
 
-    # filter target files
-    tar_files = files(args.files, args.targets)
-    # filter detection files
-    det_files = files(args.files, args.detections)
-    # must be the same number FIXME: find better solution which checks the names
-    assert len(tar_files) == len(det_files), "different number of targets (%i) and detections (%i)" % (len(tar_files), len(det_files))
+    # mean evaluation for all files
+    mean_eval = MeanBeatEvaluation()
 
-    # sum counter for all files
-    avg_scores = MeanBeatEvaluation()
     # evaluate all files
-    for i in range(len(det_files)):
-        # load the beat and annoation sequences
-        detections = load_events(det_files[i])
-        targets = load_events(tar_files[i])
-        # remove beats and annotations that are within the first N seconds
-        if args.skip > 0:
-            # FIXME: this definitely alters the results
-            detections = detections[np.where(detections > args.skip)]
-            targets = targets[np.where(targets > args.skip)]
-        # evaluate
-        score = BeatEvaluation(detections, targets, window=args.window, tolerance=args.tolerance, sigma=args.sigma, tempo_tolerance=args.tempo_tolerance, phase_tolerance=args.phase_tolerance, bins=args.bins)
-#        score.cache()
+    for det_file in det_files:
+        # get the detections file
+        detections = load_events(det_file)
+
+        # get the matching target files
+        tar_files = match_file(det_file, args.targets, args.det_ext, args.tar_ext)
+        if len(tar_files) == 0:
+            continue
+        # do a mean evaluation with all matched target files
+        me = MeanBeatEvaluation()
+        for tar_file in tar_files:
+            # load the targets
+            targets = load_events(tar_file)
+            # remove beats and annotations that are within the first N seconds
+            if args.skip > 0:
+                # FIXME: this definitely alters the results
+                detections = detections[np.where(detections > args.skip)]
+                targets = targets[np.where(targets > args.skip)]
+            # add the BeatEvaluation this file's mean evaluation
+            me += BeatEvaluation(detections, targets, window=args.window, tolerance=args.tolerance, sigma=args.sigma, tempo_tolerance=args.tempo_tolerance, phase_tolerance=args.phase_tolerance, bins=args.bins)
+            # process the next target file
         # print stats for each file
         if args.verbose:
-            print det_files[i]
-            score.print_errors(args.tex)
-        # add to sum counter
-        avg_scores += score
+            print det_file
+            me.print_errors(args.tex)
+        # add this file's mean evaluation to the global evaluation
+        mean_eval += me
+        # process the next detection file
     # print summary
-    print 'mean for %i files' % (len(det_files))
-    avg_scores.print_errors(args.tex)
+    print 'mean for %i files:' % (len(det_files))
+    mean_eval.print_errors(args.tex)
 
 if __name__ == '__main__':
     main()

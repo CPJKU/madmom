@@ -9,7 +9,6 @@ This file contains various helper functions used by all other modules.
 
 import os.path
 import glob
-import fnmatch
 
 import numpy as np
 
@@ -78,13 +77,13 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     matches = []
     # look for files with the same base name in the match_list
     for match in match_list:
-        # TODO: remove duplicate code with files()
+        # TODO: remove duplicate code with files(), add pattern parameter to files()
         # if we have a path, take all files in there
         if os.path.isdir(match):
             if ext is None:
                 matches.extend(glob.glob("%s/%s*" % (match, basename)))
             else:
-                matches.extend(glob.glob("%s/%s*.%s" % (match, basename, match_ext)))
+                matches.extend(glob.glob("%s/%s*%s" % (match, basename, match_ext)))
         elif os.path.isfile(match):
             # just use this file if the name matches
             if os.path.basename(stripext(match, match_ext)) == basename:

@@ -519,24 +519,29 @@ def main():
 
     # parse arguments
     args = parser()
+
     # get detection and target files
     det_files = files(args.detections, args.det_ext)
     if not args.targets:
         args.targets = args.detections
-    tar_files = files(args.targets, args.tar_ext)
 
     # sum and mean counter for all files
     sum_counter = SumEvaluation()
     mean_counter = MeanEvaluation()
+
     # evaluate all files
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
+        # get the matching target files
+        tar_files = match_file(det_file, args.targets, args.det_ext, args.tar_ext)
+        if len(tar_files) == 0:
+            continue
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
-        for f in match_file(det_file, tar_files, args.det_ext, args.tar_ext):
+        for tar_file in tar_files:
             # load the targets
-            targets = load_events(f)
+            targets = load_events(tar_file)
             # test with onsets (but use the beat detection window of 70ms)
             from .onsets import count_errors
             # add the Evaluation to mean evaluation
