@@ -11,11 +11,11 @@ import numpy as np
 
 
 # signal functions
-def attenuate(signal, attenuation):
+def attenuate(x, attenuation):
     """"
-    Attenuate the audio signal.
+    Attenuate the signal.
 
-    :param signal:      signal
+    :param x:           signal (numpy array)
     :param attenuation: attenuation level [dB]
     :returns:           attenuated signal
 
@@ -25,108 +25,108 @@ def attenuate(signal, attenuation):
     # the dtype of the array to determine the correct value range.
     # But this introduces rounding (truncating) errors in case of signals
     # with int dtypes. But these errors should be negligible.
-    return np.asarray(signal / np.power(np.sqrt(10.), attenuation / 10.), dtype=signal.dtype)
+    return np.asarray(x / np.power(np.sqrt(10.), attenuation / 10.), dtype=x.dtype)
 
 
-def normalize(signal):
+def normalize(x):
     """
-    Normalize the audio signal to the range -1..+1
+    Normalize the signal to the range -1..+1
 
-    :param signal: signal
-    :returns:      normalized signal
-
-    """
-    return signal.astype(float) / np.max(signal)
-
-
-def downmix(signal):
-    """
-    Down-mix the audio signal to mono.
-
-    :param signal: signal
-    :returns:      mono signal
+    :param x: signal (numpy array)
+    :returns: normalized signal
 
     """
-    if signal.ndim > 1:
+    return x.astype(float) / np.max(x)
+
+
+def downmix(x):
+    """
+    Down-mix the signal to mono.
+
+    :param x: signal (numpy array)
+    :returns: mono signal
+
+    """
+    if x.ndim > 1:
         # FIXME: taking the mean and keeping the original dtype makes the
         # following signal processing steps well-behaved, since these rely on
         # the dtype of the array to determine the correct value range.
         # But this introduces rounding (truncating) errors in case of signals
         # with int dtypes. But these errors should be negligible.
-        return np.mean(signal, axis=-1, dtype=signal.dtype)
+        return np.mean(x, axis=-1, dtype=x.dtype)
     else:
-        return signal
+        return x
 
 
-def downsample(signal, factor=2):
+def downsample(x, factor=2):
     """
-    Down-samples the audio signal by the given factor
+    Down-samples the signal by the given factor
 
-    :param signal: signal
+    :param x:      signal (numpy array)
     :param factor: down-sampling factor [default=2]
     :returns:      down-sampled signal
 
     """
     # signal must be mono
-    if signal.ndim > 1:
+    if x.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         raise NotImplementedError("please implement stereo functionality")
     # when downsampling by an integer factor, a simple view is more efficient
     if type(factor) == int:
-        return signal[::factor]
+        return x[::factor]
     # otherwise do more or less propoer down-sampling
     # TODO: maybe use sox to implement this
     from scipy.signal import decimate
     # naive down-sampling
-    return np.hstack(decimate(signal, factor))
+    return np.hstack(decimate(x, factor))
 
 
-def trim(signal):
+def trim(x):
     """
-    Trim leading and trailing zeros of the audio signal.
+    Trim leading and trailing zeros of the signal.
 
-    :param signal: signal
-    :returns:      trimmed signal
+    :param x: signal (numpy array)
+    :returns: trimmed signal
 
     """
     # signal must be mono
-    if signal.ndim > 1:
+    if x.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         # maybe it works, haven't checked
         raise NotImplementedError("please implement stereo functionality")
-    return np.trim_zeros(signal, 'fb')
+    return np.trim_zeros(x, 'fb')
 
 
-def root_mean_square(signal):
+def root_mean_square(x):
     """
     Computes the root mean square of the signal. This can be used as a
     measurement of power.
 
-    :param signal: the audio signal
-    :returns:      root mean square of the signal
+    :param x: signal (numpy array)
+    :returns: root mean square of the signal
 
     """
     # make sure the signal is a numpy array
-    if not isinstance(signal, np.ndarray):
-        raise TypeError("Invalid type for audio signal.")
+    if not isinstance(x, np.ndarray):
+        raise TypeError("Invalid type for signal.")
     # signal must be mono
-    if signal.ndim > 1:
+    if x.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         raise NotImplementedError("please implement stereo functionality")
     # Note: type conversion needed because of integer overflows
-    if signal.dtype != np.float:
-        signal = signal.astype(np.float)
+    if x.dtype != np.float:
+        x = x.astype(np.float)
     # return
-    return np.sqrt(np.dot(signal, signal) / signal.size)
+    return np.sqrt(np.dot(x, x) / x.size)
 
 
-def sound_pressure_level(signal, p_ref=1.0):
+def sound_pressure_level(x, p_ref=1.0):
     """
     Computes the sound pressure level of a signal.
 
-    :param signal: the audio signal
-    :param p_ref:  reference sound pressure level [default=1.0]
-    :returns:      sound pressure level of the signal
+    :param x:     signal (numpy array)
+    :param p_ref: reference sound pressure level [default=1.0]
+    :returns:     sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
@@ -135,7 +135,7 @@ def sound_pressure_level(signal, p_ref=1.0):
 
     """
     # compute the RMS
-    rms = root_mean_square(signal)
+    rms = root_mean_square(x)
     # compute the SPL
     if rms == 0:
         # return the smallest possible negative number
@@ -212,18 +212,18 @@ class Signal(object):
 
     # downmix to mono
     def downmix(self):
-        """Down-mix the audio signal to mono."""
+        """Down-mix the signal to mono."""
         self.data = downmix(self.data)
 
     # normalize the signal
     def normalize(self):
-        """Normalize the audio signal."""
+        """Normalize the signal."""
         self.data = normalize(self.data)
 
     # attenuate the signal
     def attenuate(self, attenuation):
         """
-        Attenuate the audio signal.
+        Attenuate the signal.
 
         :param attenuation: attenuation level [dB]
 
@@ -235,7 +235,7 @@ class Signal(object):
     # the FramedSignal for example without having to write a new array.
     def truncate(self, offset=None, length=None):
         """
-        Truncate the audio signal.
+        Truncate the signal.
 
         :param offset: offset / start [seconds]
         :param length: length [seconds]
@@ -261,7 +261,7 @@ class Signal(object):
     # downsample
     def downsample(self, factor=2):
         """
-        Downsamples the audio signal by the given factor.
+        Downsamples the signal by the given factor.
 
         :param factor: down-sampling factor [default=2]
 
@@ -274,7 +274,7 @@ class Signal(object):
     # the FramedSignal for example without having to write a new array.
     def trim(self):
         """
-        Trim leading and trailing zeros of the audio signal permanently.
+        Trim leading and trailing zeros of the signal permanently.
 
         """
         self.data = np.trim_zeros(self.data, 'fb')
@@ -288,19 +288,19 @@ def signal_frame(signal, index, frame_size, hop_size, online):
     """
     This function returns frame[index] of the signal.
 
-    :param signal:     the audio signal
+    :param x:          signal (numpy array)
     :param frame_size: size of one frame
     :param hop_size:   progress N samples between adjacent frames
     :param online:     use only past information
-    :returns:          the single frame of the audio signal
+    :returns:          frame[index] of the signal
 
     """
     # make sure the signal is a numpy array
     if not isinstance(signal, np.ndarray):
-        raise TypeError("Invalid type for audio signal.")
+        raise TypeError("Invalid type for signal.")
     # length of the signal
     samples = np.shape(signal)[0]
-    # seek to the correct position in the audio signal
+    # seek to the correct position in the signal
     seek = int(index * hop_size)
     if seek < 0:
         # seek before the start of signal
@@ -337,10 +337,10 @@ def strided_frames(signal, frame_size, hop_size):
     """
     Returns a 2D representation of the signal with overlapping frames.
 
-    :param signal:     the discrete signal
+    :param x:          the discrete signal
     :param frame_size: size of each frame
     :param hop_size:   the hop size in samples between adjacent frames
-    :returns:          the framed audio signal
+    :returns:          the framed signal
 
     Note: This function is here only for completeness. It is faster only in rare
           circumstances. Also, seeking to the right position is only working
@@ -365,7 +365,7 @@ ONLINE = False
 
 class FramedSignal(object):
     """
-    FramedSignal splits an audio signal into frames and makes them iterable.
+    FramedSignal splits an signal into frames and makes them iterable.
 
     """
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
@@ -373,12 +373,12 @@ class FramedSignal(object):
         """
         Creates a new FramedSignal object instance.
 
-        :param signal:       an Signal object
-        :param frame_size:  size of one frame [default=2048]
-        :param hop_size:    progress N samples between adjacent frames [default=441]
-        :param online:      use only past information [default=False]
-        :param fps:         use N frames per second instead of setting the hop_size;
-                            if set, this overwrites the hop_size value [default=None]
+        :param signal:     an Signal object
+        :param frame_size: size of one frame [default=2048]
+        :param hop_size:   progress N samples between adjacent frames [default=441]
+        :param online:     use only past information [default=False]
+        :param fps:        use N frames per second instead of setting the hop_size;
+                           if set, this overwrites the hop_size value [default=None]
 
         Note: The FramedSignal class is implemented as an iterator. It splits the
               given Signal automatically into frames (of frame_size length) and
@@ -419,7 +419,7 @@ class FramedSignal(object):
         Note: index -1 refers NOT to the last frame, but to the frame directly
         left of frame 0. Although this is contrary to common behavior, being
         able to access these frames is important, because if the frames overlap
-        frame -1 contains parts of the audio signal of frame 0.
+        frame -1 contains parts of the signal of frame 0.
 
         """
         # a slice is given
