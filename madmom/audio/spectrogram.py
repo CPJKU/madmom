@@ -421,7 +421,7 @@ class Spectrogram(object):
             sample = np.argmax(self.window > self.ratio * max(self.window))
             diff_samples = self.window.size / 2 - sample
             # convert to frames
-            diff_frames = int(round(diff_samples / self.hop_size))
+            diff_frames = int(round(diff_samples / self.frames.hop_size))
             # set the minimum to 1
             if diff_frames < 1:
                 diff_frames = 1
