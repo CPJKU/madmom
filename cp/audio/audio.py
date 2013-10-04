@@ -61,21 +61,20 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, mode='extend'):
     :param signal:     the audio signal
     :param frame_size: size of one frame
     :param hop_size:   progress N samples between adjacent frames
-    :param hop_size:   progress N samples between adjacent frames
     :param origin:     location of the window relative to the signal position
     :param mode:       out of region handling
     :returns:          the single frame of the audio signal
 
-    Note: `origin` can have the following literal values:
-          - center: the window is symmetrically around the signal position
-          - left:   the window is located left to the signal position
-          Additionally, integer values up to frame_size / 2 can be given
-          - negative values shifting the window to the right
-          - positive values shifting the window to the left
+    The first frame refers to the first sample of the signal, and each following
+    frame is placed `hop_size` samples after the previous one.
 
-          `mode` handles how far the frames reach to both sides
-          - TODO: mode descriptions go here
-
+    An `origin` of zero centers the frame around its reference sample,
+    an `origin` of `-frame_size/2` places the frame to the left of the reference
+    sample, with the reference sample forming the last sample of the frame, and
+    an `origin` of `frame_size/2` places the frame to the right of the reference
+    sample.
+    
+    `mode` defines... TODO: either describe it or drop the argument completely
     """
     # make sure the signal is a numpy array
     if not isinstance(signal, np.ndarray):
@@ -101,6 +100,7 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, mode='extend'):
     else:
         raise ValueError('invalid origin')
     # start of signal handling
+    # FIXME: omit the checks here to be able to do more fancy stuff?
     if seek < 0:
         # seek is before the first signal sample
         raise IndexError("seek before start of signal")
@@ -112,6 +112,7 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, mode='extend'):
         # add (i.e. subtract) the origin here, or just the origin and not the
         # hop_size; maybe always use the origin here?
         end_extension = hop_size
+    # FIXME: omit the checks here to be able to do more fancy stuff?
     if seek > samples + end_extension:
         # seek is after the last signal sample + some extension
         raise IndexError("seek after end of signal")
@@ -321,14 +322,17 @@ class FramedAudio(Audio):
               progresses hop_size samples (can be float, with normal rounding
               applied) between frames.
 
-              The location of the window relative to the sample of interest can
+              The location of the window relative to its reference sample can
               be set with the `origin` parameter. It can have the following
               literal values:
-              - center: the window is symmetrically around the signal position
-              - left:   the window is located left to the signal position
+              - 'center', 'offline': the window is centered on its reference sample
+              - 'left', 'past', 'online': the window is located to the left of
+                its reference sample (including the reference sample)
+              - 'right', 'future': the window is located to the right of its
+                reference sample
               Additionally, integer values up to frame_size / 2 can be given
-              - negative values shifting the window to the right
-              - positive values shifting the window to the left
+              - negative values shift the window to the left
+              - positive values shift the window to the right
 
               `mode` handles how far the frames reach to both sides
               - TODO: mode descriptions go here
@@ -350,18 +354,21 @@ class FramedAudio(Audio):
             origin = 'left'
             mode = 'normal'
         # location of the window
-        if isinstance(origin, int):
-            self.origin = origin
-        elif origin == 'center':
+        if origin in ('center', 'offline'):
             # the current position is the center of the frame
             self.origin = 0
-        elif origin == 'left':
+        elif origin in ('left', 'past', 'online'):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
             self.origin = -(frame_size / 2)
+        elif origin in ('right', 'future'):
+            self.origin = +(frame_size / 2)
         else:
-            raise ValueError('invalid origin')
+            try:
+                self.origin = int(origin)
+            except ValueError:
+                raise ValueError('invalid origin')
         # signal range handling
         if mode == 'extend':
             self.mode = 'extend'
