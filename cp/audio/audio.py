@@ -69,9 +69,9 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0, mode='extend'):
     frame is placed `hop_size` samples after the previous one.
 
     An `origin` of zero centers the frame around its reference sample,
-    an `origin` of `-frame_size/2` places the frame to the left of the reference
+    an `origin` of `+frame_size/2` places the frame to the left of the reference
     sample, with the reference sample forming the last sample of the frame, and
-    an `origin` of `frame_size/2` places the frame to the right of the reference
+    an `origin` of `-frame_size/2` places the frame to the right of the reference
     sample.
     
     `mode` defines... TODO: either describe it or drop the argument completely
@@ -331,8 +331,9 @@ class FramedAudio(Audio):
               - 'right', 'future': the window is located to the right of its
                 reference sample
               Additionally, integer values up to frame_size / 2 can be given
-              - negative values shift the window to the left
-              - positive values shift the window to the right
+              - zero centers the window on its reference sample
+              - negative values shift the window to the right
+              - positive values shift the window to the left
 
               `mode` handles how far the frames reach to both sides
               - TODO: mode descriptions go here
@@ -361,9 +362,9 @@ class FramedAudio(Audio):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            self.origin = -(frame_size / 2)
-        elif origin in ('right', 'future'):
             self.origin = +(frame_size / 2)
+        elif origin in ('right', 'future'):
+            self.origin = -(frame_size / 2)
         else:
             try:
                 self.origin = int(origin)
