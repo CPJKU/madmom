@@ -54,80 +54,49 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-def signal_frame(signal, index, frame_size, hop_size, origin=0, mode='extend'):
+def signal_frame(signal, index, frame_size, hop_size, origin=0):
     """
     This function returns frame[index] of the signal.
 
-    :param signal:     the audio signal
-    :param frame_size: size of one frame
+    :param signal:     the audio signal as a numpy array
+    :param index:      the index of the frame to return
+    :param frame_size: size of one frame in samples
     :param hop_size:   progress N samples between adjacent frames
     :param origin:     location of the window relative to the signal position
-    :param mode:       out of region handling
-    :returns:          the single frame of the audio signal
+    :returns:          the requested single frame of the audio signal
 
-    The first frame refers to the first sample of the signal, and each following
-    frame is placed `hop_size` samples after the previous one.
+    The first frame (index == 0) refers to the first sample of the signal, and
+    each following frame is placed `hop_size` samples after the previous one.
 
     An `origin` of zero centers the frame around its reference sample,
-    an `origin` of `+frame_size/2` places the frame to the left of the reference
-    sample, with the reference sample forming the last sample of the frame, and
+    an `origin` of `+(frame_size-1)/2` places the frame to the left of the reference
+    sample, with the reference forming the last sample of the frame, and
     an `origin` of `-frame_size/2` places the frame to the right of the reference
-    sample.
-    
-    `mode` defines... TODO: either describe it or drop the argument completely
+    sample, with the reference forming the first sample of the frame.
     """
-    # make sure the signal is a numpy array
-    if not isinstance(signal, np.ndarray):
-        # FIXME: do we need this check here? should be enough if numpy raises
-        # an error if it can't slice the signal correctly
-        raise TypeError("Invalid type for audio signal.")
-    # make sure the signal is mono
-    if signal.ndim != 1:
-        # Note: theoretically, signals with more dimensions should just work,
-        # since the first dimension is time and we just select the slice of the
-        # signal by indexing the first dimension (axis0)
-        raise TypeError("Only mono signals are supported, check if stereo works too")
     # length of the signal
-    samples = signal.size
+    num_samples = len(signal)
     # seek to the correct position in the audio signal
-    seek = int(index * hop_size)
+    ref_sample = int(index * hop_size)
     # position the window
-    # FIXME: omit the checks here to be able to do more fancy stuff?
-    if -(frame_size / 2) < origin < (frame_size / 2):
-        # positive values shift the window to the left
-        start = seek - frame_size / 2 - origin
-        stop = seek + frame_size / 2 - origin
-    else:
-        raise ValueError('invalid origin')
-    # start of signal handling
-    # FIXME: omit the checks here to be able to do more fancy stuff?
-    if seek < 0:
-        # seek is before the first signal sample
-        raise IndexError("seek before start of signal")
-    # end of signal handling
-    end_extension = 0
-    if mode == 'extend':
-        # FIXME: this is the only save version of how to handle
-        # if we allow abitrary origin values, it might be necessary to also
-        # add (i.e. subtract) the origin here, or just the origin and not the
-        # hop_size; maybe always use the origin here?
-        end_extension = hop_size
-    # FIXME: omit the checks here to be able to do more fancy stuff?
-    if seek > samples + end_extension:
-        # seek is after the last signal sample + some extension
-        raise IndexError("seek after end of signal")
-    # return the right portion of the signal
-    if start < 0:
-        # start before the actual signal start, pad zeros accordingly
-        zeros = np.zeros(-start, dtype=signal.dtype)
-        return np.append(zeros, signal[0:stop])
-    elif start > samples:
-        # start behind the actual signal end, return just zeros
-        return np.zeros(frame_size, dtype=signal.dtype)
-    elif stop > samples:
-        # end behind the actual signal end, append zeros accordingly
-        zeros = np.zeros(stop - samples, dtype=signal.dtype)
-        return np.append(signal[start:], zeros)
+    start = ref_sample - frame_size / 2 - origin
+    stop = start + frame_size
+    # return the requested portion of the signal
+    if (stop < 0) or (start > num_samples):
+        # window falls completely outside the actual signal, return just zeros
+        return np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+    elif start < 0:
+        # window crosses left edge of actual signal, pad zeros from left
+        frame = np.empty((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[:-start] = 0
+        frame[-start:] = signal[:stop]
+        return frame
+    elif stop > num_samples:
+        # window crosses right edge of actual signal, pad zeros from right
+        frame = np.empty((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[:num_samples - start] = signal[start:]
+        frame[num_samples - start:] = 0
+        return frame
     else:
         # normal read operation
         return signal[start:stop]
@@ -311,7 +280,7 @@ class FramedAudio(Audio):
         :param sample_rate: sample_rate of the signal
         :param frame_size:  size of one frame [default=2048]
         :param hop_size:    progress N samples between adjacent frames [default=441]
-        :param origin:      TODO: meaningful description [default=0]
+        :param origin:      location of the window relative to the signal position [default=0]
         :param mode:        TODO: meaningful description [default=extend]
         :param fps:         use N frames per second instead of setting the hop_size;
                             if set, this overwrites the hop_size value [default=None]
@@ -330,12 +299,12 @@ class FramedAudio(Audio):
                 its reference sample (including the reference sample)
               - 'right', 'future': the window is located to the right of its
                 reference sample
-              Additionally, integer values up to frame_size / 2 can be given
+              Additionally, arbitrary integer values can be given
               - zero centers the window on its reference sample
               - negative values shift the window to the right
               - positive values shift the window to the left
 
-              `mode` handles how far the frames reach to both sides
+              `mode` handles how far frames may reach past the end of the signal
               - TODO: mode descriptions go here
 
         """
@@ -362,7 +331,7 @@ class FramedAudio(Audio):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            self.origin = +(frame_size / 2)
+            self.origin = +(frame_size - 1) / 2
         elif origin in ('right', 'future'):
             self.origin = -(frame_size / 2)
         else:
@@ -376,10 +345,10 @@ class FramedAudio(Audio):
         else:
             self.mode = 'normal'
 
-    # make the Object iterable
+    # make the Object indexable
     def __getitem__(self, index):
         """
-        This makes the FramedAudio class an iterable object.
+        This makes the FramedAudio class an indexable object.
 
         The signal is split into frames (of length frame_size) automatically.
         Two frames are located hop_size samples apart. hop_size can be float,
@@ -397,18 +366,16 @@ class FramedAudio(Audio):
             return [self[i] for i in xrange(*index.indices(len(self)))]
         # a single index is given
         elif isinstance(index, int):
-            # use this code if normal indexing behavior is needed
-            # TODO: make index -1 work so that the diff of a spectrogram for the
-            # first frame can be calculated in the correct way. Right now it is
-            # just 0...
-            if index < 0:
-                index += self.num_frames
-            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.origin, self.mode)
+            # return a single frame
+            # (as specified above, negative indices do not wrap around)
+            if index >= self.num_frames:
+                raise IndexError("frame index out of bounds")
+            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.origin)
         # other index types are invalid
         else:
-            raise TypeError("Invalid argument type.")
+            raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
 
-    # len() should return the number of frames, since it iterates over frames
+    # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
         return self.num_frames
 
