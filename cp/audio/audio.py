@@ -368,8 +368,6 @@ class FramedAudio(Audio):
         elif isinstance(index, int):
             # return a single frame
             # (as specified above, negative indices do not wrap around)
-            if index >= self.num_frames:
-                raise IndexError("frame index out of bounds")
             return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.origin)
         # other index types are invalid
         else:
