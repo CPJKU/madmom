@@ -54,50 +54,49 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-def signal_frame(signal, index, frame_size, hop_size, online):
+def signal_frame(signal, index, frame_size, hop_size, origin=0):
     """
     This function returns frame[index] of the signal.
 
-    :param signal:     the audio signal
-    :param frame_size: size of one frame
+    :param signal:     the audio signal as a numpy array
+    :param index:      the index of the frame to return
+    :param frame_size: size of one frame in samples
     :param hop_size:   progress N samples between adjacent frames
-    :param online:     use only past information
-    :returns:          the single frame of the audio signal
+    :param origin:     location of the window relative to the signal position
+    :returns:          the requested single frame of the audio signal
 
+    The first frame (index == 0) refers to the first sample of the signal, and
+    each following frame is placed `hop_size` samples after the previous one.
+
+    An `origin` of zero centers the frame around its reference sample,
+    an `origin` of `+(frame_size-1)/2` places the frame to the left of the reference
+    sample, with the reference forming the last sample of the frame, and
+    an `origin` of `-frame_size/2` places the frame to the right of the reference
+    sample, with the reference forming the first sample of the frame.
     """
-    # make sure the signal is a numpy array
-    if not isinstance(signal, np.ndarray):
-        raise TypeError("Invalid type for audio signal.")
     # length of the signal
-    samples = np.shape(signal)[0]
+    num_samples = len(signal)
     # seek to the correct position in the audio signal
-    seek = int(index * hop_size)
-    if seek < 0:
-        # seek before the start of signal
-        raise IndexError("seek before start of signal")
-    if seek > samples:
-        # seek after end of signal
-        raise IndexError("seek after end of signal")
-    # depending on online/offline mode position the moving window
-    if online:
-        # the current position is the right edge of the frame
-        # step back a complete frame size
-        start = seek - frame_size
-        stop = seek
-    else:
-        # the current position is the center of the frame
-        # step back half of the window size
-        start = seek - frame_size / 2
-        stop = seek + frame_size / 2
-    # return the right portion of the signal
-    if start < 0:
-        # start before the actual signal start, pad zeros accordingly
-        zeros = np.zeros(-start, dtype=signal.dtype)
-        return np.append(zeros, signal[0:stop])
-    elif stop > samples:
-        # end behind the actual signal end, append zeros accordingly
-        zeros = np.zeros(stop - samples, dtype=signal.dtype)
-        return np.append(signal[start:], zeros)
+    ref_sample = int(index * hop_size)
+    # position the window
+    start = ref_sample - frame_size / 2 - origin
+    stop = start + frame_size
+    # return the requested portion of the signal
+    if (stop < 0) or (start > num_samples):
+        # window falls completely outside the actual signal, return just zeros
+        return np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+    elif start < 0:
+        # window crosses left edge of actual signal, pad zeros from left
+        frame = np.empty((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[:-start] = 0
+        frame[-start:] = signal[:stop]
+        return frame
+    elif stop > num_samples:
+        # window crosses right edge of actual signal, pad zeros from right
+        frame = np.empty((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[:num_samples - start] = signal[start:]
+        frame[num_samples - start:] = 0
+        return frame
     else:
         # normal read operation
         return signal[start:stop]
@@ -262,6 +261,8 @@ class Audio(object):
 FRAME_SIZE = 2048
 HOP_SIZE = 441.
 FPS = 100.
+ORIGIN = 0
+MODE = 'extend'
 ONLINE = False
 
 
@@ -271,7 +272,7 @@ class FramedAudio(Audio):
 
     """
     def __init__(self, signal, sample_rate, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 online=ONLINE, fps=None, *args, **kwargs):
+                 origin=ORIGIN, mode=MODE, fps=None, online=None, *args, **kwargs):
         """
         Creates a new FramedAudio object instance.
 
@@ -279,18 +280,32 @@ class FramedAudio(Audio):
         :param sample_rate: sample_rate of the signal
         :param frame_size:  size of one frame [default=2048]
         :param hop_size:    progress N samples between adjacent frames [default=441]
-        :param online:      use only past information [default=False]
+        :param origin:      location of the window relative to the signal position [default=0]
+        :param mode:        TODO: meaningful description [default=extend]
         :param fps:         use N frames per second instead of setting the hop_size;
                             if set, this overwrites the hop_size value [default=None]
+        :param online:      set origin and mode to only use past information [default=None]
 
         Note: The FramedAudio class is implemented as an iterator. It splits the
               signal automatically into frames (of frame_size length) and
               progresses hop_size samples (can be float, with normal rounding
               applied) between frames.
 
-              In offline mode the frame is centered around the current position;
-              whereas in online mode, the frame is always positioned left to the
-              current position.
+              The location of the window relative to its reference sample can
+              be set with the `origin` parameter. It can have the following
+              literal values:
+              - 'center', 'offline': the window is centered on its reference sample
+              - 'left', 'past', 'online': the window is located to the left of
+                its reference sample (including the reference sample)
+              - 'right', 'future': the window is located to the right of its
+                reference sample
+              Additionally, arbitrary integer values can be given
+              - zero centers the window on its reference sample
+              - negative values shift the window to the right
+              - positive values shift the window to the left
+
+              `mode` handles how far frames may reach past the end of the signal
+              - TODO: mode descriptions go here
 
         """
         # instantiate a Audio object
@@ -298,19 +313,42 @@ class FramedAudio(Audio):
         # arguments for splitting the signal into frames
         self.frame_size = frame_size
         self.hop_size = float(hop_size)
-        self.online = online
-
         # set fps instead of hop_size
         if fps:
             # Note: the default FPS is not used in __init__(), because usually
             # FRAME_SIZE and HOP_SIZE are used, but setting the fps overwrites
             # the hop_size automatically
             self.fps = fps
+        # set origin and mode to reflect `online mode`
+        if online:
+            origin = 'left'
+            mode = 'normal'
+        # location of the window
+        if origin in ('center', 'offline'):
+            # the current position is the center of the frame
+            self.origin = 0
+        elif origin in ('left', 'past', 'online'):
+            # the current position is the right edge of the frame
+            # this is usually used when simulating online mode, where only past
+            # information of the audio signal can be used
+            self.origin = +(frame_size - 1) / 2
+        elif origin in ('right', 'future'):
+            self.origin = -(frame_size / 2)
+        else:
+            try:
+                self.origin = int(origin)
+            except ValueError:
+                raise ValueError('invalid origin')
+        # signal range handling
+        if mode == 'extend':
+            self.mode = 'extend'
+        else:
+            self.mode = 'normal'
 
-    # make the Object iterable
+    # make the Object indexable
     def __getitem__(self, index):
         """
-        This makes the FramedAudio class an iterable object.
+        This makes the FramedAudio class an indexable object.
 
         The signal is split into frames (of length frame_size) automatically.
         Two frames are located hop_size samples apart. hop_size can be float,
@@ -328,28 +366,24 @@ class FramedAudio(Audio):
             return [self[i] for i in xrange(*index.indices(len(self)))]
         # a single index is given
         elif isinstance(index, int):
-            # use this code if normal indexing behavior is needed
-            # TODO: make index -1 work so that the diff of a spectrogram for the
-            # first frame can be calculated in the correct way. Right now it is
-            # just 0...
-            if index < 0:
-                index += self.num_frames
-            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.online)
+            # return a single frame
+            # (as specified above, negative indices do not wrap around)
+            return signal_frame(self.signal, index, self.frame_size, self.hop_size, self.origin)
         # other index types are invalid
         else:
-            raise TypeError("Invalid argument type.")
+            raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
 
-    # len() should return the number of frames, since it iterates over frames
+    # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
         return self.num_frames
 
     @property
     def num_frames(self):
         """Number of frames."""
-        # FIXME: should 1 be added? the index 0 is the first sample, thus if the
-        # length would be exactly 1 hop_size, the length would only be 1 frame,
-        # although it should be 2?
-        return int(np.ceil((np.shape(self.signal)[0]) / self.hop_size))
+        if self.mode == 'extend':
+            return int(np.floor((np.shape(self.signal)[0]) / float(self.hop_size)) + 1)
+        else:
+            return int(np.ceil((np.shape(self.signal)[0]) / float(self.hop_size)))
 
     @property
     def fps(self):
