@@ -90,21 +90,21 @@ class SimpleEvaluation(object):
     def precision(self):
         """Precision."""
         # correct / retrieved
-        denominator = self.num_tp + self.num_fp
-        # precision should be 100% if there are neither detections nor targets
-        if denominator == 0:
+        retrieved = self.num_tp + self.num_fp
+        # if there are no positive predictions, none of them are wrong
+        if retrieved == 0:
             return 1.
-        if self.num_tp == 0:
-            return 0.
-        return self.num_tp / np.float64(denominator)
+        return self.num_tp / np.float64(retrieved)
 
     @property
     def recall(self):
         """Recall."""
         # correct / relevant
-        if self.num_tp == 0:
-            return 0.
-        return self.num_tp / np.float64(self.num_tp + self.num_fn)
+        relevant = self.num_tp + self.num_fn
+        # if there are no positive targets, we recalled all of them
+        if relevant == 0:
+            return 1.
+        return self.num_tp / np.float64(relevant)
 
     @property
     def fmeasure(self):
