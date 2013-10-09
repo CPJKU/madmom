@@ -8,13 +8,12 @@ This file contains wav file handling functionality.
 """
 
 from scipy.io import wavfile
-from .audio import FramedAudio
+from .signal import Signal
 
 
-class Wav(FramedAudio):
+class Wav(Signal):
     """
-    Wav Class is a simple wrapper around scipy.io.wavfile and makes the .wav
-    file iterable.
+    Wav Class is a subclass of ASignaland simple wrapper around scipy.io.wavfile.
 
     """
 
@@ -28,10 +27,9 @@ class Wav(FramedAudio):
         # init variables
         self.filename = filename        # the name of the file
         # read in the audio from the file
-        sample_rate, signal = wavfile.read(self.filename)
+        sample_rate, data = wavfile.read(self.filename)
         # instantiate a FramedAudio object
-        super(Wav, self).__init__(signal, sample_rate, *args, **kwargs)
+        super(Wav, self).__init__(data, sample_rate, *args, **kwargs)
 
-    # TODO: make this nicer!
     def __str__(self):
-        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)
+        return "%s file: %s length: %i samples (%.2f seconds) sample rate: %i" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate)

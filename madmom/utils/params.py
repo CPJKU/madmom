@@ -11,7 +11,7 @@ import argparse
 import tempfile
 
 # get the default values from the corresponding modules
-from ..audio.audio import ONLINE, NORM, ATT, FPS, FRAME_SIZE
+from ..audio.signal import ONLINE, NORM, ATT, FPS, FRAME_SIZE
 from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTER
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,

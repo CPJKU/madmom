@@ -51,7 +51,7 @@ def parser():
 
 def main():
     from madmom.audio.wav import Wav
-    from madmom.audio.spectrogram import LogarithmicFilteredSpectrogram
+    from madmom.audio.spectrogram import LogFiltSpec
     from madmom.features.onsets import SpectralOnsetDetection, Onset
 
     # parse arguments
@@ -62,10 +62,11 @@ def main():
         # load activations
         o = Onset(args.input, args.fps, args.online, args.sep)
     else:
-        # create a wav object
-        w = Wav(args.input, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
-        # create a spectrogram object
-        s = LogarithmicFilteredSpectrogram(w, mul=args.mul, add=args.add, norm_filter=args.norm_filter)
+        # create a Wav object
+        w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
+        # create a Spectrogram object
+        s = LogFiltSpec(w, frame_size=args.window, online=args.online, fps=args.fps,
+                        mul=args.mul, add=args.add, norm_filter=args.norm_filter)
         # create an SpectralOnsetDetection object and perform detection function on the object
         act = SpectralOnsetDetection(s).sf()
         # create an Onset object with the activations

@@ -21,6 +21,7 @@ ADD = 1
 FMIN = 27.5
 FMAX = 18000
 RATIO = 0.25
+NORM_FILTER = False
 
 
 def parser():
@@ -64,21 +65,21 @@ def main():
         o = Onset(args.input, args.fps, args.online, args.sep)
     else:
         # create a Wav object
-        w = Wav(args.input, fps=args.fps, mono=True, norm=args.norm)
+        w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
-        w.frame_size = 1024
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
+        s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
+                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
         nc_data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
-        w.frame_size = 2048
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
+        s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
+                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # 3rd spec
-        w.frame_size = 4096
-        s = LogFiltSpec(w, bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD)
+        s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
+                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
         nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
         # create a fake onset vector
-        nc_targets = np.zeros(w.num_frames)
+        nc_targets = np.zeros(s.num_frames)
         nc_targets[0] = 1
         # create a .nc file
         create_nc_file(args.nc_file, nc_data, nc_targets)
