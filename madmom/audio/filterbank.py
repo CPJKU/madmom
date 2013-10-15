@@ -20,6 +20,9 @@ NORM_FILTER = True
 OMIT_DUPLICATES = True
 A4 = 440
 
+HARMONIC_ENVELOPE = lambda x: np.sqrt(1. / x)
+HARMONIC_WIDTH = lambda x: 50 * 1.1 ** x
+INHARMONICITY_COEFF = 0.0
 
 # Mel frequency scale
 def hz2mel(f):
@@ -444,6 +447,39 @@ def rectang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
     return filterbank
 
 
+def harmonic_filter(fft_bins, sample_rate, fundamentals, num_harmonics,
+                    harmonic_envelope = HARMONIC_ENVELOPE, harmonic_width=HARMONIC_WIDTH,
+                    inharmonicity_coeff=INHARMONICITY_COEFF):
+
+    fundamentals = np.asarray(fundamentals)
+    h = np.arange(num_harmonics + 1) + 1
+    h_inh = h * np.sqrt(1 + h * h * inharmonicity_coeff)
+    filter_centers = fundamentals * h[:, np.newaxis]
+
+    filter_widths = harmonic_width(h) / 2
+    filter_starts = filter_centers - filter_widths[:, np.newaxis]
+    filter_ends = filter_centers + filter_widths[:, np.newaxis]
+
+    factor = (sample_rate / 2.0) / fft_bins
+    filter_centers = np.round(filter_centers / factor).astype(int)
+    filter_starts = np.round(filter_starts / factor).astype(int)
+    filter_starts = np.minimum(filter_starts, filter_centers - 1)
+    filter_ends = np.round(filter_ends / factor).astype(int)
+    filter_ends = np.maximum(filter_ends, filter_centers + 1)
+
+    filterbank = np.zeros((len(fundamentals), fft_bins))
+
+    for index, filt_start in np.ndenumerate(filter_starts):
+        filt_end = filter_ends[index]
+        filt_center = filter_centers[index]
+
+        filt = triang_filter(filt_start, filt_center, filt_end, False) * harmonic_envelope(index[0] + 1)
+
+        filterbank[index[1], filt_start:filt_end] = np.maximum(filterbank[index[1], filt_start:filt_end], filt)
+
+    return filterbank.T
+
+
 class Filter(np.ndarray):
 
     def __new__(cls, data, sample_rate):
@@ -755,3 +791,6 @@ class SimpleChromaFilter(Filter):
 #        note_assignments = np.argmin(note_to_fft_distances, axis=0) % 12
 #
 #        self.bin_assignments = np.mgrid[:12, :mag_spec_length][0] == note_assignments
+
+
+
