@@ -448,13 +448,13 @@ def rectang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER):
 
 
 def harmonic_filter(fft_bins, sample_rate, fundamentals, num_harmonics,
-                    harmonic_envelope = HARMONIC_ENVELOPE, harmonic_width=HARMONIC_WIDTH,
+                    harmonic_envelope=HARMONIC_ENVELOPE, harmonic_width=HARMONIC_WIDTH,
                     inharmonicity_coeff=INHARMONICITY_COEFF):
 
     fundamentals = np.asarray(fundamentals)
     h = np.arange(num_harmonics + 1) + 1
     h_inh = h * np.sqrt(1 + h * h * inharmonicity_coeff)
-    filter_centers = fundamentals * h[:, np.newaxis]
+    filter_centers = fundamentals * h_inh[:, np.newaxis]
 
     filter_widths = harmonic_width(h) / 2
     filter_starts = filter_centers - filter_widths[:, np.newaxis]
