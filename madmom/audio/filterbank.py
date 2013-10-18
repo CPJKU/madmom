@@ -325,36 +325,28 @@ def fft_freqs(fft_bins, sample_rate):
     return np.linspace(0, sample_rate / 2., fft_bins + 1)
 
 
+class FilterElement(np.ndarray):
 
-# class FilterElement(np.ndarray):
-# 
-#     def __new__(cls, data, start, stop):
-#         # input is an numpy ndarray instance
-#         if isinstance(data, np.ndarray):
-#             # cast as Filter
-#             obj = np.asarray(data).view(cls)
-#         else:
-#             raise TypeError("wrong input data for Filter")
-#         # set attributes
-#         obj.__start = start
-#         obj.__stop = stop
-#         # return the object
-#         return obj
-# 
-#     def __array_finalize__(self, obj):
-#         if obj is None:
-#             return
-#         # set default values here
-#         self.__fft_bins = getattr(obj, '__start')
-#         self.__bands = getattr(obj, '__stop')
-# 
-#     @property
-#     def start(self):
-#         return self.__start
-# 
-#     @property
-#     def stop(self):
-#         return self.__stop
+    def __new__(cls, input_array, start, stop):
+        obj = np.asarray(input_array).view(cls)
+        obj.__start = start
+        obj.__stop = stop
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.__fft_bins = getattr(obj, '__start', None)
+        self.__bands = getattr(obj, '__stop', None)
+
+    @property
+    def start(self):
+        return self.__start
+
+    @property
+    def stop(self):
+        return self.__stop
 
 
 def triang_filter(start, center, stop, norm):
@@ -380,8 +372,7 @@ def triang_filter(start, center, stop, norm):
     # falling edge (including the center, but without the last bin since it's 0)
     triang_filter[center - start:] = np.linspace(height, 0, (stop - center), endpoint=False)
 
-    # TODO: change this to a class (see FilterElement)?
-    return dict(start=start, stop=stop, values=triang_filter)
+    return FilterElement(triang_filter, start=start, stop=stop)
 
 
 def rectang_filter(start, stop, norm, **kwargs):
@@ -398,8 +389,7 @@ def rectang_filter(start, stop, norm, **kwargs):
     height = 1. / (stop - start) if norm else 1.
     rectang_filter = np.ones(stop - start) * height
 
-    # TODO: change this to a class (see FilterElement)?
-    return dict(start=start, stop=stop, values=rectang_filter)
+    return FilterElement(rectang_filter, start=start, stop=stop)
 
 
 def multi_filterbank(filters, fft_bins, bands, norm):
@@ -418,8 +408,8 @@ def multi_filterbank(filters, fft_bins, bands, norm):
 
     for band_id, band_filts in filters.iteritems():
         for filt in band_filts:
-            filt_pos = bank[filt['start']:filt['stop'], band_id]
-            np.maximum(filt['values'], filt_pos, out=filt_pos)
+            filt_pos = bank[filt.start:filt.stop, band_id]
+            np.maximum(filt, filt_pos, out=filt_pos)
 
     if norm:
         bank /= bank.sum(0)
@@ -554,8 +544,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins, samp
         params = {'start': filt_start, 'center': filt_center, 'stop': filt_end,
                   'norm': False}
 
-        filt = filter_type(**params)
-        filt['values'] *= filter_weights[index[0]]
+        filt = filter_type(**params) * filter_weights[index[0]]
 
         filters[index[1]] += [filt]
 
