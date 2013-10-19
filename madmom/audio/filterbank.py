@@ -325,9 +325,20 @@ def fft_freqs(fft_bins, sample_rate):
     return np.linspace(0, sample_rate / 2., fft_bins + 1)
 
 
-class FilterElement(np.ndarray):
+class Filter(np.ndarray):
+    """
+    Class representing a single filter
 
+    """
     def __new__(cls, input_array, start, stop):
+        """
+        Creates a new Filter instance.
+
+        :param input_array: Shape of the filter stored as numpy array
+        :param start: Start position in the frequency spectrum [bin no]
+        :param stop: Stop position in the freq. spectrum [bin no]
+
+        """
         obj = np.asarray(input_array).view(cls)
         obj.__start = start
         obj.__stop = stop
@@ -372,7 +383,7 @@ def triang_filter(start, center, stop, norm):
     # falling edge (including the center, but without the last bin since it's 0)
     triang_filter[center - start:] = np.linspace(height, 0, (stop - center), endpoint=False)
 
-    return FilterElement(triang_filter, start=start, stop=stop)
+    return Filter(triang_filter, start=start, stop=stop)
 
 
 def rectang_filter(start, stop, norm, **kwargs):
@@ -389,12 +400,12 @@ def rectang_filter(start, stop, norm, **kwargs):
     height = 1. / (stop - start) if norm else 1.
     rectang_filter = np.ones(stop - start) * height
 
-    return FilterElement(rectang_filter, start=start, stop=stop)
+    return Filter(rectang_filter, start=start, stop=stop)
 
 
 def multi_filterbank(filters, fft_bins, bands, norm):
     """
-    Creates a filterbank with multiple filter elements per band.
+    Creates a filterbank with multiple filters per band
 
     :param filters:  Dictionary containing lists of filters per band. Keys are
                      band ids.
@@ -614,7 +625,7 @@ def rectang_harmonic_filterbank(fundamentals, num_harmonics, fft_bins, sample_ra
                                inharmonicity_coeff)
 
 
-class Filter(np.ndarray):
+class FilterBank(np.ndarray):
 
     def __new__(cls, data, sample_rate):
         # input is an numpy ndarray instance
@@ -661,14 +672,14 @@ class Filter(np.ndarray):
         return self.bin_freqs[np.nonzero(self)[0][-1]]
 
 
-class MelFilter(Filter):
+class MelFilterBank(FilterBank):
     """
-    Mel Filter Class.
+    Mel Filter Bank Class.
 
     """
     def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, bands=MEL_BANDS, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
-        Creates a new Mel Filter object instance.
+        Creates a new Mel Filter Bank instance.
 
         :param fft_bins:    number of FFT bins (= half the window size of the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
@@ -703,14 +714,14 @@ class MelFilter(Filter):
         return self.__norm
 
 
-class BarkFilter(Filter):
+class BarkFilterBank(FilterBank):
     """
-    Bark Filter CLass.
+    Bark Filter Bank Class.
 
     """
     def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX, double=BARK_DOUBLE, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES):
         """
-        Creates a new Bark Filter object instance.
+        Creates a new Bark Filter Bank instance.
 
         :param fft_bins:    number of FFT bins (= half the window size of the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
@@ -748,16 +759,16 @@ class BarkFilter(Filter):
 
 
 # TODO: this is very similar to the Cent-Scale. Unify it?
-class LogarithmicFilter(Filter):
+class LogarithmicFilterBank(FilterBank):
     """
-    Logarithmic Filter class.
+    Logarithmic Filter Bank class.
 
     """
     def __new__(cls, fft_bins, sample_rate,
                 bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
-        Creates a new Logarithmic Filter object instance.
+        Creates a new Logarithmic Filter Bank instance.
 
         :param fft_bins:         number of FFT bins (= half the window size of the FFT)
         :param sample_rate:      sample rate of the audio file [Hz]
@@ -804,18 +815,18 @@ class LogarithmicFilter(Filter):
         return self.__a4
 
 # alias
-LogFilter = LogarithmicFilter
+LogFilterBank = LogarithmicFilterBank
 
 
-class SemitoneFilter(LogarithmicFilter):
+class SemitoneFilterBank(LogarithmicFilterBank):
     """
-    Semitone Filter class.
+    Semitone Filter Bank class.
 
     """
     def __new__(cls, fft_bins, sample_rate,
                 fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
-        Creates a new Semitone Filter object instance.
+        Creates a new Semitone Filter instance.
 
         :param fft_bins:    number of FFT bins (= half the window size of the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
@@ -831,10 +842,10 @@ class SemitoneFilter(LogarithmicFilter):
         return LogarithmicFilter.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, omit_duplicates, a4)
 
 
-class SimpleChromaFilter(Filter):
+class SimpleChromaFilterBank(FilterBank):
     # FIXME: check if the result is the one expected
     """
-    A simple chroma filter. Each frequency bin of a magnitude spectrum
+    A simple chroma filter bank. Each frequency bin of a magnitude spectrum
     is assigned a chroma class, and all it's contents are added to this class.
     No diffusion, just discrete assignment.
     """
@@ -842,7 +853,7 @@ class SimpleChromaFilter(Filter):
     def __new__(cls, fft_bins, sample_rate,
                 fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, a4=A4):
         """
-        Creates a new Chroma Filter object instance.
+        Creates a new Chroma Filter Bank instance.
 
         :param fft_bins:    number of FFT bins (= half the window size of the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
