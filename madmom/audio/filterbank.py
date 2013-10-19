@@ -697,7 +697,7 @@ class MelFilterBank(FilterBank):
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         # return the object
@@ -741,7 +741,7 @@ class BarkFilterBank(FilterBank):
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         # return the object
@@ -786,7 +786,7 @@ class LogarithmicFilterBank(FilterBank):
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__bands_per_octave = bands_per_octave
         obj.__norm = norm
@@ -839,7 +839,7 @@ class SemitoneFilterBank(LogarithmicFilterBank):
 
         """
         # return a LogarithmicFilter with 12 bands per octave
-        return LogarithmicFilter.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, omit_duplicates, a4)
+        return LogarithmicFilterBank.__new__(cls, fft_bins, sample_rate, 12, fmin, fmax, norm, omit_duplicates, a4)
 
 
 class SimpleChromaFilterBank(FilterBank):
@@ -890,7 +890,7 @@ class SimpleChromaFilterBank(FilterBank):
             # create a rectangular filter and map it to the 12 bins
             filterbank[start:stop, band % 12] = height
         # cast to Filter
-        obj = Filter.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
         obj.__a4 = a4
