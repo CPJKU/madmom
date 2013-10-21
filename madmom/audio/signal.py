@@ -161,16 +161,21 @@ class Signal(object):
         """
         Creates a new Signal object instance.
 
-        :param data:        signal data (numpy array or file or file handle)
+        :param data:        numpy array (`sample_rate` must be given as well)
+                            or Signal instance or file name or file handle
         :param sample_rate: sample rate of the signal [default=None]
         :param mono:        downmix the signal to mono [default=False]
         :param norm:        normalize the signal [default=False]
         :param att:         attenuate the signal by N dB [default=0]
 
         """
-        # signal handling
-        if isinstance(data, np.ndarray) and sample_rate is not None:
-            # input is an numpy array + sample rate, use as is
+        # data handling
+        if isinstance(data, Signal):
+            # already a Signal, use its data and sample_rate
+            self.data = data.data
+            self.sample_rate = sample_rate
+        elif isinstance(data, np.ndarray) and sample_rate is not None:
+            # data is an numpy array, use the data and sample rate
             self.data = data
             self.sample_rate = sample_rate
         else:
@@ -337,7 +342,8 @@ class FramedSignal(object):
         """
         Creates a new FramedSignal object instance.
 
-        :param signal:     an Signal object
+        :param signal:     a Signal or FramedSignal instance
+                           or anything a Signal can be instantiated from
         :param frame_size: size of one frame [default=2048]
         :param hop_size:   progress N samples between adjacent frames [default=441]
         :param origin:     location of the window relative to the signal position [default=0]
@@ -371,10 +377,15 @@ class FramedSignal(object):
         removed in the near future!
 
         """
-        # instantiate a Signal object if needed
+        # signal handling
         if isinstance(signal, Signal):
+            # already a Signal, use as it is
             self.signal = signal
+        elif isinstance(signal, FramedSignal):
+            # already a FramedSignal, use the signal attribute
+            self.signal = signal.signal
         else:
+            # try to instantiate a Signal
             self.signal = Signal(signal, *args, **kwargs)
         # arguments for splitting the signal into frames
         self.frame_size = int(frame_size)
