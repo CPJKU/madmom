@@ -123,7 +123,8 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param frames:   a FramedSignal object (or file name or file handle)
+        :param frames:   a list of Signal objects, a FramedSignal object,
+                         a file name or file handle
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
@@ -158,40 +159,44 @@ class Spectrogram(object):
         """
         from .signal import FramedSignal
         # audio signal stuff
-        if isinstance(frames, FramedSignal):
-            # already the right format
+        if isinstance(frames, list):
+            # list of frames
             self.frames = frames
+            # set the frame_size and dtype on the basis of the first frame
+            frame_size = len(frames[0])
+            # use with numpy arrays
+#            signal_dtype = frames[0].dtype
+            # use with Signals
+#            signal_dtype = frames[0].data.dtype
+            # use with tuples
+            signal_dtype = frames[0][0].dtype
+
         else:
             # try to instantiate a Framed object
             self.frames = FramedSignal(frames, *args, **kwargs)
+            # set the frame_size and dtype
+            frame_size = self.frames.frame_size
+            signal_dtype = self.frames.signal.data.dtype
 
-        # window stuff
+        # determine window to use
         if hasattr(window, '__call__'):
             # if only function is given, use the size to the audio frame size
-            self.window = window(self.frames.frame_size)
+            self.window = window(frame_size)
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
             self.window = window
         else:
             # other types are not supported
             raise TypeError("Invalid window type.")
+        # normalize the window if needed
         if norm_window:
-            # normalize the window if needed
             self.window /= np.sum(self.window)
-
-        # magnitude spectrogram (+ others)
-        self.__spec = None
-        self.__stft = None
-        self.__phase = None
-        self.__lgd = None
-        # TODO: does this attribute belong to this class?
-        self.__diff = None
-
-        # perform these additional computations
-        # Note: the naming might be a bit confusing but is short
-        self._stft = stft
-        self._phase = phase
-        self._lgd = lgd
+        # window used for DFT
+        try:
+            # the audio signal is not scaled, scale the window accordingly
+            self.__window = self.window / np.iinfo(signal_dtype).max
+        except ValueError:
+            self.__window = self.window
 
         # parameters used for the DFT
         if fft_size is None:
@@ -199,18 +204,44 @@ class Spectrogram(object):
         else:
             self.fft_size = fft_size
 
+        # perform these additional computations
+        # Note: the naming might be a bit confusing but is short
+        self._stft = stft
+        self._phase = phase
+        self._lgd = lgd
+
+        # init matrices
+        self.__spec = None
+        self.__stft = None
+        self.__phase = None
+        self.__lgd = None
+
         # parameters for magnitude spectrogram processing
         self.__filterbank = filterbank
         self.__log = log
         self.__mul = mul
         self.__add = add
 
+        # TODO: does this attribute belong to this class?
+        self.__diff = None
         # diff parameters
         self.ratio = ratio
         self.__diff_frames = diff_frames
 
     @property
+    def num_frames(self):
+        """Number of frames."""
+        # either the length of the FramedSignal object or just a slice of it
+        return len(self.frames)
+
+    @property
+    def num_fft_bins(self):
+        """Number of FFT bins."""
+        return self.fft_size >> 1
+
+    @property
     def filterbank(self):
+        """Filterbank with which the spectrogram is filtered."""
         return self.__filterbank
 
     @filterbank.setter
@@ -219,6 +250,15 @@ class Spectrogram(object):
         self.__filterbank = filterbank
         # invalidate the magnitude spectrogram
         self.__spec = None
+
+    @property
+    def num_bins(self):
+        """Number of bins of the spectrogram."""
+        # number of frequency bins of the magnitude spectrogram
+        if self.filterbank is None:
+            return self.num_fft_bins
+        else:
+            return np.shape(self.filterbank)[1]
 
     @property
     def log(self):
@@ -253,121 +293,84 @@ class Spectrogram(object):
         # invalidate the magnitude spectrogram
         self.__spec = None
 
-    def _fft_window(self):
-        """
-        Returns the window function to be used for FFT.
-        The window is scaled automatically, depending on whether the audio
-        is scaled to the range of -1..+1 or present in signed int16.
-
-        """
-        # if the audio signal is not scaled, scale the window function accordingly
-        # copy the window, and leave self.window untouched
-        try:
-            return np.copy(self.window) / np.iinfo(self.frames.signal.data.dtype).max
-        except ValueError:
-            return np.copy(self.window)
-
-    def compute_stft(self, index=None, filterbank=None, log=None, mul=None, add=None, stft=None, phase=None, lgd=None, fft_size=None):
+    def compute_stft(self, filterbank=None, log=None, mul=None, add=None, fft_size=None, stft=None, phase=None, lgd=None):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
-        :param index:      slice for which the computation should be perfomed
         :param filterbank: filterbank used for dimensionality reduction of the
                            magnitude spectrogram
         :param log:        take the logarithm of the magnitudes
         :param mul:        multiplier before taking the logarithm of the magnitudes
         :param add:        add this value before taking the logarithm of the magnitudes
+        :param fft_size:   size used for FFT
         :param stft:       save the raw complex STFT to the "stft" attribute
         :param phase:      save the phase of the STFT to the "phase" attribute
         :param lgd:        save the local group delay of the STFT to the "lgd" attribute
 
         """
-        # determine the number of time frames needed
-        # a slice is given
-        if isinstance(index, slice):
-            frames = (index.stop + 1 - index.start) / index.step
-        # a single index is given
-        elif isinstance(index, int):
-            frames = 1
-        # all frames
-        else:
-            index = slice(None)
-            frames = self.frames.num_frames
-
-        # filterbank
+        # overwrite set parameters
         if filterbank is not None:
             self.filterbank = filterbank
-        # logarithm
         if log is not None:
             self.log = log
         if mul is not None:
             self.mul = mul
         if add is not None:
             self.add = add
+        if fft_size is not None:
+            self.fft_size = fft_size
 
-        # determine the number of frequency bins needed for the magnitude spectrogram
-        if isinstance(self.filterbank, np.ndarray):
-            # the second dimension is the number of desired bins
-            bins = np.shape(self.filterbank)[1]
-        else:
-            bins = self.fft_bins
+        # additional computation defaults
+        if stft is None:
+            stft = self._stft
+        if phase is None:
+            phase = self._phase
+        if lgd is None:
+            lgd = self._lgd
 
         # init spectrogram matrix
-        self.__spec = np.empty([frames, bins], np.float)
-        # init STFT matrix
+        self.__spec = np.empty([self.num_frames, self.num_bins], np.float)
+        # STFT matrix
         if stft:
-            self._stft = True
-        if self._stft:
-            self.__stft = np.empty([frames, self.fft_bins], np.complex)
-        # init phase matrix
+            self.__stft = np.empty([self.num_frames, self.num_fft_bins], np.complex) if stft else None
+        # phase matrix
         if phase:
-            self._phase = True
-        if self._phase:
-            self.__phase = np.empty([frames, self.fft_bins], np.float)
-        # init local group delay matrix
+            self.__phase = np.empty([self.num_frames, self.num_fft_bins], np.float) if phase else None
+        # local group delay matrix
         if lgd:
-            self._lgd = True
-        if self._lgd:
-            self.__lgd = np.empty([frames, self.fft_bins], np.float)
+            self.__lgd = np.empty([self.num_frames, self.num_fft_bins], np.float) if lgd else None
 
-        # get a scaled windowing function
-        window = self._fft_window()
-
-        # FFT size to use
-        if fft_size is None:
-            fft_size = self.fft_size
-        if fft_size is None:
-            fft_size = self.window.size
-
-        # TODO: use yield instead of the index counting stuff and cache the results
-        # maybe similar to the solution proposed in:
-        # http://stackoverflow.com/questions/2322642/index-and-slice-a-generator-in-python
-        frame_index = 0
-        for frame in self.frames[index]:
+        # calculate DFT for all frames
+        for f in range(len(self.frames)):
             # multiply the signal with the window function
-            signal = np.multiply(frame, window)
+            # use with numpy arrays
+#            signal = np.multiply(self.frames[f], self.__window)
+            # use with Signals
+#            signal = np.multiply(self.frames[f].data, self.__window)
+            # use with tuples
+            signal = np.multiply(self.frames[f][0], self.__window)
             # only shift and perform complex DFT if needed
-            if self._phase or self._lgd:
+            if self.__phase is not None or self.__lgd is not None:
                 # circular shift the signal (needed for correct phase)
-                #signal = fft.fftshift(signal)  # slower!
-                centre = self.window.size / 2
-                signal = np.append(signal[centre:], signal[:centre])
+                signal = np.concatenate(signal[self.num_fft_bins:], signal[:self.num_fft_bins])
             # perform DFT
-            dft = fft.fft(signal, fft_size)[:self.fft_bins]
+            dft = fft.fft(signal, fft_size)[:self.num_fft_bins]
 
             # save raw stft
-            if self._stft:
-                self.__stft[frame_index] = dft
+            if stft:
+                self.__stft[f] = dft
             # phase / lgd
-            if self._phase or self._lgd:
+            if phase or lgd:
                 angle = np.angle(dft)
-            if self._phase:
-                self.__phase[frame_index] = angle
-            if self._lgd:
+            # save phase
+            if phase:
+                self.__phase[f] = angle
+            # save lgd
+            if lgd:
                 # unwrap phase over frequency axis
                 unwrapped_phase = np.unwrap(angle, axis=1)
                 # local group delay is the derivative over frequency
-                self.__lgd[frame_index, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
+                self.__lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
             # magnitude spectrogram
             spec = np.abs(dft)
@@ -377,10 +380,7 @@ class Spectrogram(object):
             # take the logarithm if needed
             if self.log:
                 spec = np.log10(self.mul * spec + self.add)
-            self.__spec[frame_index] = spec
-
-            # increase index counter for next frame
-            frame_index += 1
+            self.__spec[f] = spec
 
     @property
     def stft(self):
@@ -499,31 +499,6 @@ class Spectrogram(object):
                 self.compute_stft(lgd=True)
         return self.__lgd
 
-    @property
-    def num_frames(self):
-        """Number of frames."""
-        return np.shape(self.spec)[0]
-
-    @property
-    def fft_bins(self):
-        """Number of FFT bins."""
-        return self.fft_size >> 1
-
-    @property
-    def bins(self):
-        """Number of bins of the spectrogram."""
-        return np.shape(self.spec)[1]
-
-    @property
-    def mapping(self):
-        """Conversion factor for mapping frequencies in Hz to spectrogram bins."""
-        return self.frames.signal.sample_rate / 2.0 / self.fft_bins
-
-    @property
-    def fft_freqs(self):
-        """List of frequencies corresponding to the spectrogram bins."""
-        return np.fft.fftfreq(self.window.size)[:self.fft_bins] * self.frames.signal.sample_rate
-
     def aw(self, floor=0.5, relaxation=10):
         """
         Perform adaptive whitening on the magnitude spectrogram.
@@ -539,7 +514,7 @@ class Spectrogram(object):
         mem_coeff = 10.0 ** (-6. * relaxation / self.fps)
         P = np.zeros_like(self.spec)
         # iterate over all frames
-        for f in range(self.frames):
+        for f in range(len(self.frames)):
             if f > 0:
                 P[f] = np.maximum(self.spec[f], floor, mem_coeff * P[f - 1])
             else:

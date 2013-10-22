@@ -153,8 +153,8 @@ ATT = 0
 
 class Signal(object):
     """
-    Signal is a very simple class which just stores the signal and the sample
-    rate and provides some basic methods for signal processing.
+    Signal is a very simple class which just stores a reference to the signal
+    and the sample rate and provides some basic methods for signal processing.
 
     """
     def __init__(self, data, sample_rate=None, mono=MONO, norm=NORM, att=ATT):
@@ -170,19 +170,20 @@ class Signal(object):
 
         """
         # data handling
-        if isinstance(data, Signal):
+        if isinstance(data, np.ndarray) and sample_rate is not None:
+            # data is an numpy array, use it directly
+            self.data = data
+        elif isinstance(data, Signal):
             # already a Signal, use its data and sample_rate
             self.data = data.data
-            self.sample_rate = sample_rate
-        elif isinstance(data, np.ndarray) and sample_rate is not None:
-            # data is an numpy array, use the data and sample rate
-            self.data = data
-            self.sample_rate = sample_rate
+            self.sample_rate = data.sample_rate
         else:
-            # try the load_audio_file
+            # try to load an audio file
             from .io import load_audio_file
             self.data, self.sample_rate = load_audio_file(data, sample_rate)
-
+        # set sample rate
+        if sample_rate is not None:
+            self.sample_rate = sample_rate
         # convenience handling of mono down-mixing and normalization
         if mono:
             # down-mix to mono
@@ -194,10 +195,13 @@ class Signal(object):
             # attenuate signal
             self.attenuate(att)
 
+    # len() returns the number of frames, consistent with __getitem__()
+    def __len__(self):
+        return self.num_samples
+
     @property
     def num_samples(self):
         """Number of samples."""
-        # TODO: cache this value and invalidate when signal changes
         return np.shape(self.data)[0]
 
     @property
@@ -378,12 +382,14 @@ class FramedSignal(object):
 
         """
         # signal handling
-        if isinstance(signal, Signal):
-            # already a Signal, use as it is
-            self.signal = signal
-        elif isinstance(signal, FramedSignal):
-            # already a FramedSignal, use the signal attribute
+        if isinstance(signal, FramedSignal):
+            # already a FramedSignal, use the attributes
+            # (these attributes can be overwritten by passing other values)
             self.signal = signal.signal
+            self.frame_size = signal.frame_size
+            self.hop_size = signal.hop_size
+            self.origin = signal.origin
+            self.mode = mode
         else:
             # try to instantiate a Signal
             self.signal = Signal(signal, *args, **kwargs)
@@ -421,6 +427,8 @@ class FramedSignal(object):
             self.mode = 'extend'
         else:
             self.mode = 'normal'
+        # cache
+        self.__num_frames = None
 
     # make the Object indexable
     def __getitem__(self, index):
@@ -444,8 +452,15 @@ class FramedSignal(object):
         # a single index is given
         elif isinstance(index, int):
             # return a single frame
+            if index > self.num_frames:
+                raise IndexError("end of signal reached")
             # (as specified above, negative indices do not wrap around)
-            return signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin)
+            # return numpy array
+#            return signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin)
+            # return Signal
+#            return Signal(signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin), self.signal.sample_rate)
+            # return tuple
+            return signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin), self.signal.sample_rate
         # other index types are invalid
         else:
             raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
@@ -457,10 +472,13 @@ class FramedSignal(object):
     @property
     def num_frames(self):
         """Number of frames."""
-        if self.mode == 'extend':
-            return int(np.floor((np.shape(self.signal.data)[0]) / float(self.hop_size)) + 1)
+        if self.__num_frames:
+            return self.__num_frames
+        elif self.mode == 'extend':
+            self.__num_frames = int(np.floor((np.shape(self.signal.data)[0]) / float(self.hop_size)) + 1)
         else:
-            return int(np.ceil((np.shape(self.signal.data)[0]) / float(self.hop_size)))
+            self.__num_frames = int(np.ceil((np.shape(self.signal.data)[0]) / float(self.hop_size)))
+        return self.__num_frames
 
     @property
     def fps(self):
