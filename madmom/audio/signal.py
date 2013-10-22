@@ -224,37 +224,6 @@ class Signal(object):
         """Length of signal in seconds."""
         return float(self.num_samples) / float(self.sample_rate)
 
-    # downmix to mono
-    def downmix(self):
-        """Down-mix the signal to mono."""
-        self.data = downmix(self.data)
-
-    # normalize the signal
-    def normalize(self):
-        """Normalize the signal."""
-        self.data = normalize(self.data)
-
-    # attenuate the signal
-    def attenuate(self, attenuation):
-        """
-        Attenuate the signal.
-
-        :param attenuation: attenuation level [dB]
-
-        """
-        self.data = attenuate(self.data, attenuation)
-
-    # downsample
-    def downsample(self, factor=2):
-        """
-        Downsamples the signal by the given factor.
-
-        :param factor: down-sampling factor [default=2]
-
-        """
-        self.data = downsample(self.data, factor)
-        self.sample_rate /= factor
-
     # TODO: make this nicer!
     def __str__(self):
         return "%s length: %i samples (%.2f seconds) sample rate: %i" % (self.__class__, self.num_samples, self.length, self.sample_rate)
