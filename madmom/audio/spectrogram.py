@@ -162,15 +162,10 @@ class Spectrogram(object):
         if isinstance(frames, list):
             # list of frames
             self.frames = frames
+            # each frame is a tuple of the signal data and the sample rate
             # set the frame_size and dtype on the basis of the first frame
             frame_size = len(frames[0])
-            # use with numpy arrays
-#            signal_dtype = frames[0].dtype
-            # use with Signals
-#            signal_dtype = frames[0].data.dtype
-            # use with tuples
             signal_dtype = frames[0][0].dtype
-
         else:
             # try to instantiate a Framed object
             self.frames = FramedSignal(frames, *args, **kwargs)
@@ -342,15 +337,11 @@ class Spectrogram(object):
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
-            # multiply the signal with the window function
-            # use with numpy arrays
-#            signal = np.multiply(self.frames[f], self.__window)
-            # use with Signals
-#            signal = np.multiply(self.frames[f].data, self.__window)
-            # use with tuples
+            # multiply the signal frame with the window function
+            # each frame is a tuple of the signal data and the sample rate
             signal = np.multiply(self.frames[f][0], self.__window)
             # only shift and perform complex DFT if needed
-            if self.__phase is not None or self.__lgd is not None:
+            if phase or lgd:
                 # circular shift the signal (needed for correct phase)
                 signal = np.concatenate(signal[self.num_fft_bins:], signal[:self.num_fft_bins])
             # perform DFT
@@ -556,7 +547,10 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+            # each frame is a tuple of the signal data and the sample rate
+            # set the sample rate on the basis of the first frame
+            filterbank = LogarithmicFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames[0][1],
+                                           bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
 

@@ -172,37 +172,42 @@ class Signal(object):
         # data handling
         if isinstance(data, np.ndarray) and sample_rate is not None:
             # data is an numpy array, use it directly
-            self.data = data
+            self.__data = data
         elif isinstance(data, Signal):
             # already a Signal, use its data and sample_rate
-            self.data = data.data
+            self.__data = data.data
             self.sample_rate = data.sample_rate
         else:
             # try to load an audio file
             from .io import load_audio_file
-            self.data, self.sample_rate = load_audio_file(data, sample_rate)
+            self.__data, self.sample_rate = load_audio_file(data, sample_rate)
         # set sample rate
         if sample_rate is not None:
             self.sample_rate = sample_rate
         # convenience handling of mono down-mixing and normalization
         if mono:
             # down-mix to mono
-            self.downmix()
+            self.__data = downmix(self.__data)
         if norm:
             # normalize signal
-            self.normalize()
+            self.__data = normalize(self.__data)
         if att != 0:
             # attenuate signal
-            self.attenuate(att)
+            self.__data = attenuate(self.__data)
 
-    # len() returns the number of frames, consistent with __getitem__()
+    @property
+    def data(self):
+        # make data immutable
+        return self.__data
+
+    # len() returns the number of samples
     def __len__(self):
         return self.num_samples
 
     @property
     def num_samples(self):
         """Number of samples."""
-        return np.shape(self.data)[0]
+        return len(self.data)
 
     @property
     def num_channels(self):
@@ -381,6 +386,10 @@ class FramedSignal(object):
         removed in the near future!
 
         """
+        # internal variables
+        self.__signal = None
+        self.__hop_size = None
+        self.__num_frames = None
         # signal handling
         if isinstance(signal, FramedSignal):
             # already a FramedSignal, use the attributes
@@ -422,13 +431,11 @@ class FramedSignal(object):
                 self.origin = int(origin)
             except ValueError:
                 raise ValueError('invalid origin')
-        # signal range handling
+        # mode
         if mode == 'extend':
             self.mode = 'extend'
         else:
             self.mode = 'normal'
-        # cache
-        self.__num_frames = None
 
     # make the Object indexable
     def __getitem__(self, index):
@@ -454,16 +461,31 @@ class FramedSignal(object):
             # return a single frame
             if index > self.num_frames:
                 raise IndexError("end of signal reached")
-            # (as specified above, negative indices do not wrap around)
-            # return numpy array
-#            return signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin)
-            # return Signal
-#            return Signal(signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin), self.signal.sample_rate)
-            # return tuple
+            # return tuple of frame and the corresponding sample rate
             return signal_frame(self.signal.data, index, self.frame_size, self.hop_size, self.origin), self.signal.sample_rate
         # other index types are invalid
         else:
             raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
+
+    @property
+    def signal(self):
+        return self.__signal
+
+    @signal.setter
+    def signal(self, signal):
+        self.__signal = signal
+        # invalidate cache
+        self.__num_frames = None
+
+    @property
+    def hop_size(self):
+        return self.__hop_size
+
+    @hop_size.setter
+    def hop_size(self, hop_size):
+        self.__hop_size = hop_size
+        # invalidate cache
+        self.__num_frames = None
 
     # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
@@ -471,13 +493,13 @@ class FramedSignal(object):
 
     @property
     def num_frames(self):
-        """Number of frames."""
         if self.__num_frames:
             return self.__num_frames
-        elif self.mode == 'extend':
-            self.__num_frames = int(np.floor((np.shape(self.signal.data)[0]) / float(self.hop_size)) + 1)
+        # calculate the cached value
+        if self.mode == 'extend':
+            self.__num_frames = int(np.floor(len(self.signal.data) / float(self.hop_size)) + 1)
         else:
-            self.__num_frames = int(np.ceil((np.shape(self.signal.data)[0]) / float(self.hop_size)))
+            self.__num_frames = int(np.ceil(len(self.signal.data) / float(self.hop_size)))
         return self.__num_frames
 
     @property
