@@ -160,23 +160,15 @@ class Spectrogram(object):
         from .signal import FramedSignal
         # audio signal stuff
         if isinstance(frames, list):
-            # list of frames
-            self.frames = frames
-            # each frame is a tuple of the signal data and the sample rate
-            # set the frame_size and dtype on the basis of the first frame
-            frame_size = len(frames[0])
-            signal_dtype = frames[0][0].dtype
+            raise NotImplementedError('please alter FramedSignal to return a new instance and not just a list of frames')
         else:
             # try to instantiate a Framed object
             self.frames = FramedSignal(frames, *args, **kwargs)
-            # set the frame_size and dtype
-            frame_size = self.frames.frame_size
-            signal_dtype = self.frames.signal.data.dtype
 
         # determine window to use
         if hasattr(window, '__call__'):
             # if only function is given, use the size to the audio frame size
-            self.window = window(frame_size)
+            self.window = window(self.frames.frame_size)
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
             self.window = window
@@ -189,7 +181,7 @@ class Spectrogram(object):
         # window used for DFT
         try:
             # the audio signal is not scaled, scale the window accordingly
-            self.__window = self.window / np.iinfo(signal_dtype).max
+            self.__window = self.window / np.iinfo(self.frames.signal.data.dtype).max
         except ValueError:
             self.__window = self.window
 
@@ -338,8 +330,7 @@ class Spectrogram(object):
         # calculate DFT for all frames
         for f in range(len(self.frames)):
             # multiply the signal frame with the window function
-            # each frame is a tuple of the signal data and the sample rate
-            signal = np.multiply(self.frames[f][0], self.__window)
+            signal = np.multiply(self.frames[f], self.__window)
             # only shift and perform complex DFT if needed
             if phase or lgd:
                 # circular shift the signal (needed for correct phase)
@@ -549,7 +540,7 @@ class FilteredSpectrogram(Spectrogram):
         if filterbank is None:
             # each frame is a tuple of the signal data and the sample rate
             # set the sample rate on the basis of the first frame
-            filterbank = LogarithmicFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames[0][1],
+            filterbank = LogarithmicFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames.signal.sample_rate,
                                            bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
