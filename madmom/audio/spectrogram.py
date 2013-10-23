@@ -159,8 +159,9 @@ class Spectrogram(object):
         """
         from .signal import FramedSignal
         # audio signal stuff
-        if isinstance(frames, list):
-            raise NotImplementedError('please alter FramedSignal to return a new instance and not just a list of frames')
+        if isinstance(frames, FramedSignal):
+            # already a FramedSignal object
+            self.frames = frames
         else:
             # try to instantiate a Framed object
             self.frames = FramedSignal(frames, *args, **kwargs)
