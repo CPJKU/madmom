@@ -172,39 +172,39 @@ class Signal(object):
         # data handling
         if isinstance(data, np.ndarray) and sample_rate is not None:
             # data is an numpy array, use it directly
-            self.__data = data
+            self._data = data
         elif isinstance(data, Signal):
             # already a Signal, copy the object attributes (which can be
             # overwritten by passing other values to the constructor)
-            self.__data = data.data
-            self.__sample_rate = data.sample_rate
+            self._data = data.data
+            self._sample_rate = data.sample_rate
         else:
             # try to load an audio file
             from .io import load_audio_file
-            self.__data, self.__sample_rate = load_audio_file(data, sample_rate)
+            self._data, self._sample_rate = load_audio_file(data, sample_rate)
         # set sample rate
         if sample_rate is not None:
-            self.__sample_rate = sample_rate
+            self._sample_rate = sample_rate
         # convenience handling of mono down-mixing and normalization
         if mono:
             # down-mix to mono
-            self.__data = downmix(self.__data)
+            self._data = downmix(self._data)
         if norm:
             # normalize signal
-            self.__data = normalize(self.__data)
+            self._data = normalize(self._data)
         if att != 0:
             # attenuate signal
-            self.__data = attenuate(self.__data)
+            self._data = attenuate(self._data)
 
     @property
     def data(self):
         # make data immutable
-        return self.__data
+        return self._data
 
     @property
     def sample_rate(self):
         # make sample rate immutable
-        return self.__sample_rate
+        return self._sample_rate
 
     # len() returns the number of samples
     def __len__(self):
@@ -365,30 +365,30 @@ class FramedSignal(object):
 
         """
         # set default start position to 0
-        self.__start = 0
+        self._start = 0
         # signal handling
         if isinstance(signal, FramedSignal):
             # already a FramedSignal, copy the object attributes (which can be
             # overwritten by passing other values to the constructor)
-            self.__signal = signal.signal
-            self.__frame_size = signal.frame_size
-            self.__hop_size = signal.hop_size
-            self.__origin = signal.origin
-            self.__mode = signal.mode
-            self.__start = signal.start
+            self._signal = signal.signal
+            self._frame_size = signal.frame_size
+            self._hop_size = signal.hop_size
+            self._origin = signal.origin
+            self._mode = signal.mode
+            self._start = signal.start
         else:
             # try to instantiate a Signal
-            self.__signal = Signal(signal, *args, **kwargs)
+            self._signal = Signal(signal, *args, **kwargs)
 
         # arguments for splitting the signal into frames
         if frame_size:
-            self.__frame_size = int(frame_size)
+            self._frame_size = int(frame_size)
         if hop_size:
-            self.__hop_size = float(hop_size)
+            self._hop_size = float(hop_size)
         # use fps instead of hop_size
         if fps:
             # Note: using fps overwrites the hop_size
-            self.__hop_size = self.__signal.sample_rate / float(fps)
+            self._hop_size = self._signal.sample_rate / float(fps)
 
         # set origin and mode to reflect `online mode`
         if online:
@@ -398,17 +398,17 @@ class FramedSignal(object):
         # location of the window
         if origin in ('center', 'offline'):
             # the current position is the center of the frame
-            self.__origin = 0
+            self._origin = 0
         elif origin in ('left', 'past', 'online'):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            self.__origin = +(frame_size - 1) / 2
+            self._origin = +(frame_size - 1) / 2
         elif origin in ('right', 'future'):
-            self.__origin = -(frame_size / 2)
+            self._origin = -(frame_size / 2)
         else:
             try:
-                self.__origin = int(origin)
+                self._origin = int(origin)
             except ValueError:
                 raise ValueError('invalid origin')
 
@@ -416,19 +416,19 @@ class FramedSignal(object):
         if mode == 'extend':
             # FIXME: should we save the mode, or is it enough to use it for the
             # calculation of the number of frames
-            self.__mode = 'extend'
-            self.__num_frames = int(np.floor(len(self.signal.data) / float(self.hop_size)) + 1)
+            self._mode = 'extend'
+            self._num_frames = int(np.floor(len(self.signal.data) / float(self.hop_size)) + 1)
         else:
-            self.__mode = 'normal'
-            self.__num_frames = int(np.ceil(len(self.signal.data) / float(self.hop_size)))
+            self._mode = 'normal'
+            self._num_frames = int(np.ceil(len(self.signal.data) / float(self.hop_size)))
 
         # start and length
         if start:
             # the internal start position is stored in samples
-            self.__start = start
+            self._start = start
         if length:
             # set the length to the given number of frames
-            self.__num_frames = length
+            self._num_frames = length
 
     # make the Object indexable
     def __getitem__(self, index):
@@ -467,7 +467,7 @@ class FramedSignal(object):
                 raise ValueError('only slices with a step size of 1 are supported')
             # create a new FramedSignal object and return it
             return FramedSignal(signal=self.signal, frame_size=self.frame_size,
-                                hop_size=self.hop_size, origin=self.__origin,
+                                hop_size=self.hop_size, origin=self.origin,
                                 start=start, length=length)
         # a single index is given
         elif isinstance(index, int):
@@ -477,36 +477,36 @@ class FramedSignal(object):
             # return the frame at this index
             # subtract the start position (in samples) from the origin and use
             # it as the origin (negative origin shifts to the right)
-            return signal_frame(self.__signal.data, index, self.__frame_size,
-                                self.__hop_size, self.__origin - self.__start)
+            return signal_frame(self.signal.data, index, self.frame_size,
+                                self.hop_size, self.origin - self.start)
         # other index types are invalid
         else:
             raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
 
     @property
     def signal(self):
-        return self.__signal
+        return self._signal
 
     @property
     def frame_size(self):
-        return self.__frame_size
+        return self._frame_size
 
     @property
     def hop_size(self):
-        return self.__hop_size
+        return self._hop_size
 
     @property
     def mode(self):
         # FIXME: do we need to save and access this property?
-        return self.__mode
+        return self._mode
 
     @property
     def origin(self):
-        return self.__origin
+        return self._origin
 
     @property
     def start(self):
-        return self.__start
+        return self._start
 
     # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
@@ -514,7 +514,7 @@ class FramedSignal(object):
 
     @property
     def num_frames(self):
-        return self.__num_frames
+        return self._num_frames
 
     @property
     def fps(self):

@@ -159,201 +159,187 @@ class Spectrogram(object):
         """
         from .signal import FramedSignal
         # audio signal stuff
-        if isinstance(frames, FramedSignal):
+        if isinstance(frames, Spectrogram):
+            # already a Spectrogram object, copy the attributes (which can be
+            # overwritten by passing other values to the constructor)
+            self._frames = frames.frames
+            self._window = frames.window
+            self._fft_size = frames.fft_size
+            self._filterbank = frames.filterbank
+            self._log = frames.log
+            self._mul = frames.mul
+            self._add = frames.add
+            self._ratio = frames.ratio
+            # do not copy diff_frames, it is calculated or set manually
+        elif isinstance(frames, FramedSignal):
             # already a FramedSignal object
-            self.frames = frames
+            self._frames = frames
         else:
             # try to instantiate a Framed object
-            self.frames = FramedSignal(frames, *args, **kwargs)
+            self._frames = FramedSignal(frames, *args, **kwargs)
 
         # determine window to use
         if hasattr(window, '__call__'):
             # if only function is given, use the size to the audio frame size
-            self.window = window(self.frames.frame_size)
+            self._window = window(self._frames.frame_size)
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
-            self.window = window
+            self._window = window
         else:
             # other types are not supported
-            raise TypeError("Invalid window type.")
+            raise TypeError("Invalid _window type.")
         # normalize the window if needed
         if norm_window:
-            self.window /= np.sum(self.window)
+            self._window /= np.sum(self._window)
         # window used for DFT
         try:
             # the audio signal is not scaled, scale the window accordingly
-            self.__window = self.window / np.iinfo(self.frames.signal.data.dtype).max
+            self._fft_window = self._window / np.iinfo(self._frames.signal.data.dtype).max
         except ValueError:
-            self.__window = self.window
+            self._fft_window = self._window
 
         # parameters used for the DFT
         if fft_size is None:
-            self.fft_size = self.window.size
+            self._fft_size = self._window.size
         else:
-            self.fft_size = fft_size
+            self._fft_size = fft_size
 
         # perform these additional computations
         # Note: the naming might be a bit confusing but is short
-        self._stft = stft
-        self._phase = phase
-        self._lgd = lgd
+        self.__stft = stft
+        self.__phase = phase
+        self.__lgd = lgd
 
         # init matrices
-        self.__spec = None
-        self.__stft = None
-        self.__phase = None
-        self.__lgd = None
+        self._spec = None
+        self._stft = None
+        self._phase = None
+        self._lgd = None
 
         # parameters for magnitude spectrogram processing
-        self.__filterbank = filterbank
-        self.__log = log
-        self.__mul = mul
-        self.__add = add
+        self._filterbank = filterbank
+        self._log = log
+        self._mul = mul
+        self._add = add
 
         # TODO: does this attribute belong to this class?
-        self.__diff = None
+        self._diff = None
         # diff parameters
-        self.ratio = ratio
-        self.__diff_frames = diff_frames
+        self._ratio = ratio
+        if not diff_frames:
+            # calculate on basis of the ratio
+            # get the first sample with a higher magnitude than given ratio
+            sample = np.argmax(self._window > self._ratio * max(self._window))
+            diff_samples = self._window.size / 2 - sample
+            # convert to frames
+            diff_frames = int(round(diff_samples / self._frames.hop_size))
+        # always set the minimum to 1
+        if diff_frames < 1:
+            diff_frames = 1
+        self._diff_frames = diff_frames
+
+    @property
+    def frames(self):
+        """Audio frames."""
+        return self._frames
 
     @property
     def num_frames(self):
         """Number of frames."""
-        # either the length of the FramedSignal object or just a slice of it
-        return len(self.frames)
+        return len(self._frames)
+
+    @property
+    def window(self):
+        """Window function."""
+        return self._window
+
+    @property
+    def fft_size(self):
+        """Size of the FFT."""
+        return self._fft_size
 
     @property
     def num_fft_bins(self):
         """Number of FFT bins."""
-        return self.fft_size >> 1
+        return self._fft_size >> 1
 
     @property
     def filterbank(self):
         """Filterbank with which the spectrogram is filtered."""
-        return self.__filterbank
-
-    @filterbank.setter
-    def filterbank(self, filterbank):
-        # set filterbank
-        self.__filterbank = filterbank
-        # invalidate the magnitude spectrogram
-        self.__spec = None
+        return self._filterbank
 
     @property
     def num_bins(self):
         """Number of bins of the spectrogram."""
-        # number of frequency bins of the magnitude spectrogram
         if self.filterbank is None:
             return self.num_fft_bins
         else:
-            return np.shape(self.filterbank)[1]
+            return self.filterbank.bands
 
     @property
     def log(self):
-        return self.__log
-
-    @log.setter
-    def log(self, log):
-        # set logarithm attribute
-        self.__log = log
-        # invalidate the magnitude spectrogram
-        self.__spec = None
+        return self._log
 
     @property
     def mul(self):
-        return self.__mul
-
-    @mul.setter
-    def mul(self, mul):
-        # set multiplication factor
-        self.__mul = mul
-        # invalidate the magnitude spectrogram
-        self.__spec = None
+        return self._mul
 
     @property
     def add(self):
-        return self.__add
+        return self._add
 
-    @add.setter
-    def add(self, add):
-        # set addition for logarithm
-        self.__add = add
-        # invalidate the magnitude spectrogram
-        self.__spec = None
-
-    def compute_stft(self, filterbank=None, log=None, mul=None, add=None, fft_size=None, stft=None, phase=None, lgd=None):
+    def compute_stft(self, stft=None, phase=None, lgd=None):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
-        :param filterbank: filterbank used for dimensionality reduction of the
-                           magnitude spectrogram
-        :param log:        take the logarithm of the magnitudes
-        :param mul:        multiplier before taking the logarithm of the magnitudes
-        :param add:        add this value before taking the logarithm of the magnitudes
-        :param fft_size:   size used for FFT
         :param stft:       save the raw complex STFT to the "stft" attribute
         :param phase:      save the phase of the STFT to the "phase" attribute
         :param lgd:        save the local group delay of the STFT to the "lgd" attribute
 
         """
-        # overwrite set parameters
-        if filterbank is not None:
-            self.filterbank = filterbank
-        if log is not None:
-            self.log = log
-        if mul is not None:
-            self.mul = mul
-        if add is not None:
-            self.add = add
-        if fft_size is not None:
-            self.fft_size = fft_size
-
-        # additional computation defaults
+        # perform these additional computations
         if stft is None:
-            stft = self._stft
+            stft = self.__stft
         if phase is None:
-            phase = self._phase
+            phase = self.__phase
         if lgd is None:
-            lgd = self._lgd
+            lgd = self.__lgd
 
         # init spectrogram matrix
-        self.__spec = np.empty([self.num_frames, self.num_bins], np.float)
+        self._spec = np.empty([self.num_frames, self.num_bins], np.float)
         # STFT matrix
-        if stft:
-            self.__stft = np.empty([self.num_frames, self.num_fft_bins], np.complex) if stft else None
+        self._stft = np.empty([self.num_frames, self.num_fft_bins], np.complex) if stft else None
         # phase matrix
-        if phase:
-            self.__phase = np.empty([self.num_frames, self.num_fft_bins], np.float) if phase else None
+        self._phase = np.empty([self.num_frames, self.num_fft_bins], np.float) if phase else None
         # local group delay matrix
-        if lgd:
-            self.__lgd = np.empty([self.num_frames, self.num_fft_bins], np.float) if lgd else None
+        self._lgd = np.zeros([self.num_frames, self.num_fft_bins], np.float) if lgd else None
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
             # multiply the signal frame with the window function
-            signal = np.multiply(self.frames[f], self.__window)
+            signal = np.multiply(self.frames[f], self._fft_window)
             # only shift and perform complex DFT if needed
             if phase or lgd:
                 # circular shift the signal (needed for correct phase)
                 signal = np.concatenate(signal[self.num_fft_bins:], signal[:self.num_fft_bins])
             # perform DFT
-            dft = fft.fft(signal, fft_size)[:self.num_fft_bins]
+            dft = fft.fft(signal, self.fft_size)[:self.num_fft_bins]
 
             # save raw stft
             if stft:
-                self.__stft[f] = dft
+                self._stft[f] = dft
             # phase / lgd
             if phase or lgd:
                 angle = np.angle(dft)
             # save phase
             if phase:
-                self.__phase[f] = angle
+                self._phase[f] = angle
             # save lgd
             if lgd:
                 # unwrap phase over frequency axis
                 unwrapped_phase = np.unwrap(angle, axis=1)
                 # local group delay is the derivative over frequency
-                self.__lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
+                self._lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
             # magnitude spectrogram
             spec = np.abs(dft)
@@ -363,84 +349,69 @@ class Spectrogram(object):
             # take the logarithm if needed
             if self.log:
                 spec = np.log10(self.mul * spec + self.add)
-            self.__spec[f] = spec
+            self._spec[f] = spec
 
     @property
     def stft(self):
         """Short Time Fourier Transform of the signal."""
         # TODO: this is highly inefficient, if more properties are accessed
         # better call compute_stft() only once with appropriate parameters.
-        if self.__stft is None:
+        if self._stft is None:
             self.compute_stft(stft=True)
-        return self.__stft
+        return self._stft
 
     @property
     def spec(self):
         """Magnitude spectrogram of the STFT."""
         # TODO: this is highly inefficient, if more properties are accessed
         # better call compute_stft() only once with appropriate parameters.
-        if self.__spec is None:
+        if self._spec is None:
             # check if STFT was computed already
-            if self.__stft is not None:
+            if self._stft is not None:
                 # use it
-                self.__spec = np.abs(self.__stft)
+                self._spec = np.abs(self._stft)
                 # filter if needed
-                if self.filterbank is not None:
-                    self.__spec = np.dot(self.__spec, self.filterbank)
+                if self._filterbank is not None:
+                    self._spec = np.dot(self._spec, self._filterbank)
                 # take the logarithm
-                if self.log:
-                    self.__spec = np.log10(self.mul * self.__spec + self.add)
+                if self._log:
+                    self._spec = np.log10(self._mul * self._spec + self._add)
             else:
                 # compute the spec
                 self.compute_stft()
-        return self.__spec
+        # return spec
+        return self._spec
+
+    # alias
+    magnitude = spec
+
+    @property
+    def ratio(self):
+        # TODO: come up with a better description
+        """Window overlap ratio."""
+        return self._ratio
 
     @property
     def num_diff_frames(self):
         """Number of frames used for difference calculation of the magnitude spectrogram."""
-        if self.__diff_frames is None:
-            # calculate on basis of the ratio
-            # get the first sample with a higher magnitude than given ratio
-            sample = np.argmax(self.window > self.ratio * max(self.window))
-            diff_samples = self.window.size / 2 - sample
-            # convert to frames
-            diff_frames = int(round(diff_samples / self.frames.hop_size))
-            # set the minimum to 1
-            if diff_frames < 1:
-                diff_frames = 1
-            # return
-            return diff_frames
-        else:
-            # return the set value
-            return self.__diff_frames
-
-    @num_diff_frames.setter
-    def num_diff_frames(self, diff_frames):
-        """
-        Set the number of diff frames.
-
-        :param diff_frames: number of frames used for difference calculation
-
-        Note: if set to None, the number is calculated dynamically on the ratio
-              to which extend the windows overlap.
-
-        """
-        self.__diff_frames = diff_frames
+        return self._diff_frames
 
     @property
     def diff(self):
         """Differences of the magnitude spectrogram."""
-        if self.__diff is None:
+        if self._diff is None:
             # init array
-            self.__diff = np.zeros_like(self.spec)
+            self._diff = np.zeros_like(self.spec)
             # calculate the diff
-            self.__diff[self.num_diff_frames:] = self.spec[self.num_diff_frames:] - self.spec[:-self.num_diff_frames]
+            self._diff[self.num_diff_frames:] = self.spec[self.num_diff_frames:] - self.spec[:-self.num_diff_frames]
             # TODO: make the filling of the first diff_frames frames work properly
-        return self.__diff
+        # return diff
+        return self._diff
 
     @property
     def pos_diff(self):
         """Positive differences of the magnitude spectrogram."""
+        # return only the positive elements of the diff
         return self.diff * (self.diff > 0)
 
     @property
@@ -448,46 +419,48 @@ class Spectrogram(object):
         """Phase of the STFT."""
         # TODO: this is highly inefficient, if more properties are accessed
         # better call compute_stft() only once with appropriate parameters.
-        if self.__phase is None:
+        if self._phase is None:
             # check if STFT was computed already
-            if self.__stft is not None:
+            if self._stft is not None:
                 # use it
-                self.__phase = np.angle(self.__stft)
+                self._phase = np.angle(self._stft)
             else:
                 # compute the phase
                 self.compute_stft(phase=True)
-        return self.__phase
+        # return phase
+        return self._phase
 
     @property
     def lgd(self):
         """Local group delay of the STFT."""
         # TODO: this is highly inefficient, if more properties are accessed
         # better call compute_stft() only once with appropriate parameters.
-        if self.__lgd is None:
+        if self._lgd is None:
             # if the STFT was computed already, but not the phase
-            if self.__stft is not None and self.__phase is None:
+            if self._stft is not None and self._phase is None:
                 # save the phase as well
                 # FIXME: this uses unneeded memory, if only STFT and LGD are of
                 # interest, but not the phase (very rare case only)
-                self.__phase = np.angle(self.__stft)
+                self._phase = np.angle(self._stft)
             # check if phase was computed already
-            if self.__phase is not None:
+            if self._phase is not None:
                 # FIXME: remove duplicate code
                 # unwrap phase over frequency axis
-                unwrapped_phase = np.unwrap(self.__phase, axis=1)
+                unwrapped_phase = np.unwrap(self._phase, axis=1)
                 # local group delay is the derivative over frequency
-                self.__lgd[:, :-1] = unwrapped_phase[:, -1] - unwrapped_phase[:, 1:]
+                self._lgd[:, :-1] = unwrapped_phase[:, -1] - unwrapped_phase[:, 1:]
             else:
                 # compute the local group delay
                 self.compute_stft(lgd=True)
-        return self.__lgd
+        # return lgd
+        return self._lgd
 
     def aw(self, floor=0.5, relaxation=10):
         """
         Perform adaptive whitening on the magnitude spectrogram.
 
         :param floor:      floor coefficient [default=0.5]
-        :param relaxation: relaxation time [frames, default=10]
+        :param relaxation: relaxation time [_frames, default=10]
 
         "Adaptive Whitening For Improved Real-time Audio Onset Detection"
         Dan Stowell and Mark Plumbley
@@ -496,13 +469,14 @@ class Spectrogram(object):
         """
         mem_coeff = 10.0 ** (-6. * relaxation / self.fps)
         P = np.zeros_like(self.spec)
-        # iterate over all frames
-        for f in range(len(self.frames)):
+        # iterate over all _frames
+        for f in range(len(self._frames)):
             if f > 0:
                 P[f] = np.maximum(self.spec[f], floor, mem_coeff * P[f - 1])
             else:
                 P[f] = np.maximum(self.spec[f], floor)
         # adjust spec
+        # FIXME: return a whitened spectrogram instead of altering the spectrogram?
         self.spec /= P
 
 
@@ -535,16 +509,14 @@ class FilteredSpectrogram(Spectrogram):
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
         norm_filter = kwargs.pop('norm_filter', NORM_FILTER)
-        # create Spectrogram object
+        # create a Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            # each frame is a tuple of the signal data and the sample rate
-            # set the sample rate on the basis of the first frame
             filterbank = LogarithmicFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames.signal.sample_rate,
                                            bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
-        # save the filterbank, so it gets used when the magnitude spectrogram gets computed
-        self.filterbank = filterbank
+        # set the filterbank
+        self._filterbank = filterbank
 
 # aliases
 FiltSpec = FilteredSpectrogram
@@ -572,12 +544,12 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         # fetch the arguments special to the logarithmic magnitude (or set defaults)
         mul = kwargs.pop('mul', MUL)
         add = kwargs.pop('add', ADD)
-        # create Spectrogram object
+        # create a Spectrogram object
         super(LogarithmicFilteredSpectrogram, self).__init__(*args, **kwargs)
-        # set the parameters, so they get used when the magnitude spectrogram gets computed
-        self.log = True
-        self.mul = mul
-        self.add = add
+        # set the parameters
+        self._log = True
+        self._mul = mul
+        self._add = add
 
 # aliases
 LogFiltSpec = LogarithmicFilteredSpectrogram
