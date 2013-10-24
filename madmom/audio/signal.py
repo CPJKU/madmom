@@ -174,7 +174,8 @@ class Signal(object):
             # data is an numpy array, use it directly
             self.__data = data
         elif isinstance(data, Signal):
-            # already a Signal, use its data and sample_rate
+            # already a Signal, copy the object attributes (which can be
+            # overwritten by passing other values to the constructor)
             self.__data = data.data
             self.__sample_rate = data.sample_rate
         else:
@@ -322,7 +323,7 @@ class FramedSignal(object):
     """
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  origin=ORIGIN, mode=MODE, online=ONLINE, fps=None,
-                 offset=None, length=None, *args, **kwargs):
+                 start=None, length=None, *args, **kwargs):
         """
         Creates a new FramedSignal object instance.
 
@@ -335,7 +336,7 @@ class FramedSignal(object):
         :param online:     use only past information [default=False]
         :param fps:        use N frames per second instead of setting the hop_size;
                            if set, this overwrites the hop_size value [default=None]
-        :param offset:     offset in frames [default=0]
+        :param start:      start sample [default=0]
         :param length:     length in frames [default=None]
 
         The FramedSignal class is implemented as an iterator. It splits the
@@ -363,15 +364,18 @@ class FramedSignal(object):
         removed in the near future!
 
         """
+        # set default start position to 0
+        self.__start = 0
         # signal handling
         if isinstance(signal, FramedSignal):
-            # already a FramedSignal, use the attributes
-            # (these attributes are overwritten if passing other values)
+            # already a FramedSignal, copy the object attributes (which can be
+            # overwritten by passing other values to the constructor)
             self.__signal = signal.signal
             self.__frame_size = signal.frame_size
             self.__hop_size = signal.hop_size
             self.__origin = signal.origin
             self.__mode = signal.mode
+            self.__start = signal.start
         else:
             # try to instantiate a Signal
             self.__signal = Signal(signal, *args, **kwargs)
@@ -418,12 +422,10 @@ class FramedSignal(object):
             self.__mode = 'normal'
             self.__num_frames = int(np.ceil(len(self.signal.data) / float(self.hop_size)))
 
-        # offset and length
-        if offset:
-            # the internal offset is stored in samples
-            self.__offset = self.hop_size * offset
-        else:
-            self.__offset = 0
+        # start and length
+        if start:
+            # the internal start position is stored in samples
+            self.__start = start
         if length:
             # set the length to the given number of frames
             self.__num_frames = length
@@ -445,33 +447,38 @@ class FramedSignal(object):
         """
         # a slice is given
         if isinstance(index, slice):
-            # return a new object with just the frames given by the slice
-#            return [self[i] for i in xrange(*index.indices(len(self)))]
-            # set the offset
+            # determine the start position (in samples) of the new object
             if index.start:
-                offset = index.start
+                # FIXME: should we set this to integers or allow floats as well?
+                start = int(index.start * self.hop_size)
             else:
-                offset = 0
-            # set the length
-            if index.stop:
-                length = index.stop - offset
+                start = 0
+            # determine the length of the new object
+            if index.stop and index.start:
+                length = index.stop - index.start
+            elif index.stop:
+                length = index.stop
+            elif index.start:
+                length = self.num_frames - index.start
             else:
-                length = self.num_frames - offset
+                length = self.num_frames
             # just allow normal steps
             if index.step:
                 raise ValueError('only slices with a step size of 1 are supported')
             # create a new FramedSignal object and return it
             return FramedSignal(signal=self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.__origin,
-                                offset=offset, length=length)
+                                start=start, length=length)
         # a single index is given
         elif isinstance(index, int):
             # return a single frame
             if index > self.num_frames:
                 raise IndexError("end of signal reached")
             # return the frame at this index
+            # subtract the start position (in samples) from the origin and use
+            # it as the origin (negative origin shifts to the right)
             return signal_frame(self.__signal.data, index, self.__frame_size,
-                                self.__hop_size, self.__origin - self.__offset)
+                                self.__hop_size, self.__origin - self.__start)
         # other index types are invalid
         else:
             raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
@@ -490,11 +497,16 @@ class FramedSignal(object):
 
     @property
     def mode(self):
+        # FIXME: do we need to save and access this property?
         return self.__mode
 
     @property
     def origin(self):
         return self.__origin
+
+    @property
+    def start(self):
+        return self.__start
 
     # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
