@@ -469,8 +469,8 @@ class Spectrogram(object):
         """
         mem_coeff = 10.0 ** (-6. * relaxation / self.fps)
         P = np.zeros_like(self.spec)
-        # iterate over all _frames
-        for f in range(len(self._frames)):
+        # iterate over all frames
+        for f in range(len(self.frames)):
             if f > 0:
                 P[f] = np.maximum(self.spec[f], floor, mem_coeff * P[f - 1])
             else:

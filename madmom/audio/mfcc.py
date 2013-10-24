@@ -7,8 +7,6 @@ This file contains all MFCC related functionality.
 
 """
 
-# TODO: move this to cp.audio.spectrogram? It's closely related
-
 import scipy.fftpack as fft
 from .spectrogram import Spectrogram
 
@@ -64,21 +62,22 @@ class MFCC(Spectrogram):
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = MelFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = MelFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames.signal.sample_rate,
+                                   bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
 
         # set the parameters, so they get used when the magnitude spectrogram gets computed
-        self.filterbank = filterbank
-        self.log = True
-        self.mul = mul
-        self.add = add
+        self._filterbank = filterbank
+        self._log = True
+        self._mul = mul
+        self._add = add
 
         # MFCC matrix
-        self.__mfcc = None
+        self._mfcc = None
 
     @property
     def mfcc(self):
-        if self.__mfcc is None:
+        if self._mfcc is None:
             # take the DCT of the LogMelSpec
             # FIXME: include all bins or skip the first?
-            self.__mfcc = fft.dct(self.spec)
-        return self.__mfcc
+            self._mfcc = fft.dct(self.spec)
+        return self._mfcc
