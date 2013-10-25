@@ -463,7 +463,7 @@ class FramedSignal(object):
             else:
                 length = self.num_frames
             # just allow normal steps
-            if index.step:
+            if (index.step is not None) and (index.step != 1):
                 raise ValueError('only slices with a step size of 1 are supported')
             # create a new FramedSignal object and return it
             return FramedSignal(signal=self.signal, frame_size=self.frame_size,

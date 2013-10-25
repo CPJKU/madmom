@@ -475,9 +475,8 @@ class Spectrogram(object):
                 P[f] = np.maximum(self.spec[f], floor, mem_coeff * P[f - 1])
             else:
                 P[f] = np.maximum(self.spec[f], floor)
-        # adjust spec
-        # FIXME: return a whitened spectrogram instead of altering the spectrogram?
-        self.spec /= P
+        # return the whitened spectrogram
+        return self.spec / P
 
 
 class FilteredSpectrogram(Spectrogram):
