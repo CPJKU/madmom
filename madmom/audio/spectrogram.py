@@ -139,8 +139,8 @@ class Spectrogram(object):
         Additional computations:
 
         :param stft:  save the raw complex STFT [default=False]
-        :param phase: include phase information [default=False]
-        :param lgd:   include local group delay information [default=False]
+        :param phase: save the phase information [default=False]
+        :param lgd:   save the local group delay information [default=False]
 
         FFT parameters:
 
@@ -205,10 +205,9 @@ class Spectrogram(object):
             self._fft_size = fft_size
 
         # perform these additional computations
-        # Note: the naming might be a bit confusing but is short
-        self.__stft = stft
-        self.__phase = phase
-        self.__lgd = lgd
+        self._save_stft = stft
+        self._save_phase = phase
+        self._save_lgd = lgd
 
         # init matrices
         self._spec = None
@@ -278,14 +277,17 @@ class Spectrogram(object):
 
     @property
     def log(self):
+        """Logarithmic magnitude."""
         return self._log
 
     @property
     def mul(self):
+        """Multiply by this value before taking the logarithm of the magnitude."""
         return self._mul
 
     @property
     def add(self):
+        """Add this value before taking the logarithm of the magnitude."""
         return self._add
 
     def compute_stft(self, stft=None, phase=None, lgd=None):
@@ -297,22 +299,17 @@ class Spectrogram(object):
         :param lgd:        save the local group delay of the STFT to the "lgd" attribute
 
         """
-        # perform these additional computations
-        if stft is None:
-            stft = self.__stft
-        if phase is None:
-            phase = self.__phase
-        if lgd is None:
-            lgd = self.__lgd
-
         # init spectrogram matrix
         self._spec = np.empty([self.num_frames, self.num_bins], np.float)
         # STFT matrix
-        self._stft = np.empty([self.num_frames, self.num_fft_bins], np.complex) if stft else None
+        if stft or self._save_stft:
+            self._stft = np.empty([self.num_frames, self.num_fft_bins], np.complex)
         # phase matrix
-        self._phase = np.empty([self.num_frames, self.num_fft_bins], np.float) if phase else None
+        if phase or self._save_phase:
+            self._phase = np.empty([self.num_frames, self.num_fft_bins], np.float)
         # local group delay matrix
-        self._lgd = np.zeros([self.num_frames, self.num_fft_bins], np.float) if lgd else None
+        if lgd or self._save_lgd:
+            self._lgd = np.zeros([self.num_frames, self.num_fft_bins], np.float)
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
@@ -457,10 +454,11 @@ class Spectrogram(object):
 
     def aw(self, floor=0.5, relaxation=10):
         """
-        Perform adaptive whitening on the magnitude spectrogram.
+        Return an adaptively whitened version of the magnitude spectrogram.
 
         :param floor:      floor coefficient [default=0.5]
         :param relaxation: relaxation time [_frames, default=10]
+        :returns:          the whitened magnitude spectrogram
 
         "Adaptive Whitening For Improved Real-time Audio Onset Detection"
         Dan Stowell and Mark Plumbley
