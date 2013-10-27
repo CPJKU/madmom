@@ -236,7 +236,7 @@ class Signal(object):
 
 
 # function for splitting a signal into frames
-def signal_frame(x, index, frame_size, hop_size, origin=0):
+def signal_frame(x, index, frame_size, hop_size, offset=0):
     """
     This function returns frame[index] of the signal.
 
@@ -244,24 +244,22 @@ def signal_frame(x, index, frame_size, hop_size, origin=0):
     :param index:      the index of the frame to return
     :param frame_size: size of one frame in samples
     :param hop_size:   progress N samples between adjacent frames
-    :param origin:     location of the window relative to the signal position
+    :param offset:     position of the first sample inside the signal
     :returns:          the requested single frame of the audio signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
     each following frame is placed `hop_size` samples after the previous one.
+    The window is always centered around this reference sample.
 
-    An `origin` of zero centers the frame around its reference sample,
-    an `origin` of `+(frame_size-1)/2` places the frame to the left of the
-    reference sample, with the reference forming the last sample of the frame,
-    and an `origin` of `-frame_size/2` places the frame to the right of the
-    reference sample, with the reference forming the first sample of the frame.
+    `offset` sets the position of the first reference sample inside the signal.
+
     """
     # length of the signal
     num_samples = len(x)
     # seek to the correct position in the audio signal
     ref_sample = int(index * hop_size)
     # position the window
-    start = ref_sample - frame_size / 2 - origin
+    start = ref_sample - frame_size / 2 + offset
     stop = start + frame_size
     # return the requested portion of the signal
     if (stop < 0) or (start > num_samples):
@@ -313,7 +311,8 @@ HOP_SIZE = 441.
 FPS = 100.
 ORIGIN = 0
 MODE = 'extend'
-ONLINE = False
+START = 0
+STOP = None
 
 
 class FramedSignal(object):
@@ -321,9 +320,8 @@ class FramedSignal(object):
     FramedSignal splits a signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 origin=ORIGIN, mode=MODE, online=ONLINE, fps=None,
-                 start=None, length=None, *args, **kwargs):
+    def __init__(self, signal, frame_size=None, hop_size=None, fps=None,
+                 origin=None, mode=MODE, start=None, stop=None, *args, **kwargs):
         """
         Creates a new FramedSignal object instance.
 
@@ -331,13 +329,12 @@ class FramedSignal(object):
                            or anything a Signal can be instantiated from
         :param frame_size: size of one frame [default=2048]
         :param hop_size:   progress N samples between adjacent frames [default=441]
-        :param origin:     location of the window relative to the signal position [default=0]
-        :param mode:       TODO: meaningful description [default=extend]
-        :param online:     use only past information [default=False]
         :param fps:        use N frames per second instead of setting the hop_size;
                            if set, this overwrites the hop_size value [default=None]
+        :param origin:     location of the window relative to the signal position [default=0]
+        :param mode:       end of signal handling [default='extend']
         :param start:      start sample [default=0]
-        :param length:     length in frames [default=None]
+        :param stop:       stop sample [default=None]
 
         The FramedSignal class is implemented as an iterator. It splits the
         given Signal automatically into frames (of `frame_size` length) and
@@ -356,16 +353,17 @@ class FramedSignal(object):
         - 'right', 'future': the window is located to the right of its
           reference sample
 
-        `mode` handles how far frames may reach past the end of the signal
-        - TODO: mode descriptions go here
+        The `mode` parameter is used to set the end of signal handling
+        - 'normal': the origin of the last frame has to be within the signal
+        - 'extend': frames are returned as long as part of the frame overlaps
+          with the signal
 
-        `online` is a shortcut switch for backwards compatibility and sets the
-        `origin` to `left` and the `mode` to `normal`. This parameter will be
-        removed in the near future!
+        If only a certain part of the Signal is wanted, `start` and `stop` can
+        be used to set these values accordingly.
+        `start` is given in samples and marks the first sample of the audio.
+        `stop` is given in samples and marks the last sample to return.
 
         """
-        # set default start position to 0
-        self._start = 0
         # signal handling
         if isinstance(signal, FramedSignal):
             # already a FramedSignal, copy the object attributes (which can be
@@ -376,9 +374,18 @@ class FramedSignal(object):
             self._origin = signal.origin
             self._mode = signal.mode
             self._start = signal.start
+            self._stop = signal.stop
         else:
             # try to instantiate a Signal
             self._signal = Signal(signal, *args, **kwargs)
+            # set attributes to default values (which can be overwritten by
+            # passing other values to the constructor)
+            self._frame_size = FRAME_SIZE
+            self._hop_size = HOP_SIZE
+            self._origin = ORIGIN
+            self._mode = MODE
+            self._start = START
+            self._stop = STOP
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -390,45 +397,47 @@ class FramedSignal(object):
             # Note: using fps overwrites the hop_size
             self._hop_size = self._signal.sample_rate / float(fps)
 
-        # set origin and mode to reflect `online mode`
-        if online:
-            origin = 'left'
-            mode = 'normal'
-
-        # location of the window
+        # translate literal values
         if origin in ('center', 'offline'):
             # the current position is the center of the frame
-            self._origin = 0
+            origin = 0
         elif origin in ('left', 'past', 'online'):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            self._origin = +(frame_size - 1) / 2
+            origin = +(frame_size - 1) / 2
         elif origin in ('right', 'future'):
-            self._origin = -(frame_size / 2)
-        else:
-            try:
-                self._origin = int(origin)
-            except ValueError:
-                raise ValueError('invalid origin')
+            # the current position is the left edge of the frame
+            origin = -(frame_size / 2)
+            # location of the window
+        if origin is not None:
+            # overwrite the default origin
+            self._origin = origin
 
-        # mode
-        if mode == 'extend':
-            # FIXME: should we save the mode, or is it enough to use it for the
-            # calculation of the number of frames
-            self._mode = 'extend'
-            self._num_frames = int(np.floor(len(self.signal.data) / float(self.hop_size)) + 1)
-        else:
-            self._mode = 'normal'
-            self._num_frames = int(np.ceil(len(self.signal.data) / float(self.hop_size)))
-
-        # start and length
+        # start/stop position
         if start:
-            # the internal start position is stored in samples
-            self._start = start
-        if length:
-            # set the length to the given number of frames
-            self._num_frames = length
+            # the start position of the signal (in samples)
+            self._start = int(start)
+        if stop:
+            # the stop position of the signal (in samples)
+            self._stop = int(stop)
+        if self._stop is None:
+            # if no stop position is given, use the last sample
+            self._stop = self.signal.num_samples
+
+        # length of the signal
+        length = self._stop - self._start
+
+        # number of frames handling
+        self._mode = mode
+        if self._mode == 'extend':
+            # return frames as long as frame covers any signal
+            self._num_frames = int(np.floor((length) / float(self.hop_size) + 1))
+        elif self._mode == 'normal':
+            # return frames as long as the origin sample covers the signal
+            self._num_frames = int(np.ceil(length / float(self.hop_size)))
+        else:
+            raise ValueError('invalid mode')
 
     # make the Object indexable
     def __getitem__(self, index):
@@ -445,76 +454,88 @@ class FramedSignal(object):
         frame -1 contains parts of the signal of frame 0.
 
         """
+        # a single index is given
+        if isinstance(index, int):
+            # return a single frame
+            if index <= self.num_frames:
+                # return the frame at this index
+                # subtract the origin from the start position and use as the offset
+                return signal_frame(self.signal.data, index, frame_size=self.frame_size,
+                                    hop_size=self.hop_size, offset=(self.start - self.origin))
+            # otherwise raise an error to indicate the end of signal
+            raise IndexError("end of signal reached")
         # a slice is given
-        if isinstance(index, slice):
-            # determine the start position (in samples) of the new object
+        elif isinstance(index, slice):
+            # create a new FramedSignal object which covers the signal part
+            # determine the start frame
             if index.start:
-                # FIXME: should we set this to integers or allow floats as well?
-                start = int(index.start * self.hop_size)
+                start = index.start
             else:
                 start = 0
-            # determine the length of the new object
+            # determine the stop frame
             if index.stop and index.start:
-                length = index.stop - index.start
+                stop = index.stop - index.start
             elif index.stop:
-                length = index.stop
+                stop = index.stop
             elif index.start:
-                length = self.num_frames - index.start
+                stop = self.num_frames - index.start
             else:
-                length = self.num_frames
+                stop = self.num_frames
+            # convert start and stop to samples
+            start *= self.hop_size
+            stop *= self.hop_size
             # just allow normal steps
             if (index.step is not None) and (index.step != 1):
                 raise ValueError('only slices with a step size of 1 are supported')
-            # create a new FramedSignal object and return it
-            return FramedSignal(signal=self.signal, frame_size=self.frame_size,
-                                hop_size=self.hop_size, origin=self.origin,
-                                start=start, length=length)
-        # a single index is given
-        elif isinstance(index, int):
-            # return a single frame
-            if index > self.num_frames:
-                raise IndexError("end of signal reached")
-            # return the frame at this index
-            # subtract the start position (in samples) from the origin and use
-            # it as the origin (negative origin shifts to the right)
-            return signal_frame(self.signal.data, index, self.frame_size,
-                                self.hop_size, self.origin - self.start)
+            # create the object and return it
+            return FramedSignal(self.signal, start=start, stop=stop)
         # other index types are invalid
         else:
-            raise TypeError("frame indices must be integers, not %s" % index.__class__.__name__)
+            raise TypeError("frame indices must be slices or integers, not %s" % index.__class__.__name__)
 
     @property
     def signal(self):
+        """The underlying (audio) signal."""
         return self._signal
 
     @property
     def frame_size(self):
+        """Size of one frame."""
         return self._frame_size
 
     @property
     def hop_size(self):
+        """Number of samples between adjacent frames."""
         return self._hop_size
 
     @property
-    def mode(self):
-        # FIXME: do we need to save and access this property?
-        return self._mode
-
-    @property
     def origin(self):
+        """Origin of the frame center relative to the signal position."""
         return self._origin
 
     @property
+    def mode(self):
+        """End of signal handling mode."""
+        return self._mode
+
+    @property
     def start(self):
+        """Start sample of the (audio) signal."""
         return self._start
+
+    @property
+    def stop(self):
+        """Stop sample of the (audio) signal."""
+        return self._stop
+
+    @property
+    def num_frames(self):
+        """Number of frames."""
+        return self._num_frames
 
     # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
         return self.num_frames
-
-    @property
-    def num_frames(self):
-        return self._num_frames
 
     @property
     def fps(self):

@@ -171,9 +171,6 @@ class Spectrogram(object):
             self._add = frames.add
             self._ratio = frames.ratio
             # do not copy diff_frames, it is calculated or set manually
-        elif isinstance(frames, FramedSignal):
-            # already a FramedSignal object
-            self._frames = frames
         else:
             # try to instantiate a Framed object
             self._frames = FramedSignal(frames, *args, **kwargs)
@@ -194,13 +191,13 @@ class Spectrogram(object):
         # window used for DFT
         try:
             # the audio signal is not scaled, scale the window accordingly
-            self._fft_window = self._window / np.iinfo(self._frames.signal.data.dtype).max
+            self._fft_window = self.window / np.iinfo(self.frames.signal.data.dtype).max
         except ValueError:
-            self._fft_window = self._window
+            self._fft_window = self.window
 
         # parameters used for the DFT
         if fft_size is None:
-            self._fft_size = self._window.size
+            self._fft_size = self.window.size
         else:
             self._fft_size = fft_size
 
@@ -228,10 +225,10 @@ class Spectrogram(object):
         if not diff_frames:
             # calculate on basis of the ratio
             # get the first sample with a higher magnitude than given ratio
-            sample = np.argmax(self._window > self._ratio * max(self._window))
-            diff_samples = self._window.size / 2 - sample
+            sample = np.argmax(self.window > self.ratio * max(self.window))
+            diff_samples = self.window.size / 2 - sample
             # convert to frames
-            diff_frames = int(round(diff_samples / self._frames.hop_size))
+            diff_frames = int(round(diff_samples / self.frames.hop_size))
         # always set the minimum to 1
         if diff_frames < 1:
             diff_frames = 1
