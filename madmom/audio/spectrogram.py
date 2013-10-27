@@ -11,36 +11,35 @@ import numpy as np
 import scipy.fftpack as fft
 
 
-def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
+def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
-    :param signal:   the discrete signal
-    :param window:   window function
+    :param x:        discrete signal (1D numpy array)
+    :param window:   window function (1D numpy array)
     :param hop_size: the hop size in samples between adjacent frames
-    :param online:   only use past information of signal [default=False]
+    :param offset:   position of the first sample inside the signal [default=0]
     :param phase:    circular shift for correct phase [default=False]
     :param fft_size: use given size for FFT [default=size of window]
     :returns:        the complex STFT of the signal
 
-    Note: in offline mode, the window function is centered around the current
-    position; whereas in online mode, the window is always positioned left to
-    the current position.
+    The size of the window determines the frame size used for splitting the
+    signal into frames.
 
     """
     from .signal import signal_frame
 
     # if the signal is not scaled, scale the window function accordingly
     try:
-        window = window[:] / np.iinfo(signal.dtype).max
+        fft_window = window / np.iinfo(x.dtype).max
     except ValueError:
-        window = window[:]
+        fft_window = window
     # size of window
     window_size = window.size
     # number of samples
-    samples = np.shape(signal)[0]
+    samples = len(x)
     # number of frames
-    frames = int(np.ceil(samples / hop_size))
+    frames = int(np.ceil(samples / float(hop_size)))
     # size of FFT
     if fft_size is None:
         fft_size = window_size
@@ -51,14 +50,14 @@ def stft(signal, window, hop_size, online=False, phase=False, fft_size=None):
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal
-        fft_signal = signal_frame(signal, frame, window_size, hop_size, online)
+        fft_signal = signal_frame(x, frame, window_size, hop_size, offset)
         # multiply the signal with the window function
-        fft_signal = np.multiply(fft_signal, window)
+        fft_signal = np.multiply(fft_signal, fft_window)
         # only shift and perform complex DFT if needed
         if phase:
             # circular shift the signal (needed for correct phase)
-            #fft_signal = fft.fftshift(fft_signal)  # slower!
-            fft_signal = np.append(fft_signal[window_size / 2:], fft_signal[:window_size / 2])
+            fft_signal = np.concatenate(fft_signal[window_size / 2:],
+                                        fft_signal[:window_size / 2])
         # perform DFT
         stft[frame] = fft.fft(fft_signal, fft_size)[:fft_bins]
         # next frame
