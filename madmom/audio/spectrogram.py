@@ -122,8 +122,7 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param frames:   a list of Signal objects, a FramedSignal object,
-                         a file name or file handle
+        :param frames:   a FramedSignal object, or a file name or file handle
         :param window:   window function [default=Hann window]
 
         Magnitude spectrogram manipulation parameters:
