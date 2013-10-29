@@ -410,7 +410,6 @@ class NetCDF(object):
 
     @targetPatterns.setter
     def targetPatterns(self, targetPatterns):
-        print targetPatterns.shape
         # TODO: make a list if a single value is given?
         if not self.numTimesteps:
             self.numTimesteps = np.shape(targetPatterns)[0]
@@ -499,7 +498,6 @@ def create_nc_file(filename, data, targets, tags=None):
     else:
         raise TypeError("Invalid input data type.")
     # groud truth
-    # FIXME: expand this also to patterns (regression)
     if targets.ndim == 1:
         nc.targetClasses = targets
     else:
