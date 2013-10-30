@@ -10,6 +10,7 @@ This file contains filter and filterbank related functionality.
 import numpy as np
 from collections import namedtuple
 from functools import partial
+from .signal import strided_frames
 
 
 # default values for filters
@@ -395,18 +396,54 @@ def multi_filterbank(filters, fft_bins, bands, norm):
     return bank
 
 
-def filterbank(filter_type, frequencies, fft_bins, sample_rate, norm=NORM_FILTER,
-               omit_duplicates=OMIT_DUPLICATES, overlap=OVERLAP_FILTERS):
+def band_bins(bins, omit_duplicates, overlap):
+    """
+    Yields start, center and stop frequencies for filters.
+
+    :param bins: numpy array containing the desired center bins of filters
+    :param omit_duplicates: omit duplicate filters resulting from insufficient
+        resolution of low frequencies [default=True]
+    :param overlap:     overlapping filters or not
+
+    :yields: start, center and stop frequencies for filters
+
+    """
+    # only keep unique bins if requested
+    # Note: this is important to do so, otherwise the lower frequency bins are
+    # given too much weight if simply summed up (as in the spectral flux)
+    if omit_duplicates:
+        bins = np.unique(bins)
+
+    if len(bins) < 3:
+        raise ValueError("Cannot create filterbank with less than 1 band")
+
+    for start, center, stop in strided_frames(bins, 3, 1):
+        if not overlap:
+            start = np.round(float(center + start) / 2)
+            stop = np.round(float(center + end) / 2)
+
+        # consistently handle too-small filters
+        if not omit_duplicates and (stop - start < 2):
+            center = start
+            stop = start + 1
+
+        yield start, center, stop
+
+
+def filterbank(filter_type, frequencies, fft_bins, sample_rate,
+               norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES,
+               overlap=OVERLAP_FILTERS):
     """
     Creates a filterbank with one filter per band.
 
     :param filter_type: method that creates a filter. the method is expected to
-        return a numpy array. the following parameters will be passed to this method:
+        return a numpy array. the following parameters will be passed to this
+        method:
             - width: filter width [bins]
             - center: filter center position (smaller than width)
             - norm: boolean indicating whether to normalise the filter (sum = 1)
                     or not
-    :param frequencies: a list of frequencies used for filter creation [Hz]
+    :param frequencies: a list of frequencies used for filter creation [Hz].
     :param fft_bins:    number of fft bins
     :param sample_rate: sample rate of the audio signal [Hz]
     :param norm:        normalise the area of the filters to 1 [default=True]
@@ -415,17 +452,9 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate, norm=NORM_FILTER
     :param overlap:     overlapping filters or not
     :returns:           filterbank
 
-    Note: Depending on whether filters are overlapping or not, each filter is 
-          characterized by 2 (no overlap) or 3 (overlap) frequencies. 
-
-          In case of no overlap, start and stop frequencies are used, the
-          center frequency of each band is exactly in between these
-          frequencies.
-
-          In case of overlap, the start, center and stop frequency are given
-          as parameters. Thus the frequencies array must contain the first
-          starting frequency, all center frequencies and the last stopping
-          frequency.
+    Note: Each filter is by 3 frequencies. Thus the frequencies array must
+          contain the first starting frequency, all center frequencies and the
+          last stopping frequency.
 
     """
     factor = (sample_rate / 2.0) / fft_bins
@@ -434,38 +463,11 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate, norm=NORM_FILTER
     # filter out all frequencies outside the valid range
     frequencies = frequencies[frequencies < fft_bins]
     # FIXME: skip the DC bin 0?
-    # only keep unique bins if requested
-    # Note: this is important to do so, otherwise the lower frequency bins are
-    # given too much weight if simply summed up (as in the spectral flux)
-    if omit_duplicates:
-        frequencies = np.unique(frequencies)
-    # number of bands
-
-    bands = len(frequencies) - 1
-    if overlap:
-        bands -= 1
-
-    if bands < 1:
-        raise ValueError("Cannot create filterbank with less than 1 band")
 
     filters = {}
-    for band in range(bands):
-        # edge & center frequencies
-        if overlap:
-            start, mid, stop = frequencies[band:band + 3]
-        else:
-            start, stop = frequencies[band:band + 2]
-            mid = int((start + stop) / 2)
-
-        # consistently handle too-small filters
-        # FIXME: Does this have any meaningful effect except when
-        #        start == mid == stop
-        if not omit_duplicates and (stop - start < 2):
-            mid = start
-            stop = start + 1
-
+    for start, center, stop in band_bins(frequencies, omit_duplicates, overlap):
         # create the filter
-        kwargs = {'width': stop - start, 'center': mid - start, 'norm': norm}
+        kwargs = {'width': stop - start, 'center': center - start, 'norm': norm}
         filters[band] = [(filter_type(**kwargs), start)]
 
     # no normalisation here, since each filter is already normalised
@@ -571,6 +573,10 @@ def rectang_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTER, omi
         resolution of low frequencies [default=True]
     :returns:           filterbank
 
+    Note: each filter is characterized by 3 frequencies, the start, center and
+          stop frequency. Thus the frequencies array must contain the first
+          starting frequency, all center frequencies and the last stopping
+          frequency.
     """
     return filterbank(rectang_filter, frequencies, fft_bins, sample_rate, norm,
                       omit_duplicates, overlap=False)
