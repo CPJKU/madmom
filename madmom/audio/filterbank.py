@@ -325,48 +325,12 @@ def fft_freqs(fft_bins, sample_rate):
     return np.linspace(0, sample_rate / 2., fft_bins + 1)
 
 
-class Filter(np.ndarray):
-    """
-    Class representing a single filter
-
-    """
-    def __new__(cls, input_array, start, stop):
-        """
-        Creates a new Filter instance.
-
-        :param input_array: Shape of the filter stored as numpy array
-        :param start: Start position in the frequency spectrum [bin no]
-        :param stop: Stop position in the freq. spectrum [bin no]
-
-        """
-        obj = np.asarray(input_array).view(cls)
-        obj.__start = start
-        obj.__stop = stop
-        return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        # set default values here
-        self.__fft_bins = getattr(obj, '__start', None)
-        self.__bands = getattr(obj, '__stop', None)
-
-    @property
-    def start(self):
-        return self.__start
-
-    @property
-    def stop(self):
-        return self.__stop
-
-
-def triang_filter(start, center, stop, norm):
+def triang_filter(width, center, norm):
     """
     Calculate a triangular window of the given size.
 
-    :param start:  starting bin (with value 0, included in the returned filter)
-    :param center: center bin (of height 1, unless norm is True)
-    :param stop:   end bin (with value 0, not included in the returned filter)
+    :param width:  filter width in bins
+    :param center: center bin (of height 1, unless norm is True).
     :param norm:   normalize the area of the filter to 1
     :returns:      a triangular shaped filter with height 1 (unless normalized)
 
@@ -374,19 +338,19 @@ def triang_filter(start, center, stop, norm):
     # Set the height of the filter, normalised if necessary.
     # A standard filter is at least 3 bins wide, and stop - start = 2
     # thus the filter has an area of 1 if normalised this way
-    height = 2. / (stop - start) if norm else 1.
+    height = 2. / width if norm else 1.
 
-    triang_filter = np.empty(stop - start)
+    triang_filter = np.empty(width)
 
     # rising edge (without the center)
-    triang_filter[:center - start] = np.linspace(0, height, (center - start), endpoint=False)
+    triang_filter[:center] = np.linspace(0, height, center, endpoint=False)
     # falling edge (including the center, but without the last bin since it's 0)
-    triang_filter[center - start:] = np.linspace(height, 0, (stop - center), endpoint=False)
+    triang_filter[center:] = np.linspace(height, 0, width - center, endpoint=False)
 
-    return Filter(triang_filter, start=start, stop=stop)
+    return triang_filter
 
 
-def rectang_filter(start, stop, norm, **kwargs):
+def rectang_filter(width, norm, **kwargs):
     """
     Calculate a rectangular window of the given size.
 
@@ -397,10 +361,10 @@ def rectang_filter(start, stop, norm, **kwargs):
 
     """
     # Set the height of the filter, normalised if necessary
-    height = 1. / (stop - start) if norm else 1.
-    rectang_filter = np.ones(stop - start) * height
+    height = 1. / width if norm else 1.
+    rectang_filter = np.ones(width) * height
 
-    return Filter(rectang_filter, start=start, stop=stop)
+    return rectang_filter
 
 
 def multi_filterbank(filters, fft_bins, bands, norm):
@@ -408,7 +372,8 @@ def multi_filterbank(filters, fft_bins, bands, norm):
     Creates a filterbank with multiple filters per band
 
     :param filters:  Dictionary containing lists of filters per band. Keys are
-                     band ids.
+                     band ids. Filters are represented by a tuple of a numpy
+                     array and the starting position
     :param fft_bins: Number of FFT bin
     :param bands:    Number of bands
     :param norm:     Normalise the area of each filterband to 1 if True
@@ -419,8 +384,10 @@ def multi_filterbank(filters, fft_bins, bands, norm):
 
     for band_id, band_filts in filters.iteritems():
         for filt in band_filts:
-            filt_pos = bank[filt.start:filt.stop, band_id]
-            np.maximum(filt, filt_pos, out=filt_pos)
+            start = filt[1]
+            stop = start + len(filt[0])
+            filt_pos = bank[start:stop, band_id]
+            np.maximum(filt[0], filt_pos, out=filt_pos)
 
     if norm:
         bank /= bank.sum(0)
@@ -433,7 +400,12 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate, norm=NORM_FILTER
     """
     Creates a filterbank with one filter per band.
 
-    :param filter_type: method that creates a filter element
+    :param filter_type: method that creates a filter. the method is expected to
+        return a numpy array. the following parameters will be passed to this method:
+            - width: filter width [bins]
+            - center: filter center position (smaller than width)
+            - norm: boolean indicating whether to normalise the filter (sum = 1)
+                    or not
     :param frequencies: a list of frequencies used for filter creation [Hz]
     :param fft_bins:    number of fft bins
     :param sample_rate: sample rate of the audio signal [Hz]
@@ -493,8 +465,8 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate, norm=NORM_FILTER
             stop = start + 1
 
         # create the filter
-        kwargs = {'start': start, 'center': mid, 'stop': stop, 'norm': norm}
-        filters[band] = [filter_type(**kwargs)]
+        kwargs = {'width': stop - start, 'center': mid - start, 'norm': norm}
+        filters[band] = [(filter_type(**kwargs), start)]
 
     # no normalisation here, since each filter is already normalised
     return multi_filterbank(filters, fft_bins, len(filters), norm=False)
@@ -507,7 +479,12 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins, samp
     Creates a filterbank in which each band represents a fundamental frequency
     and its harmonics.
 
-    :param filter_type:   function that creates a filter
+    :param filter_type: method that creates a filter. the method is expected to
+        return a numpy array. the following parameters will be passed to this method:
+            - width: filter width [bins]
+            - center: filter center position (smaller than width)
+            - norm: boolean indicating whether to normalise the filter (sum = 1)
+                    or not
     :param fundamentals:  list of fundamental frequencies
     :param num_harmonics: number of harmonics for each fundamental frequency
     :param fft_bins:      number of fft bins
@@ -548,16 +525,14 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins, samp
 
     filters = {num: [] for num in range(len(fundamentals))}
 
-    for index, filt_start in np.ndenumerate(filter_starts):
-        filt_end = filter_ends[index]
-        filt_center = filter_centers[index]
+    for index, start in np.ndenumerate(filter_starts):
+        end = filter_ends[index]
+        center = filter_centers[index]
 
-        params = {'start': filt_start, 'center': filt_center, 'stop': filt_end,
-                  'norm': False}
-
+        params = {'width': end - start, 'center': center, 'norm': False}
         filt = filter_type(**params) * filter_weights[index[0]]
 
-        filters[index[1]] += [filt]
+        filters[index[1]] += [(filt, start)]
 
     return multi_filterbank(filters, fft_bins, len(filters), True)
 
@@ -630,10 +605,10 @@ class FilterBank(np.ndarray):
     def __new__(cls, data, sample_rate):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
-            # cast as Filter
+            # cast as FilterBank
             obj = np.asarray(data).view(cls)
         else:
-            raise TypeError("wrong input data for Filter")
+            raise TypeError("wrong input data for FilterBank")
         # set attributes
         obj.__fft_bins, obj.__bands = obj.shape
         obj.__sample_rate = sample_rate
@@ -696,7 +671,7 @@ class MelFilterBank(FilterBank):
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
-        # cast to Filter
+        # cast to FilterBank
         obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
@@ -740,7 +715,7 @@ class BarkFilterBank(FilterBank):
             frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
-        # cast to Filter
+        # cast to FilterBank
         obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
@@ -785,7 +760,7 @@ class LogarithmicFilterBank(FilterBank):
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
         filterbank = triang_filterbank(frequencies, fft_bins, sample_rate, norm, omit_duplicates)
-        # cast to Filter
+        # cast to FilterBank
         obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__bands_per_octave = bands_per_octave
@@ -826,7 +801,7 @@ class SemitoneFilterBank(LogarithmicFilterBank):
     def __new__(cls, fft_bins, sample_rate,
                 fmin=FMIN, fmax=FMAX, norm=NORM_FILTER, omit_duplicates=OMIT_DUPLICATES, a4=A4):
         """
-        Creates a new Semitone Filter instance.
+        Creates a new Semitone Filter Bank instance.
 
         :param fft_bins:    number of FFT bins (= half the window size of the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
@@ -889,7 +864,7 @@ class SimpleChromaFilterBank(FilterBank):
                 height /= (stop - start)
             # create a rectangular filter and map it to the 12 bins
             filterbank[start:stop, band % 12] = height
-        # cast to Filter
+        # cast to FilterBank
         obj = FilterBank.__new__(cls, filterbank, sample_rate)
         # set additional attributes
         obj.__norm = norm
