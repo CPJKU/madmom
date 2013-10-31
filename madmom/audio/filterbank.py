@@ -10,7 +10,7 @@ This file contains filter and filterbank related functionality.
 import numpy as np
 from collections import namedtuple
 from functools import partial
-from .signal import strided_frames
+from ..utils.helpers import segment_axis
 
 
 # default values for filters
@@ -336,6 +336,7 @@ def triang_filter(width, center, norm):
     :returns:      a triangular shaped filter with height 1 (unless normalized)
 
     """
+    assert center < width, 'center must be smaller than width'
     # Set the height of the filter, normalised if necessary.
     # A standard filter is at least 3 bins wide, and stop - start = 2
     # thus the filter has an area of 1 if normalised this way
@@ -417,7 +418,7 @@ def band_bins(bins, omit_duplicates, overlap):
     if len(bins) < 3:
         raise ValueError("Cannot create filterbank with less than 1 band")
 
-    for start, center, stop in strided_frames(bins, 3, 1):
+    for start, center, stop in segment_axis(bins, 3, 2):
         if not overlap:
             start = np.round(float(center + start) / 2)
             stop = np.round(float(center + end) / 2)
@@ -465,10 +466,12 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate,
     # FIXME: skip the DC bin 0?
 
     filters = {}
+    band = 0
     for start, center, stop in band_bins(frequencies, omit_duplicates, overlap):
         # create the filter
         kwargs = {'width': stop - start, 'center': center - start, 'norm': norm}
         filters[band] = [(filter_type(**kwargs), start)]
+        band = band + 1
 
     # no normalisation here, since each filter is already normalised
     return multi_filterbank(filters, fft_bins, len(filters), norm=False)
@@ -531,7 +534,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins, samp
         end = filter_ends[index]
         center = filter_centers[index]
 
-        params = {'width': end - start, 'center': center, 'norm': False}
+        params = {'width': end - start, 'center': center - start, 'norm': False}
         filt = filter_type(**params) * filter_weights[index[0]]
 
         filters[index[1]] += [(filt, start)]
