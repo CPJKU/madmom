@@ -311,6 +311,7 @@ def strided_frames(x, frame_size, hop_size):
     """
     # init variables
     samples = np.shape(x)[0]
+    print samples
     # FIXME: does not perform the seeking the right way (only int working properly)
     # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
     as_strided = np.lib.stride_tricks.as_strided

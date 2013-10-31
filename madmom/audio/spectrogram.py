@@ -570,7 +570,7 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        from .filterbank import LogarithmicFilter, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTER
+        from .filterbank import LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTER
         # fetch the arguments special to the filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
@@ -581,7 +581,7 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = LogarithmicFilter(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = LogarithmicFilterBank(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
         # save the filterbank, so it gets used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
 

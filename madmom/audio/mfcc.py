@@ -46,7 +46,7 @@ class MFCC(Spectrogram):
         :param norm_filter: normalize the area of the filter to 1 [default=True]
 
         """
-        from .filterbank import MelFilter, MEL_BANDS, FMIN, FMAX, NORM_FILTER
+        from .filterbank import MelFilterBank, MEL_BANDS, FMIN, FMAX, NORM_FILTER
         from .spectrogram import MUL, ADD
 
         # fetch the arguments special to the filterbank creation (or set defaults)
@@ -64,7 +64,7 @@ class MFCC(Spectrogram):
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = MelFilter(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = MelFilterBank(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
 
         # set the parameters, so they get used when the magnitude spectrogram gets computed
         self.filterbank = filterbank
