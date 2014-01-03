@@ -310,9 +310,8 @@ FRAME_SIZE = 2048
 HOP_SIZE = 441.
 FPS = 100.
 ORIGIN = 0
-MODE = 'extend'
 START = 0
-STOP = None
+NUM_FRAMES = 'extend'
 
 
 class FramedSignal(object):
@@ -321,7 +320,7 @@ class FramedSignal(object):
 
     """
     def __init__(self, signal, frame_size=None, hop_size=None, fps=None,
-                 origin=None, mode=MODE, start=None, stop=None, *args, **kwargs):
+                 origin=None, start=None, num_frames=None, *args, **kwargs):
         """
         Creates a new FramedSignal object instance.
 
@@ -332,9 +331,8 @@ class FramedSignal(object):
         :param fps:        use N frames per second instead of setting the hop_size;
                            if set, this overwrites the hop_size value [default=None]
         :param origin:     location of the window relative to the signal position [default=0]
-        :param mode:       end of signal handling [default='extend']
         :param start:      start sample [default=0]
-        :param stop:       stop sample [default=None]
+        :param num_frames: number of frames to return (see below)
 
         The FramedSignal class is implemented as an iterator. It splits the
         given Signal automatically into frames (of `frame_size` length) and
@@ -353,15 +351,14 @@ class FramedSignal(object):
         - 'right', 'future': the window is located to the right of its
           reference sample
 
-        The `mode` parameter is used to set the end of signal handling
+        If only a certain part of the Signal is wanted, `start` (in samples) and
+        `num_frames` (in frames) can be used to set the range accordingly.
+        Additionally, the `num_frames` parameter can have the following literal
+        values to cover the whole signal to the end with the following end of
+        signal behavior.
         - 'normal': the origin of the last frame has to be within the signal
         - 'extend': frames are returned as long as part of the frame overlaps
-          with the signal
-
-        If only a certain part of the Signal is wanted, `start` and `stop` can
-        be used to set these values accordingly.
-        `start` is given in samples and marks the first sample of the audio.
-        `stop` is given in samples and marks the last sample to return.
+          with the signal [default]
 
         """
         # signal handling
@@ -372,9 +369,8 @@ class FramedSignal(object):
             self._frame_size = signal.frame_size
             self._hop_size = signal.hop_size
             self._origin = signal.origin
-            self._mode = signal.mode
             self._start = signal.start
-            self._stop = signal.stop
+            self._num_frames = signal.num_frames
         else:
             # try to instantiate a Signal
             self._signal = Signal(signal, *args, **kwargs)
@@ -383,9 +379,8 @@ class FramedSignal(object):
             self._frame_size = FRAME_SIZE
             self._hop_size = HOP_SIZE
             self._origin = ORIGIN
-            self._mode = MODE
             self._start = START
-            self._stop = STOP
+            self._num_frames = NUM_FRAMES
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -418,26 +413,17 @@ class FramedSignal(object):
         if start:
             # the start position of the signal (in samples)
             self._start = int(start)
-        if stop:
-            # the stop position of the signal (in samples)
-            self._stop = int(stop)
-        if self._stop is None:
-            # if no stop position is given, use the last sample
-            self._stop = self.signal.num_samples
-
-        # length of the signal
-        length = self._stop - self._start
 
         # number of frames handling
-        self._mode = mode
-        if self._mode == 'extend':
-            # return frames as long as frame covers any signal
-            self._num_frames = int(np.floor((length) / float(self.hop_size) + 1))
-        elif self._mode == 'normal':
+        if num_frames == 'extend':
+            # return frames as long as a frame covers any signal
+            self._num_frames = int(np.floor(len(self.signal) / float(self.hop_size) + 1))
+        elif num_frames == 'normal':
             # return frames as long as the origin sample covers the signal
-            self._num_frames = int(np.ceil(length / float(self.hop_size)))
+            self._num_frames = int(np.ceil(len(self.signal) / float(self.hop_size)))
         else:
-            raise ValueError('invalid mode')
+            # treat as integer
+            self._num_frames = int(num_frames)
 
     # make the Object indexable
     def __getitem__(self, index):
@@ -466,29 +452,26 @@ class FramedSignal(object):
             raise IndexError("end of signal reached")
         # a slice is given
         elif isinstance(index, slice):
-            # create a new FramedSignal object which covers the signal part
-            # determine the start frame
+            # determine the start sample
             if index.start:
-                start = index.start
+                start = int(index.start * self.hop_size)
             else:
                 start = 0
-            # determine the stop frame
+            # determine the number of requested frames
             if index.stop and index.start:
-                stop = index.stop - index.start
+                num_frames = index.stop - index.start
             elif index.stop:
-                stop = index.stop
+                num_frames = index.stop
             elif index.start:
-                stop = self.num_frames - index.start
+                num_frames = self.num_frames - index.start
             else:
-                stop = self.num_frames
-            # convert start and stop to samples
-            start *= self.hop_size
-            stop *= self.hop_size
+                num_frames = self.num_frames
             # just allow normal steps
             if (index.step is not None) and (index.step != 1):
                 raise ValueError('only slices with a step size of 1 are supported')
-            # create the object and return it
-            return FramedSignal(self.signal, start=start, stop=stop)
+            # return a new FramedSignal object which covers the requested signal part
+            return FramedSignal(self.signal, frame_size=self.frame_size, hop_size=self.hop_size,
+                                origin=self.origin, start=start, num_frames=num_frames)
         # other index types are invalid
         else:
             raise TypeError("frame indices must be slices or integers, not %s" % index.__class__.__name__)
@@ -514,11 +497,6 @@ class FramedSignal(object):
         return self._origin
 
     @property
-    def mode(self):
-        """End of signal handling mode."""
-        return self._mode
-
-    @property
     def start(self):
         """Start sample of the (audio) signal."""
         return self._start
@@ -526,7 +504,7 @@ class FramedSignal(object):
     @property
     def stop(self):
         """Stop sample of the (audio) signal."""
-        return self._stop
+        return self._start + self.num_frames * self.hop_size
 
     @property
     def num_frames(self):
