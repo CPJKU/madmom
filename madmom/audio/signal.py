@@ -319,8 +319,8 @@ class FramedSignal(object):
     FramedSignal splits a signal into frames and makes them iterable.
 
     """
-    def __init__(self, signal, frame_size=None, hop_size=None, fps=None,
-                 origin=None, start=None, num_frames=None, *args, **kwargs):
+    def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
+                 origin=ORIGIN, start=START, num_frames=NUM_FRAMES, *args, **kwargs):
         """
         Creates a new FramedSignal object instance.
 
@@ -374,13 +374,6 @@ class FramedSignal(object):
         else:
             # try to instantiate a Signal
             self._signal = Signal(signal, *args, **kwargs)
-            # set attributes to default values (which can be overwritten by
-            # passing other values to the constructor)
-            self._frame_size = FRAME_SIZE
-            self._hop_size = HOP_SIZE
-            self._origin = ORIGIN
-            self._start = START
-            self._num_frames = NUM_FRAMES
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -395,24 +388,21 @@ class FramedSignal(object):
         # translate literal values
         if origin in ('center', 'offline'):
             # the current position is the center of the frame
-            origin = 0
+            self._origin = 0
         elif origin in ('left', 'past', 'online'):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            origin = +(frame_size - 1) / 2
+            self._origin = +(frame_size - 1) / 2
         elif origin in ('right', 'future'):
             # the current position is the left edge of the frame
-            origin = -(frame_size / 2)
+            self._origin = -(frame_size / 2)
             # location of the window
-        if origin is not None:
-            # overwrite the default origin
+        else:
             self._origin = origin
 
-        # start/stop position
-        if start:
-            # the start position of the signal (in samples)
-            self._start = int(start)
+        # start position of the signal (in samples)
+        self._start = int(start)
 
         # number of frames handling
         if num_frames == 'extend':
@@ -422,7 +412,6 @@ class FramedSignal(object):
             # return frames as long as the origin sample covers the signal
             self._num_frames = int(np.ceil(len(self.signal) / float(self.hop_size)))
         else:
-            # treat as integer
             self._num_frames = int(num_frames)
 
     # make the Object indexable
