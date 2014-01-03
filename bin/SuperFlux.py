@@ -27,7 +27,7 @@ def parser():
     # general options
     madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    madmom.utils.params.add_audio_arguments(p, fps=200)
+    madmom.utils.params.add_audio_arguments(p, fps=200, online=False)
     madmom.utils.params.add_spec_arguments(p)
     madmom.utils.params.add_filter_arguments(p, bands=24, norm_filter=False)
     madmom.utils.params.add_log_arguments(p, mul=1, add=1)
@@ -42,6 +42,11 @@ def parser():
         args.online = False
         args.post_avg = 0
         args.post_max = 0
+    # translate online/offline mode
+    if args.online:
+        args.origin = 'online'
+    else:
+        args.origin = 'offline'
     # print arguments
     if args.verbose:
         print args
@@ -65,7 +70,7 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
-        s = LogFiltSpec(w, frame_size=args.window, online=args.online, fps=args.fps,
+        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin, fps=args.fps,
                         mul=args.mul, add=args.add, norm_filter=args.norm_filter)
         # create an SpectralOnsetDetection object and perform detection function on the object
         act = SpectralOnsetDetection(s).superflux()

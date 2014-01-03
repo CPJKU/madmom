@@ -11,7 +11,7 @@ import argparse
 import tempfile
 
 # get the default values from the corresponding modules
-from ..audio.signal import ONLINE, NORM, ATT, FPS, FRAME_SIZE
+from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
 from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTER
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
@@ -19,7 +19,7 @@ from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
 from ..features.beats import THRESHOLD as bt, SMOOTH as bs, MIN_BPM, MAX_BPM
 
 
-def add_audio_arguments(parser, online=ONLINE, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
+def add_audio_arguments(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     """
     Add audio related arguments to an existing parser object.
 
