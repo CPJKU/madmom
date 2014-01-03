@@ -441,26 +441,18 @@ class FramedSignal(object):
             raise IndexError("end of signal reached")
         # a slice is given
         elif isinstance(index, slice):
-            # determine the start sample
-            if index.start:
-                start = int(index.start * self.hop_size)
-            else:
-                start = 0
-            # determine the number of requested frames
-            if index.stop and index.start:
-                num_frames = index.stop - index.start
-            elif index.stop:
-                num_frames = index.stop
-            elif index.start:
-                num_frames = self.num_frames - index.start
-            else:
-                num_frames = self.num_frames
-            # just allow normal steps
-            if (index.step is not None) and (index.step != 1):
+            # determine the frames to return
+            start, stop, step = index.indices(self.num_frames)
+            # allow only normal steps
+            if step != 1:
                 raise ValueError('only slices with a step size of 1 are supported')
-            # return a new FramedSignal object which covers the requested signal part
+            # determine the number of frames
+            num_frames = stop - start
+            # determine the start sample
+            start_sample = self.start + self.hop_size * start
+            # return a new FramedSignal instance which covers the requested frames
             return FramedSignal(self.signal, frame_size=self.frame_size, hop_size=self.hop_size,
-                                origin=self.origin, start=start, num_frames=num_frames)
+                                origin=self.origin, start=start_sample, num_frames=num_frames)
         # other index types are invalid
         else:
             raise TypeError("frame indices must be slices or integers, not %s" % index.__class__.__name__)
@@ -487,13 +479,8 @@ class FramedSignal(object):
 
     @property
     def start(self):
-        """Start sample of the (audio) signal."""
+        """Origin sample of the first frame."""
         return self._start
-
-    @property
-    def stop(self):
-        """Stop sample of the (audio) signal."""
-        return self._start + self.num_frames * self.hop_size
 
     @property
     def num_frames(self):
