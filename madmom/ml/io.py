@@ -16,13 +16,13 @@ The subgroups are numbered consecutively, starting at index zero.
 
 Each layer subgroup contains the following attributes:
   - `type`: the type of the layer
-Each layer subgroup can contain the following datasets:
+Each layer subgroup can contain the following data sets:
   - `bias`:              bias of the layer
   - `weights`:           weights of the layer
   - `recurrent_weights`: recurrent weights (optional for recurrent layers)
   - `peephole_weights`:  peephole weights (optional for LSTM layers)
 
-Each of the previous layer subgroups can contain the same named datasets with a
+Each of the previous layer subgroups can contain the same named data sets with a
 'reverse_' prefix to indicate that they belong to the reverse/backward layer of
 bidirectional layers.
 
@@ -38,13 +38,14 @@ def convert_model(infile, outfile=None, compressed=False):
     """
     Convert a neural network model from .h5 to .npz format.
 
-    :param infile:  file with the saved model (.h5 format)
-    :param outfile: file to write the model (.npz format)
+    :param infile:     file with the saved model (.h5 format)
+    :param outfile:    file to write the model (.npz format)
+    :param compressed: compress the resulting .npz file
 
     """
     import h5py
     npz = {}
-    # read in modele
+    # read in model
     with h5py.File(infile, 'r') as h5:
         # model attributes
         for attr in h5['model'].attrs.keys():
@@ -55,7 +56,7 @@ def convert_model(infile, outfile=None, compressed=False):
             # each layer has some attributes
             for attr in layer.attrs.keys():
                 npz['layer_%s_%s' % (l, attr)] = layer.attrs[attr]
-            # and some datasets
+            # and some data sets (i.e. different weights)
             for data in layer.keys():
                 npz['layer_%s_%s' % (l, data)] = layer[data].value
     # save the model to .npz format

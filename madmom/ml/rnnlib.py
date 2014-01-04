@@ -67,12 +67,9 @@ class Activations(np.ndarray):
         f.close()
         # cast to Activations
         obj = np.asarray(activations).view(cls)
-        # set file name
-        # TODO: do we need the file name? remove it?
-        obj.__filename = filename
         # set attributes
-        obj.__labels = labels
-        obj.__fps = fps
+        obj._labels = labels
+        obj._fps = fps
         # return the object
         return obj
 
@@ -80,25 +77,28 @@ class Activations(np.ndarray):
         if obj is None:
             return
         # set default values here
-        self.__labels = getattr(obj, '__labels', None)
-        self.__fps = getattr(obj, '__fps', None)
-        # TODO: do we need the file name? remove it?
-        self.__filename = getattr(obj, '__filename', None)
+        self._labels = getattr(obj, '_labels', None)
+        self._fps = getattr(obj, '_fps', None)
 
     @property
     def labels(self):
         """Labels for classes."""
-        return self.__labels
+        return self._labels
 
     @property
-    def filename(self):
-        """Name of the activations file."""
-        return self.__filename
+    def fps(self):
+        """Frames per second."""
+        return self._fps
 
 
 # helper functions for .nc file creation
 def max_len(strings):
-    """Determine the maximum length of an array of the given strings."""
+    """
+    Determine the maximum length of an array of the given strings.
+    :param strings: list with strings
+    :returns:       maximum length of these strings
+
+    """
     return len(max(strings, key=len))
 
 
@@ -109,7 +109,7 @@ def expand_and_terminate(strings):
     max_length = max_len(strings) + 1
     for string in strings:
         # expand each string to the maximum length with \0's
-        string = string + '\0' * (max_length - len(string))
+        string += '\0' * (max_length - len(string))
         terminated_strings.append(string)
     return terminated_strings
 
@@ -880,7 +880,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
 
     :param nn_files: list with network files
     :param out_dir:  output directory for activations
-    :param file_set: which set should be tested (train, val, test) [default='test']
+    :param file_set: which set should be tested [default='test']
+                     file_set can be any of (train, val, test)
     :param threads:  number of working threads [default=2]
     :param sep:      separator between activation values [default='']
 
@@ -908,14 +909,16 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
         # get a list of all .nc files
         nc_files = []
         for nn_file in nn_files:
+            # FIXME: use globals() instead of eval()
             nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
-        # test all .nc files against the NN files which have this file in the given set
+        # test all .nc files against the NN files if this file in the given set
         for nc_file in nc_files:
             # check in which NN files the .nc file is included
             nc_nn_files = []
             for nn_file in nn_files:
+                # FIXME: use globals() instead of eval()
                 if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
@@ -926,6 +929,3 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
             # first activation in the returned list)
             activations[0].tofile(act_file, sep)
 
-
-def combine_activations(out_dir, in_dirs):
-    pass

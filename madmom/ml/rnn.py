@@ -109,7 +109,7 @@ class BidirectionalLayer(Layer):
         :returns:    activations for this data
 
         """
-        # actiate in fwd direction
+        # activate in fwd direction
         fwd = self.fwd_layer.activate(data)
         # also activate with reverse input
         bwd = self.bwd_layer.activate(data[::-1])
@@ -198,8 +198,10 @@ class RecurrentLayer(FeedForwardLayer):
         size = data.shape[0]
         out = np.zeros((size, self.bias.size))
         for i in range(size):
-            # weight the data, add bias and the weighted previous step and apply transfer function
-            out[i] = self.transfer_fn(np.dot(data[i], self.weights) + self.bias + np.dot(out[i - 1], self.recurrent_weights))
+            # weight the data, add the bias and the weighted previous step and
+            # apply transfer function
+            out[i] = self.transfer_fn(np.dot(data[i], self.weights) + self.bias +
+                                      np.dot(out[i - 1], self.recurrent_weights))
         # return
         return out
 
@@ -287,7 +289,7 @@ class LSTMLayer(RecurrentLayer):
         state = np.zeros_like(out)
         # process the input data
         for i in range(size):
-            # input gate
+            # input gate:
             # weight input and add bias
             ig = np.dot(data[i], self.weights[0::4].T) + self.bias[0::4].T
             # add the previous state weighted by the peephole
@@ -298,7 +300,8 @@ class LSTMLayer(RecurrentLayer):
                 ig += np.dot(out[i - 1], self.recurrent_weights[0::4].T)
             # apply sigmoid
             ig = sigmoid(ig)
-            # forget gate
+
+            # forget gate:
             # weight input and add bias
             fg = np.dot(data[i], self.weights[1::4].T) + self.bias[1::4].T
             # add the previous state weighted by the peephole
@@ -309,7 +312,8 @@ class LSTMLayer(RecurrentLayer):
                 fg += np.dot(out[i - 1], self.recurrent_weights[1::4].T)
             # apply sigmoid
             fg = sigmoid(fg)
-            # cell
+
+            # cell:
             # weight the input and add bias
             cell = np.dot(data[i], self.weights[2::4].T) + self.bias[2::4].T
             # add recurrent connections
@@ -317,10 +321,13 @@ class LSTMLayer(RecurrentLayer):
                 cell += np.dot(out[i - 1], self.recurrent_weights[2::4].T)
             # apply tanh
             cell = np.tanh(cell)
-            # internal state
-            # cell weighted by the input gate + the previous state weighted by the forget gate
+
+            # internal state:
+            # weight the cell with the input gate
+            # and add the previous state weighted by the forget gate
             state[i] = cell * ig + state[i - 1] * fg
-            # output gate
+
+            # output gate:
             # weight the input and add bias
             og = np.dot(data[i], self.weights[3::4].T) + self.bias[3::4].T
             # add the *current* state weighted by the peephole
@@ -331,7 +338,8 @@ class LSTMLayer(RecurrentLayer):
                 og += np.dot(out[i - 1], self.recurrent_weights[3::4].T)
             # apply sigmoid
             og = sigmoid(og)
-            # output
+
+            # output:
             # apply transfer function to state and weight by output gate
             out[i] = self.transfer_fn(state[i]) * og
         return out
@@ -347,55 +355,56 @@ class RecurrentNeuralNetwork(object):
         """
         Create a new RecurrentNeuralNetwork object.
 
-        :param comment:  informal text describing the model
+        :param filename: build the RNN according to the model stored in that
+                         file [default=None]
 
         """
         self.layers = []
         if filename:
             self.load(filename)
 
-    def activate(self, data):
-        """
-        Activate the network.
-
-        :param data: activate with this data
-        :returns:    activations for this data
-
-        """
-        # loop over all layers
-        for layer in self.layers:
-            # activate the layer
-            data = layer.activate(data)
-        return data
-
     def load(self, filename):
+        """
+        Load the model of the RecurrentNeuralNetwork from a .npz file.
+
+        :param filename: name of the .npz file with the RNN model
+
+        """
         # native numpy .npz format or pickled dictionary
         data = np.load(filename)
-        # determine the number of layers (all "layer_%d_" occurrences)
+        # determine the number of layers (i.e. all "layer_%d_" occurrences)
         num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
                           for k in data.keys() if k.startswith('layer_')])
 
         # function for layer creation with the given parameters
         def create_layer(params):
+            """
+            Create a new network layer according to the given parameters.
+
+            :param params: parameters for layer creation
+            :returns:      a network layer
+
+            """
             # first check if we need to create a bidirectional layer
-            bidirectional = False
+            bwd_layer = None
             if '%s_type' % REVERSE in params.keys():
-                # pop the params needed for the reverse layer
+                # pop the params needed for the reverse (backward) layer
                 bwd_type = params.pop('%s_type' % REVERSE)
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                   for k in params.keys() if k.startswith('%s_' % REVERSE))
+                                  for k in params.keys() if k.startswith('%s_' % REVERSE))
                 # construct the layer
                 bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)
-                # set bidirectional mode
-                bidirectional = True
-            # pop the params needed for the normal layer
+
+            # pop the params needed for the normal (forward) layer
             fwd_type = params.pop('type')
             fwd_params = params
             # construct the layer
             fwd_layer = globals()["%sLayer" % fwd_type](**fwd_params)
-            # return the constructed layer
-            if bidirectional:
-                # return a bidirectional layer with the forward and backward layer
+
+            # return a (bidirectional) layer
+            if bwd_layer is not None:
+                # construct a bidirectional layer with the forward and backward
+                # layer and return it
                 return BidirectionalLayer(fwd_layer, bwd_layer)
             else:
                 # just return the forward layer
@@ -410,6 +419,21 @@ class RecurrentNeuralNetwork(object):
             layer = create_layer(layer_params)
             # add to the model
             self.layers.append(layer)
+
+    def activate(self, data):
+        """
+        Activate the RNN.
+
+        :param data: activate with this data
+        :returns:    network activations for this data
+
+        """
+        # loop over all layers
+        # feed the output of one layer as input to the next one
+        for layer in self.layers:
+            # activate the layer
+            data = layer.activate(data)
+        return data
 
 # alias
 RNN = RecurrentNeuralNetwork
