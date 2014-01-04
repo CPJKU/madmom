@@ -110,7 +110,7 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
 
     # consider the unlikely case that EVERYTHING was missed or misaligned
     mi_ma_series = np.diff((missed | misaligned).cumsum())
-    if (mi_ma_series).all():
+    if mi_ma_series.all():
         completed_idx = -1
     else:
         completed_idx = np.flatnonzero(mi_ma_series - 1)[-1] + 1
@@ -134,7 +134,7 @@ class ScoreFollowingEvaluation(object):
 
     def __init__(self, alignment, ground_truth, window=0.25):
         """
-        Inits the evaluation with the given data and window threshold.
+        Initializes the evaluation with the given data and window threshold.
 
         :param alignment: The score follower's resulting alignment.
                           List of tuples, 2d numpy array or similar. First
@@ -248,7 +248,7 @@ def parse_arguments():
 
     parser.add_argument('-to', '--table-output', action='store_const',
                         const=True, default=False,
-                        help='Enable output as a row with a space seperator',
+                        help='Enable output as a row with a space separator',
                         dest='table_output')
 
     return parser.parse_args()

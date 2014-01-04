@@ -31,7 +31,7 @@ def find_closest_matches(detections, targets):
     if len(targets) == 1:
         # return an array as long as the detections with indices 0
         return np.zeros(len(detections), dtype=np.int)
-    # solution found at: http://stackoverflow.com/questions/8914491/finding-the-nearest-value-and-return-the-index-of-array-in-python
+    # solution found at: http://stackoverflow.com/questions/8914491/
     indices = targets.searchsorted(detections)
     indices = np.clip(indices, 1, len(targets) - 1)
     left = targets[indices - 1]

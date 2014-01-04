@@ -64,7 +64,7 @@ def count_errors(detections, targets, window):
 WINDOW = 0.025
 
 
-# for note evaluation with Presicion, Recall, F-measure use the Evaluation
+# for note evaluation with Precision, Recall, F-measure use the Evaluation
 # class and just define the evaluation function
 # TODO: extend to also report the measures without octave errors
 class NoteEvaluation(Evaluation):

@@ -43,11 +43,11 @@ def calc_intervals(events, fwd=False):
     interval = np.zeros_like(events)
     if fwd:
         interval[:-1] = np.diff(events)
-        # the interval of the first event is the same as the one of the second event
+        # set the last interval to the same value as the second last
         interval[-1] = interval[-2]
     else:
         interval[1:] = np.diff(events)
-        # the interval of the first event is the same as the one of the second event
+        # set the first interval to the same value as the second
         interval[0] = interval[1]
     # return
     return interval
@@ -69,7 +69,7 @@ def find_closest_intervals(detections, targets, matches=None):
     # init array
     closest_interval = np.ones_like(detections)
     # init array for intervals
-    # Note: if we combine the formward and backward intervals this is faster,
+    # Note: if we combine the forward and backward intervals this is faster,
     # but we need expand the size accordingly
     intervals = np.zeros(len(targets) + 1)
     # intervals to previous target
@@ -85,9 +85,10 @@ def find_closest_intervals(detections, targets, matches=None):
     # calculate the absolute errors
     errors = calc_errors(detections, targets, matches)
     # if the errors are positive, the detection is after the target
-    # thus, the needed interval is from the closest target towards the next one
+    # thus use the interval towards the next target
     closest_interval[errors > 0] = intervals[matches[errors > 0] + 1]
-    # if before (or same position) use the interval to previous target accordingly
+    # if the errors are 0 or negative, the detection is before the target or at
+    # the same position; thus use the interval to previous target accordingly
     closest_interval[errors <= 0] = intervals[matches[errors <= 0]]
     # return the closest interval
     return closest_interval
@@ -174,7 +175,7 @@ def cemgil(detections, targets, sigma):
     # Note: the original implementation searches for the closest matches of
     # detections to given targets. Since absolute errors > a usual beat interval
     # produce high errors (and thus in turn add negligible values to the
-    # accurary), it is safe to swap those two.
+    # accuracy), it is safe to swap those two.
     errors = calc_absolute_errors(detections, targets)
     # apply a Gaussian error function with the given std. dev. on the errors
     acc = np.exp(-(errors ** 2.) / (2. * (sigma ** 2.)))
@@ -197,8 +198,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     :param phase_tolerance: phase (interval) tolerance window
     :returns:               cmlc, cmlt
 
-    cmlc: beat tracking accuracy, continuity required at the correct metrical level
-    cmlt: beat tracking accuracy, continuity not required at the correct metrical level
+    cmlc: tracking accuracy, continuity at the correct metrical level required
+    cmlt: tracking accuracy, continuity at the correct metrical level not req.
 
     "Techniques for the automated analysis of musical audio"
     S. Hainsworth
@@ -206,7 +207,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
 
     "Analysis of the meter of acoustic musical signals"
     A. P. Klapuri, A. Eronen, and J. Astola
-    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1, pp. 342–355, 2006.
+    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1,
+    pp. 342–355, 2006.
 
     """
     # at least 2 detections and targets are needed to calculate the intervals
@@ -240,7 +242,7 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     segments = np.nonzero(np.diff(correct_idx) != 1)[0]
     # determine the max length of those segment
     if segments.size == 0:
-        # all detections are coorect
+        # all detections are correct
         cont = detections.size
     elif segments.size == 1:
         # only one long segment
@@ -260,7 +262,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
 
 def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
-    Calculate cmlc, cmlt, amlc, amlt for the given detection and target sequences.
+    Calculate cmlc, cmlt, amlc, amlt for the given detection and target
+    sequences.
 
     :param detections:      sequence of estimated beat times [seconds]
     :param targets:         sequence of ground truth beat annotations [seconds]
@@ -268,10 +271,10 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     :param phase_tolerance: phase (interval) tolerance window
     :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
 
-    cmlc: beat tracking accuracy, continuity required at the correct metrical level
-    cmlt: beat tracking accuracy, continuity not required at the correct metrical level
-    amlc: beat tracking accuracy, continuity required at allowed metrical levels
-    amlt: beat tracking accuracy, continuity not required at allowed metrical levels
+    cmlc: tracking accuracy, continuity at the correct metrical level required
+    cmlt: tracking accuracy, continuity at the correct metrical level not req.
+    amlc: tracking accuracy, continuity at allowed metrical levels required
+    amlt: tracking accuracy, continuity at allowed metrical levels not req.
 
     "Techniques for the automated analysis of musical audio"
     S. Hainsworth
@@ -279,30 +282,26 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
 
     "Analysis of the meter of acoustic musical signals"
     A. P. Klapuri, A. Eronen, and J. Astola
-    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1, pp. 342–355, 2006.
+    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1,
+    pp. 342–355, 2006.
 
     """
     # needs at least 2 detections and targets to interpolate
     if min(len(targets), len(detections)) < 2:
         return 0, 0, 0, 0
 
+    # create a target sequence with double tempo
+    same = np.arange(0, len(targets))
+    shifted = np.arange(0, len(targets), 0.5)
     # Note: it does not extrapolate the last value, so skip it
-    xold = np.arange(0, len(targets))
-    xnew = np.arange(0, len(targets), 0.5)
-    double_targets = np.interp(xnew, xold, targets)[:-1]
+    double_targets = np.interp(shifted, same, targets)[:-1]
 
     # make different variants of annotations
-    variations = []
-    # double tempo
-    variations.append(double_targets)
-    # off-beats
-    variations.append(double_targets[1::2])
-    # half tempo odd beats (i.e. 1,3,1,3)
-    variations.append(targets[::2])
-    # half tempo even beats (i.e. 2,4,2,4)
-    variations.append(targets[1::2])
+    # double tempo, odd off-beats, even off-beats
+    # half tempo odd beats (i.e. 1,3,1,3), half tempo even beats (i.e. 2,4,2,4)
     # TODO: include a third tempo as well? This might be needed for fast Waltz
-    variations.append(targets[::3])
+    variations = [double_targets, double_targets[1::2], targets[::2],
+                  targets[1::2], targets[::3]]
 
     # evaluate correct tempo
     cmlc, cmlt = cml(detections, targets, tempo_tolerance, phase_tolerance)
@@ -332,9 +331,10 @@ def information_gain(detections, targets, bins):
     :param detections: sequence of estimated beat times [seconds]
     :param targets:    sequence of ground truth beat annotations [seconds]
     :param bins:       number of bins for the error histogram
-    :returns:          infromation gain, beat error histogram
+    :returns:          information gain, beat error histogram
 
-    "Measuring the performance of beat tracking algorithms algorithms using a beat error histogram"
+    "Measuring the performance of beat tracking algorithms algorithms using a
+    beat error histogram"
     M. E. P. Davies, N. Degara and M. D. Plumbley
     IEEE Signal Processing Letters, vol. 18, vo. 3, 2011
 
@@ -354,7 +354,8 @@ def information_gain(detections, targets, bins):
 
     # since np.histogram uses bin borders, we need to apply an offset
     offset = 0.5 / bins
-    # add another bin, because the last bin is wraped around to the first one later
+    # and add another bin, because the last bin is wrapped around to the first
+    # bin later
     histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
 
     # evaluate detections against targets
@@ -412,7 +413,7 @@ def calc_information_gain(error_histogram):
     histogram = np.copy(error_histogram)
     # all bins are 0, make a uniform distribution with values != 0
     if not histogram.any():
-        # Note: this is needed, otherwise a historgram with all bins = 0 would
+        # Note: this is needed, otherwise a histogram with all bins = 0 would
         # return the maximum possible information gain because the normalization
         # in the next step would fail
         histogram += 1
@@ -469,21 +470,21 @@ class BeatEvaluation(OnsetEvaluation):
         self.phase_tolerance = phase_tolerance
         self.bins = bins
         # scores
-        self.__fmeasure = None
-        self.__pscore = None
-        self.__cemgil = None
-        self.__cmlc = None
-        self.__cmlt = None
-        self.__amlc = None
-        self.__amlt = None
+        self._fmeasure = None
+        self._pscore = None
+        self._cemgil = None
+        self._cmlc = None
+        self._cmlt = None
+        self._amlc = None
+        self._amlt = None
         # information gain stuff
-        self.__information_gain = None
-        self.__error_histogram = None
+        self._information_gain = None
+        self._error_histogram = None
 #        # cache stuff
-#        self.__matches = None
+#        self._matches = None
 #
 #    def cache(self):
-#        self.__matches = find_closest_matches(self.detections, self.targets)
+#        self._matches = find_closest_matches(self.detections, self.targets)
 
     @property
     def num(self):
@@ -493,61 +494,61 @@ class BeatEvaluation(OnsetEvaluation):
     @property
     def pscore(self):
         """P-Score."""
-        if self.__pscore is None:
-            self.__pscore = pscore(self.detections, self.targets, self.tolerance)
-        return self.__pscore
+        if self._pscore is None:
+            self._pscore = pscore(self.detections, self.targets, self.tolerance)
+        return self._pscore
 
     @property
     def cemgil(self):
         """Cemgil accuracy."""
-        if self.__cemgil is None:
-            self.__cemgil = cemgil(self.detections, self.targets, self.sigma)
-        return self.__cemgil
+        if self._cemgil is None:
+            self._cemgil = cemgil(self.detections, self.targets, self.sigma)
+        return self._cemgil
 
     def _calc_continuity(self):
         """Perform continuity evaluation."""
         # calculate scores
-        self.__cmlc, self.__cmlt, self.__amlc, self.__amlt = continuity(self.detections, self.targets, self.tempo_tolerance, self.phase_tolerance)
+        self._cmlc, self._cmlt, self._amlc, self._amlt = continuity(self.detections, self.targets, self.tempo_tolerance, self.phase_tolerance)
 
     @property
     def cmlc(self):
         """CMLc."""
-        if self.__cmlc is None:
+        if self._cmlc is None:
             self._calc_continuity()
-        return self.__cmlc
+        return self._cmlc
 
     @property
     def cmlt(self):
         """CMLt."""
-        if self.__cmlt is None:
+        if self._cmlt is None:
             self._calc_continuity()
-        return self.__cmlt
+        return self._cmlt
 
     @property
     def amlc(self):
         """AMLc."""
-        if self.__amlc is None:
+        if self._amlc is None:
             self._calc_continuity()
-        return self.__amlc
+        return self._amlc
 
     @property
     def amlt(self):
         """AMLt."""
-        if self.__amlt is None:
+        if self._amlt is None:
             self._calc_continuity()
-        return self.__amlt
+        return self._amlt
 
     def _information_gain(self):
         """Perform continuity evaluation."""
         # calculate score and error histogram
-        self.__information_gain, self.__error_histogram = information_gain(self.detections, self.targets, self.bins)
+        self._information_gain, self._error_histogram = information_gain(self.detections, self.targets, self.bins)
 
     @property
     def information_gain(self):
         """Information gain."""
-        if self.__information_gain is None:
+        if self._information_gain is None:
             self._information_gain()
-        return self.__information_gain
+        return self._information_gain
 
     @property
     def global_information_gain(self):
@@ -558,9 +559,9 @@ class BeatEvaluation(OnsetEvaluation):
     @property
     def error_histogram(self):
         """Error histogram."""
-        if self.__error_histogram is None:
+        if self._error_histogram is None:
             self._information_gain()
-        return self.__error_histogram
+        return self._error_histogram
 
     def print_errors(self, tex=False):
         """
@@ -591,17 +592,17 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         # simple scores
-        self.__fmeasure = np.empty(0)
-        self.__pscore = np.empty(0)
-        self.__cemgil = np.empty(0)
+        self._fmeasure = np.empty(0)
+        self._pscore = np.empty(0)
+        self._cemgil = np.empty(0)
         # continuity scores
-        self.__cmlc = np.empty(0)
-        self.__cmlt = np.empty(0)
-        self.__amlc = np.empty(0)
-        self.__amlt = np.empty(0)
+        self._cmlc = np.empty(0)
+        self._cmlt = np.empty(0)
+        self._amlc = np.empty(0)
+        self._amlt = np.empty(0)
         # information gain stuff
-        self.__information_gain = np.empty(0)
-        self.__error_histogram = None
+        self._information_gain = np.empty(0)
+        self._error_histogram = None
         # instance can be initialized with a Evaluation object
         if isinstance(other, BeatEvaluation):
             # add this object to self
@@ -617,21 +618,21 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         if isinstance(other, BeatEvaluation):
-            self.__fmeasure = np.append(self.__fmeasure, other.fmeasure)
-            self.__pscore = np.append(self.__pscore, other.pscore)
-            self.__cemgil = np.append(self.__cemgil, other.cemgil)
-            self.__cmlc = np.append(self.__cmlc, other.cmlc)
-            self.__cmlt = np.append(self.__cmlt, other.cmlt)
-            self.__amlc = np.append(self.__amlc, other.amlc)
-            self.__amlt = np.append(self.__amlt, other.amlt)
-            self.__information_gain = np.append(self.__information_gain, other.information_gain)
+            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
+            self._pscore = np.append(self._pscore, other.pscore)
+            self._cemgil = np.append(self._cemgil, other.cemgil)
+            self._cmlc = np.append(self._cmlc, other.cmlc)
+            self._cmlt = np.append(self._cmlt, other.cmlt)
+            self._amlc = np.append(self._amlc, other.amlc)
+            self._amlt = np.append(self._amlt, other.amlt)
+            self._information_gain = np.append(self._information_gain, other.information_gain)
             # the error histograms needs special treatment
-            if self.__error_histogram is None:
+            if self._error_histogram is None:
                 # if it is the first, just take this histogram
-                self.__error_histogram = other.error_histogram
+                self._error_histogram = other.error_histogram
             else:
                 # otherwise just add them
-                self.__error_histogram += other.error_histogram
+                self._error_histogram += other.error_histogram
             return self
         else:
             return NotImplemented
@@ -639,47 +640,47 @@ class MeanBeatEvaluation(BeatEvaluation):
     @property
     def num(self):
         """Number of evaluated files."""
-        return len(self.__fmeasure)
+        return len(self._fmeasure)
 
     @property
     def fmeasure(self):
         """F-measure."""
-        return np.mean(self.__fmeasure)
+        return np.mean(self._fmeasure)
 
     @property
     def pscore(self):
         """P-Score."""
-        return np.mean(self.__pscore)
+        return np.mean(self._pscore)
 
     @property
     def cemgil(self):
         """Cemgil accuracy."""
-        return np.mean(self.__cemgil)
+        return np.mean(self._cemgil)
 
     @property
     def cmlc(self):
         """CMLc."""
-        return np.mean(self.__cmlc)
+        return np.mean(self._cmlc)
 
     @property
     def cmlt(self):
         """CMLt."""
-        return np.mean(self.__cmlt)
+        return np.mean(self._cmlt)
 
     @property
     def amlc(self):
         """AMLc."""
-        return np.mean(self.__amlc)
+        return np.mean(self._amlc)
 
     @property
     def amlt(self):
         """AMLt."""
-        return np.mean(self.__amlt)
+        return np.mean(self._amlt)
 
     @property
     def information_gain(self):
         """Information gain."""
-        return np.mean(self.__information_gain)
+        return np.mean(self._information_gain)
 
     @property
     def global_information_gain(self):
@@ -691,7 +692,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     @property
     def error_histogram(self):
         """Error histogram."""
-        return self.__error_histogram
+        return self._error_histogram
 
 
 SKIP = 5.
@@ -712,7 +713,7 @@ def parser():
     p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
     p.add_argument('-t', dest='tar_ext', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
     # parameters for evaluation
-    # TODO: define an extra parser, which can be used for BeatEvaluation object instanciation?
+    # TODO: define an extra parser, which can be used for BeatEvaluation object instantiation?
     p.add_argument('--window', action='store', default=WINDOW, type=float, help='evaluation window for F-measure [seconds, default=%f]' % WINDOW)
     p.add_argument('--tolerance', action='store', default=TOLERANCE, type=float, help='evaluation tolerance for P-score [default=%f]' % TOLERANCE)
     p.add_argument('--sigma', action='store', default=SIGMA, type=float, help='sigma for Cemgil accuracy [default=%f]' % SIGMA)
