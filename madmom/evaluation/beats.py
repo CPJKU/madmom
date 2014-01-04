@@ -538,7 +538,7 @@ class BeatEvaluation(OnsetEvaluation):
             self._calc_continuity()
         return self._amlt
 
-    def _information_gain(self):
+    def __information_gain(self):
         """Perform continuity evaluation."""
         # calculate score and error histogram
         self._information_gain, self._error_histogram = information_gain(self.detections, self.targets, self.bins)
@@ -547,7 +547,7 @@ class BeatEvaluation(OnsetEvaluation):
     def information_gain(self):
         """Information gain."""
         if self._information_gain is None:
-            self._information_gain()
+            self.__information_gain()
         return self._information_gain
 
     @property
@@ -560,7 +560,7 @@ class BeatEvaluation(OnsetEvaluation):
     def error_histogram(self):
         """Error histogram."""
         if self._error_histogram is None:
-            self._information_gain()
+            self.__information_gain()
         return self._error_histogram
 
     def print_errors(self, tex=False):
