@@ -15,4 +15,3 @@ exclude madmom/utils/hdf5.py
 exclude madmom/utils/overparams.py
 exclude madmom/utils/stats.py
 prune madmom/test
-prune madmom/fun
