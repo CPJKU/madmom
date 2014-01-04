@@ -710,8 +710,8 @@ def parser():
     p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
     p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt', help='extensions of the detections [default: .onsets.txt]')
-    p.add_argument('-t', dest='tar_ext', action='store', default='.beats', help='extensions of the targets [default: .onsets]')
+    p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt', help='extensions of the detections [default: .beats.txt]')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.beats', help='extensions of the targets [default: .beats]')
     # parameters for evaluation
     # TODO: define an extra parser, which can be used for BeatEvaluation object instantiation?
     p.add_argument('--window', action='store', default=WINDOW, type=float, help='evaluation window for F-measure [seconds, default=%f]' % WINDOW)
