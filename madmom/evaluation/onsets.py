@@ -56,7 +56,7 @@ def count_errors(detections, targets, window):
     return tp, fp, np.empty(0), fn
 
 
-# for onset evaluation with Presicion, Recall, F-measure use the Evaluation
+# for onset evaluation with Precision, Recall, F-measure use the Evaluation
 # class and just define the evaluation function
 class OnsetEvaluation(Evaluation):
     """

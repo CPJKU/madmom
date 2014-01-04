@@ -194,7 +194,7 @@ class Signal(object):
             self._data = normalize(self._data)
         if att != 0:
             # attenuate signal
-            self._data = attenuate(self._data)
+            self._data = attenuate(self._data, att)
 
     @property
     def data(self):
@@ -499,7 +499,7 @@ class FramedSignal(object):
     @property
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
-        return 1.0 - self.hop_size / self.window.size
+        return 1.0 - self.hop_size / self.frame_size
 
     # TODO: make this nicer!
     def __str__(self):

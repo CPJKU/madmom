@@ -201,17 +201,9 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     double_targets = np.interp(xnew, xold, targets)[:-1]
 
     # make different variants of annotations
-    variations = []
-    # double tempo
-    variations.append(double_targets)
-    # off-beats
-    variations.append(double_targets[1::2])
-    # half tempo odd beats (i.e. 1,3,1,3)
-    variations.append(targets[::2])
-    # half tempo even beats (i.e. 2,4,2,4)
-    variations.append(targets[1::2])
+    # double tempo, off-beats, half tempo odd beats (i.e. 1,3,1,3), half tempo even beats (i.e. 2,4,2,4)
     # TODO: include a third tempo as well? This might be needed for fast Waltz
-    variations.append(targets[::3])
+    variations = [double_targets, double_targets[1::2], targets[::2], targets[1::2], targets[::3]]
 
     # evaluate correct tempo
     cmlc, cmlt = cml(detections, targets, tempo_tolerance, phase_tolerance)
@@ -321,7 +313,7 @@ def calc_information_gain(error_histogram):
     histogram = np.copy(error_histogram)
     # all bins are 0, make a uniform distribution with values != 0
     if not histogram.any():
-        # Note: this is needed, otherwise a historgram with all bins = 0 would
+        # Note: this is needed, otherwise a histogram with all bins = 0 would
         # return the maximum possible information gain because the normalization
         # in the next step would fail
         histogram += 1
@@ -479,6 +471,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     Class for averaging beat evaluation scores.
 
     """
+
     def __init__(self, other=None):
         """
         MeanBeatEvaluation object can be either instanciated as an empty object

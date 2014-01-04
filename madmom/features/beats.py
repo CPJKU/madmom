@@ -113,7 +113,7 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1, m
 
     # threshold function if needed
     if threshold > 0:
-        activations = activations * (activations >= threshold)
+        activations *= (activations >= threshold)
 
     # test all possible intervals
     taus = range(min_tau, max_tau)
@@ -155,7 +155,7 @@ def interval_histogram(activations, threshold=0, smooth=None, min_tau=1, max_tau
 
     # threshold function if needed
     if threshold > 0:
-        activations = activations * (activations >= threshold)
+        activations *= (activations >= threshold)
 
     if max_tau is None:
         max_tau = len(activations) - min_tau
@@ -168,7 +168,7 @@ def interval_histogram(activations, threshold=0, smooth=None, min_tau=1, max_tau
         sums.append(np.sum(np.abs(activations[tau:] * activations[0:-tau])))
 
     # return histogram
-    return (np.array(sums), np.array(taus))
+    return np.array(sums), np.array(taus)
 
 
 def dominant_interval(histogram, smooth=None):
@@ -382,7 +382,7 @@ class Beat(object):
         # detect beats based on this interval
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
-        detections = detections / float(self.fps)
+        detections /= float(self.fps)
         # shift if necessary
         if delay != 0:
             detections += delay
@@ -665,7 +665,7 @@ def main():
         # save onset activations or detect onsets
         if args.save:
             # save the raw beat activations
-            b.save_activations("%s.activations" % (filename))
+            b.save_activations("%s.activations" % filename)
         else:
             # detect the beats
             if not args.track:

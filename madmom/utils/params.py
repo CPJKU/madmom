@@ -75,13 +75,13 @@ def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
     """
     Add filter related arguments to an existing parser object.
 
-    :param parser:    existing argparse parser object
-    :param filtering: add a switch for the whole filter group
-    :param bands:     number of filter bands per octave
-    :param fmin:      the minimum frequency
-    :param fmax:      the maximum frequency
-    :param equal:     equal (normalize) the area of the filter
-    :return:          the modified parser object
+    :param parser:      existing argparse parser object
+    :param filtering:   add a switch for the whole filter group
+    :param fmin:        the minimum frequency
+    :param fmax:        the maximum frequency
+    :param bands:       number of filter bands per octave
+    :param norm_filter: normalize the area of the filter
+    :return:            the modified parser object
 
     """
     # add filter related options to the existing parser
@@ -96,7 +96,7 @@ def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
         group.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
     if norm_filter is False:
         # switch to turn it on
-        group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='equalize filters to have equal area')
+        group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='normalize filters to have equal area')
     if norm_filter is True:
         group.add_argument('--no_norm_filter', dest='norm_filter', action='store_false', default=norm_filter, help='do not equalize filters to have equal area')
     # return the argument group so it can be modified if needed
@@ -185,14 +185,13 @@ def add_onset_arguments(parser, io=False, threshold=THRESHOLD, smooth=SMOOTH, co
 
 
 def add_beat_arguments(parser, io=False, threshold=bt, smooth=bs,
-                        min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+                       min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     """
     Add beat tracking related arguments to an existing parser object.
 
     :param parser:    existing argparse parser object
     :param threshold: threshold the beat activation function
     :param smooth:    smooth the beat activations over N seconds
-    :param delay:     report beats N seconds delayed
     :param min_bpm:   minimum tempo [bpm]
     :param max_bpm:   maximum tempo [bpm]
     :return:          the modified parser object

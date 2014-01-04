@@ -30,6 +30,7 @@ class Activations(np.ndarray):
         # read in the file
         label = 0
         with open(filename, 'r') as f:
+            activations = None
             for line in f:
                 # read in the header
                 if line.startswith('#'):
@@ -45,6 +46,9 @@ class Activations(np.ndarray):
                     else:
                         activations = np.zeros(dimensions)
                     continue
+                # make sure we have an activations array
+                if activations is None:
+                    raise AssertionError('no activations initialised')
                 # read in the data
                 if labels:
                     activations[:, label] = np.fromstring(line, sep=' ')
@@ -98,7 +102,7 @@ def expand_and_terminate(strings):
     max_length = max_len(strings) + 1
     for string in strings:
         # expand each string to the maximum length with \0's
-        string = string + '\0' * (max_length - len(string))
+        string += '\0' * (max_length - len(string))
         terminated_strings.append(string)
     return terminated_strings
 
@@ -374,7 +378,7 @@ class NetCDF(object):
         # convert the labels to a integer array
         labels = np.asarray(labels, np.int)
         # convert the labels to a strings array
-        labels = np.asarray(labels, np.str_)
+        labels = np.asarray(labels, np.str)
         # set the number of labels
         if not self.numLabels:
             self.numLabels = np.shape(labels)[0]
@@ -501,7 +505,7 @@ def create_nc_file(filename, data, targets, tags=None):
 
 # .nc file testing
 class TestThread(Thread):
-    def __init__(self, work_queue, act_queue, verbose=False):
+    def __init__(self, work_queue, return_queue, verbose=False):
         """
         Test a file against multiple neural networks.
 
@@ -515,7 +519,7 @@ class TestThread(Thread):
         #Thread.__init__(self)
         # set attributes
         self.work_queue = work_queue
-        self.return_queue = act_queue
+        self.return_queue = return_queue
         self.verbose = verbose
 
     def run(self):
