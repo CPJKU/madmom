@@ -13,3 +13,6 @@
 /.pydevproject
 /.settings/
 
+# PyCharm files
+/.idea/
+
