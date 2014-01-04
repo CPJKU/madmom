@@ -29,7 +29,7 @@ def calc_overlap(detections, targets, threshold=0.5):
         # TODO: implement for multi-dimensional arrays
         raise NotImplementedError("please add multi-dimensional functionality")
     # threshold detections
-    detections = detections >= threshold
+    detections = (detections >= threshold)
     # threshold targets
     targets = targets >= threshold
     # calculate overlap
@@ -156,7 +156,7 @@ class SimpleEvaluation(object):
         print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f f=%.3f' % (self.num_tp + self.num_fn, self.num_tp, self.num_fp, self.num_fn, self.precision, self.recall, self.fmeasure)
         print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: %.1f ms' % (self.recall * 100., (1 - self.precision) * 100., self.accuracy * 100., self.mean_error * 1000., self.std_error * 1000.)
         if tex:
-            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % (self.num)
+            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % self.num
             print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, self.true_positive_rate, self.false_positive_rate, self.accuracy, self.mean_error * 1000., self.std_error * 1000.)
 
     def __str__(self):
@@ -349,7 +349,8 @@ class Evaluation(SimpleEvaluation):
     Evaluation class for measuring Precision, Recall and F-measure.
 
     """
-    def __init__(self, detections, targets, eval_function, **kwargs):
+
+    def __init__(self, detections, targets, eval_function, *args, **kwargs):
         """
         Creates a new Evaluation object instance.
 
@@ -365,13 +366,12 @@ class Evaluation(SimpleEvaluation):
               Additional information in other columns/axes is not used.
 
         """
-        # detections, targets and evaluation function
+        super(Evaluation, self).__init__()
         self.__detections = detections
         self.__targets = targets
         self.__eval_function = eval_function
-        # save additional arguments and pass them to the evaluation function
         self.__kwargs = kwargs
-        # init some hidden variables as None, calculate them on demand
+        self.__args = args
         self.__tp = None
         self.__fp = None
         self.__tn = None
@@ -380,7 +380,7 @@ class Evaluation(SimpleEvaluation):
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        self.__tp, self.__fp, self.__tn, self.__fn = self.__eval_function(self.__detections, self.__targets, **self.__kwargs)
+        self.__tp, self.__fp, self.__tn, self.__fn = self.__eval_function(self.__detections, self.__targets, *self.__args, **self.__kwargs)
 
     @property
     def tp(self):

@@ -76,7 +76,7 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     if match_ext is not None:
         pattern = "*%s*%s" % (basename, match_ext)
     else:
-        pattern = "*%s" % (basename)
+        pattern = "*%s" % basename
     for match in fnmatch.filter(match_list, pattern):
         # base names must match exactly
         if basename == os.path.basename(stripext(match, match_ext)):
@@ -103,8 +103,7 @@ def load_events(filename):
     try:
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
-        return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
-                dtype=np.double)
+        return np.fromiter((float(line.split(None, 1)[0]) for line in fid), dtype=np.float)
     finally:
         # close file if needed
         if own_fid:

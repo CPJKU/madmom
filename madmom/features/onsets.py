@@ -43,7 +43,7 @@ def diff(spec, diff_frames=1, pos=False):
     diff[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
     # keep only positive values
     if pos:
-        diff = diff * (diff > 0)
+        diff *= (diff > 0)
     return diff
 
 
@@ -82,7 +82,7 @@ def correlation_diff(self, spec, diff_frames=1, pos=False, diff_bins=1):
         diff[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] - spec[f - diff_frames, bin_start:bin_stop]
     # keep only positive values
     if pos:
-        diff = diff * (diff > 0)
+        diff *= (diff > 0)
     return diff
 
 
@@ -167,7 +167,7 @@ def superflux(spec, diff_frames=1, max_bins=3):
     # calculate the diff
     diff[diff_frames:] = spec[diff_frames:] - sim.maximum_filter(spec, size=[1, max_bins])[0:-diff_frames]
     # keep only positive values
-    diff = diff * (diff > 0)
+    diff *= (diff > 0)
     # SuperFlux is the sum of all positive 1st order maximum filtered differences
     return np.sum(diff, axis=1)
 
@@ -194,10 +194,10 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=0.000001):
     """
     if epsilon <= 0:
         raise ValueError("a positive value must be added before division")
-    modified_kullback_leibler = np.zeros_like(spec)
-    modified_kullback_leibler[diff_frames:] = spec[diff_frames:] / (spec[:-diff_frames] + epsilon)
+    mkl = np.zeros_like(spec)
+    mkl[diff_frames:] = spec[diff_frames:] / (spec[:-diff_frames] + epsilon)
     # note: the original MKL uses sum instead of mean, but the range of mean is much more suitable
-    return np.mean(np.log(1 + modified_kullback_leibler), axis=1)
+    return np.mean(np.log(1 + mkl), axis=1)
 
 
 def _phase_deviation(phase):
@@ -552,7 +552,6 @@ def nn_peak_picking(activations, network, threshold):
     :param activations: the onset activation function
     :param network: the trained network with weights
     :param threshold: threshold for peak-picking
-    :param combine: only report 1 onset within N seconds [default=0.03]
 
     """
     # TODO: implement the paper in pure python
@@ -642,7 +641,7 @@ class Onset(object):
         # detect onsets
         detections = peak_picking(self.activations, threshold, smooth, pre_avg, post_avg, pre_max, post_max)
         # convert detected onsets to a list of timestamps
-        detections = detections / float(self.fps)
+        detections /= float(self.fps)
         # shift if necessary
         if delay != 0:
             detections += delay

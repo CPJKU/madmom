@@ -460,16 +460,16 @@ class Spectrogram(object):
         Proceedings of the International Computer Music Conference (ICMC), 2007
 
         """
-        mem_coeff = 10.0 ** (-6. * relaxation / self.fps)
-        P = np.zeros_like(self.spec)
+        mem_coeff = 10.0 ** (-6. * relaxation / self.frames.fps)
+        p = np.zeros_like(self.spec)
         # iterate over all frames
         for f in range(len(self.frames)):
             if f > 0:
-                P[f] = np.maximum(self.spec[f], floor, mem_coeff * P[f - 1])
+                p[f] = np.maximum(self.spec[f], floor, mem_coeff * p[f - 1])
             else:
-                P[f] = np.maximum(self.spec[f], floor)
+                p[f] = np.maximum(self.spec[f], floor)
         # return the whitened spectrogram
-        return self.spec / P
+        return self.spec / p
 
 
 class FilteredSpectrogram(Spectrogram):
