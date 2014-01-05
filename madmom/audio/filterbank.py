@@ -342,8 +342,8 @@ def band_bins(center_bins, duplicates, overlap):
 
     """
     # only keep unique bins if requested
-    # Note: this is important to do so, otherwise the lower frequency bins are
-    # given too much weight if simply summed up (as in the spectral flux)
+    # Note: this can be important to do so, otherwise the lower frequency bins
+    # are given too much weight if simply summed up (as in the spectral flux)
     if not duplicates:
         center_bins = np.unique(center_bins)
     # make sure enough frequencies are given
@@ -470,97 +470,6 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins,
     return multi_filterbank(filters, fft_bins, len(filters), True)
 
 
-def triangular_filterbank(frequencies, fft_bins, sample_rate, norm=NORM_FILTERS,
-                          duplicates=DUPLICATE_FILTERS):
-    """
-    Creates a filterbank with triangular filters.
-
-    :param frequencies:     a list of frequencies used for filter creation [Hz]
-    :param fft_bins:        number of fft bins
-    :param sample_rate:     sample rate of the audio signal [Hz]
-    :param norm:            normalize the filters to have area=1 [default=True]
-    :param duplicates: omit duplicate filters resulting from insufficient
-                            resolution of low frequencies [default=True]
-    :returns:               filter bank
-
-    Note: Each filter is characterized by 3 frequencies, the start, center and
-          stop frequency. Thus the frequencies array must contain the first
-          starting frequency, all center frequencies and the last stopping
-          frequency.
-
-    """
-    return filterbank(triangular_filter, frequencies, fft_bins, sample_rate,
-                      norm, duplicates, overlap=True)
-
-
-def rectangular_filterbank(frequencies, fft_bins, sample_rate,
-                           norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS):
-    """
-    Creates a filterbank with rectangular filters.
-
-    :param frequencies: a list of frequencies used for filter creation [Hz]
-    :param fft_bins:    number of fft bins
-    :param sample_rate: sample rate of the audio signal [Hz]
-    :param norm:        normalize the filters to have area=1 [default=True]
-    :param duplicates:  keep duplicate filters resulting from insufficient
-                        resolution of low frequencies [default=False]
-    :returns:           filter bank
-
-    Note: Each filter is characterized by 3 frequencies, the start, center and
-          stop frequency. Thus the frequencies array must contain the first
-          starting frequency, all center frequencies and the last stopping
-          frequency.
-    """
-    return filterbank(rectangular_filter, frequencies, fft_bins, sample_rate,
-                      norm, duplicates, overlap=False)
-
-
-def triangular_harmonic_filterbank(fundamentals, num_harmonics, fft_bins,
-                                   sample_rate,
-                                   harmonic_envelope=HARMONIC_ENVELOPE,
-                                   harmonic_width=HARMONIC_WIDTH,
-                                   inharmonicity_coeff=INHARMONICITY_COEFF):
-    """
-    Creates a harmonic filterbank with triangular filters.
-    See harmonic_filterbank for a description of the parameters.
-
-    :param fundamentals:
-    :param num_harmonics:
-    :param fft_bins:
-    :param sample_rate:
-    :param harmonic_envelope:
-    :param harmonic_width:
-    :param inharmonicity_coeff:
-
-    """
-    return harmonic_filterbank(triangular_filter, fundamentals, num_harmonics,
-                               fft_bins, sample_rate, harmonic_envelope,
-                               harmonic_width, inharmonicity_coeff)
-
-
-def rectangular_harmonic_filterbank(fundamentals, num_harmonics, fft_bins,
-                                    sample_rate,
-                                    harmonic_envelope=HARMONIC_ENVELOPE,
-                                    harmonic_width=HARMONIC_WIDTH,
-                                    inharmonicity_coeff=INHARMONICITY_COEFF):
-    """
-    Creates a harmonic filterbank with rectangular filters.
-    See harmonic_filterbank for a description of the parameters.
-
-    :param fundamentals:
-    :param num_harmonics:
-    :param fft_bins:
-    :param sample_rate:
-    :param harmonic_envelope:
-    :param harmonic_width:
-    :param inharmonicity_coeff:
-
-    """
-    return harmonic_filterbank(rectangular_filter, fundamentals, num_harmonics,
-                               fft_bins, sample_rate, harmonic_envelope,
-                               harmonic_width, inharmonicity_coeff)
-
-
 class FilterBank(np.ndarray):
     """
     Generic Filter Bank Class.
@@ -650,10 +559,10 @@ class MelFilterBank(FilterBank):
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # create filterbank
-        filterbank = triangular_filterbank(frequencies, fft_bins, sample_rate,
-                                           norm, duplicates)
+        fb = filterbank(triangular_filter, frequencies, fft_bins, sample_rate,
+                        norm, duplicates, overlap=True)
         # cast to FilterBank
-        obj = FilterBank.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -698,10 +607,10 @@ class BarkFilterBank(FilterBank):
         else:
             frequencies = bark_frequencies(fmin, fmax)
         # create filterbank
-        filterbank = triangular_filterbank(frequencies, fft_bins, sample_rate,
-                                           norm, duplicates)
+        fb = filterbank(triangular_filter, frequencies, fft_bins, sample_rate,
+                        norm, duplicates, overlap=True)
         # cast to FilterBank
-        obj = FilterBank.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -746,10 +655,10 @@ class LogarithmicFilterBank(FilterBank):
         # get a list of frequencies
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # create filterbank
-        filterbank = triangular_filterbank(frequencies, fft_bins, sample_rate,
-                                           norm, duplicates)
+        fb = filterbank(triangular_filter, frequencies, fft_bins, sample_rate,
+                        norm, duplicates, overlap=True)
         # cast to FilterBank
-        obj = FilterBank.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._bands_per_octave = bands_per_octave
         obj._norm = norm
@@ -830,6 +739,7 @@ class SimpleChromaFilterBank(FilterBank):
         :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """
+        # TODO: use functions from above instead of the logic here!
         # get a list of frequencies
         frequencies = semitone_frequencies(fmin, fmax, a4)
         # conversion factor for mapping of frequencies to spectrogram bins
