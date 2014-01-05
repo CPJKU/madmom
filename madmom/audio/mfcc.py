@@ -17,9 +17,11 @@ from .spectrogram import Spectrogram
 # MFCCs are commonly derived as follows:
 #
 # • Take the Fourier transform of (a windowed excerpt of) a signal.
-# • Map the powers of the spectrum obtained above onto the mel scale, using triangular overlapping windows.
+# • Map the powers of the spectrum obtained above onto the mel scale,
+#   using triangular overlapping windows.
 # • Take the logs of the powers at each of the mel frequencies.
-# • Take the discrete cosine transform of the list of mel log powers, as if it were a signal.
+# • Take the discrete cosine transform of the list of mel log powers,
+#   as if it were a signal.
 # • The MFCCs are the amplitudes of the resulting spectrum
 
 
@@ -40,23 +42,23 @@ class MFCC(Spectrogram):
         If no filterbank is given, one with the following parameters is created
         automatically.
 
-        :param mel_bands:   number of filter bands per octave [default=40]
-        :param fmin:        the minimum frequency [Hz, default=30]
-        :param fmax:        the maximum frequency [Hz, default=17000]
-        :param norm_filter: normalize the area of the filter to 1 [default=True]
+        :param mel_bands:    number of filter bands per octave [default=40]
+        :param fmin:         the minimum frequency [Hz, default=30]
+        :param fmax:         the maximum frequency [Hz, default=17000]
+        :param norm_filters: normalize filter area to 1 [default=True]
 
         """
-        from .filterbank import MelFilterBank, MEL_BANDS, FMIN, FMAX, NORM_FILTER
+        from .filterbank import MelFilterBank, MEL_BANDS, FMIN, FMAX, NORM_FILTERS
         from .spectrogram import MUL, ADD
 
-        # fetch the arguments special to the filterbank creation (or set defaults)
+        # fetch the arguments for filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
         mel_bands = kwargs.pop('mel_bands', MEL_BANDS)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
-        norm_filter = kwargs.pop('norm_filter', NORM_FILTER)
+        norm_filters = kwargs.pop('norm_filters', NORM_FILTERS)
 
-        # fetch the arguments special to the logarithmic magnitude (or set defaults)
+        # fetch the arguments for the logarithmic magnitude (or set defaults)
         mul = kwargs.pop('mul', MUL)
         add = kwargs.pop('add', ADD)
 
@@ -64,21 +66,22 @@ class MFCC(Spectrogram):
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = MelFilterBank(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filter)
+            filterbank = MelFilterBank(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filters)
 
-        # set the parameters, so they get used when the magnitude spectrogram gets computed
+        # set the parameters, so they get used for computation
         self.filterbank = filterbank
         self.log = True
         self.mul = mul
         self.add = add
 
         # MFCC matrix
-        self.__mfcc = None
+        self._mfcc = None
 
     @property
     def mfcc(self):
-        if self.__mfcc is None:
+        """Mel-frequency cepstral coefficients."""
+        if self._mfcc is None:
             # take the DCT of the LogMelSpec
             # FIXME: include all bins or skip the first?
-            self.__mfcc = fft.dct(self.spec)
-        return self.__mfcc
+            self._mfcc = fft.dct(self.spec)
+        return self._mfcc
