@@ -121,7 +121,7 @@ class SimpleEvaluation(object):
         numerator = float(self.num_tp + self.num_tn)
         if numerator == 0:
             return 0.
-        return numerator / self.num_fp + self.num_fn + self.num_tp + self.num_tn
+        return numerator / (self.num_fp + self.num_fn + self.num_tp + self.num_tn)
 
     @property
     def mean_error(self):
