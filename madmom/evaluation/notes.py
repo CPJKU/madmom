@@ -121,22 +121,24 @@ def main():
     args = parser()
 
     # get detection and target files
-    det_files = files(args.detections, args.det_ext)
-    if not args.targets:
-        args.targets = args.detections
+    det_files = files(args.files, args.det_ext)
+    # quit if no files are found
+    if len(det_files) == 0:
+        print "no files to evaluate. exiting."
+        exit()
 
     # sum and mean evaluation for all files
     sum_eval = SumNoteEvaluation()
     mean_eval = MeanNoteEvaluation()
-
     # evaluate all files
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, args.targets, args.det_ext, args.tar_ext)
+        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
         if len(tar_files) == 0:
-            continue
+            print " can't find a target file found for %s. exiting." % det_file
+            exit()
         # do a mean evaluation with all matched target files
         me = MeanNoteEvaluation()
         for tar_file in tar_files:

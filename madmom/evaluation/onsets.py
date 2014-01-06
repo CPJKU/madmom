@@ -160,8 +160,7 @@ def parser():
 
     """)
     # files used for evaluation
-    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
-    p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
+    p.add_argument('files', nargs='*', help='files (or folder) to be evaluated')
     # extensions used for evaluation
     p.add_argument('-d', dest='det_ext', action='store', default='.onsets.txt', help='extension of the detection files')
     p.add_argument('-t', dest='tar_ext', action='store', default='.onsets', help='extension of the target files')
@@ -187,23 +186,25 @@ def main():
     # parse arguments
     args = parser()
 
-    # get detection and target files
-    det_files = files(args.detections, args.det_ext)
-    if not args.targets:
-        args.targets = args.detections
+    # get detection files
+    det_files = files(args.files, args.det_ext)
+    # quit if no files are found
+    if len(det_files) == 0:
+        print "no files to evaluate. exiting."
+        exit()
 
     # sum and mean evaluation for all files
     sum_eval = SumOnsetEvaluation()
     mean_eval = MeanOnsetEvaluation()
-
     # evaluate all files
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, args.targets, args.det_ext, args.tar_ext)
+        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
         if len(tar_files) == 0:
-            continue
+            print " can't find a target file found for %s. exiting." % det_file
+            exit()
         # do a mean evaluation with all matched target files
         me = MeanOnsetEvaluation()
         for tar_file in tar_files:
