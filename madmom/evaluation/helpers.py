@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains various helper functions used by cp.evaluation modules.
+This file contains various evaluation helper functions.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
