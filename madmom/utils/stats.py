@@ -10,7 +10,7 @@ This file contains some statistical functionality.
 import numpy as np
 
 
-class TanhProb:
+class TanhProb(object):
     """
     Class for computing the Tanh probability function. It also contains
     a static method to compute the PDF. Some parameters are computed in

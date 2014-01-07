@@ -10,10 +10,15 @@ Script for testing RNNLIB .save files.
 import os
 import argparse
 from madmom.utils.helpers import files, combine_activations
-from madmom.utils.rnnlib import RnnConfig
+from madmom.ml.rnnlib import RnnConfig
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+    """
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     Tests .save files produced by RNNLIB.
@@ -37,6 +42,7 @@ def parser():
 
 
 def main():
+    """Example script for testing RNNLIB .save files."""
     # parse arguments
     args = parser()
 

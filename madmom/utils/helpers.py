@@ -174,10 +174,6 @@ def combine_events(events, delta):
     return np.asarray(comb)
 
 
-def filter_events(events, key):
-    raise NotImplemented
-
-
 def quantize_events(events, fps, length=None):
     """
     Quantize the events.

@@ -12,6 +12,11 @@ from madmom.ml.rnnlib import create_nc_file
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+    """
     import argparse
     import madmom.utils.params
 
@@ -46,6 +51,7 @@ def parser():
 
 
 def main():
+    """Example script for generating .nc files."""
     # parse arguments
     args = parser()
 
@@ -104,7 +110,7 @@ def main():
         else:
             # load event (onset/beat)
             targets = load_events(f)
-            targets = quantize_events(targets, args.fps, length=w.num_frames)
+            targets = quantize_events(targets, args.fps, length=s.num_frames)
         # tags
         tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" % (f, args.fps, [1024, 2048, 4096], args.bands, args.fmin, args.fmax, args.norm_filter, args.log, args.mul, args.add, args.ratio)
         # .nc file name

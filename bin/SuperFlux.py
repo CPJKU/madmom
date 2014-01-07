@@ -9,6 +9,11 @@ SuperFlux onset detection algorithm.
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+    """
     import argparse
     import madmom.utils.params
 
@@ -55,6 +60,7 @@ def parser():
 
 
 def main():
+    """SuperFlux.2013"""
     from madmom.audio.wav import Wav
     from madmom.audio.spectrogram import LogFiltSpec
     from madmom.features.onsets import SpectralOnsetDetection, Onset

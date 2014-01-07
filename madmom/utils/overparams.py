@@ -60,7 +60,7 @@ class OrderedDictYAMLLoader(yaml.Loader):
         return mapping
 
 
-class OverridableParameters():
+class OverridableParameters(object):
     def __init__(self,
                  configfilename='config.yaml',
                  sectionnames=[],
