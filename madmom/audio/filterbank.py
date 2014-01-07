@@ -370,12 +370,13 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate,
     """
     Creates a filter bank with one filter per band.
 
-    :param filter_type: function that creates a filter. the function must return
-                        a numpy array. the following parameters will be passed
-                        to this function:
+    :param filter_type: function that creates a filter and thus define its
+                        shape. the function must return a numpy array. the
+                        following parameters will be passed to this function:
                         - width:  filter width [bins]
                         - center: filter center position (< width) [bin]
                         - norm:   normalise the filter (sum=1) or not [bool]
+                        Examples: triangular_filter, rectangular_filter
     :param frequencies: a list of frequencies used for filter creation [Hz]
     :param fft_bins:    number of fft bins
     :param sample_rate: sample rate of the audio signal [Hz]
