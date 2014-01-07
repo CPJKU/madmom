@@ -3,4 +3,4 @@ package is in $PYTHONPATH.
 
 Example:
 
-python -m cp.evaluation.simple /dir/to/be/evaluated /dir/with/annotations
+python -m cp.evaluation.simple /dir/to/be/evaluated
