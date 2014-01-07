@@ -7,13 +7,19 @@ Redistribution in any form is not permitted!
 """
 
 import os
+import glob
 import numpy as np
 
 from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
 from madmom.features.beats import Beat
-from madmom.utils.rnnlib import create_nc_file, test_nc_files, NN_BEAT_FILES
+from madmom.ml.rnn import RecurrentNeuralNetwork
 
+# set the path to saved neural networks and generate lists of NN files
+NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
+NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
+
+# TODO: this information should be included/extracted in/from the NN files
 FPS = 100
 BANDS_PER_OCTAVE = 3
 MUL = 1
@@ -36,7 +42,7 @@ def parser():
     # mirex options
     madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    madmom.utils.params.add_nn_arguments(p, nn_files=NN_BEAT_FILES)
+    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES, help='use these pre-trained neural networks (one per argument)')
     madmom.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
     b = madmom.utils.params.add_beat_arguments(p, io=True)
     b.add_argument('--look_ahead', action='store', type=float, default=4, help='look ahead N seconds [default=4]')
@@ -65,43 +71,45 @@ def main():
         # load activations
         b = Beat(args.input, args.fps, args.online, args.sep)
     else:
+        # exit if no NN files are given
+        if not args.nn_files:
+            raise SystemExit('no NN models given')
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
         s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
                         mul=MUL, add=ADD, norm_filter=NORM_FILTER)
-        nc_data = np.hstack((s.spec, s.pos_diff))
+        data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
         s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
                         mul=MUL, add=ADD, norm_filter=NORM_FILTER)
-        nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+        data = np.hstack((data, s.spec, s.pos_diff))
         # 3rd spec
         s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
                         mul=MUL, add=ADD, norm_filter=NORM_FILTER)
-        nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
-        # create a fake onset vector
-        nc_targets = np.zeros(s.num_frames)
-        nc_targets[0] = 1
-        # create a .nc file
-        create_nc_file(args.nc_file, nc_data, nc_targets)
-        # test the file against all saved neural nets
-        # Note: test_nc_files() always expects a list of .nc_files
-        acts = test_nc_files([args.nc_file], args.nn_files, threads=args.threads, verbose=(args.verbose >= 2))
-        # create an Onset object with the first activations of the list
-        b = Beat(acts[0], args.fps, args.online)
+        data = np.hstack((data, s.spec, s.pos_diff))
+        # test the data against all saved neural nets
+        act = None
+        for nn_file in args.nn_files:
+            if act is None:
+                act = RecurrentNeuralNetwork(nn_file).activate(data)
+            else:
+                act += RecurrentNeuralNetwork(nn_file).activate(data)
+        # normalize activations
+        if len(args.nn_files) > 1:
+            act /= len(args.nn_files)
+        # create an Beat object with the activations
+        b = Beat(act.ravel(), args.fps, args.online)
 
-    # save onset activations or detect onsets
+    # save beat activations or detect beats
     if args.save:
         # save activations
         b.save_activations(args.output, sep=args.sep)
     else:
         # track the beats
         b.track(args.threshold, smooth=args.smooth, look_ahead=args.look_ahead, min_bpm=args.min_bpm, max_bpm=args.max_bpm)
-        # write the onsets to output
+        # write the beats to output
         b.write(args.output)
-
-    # clean up
-    os.remove(args.nc_file)
 
 if __name__ == '__main__':
     main()

@@ -3,6 +3,16 @@
 """
 This file contains all functionality needed for interaction with RNNLIB.
 
+You need a working RNNLIB which can be obtained here:
+http://sourceforge.net/apps/mediawiki/rnnl/index.php?title=Main_Page
+Please build the software and put the resulting binary somewhere in your $PATH
+or set the binary location in the RNNLIB variable below.
+
+Note: RNNLIB is rather slow, madmom.ml.rnn serves as a (faster) purely Python
+      based replacement for testing previously trained neural networks. The
+      network configurations can be converted for testing with madmom.ml.rnn by
+      RnnConfig('trained_network.save').save_model('converted_file').
+
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
@@ -10,13 +20,14 @@ This file contains all functionality needed for interaction with RNNLIB.
 import numpy as np
 
 import os.path
+import re
 import shutil
 import tempfile
 
 from Queue import Queue
 from threading import Thread
 
-# rnnlib binary, please see the README file
+# rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
 
 
@@ -60,12 +71,9 @@ class Activations(np.ndarray):
         f.close()
         # cast to Activations
         obj = np.asarray(activations).view(cls)
-        # set file name
-        # TODO: do we need the file name? remove it?
-        obj.__filename = filename
         # set attributes
-        obj.__labels = labels
-        obj.__fps = fps
+        obj._labels = labels
+        obj._fps = fps
         # return the object
         return obj
 
@@ -73,25 +81,28 @@ class Activations(np.ndarray):
         if obj is None:
             return
         # set default values here
-        self.__labels = getattr(obj, '__labels', None)
-        self.__fps = getattr(obj, '__fps', None)
-        # TODO: do we need the file name? remove it?
-        self.__filename = getattr(obj, '__filename', None)
+        self._labels = getattr(obj, '_labels', None)
+        self._fps = getattr(obj, '_fps', None)
 
     @property
     def labels(self):
         """Labels for classes."""
-        return self.__labels
+        return self._labels
 
     @property
-    def filename(self):
-        """Name of the activations file."""
-        return self.__filename
+    def fps(self):
+        """Frames per second."""
+        return self._fps
 
 
 # helper functions for .nc file creation
 def max_len(strings):
-    """Determine the maximum length of an array of the given strings."""
+    """
+    Determine the maximum length of an array of the given strings.
+    :param strings: list with strings
+    :returns:       maximum length of these strings
+
+    """
     return len(max(strings, key=len))
 
 
@@ -409,7 +420,7 @@ class NetCDF(object):
         if not self.targetPattSize:
             self.targetPattSize = np.shape(targetPatterns)[1]
         var = self.nc.createVariable('targetPatterns', 'f', ('numTimesteps', 'targetPattSize'))
-        var[:] = targetPatterns.view(np.float32)
+        var[:] = targetPatterns.astype(np.float32)
 
     @property
     def targetStrings(self):
@@ -491,8 +502,10 @@ def create_nc_file(filename, data, targets, tags=None):
     else:
         raise TypeError("Invalid input data type.")
     # groud truth
-    # FIXME: expand this also to patterns (regression)
-    nc.targetClasses = targets
+    if targets.ndim == 1:
+        nc.targetClasses = targets
+    else:
+        nc.targetPatterns = targets
     # tags
     if tags:
         nc.seqTags = str(tags)
@@ -633,10 +646,16 @@ class RnnConfig(object):
         :param filename: name of the config file for rnnlib
 
         """
+        # container for weights
+        self.W = {}
         # attributes
         self.train_files = None
         self.val_files = None
         self.test_files = None
+        self.layer_sizes = None
+        self.layer_types = None
+        self.bidirectional = False
+        self.task = None
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -653,13 +672,79 @@ class RnnConfig(object):
         f = open(filename, 'r')
         # read in every line
         for line in f.readlines():
-            # store the file sets
+            # save the file sets
             if line.startswith('trainFile'):
                 self.train_files = line[:].split()[1].split(',')
-            if line.startswith('valFile'):
+            elif line.startswith('valFile'):
                 self.val_files = line[:].split()[1].split(',')
-            if line.startswith('testFile'):
+            elif line.startswith('testFile'):
                 self.test_files = line[:].split()[1].split(',')
+            # size and type of hidden layers
+            elif line.startswith('hiddenSize'):
+                self.layer_sizes = np.array(line[:].split()[1].split(','), dtype=np.int).tolist()
+                # number of the output layer
+                num_output_layer = len(self.layer_sizes)
+            elif line.startswith('hiddenType'):
+                hidden_type = line[:].split()[1]
+                self.layer_types = [hidden_type] * len(self.layer_sizes)
+            # task
+            elif line.startswith('task'):
+                self.task = line[:].split()[1]
+            # save the weights
+            elif line.startswith('weightContainer_'):
+                # line format: weightContainer_bias_to_hidden_0_0_weights #weights weight0 weight1 ...
+                parts = line[:].split()
+                # only use the weights
+                if parts[0].endswith('_weights'):
+                    # get rid of beginning and end
+                    name = re.sub('weightContainer_', '', str(parts[0][:]))
+                    name = re.sub('_weights', '', name)
+                    # alter the name to a more useful schema
+                    name = re.sub('_to_', '_', name)
+                    name = re.sub('input_', 'i_', name)
+                    name = re.sub('hidden_', 'layer_', name)
+                    name = re.sub('bias_', 'b_', name)
+                    name = re.sub('_output', '_o', name)
+                    name = re.sub('gather_._', 'i_', name)
+                    name = re.sub('_peepholes', '_peephole_weights', name)
+                    # hidden layer handling
+                    for i in range(len(self.layer_sizes)):
+                        # recurrent connections
+                        name = re.sub('layer_%s_0_layer_%s_0_delay.*' % (i, i), 'layer_%s_0_recurrent_weights' % i, name)
+                        name = re.sub('layer_%s_1_layer_%s_1_delay.*' % (i, i), 'layer_%s_1_recurrent_weights' % i, name)
+                    # set bidirectional mode
+                    if '0_1' in name:
+                        self.bidirectional = True
+                    # start renaming / renumbering
+                    if name.startswith('i_'):
+                        # weights
+                        name = "%s_weights" % name[2:]
+                    if name.startswith('b_'):
+                        # bias
+                        name = "%s_bias" % name[2:]
+                    if name.startswith('o_'):
+                        # output layer
+                        name = "layer_%s_0_%s" % (num_output_layer, name[2:])
+                    if name.endswith('_o'):
+                        name = re.sub('layer_%s_0_o' % (num_output_layer - 1), 'layer_%s_0_weights' % num_output_layer, name)
+                        name = re.sub('layer_%s_1_o' % (num_output_layer - 1), 'layer_%s_1_weights' % num_output_layer, name)
+                    # save the weights
+                    self.W[name] = np.array(parts[2:], dtype=np.float32)
+        # append output layer size
+        self.layer_sizes.append(self.W['layer_%s_0_bias' % num_output_layer].size)
+        # set the ouptu layer type
+        if self.task == 'classification':
+            self.layer_types.append('sigmoid')
+        elif self.task == 'regression':
+            self.layer_types.append('linear')
+        else:
+            raise ValueError('unkown task %s, cannot set type of output layer.' % self.task)
+        # stack the output weights
+        if self.bidirectional:
+            num_output = len(self.layer_sizes) - 1
+            out_bwd = self.W.pop('layer_%s_0_weights' % num_output)
+            out_fwd = self.W.pop('layer_%s_1_weights' % num_output)
+            self.W['layer_%s_0_weights' % num_output] = np.vstack((out_bwd, out_fwd))
         # close the file
         f.close()
 
@@ -705,16 +790,92 @@ class RnnConfig(object):
         # return the output directory
         return out_dir
 
-    def split_files(self, files, splitting=[0.75, 0.875]):
+    def save_model(self, filename=None, comment=None):
         """
-        Split the files into 2 or 3 sets, depending on the given split points.
+        Save the model to a .h5 file which can be universally used and converted
+        to .npz to create a madmom.ml.rnn.RNN object instance.
 
-        :param splitting: an array of either 1 or 2 values (in the range of 0...1)
-                          if 1 value is given, the files are split into 2 sets (training & validation)
-                          if 2 values are given, the files are split into 3 sets (training, validation & test)
+        :param filename:    save the model to this file
+        :param description: optional description of the model
+
+        Note: If no filename is given, the filename of the .save file is used
+              and the extension is set to .npz.
 
         """
-        raise NotImplementedError
+        import h5py
+        from .rnn import REVERSE
+        # check if weights are present
+        if not self.W:
+            raise ValueError('please load a configuration file first')
+        # set a default file name
+        if filename is None:
+            filename = "%s.h5" % os.path.splitext(self.filename)[0]
+        # set the number of the output layer
+        num_output = len(self.layer_sizes) - 1
+        if num_output > 8:
+            # FIXME: I know that works only with layer nums 0..9, too come
+            # up with a proper solution right now...
+            raise ValueError('too many layers, please fix me.')
+        # save model
+        with h5py.File(filename, 'w') as h5:
+            # model attributes
+            h5_m = h5.create_group('model')
+            h5_m.attrs['type'] = 'RNN'
+            if comment:
+                h5_m.attrs['comment'] = comment
+            # layers
+            h5_l = h5.create_group('layer')
+            # create a subgroup for each layer
+            for l in range(len(self.layer_sizes)):
+                bidirectional = False
+                # create group with layer number
+                grp = h5_l.create_group(str(l))
+                # iterate over all weights
+                for k in sorted(self.W.keys()):
+                    # skip if it's not the right layer
+                    if not k.startswith('layer_%s_' % l):
+                        continue
+                    # get the weights
+                    w = self.W[k]
+                    if k.endswith('peephole_weights'):
+                        name = 'peephole_weights'
+                    elif k.endswith('recurrent_weights'):
+                        name = 'recurrent_weights'
+                    elif k.endswith('weights'):
+                        name = 'weights'
+                    elif k.endswith('bias'):
+                        name = 'bias'
+                    else:
+                        ValueError('key %s not understood' % k)
+                    # get the size of the layer to reshape it
+                    layer_size = self.layer_sizes[l]
+                    # if we use LSTM units, weights need to be aligned differently
+                    if self.layer_types[l] == 'lstm':
+                        if 'peephole' in k:
+                            # peephole connections
+                            w = w.reshape(3 * layer_size, -1)
+                        else:
+                            # bias, weights and recurrent connections
+                            w = w.reshape(4 * layer_size, -1)
+                    # "normal" units
+                    else:
+                        w = w.reshape(layer_size, -1).T
+                    # reverse
+                    if k.startswith('layer_%s_0' % l):
+                        if re.sub('layer_%s_0' % l, 'layer_%s_1' % l, k) in self.W.keys():
+                            name = '%s_%s' % (REVERSE, name)
+                            bidirectional = True
+                    # save the weights
+                    grp.create_dataset(name, data=w.astype(np.float32))
+                    # include the layer type as attribute
+                    layer_type = self.layer_types[l].capitalize()
+                    if layer_type == 'Lstm':
+                        layer_type = 'LSTM'
+                    grp.attrs['type'] = str(layer_type)
+                    # also for the reverse bidirectional layer if it exists
+                    if bidirectional:
+                        grp.attrs['%s_type' % REVERSE] = str(layer_type)
+                # next layer
 
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
@@ -723,7 +884,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
 
     :param nn_files: list with network files
     :param out_dir:  output directory for activations
-    :param file_set: which set should be tested (train, val, test) [default='test']
+    :param file_set: which set should be tested [default='test']
+                     file_set can be any of (train, val, test)
     :param threads:  number of working threads [default=2]
     :param sep:      separator between activation values [default='']
 
@@ -751,14 +913,16 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
         # get a list of all .nc files
         nc_files = []
         for nn_file in nn_files:
+            # FIXME: use globals() instead of eval()
             nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
-        # test all .nc files against the NN files which have this file in the given set
+        # test all .nc files against the NN files if this file in the given set
         for nc_file in nc_files:
             # check in which NN files the .nc file is included
             nc_nn_files = []
             for nn_file in nn_files:
+                # FIXME: use globals() instead of eval()
                 if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
@@ -769,6 +933,3 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
             # first activation in the returned list)
             activations[0].tofile(act_file, sep)
 
-
-def combine_activations(out_dir, in_dirs):
-    pass
