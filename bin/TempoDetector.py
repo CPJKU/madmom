@@ -27,7 +27,7 @@ ADD = 1
 FMIN = 30
 FMAX = 17000
 RATIO = 0.5
-NORM_FILTER = True
+NORM_FILTERS = True
 
 
 def parser():
@@ -40,15 +40,19 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects the dominant tempi
     in the given input (file) and writes them to the output (file).
     ''')
     # mirex options
     madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES, help='use these pre-trained neural networks (one per argument)')
-    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
+    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
+                   help='use these pre-trained neural networks '
+                        '(multiple files can be given, one per argument)')
+    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False,
+                                            online=None, window=None)
     madmom.utils.params.add_beat_arguments(p, io=True)
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2013')
@@ -81,16 +85,19 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
-        s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=1024, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
-        s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=2048, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # 3rd spec
-        s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=4096, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # test the data against all saved neural nets
         act = None
@@ -111,7 +118,9 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # detect the tempo
-        t1, t2, weight = b.tempo(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm, mirex=True)
+        t1, t2, weight = b.tempo(args.threshold, smooth=args.smooth,
+                                 min_bpm=args.min_bpm, max_bpm=args.max_bpm,
+                                 mirex=True)
         # write to output
         was_closed = False
         if not isinstance(args.output, file):

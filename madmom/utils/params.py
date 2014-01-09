@@ -71,17 +71,17 @@ def add_spec_arguments(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
 
 
 def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
-                         bands=BANDS_PER_OCTAVE, norm_filter=NORM_FILTERS):
+                         bands=BANDS_PER_OCTAVE, norm_filters=NORM_FILTERS):
     """
     Add filter related arguments to an existing parser object.
 
-    :param parser:      existing argparse parser object
-    :param filtering:   add a switch for the whole filter group
-    :param fmin:        the minimum frequency
-    :param fmax:        the maximum frequency
-    :param bands:       number of filter bands per octave
-    :param norm_filter: normalize the area of the filter
-    :return:            the modified parser object
+    :param parser:       existing argparse parser object
+    :param filtering:    add a switch for the whole filter group
+    :param fmin:         the minimum frequency
+    :param fmax:         the maximum frequency
+    :param bands:        number of filter bands per octave
+    :param norm_filters: normalize the area of the filter
+    :return:             the modified parser object
 
     """
     # add filter related options to the existing parser
@@ -94,11 +94,11 @@ def add_filter_arguments(parser, filtering=None, fmin=FMIN, fmax=FMAX,
         group.add_argument('--fmin', action='store', type=float, default=fmin, help='minimum frequency of filter in Hz [default=%i]' % fmin)
     if fmax is not None:
         group.add_argument('--fmax', action='store', type=float, default=fmax, help='maximum frequency of filter in Hz [default=%i]' % fmax)
-    if norm_filter is False:
+    if norm_filters is False:
         # switch to turn it on
-        group.add_argument('--norm_filter', action='store_true', default=norm_filter, help='normalize filters to have equal area')
-    if norm_filter is True:
-        group.add_argument('--no_norm_filter', dest='norm_filter', action='store_false', default=norm_filter, help='do not equalize filters to have equal area')
+        group.add_argument('--norm_filters', action='store_true', default=norm_filters, help='normalize filters to have equal area')
+    if norm_filters is True:
+        group.add_argument('--no_norm_filters', dest='norm_filters', action='store_false', default=norm_filters, help='do not equalize filters to have equal area')
     # return the argument group so it can be modified if needed
     return group
 

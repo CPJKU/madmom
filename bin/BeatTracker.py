@@ -27,7 +27,7 @@ ADD = 1
 FMIN = 30
 FMAX = 17000
 RATIO = 0.5
-NORM_FILTER = True
+NORM_FILTERS = True
 
 
 def parser():
@@ -40,17 +40,22 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all beats in
-    the given input (file) and writes them to the output (file).
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all beats in the
+    given input (file) and writes them to the output (file).
     ''')
     # mirex options
     madmom.utils.params.add_mirex_io(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES, help='use these pre-trained neural networks (one per argument)')
-    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False, online=None, window=None)
+    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
+                   help='use these pre-trained neural networks '
+                        '(multiple files can be given, one per argument)')
+    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False,
+                                            online=None, window=None)
     b = madmom.utils.params.add_beat_arguments(p, io=True)
-    b.add_argument('--look_ahead', action='store', type=float, default=4, help='look ahead N seconds [default=4]')
+    b.add_argument('--look_ahead', action='store', type=float, default=4,
+                   help='look ahead N seconds [default=4]')
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2013')
     # parse arguments
@@ -82,16 +87,19 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
-        s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=1024, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
-        s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=2048, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # 3rd spec
-        s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=4096, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # test the data against all saved neural nets
         act = None

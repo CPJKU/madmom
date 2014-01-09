@@ -494,9 +494,10 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        from .filterbank import LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTERS
+        from filterbank import LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,\
+            FMAX, NORM_FILTERS
         # fetch the arguments for filterbank creation (or set defaults)
-        filterbank = kwargs.pop('filterbank', None)
+        fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
@@ -504,10 +505,13 @@ class FilteredSpectrogram(Spectrogram):
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
-        if filterbank is None:
-            filterbank = LogarithmicFilterBank(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filters)
+        if fb is None:
+            fb = LogarithmicFilterBank(fft_bins=self.num_fft_bins,
+                                       sample_rate=self.frames.signal.sample_rate,
+                                       bands_per_octave=bands_per_octave,
+                                       fmin=fmin, fmax=fmax, norm=norm_filters)
         # save the filterbank, so it gets used for computation
-        self._filterbank = filterbank
+        self._filterbank = fb
 
 # aliases
 FiltSpec = FilteredSpectrogram

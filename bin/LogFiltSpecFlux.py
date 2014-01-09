@@ -19,9 +19,10 @@ def parser():
     import argparse
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in
-    the given input file and writes them to the output file with the SuperFlux
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all onsets in the
+    given input file and writes them to the output file with the LogFiltSpecFlux
     algorithm introduced in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
@@ -35,7 +36,7 @@ def parser():
     # add other argument groups
     madmom.utils.params.add_audio_arguments(p, fps=100, online=False)
     madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=12, norm_filter=False)
+    madmom.utils.params.add_filter_arguments(p, bands=12, norm_filters=False)
     madmom.utils.params.add_log_arguments(p, mul=1, add=1)
     madmom.utils.params.add_onset_arguments(p, io=True, threshold=2.75)
     # version
@@ -76,10 +77,13 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
-        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin, fps=args.fps,
-                        mul=args.mul, add=args.add, norm_filter=args.norm_filter)
-        # create an SpectralOnsetDetection object and perform detection function on the object
-        act = SpectralOnsetDetection(s).sf()
+        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin,
+                        fps=args.fps, mul=args.mul, add=args.add,
+                        norm_filters=args.norm_filters)
+        # create an SpectralOnsetDetection object
+        sod = SpectralOnsetDetection(s)
+        # perform spectral flux
+        act = sod.sf()
         # create an Onset object with the activations
         o = Onset(act, args.fps, args.online)
 
@@ -89,8 +93,10 @@ def main():
         o.save_activations(args.output, sep=args.sep)
     else:
         # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                 pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+        o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                 smooth=args.smooth, pre_avg=args.pre_avg,
+                 post_avg=args.post_avg, pre_max=args.pre_max,
+                 post_max=args.post_max)
         # write the onsets to output
         o.write(args.output)
 

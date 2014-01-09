@@ -18,9 +18,10 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in
-    the given input file and writes them to the output file with the SuperFlux
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all onsets in the
+    given input file and writes them to the output file with the SuperFlux
     algorithm introduced in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
@@ -34,7 +35,7 @@ def parser():
     # add other argument groups
     madmom.utils.params.add_audio_arguments(p, fps=200, online=False)
     madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=24, norm_filter=False)
+    madmom.utils.params.add_filter_arguments(p, bands=24, norm_filters=False)
     madmom.utils.params.add_log_arguments(p, mul=1, add=1)
     madmom.utils.params.add_spectral_odf_arguments(p)
     madmom.utils.params.add_onset_arguments(p, io=True)
@@ -77,7 +78,7 @@ def main():
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
         s = LogFiltSpec(w, frame_size=args.window, origin=args.origin, fps=args.fps,
-                        mul=args.mul, add=args.add, norm_filter=args.norm_filter)
+                        mul=args.mul, add=args.add, norm_filters=args.norm_filters)
         # create an SpectralOnsetDetection object and perform detection function on the object
         act = SpectralOnsetDetection(s).superflux()
         # create an Onset object with the activations
