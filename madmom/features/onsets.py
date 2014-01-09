@@ -783,7 +783,7 @@ def main():
     from ..utils.helpers import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilter
+    from ..audio.filterbank import LogarithmicFilterBank
 
     # parse arguments
     args = parser()
@@ -823,7 +823,7 @@ def main():
             if args.filter:
                 # (re-)create filterbank if the sample rate of the audio changes
                 if filt is None or filt.sample_rate != w.sample_rate:
-                    filt = LogarithmicFilter(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
+                    filt = LogarithmicFilterBank(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
             # create a Spectrogram object
             s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
             # create a SpectralOnsetDetection object

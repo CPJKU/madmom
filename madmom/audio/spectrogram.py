@@ -490,24 +490,23 @@ class FilteredSpectrogram(Spectrogram):
         :param bands_per_octave: number of filter bands per octave [default=12]
         :param fmin:             the minimum frequency [Hz, default=30]
         :param fmax:             the maximum frequency [Hz, default=17000]
-        :param norm_filter:      normalize the area of the filter to 1 [default=True]
+        :param norm_filters:     normalize the filter to area 1 [default=True]
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        from .filterbank import LogarithmicFilter, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTER
-        # fetch the arguments special to the filterbank creation (or set defaults)
+        from .filterbank import LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN, FMAX, NORM_FILTERS
+        # fetch the arguments for filterbank creation (or set defaults)
         filterbank = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
-        norm_filter = kwargs.pop('norm_filter', NORM_FILTER)
-        # create a Spectrogram object
+        norm_filters = kwargs.pop('norm_filters', NORM_FILTERS)
+        # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if filterbank is None:
-            filterbank = LogarithmicFilter(fft_bins=self.num_fft_bins, sample_rate=self.frames.signal.sample_rate,
-                                           bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filter)
-        # set the filterbank
+            filterbank = LogarithmicFilterBank(fft_bins=self.fft_bins, sample_rate=self.frames.signal.sample_rate, bands_per_octave=bands_per_octave, fmin=fmin, fmax=fmax, norm=norm_filters)
+        # save the filterbank, so it gets used for computation
         self._filterbank = filterbank
 
 # aliases
@@ -533,12 +532,12 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         :param add: add the given value to the magnitude spectrogram [default=1]
 
         """
-        # fetch the arguments special to the logarithmic magnitude (or set defaults)
+        # fetch the arguments for logarithmic magnitude (or set defaults)
         mul = kwargs.pop('mul', MUL)
         add = kwargs.pop('add', ADD)
         # create a Spectrogram object
         super(LogarithmicFilteredSpectrogram, self).__init__(*args, **kwargs)
-        # set the parameters
+        # set the parameters, so they get used for computation
         self._log = True
         self._mul = mul
         self._add = add
