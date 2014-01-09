@@ -23,9 +23,9 @@ def load_tempo(filename):
     return np.loadtxt(filename)
 
 
-def average_tempi(tempi):
-    # implement the McKinney Paper with merging multiple annotations
-    raise NotImplementedError
+# def average_tempi(tempi):
+#     # implement the McKinney Paper with merging multiple annotations
+#     raise NotImplementedError
 
 
 # this evaluation function can evaluate multiple tempi simultaneously
@@ -172,6 +172,12 @@ class MeanTempoEvaluation(TempoEvaluation):
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -208,7 +214,10 @@ def parser():
 
 
 def main():
-    """Example tempo evaluation script."""
+    """
+    Simple tempo evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments

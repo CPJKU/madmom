@@ -228,6 +228,12 @@ class ScoreFollowingEvaluation(object):
 
 
 def parse_arguments():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     parser = argparse.ArgumentParser(description='Performs a numerical analysis'
                                      ' of a score/performance match')
@@ -255,6 +261,10 @@ def parse_arguments():
 
 
 def main():
+    """
+    Simple score following evaluation.
+
+    """
     args = parse_arguments()
 
     ground_truth = np.loadtxt(args.ground_truth_filename)

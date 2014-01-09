@@ -69,7 +69,8 @@ WINDOW = 0.025
 # TODO: extend to also report the measures without octave errors
 class NoteEvaluation(Evaluation):
     """
-    Simple class for measuring Precision, Recall and F-measure of notes.
+    Simple evaluation class for measuring Precision, Recall and F-measure of
+    notes.
 
     """
     def __init__(self, detections, targets, window=WINDOW):
@@ -77,14 +78,30 @@ class NoteEvaluation(Evaluation):
 
 
 class SumNoteEvaluation(SumEvaluation):
+    """
+    Simple evaluation class for summing true/false positive/(negative) note
+    detections and calculate Precision, Recall and F-measure.
+
+    """
     pass
 
 
 class MeanNoteEvaluation(MeanEvaluation):
+    """
+    Simple evaluation class for averaging Precision, Recall and F-measure of
+    multiple note evaluations.
+
+    """
     pass
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -115,6 +132,10 @@ def parser():
 
 
 def main():
+    """
+    Simple note evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments

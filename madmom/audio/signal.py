@@ -198,12 +198,12 @@ class Signal(object):
 
     @property
     def data(self):
-        # make data immutable
+        """The raw audio signal data."""
         return self._data
 
     @property
     def sample_rate(self):
-        # make sample rate immutable
+        """Sample rate of the audio signal."""
         return self._sample_rate
 
     # len() returns the number of samples

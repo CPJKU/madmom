@@ -242,7 +242,7 @@ def detect_tempo(histogram, fps, smooth=None):
     # determine their relative strength
     try:
         weight = weight1 / (weight1 + weight2)
-    except:
+    except ZeroDivisionError:
         # just make sure we have some values
         weight = 1.0
     # return the 2 dominant tempi and their relative weight
@@ -271,6 +271,13 @@ def detect_beats(activations, interval, look_aside=0.2):
     for i in range(interval):
         # TODO: threads?
         def recursive(pos):
+            """
+            Recursively detect the next beat.
+
+            :param pos: start at this position
+            :return:    the next beat position
+
+            """
             # detect the nearest beat around the actual position
             start = pos - frames_look_aside
             end = pos + frames_look_aside
@@ -512,23 +519,6 @@ class Beat(object):
         # TODO: put this (and the same in the Onset class) to an Event class
         from ..utils.helpers import load_events
         self.targets = load_events(filename)
-
-    def evaluate(self, filename=None, *args, **kwargs):
-        """
-        Evaluate the detected beats against this target file.
-
-        :param filename: target file name or file handle
-
-        """
-        if filename:
-            # load the targets
-            self.load(filename)
-        if self.targets is None:
-            # no targets given, can't evaluate
-            return None
-        # evaluate
-        from ..evaluation.beats import BeatEvaluation
-        return BeatEvaluation(self.detections, self.targets, *args, **kwargs)
 
     def save_activations(self, filename, sep=''):
         """

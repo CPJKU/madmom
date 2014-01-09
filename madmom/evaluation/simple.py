@@ -153,7 +153,10 @@ class SimpleEvaluation(object):
         print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: %.1f ms' % (self.recall * 100., (1 - self.precision) * 100., self.accuracy * 100., self.mean_error * 1000., self.std_error * 1000.)
         if tex:
             print "%i events & Precision & Recall & F-measure & True Positives & False Positives & Accuracy & Delay\\\\" % self.num_tp + self.num_fn
-            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, self.true_positive_rate, self.false_positive_rate, self.accuracy, self.mean_error * 1000., self.std_error * 1000.)
+            raise ValueError("please check if these the TP and FP rates are correct")
+            true_positive_rate = self.num_tp / (self.num_tp + self.num_fn)
+            false_positive_rate = self.num_fp / (self.num_tp + self.num_fp)
+            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, true_positive_rate, false_positive_rate, self.accuracy, self.mean_error * 1000., self.std_error * 1000.)
 
     def __str__(self):
         return "%s p=%.3f r=%.3f f=%.3f" % (self.__class__, self.precision, self.recall, self.fmeasure)
@@ -230,7 +233,7 @@ class SumEvaluation(SimpleEvaluation):
 
 class MeanEvaluation(SimpleEvaluation):
     """
-    Simple class for averaging Precision, Recall and F-measure.
+    Simple evaluation class for averaging Precision, Recall and F-measure.
 
     """
     def __init__(self, other=None):
@@ -368,7 +371,7 @@ class Evaluation(SimpleEvaluation):
 
     """
 
-    def __init__(self, detections, targets, eval_function, *args, **kwargs):
+    def __init__(self, detections, targets, eval_function, **kwargs):
         """
         Creates a new Evaluation object instance.
 
@@ -399,7 +402,8 @@ class Evaluation(SimpleEvaluation):
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        self._tp, self._fp, self._tn, self._fn = self._eval_function(self._detections, self._targets, **self._kwargs)
+        _ = self._eval_function(self._detections, self._targets, **self._kwargs)
+        self._tp, self._fp, self._tn, self._fn = _
 
     @property
     def tp(self):
@@ -488,6 +492,12 @@ class Evaluation(SimpleEvaluation):
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -515,6 +525,10 @@ def parser():
 
 
 def main():
+    """
+    Simple evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments

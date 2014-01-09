@@ -107,7 +107,13 @@ def max_len(strings):
 
 
 def expand_and_terminate(strings):
-    """Expand and null-terminate the given strings."""
+    """
+    Expand and null-terminate the given strings to a common length.
+
+    :param strings: a list of strings
+    :return:        expanded and null-terminated list of strings
+
+    """
     # each string must have the same length and must be null-terminated
     terminated_strings = []
     max_length = max_len(strings) + 1
@@ -121,6 +127,7 @@ def expand_and_terminate(strings):
 # FIXME: if we inherit from scipy.io.netcdf.NetCDFFile and omit the self.nc
 # stuff and try to extend the class with properties directly, the setters do not
 # work! why?
+# noinspection PyPep8Naming
 class NetCDF(object):
     """
     NetCDF Class is a simple NetCDFFile wrapper with some extensions for use
@@ -518,6 +525,11 @@ def create_nc_file(filename, data, targets, tags=None):
 
 # .nc file testing
 class TestThread(Thread):
+    """
+    Class for testing a .nc file against multiple networks and distributing the
+    work to multiple threads.
+
+    """
     def __init__(self, work_queue, return_queue, verbose=False):
         """
         Test a file against multiple neural networks.

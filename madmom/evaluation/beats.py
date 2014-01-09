@@ -700,6 +700,12 @@ SKIP = 5.
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
 
     # define parser
@@ -735,6 +741,10 @@ def parser():
 
 
 def main():
+    """
+    Simple beat evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments

@@ -143,14 +143,30 @@ class OnsetEvaluation(Evaluation):
 
 
 class SumOnsetEvaluation(SumEvaluation):
+    """
+    Simple evaluation class for summing true/false positive/(negative) onset
+    detections and calculate Precision, Recall and F-measure.
+
+    """
     pass
 
 
 class MeanOnsetEvaluation(MeanEvaluation):
+    """
+    Simple evaluation class for averaging Precision, Recall and F-measure of
+    multiple onset evaluations.
+
+    """
     pass
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -181,6 +197,10 @@ def parser():
 
 
 def main():
+    """
+    Simple onset evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events, combine_events
 
     # parse arguments

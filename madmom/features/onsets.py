@@ -47,7 +47,7 @@ def diff(spec, diff_frames=1, pos=False):
     return diff
 
 
-def correlation_diff(self, spec, diff_frames=1, pos=False, diff_bins=1):
+def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     """
     Calculates the difference of the magnitude spectrogram relative to the
     N-th previous frame shifted in frequency to achieve the highest
@@ -421,62 +421,63 @@ class SpectralOnsetDetection(object):
         return rectified_complex_domain(self.s.spec, self.s.phase)
 
 
-class NNOnsetDetection(object):
-    """
-    The NNOnsetDetection class implements neural network based onset detection algorithms.
-
-    """
-    def __init__(self, audio, nn_files):
-        """
-        Creates a new NNOnsetDetection object instance.
-
-        :param audio:    file name or Wav or Spectrogram object
-        :param nn_files: pre-trained neural networks
-
-        """
-        # import
-        from ..audio.wav import Wav
-        from ..audio.spectrogram import Spectrogram
-        # check wav type
-        if isinstance(audio, Wav):
-            # already the right format
-            self.w = audio
-        elif isinstance(audio, Spectrogram):
-            # spectrogram given, extract the wav object
-            self.w = audio.audio
-        else:
-            # assume a file name, try to instantiate a Wav object
-            self.w = Wav(audio, fps=100, mono=True)
-        # TODO: include code
-        self.nn_files = nn_files
-        raise NotImplementedError
-
-    def process_input(self, frame_sizes=[1024, 2048, 4096], bands_per_octave=6, mul=5, add=1):
-        """Process the audio input."""
-        import tempfile
-        from ..audio.spectrogram import LogFiltSpec
-        from ..utils.rnnlib import create_nc_file
-        # stack specs
-        nc_data = np.empty((self.w.frames, 0))
-        for frame_size in frame_sizes:
-            self.w.frame_size = frame_size
-            s = LogFiltSpec(self.w, bands_per_octave=bands_per_octave, mul=mul, add=add)
-            nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
-        # create a fake onset vector
-        nc_targets = np.zeros(self.w.num_frames)
-        nc_targets[0] = 1
-        # create a .nc file
-        self.__nc_file = tempfile.mktemp()
-        create_nc_file(self.__nc_file, nc_data, nc_targets)
-        return self.__nc_file
-
-    def test_neural_networks(self, threads=2, verbose=False):
-        import os
-        from ..ml.rnnlib import test_nc_files
-        act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
-        os.rmdir(self.__nc_file)
-        # return activations
-        return act
+# TODO: recode with the new ml.rnn module.
+# class NNOnsetDetection(object):
+#     """
+#     The NNOnsetDetection class implements neural network based onset detection algorithms.
+#
+#     """
+#     def __init__(self, audio, nn_files):
+#         """
+#         Creates a new NNOnsetDetection object instance.
+#
+#         :param audio:    file name or Wav or Spectrogram object
+#         :param nn_files: pre-trained neural networks
+#
+#         """
+#         # import
+#         from ..audio.wav import Wav
+#         from ..audio.spectrogram import Spectrogram
+#         # check wav type
+#         if isinstance(audio, Wav):
+#             # already the right format
+#             self.w = audio
+#         elif isinstance(audio, Spectrogram):
+#             # spectrogram given, extract the wav object
+#             self.w = audio.audio
+#         else:
+#             # assume a file name, try to instantiate a Wav object
+#             self.w = Wav(audio, fps=100, mono=True)
+#         # TODO: include code
+#         self.nn_files = nn_files
+#         raise NotImplementedError
+#
+#     def process_input(self, frame_sizes=[1024, 2048, 4096], bands_per_octave=6, mul=5, add=1):
+#         """Process the audio input."""
+#         import tempfile
+#         from ..audio.spectrogram import LogFiltSpec
+#         from ..utils.rnnlib import create_nc_file
+#         # stack specs
+#         nc_data = np.empty((self.w.frames, 0))
+#         for frame_size in frame_sizes:
+#             self.w.frame_size = frame_size
+#             s = LogFiltSpec(self.w, bands_per_octave=bands_per_octave, mul=mul, add=add)
+#             nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+#         # create a fake onset vector
+#         nc_targets = np.zeros(self.w.num_frames)
+#         nc_targets[0] = 1
+#         # create a .nc file
+#         self.__nc_file = tempfile.mktemp()
+#         create_nc_file(self.__nc_file, nc_data, nc_targets)
+#         return self.__nc_file
+#
+#     def test_neural_networks(self, threads=2, verbose=False):
+#         import os
+#         from ..ml.rnnlib import test_nc_files
+#         act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
+#         os.rmdir(self.__nc_file)
+#         # return activations
+#         return act
 
 
 # universal peak-picking method
@@ -538,24 +539,24 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
     return np.nonzero(detections)[0].astype(np.float)
 
 
-def nn_peak_picking(activations, network, threshold):
-    """
-    Perform the peak-picking method described in:
-
-    "Enhanced peak picking for Onset Detection with Recurrent Neural Networks"
-    Sebastian Böck, Jan Schlüter and Gerhard Widmer
-    Proceedings of the 6th International Workshop on Machine Learning and Music (MML13)
-    Prague, Czech Republic, September 2013
-
-    on the given activation function.
-
-    :param activations: the onset activation function
-    :param network:     the trained network with weights
-    :param threshold:   threshold for peak-picking
-
-    """
-    # TODO: implement the paper in pure python
-    raise NotImplementedError
+# def nn_peak_picking(activations, network, threshold):
+#     """
+#     Perform the peak-picking method described in:
+#
+#     "Enhanced peak picking for Onset Detection with Recurrent Neural Networks"
+#     Sebastian Böck, Jan Schlüter and Gerhard Widmer
+#     Proceedings of the 6th International Workshop on Machine Learning and Music (MML13)
+#     Prague, Czech Republic, September 2013
+#
+#     on the given activation function.
+#
+#     :param activations: the onset activation function
+#     :param network:     the trained network with weights
+#     :param threshold:   threshold for peak-picking
+#
+#     """
+#     # TODO: implement the paper in pure python
+#     raise NotImplementedError
 
 
 # default values for onset peak-picking

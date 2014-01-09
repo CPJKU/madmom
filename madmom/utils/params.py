@@ -16,7 +16,7 @@ from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
-from ..features.beats import THRESHOLD as bt, SMOOTH as bs, MIN_BPM, MAX_BPM
+from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
 
 
 def add_audio_arguments(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
@@ -185,7 +185,7 @@ def add_onset_arguments(parser, io=False, threshold=THRESHOLD, smooth=SMOOTH, co
     return group
 
 
-def add_beat_arguments(parser, io=False, threshold=bt, smooth=bs,
+def add_beat_arguments(parser, io=False, threshold=BT, smooth=BS,
                        min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     """
     Add beat tracking related arguments to an existing parser object.
@@ -250,6 +250,12 @@ def add_mirex_io(parser):
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     # define parser
     p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""This is just an example parser.""")
     # general options
