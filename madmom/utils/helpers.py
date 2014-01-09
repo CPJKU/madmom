@@ -9,7 +9,6 @@ This file contains various helper functions used by all other modules.
 
 import os.path
 import glob
-import fnmatch
 
 import numpy as np
 
@@ -37,11 +36,13 @@ def files(path, ext=None):
         else:
             file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
-        # just use this file
+        # no matchin needed
         if ext is None:
             file_list = [path]
+        # file must have the correct extension
         elif path.endswith(ext):
             file_list = [path]
+        # file does not match any condition
         else:
             file_list = []
     else:
@@ -63,74 +64,77 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     """
     Match a file against a list of other files.
 
-    :param filename:     file to be matched
-    :param match_list:   match to this list of files
-    :returns:            list of matched files
+    :param filename:   file to be matched
+    :param match_list: match to this list of files (or folders)
+    :param ext:        strip this extension from file for name matching
+    :param match_ext:  strip this extension from file for name matching
+    :returns:          list of matched files
 
     """
-    # get the base name without the path
+    # get the base name without the path (this part must match later)
     basename = os.path.basename(stripext(filename, ext))
     # init return list
     matches = []
-    # look for files with the same base name in the files_list
-    if match_ext is not None:
-        pattern = "*%s*%s" % (basename, match_ext)
-    else:
-        pattern = "*%s" % basename
-    for match in fnmatch.filter(match_list, pattern):
-        # base names must match exactly
-        if basename == os.path.basename(stripext(match, match_ext)):
-            matches.append(match)
+    # look for files with the same base name in the match_list
+    for match in match_list:
+        # TODO: remove duplicate code with files(), add pattern parameter to files()
+        # if we have a path, take all files in there
+        if os.path.isdir(match):
+            if ext is None:
+                matches.extend(glob.glob("%s/%s*" % (match, basename)))
+            else:
+                matches.extend(glob.glob("%s/%s*%s" % (match, basename, match_ext)))
+        elif os.path.isfile(match):
+            # just use this file if the name matches
+            if os.path.basename(stripext(match, match_ext)) == basename:
+                matches.append(match)
     # return the matches
     return matches
 
 
 def load_events(filename):
     """
-    Load a list of events from a text file, one floating point number per line.
+    Load a list of events from file.
 
     :param filename: name of the file or file handle
-    :return:         numpy array of events
+    :return:         list of events
 
     """
-    own_fid = False
-    # open file if needed
-    if isinstance(filename, basestring):
-        fid = open(filename, 'rb')
-        own_fid = True
-    else:
-        fid = filename
-    try:
+    if not isinstance(filename, file):
+        # open the file if necessary
+        filename = open(filename, 'r')
+    with filename:
+        # Note: the loop is much faster than np.loadtxt(filename, usecols=[0])
+        events = []
         # read in the events, one per line
-        # 1st column is the event's time, the rest is ignored
-        return np.fromiter((float(line.split(None, 1)[0]) for line in fid), dtype=np.float)
-    finally:
-        # close file if needed
-        if own_fid:
-            fid.close()
+        for line in filename:
+            # 1st column is the events time, ignore the rest if present
+            events.append(float(line.split()[0]))
+    # return
+    return np.asarray(events)
 
 
 def write_events(events, filename):
     """
-    Write a list of events to a text file, one floating point number per line.
+    Write the detected onsets to the given file.
 
     :param events:   list of events [seconds]
     :param filename: output file name or file handle
 
     """
-    own_fid = False
-    # open file if needed
-    if isinstance(filename, basestring):
-        fid = open(filename, 'wb')
-        own_fid = True
-    else:
-        fid = filename
-    try:
-        fid.writelines('%g\n' % e for e in events)
-    finally:
-        # close file if needed
-        if own_fid:
-            fid.close()
+    was_closed = False
+    if not isinstance(filename, file):
+        # open the file if necessary
+        filename = open(filename, 'w')
+        was_closed = True
+    # FIXME: if we use "with filename:" here, the file handle gets closed
+    # after write and the called object is not accessible afterwards. Is this
+    # expected? Is this the right way to circumvent this?
+    for e in events:
+        filename.write(str(e) + '\n')
+    # close the file again?
+    if was_closed:
+        filename.close()
 
 
 def combine_events(events, delta):
@@ -196,7 +200,10 @@ def quantize_events(events, fps, length=None):
     # set the events
     for event in events:
         idx = int(round(event * float(fps)))
-        quantized[idx] = 1
+        try:
+            quantized[idx] = 1
+        except IndexError:
+            pass
     # return the events
     return quantized
 

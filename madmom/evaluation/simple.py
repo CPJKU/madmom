@@ -60,72 +60,68 @@ class SimpleEvaluation(object):
         :param num_fn: number of false negative detections
 
         """
-        # use hidden variables, because the properties get overridden in subclasses
-        self.__num_tp = num_tp
-        self.__num_fp = num_fp
-        self.__num_tn = num_tn
-        self.__num_fn = num_fn
+        # hidden variables, to be able to overwrite the properties in subclasses
+        self._num_tp = num_tp
+        self._num_fp = num_fp
+        self._num_tn = num_tn
+        self._num_fn = num_fn
 
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return self.__num_tp
+        return self._num_tp
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return self.__num_fp
+        return self._num_fp
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return self.__num_tn
+        return self._num_tn
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return self.__num_fn
+        return self._num_fn
 
     @property
     def precision(self):
         """Precision."""
         # correct / retrieved
-        if self.num_tp == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
-        return self.num_tp / np.float64(self.num_tp + self.num_fp)
+        retrieved = float(self.num_tp + self.num_fp)
+        # if there are no positive predictions, none of them are wrong
+        if retrieved == 0:
+            return 1.
+        return self.num_tp / retrieved
 
     @property
     def recall(self):
         """Recall."""
         # correct / relevant
-        if self.num_tp == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
-        return self.num_tp / np.float64(self.num_tp + self.num_fn)
+        relevant = float(self.num_tp + self.num_fn)
+        # if there are no positive targets, we recalled all of them
+        if relevant == 0:
+            return 1.
+        return self.num_tp / relevant
 
     @property
     def fmeasure(self):
         """F-measure."""
-        numerator = 2 * self.precision * self.recall
+        numerator = 2. * self.precision * self.recall
         if numerator == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
-        return numerator / np.float64(self.precision + self.recall)
+            return 0.
+        return numerator / (self.precision + self.recall)
 
     @property
     def accuracy(self):
         """Accuracy."""
         # acc: (TP + TN) / (TP + FP + TN + FN)
-        numerator = self.num_tp + self.num_tn
+        numerator = float(self.num_tp + self.num_tn)
         if numerator == 0:
-            # FIXME: why is this hack still needed? If not, we get a
-            # RuntimeWarning: invalid value encountered in double_scalars
-            return 0
-        return numerator / np.float64(self.num_fp + self.num_fn + self.num_tp + self.num_tn)
+            return 0.
+        return numerator / (self.num_fp + self.num_fn + self.num_tp + self.num_tn)
 
     @property
     def mean_error(self):
@@ -142,7 +138,7 @@ class SimpleEvaluation(object):
     @property
     def errors(self):
         """Errors."""
-        # FIXME: is returning an empty list?
+        # FIXME: is returning an empty list ok?
         return np.empty(0)
 
     def print_errors(self, tex=False):
@@ -156,7 +152,7 @@ class SimpleEvaluation(object):
         print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f f=%.3f' % (self.num_tp + self.num_fn, self.num_tp, self.num_fp, self.num_fn, self.precision, self.recall, self.fmeasure)
         print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: %.1f ms' % (self.recall * 100., (1 - self.precision) * 100., self.accuracy * 100., self.mean_error * 1000., self.std_error * 1000.)
         if tex:
-            print "%i events & Precision & Recall & F-measure & True Positves & False Positives & Accuracy & Delay\\\\" % self.num
+            print "%i events & Precision & Recall & F-measure & True Positives & False Positives & Accuracy & Delay\\\\" % self.num_tp + self.num_fn
             print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, self.true_positive_rate, self.false_positive_rate, self.accuracy, self.mean_error * 1000., self.std_error * 1000.)
 
     def __str__(self):
@@ -173,11 +169,11 @@ class SumEvaluation(SimpleEvaluation):
     # this class just sums all the attributes and evaluates accordingly
     def __init__(self, other=None):
         super(SumEvaluation, self).__init__()
-        self.__num_tp = 0
-        self.__num_fp = 0
-        self.__num_tn = 0
-        self.__num_fn = 0
-        self.__errors = np.empty(0)
+        self._num_tp = 0
+        self._num_fp = 0
+        self._num_tn = 0
+        self._num_fn = 0
+        self._errors = np.empty(0)
         # instance can be initialized with a Evaluation object
         if other:
             # add this object to self
@@ -188,11 +184,11 @@ class SumEvaluation(SimpleEvaluation):
         #if isinstance(other, Evaluation):
         if issubclass(other.__class__, SimpleEvaluation):
             # extend
-            self.__num_tp += other.num_tp
-            self.__num_fp += other.num_fp
-            self.__num_tn += other.num_tn
-            self.__num_fn += other.num_fn
-            self.__errors = np.append(self.__errors, other.errors)
+            self._num_tp += other.num_tp
+            self._num_fp += other.num_fp
+            self._num_tn += other.num_tn
+            self._num_fn += other.num_fn
+            self._errors = np.append(self._errors, other.errors)
             return self
         else:
             return NotImplemented
@@ -200,36 +196,36 @@ class SumEvaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return self.__num_tp
+        return self._num_tp
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return self.__num_fp
+        return self._num_fp
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return self.__num_tn
+        return self._num_tn
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return self.__num_fn
+        return self._num_fn
 
     @property
     def mean_error(self):
         """Mean of the errors."""
-        if not self.__errors.any():
+        if not self._errors.any():
             return 0
-        return np.mean(self.__errors)
+        return np.mean(self._errors)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        if not self.__errors.any():
+        if not self._errors.any():
             return 0
-        return np.std(self.__errors)
+        return np.std(self._errors)
 
 
 class MeanEvaluation(SimpleEvaluation):
@@ -244,17 +240,17 @@ class MeanEvaluation(SimpleEvaluation):
         """
         super(MeanEvaluation, self).__init__()
         # redefine most of the stuff
-        self.__precision = np.empty(0)
-        self.__recall = np.empty(0)
-        self.__fmeasure = np.empty(0)
-        self.__accuracy = np.empty(0)
-        self.__mean = np.empty(0)
-        self.__std = np.empty(0)
-        self.__errors = np.empty(0)
-        self.__num_tp = np.empty(0)
-        self.__num_fp = np.empty(0)
-        self.__num_tn = np.empty(0)
-        self.__num_fn = np.empty(0)
+        self._precision = np.empty(0)
+        self._recall = np.empty(0)
+        self._fmeasure = np.empty(0)
+        self._accuracy = np.empty(0)
+        self._mean = np.empty(0)
+        self._std = np.empty(0)
+        self._errors = np.empty(0)
+        self._num_tp = np.empty(0)
+        self._num_fp = np.empty(0)
+        self._num_tn = np.empty(0)
+        self._num_fn = np.empty(0)
         self.num = 0
         # instance can be initialized with a Evaluation object
         if other:
@@ -271,17 +267,17 @@ class MeanEvaluation(SimpleEvaluation):
 
         """
         if issubclass(other.__class__, SimpleEvaluation):
-            self.__precision = np.append(self.__precision, other.precision)
-            self.__recall = np.append(self.__recall, other.recall)
-            self.__fmeasure = np.append(self.__fmeasure, other.fmeasure)
-            self.__accuracy = np.append(self.__accuracy, other.accuracy)
-            self.__mean = np.append(self.__mean, other.mean_error)
-            self.__std = np.append(self.__std, other.std_error)
-            self.__errors = np.append(self.__errors, other.errors)
-            self.__num_tp = np.append(self.__num_tp, other.num_tp)
-            self.__num_fp = np.append(self.__num_fp, other.num_fp)
-            self.__num_tn = np.append(self.__num_tn, other.num_tn)
-            self.__num_fn = np.append(self.__num_fn, other.num_fn)
+            self._precision = np.append(self._precision, other.precision)
+            self._recall = np.append(self._recall, other.recall)
+            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
+            self._accuracy = np.append(self._accuracy, other.accuracy)
+            self._mean = np.append(self._mean, other.mean_error)
+            self._std = np.append(self._std, other.std_error)
+            self._errors = np.append(self._errors, other.errors)
+            self._num_tp = np.append(self._num_tp, other.num_tp)
+            self._num_fp = np.append(self._num_fp, other.num_fp)
+            self._num_tn = np.append(self._num_tn, other.num_tn)
+            self._num_fn = np.append(self._num_fn, other.num_fn)
             self.num += 1
             return self
         else:
@@ -290,60 +286,82 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return np.mean(self.__num_tp)
+        if self._num_tp.size == 0:
+            return 0
+        return np.mean(self._num_tp)
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return np.mean(self.__num_fp)
+        if self._num_fp.size == 0:
+            return 0
+        return np.mean(self._num_fp)
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return np.mean(self.__num_tn)
+        if self._num_tn.size == 0:
+            return 0
+        return np.mean(self._num_tn)
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return np.mean(self.__num_fn)
+        if self._num_fn.size == 0:
+            return 0
+        return np.mean(self._num_fn)
 
     @property
     def precision(self):
         """Precision."""
-        return np.mean(self.__precision)
+        if self._precision.size == 0:
+            return 0
+        return np.mean(self._precision)
 
     @property
     def recall(self):
         """Recall."""
-        return np.mean(self.__recall)
+        if self._recall.size == 0:
+            return 0
+        return np.mean(self._recall)
 
     @property
     def fmeasure(self):
         """F-measure."""
-        return np.mean(self.__fmeasure)
+        if self._fmeasure.size == 0:
+            return 0
+        return np.mean(self._fmeasure)
 
     @property
     def accuracy(self):
         """Accuracy."""
-        return np.mean(self.__accuracy)
+        if self._accuracy.size == 0:
+            return 0
+        return np.mean(self._accuracy)
 
     @property
     def errors(self):
         """Errors."""
-        return self.__errors
+        if self._errors.size == 0:
+            return 0
+        return self._errors
 
     @property
     def mean_error(self):
         """Mean of the errors."""
-        return np.mean(self.__mean)
+        if self._mean.size == 0:
+            return 0
+        return np.mean(self._mean)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        return np.mean(self.__std)
+        if self._std.size == 0:
+            return 0
+        return np.mean(self._std)
 
 
-# simple class for evaluation of Presicion, Recall, F-measure
+# simple class for evaluation of Precision, Recall, F-measure
 class Evaluation(SimpleEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure.
@@ -366,28 +384,29 @@ class Evaluation(SimpleEvaluation):
               Additional information in other columns/axes is not used.
 
         """
-        super(Evaluation, self).__init__()
-        self.__detections = detections
-        self.__targets = targets
-        self.__eval_function = eval_function
-        self.__kwargs = kwargs
-        self.__args = args
-        self.__tp = None
-        self.__fp = None
-        self.__tn = None
-        self.__fn = None
-        self.__errors = None
+        # detections, targets and evaluation function
+        self._detections = detections
+        self._targets = targets
+        self._eval_function = eval_function
+        # save additional arguments and pass them to the evaluation function
+        self._kwargs = kwargs
+        # init some hidden variables as None, calculate them on demand
+        self._tp = None
+        self._fp = None
+        self._tn = None
+        self._fn = None
+        self._errors = None
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        self.__tp, self.__fp, self.__tn, self.__fn = self.__eval_function(self.__detections, self.__targets, *self.__args, **self.__kwargs)
+        self._tp, self._fp, self._tn, self._fn = self._eval_function(self._detections, self._targets, **self._kwargs)
 
     @property
     def tp(self):
         """True positive detections."""
-        if self.__tp is None:
+        if self._tp is None:
             self._calc_tp_fp_tn_fn()
-        return self.__tp
+        return self._tp
 
     @property
     def num_tp(self):
@@ -397,9 +416,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def fp(self):
         """False positive detections."""
-        if self.__fp is None:
+        if self._fp is None:
             self._calc_tp_fp_tn_fn()
-        return self.__fp
+        return self._fp
 
     @property
     def num_fp(self):
@@ -409,9 +428,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def tn(self):
         """True negative detections."""
-        if self.__tn is None:
+        if self._tn is None:
             self._calc_tp_fp_tn_fn()
-        return self.__tn
+        return self._tn
 
     @property
     def num_tn(self):
@@ -421,9 +440,9 @@ class Evaluation(SimpleEvaluation):
     @property
     def fn(self):
         """False negative detections."""
-        if self.__fn is None:
+        if self._fn is None:
             self._calc_tp_fp_tn_fn()
-        return self.__fn
+        return self._fn
 
     @property
     def num_fn(self):
@@ -437,13 +456,13 @@ class Evaluation(SimpleEvaluation):
         targets.
 
         """
-        if self.__errors is None:
+        if self._errors is None:
             if self.num_tp == 0:
                 # FIXME: what is the error in case of no TPs
-                self.__errors = np.empty(0)
+                self._errors = np.empty(0)
             else:
-                self.__errors = calc_errors(self.tp, self.__targets)
-        return self.__errors
+                self._errors = calc_errors(self.tp, self._targets)
+        return self._errors
 
     @property
     def mean_error(self):
@@ -460,7 +479,7 @@ class Evaluation(SimpleEvaluation):
     def std_error(self):
         """
         Standard deviation of the absolute errors of all true positive
-        detections relative to the clostest targets.
+        detections relative to the closest targets.
 
         """
         if not self.errors.any():
@@ -478,8 +497,7 @@ def parser():
 
     """)
     # files used for evaluation
-    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
-    p.add_argument('targets', nargs='*', help='file (or folder) with targets (files being filtered according to the -t argument)')
+    p.add_argument('files', nargs='*', help='files (or folder) to be evaluated')
     # extensions used for evaluation
     p.add_argument('-d', dest='det_ext', action='store', default=None, help='extension of the detection files')
     p.add_argument('-t', dest='tar_ext', action='store', default=None, help='extension of the target files')
@@ -501,11 +519,13 @@ def main():
 
     # parse arguments
     args = parser()
-    # get detection and target files
-    det_files = files(args.detections, args.det_ext)
-    if not args.targets:
-        args.targets = args.detections
-    tar_files = files(args.targets, args.tar_ext)
+
+    # get detection files
+    det_files = files(args.files, args.det_ext)
+    # quit if no files are found
+    if len(det_files) == 0:
+        print "no files to evaluate. exiting."
+        exit()
 
     # sum and mean counter for all files
     sum_counter = SumEvaluation()
@@ -514,11 +534,16 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
+        # get the matching target files
+        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
+        if len(tar_files) == 0:
+            print " can't find a target file found for %s. exiting." % det_file
+            exit()
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
-        for f in match_file(det_file, tar_files, args.det_ext, args.tar_ext):
+        for tar_file in tar_files:
             # load the targets
-            targets = load_events(f)
+            targets = load_events(tar_file)
             # test with onsets (but use the beat detection window of 70ms)
             from .onsets import count_errors
             # add the Evaluation to mean evaluation
