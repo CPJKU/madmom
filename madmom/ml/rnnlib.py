@@ -795,8 +795,8 @@ class RnnConfig(object):
         Save the model to a .h5 file which can be universally used and converted
         to .npz to create a madmom.ml.rnn.RNN object instance.
 
-        :param filename:    save the model to this file
-        :param description: optional description of the model
+        :param filename: save the model to this file
+        :param comment:  optional comment for the model
 
         Note: If no filename is given, the filename of the .save file is used
               and the extension is set to .npz.

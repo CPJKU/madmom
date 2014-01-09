@@ -472,7 +472,7 @@ class NNOnsetDetection(object):
 
     def test_neural_networks(self, threads=2, verbose=False):
         import os
-        from ..utils.rnnlib import test_nc_files
+        from ..ml.rnnlib import test_nc_files
         act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
         os.rmdir(self.__nc_file)
         # return activations
@@ -534,8 +534,8 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
         mov_max = sim.filters.maximum_filter1d(detections, max_length, mode='constant', origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
-    # return indices of detections
-    return np.nonzero(detections)[0]
+    # return indices (as floats, since they get converted to seconds later on)
+    return np.nonzero(detections)[0].astype(np.float)
 
 
 def nn_peak_picking(activations, network, threshold):
@@ -550,8 +550,8 @@ def nn_peak_picking(activations, network, threshold):
     on the given activation function.
 
     :param activations: the onset activation function
-    :param network: the trained network with weights
-    :param threshold: threshold for peak-picking
+    :param network:     the trained network with weights
+    :param threshold:   threshold for peak-picking
 
     """
     # TODO: implement the paper in pure python
@@ -588,7 +588,7 @@ class Onset(object):
 
         """
         self.activations = None  # onset activation function
-        self.fps = fps           # frame rate of the activation function
+        self.fps = float(fps)    # frame rate of the activation function
         self.online = online     # online peak-picking
         # TODO: is it better to init the detections as np.empty(0)?
         # this way the write() method would not throw an error, but the

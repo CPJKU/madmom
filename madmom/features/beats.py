@@ -304,8 +304,8 @@ def detect_beats(activations, interval, look_aside=0.2):
     # and calc the beats for this start position
     positions = []
     recursive(pos)
-    # return the beats
-    return np.array(positions)
+    # return indices (as floats, since they get converted to seconds later on)
+    return np.array(positions).astype(np.float)
 
 
 # default values for beat tracking
@@ -337,7 +337,7 @@ class Beat(object):
         if online:
             raise NotImplementedError('online mode not implemented')
         self.activations = None  # onset activation function
-        self.fps = fps           # frame rate of the activation function
+        self.fps = float(fps)    # frame rate of the activation function
         self.online = online     # online beat-tracking
         # TODO: is it better to init the detections as np.empty(0)?
         # this way the write() method would not throw an error, but the

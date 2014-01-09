@@ -154,6 +154,7 @@ def add_onset_arguments(parser, io=False, threshold=THRESHOLD, smooth=SMOOTH, co
     Add onset detection related arguments to an existing parser object.
 
     :param parser:    existing argparse parser object
+    :param io:        add options to save/load activations
     :param threshold: threshold for peak-picking
     :param smooth:    smooth the onset activations over N seconds
     :param combine:   only report one onset within N seconds
@@ -190,6 +191,7 @@ def add_beat_arguments(parser, io=False, threshold=bt, smooth=bs,
     Add beat tracking related arguments to an existing parser object.
 
     :param parser:    existing argparse parser object
+    :param io:        add options to save/load activations
     :param threshold: threshold the beat activation function
     :param smooth:    smooth the beat activations over N seconds
     :param min_bpm:   minimum tempo [bpm]

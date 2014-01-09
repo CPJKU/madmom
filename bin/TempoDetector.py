@@ -31,6 +31,11 @@ NORM_FILTER = True
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+    """
     import argparse
     import madmom.utils.params
 
