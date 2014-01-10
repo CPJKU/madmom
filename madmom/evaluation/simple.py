@@ -548,8 +548,9 @@ def main():
     # parse arguments
     args = parser()
 
-    # get detection files
+    # get detection and target files
     det_files = files(args.files, args.det_ext)
+    tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -563,14 +564,14 @@ def main():
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, files(args.files, args.tar_ext),
-                               args.det_ext, args.tar_ext)
-        if len(tar_files) == 0:
+        matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
+        # quit if any file does not have a matching target file
+        if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
-        for tar_file in tar_files:
+        for tar_file in matches:
             # load the targets
             targets = load_events(tar_file)
             # test with onsets (but use the beat detection window of 70ms)
