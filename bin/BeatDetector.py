@@ -53,7 +53,8 @@ def parser():
                         '(multiple files can be given, one per argument)')
     madmom.utils.params.add_audio_arguments(p, fps=None, norm=False,
                                             online=None, window=None)
-    madmom.utils.params.add_beat_arguments(p, io=True)
+    madmom.utils.params.add_beat_arguments(p)
+    madmom.utils.params.add_io_arguments(p)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')
     # parse arguments
@@ -118,7 +119,8 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm)
+        b.detect(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm,
+                 max_bpm=args.max_bpm)
         # write the beats to output
         b.write(args.output)
 

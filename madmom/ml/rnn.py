@@ -198,10 +198,12 @@ class RecurrentLayer(FeedForwardLayer):
         size = data.shape[0]
         out = np.zeros((size, self.bias.size))
         for i in range(size):
-            # weight the data, add the bias and the weighted previous step and
+            # weight the data, add the bias
+            cell = np.dot(data[i], self.weights) + self.bias
+            # add the weighted previous step and
+            cell += np.dot(out[i - 1], self.recurrent_weights)
             # apply transfer function
-            out[i] = self.transfer_fn(np.dot(data[i], self.weights) + self.bias +
-                                      np.dot(out[i - 1], self.recurrent_weights))
+            out[i] = self.transfer_fn(cell)
         # return
         return out
 
@@ -220,7 +222,8 @@ class LinearLayer(RecurrentLayer):
         :param recurrent_weights: recurrent weights (2D matrix)
 
         """
-        super(LinearLayer, self).__init__(linear, weights, bias, recurrent_weights)
+        super(LinearLayer, self).__init__(linear, weights, bias,
+                                          recurrent_weights)
 
 
 class TanhLayer(RecurrentLayer):
@@ -237,7 +240,8 @@ class TanhLayer(RecurrentLayer):
         :param recurrent_weights: recurrent weights (2D matrix)
 
         """
-        super(TanhLayer, self).__init__(tanh, weights, bias, recurrent_weights)
+        super(TanhLayer, self).__init__(tanh, weights, bias,
+                                        recurrent_weights)
 
 
 class SigmoidLayer(RecurrentLayer):
@@ -254,7 +258,8 @@ class SigmoidLayer(RecurrentLayer):
         :param recurrent_weights: recurrent weights (2D matrix)
 
         """
-        super(SigmoidLayer, self).__init__(sigmoid, weights, bias, recurrent_weights)
+        super(SigmoidLayer, self).__init__(sigmoid, weights, bias,
+                                           recurrent_weights)
 
 
 class LSTMLayer(RecurrentLayer):
@@ -262,7 +267,8 @@ class LSTMLayer(RecurrentLayer):
     Recurrent network layer with Long Short-Term Memory units.
 
     """
-    def __init__(self, weights, bias, recurrent_weights, peephole_weights=None):
+    def __init__(self, weights, bias, recurrent_weights,
+                 peephole_weights=None):
         """
         Create a new LSTMLayer.
 
@@ -391,7 +397,8 @@ class RecurrentNeuralNetwork(object):
                 # pop the params needed for the reverse (backward) layer
                 bwd_type = params.pop('%s_type' % REVERSE)
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                  for k in params.keys() if k.startswith('%s_' % REVERSE))
+                                  for k in params.keys() if
+                                  k.startswith('%s_' % REVERSE))
                 # construct the layer
                 bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)
 
@@ -414,7 +421,8 @@ class RecurrentNeuralNetwork(object):
         for i in xrange(num_layers + 1):
             # get all parameters for that layer
             layer_params = dict((k.split('_', 2)[2], data[k])
-                                for k in data.keys() if k.startswith('layer_%d' % i))
+                                for k in data.keys() if
+                                k.startswith('layer_%d' % i))
             # create a layer from these parameters
             layer = create_layer(layer_params)
             # add to the model

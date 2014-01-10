@@ -279,20 +279,22 @@ def triangular_filter(width, center, norm):
     triang_filter = np.empty(width)
     # rising edge (without the center)
     triang_filter[:center] = np.linspace(0, height, center, endpoint=False)
-    # falling edge (including the center, but without the last bin since it's 0)
-    triang_filter[center:] = np.linspace(height, 0, width - center, endpoint=False)
+    # falling edge (including the center, but without the last bin)
+    length = width - center
+    triang_filter[center:] = np.linspace(height, 0, length, endpoint=False)
     # return filter
     return triang_filter
 
 
-def rectangular_filter(width, norm, **kwargs):
-    # **kwargs needed to be able to pass other (ignorable) parameters
+def rectangular_filter(width, norm, **unused):
+    # **unused needed to be able to pass other (to be ignored) parameters
     """
     Calculate a rectangular window of the given size.
 
     :param width:  filter width in bins
     :param norm:   normalize the area of the filter to 1
-    :returns:      a rectangular shaped filter with height 1 (unless normalized)
+    :returns:      a rectangular shaped filter with height 1
+                   (unless normalized)
 
     """
     # Set the height of the filter, normalised if necessary
@@ -398,7 +400,9 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate,
     band = 0
     for start, center, stop in band_bins(frequencies, duplicates, overlap):
         # create the filter
-        kwargs = {'width': stop - start, 'center': center - start, 'norm': norm}
+        kwargs = {'width': stop - start,
+                  'center': center - start,
+                  'norm': norm}
         filters[band] = [(filter_type(**kwargs), start)]
         band += 1
     # no normalisation here, since each filter is already normalised
@@ -429,7 +433,8 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins,
     :param harmonic_width:      function returning the width for each harmonic
                                 and the f0. [default=50 * 1.1 ** x]
     :param inharmonicity_coeff: coefficient for calculating the drift of
-                                harmonics for not perfectly harmonic instruments
+                                harmonics for not perfectly harmonic
+                                instruments
     :returns:                   harmonic filter bank
 
     Note: harmonic_envelope and harmonic_width must accept a numpy array of
@@ -463,7 +468,9 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins,
         end = filter_ends[index]
         center = filter_centers[index]
 
-        params = {'width': end - start, 'center': center - start, 'norm': False}
+        params = {'width': end - start,
+                  'center': center - start,
+                  'norm': False}
         filt = filter_type(**params) * filter_weights[index[0]]
 
         filters[index[1]] += [(filt, start)]
@@ -596,8 +603,10 @@ class BarkFilterBank(FilterBank):
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz, default=20]
         :param fmax:        the maximum frequency [Hz, default=15500]
-        :param double:      double the number of frequency bands [default=False]
-        :param norm:        normalize the area of the filter to 1 [default=True]
+        :param double:      double the number of frequency bands
+                            [default=False]
+        :param norm:        normalize the area of the filter to 1
+                            [default=True]
         :param duplicates:  keep duplicate filters resulting from insufficient
                             resolution of low frequencies [default=False]
 
@@ -640,7 +649,7 @@ class LogarithmicFilterBank(FilterBank):
         """
         Creates a new Logarithmic Filter Bank instance.
 
-        :param fft_bins:         number of FFT bins (= half the FFT window size)
+        :param fft_bins:         number of FFT bins (=half the FFT window size)
         :param sample_rate:      sample rate of the audio file [Hz]
         :param bands_per_octave: number of filter bands per octave [default=6]
         :param fmin:             the minimum frequency [Hz, default=20]
@@ -671,7 +680,8 @@ class LogarithmicFilterBank(FilterBank):
         if obj is None:
             return
         # set default values here
-        self._bands_per_octave = getattr(obj, '_bands_per_octave', BANDS_PER_OCTAVE)
+        self._bands_per_octave = getattr(obj, '_bands_per_octave',
+                                         BANDS_PER_OCTAVE)
         self._norm = getattr(obj, '_norm', NORM_FILTERS)
         self._a4 = getattr(obj, '_a4', A4)
 
@@ -708,7 +718,8 @@ class SemitoneFilterBank(LogarithmicFilterBank):
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz, default=27]
         :param fmax:        the maximum frequency [Hz, default=17000]
-        :param norm:        normalize the area of the filter to 1 [default=True]
+        :param norm:        normalize the area of the filter to 1
+                            [default=True]
         :param duplicates:  keep duplicate filters resulting from insufficient
                             resolution of low frequencies [default=False]
         :param a4:          tuning frequency of A4 [Hz, default=440]
@@ -736,7 +747,8 @@ class SimpleChromaFilterBank(FilterBank):
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz, default=20]
         :param fmax:        the maximum frequency [Hz, default=15500]
-        :param norm:        normalize the area of the filter to 1 [default=True]
+        :param norm:        normalize the area of the filter to 1
+                            [default=True]
         :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """

@@ -26,7 +26,7 @@ def parser():
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
-    in Proceedings of the 16th International Conference on Digital Audio Effects
+    Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx-13), Maynooth, Ireland, September 2013
 
     ''')
@@ -38,7 +38,8 @@ def parser():
     madmom.utils.params.add_filter_arguments(p, bands=24, norm_filters=False)
     madmom.utils.params.add_log_arguments(p, mul=1, add=1)
     madmom.utils.params.add_spectral_odf_arguments(p)
-    madmom.utils.params.add_onset_arguments(p, io=True)
+    madmom.utils.params.add_onset_arguments(p)
+    madmom.utils.params.add_io_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2013')
     # parse arguments
@@ -77,9 +78,11 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
-        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin, fps=args.fps,
-                        mul=args.mul, add=args.add, norm_filters=args.norm_filters)
-        # create an SpectralOnsetDetection object and perform detection function on the object
+        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin,
+                        fps=args.fps, mul=args.mul, add=args.add,
+                        norm_filters=args.norm_filters)
+        # create an SpectralOnsetDetection object
+        # and perform detection function on the object
         act = SpectralOnsetDetection(s).superflux()
         # create an Onset object with the activations
         o = Onset(act, args.fps, args.online)
@@ -90,8 +93,10 @@ def main():
         o.save_activations(args.output, sep=args.sep)
     else:
         # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                 pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+        o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                 smooth=args.smooth, pre_avg=args.pre_avg,
+                 post_avg=args.post_avg, pre_max=args.pre_max,
+                 post_max=args.post_max)
         # write the onsets to output
         o.write(args.output)
 

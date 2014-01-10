@@ -22,8 +22,8 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all onsets in the
-    given input file and writes them to the output file with the LogFiltSpecFlux
-    algorithm introduced in:
+    given input file and writes them to the output file with the
+    LogFiltSpecFlux algorithm introduced in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
     by Sebastian Böck, Florian Krebs and Markus Schedl
@@ -38,9 +38,11 @@ def parser():
     madmom.utils.params.add_spec_arguments(p)
     madmom.utils.params.add_filter_arguments(p, bands=12, norm_filters=False)
     madmom.utils.params.add_log_arguments(p, mul=1, add=1)
-    madmom.utils.params.add_onset_arguments(p, io=True, threshold=2.75)
+    madmom.utils.params.add_onset_arguments(p, threshold=2.75)
+    madmom.utils.params.add_io_arguments(p)
     # version
-    p.add_argument('--version', action='version', version='LogFiltSpecFlux.2013')
+    p.add_argument('--version', action='version',
+                   version='LogFiltSpecFlux.2013')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode

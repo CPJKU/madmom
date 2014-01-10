@@ -31,11 +31,11 @@ def parser():
                    help='increase verbosity level')
     p.add_argument('-o', dest='output', default=None, help='output directory')
     p.add_argument('--sep', action='store', default='',
-                   help='separator for saving/loading the activation functions '
-                        '[default=\'\' (numpy binary format)]')
+                   help='separator for saving/loading the activation functions'
+                        ' [default=\'\' (numpy binary format)]')
     p.add_argument('--ext', action='store', default='.activations',
-                   help='separator for saving/loading the activation functions '
-                        '[default=\'\' (numpy binary format)]')
+                   help='separator for saving/loading the activation functions'
+                        ' [default=\'\' (numpy binary format)]')
     p.add_argument('--threads', action='store', type=int, default=2,
                    help='number of threads [default=2]')
     p.add_argument('--set', action='store', type=str, default='test',
@@ -60,7 +60,8 @@ def main():
         # create a RnnConfig object
         nn = RnnConfig(nn_file)
         # test the given set
-        out_dir = nn.test(file_set=args.set, threads=args.threads, sep=args.sep)
+        out_dir = nn.test(file_set=args.set, threads=args.threads,
+                          sep=args.sep)
         # append the output directory to the list
         test_dirs.append(out_dir)
     # overwrite the input files with the directories to be tested

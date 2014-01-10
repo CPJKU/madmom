@@ -74,7 +74,8 @@ class NoteEvaluation(Evaluation):
 
     """
     def __init__(self, detections, targets, window=WINDOW):
-        super(NoteEvaluation, self).__init__(detections, targets, count_errors, window=window)
+        super(NoteEvaluation, self).__init__(detections, targets, count_errors,
+                                             window=window)
 
 
 class SumNoteEvaluation(SumEvaluation):
@@ -104,24 +105,33 @@ def parser():
     """
     import argparse
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
     folder with targets. Extensions can be given to filter the detection and
     target file lists.
 
     """)
     # files used for evaluation
-    p.add_argument('detections', help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
-    p.add_argument('targets', nargs='*', help='(multiple) file (or folder) with targets (files being filtered according to the -t argument)')
+    p.add_argument('files', nargs='*',
+                   help='files (or folder) to be evaluated')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default='.notes.txt', help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default='.notes', help='extension of the target files')
+    p.add_argument('-d', dest='det_ext', action='store', default='.notes.txt',
+                   help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.notes',
+                   help='extension of the target files')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', default=0.025, type=float, help='evaluation window (+/- the given size) [seconds, default=0.025]')
-    p.add_argument('--delay', action='store', default=0., type=float, help='add given delay to all detections [seconds]')
-    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
+    p.add_argument('-w', dest='window', action='store', type=float,
+                   default=0.025,
+                   help='evaluation window (+/- the given size) '
+                        '[seconds, default=0.025]')
+    p.add_argument('--delay', action='store', type=float, default=0.,
+                   help='add given delay to all detections [seconds]')
+    p.add_argument('--tex', action='store_true',
+                   help='format errors for use is .tex files')
     # verbose
-    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -156,7 +166,8 @@ def main():
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
+        tar_files = match_file(det_file, files(args.files, args.tar_ext),
+                               args.det_ext, args.tar_ext)
         if len(tar_files) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()

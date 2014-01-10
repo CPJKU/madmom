@@ -52,10 +52,12 @@ def parser():
                    help='use these pre-trained neural networks '
                         '(multiple files can be given, one per argument)')
     madmom.utils.params.add_audio_arguments(p, norm=False)
-    madmom.utils.params.add_onset_arguments(p, io=True, threshold=0.35,
+    madmom.utils.params.add_onset_arguments(p, threshold=0.35,
                                             combine=0.03, smooth=0.07,
                                             pre_avg=0, post_avg=0,
-                                            pre_max=1. / FPS, post_max=1. / FPS)
+                                            pre_max=1. / FPS,
+                                            post_max=1. / FPS)
+    madmom.utils.params.add_io_arguments(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments

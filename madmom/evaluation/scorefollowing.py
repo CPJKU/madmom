@@ -156,9 +156,10 @@ class ScoreFollowingEvaluation(object):
 
         self._cont_metrics = None
         self._event_alignment = None
-        self._fields_sorted = ['misalign_rate', 'miss_rate', 'piece_completion',
-                               'avg_imprecision', 'stddev_imprecision',
-                               'avg_error', 'stddev_error']
+        self._fields_sorted = ['misalign_rate', 'miss_rate',
+                               'piece_completion', 'avg_imprecision',
+                               'stddev_imprecision', 'avg_error',
+                               'stddev_error']
 
     @property
     def event_alignment(self):
@@ -167,7 +168,8 @@ class ScoreFollowingEvaluation(object):
         present in the ground truth data.
         """
         if self._event_alignment is None:
-            self._event_alignment = compute_event_alignment(self.alignment, self.ground_truth)
+            self._event_alignment = compute_event_alignment(self.alignment,
+                                                            self.ground_truth)
         return self._event_alignment
 
     @property
@@ -177,7 +179,9 @@ class ScoreFollowingEvaluation(object):
         in a dictionary.
         """
         if self._cont_metrics is None:
-            self._cont_metrics = compute_cont_metrics(self.event_alignment, self.ground_truth, self.tolerance)
+            self._cont_metrics = compute_cont_metrics(self.event_alignment,
+                                                      self.ground_truth,
+                                                      self.tolerance)
         return self._cont_metrics
 
     @property
@@ -222,7 +226,7 @@ class ScoreFollowingEvaluation(object):
             print 'Miss rate: %f' % metrics['miss_rate']
             print 'Piece completion: %f' % metrics['piece_completion']
             print 'Average imprecision: %f' % metrics['avg_imprecision']
-            print 'Std. Dev. of imprecision: %f' % metrics['stddev_imprecision']
+            print 'Std.Dev. of imprecision: %f' % metrics['stddev_imprecision']
             print 'Average error: %f' % metrics['avg_error']
             print 'Std.Dev. of error: %f' % metrics['stddev_error']
 
@@ -235,8 +239,8 @@ def parse_arguments():
 
     """
     import argparse
-    parser = argparse.ArgumentParser(description='Performs a numerical analysis'
-                                     ' of a score/performance match')
+    parser = argparse.ArgumentParser(description='Performs a numerical '
+                                     ' analysis of a score/performance match')
 
     parser.add_argument('-gt', '--ground-truth', required=True,
                         help='Data-file containing the ground-truth alignment'
@@ -249,7 +253,7 @@ def parse_arguments():
                         dest='segmentation_filename')
 
     parser.add_argument('-t', '--tolerance', type=int,
-                        help='Tolerance in ms - threshold for misaligned notes',
+                        help='Tolerance threshold for misaligned notes [ms]',
                         dest='tolerance', default=300)
 
     parser.add_argument('-to', '--table-output', action='store_const',

@@ -53,7 +53,8 @@ def parser():
                         '(multiple files can be given, one per argument)')
     madmom.utils.params.add_audio_arguments(p, fps=None, norm=False,
                                             online=None, window=None)
-    madmom.utils.params.add_beat_arguments(p, io=True)
+    madmom.utils.params.add_beat_arguments(p)
+    madmom.utils.params.add_io_arguments(p)
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2013')
     # parse arguments

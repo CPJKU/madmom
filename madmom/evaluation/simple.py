@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains basic evaluation functionality used by cp.evaluation modules.
+This file contains basic evaluation functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -37,7 +37,8 @@ def calc_overlap(detections, targets, threshold=0.5):
     fp = np.nonzero(detections > targets)[0]
     tn = np.nonzero(-detections * -targets)[0]
     fn = np.nonzero(detections < targets)[0]
-    assert tp.size + tn.size + fp.size + fn.size == detections.size, 'bad overlap calculation'
+    if tp.size + tn.size + fp.size + fn.size != detections.size:
+        raise AssertionError('bad overlap calculation')
     # return
     return tp, tn, fp, fn
 
@@ -60,7 +61,7 @@ class SimpleEvaluation(object):
         :param num_fn: number of false negative detections
 
         """
-        # hidden variables, to be able to overwrite the properties in subclasses
+        # hidden variables, to be able to overwrite them in subclasses
         self._num_tp = num_tp
         self._num_fp = num_fp
         self._num_tn = num_tn
@@ -121,7 +122,8 @@ class SimpleEvaluation(object):
         numerator = float(self.num_tp + self.num_tn)
         if numerator == 0:
             return 0.
-        return numerator / (self.num_fp + self.num_fn + self.num_tp + self.num_tn)
+        return numerator / (self.num_fp + self.num_fn + self.num_tp +
+                            self.num_tn)
 
     @property
     def mean_error(self):
@@ -149,17 +151,23 @@ class SimpleEvaluation(object):
 
         """
         # print the errors
-        print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f f=%.3f' % (self.num_tp + self.num_fn, self.num_tp, self.num_fp, self.num_fn, self.precision, self.recall, self.fmeasure)
-        print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: %.1f ms' % (self.recall * 100., (1 - self.precision) * 100., self.accuracy * 100., self.mean_error * 1000., self.std_error * 1000.)
+        targets = self.num_tp + self.num_fn
+        tpr = self.recall
+        fpr = (1 - self.precision)
+        print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f '\
+              'f=%.3f' % (targets, self.num_tp, self.num_fp, self.num_fn,
+                          self.precision, self.recall, self.fmeasure)
+        print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: '\
+              '%.1f ms' % (tpr * 100., fpr * 100., self.accuracy * 100.,
+                           self.mean_error * 1000., self.std_error * 1000.)
         if tex:
-            print "%i events & Precision & Recall & F-measure & True Positives & False Positives & Accuracy & Delay\\\\" % self.num_tp + self.num_fn
-            raise ValueError("please check if these the TP and FP rates are correct")
-            true_positive_rate = self.num_tp / (self.num_tp + self.num_fn)
-            false_positive_rate = self.num_fp / (self.num_tp + self.num_fp)
-            print "tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$%.1f\\,ms\\\\" % (self.precision, self.recall, self.fmeasure, true_positive_rate, false_positive_rate, self.accuracy, self.mean_error * 1000., self.std_error * 1000.)
-
-    def __str__(self):
-        return "%s p=%.3f r=%.3f f=%.3f" % (self.__class__, self.precision, self.recall, self.fmeasure)
+            print '& Precision & Recall & F-measure & True Positives & '\
+                  'False Positives & Accuracy & Delay\\\\'
+            print 'tex & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f %.1f\$\\pm\$'\
+                  '%.1f\\,ms\\\\' % (self.precision, self.recall,
+                                     self.fmeasure, tpr, fpr, self.accuracy,
+                                     self.mean_error * 1000.,
+                                     self.std_error * 1000.)
 
 
 class SumEvaluation(SimpleEvaluation):
@@ -380,11 +388,11 @@ class Evaluation(SimpleEvaluation):
         :param eval_function: evaluation function (see below)
 
         The evaluation function can be any function which returns a tuple of 4
-        numpy arrays containing the true/false positive and negative detections:
+        numpy arrays with the true/false positive and negative detections:
         ([true positive], [false positive], [true negative], [false negative])
 
-        Note: All arrays can be multi-dimensional with events aligned on axis 0.
-              Additional information in other columns/axes is not used.
+        Note: All arrays can be multi-dimensional with events aligned on the
+              first axis. Information in other columns/axes is not used.
 
         """
         # detections, targets and evaluation function
@@ -402,8 +410,9 @@ class Evaluation(SimpleEvaluation):
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        _ = self._eval_function(self._detections, self._targets, **self._kwargs)
-        self._tp, self._fp, self._tn, self._fn = _
+        numbers = self._eval_function(self._detections, self._targets,
+                                      **self._kwargs)
+        self._tp, self._fp, self._tn, self._fn = numbers
 
     @property
     def tp(self):
@@ -500,21 +509,26 @@ def parser():
     """
     import argparse
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
     folder with targets. Extensions can be given to filter the detection and
     target file lists.
-
     """)
     # files used for evaluation
-    p.add_argument('files', nargs='*', help='files (or folder) to be evaluated')
+    p.add_argument('files', nargs='*',
+                   help='files (or folder) to be evaluated')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default=None, help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default=None, help='extension of the target files')
+    p.add_argument('-d', dest='det_ext', action='store', default=None,
+                   help='extension of the detection files')
+    p.add_argument('-t', dest='tar_ext', action='store', default=None,
+                   help='extension of the target files')
     # parameters for evaluation
-    p.add_argument('--tex', action='store_true', help='format errors for use is .tex files')
+    p.add_argument('--tex', action='store_true',
+                   help='format errors for use is .tex files')
     # verbose
-    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -549,7 +563,8 @@ def main():
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
+        tar_files = match_file(det_file, files(args.files, args.tar_ext),
+                               args.det_ext, args.tar_ext)
         if len(tar_files) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()

@@ -175,8 +175,9 @@ def combine_events(events, delta):
         second = events[idx]
         # combine the two events?
         if second - first <= delta:
-            # two events within the combination window, combine them and replace
-            # the second event in the original array with the mean of the events
+            # two events within the combination window, combine them and
+            # replace the second event in the original array with the mean
+            # of the events
             events[idx] = (first + second) / 2.
         else:
             # the two events can not be combined,
@@ -227,7 +228,8 @@ def combine_activations(in_dirs, out_dir, ext='.activations', sep=''):
 
           Empty (“”) separator means the file should be treated as binary;
           spaces (” ”) in the separator match zero or more whitespace;
-          separator consisting only of spaces must match at least one whitespace.
+          separator consisting only of spaces must match at least one
+          whitespace.
 
           If out_dir is set and multiple network files contain the same
           files, the activations get averaged.
@@ -262,6 +264,7 @@ def combine_activations(in_dirs, out_dir, ext='.activations', sep=''):
             out_file = "%s/%s" % (out_dir, base_name)
             activations.tofile(out_file, sep)
 
+
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
 def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     """
@@ -270,7 +273,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     :param a:        array to segment
     :param length:   length of each frame
-    :param overlap:  number of array elements by which the frames should overlap
+    :param overlap:  number of elements by which the frames should overlap
     :param axis:     axis to operate on; if None, act on the flattened array
     :param end:      what to do with the last frame, if the array is not evenly
                      divisible into pieces [default='cut']. possible values:
@@ -299,19 +302,24 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     l = a.shape[axis]
 
     if overlap >= length:
-        raise ValueError("frames cannot overlap by more than 100%")
-    if overlap < 0 or length <= 0:
-        raise ValueError("overlap must be nonnegative and length must be positive")
+        raise ValueError("frames cannot overlap by more than 100%.")
+    if overlap < 0:
+        raise ValueError("overlap must be nonnegative.")
+    if length <= 0:
+        raise ValueError("length must be positive.")
 
     if l < length or (l - length) % (length - overlap):
         if l > length:
-            roundup = length + (1 + (l - length) // (length - overlap)) * (length - overlap)
-            rounddown = length + ((l - length) // (length - overlap)) * (length - overlap)
+            roundup = length + (1 + (l - length) // (length - overlap)) *\
+                      (length - overlap)
+            rounddown = length + ((l - length) // (length - overlap)) *\
+                        (length - overlap)
         else:
             roundup = length
             rounddown = 0
         assert rounddown < l < roundup
-        assert roundup == rounddown + (length - overlap) or (roundup == length and rounddown == 0)
+        assert roundup == rounddown + (length - overlap) or\
+               (roundup == length and rounddown == 0)
         a = a.swapaxes(-1, axis)
 
         if end == 'cut':
@@ -332,19 +340,24 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     l = a.shape[axis]
     if l == 0:
-        raise ValueError("Not enough data points to segment array in 'cut' mode; try 'pad' or 'wrap'")
+        raise ValueError("Not enough data points to segment array in 'cut' "\
+                         "mode; try 'pad' or 'wrap'")
     assert l >= length
     assert (l - length) % (length - overlap) == 0
     n = 1 + (l - length) // (length - overlap)
     s = a.strides[axis]
     newshape = a.shape[:axis] + (n, length) + a.shape[axis + 1:]
-    newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[axis + 1:]
+    newstrides = a.strides[:axis] + ((length - overlap) * s, s) +\
+                 a.strides[axis + 1:]
 
     try:
-        return np.ndarray.__new__(np.ndarray, strides=newstrides, shape=newshape, buffer=a, dtype=a.dtype)
+        return np.ndarray.__new__(np.ndarray, strides=newstrides,
+                                  shape=newshape, buffer=a, dtype=a.dtype)
     except TypeError:
         warnings.warn("Problem with ndarray creation forces copy.")
         a = a.copy()
         # Shape doesn't change but strides does
-        newstrides = a.strides[:axis] + ((length - overlap) * s, s) + a.strides[axis + 1:]
-        return np.ndarray.__new__(np.ndarray, strides=newstrides, shape=newshape, buffer=a, dtype=a.dtype)
+        newstrides = a.strides[:axis] + ((length - overlap) * s, s) +\
+                     a.strides[axis + 1:]
+        return np.ndarray.__new__(np.ndarray, strides=newstrides,
+                                  shape=newshape, buffer=a, dtype=a.dtype)

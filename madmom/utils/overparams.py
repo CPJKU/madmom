@@ -6,8 +6,8 @@ convenience wrapper to be able to override values from configuration file
 from the commandline
 
 Description:
-this wrapper reads in values from different sections of a YAML/JSON configuration file,
-whose name is specifiable on the commandline via '--config'
+this wrapper reads in values from different sections of a YAML/JSON
+configuration file, whose name is specifiable on the commandline via '--config'
 it then adds each of the values as a commandline parameter,
 - allowing them to be overridden by specifying them on the commandline
 - merging them with additionally specified (mostly positional) parameters
@@ -31,8 +31,10 @@ class OrderedDictYAMLLoader(yaml.Loader):
     def __init__(self, *args, **kwargs):
         yaml.Loader.__init__(self, *args, **kwargs)
 
-        self.add_constructor(u'tag:yaml.org,2002:map', type(self).construct_yaml_map)
-        self.add_constructor(u'tag:yaml.org,2002:omap', type(self).construct_yaml_map)
+        self.add_constructor(u'tag:yaml.org,2002:map',
+                             type(self).construct_yaml_map)
+        self.add_constructor(u'tag:yaml.org,2002:omap',
+                             type(self).construct_yaml_map)
 
     def construct_yaml_map(self, node):
         data = OrderedDict()
@@ -45,7 +47,8 @@ class OrderedDictYAMLLoader(yaml.Loader):
             self.flatten_mapping(node)
         else:
             raise yaml.constructor.ConstructorError(None, None,
-                'expected a mapping node, but found %s' % node.id, node.start_mark)
+                'expected a mapping node, but found %s' % node.id,
+                node.start_mark)
 
         mapping = OrderedDict()
         for key_node, value_node in node.value:
@@ -53,8 +56,9 @@ class OrderedDictYAMLLoader(yaml.Loader):
             try:
                 hash(key)
             except TypeError, exc:
-                raise yaml.constructor.ConstructorError('while constructing a mapping',
-                    node.start_mark, 'found unacceptable key (%s)' % exc, key_node.start_mark)
+                raise yaml.constructor.ConstructorError(
+                    'while constructing a mapping', node.start_mark,
+                    'found unacceptable key (%s)' % exc, key_node.start_mark)
             value = self.construct_object(value_node, deep=deep)
             mapping[key] = value
         return mapping
@@ -76,9 +80,9 @@ class OverridableParameters(object):
             else:
                 raise argparse.ArgumentTypeError('config file does not exist')
 
-        self.parser = argparse.ArgumentParser(description=description,
-                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                              add_help=add_help)
+        self.parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            description=description, add_help=add_help)
 
         self.parser.add_argument('--config',
                                  dest='actualconfigfilename',
@@ -91,9 +95,10 @@ class OverridableParameters(object):
 
         # re-new the parser
         self.parser = argparse.ArgumentParser(description=description,
-                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-        config = yaml.load(open(pre_args.actualconfigfilename), OrderedDictYAMLLoader)
+        config = yaml.load(open(pre_args.actualconfigfilename),
+                           OrderedDictYAMLLoader)
 
         for section in self.sectionnames:
             if section in config:
@@ -107,7 +112,7 @@ class OverridableParameters(object):
                                        default=optionvalue,
                                        help=optionhelptxt)
             else:
-                raise ValueError('invalid section name encountered "' + section + '"')
+                raise ValueError("invalid section name: %s" % section)
 
     def add_argument(self, *args, **kwords):
         self.parser.add_argument(*args, **kwords)

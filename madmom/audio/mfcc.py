@@ -48,7 +48,8 @@ class MFCC(Spectrogram):
         :param norm_filters: normalize filter area to 1 [default=True]
 
         """
-        from .filterbank import MelFilterBank, MEL_BANDS, FMIN, FMAX, NORM_FILTERS
+        from .filterbank import (MelFilterBank, MEL_BANDS, FMIN, FMAX,
+                                 NORM_FILTERS)
         from .spectrogram import MUL, ADD
 
         # fetch the arguments for filterbank creation (or set defaults)

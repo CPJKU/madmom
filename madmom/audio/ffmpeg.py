@@ -11,11 +11,14 @@ import os
 import sys
 
 
-def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None, outfile=None, tmpdir=None, tmpsuffix=None):
+def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
+                   skip=None, maxlen=None, outfile=None, tmpdir=None,
+                   tmpsuffix=None):
     """
     Decodes the given audio file, optionally downmixes it to mono and
     writes it to another file as a sequence of samples.
     Returns the file name of the output file.
+
     :param soundfile: The sound file to decode
     :param fmt: The format of samples:
         'f32le' for float32, little-endian.
@@ -36,7 +39,8 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     # create temp file if no outfile is given
     if outfile is None:
         # Looks stupid, but is recommended over tempfile.mktemp()
-        f = tempfile.NamedTemporaryFile(delete=False, dir=tmpdir, suffix=tmpsuffix)
+        f = tempfile.NamedTemporaryFile(delete=False, dir=tmpdir,
+                                        suffix=tmpsuffix)
         f.close()
         outfile = f.name
         delete_on_fail = True
@@ -44,7 +48,8 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
         delete_on_fail = False
     # call ffmpeg (throws exception on error)
     try:
-        call = _assemble_ffmpeg_call(soundfile, outfile, fmt, sample_rate, num_channels, skip, maxlen)
+        call = _assemble_ffmpeg_call(soundfile, outfile, fmt, sample_rate,
+                                     num_channels, skip, maxlen)
         subprocess.check_call(call)
     except Exception:
         if delete_on_fail:
@@ -53,10 +58,12 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     return outfile
 
 
-def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None):
+def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
+                     skip=None, maxlen=None):
     """
     Decodes the given audio file, downmixes it to mono and
     returns it as a binary string of a sequence of samples.
+
     :param soundfile: The sound file to decode
     :param fmt: The format of samples:
         'f32le' for float32, little-endian.
@@ -68,7 +75,8 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, s
     :returns: A binary string of samples.
 
     """
-    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, num_channels, skip, maxlen)
+    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate,
+                                 num_channels, skip, maxlen)
     if hasattr(subprocess, 'check_output'):
         # call ffmpeg (throws exception on error)
         signal = subprocess.check_output(call)
@@ -81,12 +89,14 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1, s
     return signal
 
 
-def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None, bufsize=-1):
+def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
+                   skip=None, maxlen=None, bufsize=-1):
     """
     Decodes the given audio file, downmixes it to mono and returns a file-like
     object for reading the samples, as well as a process object. To stop
     decoding the file, call close() on the returned file-like object, then
     call wait() on the returned process object.
+
     :param soundfile: The sound file to decode
     :param fmt: The format of samples:
         'f32le' for float32, little-endian.
@@ -106,7 +116,8 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     # because ffmpeg reacts on that. A cleaner solution would be calling
     # proc.terminate explicitly, but this is only available in Python 2.6+.
     # proc.wait needs to be called in any case.
-    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate, num_channels, skip, maxlen)
+    call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate,
+                                 num_channels, skip, maxlen)
     proc = subprocess.Popen(call,
             stdout=subprocess.PIPE,  # stdout is redirected to a pipe
             bufsize=bufsize,  # the pipe is buffered as requested
@@ -114,7 +125,8 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1, ski
     return proc.stdout, proc
 
 
-def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1, skip=None, maxlen=None):
+def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
+                          num_channels=1, skip=None, maxlen=None):
     """
     Internal function. Creates a sequence of strings indicating the application
     (ffmpeg) to be called as well as the parameters necessary to decode the
@@ -139,7 +151,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_cha
     return call
 
 
-# FIXME: remove this class completely or make it fit into the new inheritance scheme
+## FIXME: remove this class completely or make it fit into the new inheritance scheme
 #class FFmpegFile(FramedAudio):
 #    """
 #    FFmpegFile takes an audio file, decodes it to memory and provides it in
@@ -147,7 +159,8 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_cha
 #
 #    """
 #
-#    def __init__(self, filename, sample_rate=44100, num_channels=1, frame_size=2048, hop_size=441.0, online=False):
+#    def __init__(self, filename, sample_rate=44100, num_channels=1,
+#                 frame_size=2048, hop_size=441.0, online=False):
 #        """
 #        Creates a new FFmpegFile object instance.
 #
@@ -155,22 +168,21 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_cha
 #        :param sample_rate:  sample_rate to re-sample the file to
 #        :param num_channels: number of channels to reduce the file to
 #        :param frame_size:   size of one frame [default=2048]
-#        :param hop_size:     progress N samples between adjacent frames [default=441.0]
+#        :param hop_size:     progress N samples between adjacent frames
+#                             [default=441.0]
 #        :param online:       use only past information [default=False]
 #
 #        """
 #        # init variables
 #        self.filename = filename        # the name of the file
 #        # decode the file to memory
-#        signal = decode_to_memory(filename, sample_rate=sample_rate, num_channels=num_channels)
+#        signal = decode_to_memory(filename, sample_rate=sample_rate,
+#                                  num_channels=num_channels)
 #        signal = np.frombuffer(signal, dtype=np.float32)
 #        if num_channels > 1:
-#            raise NotImplementedError("Check which of the following two versions is correct")
+#            raise NotImplementedError("Check which versions is correct")
 #            signal = signal.reshape((num_channels, -1))
 #            #signal = signal.reshape((-1, num_channels)).T
 #        # instantiate a FramedAudio object
-#        super(FFmpegFile, self).__init__(signal, sample_rate, frame_size, hop_size, online)
-#
-#    # TODO: make this nicer!
-#    def __str__(self):
-#        return "%s file: %s length: %i samples (%.2f seconds) sample rate %i frames: %i (%i samples %.1f hop size)" % (self.__class__, self.filename, self.num_samples, self.length, self.sample_rate, self.frames, self.frame_size, self.hop_size)
+#        super(FFmpegFile, self).__init__(signal, sample_rate, frame_size,
+#                                         hop_size, online)

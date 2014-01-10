@@ -131,8 +131,10 @@ class Spectrogram(object):
                            magnitude spectrogram [default=None]
 
         :param log: take the logarithm of the magnitudes [default=False]
-        :param mul: multiplier before taking the logarithm of the magnitudes [default=1]
-        :param add: add this value before taking the logarithm of the magnitudes [default=0]
+        :param mul: multiplier before taking the logarithm of the magnitudes
+                    [default=1]
+        :param add: add this value before taking the logarithm of the
+                    magnitudes [default=0]
 
         Additional computations:
 
@@ -147,9 +149,11 @@ class Spectrogram(object):
 
         Diff parameters:
 
-        :param ratio:       calculate the difference to the frame which window overlaps to this ratio [default=0.5]
-        :param diff_frames: calculate the difference to the N-th previous frame [default=None]
-                            If set, this overrides the value calculated from the ratio.
+        :param ratio:       calculate the difference to the frame which window
+                            overlaps to this ratio [default=0.5]
+        :param diff_frames: calculate the difference to the N-th previous frame
+                            [default=None] (if set, this overrides the value
+                            calculated from the ratio)
 
         Note: including phase and/or local group delay information slows down
               calculation considerably (phase: x2; lgd: x3)!
@@ -189,7 +193,8 @@ class Spectrogram(object):
         # window used for DFT
         try:
             # the audio signal is not scaled, scale the window accordingly
-            self._fft_window = self.window / np.iinfo(self.frames.signal.data.dtype).max
+            max_value = np.iinfo(self.frames.signal.data.dtype).max
+            self._fft_window = self.window / max_value
         except ValueError:
             self._fft_window = self.window
 
@@ -277,7 +282,10 @@ class Spectrogram(object):
 
     @property
     def mul(self):
-        """Multiply by this value before taking the logarithm of the magnitude."""
+        """
+        Multiply by this value before taking the logarithm of the magnitude.
+
+        """
         return self._mul
 
     @property
@@ -289,22 +297,26 @@ class Spectrogram(object):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
-        :param stft:       save the raw complex STFT to the "stft" attribute
-        :param phase:      save the phase of the STFT to the "phase" attribute
-        :param lgd:        save the local group delay of the STFT to the "lgd" attribute
+        :param stft:  save the raw complex STFT to the "stft" attribute
+        :param phase: save the phase of the STFT to the "phase" attribute
+        :param lgd:   save the local group delay of the STFT to the "lgd"
+                      attribute
 
         """
         # init spectrogram matrix
         self._spec = np.empty([self.num_frames, self.num_bins], np.float)
         # STFT matrix
         if stft or self._save_stft:
-            self._stft = np.empty([self.num_frames, self.num_fft_bins], np.complex)
+            self._stft = np.empty([self.num_frames, self.num_fft_bins],
+                                  np.complex)
         # phase matrix
         if phase or self._save_phase:
-            self._phase = np.empty([self.num_frames, self.num_fft_bins], np.float)
+            self._phase = np.empty([self.num_frames, self.num_fft_bins],
+                                   np.float)
         # local group delay matrix
         if lgd or self._save_lgd:
-            self._lgd = np.zeros([self.num_frames, self.num_fft_bins], np.float)
+            self._lgd = np.zeros([self.num_frames, self.num_fft_bins],
+                                 np.float)
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
@@ -313,7 +325,8 @@ class Spectrogram(object):
             # only shift and perform complex DFT if needed
             if phase or lgd:
                 # circular shift the signal (needed for correct phase)
-                signal = np.concatenate(signal[self.num_fft_bins:], signal[:self.num_fft_bins])
+                signal = np.concatenate(signal[self.num_fft_bins:],
+                                        signal[:self.num_fft_bins])
             # perform DFT
             dft = fft.fft(signal, self.fft_size)[:self.num_fft_bins]
 
@@ -385,7 +398,11 @@ class Spectrogram(object):
 
     @property
     def num_diff_frames(self):
-        """Number of frames used for difference calculation of the magnitude spectrogram."""
+        """
+        Number of frames used for difference calculation of the magnitude
+        spectrogram.
+
+        """
         return self._diff_frames
 
     @property
@@ -395,8 +412,9 @@ class Spectrogram(object):
             # init array
             self._diff = np.zeros_like(self.spec)
             # calculate the diff
-            self._diff[self.num_diff_frames:] = self.spec[self.num_diff_frames:] - self.spec[:-self.num_diff_frames]
-            # TODO: make the filling of the first diff_frames frames work properly
+            df = self.num_diff_frames
+            self._diff[df:] = self.spec[df:] - self.spec[:-df]
+            # TODO: make the filling of the first diff_frames work properly
         # return diff
         return self._diff
 
@@ -438,9 +456,9 @@ class Spectrogram(object):
             if self._phase is not None:
                 # FIXME: remove duplicate code
                 # unwrap phase over frequency axis
-                unwrapped_phase = np.unwrap(self._phase, axis=1)
+                unwrapped = np.unwrap(self._phase, axis=1)
                 # local group delay is the derivative over frequency
-                self._lgd[:, :-1] = unwrapped_phase[:, -1] - unwrapped_phase[:, 1:]
+                self._lgd[:, :-1] = unwrapped[:, -1] - unwrapped[:, 1:]
             else:
                 # compute the local group delay
                 self.compute_stft(lgd=True)
@@ -485,7 +503,7 @@ class FilteredSpectrogram(Spectrogram):
         :param filterbank: filterbank for dimensionality reduction
 
         If no filterbank is given, one with the following parameters is created
-        automatically.
+        automatically:
 
         :param bands_per_octave: number of filter bands per octave [default=12]
         :param fmin:             the minimum frequency [Hz, default=30]
@@ -494,8 +512,8 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz, default=440]
 
         """
-        from filterbank import LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,\
-            FMAX, NORM_FILTERS
+        from filterbank import (LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,
+                                FMAX, NORM_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
@@ -506,8 +524,9 @@ class FilteredSpectrogram(Spectrogram):
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
+            sample_rate = self.frames.signal.sample_rate
             fb = LogarithmicFilterBank(fft_bins=self.num_fft_bins,
-                                       sample_rate=self.frames.signal.sample_rate,
+                                       sample_rate=sample_rate,
                                        bands_per_octave=bands_per_octave,
                                        fmin=fmin, fmax=fmax, norm=norm_filters)
         # save the filterbank, so it gets used for computation
@@ -521,8 +540,8 @@ FS = FiltSpec
 class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
     """
     LogarithmicFilteredSpectrogram is a subclass of FilteredSpectrogram which
-    filters the magnitude spectrogram based on the given filterbank and converts
-    it to a logarithmic (magnitude) scale.
+    filters the magnitude spectrogram based on the given filterbank and
+    converts it to a logarithmic (magnitude) scale.
 
     """
     def __init__(self, *args, **kwargs):
@@ -532,8 +551,10 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         The magnitudes of the filtered spectrogram are then converted to a
         logarithmic scale.
 
-        :param mul: multiply the magnitude spectrogram with given value [default=1]
-        :param add: add the given value to the magnitude spectrogram [default=1]
+        :param mul: multiply the magnitude spectrogram with given value
+                    [default=1]
+        :param add: add the given value to the magnitude spectrogram
+                    [default=1]
 
         """
         # fetch the arguments for logarithmic magnitude (or set defaults)
