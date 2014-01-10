@@ -42,11 +42,11 @@ def parser():
     p.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
     # add onset detection related options to the existing parser
-    madmom.utils.params.add_audio_arguments(p, fps=100, norm=False,
+    madmom.utils.params.audio(p, fps=100, norm=False,
                                             window=None)
-    madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=12)
-    madmom.utils.params.add_log_arguments(p, log=True, mul=5, add=1)
+    madmom.utils.params.spec(p)
+    madmom.utils.params.filtering(p, bands=12)
+    madmom.utils.params.log(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     if args.specs is None:

@@ -46,15 +46,15 @@ def parser():
     given input (file) and writes them to the output (file).
     ''')
     # mirex options
-    madmom.utils.params.add_mirex_io(p)
+    madmom.utils.params.mirex(p)
     # add other argument groups
     p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
                    help='use these pre-trained neural networks '
                         '(multiple files can be given, one per argument)')
-    madmom.utils.params.add_audio_arguments(p, fps=None, norm=False,
-                                            online=None, window=None)
-    madmom.utils.params.add_beat_arguments(p)
-    madmom.utils.params.add_io_arguments(p)
+    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
+                              window=None)
+    madmom.utils.params.beat(p)
+    madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')
     # parse arguments

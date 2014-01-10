@@ -731,10 +731,7 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (add_audio_arguments, add_spec_arguments,
-                                add_filter_arguments, add_log_arguments,
-                                add_spectral_odf_arguments,
-                                add_onset_arguments)
+    from ..utils.params import audio, spec, filtering, log, spectral_odf, onset
 
     # define parser
     p = argparse.ArgumentParser(
@@ -756,17 +753,17 @@ def parser():
     p.add_argument('--ext', action='store', type=str, default='txt',
                    help='extension for detections [default=txt]')
     # add other argument groups
-    add_audio_arguments(p, online=False)
-    add_spec_arguments(p)
-    add_filter_arguments(p, filtering=True)
-    add_log_arguments(p, log=True)
-    add_spectral_odf_arguments(p)
-    onset = add_onset_arguments(p, io=True)
+    audio(p, online=False)
+    spec(p)
+    filtering(p, filtering=True)
+    log(p, log=True)
+    spectral_odf(p)
+    o = onset(p, io=True)
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
                'cd', 'rcd']
-    onset.add_argument('-o', dest='odf', default='superflux',
-                       help='use this onset detection function %s' % methods)
+    o.add_argument('-o', dest='odf', default='superflux',
+                   help='use this onset detection function %s' % methods)
     # parse arguments
     args = p.parse_args()
     # print arguments

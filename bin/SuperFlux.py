@@ -31,15 +31,15 @@ def parser():
 
     ''')
     # general options
-    madmom.utils.params.add_mirex_io(p)
+    madmom.utils.params.mirex(p)
     # add other argument groups
-    madmom.utils.params.add_audio_arguments(p, fps=200, online=False)
-    madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=24, norm_filters=False)
-    madmom.utils.params.add_log_arguments(p, mul=1, add=1)
-    madmom.utils.params.add_spectral_odf_arguments(p)
-    madmom.utils.params.add_onset_arguments(p)
-    madmom.utils.params.add_io_arguments(p)
+    madmom.utils.params.audio(p, fps=200, online=False)
+    madmom.utils.params.spec(p)
+    madmom.utils.params.filtering(p, bands=24, norm_filters=False)
+    madmom.utils.params.log(p, mul=1, add=1)
+    madmom.utils.params.spectral_odf(p)
+    madmom.utils.params.onset(p)
+    madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2013')
     # parse arguments

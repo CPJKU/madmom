@@ -561,9 +561,7 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (add_audio_arguments, add_filter_arguments,
-                                add_log_arguments, add_spectral_odf_arguments,
-                                add_beat_arguments)
+    from ..utils.params import audio, spec, filtering, log, spectral_odf, beat
 
     # define parser
     p = argparse.ArgumentParser(
@@ -587,11 +585,12 @@ def parser():
     p.add_argument('--ext', action='store', type=str, default='txt',
                    help='extension for detections [default=txt]')
     # add other argument groups
-    add_audio_arguments(p, fps=100)
-    add_filter_arguments(p, filtering=True)
-    add_log_arguments(p, log=True)
-    add_spectral_odf_arguments(p)
-    add_beat_arguments(p, io=True)
+    audio(p, fps=100)
+    spec(p)
+    filtering(p, filtering=True)
+    log(p, log=True)
+    spectral_odf(p)
+    beat(p)
     # parse arguments
     args = p.parse_args()
     # print arguments

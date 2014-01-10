@@ -151,7 +151,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     return call
 
 
-## FIXME: remove this class completely or make it fit into the new inheritance scheme
+## FIXME: remove this class or make it fit into the new inheritance scheme
 #class FFmpegFile(FramedAudio):
 #    """
 #    FFmpegFile takes an audio file, decodes it to memory and provides it in
