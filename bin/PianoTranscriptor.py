@@ -47,7 +47,7 @@ def parser():
                    help='use these pre-trained neural networks '
                         '(multiple files can be given, one per argument)')
     madmom.utils.params.audio(p, norm=False)
-    madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
+    madmom.utils.params.note(p, threshold=0.35, combine=0.03, smooth=0.07,
                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
                              post_max=1. / FPS)
     madmom.utils.params.io(p)
@@ -96,7 +96,6 @@ def main():
                         bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
                         norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
-        #np.save('/Users/sb/data/tmp/tmp', data)
         # test the data against all saved neural nets
         act = None
         for nn_file in args.nn_files:
@@ -111,17 +110,17 @@ def main():
         # create an Note object with the activations
         n = NoteTranscription(act, args.fps, args.online)
 
-    # save note activations or detect beats
+    # save note activations or detect the notes
     if args.save:
         # save activations
         n.save_activations(args.output, sep=args.sep)
     else:
-        # track the beats
+        # detect the notes
         n.detect(args.threshold, combine=args.combine, delay=args.delay,
                  smooth=args.smooth, pre_avg=args.pre_avg,
                  post_avg=args.post_avg, pre_max=args.pre_max,
                  post_max=args.post_max)
-        # write the beats to output
+        # write the notes to output
         n.write(args.output)
 
 if __name__ == '__main__':

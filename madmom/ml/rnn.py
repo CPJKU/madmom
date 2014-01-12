@@ -77,6 +77,14 @@ class Layer(object):
         raise NotImplementedError("To be implemented by subclass")
 
     @property
+    def input_size(self):
+        """
+        Input size of the layer.
+
+        """
+        raise NotImplementedError("To be implemented by subclass")
+
+    @property
     def output_size(self):
         """
         Output size of the layer.
@@ -117,6 +125,16 @@ class BidirectionalLayer(Layer):
         return np.hstack((bwd[::-1], fwd))
 
     @property
+    def input_size(self):
+        """
+        Input size of the layer.
+
+        """
+        # the input sizes of the forward and backward layer must match
+        assert self.fwd_layer.input_size == self.bwd_layer.input_size
+        return self.fwd_layer.input_size
+
+    @property
     def output_size(self):
         """
         Output size of the layer.
@@ -153,6 +171,14 @@ class FeedForwardLayer(Layer):
         """
         # weight the data, add bias and apply transfer function
         return np.dot(data, self.weights) + self.bias
+
+    @property
+    def input_size(self):
+        """
+        Output size of the layer.
+
+        """
+        return self.weights.shape[0]
 
     @property
     def output_size(self):
@@ -409,7 +435,7 @@ class RecurrentNeuralNetwork(object):
             # return a (bidirectional) layer
             if bwd_layer is not None:
                 # construct a bidirectional layer with the forward and backward
-                # layer and return it
+                # layers and return it
                 return BidirectionalLayer(fwd_layer, bwd_layer)
             else:
                 # just return the forward layer
