@@ -109,7 +109,7 @@ class BidirectionalLayer(Layer):
         :returns:    activations for this data
 
         """
-        # activate in fwd direction
+        # activate in forward direction
         fwd = self.fwd_layer.activate(data)
         # also activate with reverse input
         bwd = self.bwd_layer.activate(data[::-1])
@@ -152,9 +152,7 @@ class FeedForwardLayer(Layer):
 
         """
         # weight the data, add bias and apply transfer function
-        out = self.transfer_fn(np.dot(data, self.weights) + self.bias)
-        # return
-        return out
+        return np.dot(data, self.weights) + self.bias
 
     @property
     def output_size(self):
@@ -394,15 +392,15 @@ class RecurrentNeuralNetwork(object):
             # first check if we need to create a bidirectional layer
             bwd_layer = None
             if '%s_type' % REVERSE in params.keys():
-                # pop the params needed for the reverse (backward) layer
+                # pop the parameters needed for the reverse (backward) layer
                 bwd_type = params.pop('%s_type' % REVERSE)
-                bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                  for k in params.keys() if
+                bwd_params = dict((k.split('_', 1)[1], params.pop(k)) \
+                                  for k in params.keys() if \
                                   k.startswith('%s_' % REVERSE))
                 # construct the layer
                 bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)
 
-            # pop the params needed for the normal (forward) layer
+            # pop the parameters needed for the normal (forward) layer
             fwd_type = params.pop('type')
             fwd_params = params
             # construct the layer
