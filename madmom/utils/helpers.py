@@ -287,7 +287,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     strided and being flattened or because end is set to 'pad' or 'wrap').
 
     Example:
-    >>> segment_axis(arange(10), 4, 2)
+    >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],
            [4, 5, 6, 7],
