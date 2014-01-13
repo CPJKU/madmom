@@ -208,8 +208,8 @@ class NoteTranscription(object):
         """
         Write the detected notes to a file.
 
-        :param filename: output file name or file handle
-        :param sep:      separator for the fields [default='\t']
+        :param output: output file name or file handle
+        :param sep:    separator for the fields [default='\t']
 
         Note: detect() method must be called first.
 
@@ -237,7 +237,7 @@ class NoteTranscription(object):
             # read in the events, one per line
             # 1st column is the event's time, the rest is ignored
             return np.fromiter((float(line.split(None, 1)[0]) for line in fid
-                                if not line.startswith('#')), dtype=np.double)
+                                if not line.startswith('#')), dtype=np.float)
         finally:
             # close file if needed
             if own_fid:
