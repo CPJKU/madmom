@@ -186,7 +186,7 @@ class Spectrogram(object):
             self._window = window
         else:
             # other types are not supported
-            raise TypeError("Invalid _window type.")
+            raise TypeError("Invalid window type.")
         # normalize the window if needed
         if norm_window:
             self._window /= np.sum(self._window)

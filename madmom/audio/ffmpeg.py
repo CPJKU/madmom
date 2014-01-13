@@ -15,7 +15,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, maxlen=None, outfile=None, tmpdir=None,
                    tmpsuffix=None):
     """
-    Decodes the given audio file, optionally downmixes it to mono and
+    Decodes the given audio file, optionally down-mixes it to mono and
     writes it to another file as a sequence of samples.
     Returns the file name of the output file.
 
@@ -23,7 +23,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
     :param fmt: The format of samples:
         'f32le' for float32, little-endian.
         's16le' for signed 16-bit int, little-endian.
-    :param sample_rate: The sample rate to resample to.
+    :param sample_rate: The sample rate to re-sample to.
     :param num_channels: The number of channels to reduce to.
     :param skip: Number of seconds to skip at beginning of file.
     :param maxlen: Maximum number of seconds to decode.
@@ -61,7 +61,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
 def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
                      skip=None, maxlen=None):
     """
-    Decodes the given audio file, downmixes it to mono and
+    Decodes the given audio file, down-mixes it to mono and
     returns it as a binary string of a sequence of samples.
 
     :param soundfile: The sound file to decode
