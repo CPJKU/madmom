@@ -52,7 +52,8 @@ def parser():
                              post_max=1. / FPS)
     madmom.utils.params.io(p)
     # version
-    p.add_argument('--version', action='version', version='BeatTracker.2013')
+    p.add_argument('--version', action='version',
+                   version='PianoTranscriptor.2013')
     # parse arguments
     args = p.parse_args()
     # set some defaults

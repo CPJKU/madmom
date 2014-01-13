@@ -170,7 +170,7 @@ class FeedForwardLayer(Layer):
 
         """
         # weight the data, add bias and apply transfer function
-        return np.dot(data, self.weights) + self.bias
+        return self.transfer_fn(np.dot(data, self.weights) + self.bias)
 
     @property
     def input_size(self):
