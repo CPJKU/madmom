@@ -18,26 +18,28 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in
-    the given input file and writes them to the output file with the SuperFlux
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all onsets in the
+    given input file and writes them to the output file with the SuperFlux
     algorithm introduced in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
-    in Proceedings of the 16th International Conference on Digital Audio Effects
+    Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx-13), Maynooth, Ireland, September 2013
 
     ''')
     # general options
-    madmom.utils.params.add_mirex_io(p)
+    madmom.utils.params.mirex(p)
     # add other argument groups
-    madmom.utils.params.add_audio_arguments(p, fps=200, online=False)
-    madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=24, norm_filter=False)
-    madmom.utils.params.add_log_arguments(p, mul=1, add=1)
-    madmom.utils.params.add_spectral_odf_arguments(p)
-    madmom.utils.params.add_onset_arguments(p, io=True)
+    madmom.utils.params.audio(p, fps=200, online=False)
+    madmom.utils.params.spec(p)
+    madmom.utils.params.filtering(p, bands=24, norm_filters=False)
+    madmom.utils.params.log(p, mul=1, add=1)
+    madmom.utils.params.spectral_odf(p)
+    madmom.utils.params.onset(p)
+    madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2013')
     # parse arguments
@@ -76,9 +78,11 @@ def main():
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
-        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin, fps=args.fps,
-                        mul=args.mul, add=args.add, norm_filter=args.norm_filter)
-        # create an SpectralOnsetDetection object and perform detection function on the object
+        s = LogFiltSpec(w, frame_size=args.window, origin=args.origin,
+                        fps=args.fps, mul=args.mul, add=args.add,
+                        norm_filters=args.norm_filters)
+        # create an SpectralOnsetDetection object
+        # and perform detection function on the object
         act = SpectralOnsetDetection(s).superflux()
         # create an Onset object with the activations
         o = Onset(act, args.fps, args.online)
@@ -89,8 +93,10 @@ def main():
         o.save_activations(args.output, sep=args.sep)
     else:
         # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                 pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+        o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                 smooth=args.smooth, pre_avg=args.pre_avg,
+                 post_avg=args.post_avg, pre_max=args.pre_max,
+                 post_max=args.post_max)
         # write the onsets to output
         o.write(args.output)
 

@@ -21,24 +21,32 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    This module creates .nc files or tests .save files used / produced by RNNLIB.
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    This module creates .nc files to be used by RNNLIB.
 
     """)
     # general options
     p.add_argument('files', nargs='+', help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
-    p.add_argument('-o', dest='output', default=None, help='output directory')
-    p.add_argument('-p', dest='path', default=None, help='path for audio files')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
+    p.add_argument('-o', dest='output', default=None,
+                   help='output directory')
+    p.add_argument('-p', dest='path', default=None,
+                   help='path for audio files')
     annotations = ['.onsets', '.beats', '.notes']
-    p.add_argument('-a', dest='annotations', default=annotations, help='annotations to use [default=%s]' % annotations)
-    p.add_argument('--spec', dest='specs', default=None, type=int, action='append', help='spectrogram sizes to use')
-    p.add_argument('--split', default=None, type=float, help='split files every N seconds')
+    p.add_argument('-a', dest='annotations', default=annotations,
+                   help='annotations to use [default=%s]' % annotations)
+    p.add_argument('--spec', dest='specs', default=None, type=int,
+                   action='append', help='spectrogram size(s) to use')
+    p.add_argument('--split', default=None, type=float,
+                   help='split files every N seconds')
     # add onset detection related options to the existing parser
-    madmom.utils.params.add_audio_arguments(p, fps=100, norm=False, window=None)
-    madmom.utils.params.add_spec_arguments(p)
-    madmom.utils.params.add_filter_arguments(p, bands=12)
-    madmom.utils.params.add_log_arguments(p, log=True, mul=5, add=1)
+    madmom.utils.params.audio(p, fps=100, norm=False,
+                                            window=None)
+    madmom.utils.params.spec(p)
+    madmom.utils.params.filtering(p, bands=12)
+    madmom.utils.params.log(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     if args.specs is None:
@@ -58,7 +66,8 @@ def main():
     import os
     from madmom.audio.wav import Wav
     from madmom.audio.spectrogram import LogFiltSpec
-    from madmom.utils.helpers import files, match_file, load_events, quantize_events
+    from madmom.utils.helpers import (files, match_file, load_events,
+                                      quantize_events)
 
     # treat all files as annotation files and try to create .nc files
     for f in args.files:
@@ -87,9 +96,10 @@ def main():
         # spec
         nc_data = None
         for spec in args.specs:
-            s = LogFiltSpec(w, frame_size=spec, fps=args.fps, bands_per_octave=args.bands,
-                            fmin=args.fmin, fmax=args.fmax, mul=args.mul, add=args.add,
-                            ratio=args.ratio, norm_filter=args.norm_filter)
+            s = LogFiltSpec(w, frame_size=spec, fps=args.fps,
+                            bands_per_octave=args.bands, fmin=args.fmin,
+                            fmax=args.fmax, mul=args.mul, add=args.add,
+                            ratio=args.ratio, norm_filters=args.norm_filters)
             if nc_data is None:
                 nc_data = np.hstack((s.spec, s.pos_diff))
             else:
@@ -112,7 +122,10 @@ def main():
             targets = load_events(f)
             targets = quantize_events(targets, args.fps, length=s.num_frames)
         # tags
-        tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" % (f, args.fps, [1024, 2048, 4096], args.bands, args.fmin, args.fmax, args.norm_filter, args.log, args.mul, args.add, args.ratio)
+        tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s |" \
+               "norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" %\
+               (f, args.fps, args.specs, args.bands, args.fmin, args.fmax,
+                args.norm_filters, args.log, args.mul, args.add, args.ratio)
         # .nc file name
         if args.output:
             nc_file = "%s/%s" % (args.output, f)
@@ -136,8 +149,10 @@ def main():
                 stop = start + length
                 if stop > s.num_frames:
                     stop = s.num_frames
-                part_tags = "%s | part=%s | start=%s | stop=%s" % (tags, i, start, stop - 1)
-                create_nc_file(nc_part_file, nc_data[start:stop], targets[start:stop], part_tags)
+                part_tags = "%s | part=%s | start=%s | stop=%s" %\
+                            (tags, i, start, stop - 1)
+                create_nc_file(nc_part_file, nc_data[start:stop],
+                               targets[start:stop], part_tags)
 
 if __name__ == '__main__':
     main()

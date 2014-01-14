@@ -27,7 +27,7 @@ ADD = 1
 FMIN = 27.5
 FMAX = 18000
 RATIO = 0.25
-NORM_FILTER = True
+NORM_FILTERS = True
 
 
 def parser():
@@ -40,16 +40,22 @@ def parser():
     import madmom.utils.params
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in
-    the given input (file) and writes them to the output (file).
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all onsets in the
+    given input (file) and writes them to the output (file).
     ''')
     # mirex options
-    madmom.utils.params.add_mirex_io(p)
+    madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES, help='use these pre-trained neural networks (one per argument)')
-    madmom.utils.params.add_audio_arguments(p, norm=False)
-    madmom.utils.params.add_onset_arguments(p, io=True, threshold=0.35, combine=0.03, smooth=0.07, pre_avg=0, post_avg=0, pre_max=1. / FPS, post_max=1. / FPS)
+    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
+                   help='use these pre-trained neural networks '
+                        '(multiple files can be given, one per argument)')
+    madmom.utils.params.audio(p, norm=False)
+    madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
+                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
+                              post_max=1. / FPS)
+    madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -77,20 +83,23 @@ def main():
     else:
         # exit if no NN files are given
         if not args.nn_files:
-            raise SystemExit('no NN models given')
+            raise SystemExit('no NN model(s) given')
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
-        s = LogFiltSpec(w, frame_size=1024, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=1024, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((s.spec, s.pos_diff))
         # 2nd spec
-        s = LogFiltSpec(w, frame_size=2048, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=2048, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # 3rd spec
-        s = LogFiltSpec(w, frame_size=4096, fps=FPS, bands_per_octave=BANDS_PER_OCTAVE,
-                        mul=MUL, add=ADD, norm_filter=NORM_FILTER)
+        s = LogFiltSpec(w, frame_size=4096, fps=FPS,
+                        bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                        norm_filters=NORM_FILTERS)
         data = np.hstack((data, s.spec, s.pos_diff))
         # test the data against all saved neural nets
         act = None
@@ -111,8 +120,10 @@ def main():
         o.save_activations(args.output, sep=args.sep)
     else:
         # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                 pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+        o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                 smooth=args.smooth, pre_avg=args.pre_avg,
+                 post_avg=args.post_avg, pre_max=args.pre_max,
+                 post_max=args.post_max)
         # write the onsets to output
         o.write(args.output)
 

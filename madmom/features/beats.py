@@ -11,21 +11,23 @@ import sys
 import numpy as np
 
 
-# TODO: implement some simple algorithms
+## TODO: implement some simple algorithms
 #class SpectralBeatTracking(object):
 #    """
-#    The SpectralBeatTracking class implements some common beat tracking algorithms.
+#    The SpectralBeatTracking class implements some common beat tracking
+#    algorithms.
 #
 #    """
 #    def __init__(self, spectrogram):
 #        """
 #        Creates a new SpectralBeatTracking object instance.
 #
-#        :param spectrogram: the spectrogram object on which the detections functions operate
+#        :param spectrogram: the spectrogram object on which the detections
+#                            functions operate
 #
 #        """
 #        # import
-#        from cp.audio.spectrogram import Spectrogram
+#        from ..audio.spectrogram import Spectrogram
 #        # check spectrogram type
 #        if isinstance(spectrogram, Spectrogram):
 #            # already the right format
@@ -44,57 +46,23 @@ import numpy as np
 #        """Multiple agents based tracker."""
 #        # TODO: include code
 #        raise NotImplementedError
-#
-#
-#class NNBeatTracking(object):
-#    """
-#    The NNBeatTracking class implements neural network based beat tracking algorithms.
-#
-#    """
-#    def __init__(self, audio, nn_files):
-#        """
-#        Creates a new NNBeatTracking object instance.
-#
-#        :param audio:    file name or Wav or Spectrogram object
-#        :param nn_files: pre-trained neural networks
-#
-#        """
-#        # import
-#        from cp.audio.wav import Wav
-#        from cp.audio.spectrogram import Spectrogram
-#        # check wav type
-#        if isinstance(audio, Wav):
-#            # already the right format
-#            self.w = audio
-#        elif isinstance(audio, Spectrogram):
-#            # spectrogram given, extract the wav object
-#            self.w = audio.audio
-#        else:
-#            # assume a file name, try to instantiate a Wav object
-#            self.w = Wav(audio)
-#        # TODO: include code
-#        self.nn_files = nn_files
-#        raise NotImplementedError
-#
-#    # beat tracking algorithms
-#    def beat_detector(self):
-#        # TODO: include code
-#        raise NotImplementedError
-#
-#    def beat_tracker(self):
-#        # TODO: include code
-#        raise NotImplementedError
+
 
 # interval (tempo) detection
-def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1, max_tau=None):
+def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1,
+                             max_tau=None):
     """
     Extract the dominant interval of the given activation function.
 
     :param activations: the onset activation function
-    :param threshold:   threshold for activation function before auto-correlation [default=0]
-    :param smooth:      smooth the activation function with the kernel [default=None]
-    :param min_tau:     minimal delta for correlation function [frames, default=1]
-    :param max_tau:     maximal delta for correlation function [frames, default=length of activation function]
+    :param threshold:   threshold for activation function before
+                        auto-correlation [default=0]
+    :param smooth:      smooth the activation function with the kernel
+                        [default=None]
+    :param min_tau:     minimal delta for correlation function
+                        [frames, default=1]
+    :param max_tau:     maximal delta for correlation function
+                        [frames, default=length of activation function]
 
     """
     # smooth activations
@@ -127,15 +95,20 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1, m
     return interval
 
 
-def interval_histogram(activations, threshold=0, smooth=None, min_tau=1, max_tau=None):
+def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
+                       max_tau=None):
     """
     Compute the interval histogram of the given activation function.
 
     :param activations: the onset activation function
-    :param threshold:   threshold for activation function before auto-correlation [default=0]
-    :param smooth:      smooth the activation function with the kernel [default=None]
-    :param min_tau:     minimal delta for correlation function [frames, default=1]
-    :param max_tau:     maximal delta for correlation function [frames, default=length of activation function]
+    :param threshold:   threshold for activation function before
+                        auto-correlation [default=0]
+    :param smooth:      smooth the activation function with the kernel
+                        [default=None]
+    :param min_tau:     minimal delta for correlation function
+                        [frames, default=1]
+    :param max_tau:     maximal delta for correlation function
+                        [frames, default=length of activation function]
     :returns:           histogram
 
     """
@@ -242,7 +215,7 @@ def detect_tempo(histogram, fps, smooth=None):
     # determine their relative strength
     try:
         weight = weight1 / (weight1 + weight2)
-    except:
+    except ZeroDivisionError:
         # just make sure we have some values
         weight = 1.0
     # return the 2 dominant tempi and their relative weight
@@ -255,8 +228,8 @@ def detect_beats(activations, interval, look_aside=0.2):
 
     :param activations: array with beat activations
     :param interval:    look for the next beat each N frames
-    :param look_aside:  look this fraction of the interval to the side to detect
-                        the beats [default=False]
+    :param look_aside:  look this fraction of the interval to the side to
+                        detect the beats [default=False]
 
     Note: A Hamming window of 2*look_aside*interval is apllied for smoothing.
 
@@ -271,6 +244,13 @@ def detect_beats(activations, interval, look_aside=0.2):
     for i in range(interval):
         # TODO: threads?
         def recursive(pos):
+            """
+            Recursively detect the next beat.
+
+            :param pos: start at this position
+            :return:    the next beat position
+
+            """
             # detect the nearest beat around the actual position
             start = pos - frames_look_aside
             end = pos + frames_look_aside
@@ -279,7 +259,8 @@ def detect_beats(activations, interval, look_aside=0.2):
                 act = np.append(np.zeros(-start), activations[0:end])
             elif end > len(activations):
                 # append zeros accordingly
-                act = np.append(activations[start:], np.zeros(end - len(activations)))
+                zeros = np.zeros(end - len(activations))
+                act = np.append(activations[start:], zeros)
             else:
                 act = activations[start:end]
             # apply a filtering window to prefer beats closer to the centre
@@ -326,11 +307,12 @@ class Beat(object):
     def __init__(self, activations, fps, online=False, sep=''):
         """
         Creates a new Onset object instance with the given activations of the
-        ODF (OnsetDetectionFunction). The activations can be read in from a file.
+        ODF (OnsetDetectionFunction). The activations can be read in from file.
 
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
-        :param online:      work in online mode (i.e. use only past information) [default=False]
+        :param online:      work in online mode (i.e. use only past
+                            information) [default=False]
         :param sep:         separator if activations are read from file
 
         """
@@ -352,24 +334,27 @@ class Beat(object):
             # read in the activations from a file
             self.load_activations(activations, sep)
 
-    def detect(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE):
+    def detect(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE):
         """
         Detect the beats with a simple auto-correlation method.
 
         :param threshold:  threshold for peak-picking [default=0]
         :param delay:      report onsets N seconds delayed [default=0]
-        :param smooth:     smooth the activation function over N seconds [default=0.9]
+        :param smooth:     smooth the activation function over N seconds
+                           [default=0.9]
         :param min_bpm:    minimum tempo used for beat tracking [default=60]
         :param max_bpm:    maximum tempo used for beat tracking [default=240]
-        :param look_aside: look this fraction of a beat interval to the side [default=0.2]
+        :param look_aside: look this fraction of a beat interval to the side
+                           [default=0.2]
 
         First the global tempo is estimated and then the beats are aligned
         according to:
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         by Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio Effects
-        (DAFx-11), Paris, France, September 2011
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx-11), Paris, France, September 2011
 
         """
         # convert timing information to frames and set default values
@@ -378,7 +363,8 @@ class Beat(object):
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         # detect the dominant interval
-        interval = detect_dominant_interval(self.activations, threshold, smooth, min_tau, max_tau)
+        interval = detect_dominant_interval(self.activations, threshold,
+                                            smooth, min_tau, max_tau)
         # detect beats based on this interval
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
@@ -389,23 +375,33 @@ class Beat(object):
         # always use the first detection and all others if none was reported
         # within the duration equivalent to max_bpm
         if detections.size > 1:
-            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > (60. / max_bpm)])
+            # FIXME: check if this is needed!
+            # filter all detections which occur within one beat interval
+            combined_detections = detections[1:][np.diff(detections) >
+                                                 (60. / max_bpm)]
+            # add them after the first detection
+            self.detections = np.append(detections[0], combined_detections)
         else:
             self.detections = detections
         # also return the detections
         return self.detections
 
-    def track(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
+    def track(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
+              min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
+              look_ahead=LOOK_AHEAD):
         """
         Track the beats with a simple auto-correlation method.
 
         :param threshold:  threshold for peak-picking [default=0]
         :param delay:      report onsets N seconds delayed [default=0]
-        :param smooth:     smooth the activation function over N seconds [default=0.9]
+        :param smooth:     smooth the activation function over N seconds
+                           [default=0.9]
         :param min_bpm:    minimum tempo used for beat tracking [default=60]
         :param max_bpm:    maximum tempo used for beat tracking [default=240]
-        :param look_aside: look this fraction of a beat interval to the side [default=0.2]
-        :param look_ahead: look N seconds ahead (and back) to determine the tempo [default=4]
+        :param look_aside: look this fraction of a beat interval to the side
+                           [default=0.2]
+        :param look_ahead: look N seconds ahead (and back) to determine the
+                           tempo [default=4]
 
         First local tempo (in a range +- look_ahead seconds around the actual
         position) is estimated and then the next beat is tracked accordingly.
@@ -413,8 +409,8 @@ class Beat(object):
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         by Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio Effects
-        (DAFx-11), Paris, France, September 2011
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx-11), Paris, France, September 2011
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
@@ -435,11 +431,13 @@ class Beat(object):
                 act = np.append(np.zeros(-start), self.activations[0:end])
             elif end > len(self.activations):
                 # append zeros accordingly
-                act = np.append(self.activations[start:], np.zeros(end - len(self.activations)))
+                zeros = np.zeros(end - len(self.activations))
+                act = np.append(self.activations[start:], zeros)
             else:
                 act = self.activations[start:end]
             # detect the dominant interval
-            interval = detect_dominant_interval(act, threshold, smooth, min_tau, max_tau)
+            interval = detect_dominant_interval(act, threshold, smooth,
+                                                min_tau, max_tau)
             # add the offset (i.e. the new detected start position)
             positions = np.array(detect_beats(act, interval, look_aside))
             # correct the beat positions
@@ -458,23 +456,31 @@ class Beat(object):
         # always use the first detection and all others if none was reported
         # within the duration equivalent to max_bpm
         if detections.size > 1:
-            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > 60. / max_bpm])
+            # FIXME: check if this is needed!
+            # filter all detections which occur within one beat interval
+            combined_detections = detections[1:][np.diff(detections) >
+                                                 (60. / max_bpm)]
+            # add them after the first detection
+            self.detections = np.append(detections[0], combined_detections)
         else:
             self.detections = detections
         # also return the detections
         return self.detections
 
     # TODO: make an extra Tempo class!
-    def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM, mirex=False):
+    def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM,
+              max_bpm=MAX_BPM, mirex=False):
         """
         Detect the tempo on basis of the beat activation function.
 
         :param threshold: threshold for peak-picking [default=0]
-        :param smooth:    smooth the activation function over N seconds [default=0.9]
+        :param smooth:    smooth the activation function over N seconds
+                          [default=0.9]
         :param min_bpm:   minimum tempo used for beat tracking [default=60]
         :param max_bpm:   maximum tempo used for beat tracking [default=240]
         :param mirex:     always output the lower tempo first [default=False]
-        :returns:         a tuple of the two most dominant tempi with a weighting
+        :returns:         tuple with the two most dominant tempi and the
+                          relative weight of them
 
         """
         # convert the arguments to frames
@@ -482,7 +488,8 @@ class Beat(object):
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         # generate a histogram of beat intervals
-        hist = interval_histogram(self.activations, threshold, smooth=smooth, min_tau=min_tau, max_tau=max_tau)
+        hist = interval_histogram(self.activations, threshold, smooth=smooth,
+                                  min_tau=min_tau, max_tau=max_tau)
         t1, t2, weight = detect_tempo(hist, self.fps, smooth=None)
         # for MIREX, the lower tempo must be given first
         if mirex and t1 > t2:
@@ -512,23 +519,6 @@ class Beat(object):
         # TODO: put this (and the same in the Onset class) to an Event class
         from ..utils.helpers import load_events
         self.targets = load_events(filename)
-
-    def evaluate(self, filename=None, *args, **kwargs):
-        """
-        Evaluate the detected beats against this target file.
-
-        :param filename: target file name or file handle
-
-        """
-        if filename:
-            # load the targets
-            self.load(filename)
-        if self.targets is None:
-            # no targets given, can't evaluate
-            return None
-        # evaluate
-        from ..evaluation.beats import BeatEvaluation
-        return BeatEvaluation(self.detections, self.targets, *args, **kwargs)
 
     def save_activations(self, filename, sep=''):
         """
@@ -571,12 +561,11 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (add_audio_arguments, add_filter_arguments,
-                                add_log_arguments, add_spectral_odf_arguments,
-                                add_beat_arguments)
+    from ..utils.params import audio, spec, filtering, log, spectral_odf, beat
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters, the software detects all beats in the
     given files with the method described in:
 
@@ -587,16 +576,21 @@ def parser():
 
     """)
     # general options
-    p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
-    p.add_argument('--track', action='store_true', default=False, help='track, not detect')
-    p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
+    p.add_argument('files', metavar='files', nargs='+',
+                   help='files to be processed')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
+    p.add_argument('--track', action='store_true', default=False,
+                   help='track, not detect')
+    p.add_argument('--ext', action='store', type=str, default='txt',
+                   help='extension for detections [default=txt]')
     # add other argument groups
-    add_audio_arguments(p, fps=100)
-    add_filter_arguments(p, filtering=True)
-    add_log_arguments(p, log=True)
-    add_spectral_odf_arguments(p)
-    add_beat_arguments(p, io=True)
+    audio(p, fps=100)
+    spec(p)
+    filtering(p, filtering=True)
+    log(p, log=True)
+    spectral_odf(p)
+    beat(p)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -614,15 +608,15 @@ def main():
     import os.path
 
     from ..utils.helpers import files
-    from ..audio.wav import Wav
-    from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterBank
+#    from ..audio.wav import Wav
+#    from ..audio.spectrogram import Spectrogram
+#    from ..audio.filterbank import LogarithmicFilterBank
 
     # parse arguments
     args = parser()
 
     # init filterbank
-    filt = None
+#    fb = None
 
     # which files to process
     if args.load:
@@ -639,24 +633,27 @@ def main():
         # use the name of the file without the extension
         filename = os.path.splitext(f)[0]
 
-        # init Beat object
-        b = None
         # do the processing stuff unless the activations are loaded from file
         if args.load:
             # load the activations from file
             # FIXME: fps must be encoded in the file
             b = Beat(f, args.fps, args.online)
         else:
-            # create a Wav object
-            w = Wav(f, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
-            # create filterbank if needed
-            if args.filter:
-                # (re-)create filterbank if the sample rate of the audio changes
-                if filt is None or filt.sample_rate != w.sample_rate:
-                    filt = LogarithmicFilterBank(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
-            # create a Spectrogram object
-            s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
-            # create a SpectralBeatTracking object
+            raise NotImplementedError('only loading of beat activations '
+                                      'supported so far.')
+#            w = Wav(f, mono=True, norm=args.norm, att=args.att)
+#            if args.filter:
+#                # (re-)create filterbank if the sample rate is not the same
+#                if fb is None or fb.sample_rate != w.sample_rate:
+#                    # create filterbank if needed
+#                    fb = LogarithmicFilterBank(args.window / 2, w.sample_rate,
+#                                               args.bands, args.fmin,
+#                                               args.fmax, args.equal)
+#            # create a Spectrogram object
+#            s = Spectrogram(w, frame_size=args.window, filterbank=fb,
+#                            log=args.log, mul=args.mul, add=args.add,
+#                            ratio=args.ratio, diff_frames=args.diff_frames)
+#            # create a SpectralBeatTracking object
 #            sbdf = SpectralBeatTracking(s)
 #            # perform detection function on the object
 #            act = getattr(sbdf, args.bdf)()
@@ -680,7 +677,6 @@ def main():
             if args.verbose > 2:
                 print 'tempo:     ', 60. / np.median(np.diff(b.detections))
                 print 'tempo:     ', 60. / np.mean(np.diff(b.detections))
-#                print 'detections:', b.detections
         # continue with next file
 
 if __name__ == '__main__':

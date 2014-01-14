@@ -23,9 +23,9 @@ def load_tempo(filename):
     return np.loadtxt(filename)
 
 
-def average_tempi(tempi):
-    # implement the McKinney Paper with merging multiple annotations
-    raise NotImplementedError
+# def average_tempi(tempi):
+#     # implement the McKinney Paper with merging multiple annotations
+#     raise NotImplementedError
 
 
 # this evaluation function can evaluate multiple tempi simultaneously
@@ -36,9 +36,11 @@ def pscore(detections, targets, tolerance, strengths=None):
     :param detections: array with (multiple) tempi [bpm]
     :param targets:    array with (multiple) tempi [bpm]
     :param tolerance:  evaluation tolerance
-    :param strengths:  array with the relative strengths of the tempi [floats]
-                       If no strength is given, an even distribution is assumed.
+    :param strengths:  array with the relative strengths of the tempi
+                       [floats, default=None]
     :returns:          p-score
+
+    Note: If no relative strengths are given, an even distribution is assumed.
 
     """
     # no detections are given
@@ -82,10 +84,10 @@ class TempoEvaluation(object):
         Evaluate the given detection and target sequences.
 
         :param detections: array with detected tempi [bpm]
-        :param targets:    tuple with 2 numpy arrays (tempi, strength) [bpm, floats]
-                           The first contains all tempi, the second their relative
-                           strengths. If no strength is given, an even distribution
-                           is assumed.
+        :param targets:    tuple with 2 numpy arrays (tempi, strength)
+                           [bpm, floats] The first contains all tempi,
+                           the second their relative strengths. If no strengths
+                           are given, an even distribution is assumed.
         :param tolerance:  tolerance [default=0.08]
 
         """
@@ -93,7 +95,7 @@ class TempoEvaluation(object):
         self.targets = targets
         self.tolerance = tolerance
         # score
-        self.__pscore = None
+        self._pscore = None
 
     @property
     def num(self):
@@ -103,10 +105,9 @@ class TempoEvaluation(object):
     @property
     def pscore(self):
         """P-Score."""
-        if self.__pscore is None:
-            self.__pscore = pscore(self.detections, self.targets,
-                                   self.tolerance)
-        return self.__pscore
+        if self._pscore is None:
+            self._pscore = pscore(self.detections, self.targets, self.tolerance)
+        return self._pscore
 
     def print_errors(self, tex=False):
         """
@@ -116,13 +117,12 @@ class TempoEvaluation(object):
 
         """
         # print the errors
-        print "  pscore=%.3f (target tempi: %s detections: %s tolerance: %.1f \%)" % (self.pscore, self.targets, self.detections, self.tolerance * 100)
+        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: '\
+              ' %.1f\%)' % (self.pscore, self.targets, self.detections,
+                            self.tolerance * 100)
         if tex:
             print "%i events & P-Score\\\\" % self.num
             print "tex & %.3f \\\\" % self.pscore
-
-    def __str__(self):
-        return "%s pscore=%.3f" % (self.__class__, self.pscore)
 
 
 class MeanTempoEvaluation(TempoEvaluation):
@@ -133,15 +133,15 @@ class MeanTempoEvaluation(TempoEvaluation):
 
     def __init__(self, other=None):
         """
-        MeanTempoEvaluation object can be either instantiated as an empty object
-        or by passing in a TempoEvaluation object with the scores taken from
-        that object.
+        MeanTempoEvaluation object can be either instantiated as an empty
+        object or by passing in a TempoEvaluation object with the scores taken
+        from that object.
 
         :param other: TempoEvaluation object
 
         """
         # simple scores
-        self.__pscore = np.empty(0)
+        self._pscore = np.empty(0)
         # instance can be initialized with a Evaluation object
         if isinstance(other, TempoEvaluation):
             # add this object to self
@@ -156,43 +156,49 @@ class MeanTempoEvaluation(TempoEvaluation):
 
         """
         if isinstance(other, TempoEvaluation):
-            self.__pscore = np.append(self.__pscore, other.pscore)
+            self._pscore = np.append(self._pscore, other.pscore)
         else:
             return NotImplemented
 
     @property
     def num(self):
         """Number of evaluated files."""
-        return len(self.__pscore)
+        return len(self._pscore)
 
     @property
     def pscore(self):
         """P-Score."""
-        return np.mean(self.__pscore)
+        return np.mean(self._pscore)
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
     folder with targets. Extensions can be given to filter the detection and
     target file lists.
 
     """)
     # files used for evaluation
-    p.add_argument('detections',
-                   help='file (or folder) with detections to be evaluated (files being filtered according to the -d argument)')
-    p.add_argument('targets', nargs='*',
-                   help='file (or folder) with targets (files being filtered according to the -t argument)')
+    # files used for evaluation
+    p.add_argument('files', nargs='*',
+                   help='files (or folder) to be evaluated')
     # extensions used for evaluation
     p.add_argument('-d', dest='det_ext', action='store', default='.bpm.txt',
                    help='extension of the detection files')
     p.add_argument('-t', dest='tar_ext', action='store', default='.bpm',
                    help='extension of the target files')
+    # evaluation parameter
     p.add_argument('--tolerance', dest='tolerance', action='store',
                    default=TOLERANCE, help='tolerance for tempo detection')
-    # parameters for evaluation
     p.add_argument('--tex', action='store_true',
                    help='format errors for use is .tex files')
     # verbose
@@ -208,14 +214,18 @@ def parser():
 
 
 def main():
-    """Example tempo evaluation script."""
+    """
+    Simple tempo evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments
     args = parser()
 
-    # detection files
+    # get detection and target files
     det_files = files(args.files, args.det_ext)
+    tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -228,13 +238,14 @@ def main():
         # get the detections file
         detections = load_events(det_file)
         # get the matching target files
-        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
-        if len(tar_files) == 0:
+        matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
+        # quit if any file does not have a matching target file
+        if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
         # do a mean evaluation with all matched target files
         me = MeanTempoEvaluation()
-        for tar_file in tar_files:
+        for tar_file in matches:
             # load the targets
             targets = load_events(tar_file)
             # add the Evaluation to mean evaluation

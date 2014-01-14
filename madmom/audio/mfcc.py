@@ -48,11 +48,12 @@ class MFCC(Spectrogram):
         :param norm_filters: normalize filter area to 1 [default=True]
 
         """
-        from .filterbank import MelFilterBank, MEL_BANDS, FMIN, FMAX, NORM_FILTERS
+        from .filterbank import (MelFilterBank, MEL_BANDS, FMIN, FMAX,
+                                 NORM_FILTERS)
         from .spectrogram import MUL, ADD
 
         # fetch the arguments for filterbank creation (or set defaults)
-        filterbank = kwargs.pop('filterbank', None)
+        fb = kwargs.pop('filterbank', None)
         mel_bands = kwargs.pop('mel_bands', MEL_BANDS)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
@@ -65,14 +66,17 @@ class MFCC(Spectrogram):
         # create Spectrogram object
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
-        if filterbank is None:
-            filterbank = MelFilterBank(fft_bins=self.fft_bins, sample_rate=self.audio.sample_rate, mel_bands=mel_bands, fmin=fmin, fmax=fmax, norm=norm_filters)
+        if fb is None:
+            fb = MelFilterBank(fft_bins=self.num_fft_bins,
+                               sample_rate=self.frames.signal.sample_rate,
+                               bands=mel_bands, fmin=fmin, fmax=fmax,
+                               norm=norm_filters)
 
         # set the parameters, so they get used for computation
-        self.filterbank = filterbank
-        self.log = True
-        self.mul = mul
-        self.add = add
+        self._filterbank = fb
+        self._log = True
+        self._mul = mul
+        self._add = add
 
         # MFCC matrix
         self._mfcc = None

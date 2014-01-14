@@ -11,7 +11,7 @@ This file contains basic audio input/output functionality.
 # function for automatically determining how to open audio files
 def load_audio_file(filename, sample_rate=None):
     """
-    Load the uadio data from the given file and return it as a numpy array.
+    Load the audio data from the given file and return it as a numpy array.
 
     :param filename:    name of the file or file handle
     :param sample_rate: sample rate of the signal [default=None]

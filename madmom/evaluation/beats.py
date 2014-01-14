@@ -13,10 +13,11 @@ Technical Report C4DM-TR-09-06
 Centre for Digital Music, Queen Mary University of London, 2009
 
 Please note that this is a complete re-implementation, which took some other
-design decisions. For example, the beat detections and targets are not quantized
-before being evaluated with F-measure, P-score and other metrics. Hence these
-evaluation functions DO NOT report the exact same results/scores. This approach
-was chosen, because it is simpler and produces more accurate results.
+design decisions. For example, the beat detections and targets are not
+quantized before being evaluated with F-measure, P-score and other metrics.
+Hence these evaluation functions DO NOT report the exact same results/scores.
+This approach was chosen, because it is simpler and produces more accurate
+results.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -74,9 +75,9 @@ def find_closest_intervals(detections, targets, matches=None):
     intervals = np.zeros(len(targets) + 1)
     # intervals to previous target
     intervals[1:-1] = np.diff(targets)
-    # the interval from the first target to the left is the same as to the right
+    # interval from the first target to the left is the same as to the right
     intervals[0] = intervals[1]
-    # the interval from the last target to the right is the same as to the left
+    # interval from the last target to the right is the same as to the left
     intervals[-1] = intervals[-2]
     # Note: intervals to the next target are always those at the next index
     # determine the closest targets
@@ -173,9 +174,9 @@ def cemgil(detections, targets, sigma):
         return acc
     # determine the absolute errors of the detections to the closest targets
     # Note: the original implementation searches for the closest matches of
-    # detections to given targets. Since absolute errors > a usual beat interval
-    # produce high errors (and thus in turn add negligible values to the
-    # accuracy), it is safe to swap those two.
+    # detections to given targets. Since absolute errors > a usual beat
+    # interval produce high errors (and thus in turn add negligible values to
+    # the accuracy), it is safe to swap those two.
     errors = calc_absolute_errors(detections, targets)
     # apply a Gaussian error function with the given std. dev. on the errors
     acc = np.exp(-(errors ** 2.) / (2. * (sigma ** 2.)))
@@ -230,7 +231,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     #       count a beat if it is correct only because the one before is not?
     #       Also, the original Matlab implementation does not enforce it.
     # 3) the interval must be within the phase tolerance
-    correct_interval = detections[abs(1 - (det_interval / tar_interval)) < phase_tolerance]
+    correct_interval = detections[abs(1 - (det_interval / tar_interval)) <
+                                  phase_tolerance]
     # now combine the conditions
     correct = np.intersect1d(correct, correct_interval)
     # convert on indices
@@ -316,7 +318,8 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
             continue
         # if other metrical levels achieve a higher accuracy, take these values
         # Note: do not use the cached values for the closest matches
-        c, t = cml(detections, targets_variation, tempo_tolerance, phase_tolerance)
+        c, t = cml(detections, targets_variation, tempo_tolerance,
+                   phase_tolerance)
         amlc = max(amlc, c)
         amlt = max(amlt, t)
 
@@ -363,8 +366,8 @@ def information_gain(detections, targets, bins):
     fwd_ig = calc_information_gain(fwd_histogram)
 
     # in case of only few (but correct) detections, the errors could be small
-    # thus evaluate also the targets against the detections, i.e. simulate a lot
-    # of false positive detections. Do not use the cached matches!
+    # thus evaluate also the targets against the detections, i.e. simulate a
+    # lot of false positive detections. Do not use the cached matches!
     bwd_histogram = error_histogram(targets, detections, histogram_bins)
     bwd_ig = calc_information_gain(bwd_histogram)
 
@@ -414,8 +417,8 @@ def calc_information_gain(error_histogram):
     # all bins are 0, make a uniform distribution with values != 0
     if not histogram.any():
         # Note: this is needed, otherwise a histogram with all bins = 0 would
-        # return the maximum possible information gain because the normalization
-        # in the next step would fail
+        # return the maximum possible information gain because the
+        # normalization in the next step would fail
         histogram += 1
     # normalize the histogram
     histogram /= np.sum(histogram)
@@ -451,13 +454,20 @@ class BeatEvaluation(OnsetEvaluation):
         Evaluate the given detection and target sequences.
 
         :param detections:      sequence of estimated beat times [seconds]
-        :param targets:         sequence of ground truth beat annotations [seconds]
-        :param window:          F-measure evaluation window [seconds, default=0.07]
-        :param tolerance:       P-Score tolerance of median beat interval [default=0.2]
-        :param sigma:           sigma of Gaussian window for Cemgil accuracy [default=0.04]
-        :param tempo_tolerance: tempo tolerance window for [AC]ML[ct] [default=0.175]
-        :param phase_tolerance: phase (interval) tolerance window for [AC]ML[ct] [default=0.175]
-        :param bins:            number of bins for the error histogram [default=40]
+        :param targets:         sequence of ground truth beat annotations
+                                [seconds]
+        :param window:          F-measure evaluation window
+                                [seconds, default=0.07]
+        :param tolerance:       P-Score tolerance of median beat interval
+                                [default=0.2]
+        :param sigma:           sigma of Gaussian window for Cemgil accuracy
+                                [default=0.04]
+        :param tempo_tolerance: tempo tolerance window for [AC]ML[ct]
+                                [default=0.175]
+        :param phase_tolerance: phase (interval) tolerance window for
+                                [AC]ML[ct] [default=0.175]
+        :param bins:            number of bins for the error histogram
+                                [default=40]
 
         """
         self.detections = detections
@@ -480,11 +490,6 @@ class BeatEvaluation(OnsetEvaluation):
         # information gain stuff
         self._information_gain = None
         self._error_histogram = None
-#        # cache stuff
-#        self._matches = None
-#
-#    def cache(self):
-#        self._matches = find_closest_matches(self.detections, self.targets)
 
     @property
     def num(self):
@@ -495,7 +500,8 @@ class BeatEvaluation(OnsetEvaluation):
     def pscore(self):
         """P-Score."""
         if self._pscore is None:
-            self._pscore = pscore(self.detections, self.targets, self.tolerance)
+            self._pscore = pscore(self.detections, self.targets,
+                                  self.tolerance)
         return self._pscore
 
     @property
@@ -508,7 +514,9 @@ class BeatEvaluation(OnsetEvaluation):
     def _calc_continuity(self):
         """Perform continuity evaluation."""
         # calculate scores
-        self._cmlc, self._cmlt, self._amlc, self._amlt = continuity(self.detections, self.targets, self.tempo_tolerance, self.phase_tolerance)
+        scores = continuity(self.detections, self.targets,
+                            self.tempo_tolerance, self.phase_tolerance)
+        self._cmlc, self._cmlt, self._amlc, self._amlt = scores
 
     @property
     def cmlc(self):
@@ -541,7 +549,8 @@ class BeatEvaluation(OnsetEvaluation):
     def __information_gain(self):
         """Perform continuity evaluation."""
         # calculate score and error histogram
-        self._information_gain, self._error_histogram = information_gain(self.detections, self.targets, self.bins)
+        ig_eh = information_gain(self.detections, self.targets, self.bins)
+        self._information_gain, self._error_histogram = ig_eh
 
     @property
     def information_gain(self):
@@ -571,10 +580,18 @@ class BeatEvaluation(OnsetEvaluation):
 
         """
         # report the scores always in the range 0..1, because of formatting
-        print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
+        print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: '\
+              '%.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure,
+              self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc,
+              self.amlt, self.information_gain, self.global_information_gain)
         if tex:
-            print "tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & AMLt & D & Dg \\\\"
-            print "%i file(s) & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f\\\\" % (self.num, self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc, self.amlt, self.information_gain, self.global_information_gain)
+            print 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & '\
+                  'AMLt & D & Dg \\\\'
+            print '%i file(s) & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
+                  '%.3f & %.3f & %.3f\\\\' % (self.num, self.fmeasure,
+                  self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc,
+                  self.amlt, self.information_gain,
+                  self.global_information_gain)
 
 
 class MeanBeatEvaluation(BeatEvaluation):
@@ -586,8 +603,8 @@ class MeanBeatEvaluation(BeatEvaluation):
     def __init__(self, other=None):
         """
         MeanBeatEvaluation object can be either instantiated as an empty object
-        or by passing in a BeatEvaluation object with the scores taken from that
-        object.
+        or by passing in a BeatEvaluation object with the scores taken from
+        that object.
 
         :param other: BeatEvaluation object
 
@@ -626,7 +643,8 @@ class MeanBeatEvaluation(BeatEvaluation):
             self._cmlt = np.append(self._cmlt, other.cmlt)
             self._amlc = np.append(self._amlc, other.amlc)
             self._amlt = np.append(self._amlt, other.amlt)
-            self._information_gain = np.append(self._information_gain, other.information_gain)
+            self._information_gain = np.append(self._information_gain,
+                                               other.information_gain)
             # the error histograms needs special treatment
             if self._error_histogram is None:
                 # if it is the first, just take this histogram
@@ -700,31 +718,58 @@ SKIP = 5.
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
     import argparse
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters the script evaluates pairs of files
     with the targets (.beats) and detection (.beats.txt) as simple text
     files with one beat timestamp per line.
     """)
-    p.add_argument('files', nargs='*', help='files (or folder) to be evaluated')
+    p.add_argument('files', nargs='*',
+                   help='files (or folder) to be evaluated')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt', help='extensions of the detections [default: .beats.txt]')
-    p.add_argument('-t', dest='tar_ext', action='store', default='.beats', help='extensions of the targets [default: .beats]')
+    p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt',
+                   help='extensions of the detections [default: .beats.txt]')
+    p.add_argument('-t', dest='tar_ext', action='store', default='.beats',
+                   help='extensions of the targets [default: .beats]')
     # parameters for evaluation
-    # TODO: define an extra parser, which can be used for BeatEvaluation object instantiation?
-    p.add_argument('--window', action='store', default=WINDOW, type=float, help='evaluation window for F-measure [seconds, default=%f]' % WINDOW)
-    p.add_argument('--tolerance', action='store', default=TOLERANCE, type=float, help='evaluation tolerance for P-score [default=%f]' % TOLERANCE)
-    p.add_argument('--sigma', action='store', default=SIGMA, type=float, help='sigma for Cemgil accuracy [default=%f]' % SIGMA)
-    p.add_argument('--tempo_tolerance', action='store', default=TEMPO_TOLERANCE, type=float, help='tempo tolerance window for continuity accuracies [default=%f]' % TEMPO_TOLERANCE)
-    p.add_argument('--phase_tolerance', action='store', default=PHASE_TOLERANCE, type=float, help='phase tolerance window for continuity accuracies [default=%f]' % PHASE_TOLERANCE)
-    p.add_argument('--bins', action='store', default=BINS, type=int, help='number of histogram bins for information gain [default=%i]' % BINS)
-    p.add_argument('--skip', action='store', default=SKIP, type=float, help='skip first N seconds for evaluation [default=%f]' % SKIP)
+    p.add_argument('--window', action='store', type=float, default=WINDOW,
+                   help='evaluation window for F-measure [seconds, default=%f]'
+                   % WINDOW)
+    p.add_argument('--tolerance', action='store', type=float,
+                   default=TOLERANCE,
+                   help='evaluation tolerance for P-score [default=%f]'
+                   % TOLERANCE)
+    p.add_argument('--sigma', action='store', default=SIGMA, type=float,
+                   help='sigma for Cemgil accuracy [default=%f]' % SIGMA)
+    p.add_argument('--tempo_tolerance', action='store', type=float,
+                   default=TEMPO_TOLERANCE,
+                   help='tempo tolerance window for continuity accuracies '
+                        '[default=%f]' % TEMPO_TOLERANCE)
+    p.add_argument('--phase_tolerance', action='store', type=float,
+                   default=PHASE_TOLERANCE,
+                   help='phase tolerance window for continuity accuracies '
+                        '[default=%f]' % PHASE_TOLERANCE)
+    p.add_argument('--bins', action='store', type=int, default=BINS,
+                   help='number of histogram bins for information gain '
+                        '[default=%i]' % BINS)
+    p.add_argument('--skip', action='store', type=float, default=SKIP,
+                   help='skip first N seconds for evaluation [default=%f]'
+                   % SKIP)
     # output options
-    p.add_argument('--tex', action='store_true', help='format errors for use in .tex files')
+    p.add_argument('--tex', action='store_true',
+                   help='format errors for use in .tex files')
     # verbose
-    p.add_argument('-v', dest='verbose', action='count', help='increase verbosity level')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -735,13 +780,18 @@ def parser():
 
 
 def main():
+    """
+    Simple beat evaluation.
+
+    """
     from ..utils.helpers import files, match_file, load_events
 
     # parse arguments
     args = parser()
 
-    # get detection files
+    # get detection and target files
     det_files = files(args.files, args.det_ext)
+    tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -753,16 +803,15 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
-
         # get the matching target files
-        tar_files = match_file(det_file, args.files, args.det_ext, args.tar_ext)
+        matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         # quit if any file does not have a matching target file
-        if len(tar_files) == 0:
-            print " can't find a target file found for %s. exiting." % det_file
+        if len(matches) == 0:
+            print " can't find a target file found for %s" % det_file
             exit()
         # do a mean evaluation with all matched target files
         me = MeanBeatEvaluation()
-        for tar_file in tar_files:
+        for tar_file in matches:
             # load the targets
             targets = load_events(tar_file)
             # remove beats and annotations that are within the first N seconds
@@ -771,7 +820,11 @@ def main():
                 detections = detections[np.where(detections > args.skip)]
                 targets = targets[np.where(targets > args.skip)]
             # add the BeatEvaluation this file's mean evaluation
-            me += BeatEvaluation(detections, targets, window=args.window, tolerance=args.tolerance, sigma=args.sigma, tempo_tolerance=args.tempo_tolerance, phase_tolerance=args.phase_tolerance, bins=args.bins)
+            me += BeatEvaluation(detections, targets, window=args.window,
+                                 tolerance=args.tolerance, sigma=args.sigma,
+                                 tempo_tolerance=args.tempo_tolerance,
+                                 phase_tolerance=args.phase_tolerance,
+                                 bins=args.bins)
             # process the next target file
         # print stats for each file
         if args.verbose:

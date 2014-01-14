@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains functionality needed for the conversion of from the universal
-.h5 format to the .npz format understood by madmom.ml.rnn.
+This file contains functionality needed for the conversion of from the
+universal .h5 format to the .npz format understood by madmom.ml.rnn.
 
 The .h5 files must conform to this format:
 
@@ -22,9 +22,9 @@ Each layer subgroup can contain the following data sets:
   - `recurrent_weights`: recurrent weights (optional for recurrent layers)
   - `peephole_weights`:  peephole weights (optional for LSTM layers)
 
-Each of the previous layer subgroups can contain the same named data sets with a
-'reverse_' prefix to indicate that they belong to the reverse/backward layer of
-bidirectional layers.
+Each of the previous layer subgroups can contain the same named data sets with
+a 'reverse_' prefix to indicate that they belong to the reverse/backward layer
+of bidirectional layers.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 

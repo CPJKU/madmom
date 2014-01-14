@@ -50,8 +50,8 @@ def calc_errors(detections, targets, matches=None):
     :param matches:    indices of the closest matches [default=None]
     :returns:          a list of errors to closest matches [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list of
-          pre-computed indices of the closest matches can be used.
+    Note: the sequences must be ordered! To speed up the calculation, a list
+          of pre-computed indices of the closest matches can be used.
 
     """
     # determine the closest targets
@@ -65,15 +65,16 @@ def calc_errors(detections, targets, matches=None):
 
 def calc_absolute_errors(detections, targets, matches=None):
     """
-    Calculate absolute errors of the detections relative to the closest targets.
+    Calculate absolute errors of the detections relative to the closest
+    targets.
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
     :param matches:    indices of the closest matches [default=None]
     :returns:          a list of errors to closest matches [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list of
-          pre-computed indices of the closest matches can be used.
+    Note: the sequences must be ordered! To speed up the calculation, a list
+          of pre-computed indices of the closest matches can be used.
 
     """
     # return the errors

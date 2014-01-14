@@ -1,17 +1,24 @@
 # always include those files
 include README
 include LICENSE
-recursive-include madmom *
-recursive-include bin *
+include requirements.txt
+# never include these files
 global-exclude *.pyc
 global-exclude .DS_Store
+# add the main package
+recursive-include madmom *
+recursive-include bin *
+# exclude stuff not ready or thoroughly tested
 exclude madmom/audio/mfcc.py
 exclude madmom/audio/ffmpeg.py
 exclude madmom/evaluation/scorefollowing.py
 exclude madmom/evaluation/notes.py
-exclude madmom/evaluation/multidim.py
-exclude madmom/evaluation/beats_goto.py
-exclude madmom/utils/hdf5.py
+exclude madmom/features/notes.py
+exclude madmom/ml/rnnlib.py
 exclude madmom/utils/overparams.py
 exclude madmom/utils/stats.py
+exclude bin/create_nc_files.py
+exclude bin/test_save_files.py
+exclude bin/PianoTranscription.py
+# never include tests
 prune madmom/test

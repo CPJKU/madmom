@@ -28,7 +28,8 @@ def diff(spec, diff_frames=1, pos=False):
     Calculates the difference of the magnitude spectrogram.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
     :param pos:         only keep positive values [default=False]
     :returns:           (positive) magnitude spectrogram differences
 
@@ -47,16 +48,18 @@ def diff(spec, diff_frames=1, pos=False):
     return diff
 
 
-def correlation_diff(self, spec, diff_frames=1, pos=False, diff_bins=1):
+def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     """
     Calculates the difference of the magnitude spectrogram relative to the
     N-th previous frame shifted in frequency to achieve the highest
     correlation between these two frames.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
     :param pos:         only keep positive values [default=False]
-    :param diff_bins:   maximum number of bins shifted for correlation calculation [default=1]
+    :param diff_bins:   maximum number of bins shifted for correlation
+                        calculation [default=1]
     :returns:           (positive) magnitude spectrogram differences
 
     """
@@ -79,7 +82,8 @@ def correlation_diff(self, spec, diff_frames=1, pos=False, diff_bins=1):
         bin_offset = diff_bins - np.argmax(corr[f])
         bin_start = diff_bins + bin_offset
         bin_stop = bins - 2 * diff_bins + bin_start
-        diff[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] - spec[f - diff_frames, bin_start:bin_stop]
+        diff[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] -\
+            spec[f - diff_frames, bin_start:bin_stop]
     # keep only positive values
     if pos:
         diff *= (diff > 0)
@@ -94,12 +98,14 @@ def high_frequency_content(spec):
     :param spec: the magnitude spectrogram
     :returns:    high frequency content onset detection function
 
-    "Computer Modeling of Sound for Transformation and Synthesis of Musical Signals"
+    "Computer Modeling of Sound for Transformation and Synthesis of Musical
+    Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
     """
-    # HFC weights the magnitude spectrogram by the bin number, thus emphasising high frequencies
+    # HFC weights the magnitude spectrogram by the bin number,
+    # thus emphasizing high frequencies
     return np.mean(spec * np.arange(spec.shape[1]), axis=1)
 
 
@@ -108,12 +114,14 @@ def spectral_diff(spec, diff_frames=1):
     Spectral Diff.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
     :returns:           spectral diff onset detection function
 
     "A hybrid approach to musical note onset detection"
     Chris Duxbury, Mark Sandler and Matthew Davis
-    Proceedings of the 5th International Conference on Digital Audio Effects (DAFx-02), 2002.
+    Proceedings of the 5th International Conference on Digital Audio Effects
+    (DAFx-02), 2002.
 
     """
     # Spectral diff is the sum of all squared positive 1st order differences
@@ -125,10 +133,12 @@ def spectral_flux(spec, diff_frames=1):
     Spectral Flux.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
     :returns:           spectral flux onset detection function
 
-    "Computer Modeling of Sound for Transformation and Synthesis of Musical Signals"
+    "Computer Modeling of Sound for Transformation and Synthesis of Musical
+    Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
@@ -142,16 +152,19 @@ def superflux(spec, diff_frames=1, max_bins=3):
     SuperFlux with a maximum peak-tracking stage for difference calculation.
 
     Calculates the difference of bin k of the magnitude spectrogram relative to
-    the N-th previous frame with a maximum filter (in the frequency axis) applied.
+    the N-th previous frame with the maximum filtered spectrogram.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
-    :param max_bins:    number of neighboring bins used for maximum filtering [default=3]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
+    :param max_bins:    number of neighboring bins used for maximum filtering
+                        [default=3]
     :returns:           SuperFlux onset detection function
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
-    Proceedings of the 16th International Conference on Digital Audio Effects (DAFx-13), 2013.
+    Proceedings of the 16th International Conference on Digital Audio Effects
+    (DAFx-13), 2013.
 
     Note: this method works only properly, if the spectrogram is filtered with
     a filterbank of the right frequency spacing. Filterbanks with 24 bands per
@@ -164,11 +177,13 @@ def superflux(spec, diff_frames=1, max_bins=3):
     diff = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
+    # widen the spectrogram in frequency dimension by `max_bins`
+    max_spec = sim.maximum_filter(spec, size=[1, max_bins])
     # calculate the diff
-    diff[diff_frames:] = spec[diff_frames:] - sim.maximum_filter(spec, size=[1, max_bins])[0:-diff_frames]
+    diff[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
     # keep only positive values
     diff *= (diff > 0)
-    # SuperFlux is the sum of all positive 1st order maximum filtered differences
+    # SuperFlux is the sum of all positive 1st order max. filtered differences
     return np.sum(diff, axis=1)
 
 
@@ -177,7 +192,8 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=0.000001):
     Modified Kullback-Leibler.
 
     :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame [default=1]
+    :param diff_frames: calculate the difference to the N-th previous frame
+                        [default=1]
     :param epsilon:     add epsilon to avoid division by 0 [default=0.000001]
     :returns:           MKL onset detection function
 
@@ -196,7 +212,8 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=0.000001):
         raise ValueError("a positive value must be added before division")
     mkl = np.zeros_like(spec)
     mkl[diff_frames:] = spec[diff_frames:] / (spec[:-diff_frames] + epsilon)
-    # note: the original MKL uses sum instead of mean, but the range of mean is much more suitable
+    # note: the original MKL uses sum instead of mean,
+    # but the range of mean is much more suitable
     return np.mean(np.log(1 + mkl), axis=1)
 
 
@@ -209,8 +226,10 @@ def _phase_deviation(phase):
 
     """
     pd = np.zeros_like(phase)
-    # instantaneous frequency is given by the first difference ψ′(n, k) = ψ(n, k) − ψ(n − 1, k)
-    # change in instantaneous frequency is given by the second order difference ψ′′(n, k) = ψ′(n, k) − ψ′(n − 1, k)
+    # instantaneous frequency is given by the first difference
+    # ψ′(n, k) = ψ(n, k) − ψ(n − 1, k)
+    # change in instantaneous frequency is given by the second order difference
+    # ψ′′(n, k) = ψ′(n, k) − ψ′(n − 1, k)
     pd[2:] = phase[2:] - 2 * phase[1:-1] + phase[:-2]
     # map to the range -pi..pi
     return wraptopi(pd)
@@ -223,7 +242,8 @@ def phase_deviation(phase):
     :param phase: the phase spectrogram
     :returns:     phase deviation onset detection function
 
-    "On the use of phase and energy for musical onset detection in the complex domain"
+    "On the use of phase and energy for musical onset detection in the complex
+    domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 
@@ -242,12 +262,13 @@ def weighted_phase_deviation(spec, phase):
 
     "Onset Detection Revisited"
     Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects (DAFx), 2006
+    Proceedings of the 9th International Conference on Digital Audio Effects
+    (DAFx), 2006
 
     """
     # make sure the spectrogram is not filtered before
     if np.shape(phase) != np.shape(spec):
-        raise ValueError("Magnitude spectrogram and phase must be of same shape")
+        raise ValueError("Magn. spectrogram and phase must be of same shape")
     # weighted_phase_deviation = spec * phase_deviation
     return np.mean(np.abs(_phase_deviation(phase) * spec), axis=1)
 
@@ -259,17 +280,21 @@ def normalized_weighted_phase_deviation(spec, phase, epsilon=0.000001):
     :param spec:    the magnitude spectrogram
     :param phase:   the phase spectrogram
     :param epsilon: add epsilon to avoid division by 0 [default=0.000001]
-    :returns:       normalized weighted phase deviation onset detection function
+    :returns:       normalized weighted phase deviation onset detection
+                    function
 
     "Onset Detection Revisited"
     Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects (DAFx), 2006
+    Proceedings of the 9th International Conference on Digital Audio Effects
+    (DAFx), 2006
 
     """
     if epsilon <= 0:
         raise ValueError("a positive value must be added before division")
-    # normalize WPD by the sum of the spectrogram (add a small amount so that we don't divide by 0)
-    return weighted_phase_deviation(spec, phase) / np.add(np.mean(spec, axis=1), epsilon)
+    # normalize WPD by the sum of the spectrogram
+    # (add a small epsilon so that we don't divide by 0)
+    norm = np.add(np.mean(spec, axis=1), epsilon)
+    return weighted_phase_deviation(spec, phase) / norm
 
 
 def _complex_domain(spec, phase):
@@ -283,11 +308,12 @@ def _complex_domain(spec, phase):
     Note: we use the simple implementation presented in:
     "Onset Detection Revisited"
     Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects (DAFx), 2006
+    Proceedings of the 9th International Conference on Digital Audio Effects
+    (DAFx), 2006
 
     """
     if np.shape(phase) != np.shape(spec):
-        raise ValueError("Magnitude spectrogram and phase must be of same shape")
+        raise ValueError("Magn. spectrogram and phase must be of same shape")
     # expected spectrogram
     cd_target = np.zeros_like(phase)
     # assume constant phase change
@@ -309,7 +335,8 @@ def complex_domain(spec, phase):
     :param phase: the phase spectrogram
     :returns:     complex domain onset detection function
 
-    "On the use of phase and energy for musical onset detection in the complex domain"
+    "On the use of phase and energy for musical onset detection in the complex
+    domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 
@@ -328,7 +355,8 @@ def rectified_complex_domain(spec, phase):
 
     "Onset Detection Revisited"
     Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects (DAFx), 2006
+    Proceedings of the 9th International Conference on Digital Audio Effects
+    (DAFx), 2006
 
     """
     # rectified complex domain
@@ -345,16 +373,19 @@ MAX_BINS = 3
 
 class SpectralOnsetDetection(object):
     """
-    The SpectralOnsetDetection class implements most of the common onset detection
-    functions based on the magnitude or phase information of a spectrogram.
+    The SpectralOnsetDetection class implements most of the common onset
+    detection functions based on the magnitude or phase information of a
+    spectrogram.
 
     """
     def __init__(self, spectrogram, max_bins=MAX_BINS, *args, **kwargs):
         """
         Creates a new SpectralOnsetDetection object instance.
 
-        :param spectrogram: the spectrogram object on which the detections functions operate
-        :param max_bins:    number of bins for the maximum filter (for SuperFlux) [default=3]
+        :param spectrogram: the spectrogram object on which the detections
+                            functions operate
+        :param max_bins:    number of bins for the maximum filter
+                            (for SuperFlux) [default=3]
 
         """
         # import
@@ -421,84 +452,32 @@ class SpectralOnsetDetection(object):
         return rectified_complex_domain(self.s.spec, self.s.phase)
 
 
-class NNOnsetDetection(object):
-    """
-    The NNOnsetDetection class implements neural network based onset detection algorithms.
-
-    """
-    def __init__(self, audio, nn_files):
-        """
-        Creates a new NNOnsetDetection object instance.
-
-        :param audio:    file name or Wav or Spectrogram object
-        :param nn_files: pre-trained neural networks
-
-        """
-        # import
-        from ..audio.wav import Wav
-        from ..audio.spectrogram import Spectrogram
-        # check wav type
-        if isinstance(audio, Wav):
-            # already the right format
-            self.w = audio
-        elif isinstance(audio, Spectrogram):
-            # spectrogram given, extract the wav object
-            self.w = audio.audio
-        else:
-            # assume a file name, try to instantiate a Wav object
-            self.w = Wav(audio, fps=100, mono=True)
-        # TODO: include code
-        self.nn_files = nn_files
-        raise NotImplementedError
-
-    def process_input(self, frame_sizes=[1024, 2048, 4096], bands_per_octave=6, mul=5, add=1):
-        """Process the audio input."""
-        import tempfile
-        from ..audio.spectrogram import LogFiltSpec
-        from ..utils.rnnlib import create_nc_file
-        # stack specs
-        nc_data = np.empty((self.w.frames, 0))
-        for frame_size in frame_sizes:
-            self.w.frame_size = frame_size
-            s = LogFiltSpec(self.w, bands_per_octave=bands_per_octave, mul=mul, add=add)
-            nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
-        # create a fake onset vector
-        nc_targets = np.zeros(self.w.num_frames)
-        nc_targets[0] = 1
-        # create a .nc file
-        self.__nc_file = tempfile.mktemp()
-        create_nc_file(self.__nc_file, nc_data, nc_targets)
-        return self.__nc_file
-
-    def test_neural_networks(self, threads=2, verbose=False):
-        import os
-        from ..ml.rnnlib import test_nc_files
-        act = test_nc_files([self.__nc_file], self.nn_files, threads=threads, verbose=verbose)
-        os.rmdir(self.__nc_file)
-        # return activations
-        return act
-
-
 # universal peak-picking method
-def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre_max=1, post_max=1):
+def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
+                 pre_max=1, post_max=1):
     """
     Perform thresholding and peak-picking on the given activation function.
 
     :param activations: the onset activation function
     :param threshold:   threshold for peak-picking
-    :param smooth:      smooth the activation function with the kernel [default=None]
-    :param pre_avg:     use N frames past information for moving average [default=0]
-    :param post_avg:    use N frames future information for moving average [default=0]
-    :param pre_max:     use N frames past information for moving maximum [default=1]
-    :param post_max:    use N frames future information for moving maximum [default=1]
+    :param smooth:      smooth the activation function with the kernel
+                        [default=None]
+    :param pre_avg:     use N frames past information for moving average
+                        [default=0]
+    :param post_avg:    use N frames future information for moving average
+                        [default=0]
+    :param pre_max:     use N frames past information for moving maximum
+                        [default=1]
+    :param post_max:    use N frames future information for moving maximum
+                        [default=1]
 
     Notes: If no moving average is needed (e.g. the activations are independent
-           of the signal's level as for neural network activations), set pre_avg
-           and post_avg to 0.
+           of the signal's level as for neural network activations), set
+           `pre_avg` and `post_avg` to 0.
 
-           For offline peak picking set pre_max=1, post_max=1.
+           For offline peak picking set `pre_max` and `post_max` to 1.
 
-           For online peak picking set all post_ parameters to 0.
+           For online peak picking set all `post_` parameters to 0.
 
     """
     # smooth activations
@@ -520,7 +499,9 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
         # compute a moving average
         avg_origin = int(np.floor((pre_avg - post_avg) / 2))
         # TODO: make the averaging function exchangable (mean/median/etc.)
-        mov_avg = sim.filters.uniform_filter1d(activations, avg_length, mode='constant', origin=avg_origin)
+        mov_avg = sim.filters.uniform_filter1d(activations, avg_length,
+                                               mode='constant',
+                                               origin=avg_origin)
     else:
         # do not use a moving average
         mov_avg = 0
@@ -531,7 +512,9 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0, pre
     if max_length > 1:
         # compute a moving maximum
         max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = sim.filters.maximum_filter1d(detections, max_length, mode='constant', origin=max_origin)
+        mov_max = sim.filters.maximum_filter1d(detections, max_length,
+                                               mode='constant',
+                                               origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
     # return indices (as floats, since they get converted to seconds later on)
@@ -544,8 +527,8 @@ def nn_peak_picking(activations, network, threshold):
 
     "Enhanced peak picking for Onset Detection with Recurrent Neural Networks"
     Sebastian Böck, Jan Schlüter and Gerhard Widmer
-    Proceedings of the 6th International Workshop on Machine Learning and Music (MML13)
-    Prague, Czech Republic, September 2013
+    Proceedings of the 6th International Workshop on Machine Learning and Music
+    (MML13) Prague, Czech Republic, September 2013
 
     on the given activation function.
 
@@ -554,7 +537,6 @@ def nn_peak_picking(activations, network, threshold):
     :param threshold:   threshold for peak-picking
 
     """
-    # TODO: implement the paper in pure python
     raise NotImplementedError
 
 
@@ -579,11 +561,12 @@ class Onset(object):
     def __init__(self, activations, fps, online=False, sep=''):
         """
         Creates a new Onset object instance with the given activations of the
-        ODF (OnsetDetectionFunction). The activations can be read in from a file.
+        ODF (OnsetDetectionFunction). The activations can be read from a file.
 
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
-        :param online:      work in online mode (i.e. use only past information) [default=False]
+        :param online:      work in online mode (i.e. use only past
+                            information) [default=False]
         :param sep:         separator if activations are read from file
 
         """
@@ -604,26 +587,33 @@ class Onset(object):
             self.load_activations(activations, sep)
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
-               pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX, post_max=POST_AVG):
+               pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
+               post_max=POST_AVG):
         """
         Detect the onsets with a given peak-picking method.
 
         :param threshold: threshold for peak-picking
         :param combine:   only report one onset within N seconds [default=0.03]
         :param delay:     report onsets N seconds delayed [default=0]
-        :param smooth:    smooth the activation function over N seconds [default=0]
-        :param pre_avg:   use N seconds past information for moving average [default=0.1]
-        :param post_avg:  use N seconds future information for moving average [default=0.03]
-        :param pre_max:   use N seconds past information for moving maximum [default=0.03]
-        :param post_max:  use N seconds future information for moving maximum [default=0.07]
+        :param smooth:    smooth the activation function over N seconds
+                          [default=0]
+        :param pre_avg:   use N seconds past information for moving average
+                          [default=0.1]
+        :param post_avg:  use N seconds future information for moving average
+                          [default=0.03]
+        :param pre_max:   use N seconds past information for moving maximum
+                          [default=0.03]
+        :param post_max:  use N seconds future information for moving maximum
+                          [default=0.07]
 
-        Notes: If no moving average is needed (e.g. the activations are independent
-               of the signal's level as for neural network activations), pre_avg and
-               post_avg should be set to 0.
+        Notes: If no moving average is needed (e.g. the activations are
+               independent of the signal's level as for neural network
+               activations), `pre_avg` and `post_avg` should be set to 0.
 
-               For offline peak picking set pre_max >= 1/fps, post_max >= 1/fps
+               For offline peak picking set `pre_max` >= 1/fps and
+               `post_max` >= 1/fps
 
-               For online peak picking, all post_ parameters are set to 0.
+               For online peak picking, all `post_` parameters are set to 0.
 
         """
         # convert timing information to frames and set default values
@@ -639,15 +629,20 @@ class Onset(object):
             post_avg = 0
             post_max = 0
         # detect onsets
-        detections = peak_picking(self.activations, threshold, smooth, pre_avg, post_avg, pre_max, post_max)
+        detections = peak_picking(self.activations, threshold, smooth,
+                                  pre_avg, post_avg, pre_max, post_max)
         # convert detected onsets to a list of timestamps
         detections /= float(self.fps)
         # shift if necessary
         if delay != 0:
             detections += delay
-        # always use the first detection and all others if none was reported within the last 'combine' seconds
+        # always use the first detection and all others if none was reported
+        # within the last `combine` seconds
         if detections.size > 1:
-            self.detections = np.append(detections[0], detections[1:][np.diff(detections) > combine])
+            # filter all detections which occur within `combine` seconds
+            combined_detections = detections[1:][np.diff(detections) > combine]
+            # add them after the first detection
+            self.detections = np.append(detections[0], combined_detections)
         else:
             self.detections = detections
         # also return the detections
@@ -736,34 +731,39 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (add_audio_arguments, add_filter_arguments,
-                                add_log_arguments, add_spectral_odf_arguments,
-                                add_onset_arguments)
+    from ..utils.params import audio, spec, filtering, log, spectral_odf, onset
 
     # define parser
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters, the software detects all onsets in
     the given files in online mode according to the method proposed in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
-    in Proceedings of the 16th International Conference on Digital Audio Effects
+    Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx-13), Maynooth, Ireland, September 2013
 
     """)
     # general options
-    p.add_argument('files', metavar='files', nargs='+', help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='store_true', help='be verbose')
-    p.add_argument('--ext', action='store', type=str, default='txt', help='extension for detections [default=txt]')
+    p.add_argument('files', metavar='files', nargs='+',
+                   help='files to be processed')
+    p.add_argument('-v', dest='verbose', action='store_true',
+                   help='be verbose')
+    p.add_argument('--ext', action='store', type=str, default='txt',
+                   help='extension for detections [default=txt]')
     # add other argument groups
-    add_audio_arguments(p)
-    add_filter_arguments(p, filtering=True)
-    add_log_arguments(p, log=True)
-    add_spectral_odf_arguments(p)
-    onset = add_onset_arguments(p, io=True)
+    audio(p, online=False)
+    spec(p)
+    filtering(p, filtering=True)
+    log(p, log=True)
+    spectral_odf(p)
+    o = onset(p, io=True)
     # list of offered ODFs
-    methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd', 'cd', 'rcd']
-    onset.add_argument('-o', dest='odf', default=None, help='use this onset detection function [%s]' % methods)
+    methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
+               'cd', 'rcd']
+    o.add_argument('-o', dest='odf', default='superflux',
+                   help='use this onset detection function %s' % methods)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -792,7 +792,7 @@ def main():
     # see cp.evaluation.helpers.match_files()
 
     # init filterbank
-    filt = None
+    fb = None
 
     # which files to process
     if args.load:
@@ -809,8 +809,6 @@ def main():
         # use the name of the file without the extension
         filename = os.path.splitext(f)[0]
 
-        # init Onset object
-#        o = None
         # do the processing stuff unless the activations are loaded from file
         if args.load:
             # load the activations from file
@@ -818,16 +816,20 @@ def main():
             o = Onset(f, args.fps, args.online)
         else:
             # create a Wav object
-            w = Wav(f, frame_size=args.window, online=args.online, mono=True, norm=args.norm, att=args.att, fps=args.fps)
-            # create filterbank if needed
+            w = Wav(f, mono=True, norm=args.norm, att=args.att)
             if args.filter:
-                # (re-)create filterbank if the sample rate of the audio changes
-                if filt is None or filt.sample_rate != w.sample_rate:
-                    filt = LogarithmicFilterBank(args.window / 2, w.sample_rate, args.bands, args.fmin, args.fmax, args.equal)
+                # (re-)create filterbank if the sample rate is not the same
+                if fb is None or fb.sample_rate != w.sample_rate:
+                    # create filterbank if needed
+                    fb = LogarithmicFilterBank(args.window / 2, w.sample_rate,
+                                               args.bands, args.fmin,
+                                               args.fmax, args.equal)
             # create a Spectrogram object
-            s = Spectrogram(w, filterbank=filt, log=args.log, mul=args.mul, add=args.add)
+            s = Spectrogram(w, frame_size=args.window, filterbank=fb,
+                            log=args.log, mul=args.mul, add=args.add,
+                            ratio=args.ratio, diff_frames=args.diff_frames)
             # create a SpectralOnsetDetection object
-            sodf = SpectralOnsetDetection(s, ratio=args.ratio, diff_frames=args.diff_frames, max_bins=args.max_bins)
+            sodf = SpectralOnsetDetection(s, max_bins=args.max_bins)
             # perform detection function on the object
             act = getattr(sodf, args.odf)()
             # create an Onset object with the activations
@@ -838,8 +840,10 @@ def main():
             o.save_activations("%s.%s" % (filename, args.odf))
         else:
             # detect the onsets
-            o.detect(args.threshold, combine=args.combine, delay=args.delay, smooth=args.smooth,
-                     pre_avg=args.pre_avg, post_avg=args.post_avg, pre_max=args.pre_max, post_max=args.post_max)
+            o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                     smooth=args.smooth, pre_avg=args.pre_avg,
+                     post_avg=args.post_avg, pre_max=args.pre_max,
+                     post_max=args.post_max)
             # write the onsets to a file
             o.write("%s.%s" % (filename, args.ext))
             # also output them to stdout if vebose

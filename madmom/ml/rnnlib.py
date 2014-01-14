@@ -107,7 +107,13 @@ def max_len(strings):
 
 
 def expand_and_terminate(strings):
-    """Expand and null-terminate the given strings."""
+    """
+    Expand and null-terminate the given strings to a common length.
+
+    :param strings: a list of strings
+    :return:        expanded and null-terminated list of strings
+
+    """
     # each string must have the same length and must be null-terminated
     terminated_strings = []
     max_length = max_len(strings) + 1
@@ -119,8 +125,9 @@ def expand_and_terminate(strings):
 
 
 # FIXME: if we inherit from scipy.io.netcdf.NetCDFFile and omit the self.nc
-# stuff and try to extend the class with properties directly, the setters do not
-# work! why?
+# stuff and try to extend the class with properties directly, the setters do
+# not work! why?
+# noinspection PyPep8Naming
 class NetCDF(object):
     """
     NetCDF Class is a simple NetCDFFile wrapper with some extensions for use
@@ -320,14 +327,15 @@ class NetCDF(object):
     @inputs.setter
     def inputs(self, inputs):
         inputs = np.atleast_2d(inputs)
-        # set the seqDims of not already done (e.g. because of multiple sequences)
+        # set the seqDims if not already done
         if not self.seqDims:
             self.seqDims = [np.shape(inputs)[0]]
         if not self.numTimesteps:
             self.numTimesteps = np.shape(inputs)[0]
         if not self.inputPattSize:
             self.inputPattSize = np.shape(inputs)[1]
-        var = self.nc.createVariable('inputs', 'f', ('numTimesteps', 'inputPattSize'))
+        var = self.nc.createVariable('inputs', 'f', ('numTimesteps',
+                                                     'inputPattSize'))
         var[:] = inputs.astype(np.float32)
 
     @property
@@ -399,7 +407,8 @@ class NetCDF(object):
             self.maxLabelLength = max_len(labels) + 1
         # all labels must be the same length and null-terminated
         labels = expand_and_terminate(labels)
-        var = self.nc.createVariable('labels', 'c', ('numLabels', 'maxLabelLength'))
+        var = self.nc.createVariable('labels', 'c',
+                                     ('numLabels', 'maxLabelLength'))
         var[:] = labels
 
     @property
@@ -419,7 +428,8 @@ class NetCDF(object):
             self.numTimesteps = np.shape(targetPatterns)[0]
         if not self.targetPattSize:
             self.targetPattSize = np.shape(targetPatterns)[1]
-        var = self.nc.createVariable('targetPatterns', 'f', ('numTimesteps', 'targetPattSize'))
+        var = self.nc.createVariable('targetPatterns', 'f',
+                                     ('numTimesteps', 'targetPattSize'))
         var[:] = targetPatterns.astype(np.float32)
 
     @property
@@ -441,7 +451,8 @@ class NetCDF(object):
             self.maxTargStringLength = max_len(targetStrings) + 1
         # all targetStrings must be the same length and null-terminated
         targetStrings = expand_and_terminate(targetStrings)
-        var = self.nc.createVariable('targetStrings', 'c', ('numTimesteps', 'maxTargStringLength'))
+        var = self.nc.createVariable('targetStrings', 'c',
+                                     ('numTimesteps', 'maxTargStringLength'))
         var[:] = targetStrings
 
     @property
@@ -466,7 +477,8 @@ class NetCDF(object):
             self.maxSeqTagLength = max_len(seqTags) + 1
         # all seqTags must be the same length and null-terminated
         seqTags = expand_and_terminate(seqTags)
-        var = self.nc.createVariable('seqTags', 'c', ('numSeqs', 'maxSeqTagLength'))
+        var = self.nc.createVariable('seqTags', 'c',
+                                     ('numSeqs', 'maxSeqTagLength'))
         var[:] = seqTags
 
 
@@ -518,6 +530,11 @@ def create_nc_file(filename, data, targets, tags=None):
 
 # .nc file testing
 class TestThread(Thread):
+    """
+    Class for testing a .nc file against multiple networks and distributing the
+    work to multiple threads.
+
+    """
     def __init__(self, work_queue, return_queue, verbose=False):
         """
         Test a file against multiple neural networks.
@@ -568,14 +585,16 @@ class TestThread(Thread):
             act = np.empty(0)
             try:
                 # classification output
-                act = Activations('%s/output_outputActivations' % tmp_work_path)
+                act = Activations('%s/output_outputActivations' %
+                                  tmp_work_path)
                 # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
                 pass
-            # put a tuple with nc file, nn file and activations in the return queue
+            # put a tuple with nc file, nn file and activations
+            # in the return queue
             self.return_queue.put((nc_file, nn_file, act))
-            # ok, clean up
+            # clean up
             shutil.rmtree(tmp_work_path)
             # signal to queue that job is done
             self.work_queue.task_done()
@@ -681,7 +700,8 @@ class RnnConfig(object):
                 self.test_files = line[:].split()[1].split(',')
             # size and type of hidden layers
             elif line.startswith('hiddenSize'):
-                self.layer_sizes = np.array(line[:].split()[1].split(','), dtype=np.int).tolist()
+                self.layer_sizes = np.array(line[:].split()[1].split(','),
+                                            dtype=np.int).tolist()
                 # number of the output layer
                 num_output_layer = len(self.layer_sizes)
             elif line.startswith('hiddenType'):
@@ -692,7 +712,8 @@ class RnnConfig(object):
                 self.task = line[:].split()[1]
             # save the weights
             elif line.startswith('weightContainer_'):
-                # line format: weightContainer_bias_to_hidden_0_0_weights #weights weight0 weight1 ...
+                # line format: weightContainer_bias_to_hidden_0_0_weights \
+                # num_weights weight0 weight1 ...
                 parts = line[:].split()
                 # only use the weights
                 if parts[0].endswith('_weights'):
@@ -710,8 +731,10 @@ class RnnConfig(object):
                     # hidden layer handling
                     for i in range(len(self.layer_sizes)):
                         # recurrent connections
-                        name = re.sub('layer_%s_0_layer_%s_0_delay.*' % (i, i), 'layer_%s_0_recurrent_weights' % i, name)
-                        name = re.sub('layer_%s_1_layer_%s_1_delay.*' % (i, i), 'layer_%s_1_recurrent_weights' % i, name)
+                        name = re.sub('layer_%s_0_layer_%s_0_delay.*' % (i, i),
+                                      'layer_%s_0_recurrent_weights' % i, name)
+                        name = re.sub('layer_%s_1_layer_%s_1_delay.*' % (i, i),
+                                      'layer_%s_1_recurrent_weights' % i, name)
                     # set bidirectional mode
                     if '0_1' in name:
                         self.bidirectional = True
@@ -726,25 +749,31 @@ class RnnConfig(object):
                         # output layer
                         name = "layer_%s_0_%s" % (num_output_layer, name[2:])
                     if name.endswith('_o'):
-                        name = re.sub('layer_%s_0_o' % (num_output_layer - 1), 'layer_%s_0_weights' % num_output_layer, name)
-                        name = re.sub('layer_%s_1_o' % (num_output_layer - 1), 'layer_%s_1_weights' % num_output_layer, name)
+                        name = re.sub('layer_%s_0_o' % (num_output_layer - 1),
+                                      'layer_%s_0_weights' % num_output_layer,
+                                      name)
+                        name = re.sub('layer_%s_1_o' % (num_output_layer - 1),
+                                      'layer_%s_1_weights' % num_output_layer,
+                                      name)
                     # save the weights
                     self.W[name] = np.array(parts[2:], dtype=np.float32)
         # append output layer size
-        self.layer_sizes.append(self.W['layer_%s_0_bias' % num_output_layer].size)
+        output_size = self.W['layer_%s_0_bias' % num_output_layer].size
+        self.layer_sizes.append(output_size)
         # set the ouptu layer type
         if self.task == 'classification':
             self.layer_types.append('sigmoid')
         elif self.task == 'regression':
             self.layer_types.append('linear')
         else:
-            raise ValueError('unkown task %s, cannot set type of output layer.' % self.task)
+            raise ValueError('unkown task, cannot set type of output layer.')
         # stack the output weights
         if self.bidirectional:
             num_output = len(self.layer_sizes) - 1
             out_bwd = self.W.pop('layer_%s_0_weights' % num_output)
             out_fwd = self.W.pop('layer_%s_1_weights' % num_output)
-            self.W['layer_%s_0_weights' % num_output] = np.vstack((out_bwd, out_fwd))
+            self.W['layer_%s_0_weights' % num_output] = np.vstack((out_bwd,
+                                                                   out_fwd))
         # close the file
         f.close()
 
@@ -753,7 +782,8 @@ class RnnConfig(object):
         Test the given set of files.
 
         :param out_dir:  output directory for activations [default=None]
-        :param file_set: which set should be tested (train, val, test) [default='test']
+        :param file_set: which set should be tested (train, val, test)
+                         [default='test']
         :param threads:  number of working threads [default=2]
         :param sep:      separator between activation values [default='']
         :returns:        the output directory
@@ -763,7 +793,8 @@ class RnnConfig(object):
 
               Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one whitespace.
+              separator consisting only of spaces must match at least one
+              whitespace.
 
         """
         # if no output directory was given, use the name of the file + set
@@ -773,7 +804,7 @@ class RnnConfig(object):
         try:
             os.mkdir(out_dir)
         except OSError:
-            # directory exists already, touch it to have a current modification date
+            # directory exists already, update modification date
             os.utime(out_dir, None)
         # test all files of the given set
         nc_files = eval("self.%s_files" % file_set)
@@ -782,7 +813,8 @@ class RnnConfig(object):
         # save all activations
         for f in nc_files:
             # name of the activations file
-            act_file = "%s/%s.activations" % (out_dir, os.path.basename(os.path.splitext(f)[0]))
+            basename = os.path.basename(os.path.splitext(f)[0])
+            act_file = "%s/%s.activations" % (out_dir, basename)
             # position in the list
             f_idx = nc_files.index(f)
             # save
@@ -792,8 +824,8 @@ class RnnConfig(object):
 
     def save_model(self, filename=None, comment=None):
         """
-        Save the model to a .h5 file which can be universally used and converted
-        to .npz to create a madmom.ml.rnn.RNN object instance.
+        Save the model to a .h5 file which can be universally used and
+        converted to .npz to create a madmom.ml.rnn.RNN object instance.
 
         :param filename: save the model to this file
         :param comment:  optional comment for the model
@@ -849,7 +881,7 @@ class RnnConfig(object):
                         ValueError('key %s not understood' % k)
                     # get the size of the layer to reshape it
                     layer_size = self.layer_sizes[l]
-                    # if we use LSTM units, weights need to be aligned differently
+                    # if we use LSTM units, aligne weights differently
                     if self.layer_types[l] == 'lstm':
                         if 'peephole' in k:
                             # peephole connections
@@ -862,9 +894,10 @@ class RnnConfig(object):
                         w = w.reshape(layer_size, -1).T
                     # reverse
                     if k.startswith('layer_%s_0' % l):
-                        if re.sub('layer_%s_0' % l, 'layer_%s_1' % l, k) in self.W.keys():
-                            name = '%s_%s' % (REVERSE, name)
-                            bidirectional = True
+                        if re.sub('layer_%s_0' % l, 'layer_%s_1' % l, k)\
+                            in self.W.keys():
+                                name = '%s_%s' % (REVERSE, name)
+                                bidirectional = True
                     # save the weights
                     grp.create_dataset(name, data=w.astype(np.float32))
                     # include the layer type as attribute
@@ -878,7 +911,8 @@ class RnnConfig(object):
                 # next layer
 
 
-def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
+def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
+                    sep=''):
     """
     Test the given set of files.
 
@@ -891,7 +925,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
 
     Note: empty (“”) separator means the file should be treated as binary;
           spaces (” ”) in the separator match zero or more whitespace;
-          separator consisting only of spaces must match at least one whitespace.
+          separator consisting only of spaces must match at least one
+          whitespace.
 
           If out_dir is set and multiple network files contain the same
           files, the activations get averaged.
@@ -928,8 +963,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2, sep=''):
             # test the .nc file against these networks
             activations = test_nc_files([nc_file], nc_nn_files, threads)
             # name of the activations file
-            act_file = "%s/%s.activations" % (out_dir, os.path.basename(os.path.splitext(nc_file)[0]))
+            basename = os.path.basename(os.path.splitext(nc_file)[0])
+            act_file = "%s/%s.activations" % (out_dir, basename)
             # save the activations ( we only passed one .nc file, so it's the
             # first activation in the returned list)
             activations[0].tofile(act_file, sep)
-
