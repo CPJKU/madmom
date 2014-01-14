@@ -18,6 +18,20 @@ from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
 from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
 
 
+class OverwriteDefaultListAction(argparse.Action):
+    """
+    Expands the argparse.Action class to allow overwriting of default options.
+
+    Example: parser.add_argument('--switch', nargs='*',
+                                 action=OverwriteDefaultListAction,
+                                 default = ['x', 'y', 'z'])
+
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+
+
 def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     """
     Add audio related arguments to an existing parser object.
