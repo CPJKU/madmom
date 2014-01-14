@@ -14,7 +14,6 @@ from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
 from madmom.features.beats import Beat
 from madmom.ml.rnn import RecurrentNeuralNetwork
-from madmom.utils.params import OverwriteDefaultListAction
 
 # set the path to saved neural networks and generate lists of NN files
 NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
@@ -49,9 +48,9 @@ def parser():
     # mirex options
     madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', action=OverwriteDefaultListAction, type=str,
-                   nargs='*', default=NN_FILES,
-                   help='use these pre-trained neural networks')
+    p.add_argument('--nn_files', default=None, action='append', type=str,
+                   help='use these pre-trained neural network(s) '
+                   '(multiple files can be given, one file per argument)')
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
     madmom.utils.params.beat(p)
@@ -63,6 +62,8 @@ def parser():
     # set some defaults
     args.fps = FPS
     args.online = False
+    if args.nn_files is None:
+        args.nn_files = NN_FILES
     # print arguments
     if args.verbose:
         print args
@@ -83,7 +84,7 @@ def main():
     else:
         # exit if no NN files are given
         if not args.nn_files:
-            raise SystemExit('no NN models given')
+            raise SystemExit('no NN model(s) given')
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
