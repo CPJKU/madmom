@@ -56,7 +56,7 @@ def sigmoid(data):
     :returns:    logistic sigmoid of data
 
     """
-    return 0.5 * (1. + np.tanh(data / 2.))
+    return 0.5 * (1. + np.tanh(0.5 * data))
 
 
 # network layer classes
