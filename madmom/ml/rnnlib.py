@@ -859,7 +859,7 @@ class RnnConfig(object):
         # append output layer size
         output_size = self.W['layer_%s_0_bias' % num_output_layer].size
         self.layer_sizes.append(output_size)
-        # set the ouptut layer type
+        # set the output layer type
         if self.task == 'classification':
             self.layer_types.append('sigmoid')
         elif self.task == 'regression':
