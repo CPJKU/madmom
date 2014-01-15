@@ -9,6 +9,7 @@ Redistribution in any form is not permitted!
 import os
 import glob
 import numpy as np
+import itertools as it
 import multiprocessing as mp
 
 from madmom.audio.wav import Wav
@@ -49,12 +50,7 @@ def parser():
     # mirex options
     madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
-                   help='use these pre-trained neural networks '
-                        '(multiple files can be given, one per argument)')
-    p.add_argument('--threads', action='store', type=int, default=None,
-                   help='number of parallel threads to run [default=number of '
-                        'CPUs]')
+    madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None, window=None)
     madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
                               pre_avg=0, post_avg=0, pre_max=1. / FPS,
@@ -67,6 +63,9 @@ def parser():
     # set some defaults
     args.fps = FPS
     args.online = False
+    if args.nn_files is None:
+        args.nn_files = NN_FILES
+    args.threads = min(len(args.nn_files), args.threads)
     # print arguments
     if args.verbose:
         print args
@@ -74,16 +73,13 @@ def parser():
     return args
 
 
-def process(network, data):
+def process((nn_file, data)):
     """
-    Create a RNN and activate it with the given.
-
-    :param network: file with the RNN model
-    :param data:    data to activate the RNN
-    :return:        activations of the RNN
+    Loads a RNN model from the given file (first tuple item) and passes the
+    given numpy array of data through it (second tuple item).
 
     """
-    return RecurrentNeuralNetwork(network).activate(data)
+    return RecurrentNeuralNetwork(nn_file).activate(data)
 
 
 def main():
@@ -120,28 +116,14 @@ def main():
         # stack the data
         data = np.hstack((data, s.spec, s.pos_diff))
 
-        # list to store the returned activations
-        activations = []
+        # init a pool of workers (if needed)
+        mp_map = mp.Pool(args.threads).map if args.threads != 1 else map
 
-        def collector(result):
-            """
-            Collect the results of the networks.
-
-            :param result: result
-
-            """
-            activations.append(result)
-
-        # init a pool of workers
-        pool = mp.Pool(args.threads)
-        # test the data against all saved neural networks
-        for nn_file in args.nn_files:
-            pool.apply_async(process, args=(nn_file, data), callback=collector)
-        # wait until everything is done
-        pool.close()
-        pool.join()
-        # collect and normalize activations
-        act = np.mean(np.asarray(activations), axis=0)
+        # compute predictions with all saved neural networks (in parallel)
+        activations = mp_map(process, it.izip(args.nn_files, it.repeat(data)))
+        # average activations
+        nn_files = len(args.nn_files)
+        act = sum(activations) / nn_files if nn_files > 1 else activations[0]
 
         # create an Onset object with the activations
         o = Onset(act.ravel(), args.fps, args.online)

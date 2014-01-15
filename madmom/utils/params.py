@@ -8,6 +8,7 @@ This file contains all parser functionality used by other modules.
 """
 
 import argparse
+import multiprocessing
 
 # get the default values from the corresponding modules
 from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
@@ -278,6 +279,26 @@ def io(parser):
     g.add_argument('--sep', action='store', default='',
                    help='separator for saving/loading the activation '
                         'function [default=\'\'; numpy binary format]')
+
+
+def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
+    """
+    Add neural network testing options to an existing parser object.
+
+    :param parser:   existing argparse parser object
+    :param nn_files: list of NN files
+    :param threads:  number of threads to run in parallel
+    :return:         the modified parser object
+
+    """
+    # add neural network related options to the existing parser
+    g = parser.add_argument_group('neural network arguments')
+    g.add_argument('--nn_files', action='append', type=str, default=nn_files,
+                   help='average the predictions of these pre-trained neural '
+                        'networks (multiple files can be given, one file per '
+                        'argument)')
+    g.add_argument('--threads', action='store', type=int, default=threads,
+                   help='number of parallel threads [default=%s]' % threads)
 
 
 def mirex(parser):
