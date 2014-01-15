@@ -9,6 +9,7 @@ Redistribution in any form is not permitted!
 import os
 import glob
 import numpy as np
+import multiprocessing as mp
 
 from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
@@ -51,6 +52,9 @@ def parser():
     p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
                    help='use these pre-trained neural networks '
                         '(multiple files can be given, one per argument)')
+    p.add_argument('--threads', action='store', type=int, default=None,
+                   help='number of parallel threads to run [default=number of '
+                        'CPUs]')
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
     b = madmom.utils.params.beat(p)
@@ -71,6 +75,18 @@ def parser():
     return args
 
 
+def process(network, data):
+    """
+    Create a RNN and activate it with the given.
+
+    :param network: file with the RNN model
+    :param data:    data to activate the RNN
+    :return:        activations of the RNN
+
+    """
+    return RecurrentNeuralNetwork(network).activate(data)
+
+
 def main():
     """BeatTracker.2013"""
 
@@ -85,6 +101,7 @@ def main():
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN models given')
+
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
@@ -101,17 +118,32 @@ def main():
         s = LogFiltSpec(w, frame_size=4096, fps=FPS,
                         bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
                         norm_filters=NORM_FILTERS)
+        # stack the data
         data = np.hstack((data, s.spec, s.pos_diff))
-        # test the data against all saved neural nets
-        act = None
+
+        # list to store the returned activations
+        activations = []
+
+        def collector(result):
+            """
+            Collect the results of the networks.
+
+            :param result: result
+
+            """
+            activations.append(result)
+
+        # init a pool of workers
+        pool = mp.Pool(args.threads)
+        # test the data against all saved neural networks
         for nn_file in args.nn_files:
-            if act is None:
-                act = RecurrentNeuralNetwork(nn_file).activate(data)
-            else:
-                act += RecurrentNeuralNetwork(nn_file).activate(data)
-        # normalize activations
-        if len(args.nn_files) > 1:
-            act /= len(args.nn_files)
+            pool.apply_async(process, args=(nn_file, data), callback=collector)
+        # wait until everything is done
+        pool.close()
+        pool.join()
+        # collect and normalize activations
+        act = np.mean(np.asarray(activations), axis=0)
+
         # create an Beat object with the activations
         b = Beat(act.ravel(), args.fps, args.online)
 
