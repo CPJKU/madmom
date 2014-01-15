@@ -55,8 +55,7 @@ def parser():
     p.add_argument('--threads', action='store', type=int, default=None,
                    help='number of parallel threads to run [default=number of '
                         'CPUs]')
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
+    madmom.utils.params.audio(p, fps=None, norm=False, online=None, window=None)
     b = madmom.utils.params.beat(p)
     b.add_argument('--look_ahead', action='store', type=float, default=4,
                    help='look ahead N seconds [default=4]')
