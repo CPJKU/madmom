@@ -48,9 +48,10 @@ def parser():
     # mirex options
     madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
-                   help='use these pre-trained neural networks '
-                        '(multiple files can be given, one per argument)')
+    p.add_argument('--nn_files', default=None, action='append', type=str,
+                   help='average the predictions of these pre-trained neural '
+                        'networks (multiple files can be given, one file per '
+                        'argument)')
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
     b = madmom.utils.params.beat(p)
@@ -64,6 +65,8 @@ def parser():
     # set some defaults
     args.fps = FPS
     args.online = False
+    if args.nn_files is None:
+        args.nn_files = NN_FILES
     # print arguments
     if args.verbose:
         print args
@@ -84,7 +87,7 @@ def main():
     else:
         # exit if no NN files are given
         if not args.nn_files:
-            raise SystemExit('no NN models given')
+            raise SystemExit('no NN model(s) given')
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec

@@ -48,9 +48,10 @@ def parser():
     # mirex options
     madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', action='append', type=str, default=NN_FILES,
-                   help='use these pre-trained neural networks '
-                        '(multiple files can be given, one per argument)')
+    p.add_argument('--nn_files', default=None, action='append', type=str,
+                   help='average the predictions of these pre-trained neural '
+                        'networks (multiple files can be given, one file per '
+                        'argument)')
     madmom.utils.params.audio(p, norm=False)
     madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
                               pre_avg=0, post_avg=0, pre_max=1. / FPS,
@@ -63,6 +64,8 @@ def parser():
     # set some defaults
     args.fps = FPS
     args.online = False
+    if args.nn_files is None:
+        args.nn_files = NN_FILES
     # print arguments
     if args.verbose:
         print args
