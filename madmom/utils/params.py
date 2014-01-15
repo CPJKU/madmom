@@ -8,6 +8,7 @@ This file contains all parser functionality used by other modules.
 """
 
 import argparse
+import multiprocessing
 
 # get the default values from the corresponding modules
 from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
@@ -39,7 +40,7 @@ def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     if online is not None:
         g.add_argument('--online', dest='online', action='store_true',
                         default=online,
-                        help='operate in online mode [default=%s]' % online)
+                        help='operate in online mode [default=%(default)s]')
     if norm is not None:
         g.add_argument('--norm', action='store_true', default=norm,
                         help='normalize the audio signal '
@@ -49,10 +50,10 @@ def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
                         help='attenuate the audio signal [dB]')
     if fps is not None:
         g.add_argument('--fps', action='store', type=int, default=fps,
-                        help='frames per second [default=%i]' % fps)
+                        help='frames per second [default=%(default)i]')
     if window is not None:
         g.add_argument('--window', action='store', type=int, default=window,
-                        help='frame length [samples, default=%i]' % window)
+                        help='frame length [samples, default=%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -73,10 +74,10 @@ def spec(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
     g = parser.add_argument_group('spectrogram arguments')
     g.add_argument('--ratio', action='store', type=float, default=ratio,
                     help='window magnitude ratio to calc number of diff '
-                         'frames [default=%.1f]' % ratio)
+                         'frames [default=%(default).1f]')
     g.add_argument('--diff_frames', action='store', type=int,
                     default=diff_frames,
-                    help='number of diff frames [default=%s]' % diff_frames)
+                    help='number of diff frames [default=%(default)s]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -100,18 +101,18 @@ def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
     if filtering is not None:
         g.add_argument('--filter', action='store_true', default=False,
                         help='filter the magnitude spectrogram with a '
-                             'filterbank [default=False]')
+                             'filterbank [default=%(default)s]')
     if bands is not None:
         g.add_argument('--bands', action='store', type=int, default=bands,
-                        help='number of bands per octave [default=%i]' % bands)
+                        help='number of bands per octave [default=%(default)i]')
     if fmin is not None:
         g.add_argument('--fmin', action='store', type=float, default=fmin,
-                        help='minimum frequency of filter in Hz [default=%i]'
-                        % fmin)
+                        help='minimum frequency of filter in Hz [default='
+                             '%(default)i]')
     if fmax is not None:
         g.add_argument('--fmax', action='store', type=float, default=fmax,
-                        help='maximum frequency of filter in Hz [default=%i]'
-                        % fmax)
+                        help='maximum frequency of filter in Hz [default='
+                             '%(default)i]')
     if norm_filters is False:
         # switch to turn it on
         g.add_argument('--norm_filters', action='store_true',
@@ -140,15 +141,15 @@ def log(parser, log=None, mul=MUL, add=ADD):
     g = parser.add_argument_group('logarithic magnitude arguments')
     if log is not None:
         g.add_argument('--log', action='store_true', default=log,
-                           help='logarithmic magnitude [default=%s]' % log)
+                           help='logarithmic magnitude [default=%(default)s]')
     if mul is not None:
         g.add_argument('--mul', action='store', type=float, default=mul,
                            help='multiplier (before taking the log) '
-                                '[default=%i]' % mul)
+                                '[default=%(default)i]')
     if add is not None:
         g.add_argument('--add', action='store', type=float, default=add,
                            help='value added (before taking the log) '
-                                '[default=%i]' % add)
+                                '[default=%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -178,8 +179,8 @@ def spectral_odf(parser, method='superflux', methods=None, max_bins=MAX_BINS):
     if superflux or method == 'superflux':
         g.add_argument('--max_bins', action='store', type=int,
                        default=max_bins,
-                       help='bins used for maximum filtering [default=%i]'
-                       % max_bins)
+                       help='bins used for maximum filtering [default='
+                            '%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -206,28 +207,28 @@ def onset(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
     g = parser.add_argument_group('onset detection arguments')
     g.add_argument('-t', dest='threshold', action='store', type=float,
                     default=threshold,
-                    help='detection threshold [default=%.2f]' % threshold)
+                    help='detection threshold [default=%(default).2f]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                     help='smooth the onset activations over N seconds '
-                         '[default=%.2f]' % smooth)
+                         '[default=%(default).2f]')
     g.add_argument('--combine', action='store', type=float, default=combine,
                     help='combine onsets within N seconds '
-                         '[default=%.2f]' % combine)
+                         '[default=%(default).2f]')
     g.add_argument('--pre_avg', action='store', type=float, default=pre_avg,
                     help='build average over N previous seconds '
-                         '[default=%.2f]' % pre_avg)
+                         '[default=%(default).2f]')
     g.add_argument('--post_avg', action='store', type=float, default=post_avg,
                     help='build average over N following seconds '
-                         '[default=%.2f]' % post_avg)
+                         '[default=%(default).2f]')
     g.add_argument('--pre_max', action='store', type=float, default=pre_max,
                     help='search maximum over N previous seconds '
-                         '[default=%.2f]' % pre_max)
+                         '[default=%(default).2f]')
     g.add_argument('--post_max', action='store', type=float, default=post_max,
                     help='search maximum over N following seconds '
-                         '[default=%.2f]' % post_max)
+                         '[default=%(default).2f]')
     g.add_argument('--delay', action='store', type=float, default=delay,
                     help='report the onsets N seconds delayed '
-                         '[default=%i]' % delay)
+                         '[default=%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -248,14 +249,14 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     g = parser.add_argument_group('beat detection arguments')
     g.add_argument('-t', dest='threshold', action='store', type=float,
                    default=threshold,
-                   help='detection threshold [default=%.2f]' % threshold)
+                   help='detection threshold [default=%(default).2f]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                    help='smooth the onset activations over N seconds '
-                        '[default=%.2f]' % smooth)
+                        '[default=%(default).2f]')
     g.add_argument('--min_bpm', action='store', type=float, default=min_bpm,
-                   help='minimum tempo [bpm, default=%.2f]' % min_bpm)
+                   help='minimum tempo [bpm, default=%(default).2f]')
     g.add_argument('--max_bpm', action='store', type=float, default=max_bpm,
-                   help='maximum tempo [bpm, default=%.2f]' % max_bpm)
+                   help='maximum tempo [bpm, default=%(default).2f]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -278,6 +279,26 @@ def io(parser):
     g.add_argument('--sep', action='store', default='',
                    help='separator for saving/loading the activation '
                         'function [default=\'\'; numpy binary format]')
+
+
+def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
+    """
+    Add neural network testing options to an existing parser object.
+
+    :param parser:   existing argparse parser object
+    :param nn_files: list of NN files
+    :param threads:  number of threads to run in parallel
+    :return:         the modified parser object
+
+    """
+    # add neural network related options to the existing parser
+    g = parser.add_argument_group('neural network arguments')
+    g.add_argument('--nn_files', action='append', type=str, default=nn_files,
+                   help='average the predictions of these pre-trained neural '
+                        'networks (multiple files can be given, one file per '
+                        'argument)')
+    g.add_argument('--threads', action='store', type=int, default=threads,
+                   help='number of parallel threads [default=%(default)s]')
 
 
 def mirex(parser):

@@ -9,6 +9,8 @@ Redistribution in any form is not permitted!
 import os
 import glob
 import numpy as np
+import itertools as it
+import multiprocessing as mp
 
 from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
@@ -48,12 +50,8 @@ def parser():
     # mirex options
     madmom.utils.params.mirex(p)
     # add other argument groups
-    p.add_argument('--nn_files', default=None, action='append', type=str,
-                   help='average the predictions of these pre-trained neural '
-                        'networks (multiple files can be given, one file per '
-                        'argument)')
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
+    madmom.utils.params.nn(p)
+    madmom.utils.params.audio(p, fps=None, norm=False, online=None, window=None)
     madmom.utils.params.beat(p)
     madmom.utils.params.io(p)
     # version
@@ -65,11 +63,21 @@ def parser():
     args.online = False
     if args.nn_files is None:
         args.nn_files = NN_FILES
+    args.threads = min(len(args.nn_files), args.threads)
     # print arguments
     if args.verbose:
         print args
     # return
     return args
+
+
+def process((nn_file, data)):
+    """
+    Loads a RNN model from the given file (first tuple item) and passes the
+    given numpy array of data through it (second tuple item).
+
+    """
+    return RecurrentNeuralNetwork(nn_file).activate(data)
 
 
 def main():
@@ -86,6 +94,7 @@ def main():
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN model(s) given')
+
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
@@ -102,17 +111,18 @@ def main():
         s = LogFiltSpec(w, frame_size=4096, fps=FPS,
                         bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
                         norm_filters=NORM_FILTERS)
+        # stack the data
         data = np.hstack((data, s.spec, s.pos_diff))
-        # test the data against all saved neural nets
-        act = None
-        for nn_file in args.nn_files:
-            if act is None:
-                act = RecurrentNeuralNetwork(nn_file).activate(data)
-            else:
-                act += RecurrentNeuralNetwork(nn_file).activate(data)
-        # normalize activations
-        if len(args.nn_files) > 1:
-            act /= len(args.nn_files)
+
+        # init a pool of workers (if needed)
+        mp_map = mp.Pool(args.threads).map if args.threads != 1 else map
+        # compute predictions with all saved neural networks (in parallel)
+        activations = mp_map(process, it.izip(args.nn_files, it.repeat(data)))
+
+        # average activations
+        nn_files = len(args.nn_files)
+        act = sum(activations) / nn_files if nn_files > 1 else activations[0]
+
         # create an Beat object with the activations
         b = Beat(act.ravel(), args.fps, args.online)
 

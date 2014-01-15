@@ -340,7 +340,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     l = a.shape[axis]
     if l == 0:
-        raise ValueError("Not enough data points to segment array in 'cut' "\
+        raise ValueError("Not enough data points to segment array in 'cut' "
                          "mode; try 'pad' or 'wrap'")
     assert l >= length
     assert (l - length) % (length - overlap) == 0
