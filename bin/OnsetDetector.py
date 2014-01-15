@@ -118,7 +118,6 @@ def main():
 
         # init a pool of workers (if needed)
         mp_map = mp.Pool(args.threads).map if args.threads != 1 else map
-
         # compute predictions with all saved neural networks (in parallel)
         activations = mp_map(process, it.izip(args.nn_files, it.repeat(data)))
         # average activations
