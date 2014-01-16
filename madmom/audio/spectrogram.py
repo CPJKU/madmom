@@ -9,6 +9,7 @@ This file contains spectrogram related functionality.
 
 import numpy as np
 import scipy.fftpack as fft
+import scipy.ndimage as sim
 
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
@@ -304,14 +305,14 @@ class Spectrogram(object):
 
         """
         # init spectrogram matrix
-        self._spec = np.empty([self.num_frames, self.num_bins], np.float)
+        self._spec = np.zeros([self.num_frames, self.num_bins], np.float)
         # STFT matrix
         if stft or self._save_stft:
-            self._stft = np.empty([self.num_frames, self.num_fft_bins],
+            self._stft = np.zeros([self.num_frames, self.num_fft_bins],
                                   np.complex)
         # phase matrix
         if phase or self._save_phase:
-            self._phase = np.empty([self.num_frames, self.num_fft_bins],
+            self._phase = np.zeros([self.num_frames, self.num_fft_bins],
                                    np.float)
         # local group delay matrix
         if lgd or self._save_lgd:
@@ -478,12 +479,12 @@ class Spectrogram(object):
         Proceedings of the International Computer Music Conference (ICMC), 2007
 
         """
-        mem_coeff = 10.0 ** (-6. * relaxation / self.frames.fps)
+        relaxation = 10.0 ** (-6. * relaxation / self.frames.fps)
         p = np.zeros_like(self.spec)
         # iterate over all frames
         for f in range(len(self.frames)):
             if f > 0:
-                p[f] = np.maximum(self.spec[f], floor, mem_coeff * p[f - 1])
+                p[f] = np.maximum(self.spec[f], floor, relaxation * p[f - 1])
             else:
                 p[f] = np.maximum(self.spec[f], floor)
         # return the whitened spectrogram
@@ -570,3 +571,79 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
 # aliases
 LogFiltSpec = LogarithmicFilteredSpectrogram
 LFS = LogFiltSpec
+
+
+# harmonic/percussive separation stuff
+# TODO: move this to an extra module?
+HARMONIC_FILTER = (15, 1)
+PERCUSSIVE_FILTER = (1, 15)
+
+from scipy.ndimage.filters import median_filter
+
+
+class HarmonicPercussiveSourceSeparation(Spectrogram):
+    """
+    HarmonicPercussiveSourceSeparation is a subclass of Spectrogram and
+    separates the magnitude spectrogram into its harmonic and percussive
+    components with median filters.
+
+    "Harmonic/percussive separation using median filtering."
+    Derry FitzGerald.
+    In Proceedings of the 13th International Conference on Digital Audio Effects
+    (DAFx-10), Graz, Austria, September 2010.
+
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        Creates a new HarmonicPercussiveSourceSeparation object instance.
+
+        The magnitude spectrogram are separated with median filters with the
+        given sizes into their harmonic and percussive parts.
+
+        :param harmonic_filter:   tuple with harmonic filter size (frames, bins)
+        :param percussive_filter: tuple with percussive filter size (frames,
+                                  bins)
+
+        """
+        # fetch the arguments for separating the magnitude (or set defaults)
+        harmonic_filter = kwargs.pop('harmonic_filter', HARMONIC_FILTER)
+        percussive_filter = kwargs.pop('percussive_filter', PERCUSSIVE_FILTER)
+        # create a Spectrogram object
+        super(HarmonicPercussiveSourceSeparation, self).__init__(*args, **kwargs)
+        # set the parameters, so they get used for computation
+        self._harmonic_filter = harmonic_filter
+        self._percussive_filter = percussive_filter
+        # init arrays
+        self._harmonic = None
+        self._percussive = None
+
+    @property
+    def harmonic_filter(self):
+        """Harmonic filter size."""
+        return self._harmonic_filter
+
+    @property
+    def percussive_filter(self):
+        """Percussive filter size."""
+        return self._percussive_filter
+
+    @property
+    def harmonic(self):
+        """Harmonic part of the magnitude spectrogram."""
+        if self._harmonic is None:
+            # calculate the harmonic part
+            self._harmonic = median_filter(self.spec, self._harmonic_filter)
+        # return
+        return self._harmonic
+
+    @property
+    def percussive(self):
+        """Percussive part of the magnitude spectrogram."""
+        if self._percussive is None:
+            # calculate the percussive part
+            self._percussive = median_filter(self.spec, self._percussive_filter)
+        # return
+        return self._percussive
+
+
+HPSS = HarmonicPercussiveSourceSeparation
