@@ -102,9 +102,6 @@ FILTERBANK = None
 LOG = False         # default: linear spectrogram
 MUL = 1
 ADD = 1
-STFT = False
-PHASE = False
-LGD = False
 NORM_WINDOW = False
 FFT_SIZE = None
 RATIO = 0.5
@@ -117,9 +114,9 @@ class Spectrogram(object):
 
     """
     def __init__(self, frames, window=np.hanning, filterbank=FILTERBANK,
-                 log=LOG, mul=MUL, add=ADD, stft=STFT, phase=PHASE, lgd=LGD,
-                 norm_window=NORM_WINDOW, fft_size=FFT_SIZE,
-                 ratio=RATIO, diff_frames=DIFF_FRAMES, *args, **kwargs):
+                 log=LOG, mul=MUL, add=ADD, norm_window=NORM_WINDOW,
+                 fft_size=FFT_SIZE, ratio=RATIO, diff_frames=DIFF_FRAMES,
+                 *args, **kwargs):
         """
         Creates a new Spectrogram object instance of the given audio.
 
@@ -207,11 +204,6 @@ class Spectrogram(object):
             self._fft_size = self.window.size
         else:
             self._fft_size = fft_size
-
-        # perform these additional computations
-        self._save_stft = stft
-        self._save_phase = phase
-        self._save_lgd = lgd
 
         # init matrices
         self._spec = None
@@ -308,23 +300,22 @@ class Spectrogram(object):
 
         """
         # init spectrogram matrix
-        self._spec = np.zeros([self.num_frames, self.num_bins], np.float)
+        self._spec = np.zeros([self.num_frames, self.num_bins], np.float32)
         # STFT matrix
         if stft:
             self._stft = np.zeros([self.num_frames, self.num_fft_bins],
-                                  np.complex)
+                                  np.complex64)
         # phase matrix
         if phase:
             self._phase = np.zeros([self.num_frames, self.num_fft_bins],
-                                   np.float)
+                                   np.float32)
         # local group delay matrix
         if lgd:
             self._lgd = np.zeros([self.num_frames, self.num_fft_bins],
-                                 np.float)
+                                 np.float32)
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
-            print f
             # multiply the signal frame with the window function
             signal = np.multiply(self.frames[f], self._fft_window)
             # only shift and perform complex DFT if needed
@@ -364,18 +355,18 @@ class Spectrogram(object):
     @property
     def stft(self):
         """Short Time Fourier Transform of the signal."""
-        # TODO: this is highly inefficient, if more properties are accessed
-        # better call compute_stft() only once with appropriate parameters.
+        # TODO: this is highly inefficient if other properties depending on the
+        # STFT were accessed previously; better call compute_stft() with
+        # appropriate parameters.
         if self._stft is None:
-            self.compute_stft(stft=True, phase=self._save_phase,
-                              lgd=self._save_lgd)
+            self.compute_stft(stft=True)
         return self._stft
 
     @property
     def spec(self):
         """Magnitude spectrogram of the STFT."""
-        # TODO: this is highly inefficient, if more properties are accessed
-        # better call compute_stft() only once with appropriate parameters.
+        # TODO: this is highly inefficient if more properties are accessed;
+        # better call compute_stft() with appropriate parameters.
         if self._spec is None:
             # check if STFT was computed already
             if self._stft is not None:
@@ -389,8 +380,7 @@ class Spectrogram(object):
                     self._spec = np.log10(self._mul * self._spec + self._add)
             else:
                 # compute the spec
-                self.compute_stft(stft=self._save_stft, phase=self._save_phase,
-                                  lgd=self._save_lgd)
+                self.compute_stft()
         # return spec
         return self._spec
 
@@ -434,8 +424,9 @@ class Spectrogram(object):
     @property
     def phase(self):
         """Phase of the STFT."""
-        # TODO: this is highly inefficient, if more properties are accessed
-        # better call compute_stft() only once with appropriate parameters.
+        # TODO: this is highly inefficient if other properties depending on the
+        # phase were accessed previously; better call compute_stft() with
+        # appropriate parameters.
         if self._phase is None:
             # check if STFT was computed already
             if self._stft is not None:
@@ -443,16 +434,15 @@ class Spectrogram(object):
                 self._phase = np.angle(self._stft)
             else:
                 # compute the phase
-                self.compute_stft(stft=self._save_stft, phase=True,
-                                  lgd=self._save_lgd)
+                self.compute_stft(phase=True)
         # return phase
         return self._phase
 
     @property
     def lgd(self):
         """Local group delay of the STFT."""
-        # TODO: this is highly inefficient, if more properties are accessed
-        # better call compute_stft() only once with appropriate parameters.
+        # TODO: this is highly inefficient if more properties are accessed;
+        # better call compute_stft() with appropriate parameters.
         if self._lgd is None:
             # if the STFT was computed already, but not the phase
             if self._stft is not None and self._phase is None:
@@ -470,8 +460,7 @@ class Spectrogram(object):
                 self._lgd[:, :-1] = unwrapped[:, :-1] - unwrapped[:, 1:]
             else:
                 # compute the local group delay
-                self.compute_stft(stft=self._save_stft, phase=self._save_phase,
-                                  lgd=True)
+                self.compute_stft(lgd=True)
         # return lgd
         return self._lgd
 
