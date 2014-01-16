@@ -174,6 +174,9 @@ class Spectrogram(object):
             self._add = frames.add
             self._ratio = frames.ratio
             # do not copy diff_frames, it is calculated or set manually
+        elif isinstance(frames, FramedSignal):
+            # already a FramedSignal
+            self._frames = frames
         else:
             # try to instantiate a Framed object
             self._frames = FramedSignal(frames, *args, **kwargs)
@@ -307,27 +310,28 @@ class Spectrogram(object):
         # init spectrogram matrix
         self._spec = np.zeros([self.num_frames, self.num_bins], np.float)
         # STFT matrix
-        if stft or self._save_stft:
+        if stft:
             self._stft = np.zeros([self.num_frames, self.num_fft_bins],
                                   np.complex)
         # phase matrix
-        if phase or self._save_phase:
+        if phase:
             self._phase = np.zeros([self.num_frames, self.num_fft_bins],
                                    np.float)
         # local group delay matrix
-        if lgd or self._save_lgd:
+        if lgd:
             self._lgd = np.zeros([self.num_frames, self.num_fft_bins],
                                  np.float)
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
+            print f
             # multiply the signal frame with the window function
             signal = np.multiply(self.frames[f], self._fft_window)
             # only shift and perform complex DFT if needed
-            if phase or lgd:
+            if stft or phase or lgd:
                 # circular shift the signal (needed for correct phase)
-                signal = np.concatenate(signal[self.num_fft_bins:],
-                                        signal[:self.num_fft_bins])
+                signal = np.concatenate((signal[self.num_fft_bins:],
+                                         signal[:self.num_fft_bins]))
             # perform DFT
             dft = fft.fft(signal, self.fft_size)[:self.num_fft_bins]
 
@@ -342,8 +346,8 @@ class Spectrogram(object):
                 self._phase[f] = angle
             # save lgd
             if lgd:
-                # unwrap phase over frequency axis
-                unwrapped_phase = np.unwrap(angle, axis=1)
+                # unwrap phase
+                unwrapped_phase = np.unwrap(angle)
                 # local group delay is the derivative over frequency
                 self._lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
@@ -363,7 +367,8 @@ class Spectrogram(object):
         # TODO: this is highly inefficient, if more properties are accessed
         # better call compute_stft() only once with appropriate parameters.
         if self._stft is None:
-            self.compute_stft(stft=True)
+            self.compute_stft(stft=True, phase=self._save_phase,
+                              lgd=self._save_lgd)
         return self._stft
 
     @property
@@ -384,7 +389,8 @@ class Spectrogram(object):
                     self._spec = np.log10(self._mul * self._spec + self._add)
             else:
                 # compute the spec
-                self.compute_stft()
+                self.compute_stft(stft=self._save_stft, phase=self._save_phase,
+                                  lgd=self._save_lgd)
         # return spec
         return self._spec
 
@@ -437,7 +443,8 @@ class Spectrogram(object):
                 self._phase = np.angle(self._stft)
             else:
                 # compute the phase
-                self.compute_stft(phase=True)
+                self.compute_stft(stft=self._save_stft, phase=True,
+                                  lgd=self._save_lgd)
         # return phase
         return self._phase
 
@@ -459,10 +466,12 @@ class Spectrogram(object):
                 # unwrap phase over frequency axis
                 unwrapped = np.unwrap(self._phase, axis=1)
                 # local group delay is the derivative over frequency
-                self._lgd[:, :-1] = unwrapped[:, -1] - unwrapped[:, 1:]
+                self._lgd = np.zeros_like(self._phase)
+                self._lgd[:, :-1] = unwrapped[:, :-1] - unwrapped[:, 1:]
             else:
                 # compute the local group delay
-                self.compute_stft(lgd=True)
+                self.compute_stft(stft=self._save_stft, phase=self._save_phase,
+                                  lgd=True)
         # return lgd
         return self._lgd
 

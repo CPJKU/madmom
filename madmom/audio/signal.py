@@ -374,6 +374,9 @@ class FramedSignal(object):
             self._origin = signal.origin
             self._start = signal.start
             self._num_frames = signal.num_frames
+        elif isinstance(signal, Signal):
+            # already a signal
+            self._signal = signal
         else:
             # try to instantiate a Signal
             self._signal = Signal(signal, *args, **kwargs)
@@ -458,7 +461,7 @@ class FramedSignal(object):
             # determine the start sample
             start_sample = self.start + self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
-            return FramedSignal(self.signal, frame_size=self.frame_size,
+            return FramedSignal(self, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
         # other index types are invalid
