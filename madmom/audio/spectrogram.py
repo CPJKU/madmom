@@ -47,7 +47,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     # number of resulting FFT bins
     fft_bins = fft_size >> 1
     # init stft matrix
-    stft = np.empty([frames, fft_bins], np.complex)
+    stft = np.zeros([frames, fft_bins], np.complex64)
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal

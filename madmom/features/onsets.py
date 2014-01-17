@@ -759,7 +759,7 @@ def parser():
     filtering(p, filtering=True)
     log(p, log=True)
     spectral_odf(p)
-    o = onset(p, io=True)
+    o = onset(p)
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
                'cd', 'rcd']
