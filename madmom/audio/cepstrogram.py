@@ -96,8 +96,9 @@ class MFCC(Cepstrogram):
         super(MFCC, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
         if fb is None:
-            fb = MelFilterBank(fft_bins=self.num_fft_bins,
-                               sample_rate=self.frames.signal.sample_rate,
+            sample_rate = self.spectrogram.frames.signal.sample_rate
+            fb = MelFilterBank(fft_bins=self.spectrogram.num_fft_bins,
+                               sample_rate=sample_rate,
                                bands=mel_bands, fmin=fmin, fmax=fmax,
                                norm=norm_filters)
 
