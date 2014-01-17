@@ -46,9 +46,9 @@ class Cepstrogram(object):
 # TODO: set other defaults than those in cp.audio.filterbank for MFCCs?
 class MFCC(Cepstrogram):
     """
-    MFCC is a subclass of Cepstrogram which filters the magnitude spectrogram of
-    the spectrogram with a Mel filterbank, takes the logarithm and performs a
-    discrete cosine transform afterwards.
+    MFCC is a subclass of Cepstrogram which filters the magnitude spectrogram
+    of the spectrogram with a Mel filterbank, takes the logarithm and performs
+    a discrete cosine transform afterwards.
 
     """
     def __init__(self, *args, **kwargs):
@@ -114,7 +114,6 @@ class MFCC(Cepstrogram):
     def mfcc(self):
         """Mel-frequency cepstral coefficients."""
         if self._mfcc is None:
-            # take the DCT of the LogMelSpec, skip the first bin
-            # FIXME: include all bins or skip the first?
-            self._mfcc = fft.dct(self._spectrogram.spec)[1:]
+            # take the DCT of the LogMelSpec (including the first bin)
+            self._mfcc = fft.dct(self._spectrogram.spec)
         return self._mfcc
