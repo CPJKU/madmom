@@ -106,7 +106,8 @@ class TempoEvaluation(object):
     def pscore(self):
         """P-Score."""
         if self._pscore is None:
-            self._pscore = pscore(self.detections, self.targets, self.tolerance)
+            self._pscore = pscore(self.detections, self.targets,
+                                  self.tolerance)
         return self._pscore
 
     def print_errors(self, tex=False):
@@ -117,7 +118,7 @@ class TempoEvaluation(object):
 
         """
         # print the errors
-        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: '\
+        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: ' \
               ' %.1f\%)' % (self.pscore, self.targets, self.detections,
                             self.tolerance * 100)
         if tex:

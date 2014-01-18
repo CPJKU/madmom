@@ -345,7 +345,8 @@ class NetCDF(object):
             self.nc.createDimension('maxTargStringLength',
                                     max_target_string_length)
         except IOError:
-            self.nc.dimensions['maxTargStringLength'] = max_target_string_length
+            self.nc.dimensions['maxTargStringLength'] = \
+                max_target_string_length
 
     @property
     def max_sequence_tag_length(self):
@@ -470,7 +471,8 @@ class NetCDF(object):
     @labels.setter
     def labels(self, labels):
         """
-        Set the labels (classification, sequence classification, transcription).
+        Set the labels (classification, sequence classification,
+        transcription).
 
         :param labels: labels [list of strings]
 

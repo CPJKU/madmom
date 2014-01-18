@@ -51,7 +51,8 @@ def parser():
     madmom.utils.params.mirex(p)
     # add other argument groups
     madmom.utils.params.nn(p)
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None, window=None)
+    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
+                              window=None)
     madmom.utils.params.beat(p)
     madmom.utils.params.io(p)
     # version
@@ -115,13 +116,18 @@ def main():
         data = np.hstack((data, s.spec, s.pos_diff))
 
         # init a pool of workers (if needed)
-        mp_map = mp.Pool(args.threads).map if args.threads != 1 else map
+        _map = map
+        if args.threads != 1:
+            _map = mp.Pool(args.threads).map
         # compute predictions with all saved neural networks (in parallel)
-        activations = mp_map(process, it.izip(args.nn_files, it.repeat(data)))
+        activations = _map(process, it.izip(args.nn_files, it.repeat(data)))
 
-        # average activations
+        # average activations if needed
         nn_files = len(args.nn_files)
-        act = sum(activations) / nn_files if nn_files > 1 else activations[0]
+        if nn_files > 1:
+            act = sum(activations) / nn_files
+        else:
+            act = activations[0]
 
         # create an Beat object with the activations
         b = Beat(act.ravel(), args.fps, args.online)

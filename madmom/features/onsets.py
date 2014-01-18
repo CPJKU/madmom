@@ -521,25 +521,6 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     return np.nonzero(detections)[0].astype(np.float)
 
 
-def nn_peak_picking(activations, network, threshold):
-    """
-    Perform the peak-picking method described in:
-
-    "Enhanced peak picking for Onset Detection with Recurrent Neural Networks"
-    Sebastian Böck, Jan Schlüter and Gerhard Widmer
-    Proceedings of the 6th International Workshop on Machine Learning and Music
-    (MML13) Prague, Czech Republic, September 2013
-
-    on the given activation function.
-
-    :param activations: the onset activation function
-    :param network:     the trained network with weights
-    :param threshold:   threshold for peak-picking
-
-    """
-    raise NotImplementedError
-
-
 # default values for onset peak-picking
 THRESHOLD = 1.25
 SMOOTH = 0
