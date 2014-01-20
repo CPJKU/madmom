@@ -95,7 +95,7 @@ class TempoEvaluation(object):
         self.targets = targets
         self.tolerance = tolerance
         # score
-        self.__pscore = None
+        self._pscore = None
 
     @property
     def num(self):
@@ -105,10 +105,10 @@ class TempoEvaluation(object):
     @property
     def pscore(self):
         """P-Score."""
-        if self.__pscore is None:
-            self.__pscore = pscore(self.detections, self.targets,
-                                   self.tolerance)
-        return self.__pscore
+        if self._pscore is None:
+            self._pscore = pscore(self.detections, self.targets,
+                                  self.tolerance)
+        return self._pscore
 
     def print_errors(self, tex=False):
         """
@@ -118,9 +118,9 @@ class TempoEvaluation(object):
 
         """
         # print the errors
-        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: '\
+        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: ' \
               ' %.1f\%)' % (self.pscore, self.targets, self.detections,
-                        self.tolerance * 100)
+                            self.tolerance * 100)
         if tex:
             print "%i events & P-Score\\\\" % self.num
             print "tex & %.3f \\\\" % self.pscore
@@ -142,7 +142,7 @@ class MeanTempoEvaluation(TempoEvaluation):
 
         """
         # simple scores
-        self.__pscore = np.empty(0)
+        self._pscore = np.zeros(0)
         # instance can be initialized with a Evaluation object
         if isinstance(other, TempoEvaluation):
             # add this object to self
@@ -157,19 +157,19 @@ class MeanTempoEvaluation(TempoEvaluation):
 
         """
         if isinstance(other, TempoEvaluation):
-            self.__pscore = np.append(self.__pscore, other.pscore)
+            self._pscore = np.append(self._pscore, other.pscore)
         else:
             return NotImplemented
 
     @property
     def num(self):
         """Number of evaluated files."""
-        return len(self.__pscore)
+        return len(self._pscore)
 
     @property
     def pscore(self):
         """P-Score."""
-        return np.mean(self.__pscore)
+        return np.mean(self._pscore)
 
 
 def parser():

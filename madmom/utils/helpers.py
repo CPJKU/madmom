@@ -38,7 +38,7 @@ def files(path, ext=None):
         else:
             file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
-        # no matchin needed
+        # no matching needed
         if ext is None:
             file_list = [path]
         # file must have the correct extension
@@ -55,7 +55,7 @@ def files(path, ext=None):
     return file_list
 
 
-def stripext(filename, ext=None):
+def strip_ext(filename, ext=None):
     """
     Strip of the extension.
 
@@ -82,7 +82,7 @@ def match_file(filename, match_list, ext=None, match_ext=None):
 
     """
     # get the base name without the path
-    basename = os.path.basename(stripext(filename, ext))
+    basename = os.path.basename(strip_ext(filename, ext))
     # init return list
     matches = []
     # look for files with the same base name in the files_list
@@ -92,7 +92,7 @@ def match_file(filename, match_list, ext=None, match_ext=None):
         pattern = "*%s" % basename
     for match in fnmatch.filter(match_list, pattern):
         # base names must match exactly
-        if basename == os.path.basename(stripext(match, match_ext)):
+        if basename == os.path.basename(strip_ext(match, match_ext)):
             matches.append(match)
     # return the matches
     return matches
@@ -117,7 +117,7 @@ def load_events(filename):
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
         return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
-                dtype=np.double)
+                           dtype=np.float32)
     finally:
         # close file if needed
         if own_fid:
@@ -287,7 +287,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     strided and being flattened or because end is set to 'pad' or 'wrap').
 
     Example:
-    >>> segment_axis(arange(10), 4, 2)
+    >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],
            [4, 5, 6, 7],
@@ -304,7 +304,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
     if overlap >= length:
         raise ValueError("frames cannot overlap by more than 100%.")
     if overlap < 0:
-        raise ValueError("overlap must be nonnegative.")
+        raise ValueError("overlap must be non-negative.")
     if length <= 0:
         raise ValueError("length must be positive.")
 
@@ -340,24 +340,24 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
 
     l = a.shape[axis]
     if l == 0:
-        raise ValueError("Not enough data points to segment array in 'cut' "\
+        raise ValueError("Not enough data points to segment array in 'cut' "
                          "mode; try 'pad' or 'wrap'")
     assert l >= length
     assert (l - length) % (length - overlap) == 0
     n = 1 + (l - length) // (length - overlap)
     s = a.strides[axis]
-    newshape = a.shape[:axis] + (n, length) + a.shape[axis + 1:]
-    newstrides = a.strides[:axis] + ((length - overlap) * s, s) +\
-                 a.strides[axis + 1:]
+    new_shape = a.shape[:axis] + (n, length) + a.shape[axis + 1:]
+    new_strides = a.strides[:axis] + ((length - overlap) * s, s) +\
+                  a.strides[axis + 1:]
 
     try:
-        return np.ndarray.__new__(np.ndarray, strides=newstrides,
-                                  shape=newshape, buffer=a, dtype=a.dtype)
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=a, dtype=a.dtype)
     except TypeError:
         warnings.warn("Problem with ndarray creation forces copy.")
         a = a.copy()
         # Shape doesn't change but strides does
-        newstrides = a.strides[:axis] + ((length - overlap) * s, s) +\
+        new_strides = a.strides[:axis] + ((length - overlap) * s, s) +\
                      a.strides[axis + 1:]
-        return np.ndarray.__new__(np.ndarray, strides=newstrides,
-                                  shape=newshape, buffer=a, dtype=a.dtype)
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=a, dtype=a.dtype)

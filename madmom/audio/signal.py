@@ -37,7 +37,7 @@ def normalize(x):
     :returns: normalized signal
 
     """
-    return x.astype(float) / np.max(x)
+    return x.astype(np.float32) / np.max(x)
 
 
 def downmix(x):
@@ -264,15 +264,13 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
         return np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.empty((frame_size,) + x.shape[1:], dtype=x.dtype)
-        frame[:-start] = 0
+        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
         frame[-start:] = x[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.empty((frame_size,) + x.shape[1:], dtype=x.dtype)
+        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
         frame[:num_samples - start] = x[start:]
-        frame[num_samples - start:] = 0
         return frame
     else:
         # normal read operation
@@ -374,6 +372,9 @@ class FramedSignal(object):
             self._origin = signal.origin
             self._start = signal.start
             self._num_frames = signal.num_frames
+        elif isinstance(signal, Signal):
+            # already a signal
+            self._signal = signal
         else:
             # try to instantiate a Signal
             self._signal = Signal(signal, *args, **kwargs)
@@ -458,7 +459,7 @@ class FramedSignal(object):
             # determine the start sample
             start_sample = self.start + self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
-            return FramedSignal(self.signal, frame_size=self.frame_size,
+            return FramedSignal(self, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
         # other index types are invalid

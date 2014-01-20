@@ -46,7 +46,7 @@ def count_errors(detections, targets, window):
     # no detections
     if detections.size == 0:
         # all targets are FNs
-        return np.empty(0), np.empty(0), np.empty(0), targets
+        return np.zeros(0), np.zeros(0), np.zeros(0), targets
     # calc the absolute errors of detections wrt. targets
     errors = calc_absolute_errors(detections, targets)
     # true positive detections
@@ -57,7 +57,7 @@ def count_errors(detections, targets, window):
     errors = np.asarray(calc_absolute_errors(targets, detections))
     fn = targets[errors > window]
     # return the arrays
-    return tp, fp, np.empty(0), fn
+    return tp, fp, np.zeros(0), fn
 
 
 # default evaluation values

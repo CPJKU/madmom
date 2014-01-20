@@ -139,7 +139,7 @@ class NetCDF(object):
         Creates a new NetCDF object.
 
         :param filename: open a .nc-file with the given filename
-        :param mode: r/w open an existing file for reading/writing
+        :param mode:     {'r', 'w'} open an existing file for reading / writing
 
         Note: The scipy module has a bug which let's you alter variables and
               dimensions if the file is opened in 'r' mode, but does not throw
@@ -165,7 +165,7 @@ class NetCDF(object):
         return self.nc.filename
 
     @property
-    def numSeqs(self):
+    def num_sequences(self):
         """Number of sequences."""
         # mandatory
         try:
@@ -173,15 +173,21 @@ class NetCDF(object):
         except KeyError:
             return 0
 
-    @numSeqs.setter
-    def numSeqs(self, numSeqs):
+    @num_sequences.setter
+    def num_sequences(self, num_sequences):
+        """
+        Set the number of sequences.
+
+        :param num_sequences: number of sequences [int]
+
+        """
         try:
-            self.nc.createDimension('numSeqs', numSeqs)
+            self.nc.createDimension('numSeqs', num_sequences)
         except IOError:
-            self.nc.dimensions['numSeqs'] = numSeqs
+            self.nc.dimensions['numSeqs'] = num_sequences
 
     @property
-    def numDims(self):
+    def num_dimensions(self):
         """Number of dimensions of the sequences."""
         # mandatory
         try:
@@ -189,50 +195,68 @@ class NetCDF(object):
         except KeyError:
             return 0
 
-    @numDims.setter
-    def numDims(self, numDims):
+    @num_dimensions.setter
+    def num_dimensions(self, num_dimensions):
+        """
+        Set the number of dimensions of the sequences.
+
+        :param num_dimensions: number of dimensions of the sequences [int]
+
+        """
         try:
-            self.nc.createDimension('numDims', numDims)
+            self.nc.createDimension('numDims', num_dimensions)
         except IOError:
-            self.nc.dimensions['numDims'] = numDims
+            self.nc.dimensions['numDims'] = num_dimensions
 
     @property
-    def numTimesteps(self):
-        """Number of timesteps (of all sequences)."""
+    def num_time_steps(self):
+        """Total number of time steps (of all sequences)."""
         # mandatory
         try:
             return self.nc.dimensions['numTimesteps']
         except KeyError:
             return 0
 
-    @numTimesteps.setter
-    def numTimesteps(self, numTimesteps):
+    @num_time_steps.setter
+    def num_time_steps(self, num_time_steps):
+        """
+        Set the total number of time steps (of all sequences).
+
+        :param num_time_steps: number of time steps [int]
+
+        """
         try:
-            self.nc.createDimension('numTimesteps', numTimesteps)
+            self.nc.createDimension('numTimesteps', num_time_steps)
         except IOError:
-            self.nc.dimensions['numTimesteps'] = numTimesteps
+            self.nc.dimensions['numTimesteps'] = num_time_steps
 
     @property
-    def inputPattSize(self):
-        """Size of the input pattern."""
+    def input_pattern_size(self):
+        """Size of the input patterns."""
         # mandatory
         try:
             return self.nc.dimensions['inputPattSize']
         except KeyError:
             return None
 
-    @inputPattSize.setter
-    def inputPattSize(self, inputPattSize):
+    @input_pattern_size.setter
+    def input_pattern_size(self, input_pattern_size):
+        """
+        Set the size of the input patterns.
+
+        :param input_pattern_size: input pattern size [int]
+
+        """
         try:
-            self.nc.createDimension('inputPattSize', inputPattSize)
+            self.nc.createDimension('inputPattSize', input_pattern_size)
         except IOError:
-            self.nc.dimensions['inputPattSize'] = inputPattSize
+            self.nc.dimensions['inputPattSize'] = input_pattern_size
 
     # dimensions needed for indicated tasks
     # TODO: use decorators to check the presence of these depending on the task
 
     @property
-    def numLabels(self):
+    def num_labels(self):
         """Number of different labels."""
         # classification, sequence_classification, transcription
         try:
@@ -240,15 +264,22 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @numLabels.setter
-    def numLabels(self, numLabels):
+    @num_labels.setter
+    def num_labels(self, num_labels):
+        """
+        Set the number of different labels (classification, sequence
+        classification, transcription).
+
+        :param num_labels: number of labels [int]
+
+        """
         try:
-            self.nc.createDimension('numLabels', numLabels)
+            self.nc.createDimension('numLabels', num_labels)
         except IOError:
-            self.nc.dimensions['numLabels'] = numLabels
+            self.nc.dimensions['numLabels'] = num_labels
 
     @property
-    def maxLabelLength(self):
+    def max_label_length(self):
         """Maximum length of the labels."""
         # classification, sequence_classification, transcription
         try:
@@ -256,15 +287,22 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @maxLabelLength.setter
-    def maxLabelLength(self, maxLabelLength):
+    @max_label_length.setter
+    def max_label_length(self, max_label_length):
+        """
+        Set the maximum label length (classification, sequence classification,
+        transcription).
+
+        :param max_label_length: maximum label length [int]
+
+        """
         try:
-            self.nc.createDimension('maxLabelLength', maxLabelLength)
+            self.nc.createDimension('maxLabelLength', max_label_length)
         except IOError:
-            self.nc.dimensions['maxLabelLength'] = maxLabelLength
+            self.nc.dimensions['maxLabelLength'] = max_label_length
 
     @property
-    def targetPattSize(self):
+    def target_pattern_size(self):
         """Size of the target pattern vector."""
         # regression
         try:
@@ -272,15 +310,21 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @targetPattSize.setter
-    def targetPattSize(self, targetPattSize):
+    @target_pattern_size.setter
+    def target_pattern_size(self, target_pattern_size):
+        """
+        Set the size of the target pattern vector (regression).
+
+        :param target_pattern_size: target pattern vector size
+
+        """
         try:
-            self.nc.createDimension('targetPattSize', targetPattSize)
+            self.nc.createDimension('targetPattSize', target_pattern_size)
         except IOError:
-            self.nc.dimensions['targetPattSize'] = targetPattSize
+            self.nc.dimensions['targetPattSize'] = target_pattern_size
 
     @property
-    def maxTargStringLength(self):
+    def max_target_string_length(self):
         """Maximum length of the target strings."""
         # sequence_classification, transcription
         try:
@@ -288,15 +332,24 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @maxTargStringLength.setter
-    def maxTargStringLength(self, maxTargStringLength):
+    @max_target_string_length.setter
+    def max_target_string_length(self, max_target_string_length):
+        """
+        Set the maximum target strings length (sequence classification,
+        transcription).
+
+        :param max_target_string_length: maximum target strings length [int]
+
+        """
         try:
-            self.nc.createDimension('maxTargStringLength', maxTargStringLength)
+            self.nc.createDimension('maxTargStringLength',
+                                    max_target_string_length)
         except IOError:
-            self.nc.dimensions['maxTargStringLength'] = maxTargStringLength
+            self.nc.dimensions['maxTargStringLength'] = \
+                max_target_string_length
 
     @property
-    def maxSeqTagLength(self):
+    def max_sequence_tag_length(self):
         """Maximum length of the sequence tags."""
         # optional
         try:
@@ -304,18 +357,24 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @maxSeqTagLength.setter
-    def maxSeqTagLength(self, maxSeqTagLength):
+    @max_sequence_tag_length.setter
+    def max_sequence_tag_length(self, max_sequence_tag_length):
+        """
+        Set the maximum sequence tag length.
+
+        :param max_sequence_tag_length: maximum sequence tag length [int]
+
+        """
         try:
-            self.nc.createDimension('maxSeqTagLength', maxSeqTagLength)
+            self.nc.createDimension('maxSeqTagLength', max_sequence_tag_length)
         except IOError:
-            self.nc.dimensions['maxSeqTagLength'] = maxSeqTagLength
+            self.nc.dimensions['maxSeqTagLength'] = max_sequence_tag_length
 
     # VARIABLES
 
     @property
     def inputs(self):
-        """Array of input vectors [float]."""
+        """Input vectors."""
         # mandatory
         try:
             var = self.nc.variables['inputs']
@@ -326,21 +385,27 @@ class NetCDF(object):
 
     @inputs.setter
     def inputs(self, inputs):
+        """
+        Set the inputs.
+
+        :param inputs: input vectors [float array]
+
+        """
         inputs = np.atleast_2d(inputs)
         # set the seqDims if not already done
-        if not self.seqDims:
-            self.seqDims = [np.shape(inputs)[0]]
-        if not self.numTimesteps:
-            self.numTimesteps = np.shape(inputs)[0]
-        if not self.inputPattSize:
-            self.inputPattSize = np.shape(inputs)[1]
+        if not self.sequence_dimensions:
+            self.sequence_dimensions = [np.shape(inputs)[0]]
+        if not self.num_time_steps:
+            self.num_time_steps = np.shape(inputs)[0]
+        if not self.input_pattern_size:
+            self.input_pattern_size = np.shape(inputs)[1]
         var = self.nc.createVariable('inputs', 'f', ('numTimesteps',
                                                      'inputPattSize'))
         var[:] = inputs.astype(np.float32)
 
     @property
-    def seqDims(self):
-        """Array of sequence dimensions [int]."""
+    def sequence_dimensions(self):
+        """Sequence dimensions."""
         # mandatory
         try:
             var = self.nc.variables['seqDims']
@@ -349,22 +414,28 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @seqDims.setter
-    def seqDims(self, seqDims):
-        seqDims = np.atleast_2d(seqDims)
-        if not self.numSeqs:
-            self.numSeqs = np.shape(seqDims)[0]
-        if not self.numDims:
-            self.numDims = np.shape(seqDims)[1]
+    @sequence_dimensions.setter
+    def sequence_dimensions(self, sequence_dimensions):
+        """
+        Set the sequence dimensions.
+
+        :param sequence_dimensions: sequence dimensions [int array]
+
+        """
+        sequence_dimensions = np.atleast_2d(sequence_dimensions)
+        if not self.num_sequences:
+            self.num_sequences = np.shape(sequence_dimensions)[0]
+        if not self.num_dimensions:
+            self.num_dimensions = np.shape(sequence_dimensions)[1]
         var = self.nc.createVariable('seqDims', 'i', ('numSeqs', 'numDims'))
-        var[:] = seqDims.astype(np.int32)
+        var[:] = sequence_dimensions.astype(np.int32)
 
     # variables needed for indicated tasks
     # TODO: use decorators to check the presence of these depending on the task
 
     @property
-    def targetClasses(self):
-        """Array of target classes [int]."""
+    def target_classes(self):
+        """Target classes."""
         # classification
         try:
             var = self.nc.variables['targetClasses']
@@ -372,18 +443,24 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @targetClasses.setter
-    def targetClasses(self, targetClasses):
-        if not self.numTimesteps:
-            self.numTimesteps = np.shape(targetClasses)[0]
+    @target_classes.setter
+    def target_classes(self, target_classes):
+        """
+        Set the target classes (classification).
+
+        :param target_classes: target classes [array with class indices]
+
+        """
+        if not self.num_time_steps:
+            self.num_time_steps = np.shape(target_classes)[0]
         if not self.labels:
-            self.labels = np.unique(targetClasses)
+            self.labels = np.unique(target_classes)
         var = self.nc.createVariable('targetClasses', 'i', ('numTimesteps',))
-        var[:] = targetClasses.astype(np.int64)
+        var[:] = target_classes.astype(np.int64)
 
     @property
     def labels(self):
-        """Array of labels [char]."""
+        """Labels."""
         # classification, sequence_classification, transcription
         try:
             var = self.nc.variables['labels']
@@ -393,18 +470,25 @@ class NetCDF(object):
 
     @labels.setter
     def labels(self, labels):
+        """
+        Set the labels (classification, sequence classification,
+        transcription).
+
+        :param labels: labels [list of strings]
+
+        """
         # TODO: make a list if a single value is given?
         # convert the labels to a integer array
         labels = np.asarray(labels, np.int)
         # convert the labels to a strings array
         labels = np.asarray(labels, np.str)
         # set the number of labels
-        if not self.numLabels:
-            self.numLabels = np.shape(labels)[0]
+        if not self.num_labels:
+            self.num_labels = np.shape(labels)[0]
         # set the maximum length of the labels
-        if not self.maxLabelLength:
+        if not self.max_label_length:
             # set the maximum length of the label names
-            self.maxLabelLength = max_len(labels) + 1
+            self.max_label_length = max_len(labels) + 1
         # all labels must be the same length and null-terminated
         labels = expand_and_terminate(labels)
         var = self.nc.createVariable('labels', 'c',
@@ -412,8 +496,8 @@ class NetCDF(object):
         var[:] = labels
 
     @property
-    def targetPatterns(self):
-        """Array of target patterns [float]."""
+    def target_patterns(self):
+        """Target patterns."""
         # regression
         try:
             var = self.nc.variables['targetPatterns']
@@ -421,20 +505,26 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @targetPatterns.setter
-    def targetPatterns(self, targetPatterns):
+    @target_patterns.setter
+    def target_patterns(self, target_patterns):
+        """
+        Set the target patterns (regression).
+
+        :param target_patterns: target patterns [float array]
+
+        """
         # TODO: make a list if a single value is given?
-        if not self.numTimesteps:
-            self.numTimesteps = np.shape(targetPatterns)[0]
-        if not self.targetPattSize:
-            self.targetPattSize = np.shape(targetPatterns)[1]
+        if not self.num_time_steps:
+            self.num_time_steps = np.shape(target_patterns)[0]
+        if not self.target_pattern_size:
+            self.target_pattern_size = np.shape(target_patterns)[1]
         var = self.nc.createVariable('targetPatterns', 'f',
                                      ('numTimesteps', 'targetPattSize'))
-        var[:] = targetPatterns.astype(np.float32)
+        var[:] = target_patterns.astype(np.float32)
 
     @property
-    def targetStrings(self):
-        """Array of targetStrings [char]."""
+    def target_strings(self):
+        """Target strings."""
         # sequence_classification, transcription
         try:
             var = self.nc.variables['targetStrings']
@@ -442,22 +532,28 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @targetStrings.setter
-    def targetStrings(self, targetStrings):
+    @target_strings.setter
+    def target_strings(self, target_strings):
+        """
+        Set the target strings (sequence classification, transcription).
+
+        :param target_strings: target strings [list of strings]
+
+        """
         # TODO: make a list if a single value is given?
-        if not self.numSeqs:
-            self.numSeqs = len(targetStrings)
-        if not self.maxTargStringLength:
-            self.maxTargStringLength = max_len(targetStrings) + 1
+        if not self.num_sequences:
+            self.num_sequences = len(target_strings)
+        if not self.max_target_string_length:
+            self.max_target_string_length = max_len(target_strings) + 1
         # all targetStrings must be the same length and null-terminated
-        targetStrings = expand_and_terminate(targetStrings)
+        targetStrings = expand_and_terminate(target_strings)
         var = self.nc.createVariable('targetStrings', 'c',
                                      ('numTimesteps', 'maxTargStringLength'))
         var[:] = targetStrings
 
     @property
-    def seqTags(self):
-        """Array of sequence tags [char]."""
+    def sequence_tags(self):
+        """Sequence tags."""
         # optional
         try:
             var = self.nc.variables['seqTags']
@@ -466,20 +562,25 @@ class NetCDF(object):
         except KeyError:
             return None
 
-    @seqTags.setter
-    def seqTags(self, seqTags):
+    @sequence_tags.setter
+    def sequence_tags(self, sequence_tags):
+        """
+        Set the sequence tags (optional data).
+
+        :param sequence_tags: sequence tags [list of strings]
+        """
         # make a list if a single value is given
-        if isinstance(seqTags, str):
-            seqTags = [seqTags]
-        if not self.numSeqs:
-            self.numSeqs = len(seqTags)
-        if not self.maxSeqTagLength:
-            self.maxSeqTagLength = max_len(seqTags) + 1
+        if isinstance(sequence_tags, str):
+            sequence_tags = [sequence_tags]
+        if not self.num_sequences:
+            self.num_sequences = len(sequence_tags)
+        if not self.max_sequence_tag_length:
+            self.max_sequence_tag_length = max_len(sequence_tags) + 1
         # all seqTags must be the same length and null-terminated
-        seqTags = expand_and_terminate(seqTags)
-        var = self.nc.createVariable('seqTags', 'c',
-                                     ('numSeqs', 'maxSeqTagLength'))
-        var[:] = seqTags
+        sequence_tags = expand_and_terminate(sequence_tags)
+        var = self.nc.createVariable('seqTags', 'c', ('numSeqs',
+                                                      'maxSeqTagLength'))
+        var[:] = sequence_tags
 
 
 # .nc file creation
@@ -513,14 +614,14 @@ def create_nc_file(filename, data, targets, tags=None):
         nc.inputs = inputs
     else:
         raise TypeError("Invalid input data type.")
-    # groud truth
+    # ground truth
     if targets.ndim == 1:
-        nc.targetClasses = targets
+        nc.target_classes = targets
     else:
-        nc.targetPatterns = targets
+        nc.target_patterns = targets
     # tags
     if tags:
-        nc.seqTags = str(tags)
+        nc.sequence_tags = str(tags)
     # save file
     nc.close()
     # return
@@ -582,7 +683,6 @@ class TestThread(Thread):
                 # TODO: which exception should be raised?
                 raise SystemExit('rnnlib binary not found')
             # read the activations
-            act = np.empty(0)
             try:
                 # classification output
                 act = Activations('%s/output_outputActivations' %
@@ -590,7 +690,7 @@ class TestThread(Thread):
                 # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
-                pass
+                raise NotImplementedError("regression not implemented yet")
             # put a tuple with nc file, nn file and activations
             # in the return queue
             self.return_queue.put((nc_file, nn_file, act))
@@ -666,7 +766,7 @@ class RnnConfig(object):
 
         """
         # container for weights
-        self.W = {}
+        self.w = {}
         # attributes
         self.train_files = None
         self.val_files = None
@@ -756,28 +856,28 @@ class RnnConfig(object):
                                       'layer_%s_1_weights' % num_output_layer,
                                       name)
                     # save the weights
-                    self.W[name] = np.array(parts[2:], dtype=np.float32)
+                    self.w[name] = np.array(parts[2:], dtype=np.float32)
         # append output layer size
-        output_size = self.W['layer_%s_0_bias' % num_output_layer].size
+        output_size = self.w['layer_%s_0_bias' % num_output_layer].size
         self.layer_sizes.append(output_size)
-        # set the ouptut layer type
+        # set the output layer type
         if self.task == 'classification':
             self.layer_types.append('sigmoid')
         elif self.task == 'regression':
             self.layer_types.append('linear')
         else:
-            raise ValueError('unkown task, cannot set type of output layer.')
+            raise ValueError('unknown task, cannot set type of output layer.')
         # stack the output weights
         if self.bidirectional:
             num_output = len(self.layer_sizes) - 1
             size_output = self.layer_sizes[num_output]
-            bwd = self.W.pop('layer_%s_0_weights' % num_output)
-            fwd = self.W.pop('layer_%s_1_weights' % num_output)
+            bwd = self.w.pop('layer_%s_0_weights' % num_output)
+            fwd = self.w.pop('layer_%s_1_weights' % num_output)
             # reshape weights
             bwd = bwd.reshape((size_output, -1))
             fwd = fwd.reshape((size_output, -1))
             # stack weights
-            self.W['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
+            self.w['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
         # close the file
         f.close()
 
@@ -841,7 +941,7 @@ class RnnConfig(object):
         import h5py
         from .rnn import REVERSE
         # check if weights are present
-        if not self.W:
+        if not self.w:
             raise ValueError('please load a configuration file first')
         # set a default file name
         if filename is None:
@@ -867,12 +967,13 @@ class RnnConfig(object):
                 # create group with layer number
                 grp = h5_l.create_group(str(layer))
                 # iterate over all weights
-                for key in sorted(self.W.keys()):
+                for key in sorted(self.w.keys()):
                     # skip if it's not the right layer
                     if not key.startswith('layer_%s_' % layer):
                         continue
                     # get the weights
-                    w = self.W[key]
+                    w = self.w[key]
+                    name = None
                     if key.endswith('peephole_weights'):
                         name = 'peephole_weights'
                     elif key.endswith('recurrent_weights'):
@@ -899,7 +1000,7 @@ class RnnConfig(object):
                     # reverse
                     if key.startswith('layer_%s_0' % layer):
                         if re.sub('layer_%s_0' % layer, 'layer_%s_1' % layer,
-                                  key) in self.W.keys():
+                                  key) in self.w.keys():
                             name = '%s_%s' % (REVERSE, name)
                             bidirectional = True
                     # save the weights
