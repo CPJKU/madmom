@@ -31,7 +31,7 @@ def calc_overlap(detections, targets, threshold=0.5):
     # threshold detections
     detections = (detections >= threshold)
     # threshold targets
-    targets = targets >= threshold
+    targets = (targets >= threshold)
     # calculate overlap
     tp = np.nonzero(detections * targets)[0]
     fp = np.nonzero(detections > targets)[0]
@@ -141,7 +141,7 @@ class SimpleEvaluation(object):
     def errors(self):
         """Errors."""
         # FIXME: is returning an empty list ok?
-        return np.empty(0)
+        return np.zeros(0)
 
     def print_errors(self, tex=False):
         """
@@ -184,7 +184,7 @@ class SumEvaluation(SimpleEvaluation):
         self._num_fp = 0
         self._num_tn = 0
         self._num_fn = 0
-        self._errors = np.empty(0)
+        self._errors = np.zeros(0)
         # instance can be initialized with a Evaluation object
         if other:
             # add this object to self
@@ -251,17 +251,17 @@ class MeanEvaluation(SimpleEvaluation):
         """
         super(MeanEvaluation, self).__init__()
         # redefine most of the stuff
-        self._precision = np.empty(0)
-        self._recall = np.empty(0)
-        self._fmeasure = np.empty(0)
-        self._accuracy = np.empty(0)
-        self._mean = np.empty(0)
-        self._std = np.empty(0)
-        self._errors = np.empty(0)
-        self._num_tp = np.empty(0)
-        self._num_fp = np.empty(0)
-        self._num_tn = np.empty(0)
-        self._num_fn = np.empty(0)
+        self._precision = np.zeros(0)
+        self._recall = np.zeros(0)
+        self._fmeasure = np.zeros(0)
+        self._accuracy = np.zeros(0)
+        self._mean = np.zeros(0)
+        self._std = np.zeros(0)
+        self._errors = np.zeros(0)
+        self._num_tp = np.zeros(0)
+        self._num_fp = np.zeros(0)
+        self._num_tn = np.zeros(0)
+        self._num_fn = np.zeros(0)
         self.num = 0
         # instance can be initialized with a Evaluation object
         if other:
@@ -472,7 +472,7 @@ class Evaluation(SimpleEvaluation):
         if self._errors is None:
             if self.num_tp == 0:
                 # FIXME: what is the error in case of no TPs
-                self._errors = np.empty(0)
+                self._errors = np.zeros(0)
             else:
                 self._errors = calc_errors(self.tp, self._targets)
         return self._errors

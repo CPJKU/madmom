@@ -51,7 +51,8 @@ def parser():
     madmom.utils.params.mirex(p)
     # add other argument groups
     madmom.utils.params.nn(p)
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None, window=None)
+    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
+                              window=None)
     madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
                               pre_avg=0, post_avg=0, pre_max=1. / FPS,
                               post_max=1. / FPS)
@@ -65,7 +66,7 @@ def parser():
     args.online = False
     if args.nn_files is None:
         args.nn_files = NN_FILES
-    args.threads = min(len(args.nn_files), args.threads)
+    args.threads = min(len(args.nn_files), max(1, args.threads))
     # print arguments
     if args.verbose:
         print args
@@ -117,12 +118,18 @@ def main():
         data = np.hstack((data, s.spec, s.pos_diff))
 
         # init a pool of workers (if needed)
-        mp_map = mp.Pool(args.threads).map if args.threads != 1 else map
+        _map = map
+        if args.threads != 1:
+            _map = mp.Pool(args.threads).map
         # compute predictions with all saved neural networks (in parallel)
-        activations = mp_map(process, it.izip(args.nn_files, it.repeat(data)))
-        # average activations
+        activations = _map(process, it.izip(args.nn_files, it.repeat(data)))
+
+        # average activations if needed
         nn_files = len(args.nn_files)
-        act = sum(activations) / nn_files if nn_files > 1 else activations[0]
+        if nn_files > 1:
+            act = sum(activations) / nn_files
+        else:
+            act = activations[0]
 
         # create an Onset object with the activations
         o = Onset(act.ravel(), args.fps, args.online)

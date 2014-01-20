@@ -117,7 +117,7 @@ def load_events(filename):
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
         return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
-                dtype=np.double)
+                           dtype=np.float32)
     finally:
         # close file if needed
         if own_fid:

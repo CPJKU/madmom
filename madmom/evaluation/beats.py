@@ -610,16 +610,16 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         # simple scores
-        self._fmeasure = np.empty(0)
-        self._pscore = np.empty(0)
-        self._cemgil = np.empty(0)
+        self._fmeasure = np.zeros(0)
+        self._pscore = np.zeros(0)
+        self._cemgil = np.zeros(0)
         # continuity scores
-        self._cmlc = np.empty(0)
-        self._cmlt = np.empty(0)
-        self._amlc = np.empty(0)
-        self._amlt = np.empty(0)
+        self._cmlc = np.zeros(0)
+        self._cmlt = np.zeros(0)
+        self._amlc = np.zeros(0)
+        self._amlt = np.zeros(0)
         # information gain stuff
-        self._information_gain = np.empty(0)
+        self._information_gain = np.zeros(0)
         self._error_histogram = None
         # instance can be initialized with a Evaluation object
         if isinstance(other, BeatEvaluation):

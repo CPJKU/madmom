@@ -154,7 +154,7 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     left = np.floor(np.log2(float(fmin) / a4) * bands_per_octave)
     right = np.ceil(np.log2(float(fmax) / a4) * bands_per_octave)
     # generate frequencies
-    frequencies = a4 * 2 ** (np.arange(left, right) / float(bands_per_octave))
+    frequencies = a4 * 2. ** (np.arange(left, right) / float(bands_per_octave))
     # filter frequencies
     # needed, because range might be bigger because of the use of floor/ceil
     frequencies = frequencies[frequencies >= fmin]
@@ -276,7 +276,7 @@ def triangular_filter(width, center, norm):
     # thus the filter has an area of 1 if normalised this way
     height = 2. / width if norm else 1.
     # create filter
-    triang_filter = np.empty(width)
+    triang_filter = np.zeros(width)
     # rising edge (without the center)
     triang_filter[:center] = np.linspace(0, height, center, endpoint=False)
     # falling edge (including the center, but without the last bin)

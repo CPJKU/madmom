@@ -37,7 +37,7 @@ def normalize(x):
     :returns: normalized signal
 
     """
-    return x.astype(float) / np.max(x)
+    return x.astype(np.float32) / np.max(x)
 
 
 def downmix(x):
@@ -264,15 +264,13 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
         return np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.empty((frame_size,) + x.shape[1:], dtype=x.dtype)
-        frame[:-start] = 0
+        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
         frame[-start:] = x[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.empty((frame_size,) + x.shape[1:], dtype=x.dtype)
+        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
         frame[:num_samples - start] = x[start:]
-        frame[num_samples - start:] = 0
         return frame
     else:
         # normal read operation

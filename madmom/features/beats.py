@@ -286,7 +286,7 @@ def detect_beats(activations, interval, look_aside=0.2):
     positions = []
     recursive(pos)
     # return indices (as floats, since they get converted to seconds later on)
-    return np.array(positions).astype(np.float)
+    return np.array(positions, dtype=np.float32)
 
 
 # default values for beat tracking
@@ -321,7 +321,7 @@ class Beat(object):
         self.activations = None  # onset activation function
         self.fps = float(fps)    # frame rate of the activation function
         self.online = online     # online beat-tracking
-        # TODO: is it better to init the detections as np.empty(0)?
+        # TODO: is it better to init the detections as np.zeros(0)?
         # this way the write() method would not throw an error, but the
         # evaluation might not be correct?!
         self.detections = None   # list of detected onsets [seconds]

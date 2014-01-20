@@ -104,7 +104,7 @@ def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
                              'filterbank [default=%(default)s]')
     if bands is not None:
         g.add_argument('--bands', action='store', type=int, default=bands,
-                        help='number of bands per octave [default=%(default)i]')
+                        help='filter bands per octave [default=%(default)i]')
     if fmin is not None:
         g.add_argument('--fmin', action='store', type=float, default=fmin,
                         help='minimum frequency of filter in Hz [default='
