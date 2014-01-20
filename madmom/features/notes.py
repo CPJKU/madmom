@@ -103,7 +103,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
                                              origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
-    # return indices of detections
+    # return indices (as floats, since they get converted to seconds later on)
     return np.nonzero(detections)
 
 
@@ -134,9 +134,10 @@ class NoteTranscription(object):
         :param sep:         separator if activations are read from file
 
         """
+        print type(activations)
         self.activations = None  # onset activation function
         self.fps = fps           # frame rate of the activation function
-        # TODO: is it better to init the detections as np.empty(0)?
+        # TODO: is it better to init the detections as np.zeros(0)?
         # this way the write() method would not throw an error, but the
         # evaluation might not be correct?!
         self.detections = None   # list of detected onsets [seconds]
@@ -147,7 +148,13 @@ class NoteTranscription(object):
             self.activations = activations
         else:
             # read in the activations from a file
-            self.load_activations(activations, sep)
+            self.load_activations(activations)
+        # reshape it to reflect the 88 MIDI notes
+        if self.activations.shape[1] != 88:
+            print "reshape"
+            self.activations = self.activations.reshape(-1, 88)
+
+        print 'init() activations', self.activations.shape
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
@@ -181,6 +188,7 @@ class NoteTranscription(object):
         post_avg = int(round(self.fps * post_avg))
         pre_max = int(round(self.fps * pre_max))
         post_max = int(round(self.fps * post_max))
+        print 'detect() activations', self.activations.shape
         # detect onsets
         detections = peak_picking(self.activations, threshold, smooth, pre_avg,
                                   post_avg, pre_max, post_max)
@@ -243,34 +251,23 @@ class NoteTranscription(object):
             if own_fid:
                 fid.close()
 
-    def save_activations(self, filename, sep=''):
+    def save_activations(self, filename):
         """
         Save the onset activations to a file.
 
         :param filename: output file name or file handle
-        :param sep:      separator between activation values [default='']
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
 
         """
         # save the activations
-        self.activations.tofile(filename, sep=sep)
+        np.save(filename, self.activations)
 
-    def load_activations(self, filename, sep=''):
+
+    def load_activations(self, filename):
         """
         Load the onset activations from a file.
 
-        :param filename: the target file name
-        :param sep:      separator between activation values [default='']
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
+        :param filename: file name to load the activations from
 
         """
         # load the activations
-        self.activations = np.fromfile(filename, sep=sep)
+        self.activations = np.load(filename)

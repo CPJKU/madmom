@@ -88,11 +88,11 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        n = NoteTranscription(args.input, args.fps, args.online, args.sep)
+        n = NoteTranscription(args.input, args.fps, args.sep)
     else:
         # exit if no NN files are given
         if not args.nn_files:
-            raise SystemExit('no NN models given')
+            raise SystemExit('no NN model(s) given')
         # create a Wav object
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # 1st spec
@@ -125,13 +125,16 @@ def main():
         else:
             act = activations[0]
 
+        # reshape the activations to represent the 88 MIDI notes
+        act = act.reshape(-1, 88)
+
         # create an Note object with the activations
         n = NoteTranscription(act, args.fps, args.online)
 
     # save note activations or detect the notes
     if args.save:
         # save activations
-        n.save_activations(args.output, sep=args.sep)
+        n.save_activations(args.output)
     else:
         # detect the notes
         n.detect(args.threshold, combine=args.combine, delay=args.delay,
