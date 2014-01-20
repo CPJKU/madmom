@@ -154,7 +154,7 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     left = np.floor(np.log2(float(fmin) / a4) * bands_per_octave)
     right = np.ceil(np.log2(float(fmax) / a4) * bands_per_octave)
     # generate frequencies
-    frequencies = a4 * 2 ** (np.arange(left, right) / float(bands_per_octave))
+    frequencies = a4 * 2. ** (np.arange(left, right) / float(bands_per_octave))
     # filter frequencies
     # needed, because range might be bigger because of the use of floor/ceil
     frequencies = frequencies[frequencies >= fmin]

@@ -766,7 +766,7 @@ class RnnConfig(object):
 
         """
         # container for weights
-        self.W = {}
+        self.w = {}
         # attributes
         self.train_files = None
         self.val_files = None
@@ -856,9 +856,9 @@ class RnnConfig(object):
                                       'layer_%s_1_weights' % num_output_layer,
                                       name)
                     # save the weights
-                    self.W[name] = np.array(parts[2:], dtype=np.float32)
+                    self.w[name] = np.array(parts[2:], dtype=np.float32)
         # append output layer size
-        output_size = self.W['layer_%s_0_bias' % num_output_layer].size
+        output_size = self.w['layer_%s_0_bias' % num_output_layer].size
         self.layer_sizes.append(output_size)
         # set the output layer type
         if self.task == 'classification':
@@ -870,9 +870,9 @@ class RnnConfig(object):
         # stack the output weights
         if self.bidirectional:
             num_output = len(self.layer_sizes) - 1
-            out_bwd = self.W.pop('layer_%s_0_weights' % num_output)
-            out_fwd = self.W.pop('layer_%s_1_weights' % num_output)
-            self.W['layer_%s_0_weights' % num_output] = np.vstack((out_bwd,
+            out_bwd = self.w.pop('layer_%s_0_weights' % num_output)
+            out_fwd = self.w.pop('layer_%s_1_weights' % num_output)
+            self.w['layer_%s_0_weights' % num_output] = np.vstack((out_bwd,
                                                                    out_fwd))
         # close the file
         f.close()
@@ -937,7 +937,7 @@ class RnnConfig(object):
         import h5py
         from .rnn import REVERSE
         # check if weights are present
-        if not self.W:
+        if not self.w:
             raise ValueError('please load a configuration file first')
         # set a default file name
         if filename is None:
@@ -963,12 +963,12 @@ class RnnConfig(object):
                 # create group with layer number
                 grp = h5_l.create_group(str(l))
                 # iterate over all weights
-                for k in sorted(self.W.keys()):
+                for k in sorted(self.w.keys()):
                     # skip if it's not the right layer
                     if not k.startswith('layer_%s_' % l):
                         continue
                     # get the weights
-                    w = self.W[k]
+                    w = self.w[k]
                     name = None
                     if k.endswith('peephole_weights'):
                         name = 'peephole_weights'
@@ -996,7 +996,7 @@ class RnnConfig(object):
                     # reverse
                     if k.startswith('layer_%s_0' % l):
                         if re.sub('layer_%s_0' % l, 'layer_%s_1' % l, k) \
-                            in self.W.keys():
+                            in self.w.keys():
                                 name = '%s_%s' % (REVERSE, name)
                                 bidirectional = True
                     # save the weights

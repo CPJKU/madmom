@@ -31,7 +31,7 @@ def calc_overlap(detections, targets, threshold=0.5):
     # threshold detections
     detections = (detections >= threshold)
     # threshold targets
-    targets = targets >= threshold
+    targets = (targets >= threshold)
     # calculate overlap
     tp = np.nonzero(detections * targets)[0]
     fp = np.nonzero(detections > targets)[0]
