@@ -64,7 +64,7 @@ def parser():
     args.online = False
     if args.nn_files is None:
         args.nn_files = NN_FILES
-    args.threads = min(len(args.nn_files), args.threads)
+    args.threads = min(len(args.nn_files), max(1, args.threads))
     # print arguments
     if args.verbose:
         print args
