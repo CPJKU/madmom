@@ -142,7 +142,7 @@ class MeanTempoEvaluation(TempoEvaluation):
 
         """
         # simple scores
-        self._pscore = np.empty(0)
+        self._pscore = np.zeros(0)
         # instance can be initialized with a Evaluation object
         if isinstance(other, TempoEvaluation):
             # add this object to self

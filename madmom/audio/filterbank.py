@@ -276,7 +276,7 @@ def triangular_filter(width, center, norm):
     # thus the filter has an area of 1 if normalised this way
     height = 2. / width if norm else 1.
     # create filter
-    triang_filter = np.empty(width)
+    triang_filter = np.zeros(width)
     # rising edge (without the center)
     triang_filter[:center] = np.linspace(0, height, center, endpoint=False)
     # falling edge (including the center, but without the last bin)

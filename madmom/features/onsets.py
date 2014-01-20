@@ -554,7 +554,7 @@ class Onset(object):
         self.activations = None  # onset activation function
         self.fps = float(fps)    # frame rate of the activation function
         self.online = online     # online peak-picking
-        # TODO: is it better to init the detections as np.empty(0)?
+        # TODO: is it better to init the detections as np.zeros(0)?
         # this way the write() method would not throw an error, but the
         # evaluation might not be correct?!
         self.detections = None   # list of detected onsets [seconds]

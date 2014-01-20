@@ -683,7 +683,6 @@ class TestThread(Thread):
                 # TODO: which exception should be raised?
                 raise SystemExit('rnnlib binary not found')
             # read the activations
-            act = np.empty(0)
             try:
                 # classification output
                 act = Activations('%s/output_outputActivations' %
@@ -691,7 +690,7 @@ class TestThread(Thread):
                 # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
-                pass
+                raise NotImplementedError("regression not implemented yet")
             # put a tuple with nc file, nn file and activations
             # in the return queue
             self.return_queue.put((nc_file, nn_file, act))
