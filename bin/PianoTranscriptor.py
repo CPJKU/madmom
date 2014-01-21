@@ -19,7 +19,7 @@ from madmom.ml.rnn import RecurrentNeuralNetwork
 
 # set the path to saved neural networks and generate lists of NN files
 NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
-NN_FILES = glob.glob("%s/notes*npz" % NN_PATH)
+NN_FILES = glob.glob("%s/notes_brnn*npz" % NN_PATH)
 
 # TODO: this information should be included/extracted in/from the NN files
 FPS = 100
@@ -33,6 +33,11 @@ NORM_FILTERS = True
 
 
 def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+    """
     import argparse
     import madmom.utils.params
 
@@ -54,7 +59,7 @@ def parser():
     madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version',
-                   version='PianoTranscriptor.2013')
+                   version='PianoTranscriptor.2014')
     # parse arguments
     args = p.parse_args()
     # set some defaults
@@ -80,7 +85,7 @@ def process((nn_file, data)):
 
 
 def main():
-    """PianoTranscriptor.2012"""
+    """PianoTranscriptor.2014"""
 
     # parse arguments
     args = parser()

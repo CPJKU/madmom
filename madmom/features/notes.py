@@ -227,7 +227,6 @@ class NoteTranscription(object):
         Note: detect() method must be called first.
 
         """
-        # zip the detections
         # write the detected notes to the output
         for note in self.detections:
             output.write(sep.join([str(x) for x in note]) + '\n')
