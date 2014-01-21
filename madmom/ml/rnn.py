@@ -269,13 +269,14 @@ class Cell(object):
     """
     def __init__(self, weights, bias, recurrent_weights, transfer_fn=tanh):
         """
+        Create a new cell as used by LSTM units.
 
-        :param weights:
-        :param bias:
-        :param recurrent_weights:
-        :param transfer_fn:
+        :param weights:           weights (2D matrix)
+        :param bias:              bias (1D vector or scalar)
+        :param recurrent_weights: recurrent weights (2D matrix)
+        :param transfer_fn:       transfer function
+
         """
-
         self.weights = weights
         self.bias = bias
         self.recurrent_weights = recurrent_weights
@@ -283,10 +284,14 @@ class Cell(object):
 
     def activate(self, data, out):
         """
+        Activate the cell with the given data and the output (if recurrent
+        connections are used).
 
-        :param data:
-        :param out:
-        :return:
+        :param data: input data for the cell (1D vector or scalar)
+        :param out:  output data of the previous time step (1D vector or
+                     scalar)
+        :returns:    activations of the cell
+
         """
         # weight the input and add bias
         cell = np.dot(data, self.weights) + self.bias
@@ -300,26 +305,34 @@ class Cell(object):
 class Gate(Cell):
     """
     Gate as used by LSTM units.
+
     """
     def __init__(self, weights, bias, recurrent_weights,
                  peephole_weights=None):
         """
+        Create a new {input, forget, output} Gate as used by LSTM units.
 
-        :param weights:
-        :param bias:
-        :param recurrent_weights:
-        :param peephole_weights:
+        :param weights:           weights (2D matrix)
+        :param bias:              bias (1D vector or scalar)
+        :param recurrent_weights: recurrent weights (2D matrix)
+        :param peephole_weights:  peephole weights (1D vector or scalar)
+
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
         self.peephole_weights = peephole_weights
 
     def activate(self, data, state, out):
         """
+        Activate the cell with the given data, state (if peephole connections
+        are used) and the output (if recurrent connections are used).
 
-        :param data:
-        :param state:
-        :param out:
-        :return:
+        :param data:  input data for the cell (1D vector or scalar)
+        :param state: state data of the {current | previous} time step (1D
+                      vector or scalar)
+        :param out:   output data of the previous time step (1D vector or
+                      scalar)
+        :returns:     activations of the cell
+
         """
         # weight input and add bias
         gate = np.dot(data, self.weights) + self.bias
@@ -345,23 +358,19 @@ class LSTMLayer(object):
         :param weights:           weights (2D matrix)
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
-        :param peephole_weights:  peephole weights (2D matrix)
+        :param peephole_weights:  peephole weights (1D vector or scalar)
 
         """
         # init the gates and memory cell
-        self.input_gate = Gate(weights[0::4].T,
-                               bias[0::4].T,
+        self.input_gate = Gate(weights[0::4].T, bias[0::4].T,
                                recurrent_weights[0::4].T,
                                peephole_weights[0::3].T)
-        self.forget_gate = Gate(weights[1::4].T,
-                                bias[1::4].T,
+        self.forget_gate = Gate(weights[1::4].T, bias[1::4].T,
                                 recurrent_weights[1::4].T,
                                 peephole_weights[1::3].T)
-        self.cell = Cell(weights[2::4].T,
-                         bias[2::4].T,
+        self.cell = Cell(weights[2::4].T, bias[2::4].T,
                          recurrent_weights[2::4].T)
-        self.output_gate = Gate(weights[3::4].T,
-                                bias[3::4].T,
+        self.output_gate = Gate(weights[3::4].T, bias[3::4].T,
                                 recurrent_weights[3::4].T,
                                 peephole_weights[2::3].T)
 
