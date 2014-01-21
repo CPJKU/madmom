@@ -64,7 +64,8 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
            For online peak picking set all `post_` parameters to 0.
 
     """
-    dim = activations.shape[1]
+    # TODO: this code is very similar to features.onsets.peak_picking();
+    #       unify these 2 functions!
     # smooth activations
     kernel = None
     if isinstance(smooth, int):
@@ -85,7 +86,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         # compute a moving average
         avg_origin = int(np.floor((pre_avg - post_avg) / 2))
         # TODO: make the averaging function exchangable (mean/median/etc.)
-        mov_avg = sim.filters.uniform_filter(activations, [avg_length, dim],
+        mov_avg = sim.filters.uniform_filter(activations, [avg_length, 1],
                                              mode='constant',
                                              origin=avg_origin)
     else:
@@ -98,7 +99,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     if max_length > 1:
         # compute a moving maximum
         max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = sim.filters.maximum_filter(detections, [max_length, dim],
+        mov_max = sim.filters.maximum_filter(detections, [max_length, 1],
                                              mode='constant',
                                              origin=max_origin)
         # detections are peak positions
@@ -107,15 +108,15 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     return np.nonzero(detections)
 
 
-# default values for onset peak-picking
+# default values for note peak-picking
 THRESHOLD = 0.35
-SMOOTH = 0
+SMOOTH = 0.05
 PRE_AVG = 0
 POST_AVG = 0
-PRE_MAX = 0.03
-POST_MAX = 0.07
-# default values for onset reporting
-COMBINE = 0.03
+PRE_MAX = 0
+POST_MAX = 0
+# default values for note reporting
+COMBINE = 0.04
 DELAY = 0
 
 
@@ -134,7 +135,6 @@ class NoteTranscription(object):
         :param sep:         separator if activations are read from file
 
         """
-        print type(activations)
         self.activations = None  # onset activation function
         self.fps = fps           # frame rate of the activation function
         # TODO: is it better to init the detections as np.zeros(0)?
@@ -151,10 +151,7 @@ class NoteTranscription(object):
             self.load_activations(activations)
         # reshape it to reflect the 88 MIDI notes
         if self.activations.shape[1] != 88:
-            print "reshape"
             self.activations = self.activations.reshape(-1, 88)
-
-        print 'init() activations', self.activations.shape
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
@@ -188,27 +185,35 @@ class NoteTranscription(object):
         post_avg = int(round(self.fps * post_avg))
         pre_max = int(round(self.fps * pre_max))
         post_max = int(round(self.fps * post_max))
-        print 'detect() activations', self.activations.shape
         # detect onsets
         detections = peak_picking(self.activations, threshold, smooth, pre_avg,
                                   post_avg, pre_max, post_max)
         # convert to seconds / MIDI note numbers
-        onsets = detections[0] / float(self.fps)
+        onsets = detections[0].astype(np.float) / self.fps
         midi_notes = detections[1] + 21
         # shift if necessary
         if delay != 0:
             onsets += delay
-#        # FIXME: make this work for notes instead of simple 1-D onset arrays
-#        # always use the first detection and all others if none was reported
-#        # within the last 'combine' seconds
-#        if detections.size > 1:
-#            # filter all detections which occur within `combine` seconds
-#            combined_detections = detections[1:][np.diff(detections) > combine]
-#            # add them after the first detection
-#            self.detections = np.append(detections[0], combined_detections)
-#        else:
-#            self.detections = detections
-        self.detections = zip(onsets, midi_notes)
+        # combine multiple notes
+        if combine > 0:
+            detections = []
+            # iterate over each detected note separately
+            for note in np.unique(midi_notes):
+                # get all note detections
+                note_onsets = onsets[midi_notes == note]
+                # always use the first note
+                detections.append((note_onsets[0], note))
+                # filter all notes which occur within `combine` seconds
+                combined_note_onsets = note_onsets[1:][np.diff(note_onsets)
+                                                       > combine]
+                # zip them with the MIDI note number and add them to the list
+                detections.extend(zip(combined_note_onsets,
+                                      [note] * len(combined_note_onsets)))
+        else:
+            # just zip all detected notes
+            detections = zip(onsets, midi_notes)
+        # sort the detections
+        self.detections = sorted(detections)
         # also return the detections
         return self.detections
 
@@ -260,7 +265,6 @@ class NoteTranscription(object):
         """
         # save the activations
         np.save(filename, self.activations)
-
 
     def load_activations(self, filename):
         """
