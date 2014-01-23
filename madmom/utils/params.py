@@ -251,7 +251,7 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
                    default=threshold,
                    help='detection threshold [default=%(default).2f]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
-                   help='smooth the onset activations over N seconds '
+                   help='smooth the beat activations over N seconds '
                         '[default=%(default).2f]')
     g.add_argument('--min_bpm', action='store', type=float, default=min_bpm,
                    help='minimum tempo [bpm, default=%(default).2f]')
