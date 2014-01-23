@@ -8,6 +8,8 @@ This file contains MIDI functionality.
 Almost all code is taken from Giles Hall's python-midi package:
 https://github.com/vishnubob/python-midi
 
+The last merged commit is 3053fefe8cd829ff891ac4fe58dc230744fce0e6
+
 The MIT License (MIT)
 Copyright (c) 2013 Giles F. Hall
 
