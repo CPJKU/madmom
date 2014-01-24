@@ -239,6 +239,7 @@ class Event(AbstractEvent):
         :param kwargs: dictionary with all attributes to copy.
 
         """
+        raise ValueError("please remove the TODO as it seems needed")
         # TODO: can this method be removed?
         _kwargs = {'channel': self.channel, 'tick': self.tick,
                    'data': self.data}
@@ -811,14 +812,15 @@ class KeySignatureEvent(MetaEvent):
         Alternatives.
 
         """
-        d = self.data[0]
-        return d - 256 if d > 127 else d
+        return self.data[0] - 256 if self.data[0] > 127 else self.data[0]
 
     @alternatives.setter
     def alternatives(self, alternatives):
         """
         Set alternatives.
-        :param alternatives:
+
+        :param alternatives: alternatives
+
         """
         self.data[0] = 256 + alternatives if alternatives < 0 else alternatives
 
@@ -836,6 +838,7 @@ class KeySignatureEvent(MetaEvent):
         Major / minor.
 
         :param val: value
+
         """
         self.data[1] = val
 
@@ -850,18 +853,19 @@ class SequencerSpecificEvent(MetaEvent):
 
 
 # MIDI Track
-class Track(list):
+class MidiTrack(object):
     """
     MIDI Track.
 
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         """
-            Instantiate a new MIDI track object instance.
+        Instantiate a new MIDI track object instance.
 
-            """
-        super(Track, self).__init__(*args, **kwargs)
+        """
+        self.events = []
         self._relative_timing = True
+        self._status_msg = None  # needed for correct SysEx event handling
 
     def make_ticks_abs(self):
         """
@@ -870,7 +874,7 @@ class Track(list):
         """
         if self._relative_timing:
             running_tick = 0
-            for event in self:
+            for event in self.events:
                 event.tick += running_tick
                 running_tick = event.tick
             self._relative_timing = False
@@ -882,141 +886,132 @@ class Track(list):
         """
         if not self._relative_timing:
             running_tick = 0
-            for event in self:
+            for event in self.events:
                 event.tick -= running_tick
                 running_tick += event.tick
             self._relative_timing = True
 
-    def __getitem__(self, item):
-        if isinstance(item, slice):
-            indices = item.indices(len(self))
-            return Track((super(Track, self).__getitem__(i)
-                          for i in xrange(*indices)))
-        else:
-            return super(Track, self).__getitem__(item)
+    def read(self, midi_file):
+        """
+        Read the MIDI track data from a file.
 
-    def __getslice__(self, i, j):
-        # The deprecated __getslice__ is still called when subclassing
-        # built-in types for calls of the form list[i:j]
-        return self.__getitem__(slice(i, j))
+        :param midi_file: open file handle
+        :return:          the MidiTrack object
 
-
-# MIDI file input/output functions
-def parse_midi_header(midi_file):
-    """
-    Parse the header of a MIDI file.
-
-    :param midi_file: open file handle
-    :return:          tuple (MIDI format, number of tracks, resolution)
-
-    """
-    # first four bytes are MIDI header
-    chunk = midi_file.read(4)
-    if chunk != 'MThd':
-        raise TypeError("Bad header in MIDI file.")
-    # next four bytes are header size
-    # next two bytes specify the format version
-    # next two bytes specify the number of tracks
-    # next two bytes specify the resolution/PPQ/Parts Per Quarter
-    # (in other words, how many ticks per quarter note)
-    data = struct.unpack(">LHHH", midi_file.read(10))
-    header_size = data[0]
-    midi_format = data[1]
-    # tracks = [Track() for _ in range(data[2])]
-    num_tracks = data[2]
-    resolution = data[3]
-    # skip the remaining part of the header
-    if header_size > DEFAULT_MIDI_HEADER_SIZE:
-        midi_file.read(header_size - DEFAULT_MIDI_HEADER_SIZE)
-    # return format, tracks, resolution
-    return midi_format, num_tracks, resolution
-
-
-def parse_midi_track(midi_file):
-    """
-    Parse a MIDI track from a a MIDI file.
-
-    :param midi_file: open file handle
-    :return:          a MIDI track instance
-
-    """
-    # create an empty MIDI track
-    track = Track()
-    # first four bytes are Track header
-    chunk = midi_file.read(4)
-    if chunk != 'MTrk':
-        raise TypeError("Bad track header in MIDI file: %s" % chunk)
-    # next four bytes are track size
-    track_size = struct.unpack(">L", midi_file.read(4))[0]
-    track_data = iter(midi_file.read(track_size))
-    # read in all events
-    last_status_msg = None
-    while True:
-        try:
-            event, last_status_msg = parse_midi_event(track_data, last_status_msg)
-            track.append(event)
-        # no more events to be processed
-        except StopIteration:
-            break
-    # return the track
-    return track
-
-
-def parse_midi_event(track_data, last_status_msg):
-    """
-    Parse a MIDI event from the given MIDI track data.
-
-    :param track_data:      MIDI track data
-    :param last_status_msg: last status message
-    :return:                tuple (MIDI event, last status message)
-
-    Note: the last status message is needed for correct SysEx event handling.
-
-    """
-    # first datum is variable length representing the delta-time
-    tick = read_variable_length(track_data)
-    # next byte is status message
-    status_msg = ord(track_data.next())
-    # is the event a MetaEvent?
-    cmd = ord(track_data.next())
-    if MetaEvent.is_event(status_msg):
-        if cmd not in EventRegistry.MetaEvents:
-            raise Warning("Unknown Meta MIDI Event: %s" % cmd)
-        cls = EventRegistry.MetaEvents[cmd]
-        data_len = read_variable_length(track_data)
-        data = [ord(track_data.next()) for _ in range(data_len)]
-        # create and return an event
-        return cls(tick=tick, data=data), last_status_msg
-    # is this event a SysEx Event?
-    elif SysExEvent.is_event(status_msg):
-        data = []
+        """
+        # reset the status
+        self._status_msg = None
+        # first four bytes are Track header
+        chunk = midi_file.read(4)
+        if chunk != 'MTrk':
+            raise TypeError("Bad track header in MIDI file: %s" % chunk)
+        # next four bytes are track size
+        track_size = struct.unpack(">L", midi_file.read(4))[0]
+        track_data = iter(midi_file.read(track_size))
+        # read in all events
         while True:
-            datum = ord(track_data.next())
-            if datum == 0xF7:
+            try:
+                # event, last_status_msg = _parse_midi_event(track_data,
+                #                                            last_status_msg)
+                # # append the events to the event list
+                # self.events.append(event)
+                # first datum is variable length representing the delta-time
+                tick = read_variable_length(track_data)
+                # next byte is status message
+                status_msg = ord(track_data.next())
+                # is the event a MetaEvent?
+                if MetaEvent.is_event(status_msg):
+                    cmd = ord(track_data.next())
+                    if cmd not in EventRegistry.MetaEvents:
+                        raise Warning("Unknown Meta MIDI Event: %s" % cmd)
+                    cls = EventRegistry.MetaEvents[cmd]
+                    data_len = read_variable_length(track_data)
+                    data = [ord(track_data.next()) for _ in range(data_len)]
+                    # create an event and append it to the list
+                    self.events.append(cls(tick=tick, data=data))
+                # is this event a SysEx Event?
+                elif SysExEvent.is_event(status_msg):
+                    data = []
+                    while True:
+                        datum = ord(track_data.next())
+                        if datum == 0xF7:
+                            break
+                        data.append(datum)
+                    # create an event and append it to the list
+                    self.events.append(SysExEvent(tick=tick, data=data))
+                # not a meta or SysEx event, must be a general MIDI event
+                else:
+                    key = status_msg & 0xF0
+                    if key not in EventRegistry.Events:
+
+                        assert self._status_msg, "Bad byte value"
+                        data = []
+                        key = self._status_msg & 0xF0
+                        cls = EventRegistry.Events[key]
+                        channel = self._status_msg & 0x0F
+                        data.append(status_msg)
+                        data += [ord(track_data.next()) for _ in
+                                 range(cls.length - 1)]
+                        # create an event and append it to the list
+                        self.events.append(cls(tick=tick, channel=channel,
+                                               data=data))
+                    else:
+                        self._status_msg = status_msg
+                        cls = EventRegistry.Events[key]
+                        channel = self._status_msg & 0x0F
+                        data = [ord(track_data.next()) for _ in
+                                range(cls.length)]
+                        # create an event and append it to the list
+                        self.events.append(cls(tick=tick, channel=channel,
+                                               data=data))
+            # no more events to be processed
+            except StopIteration:
                 break
-            data.append(datum)
-        # create and return an event
-        return SysExEvent(tick=tick, data=data), last_status_msg
-    # not a meta or SysEx event, must be a general MIDI event
-    else:
-        key = status_msg & 0xF0
-        if key not in EventRegistry.Events:
-            assert last_status_msg, "Bad byte value"
-            data = []
-            key = last_status_msg & 0xF0
-            cls = EventRegistry.Events[key]
-            channel = last_status_msg & 0x0F
-            data.append(status_msg)
-            data += [ord(track_data.next()) for _ in range(cls.length - 1)]
-            # create and return an event
-            return cls(tick=tick, channel=channel, data=data), last_status_msg
-        else:
-            last_status_msg = status_msg
-            cls = EventRegistry.Events[key]
-            channel = last_status_msg & 0x0F
-            data = [ord(track_data.next()) for _ in range(cls.length)]
-            # create and return an event
-            return cls(tick=tick, channel=channel, data=data), last_status_msg
+        # return the track
+        return self
+
+    def write(self, midi_file):
+        """
+        Write the MIDI track to file
+
+        :param midi_file: open file handle
+
+        """
+        # first make sure the timing information is relative
+        self.make_ticks_rel()
+        # and the last status message is unset
+        self._status_msg = None
+        # then encode all events of the track
+        track_data = ''
+        for event in self.events:
+            # encode the event data, first the timing information
+            track_data += write_variable_length(event.tick)
+            # is the event a MetaEvent?
+            if isinstance(event, MetaEvent):
+                track_data += chr(event.status_msg)
+                track_data += chr(event.meta_command)
+                track_data += write_variable_length(len(event.data))
+                track_data += str.join('', map(chr, event.data))
+            # is this event a SysEx Event?
+            elif isinstance(event, SysExEvent):
+                track_data += chr(0xF0)
+                track_data += str.join('', map(chr, event.data))
+                track_data += chr(0xF7)
+            # not a meta or SysEx event, must be a general message
+            elif isinstance(event, Event):
+                if not self._status_msg or \
+                        self._status_msg.status_msg != event.status_msg or \
+                        self._status_msg.channel != event.channel:
+                    self._status_msg = event
+                    track_data += chr(event.status_msg | event.channel)
+                track_data += str.join('', map(chr, event.data))
+            else:
+                raise ValueError("Unknown MIDI Event: " + str(event))
+        # prepend track header
+        track_header = 'MTrk%s' % struct.pack(">L", len(track_data))
+        track_data = track_header + track_data
+        # and write the track
+        midi_file.write(track_data)
 
 
 # File I/O classes
@@ -1025,32 +1020,27 @@ class MidiFile(object):
     MIDI File.
 
     """
-    def __init__(self, resolution=220, format=1):
+    def __init__(self, resolution=960, format=1):
         # init variables
         self.format = format
         self.resolution = resolution
         self.tracks = []
-        self._relative_timing = True
 
     def make_ticks_abs(self):
         """
-        Make the timing information absolute.
+        Make the timing information of all tracks absolute.
 
         """
-        if self._relative_timing:
-            for track in self.tracks:
-                track.make_ticks_abs()
-            self._relative_timing = False
+        for track in self.tracks:
+            track.make_ticks_abs()
 
     def make_ticks_rel(self):
         """
-        Make the timing information relative.
+        Make the timing information of all tracks relative.
 
         """
-        if not self._relative_timing:
-            for track in self.tracks:
-                track.make_ticks_rel()
-            self._relative_timing = True
+        for track in self.tracks:
+            track.make_ticks_rel()
 
     def read(self, midi_file):
         """
@@ -1066,15 +1056,35 @@ class MidiFile(object):
             close_file = True
         try:
             # read in file header
-            self.format, num_tracks, self.resolution = parse_midi_header(midi_file)
+            # self.format, num_tracks, self.resolution = parse_midi_header(midi_file)
+            # first four bytes are MIDI header
+            chunk = midi_file.read(4)
+            if chunk != 'MThd':
+                raise TypeError("Bad header in MIDI file.")
+            # next four bytes are header size
+            # next two bytes specify the format version
+            # next two bytes specify the number of tracks
+            # next two bytes specify the resolution/PPQ/Parts Per Quarter
+            # (in other words, how many ticks per quarter note)
+            data = struct.unpack(">LHHH", midi_file.read(10))
+            header_size = data[0]
+            self.format = data[1]
+            num_tracks = data[2]
+            self.resolution = data[3]
+            # skip the remaining part of the header
+            if header_size > DEFAULT_MIDI_HEADER_SIZE:
+                midi_file.read(header_size - DEFAULT_MIDI_HEADER_SIZE)
             # read in all tracks
             for _ in range(num_tracks):
-                track = parse_midi_track(midi_file)
+                # read in one track and append it to the tracks list
+                track = MidiTrack().read(midi_file)
                 self.tracks.append(track)
         finally:
             # close file if needed
             if close_file:
                 midi_file.close()
+        # return the object
+        return self
 
     # methods for writing MIDI stuff
     def write(self, midi_file):
@@ -1096,38 +1106,8 @@ class MidiFile(object):
             midi_file.write('MThd%s' % header_data)
             # write all tracks
             for track in self.tracks:
-                # first encode all events of the track
-                track_data = ''
-                last_event = None
-                for event in track:
-                    # encode the event data, first the timing information
-                    track_data += write_variable_length(event.tick)
-                    # is the event a MetaEvent?
-                    if isinstance(event, MetaEvent):
-                        track_data += chr(event.status_msg)
-                        track_data += chr(event.meta_command)
-                        track_data += write_variable_length(len(event.data))
-                        track_data += str.join('', map(chr, event.data))
-                    # is this event a SysEx Event?
-                    elif isinstance(event, SysExEvent):
-                        track_data += chr(0xF0)
-                        track_data += str.join('', map(chr, event.data))
-                        track_data += chr(0xF7)
-                    # not a meta or SysEx event, must be a general message
-                    elif isinstance(event, Event):
-                        if not last_event or \
-                                last_event.status_msg != event.status_msg or \
-                                last_event.channel != event.channel:
-                            last_event = event
-                            track_data += chr(event.status_msg | event.channel)
-                        track_data += str.join('', map(chr, event.data))
-                    else:
-                        raise ValueError("Unknown MIDI Event: " + str(event))
-                # write track header
-                header_data = struct.pack(">L", len(track_data))
-                midi_file.write('MTrk%s' % header_data)
-                # and the event buffer
-                midi_file.write(track_data)
+                # write each track to file
+                track.write(midi_file)
         # close file if needed
         finally:
             if close_file:
