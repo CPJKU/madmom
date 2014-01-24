@@ -262,24 +262,117 @@ class SigmoidLayer(RecurrentLayer):
                                            recurrent_weights)
 
 
-class LSTMLayer(RecurrentLayer):
+# LSTM stuff
+class Cell(object):
     """
-    Recurrent network layer with Long Short-Term Memory units.
+    Cell as used by LSTM units.
+    """
+    def __init__(self, weights, bias, recurrent_weights, transfer_fn=tanh):
+        """
+        Create a new cell as used by LSTM units.
+
+        :param weights:           weights (2D matrix)
+        :param bias:              bias (1D vector or scalar)
+        :param recurrent_weights: recurrent weights (2D matrix)
+        :param transfer_fn:       transfer function
+
+        """
+        self.weights = weights
+        self.bias = bias
+        self.recurrent_weights = recurrent_weights
+        self.transfer_fn = transfer_fn
+
+    def activate(self, data, out):
+        """
+        Activate the cell with the given data and the output (if recurrent
+        connections are used).
+
+        :param data: input data for the cell (1D vector or scalar)
+        :param out:  output data of the previous time step (1D vector or
+                     scalar)
+        :returns:    activations of the cell
+
+        """
+        # weight the input and add bias
+        cell = np.dot(data, self.weights) + self.bias
+        # add recurrent connections
+        if self.recurrent_weights is not None:
+            cell += np.dot(out, self.recurrent_weights)
+        # apply transfer function
+        return self.transfer_fn(cell)
+
+
+class Gate(Cell):
+    """
+    Gate as used by LSTM units.
 
     """
     def __init__(self, weights, bias, recurrent_weights,
                  peephole_weights=None):
+        """
+        Create a new {input, forget, output} Gate as used by LSTM units.
+
+        :param weights:           weights (2D matrix)
+        :param bias:              bias (1D vector or scalar)
+        :param recurrent_weights: recurrent weights (2D matrix)
+        :param peephole_weights:  peephole weights (1D vector or scalar)
+
+        """
+        super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
+        self.peephole_weights = peephole_weights
+
+    def activate(self, data, state, out):
+        """
+        Activate the cell with the given data, state (if peephole connections
+        are used) and the output (if recurrent connections are used).
+
+        :param data:  input data for the cell (1D vector or scalar)
+        :param state: state data of the {current | previous} time step (1D
+                      vector or scalar)
+        :param out:   output data of the previous time step (1D vector or
+                      scalar)
+        :returns:     activations of the cell
+
+        """
+        # weight input and add bias
+        gate = np.dot(data, self.weights) + self.bias
+        # add the previous state weighted by the peephole
+        if self.peephole_weights is not None:
+            gate += state * self.peephole_weights
+        # add recurrent connection
+        if self.recurrent_weights is not None:
+            gate += np.dot(out, self.recurrent_weights)
+        # apply transfer function
+        return self.transfer_fn(gate)
+
+
+class LSTMLayer(object):
+    """
+    Recurrent network layer with Long Short-Term Memory units.
+
+    """
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights):
         """
         Create a new LSTMLayer.
 
         :param weights:           weights (2D matrix)
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
-        :param peephole_weights:  peephole weights (2D matrix)
+        :param peephole_weights:  peephole weights (1D vector or scalar)
 
         """
-        super(LSTMLayer, self).__init__(tanh, weights, bias, recurrent_weights)
-        self.peephole_weights = peephole_weights
+        # init the gates and memory cell
+        self.input_gate = Gate(weights[0::4].T, bias[0::4].T,
+                               recurrent_weights[0::4].T,
+                               peephole_weights[0::3].T)
+        self.forget_gate = Gate(weights[1::4].T, bias[1::4].T,
+                                recurrent_weights[1::4].T,
+                                peephole_weights[1::3].T)
+        self.cell = Cell(weights[2::4].T, bias[2::4].T,
+                         recurrent_weights[2::4].T)
+        self.output_gate = Gate(weights[3::4].T, bias[3::4].T,
+                                recurrent_weights[3::4].T,
+                                peephole_weights[2::3].T)
 
     def activate(self, data):
         """
@@ -290,64 +383,30 @@ class LSTMLayer(RecurrentLayer):
 
         """
         # init arrays
-        size = data.shape[0]
-        out = np.zeros((size, self.bias.size / 4))
+        size = len(data)
+        out = np.zeros((size, self.cell.bias.size))
         state = np.zeros_like(out)
         # process the input data
         for i in range(size):
             # input gate:
-            # weight input and add bias
-            ig = np.dot(data[i], self.weights[0::4].T) + self.bias[0::4].T
-            # add the previous state weighted by the peephole
-            if self.peephole_weights is not None:
-                ig += state[i - 1] * self.peephole_weights[0::3].T
-            # add recurrent connection
-            if self.recurrent_weights is not None:
-                ig += np.dot(out[i - 1], self.recurrent_weights[0::4].T)
-            # apply sigmoid
-            ig = sigmoid(ig)
-
+            # operate on current data, previous state and previous output
+            ig = self.input_gate.activate(data[i], state[i - 1], out[i - 1])
             # forget gate:
-            # weight input and add bias
-            fg = np.dot(data[i], self.weights[1::4].T) + self.bias[1::4].T
-            # add the previous state weighted by the peephole
-            if self.peephole_weights is not None:
-                fg += state[i - 1] * self.peephole_weights[1::3].T
-            # add recurrent connection
-            if self.recurrent_weights is not None:
-                fg += np.dot(out[i - 1], self.recurrent_weights[1::4].T)
-            # apply sigmoid
-            fg = sigmoid(fg)
-
+            # operate on current data, previous state and previous output
+            fg = self.forget_gate.activate(data[i], state[i - 1], out[i - 1])
             # cell:
-            # weight the input and add bias
-            cell = np.dot(data[i], self.weights[2::4].T) + self.bias[2::4].T
-            # add recurrent connections
-            if self.recurrent_weights is not None:
-                cell += np.dot(out[i - 1], self.recurrent_weights[2::4].T)
-            # apply tanh
-            cell = np.tanh(cell)
-
+            # operate on current data and previous output
+            cell = self.cell.activate(data[i], out[i - 1])
             # internal state:
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
             state[i] = cell * ig + state[i - 1] * fg
-
             # output gate:
-            # weight the input and add bias
-            og = np.dot(data[i], self.weights[3::4].T) + self.bias[3::4].T
-            # add the *current* state weighted by the peephole
-            if self.peephole_weights is not None:
-                og += state[i] * self.peephole_weights[2::3].T
-            # add recurrent connection
-            if self.recurrent_weights is not None:
-                og += np.dot(out[i - 1], self.recurrent_weights[3::4].T)
-            # apply sigmoid
-            og = sigmoid(og)
-
+            # operate on current data, current state and previous output
+            og = self.output_gate.activate(data[i], state[i], out[i - 1])
             # output:
             # apply transfer function to state and weight by output gate
-            out[i] = self.transfer_fn(state[i]) * og
+            out[i] = tanh(state[i]) * og
         return out
 
 
