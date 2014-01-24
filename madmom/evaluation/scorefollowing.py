@@ -186,49 +186,74 @@ class ScoreFollowingEvaluation(object):
 
     @property
     def cont_metrics_sorted(self):
+        """
+        Most of the evaluation metrics presented in Cont's paper contained
+        in a list, sorted as defined in self._fields_sorted.
+        """
         return [self.cont_metrics[f] for f in self._fields_sorted]
 
     @property
     def miss_rate(self):
+        """
+        Percentage of missed events (events that exist in the reference
+        score, but are not reported
+        """
         return self.cont_metrics['miss_rate']
 
     @property
     def misalign_rate(self):
+        """
+        Percentage of misaligned events (events with an alignment that
+        is off by more than defined in the threshold)
+        """
         return self.cont_metrics['misalign_rate']
 
     @property
     def avg_imprecision(self):
+        """ Average alignment error of non-misaligned events """
         return self.cont_metrics['avg_imprecision']
 
     @property
     def stddev_imprecision(self):
+        """ Standard deviation of alignment error of non-misaligned events """
         return self.cont_metrics['stddev_imprecision']
 
     @property
     def avg_error(self):
+        """ Average alignment error """
         return self.cont_metrics['avg_error']
 
     @property
     def stddev_error(self):
+        """ Standard deviation of alignment error """
         return self.cont_metrics['stddev_error']
 
     @property
     def piece_completion(self):
+        """
+        Percentage of events that was followed until the aligner hangs, i.e
+        from where on there are only misaligned or missed events
+        """
         return self.cont_metrics['piece_completion']
 
-    def print_eval(self, table_row=False):
-        metrics = self.cont_metrics
-        if table_row:
-            print '%f %f %f %f %f %f %f' % tuple(self.cont_metrics_sorted)
+    def __str__(self):
+        return 'Misalign rate: %f\n'\
+               'Miss rate: %f\n'\
+               'Piece completion: %f\n'\
+               'Average imprecision: %f\n'\
+               'Std.Dev. of imprecision: %f\n'\
+               'Average error: %f\n'\
+               'Std.Dev. of error: %f\n' %\
+               (self.cont_metrics['misalign_rate'],
+                self.cont_metrics['miss_rate'],
+                self.cont_metrics['piece_completion'],
+                self.cont_metrics['avg_imprecision'],
+                self.cont_metrics['stddev_imprecision'],
+                self.cont_metrics['avg_error'],
+                self.cont_metrics['stddev_error'])
 
-        else:
-            print 'Misalign rate: %f' % metrics['misalign_rate']
-            print 'Miss rate: %f' % metrics['miss_rate']
-            print 'Piece completion: %f' % metrics['piece_completion']
-            print 'Average imprecision: %f' % metrics['avg_imprecision']
-            print 'Std.Dev. of imprecision: %f' % metrics['stddev_imprecision']
-            print 'Average error: %f' % metrics['avg_error']
-            print 'Std.Dev. of error: %f' % metrics['stddev_error']
+    def as_row(self):
+        print '%f %f %f %f %f %f %f' % tuple(self.cont_metrics_sorted)
 
 
 def parse_arguments():
@@ -277,7 +302,10 @@ def main():
     window = float(args.tolerance) / 1000
     sf_eval = ScoreFollowingEvaluation(alignment, ground_truth, window)
 
-    sf_eval.print_eval(args.table_output)
+    if args.table_output:
+        print sf_eval.as_row()
+    else:
+        print sf_eval
 
 
 if __name__ == '__main__':
