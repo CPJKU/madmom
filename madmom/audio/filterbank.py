@@ -731,56 +731,44 @@ class SemitoneFilterBank(LogarithmicFilterBank):
 
 
 class SimpleChromaFilterBank(FilterBank):
-    # FIXME: check if the result is the one expected
     """
-    A simple chroma filter bank. Each frequency bin of a magnitude spectrum
-    is assigned a chroma class, and all it's contents are added to this class.
-    No diffusion, just discrete assignment.
+    A simple chroma filter bank based on the semitone filter.
+    """
 
-    """
-    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTERS, a4=A4):
+    def __new__(cls, fft_bins, sample_rate,
+                fmin=FMIN, fmax=FMAX, norm=NORM_FILTERS,
+                duplicates=DUPLICATE_FILTERS, a4=A4):
         """
-        Creates a new Chroma Filter Bank instance.
+        Creates a new Chroma Filter object instance.
 
-        :param fft_bins:    number of FFT bins (= half the FFT window size)
+        :param fft_bins:    number of FFT bins (= half the window size of
+                            the FFT)
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz, default=20]
         :param fmax:        the maximum frequency [Hz, default=15500]
-        :param norm:        normalize the area of the filter to 1
-                            [default=True]
+        :param norm:        normalize the filter area to 1 [default=True]
+        :param duplicates:  omit duplicate filters resulting from insufficient
+                            resolution of low frequencies [default=True]
         :param a4:          tuning frequency of A4 [Hz, default=440]
 
         """
-        # TODO: use functions from above instead of the logic here!
-        # get a list of frequencies
-        frequencies = semitone_frequencies(fmin, fmax, a4)
-        # conversion factor for mapping of frequencies to spectrogram bins
-        factor = (sample_rate / 2.0) / fft_bins
-        # map the frequencies to the spectrogram bins
-        frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
-        # filter out all frequencies outside the valid range
-        frequencies = frequencies[frequencies < fft_bins]
-        # init the filter matrix with size: fft_bins x filter bands
-        filterbank = np.zeros([fft_bins, 12])
-        # process all bands
-        for band in range(len(frequencies) - 1):
-            # edge frequencies
-            # the start bin is included in the filter,
-            # the stop bin is not (=start bin of the next filter)
-            start = frequencies[band]
-            stop = frequencies[band + 1] + 1
-            # set the height of the filter
-            height = 1.
-            # normalize the area of the filter
-            if norm:
-                # a standard filter has at least 2 bins, and stop - start = 1
-                # thus the filter has an area of 1 if the height is set to
-                height /= (stop - start)
-            # create a rectangular filter and map it to the 12 bins
-            filterbank[start:stop, band % 12] = height
+
+        stf = SemitoneFilterBank(fft_bins, sample_rate, fmin, fmax, norm,
+                                 duplicates, a4)
+
+        fb = np.empty((stf.shape[0], 12))
+        spacing = np.arange(8) * 12
+
+        for i in range(12):
+            cur_spacing = spacing + i
+            cur_spacing = cur_spacing[cur_spacing < stf.shape[1]]
+            fb[:, i] = stf[:, cur_spacing].sum(1)
+
+        # TODO: check if this should depend on the norm parameter
+        fb /= fb.sum(0)
+
         # cast to FilterBank
-        obj = FilterBank.__new__(cls, filterbank, sample_rate)
+        obj = FilterBank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         obj._a4 = a4
