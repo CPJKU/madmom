@@ -64,7 +64,7 @@ def downsample(x, factor=2):
     Down-samples the signal by the given factor
 
     :param x:      signal (numpy array)
-    :param factor: down-sampling factor [default=2]
+    :param factor: down-sampling factor
     :returns:      down-sampled signal
 
     """
@@ -126,7 +126,7 @@ def sound_pressure_level(x, p_ref=1.0):
     Computes the sound pressure level of a signal.
 
     :param x:     signal (numpy array)
-    :param p_ref: reference sound pressure level [default=1.0]
+    :param p_ref: reference sound pressure level
     :returns:     sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
@@ -164,10 +164,10 @@ class Signal(object):
 
         :param data:        numpy array (`sample_rate` must be given as well)
                             or Signal instance or file name or file handle
-        :param sample_rate: sample rate of the signal [default=None]
-        :param mono:        downmix the signal to mono [default=False]
-        :param norm:        normalize the signal [default=False]
-        :param att:         attenuate the signal by N dB [default=0]
+        :param sample_rate: sample rate of the signal [Hz]
+        :param mono:        down-mix the signal to mono
+        :param norm:        normalize the signal
+        :param att:         attenuate the signal [dB]
 
         """
         # data handling
@@ -324,15 +324,14 @@ class FramedSignal(object):
 
         :param signal:     a Signal or FramedSignal instance
                            or anything a Signal can be instantiated from
-        :param frame_size: size of one frame [default=2048]
-        :param hop_size:   progress N samples between adjacent frames
-                           [default=441]
+        :param frame_size: size of one frame [int]
+        :param hop_size:   progress N samples between adjacent frames [float]
         :param fps:        use given frames per second (instead of using
                            `hop_size`; if set, this overwrites the `hop_size`
-                           value) [default=None]
+                           value) [float]
         :param origin:     location of the window relative to the signal
-                           position [default=0]
-        :param start:      start sample [default=0]
+                           position [int]
+        :param start:      start sample [int]
         :param num_frames: number of frames to return (see below)
 
         The FramedSignal class is implemented as an iterator. It splits the

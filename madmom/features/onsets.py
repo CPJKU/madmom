@@ -11,6 +11,8 @@ import numpy as np
 import scipy.ndimage as sim
 
 
+EPSILON = 0.000001
+
 # helper functions
 def wraptopi(phase):
     """
@@ -29,8 +31,7 @@ def diff(spec, diff_frames=1, pos=False):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
-    :param pos:         only keep positive values [default=False]
+    :param pos:         keep only positive values
     :returns:           (positive) magnitude spectrogram differences
 
     """
@@ -56,10 +57,9 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
-    :param pos:         only keep positive values [default=False]
+    :param pos:         keep only positive values
     :param diff_bins:   maximum number of bins shifted for correlation
-                        calculation [default=1]
+                        calculation
     :returns:           (positive) magnitude spectrogram differences
 
     """
@@ -115,7 +115,6 @@ def spectral_diff(spec, diff_frames=1):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
     :returns:           spectral diff onset detection function
 
     "A hybrid approach to musical note onset detection"
@@ -134,7 +133,6 @@ def spectral_flux(spec, diff_frames=1):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
     :returns:           spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
@@ -156,9 +154,7 @@ def superflux(spec, diff_frames=1, max_bins=3):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
     :param max_bins:    number of neighboring bins used for maximum filtering
-                        [default=3]
     :returns:           SuperFlux onset detection function
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
@@ -167,10 +163,10 @@ def superflux(spec, diff_frames=1, max_bins=3):
     (DAFx-13), 2013.
 
     Note: this method works only properly, if the spectrogram is filtered with
-    a filterbank of the right frequency spacing. Filterbanks with 24 bands per
-    octave (i.e. quartertone resolution) usually yield good results. With the
-    default 3 max_bins, the maximum of the bins k-1, k, k+1 of the frame
-    diff_frames to the left is used for the calculation of the difference.
+    a filterbank of the right frequency spacing. Filter banks with 24 bands per
+    octave (i.e. quarter-tone resolution) usually yield good results. With
+    `max_bins=3`, the maximum of the bins k-1, k, k+1 of the frame
+    `diff_frames` to the left is used for the calculation of the difference.
 
     """
     # init diff matrix
@@ -187,17 +183,16 @@ def superflux(spec, diff_frames=1, max_bins=3):
     return np.sum(diff, axis=1)
 
 
-def modified_kullback_leibler(spec, diff_frames=1, epsilon=0.000001):
+def modified_kullback_leibler(spec, diff_frames=1, epsilon=EPSILON):
     """
     Modified Kullback-Leibler.
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-                        [default=1]
-    :param epsilon:     add epsilon to avoid division by 0 [default=0.000001]
+    :param epsilon:     add epsilon to avoid division by 0
     :returns:           MKL onset detection function
 
-    Note: the implenmentation presented in:
+    Note: the implementation presented in:
     "Automatic Annotation of Musical Audio for Interactive Applications"
     Paul Brossier
     PhD thesis, Queen Mary University of London, 2006
@@ -273,13 +268,13 @@ def weighted_phase_deviation(spec, phase):
     return np.mean(np.abs(_phase_deviation(phase) * spec), axis=1)
 
 
-def normalized_weighted_phase_deviation(spec, phase, epsilon=0.000001):
+def normalized_weighted_phase_deviation(spec, phase, epsilon=EPSILON):
     """
     Normalized Weighted Phase Deviation.
 
     :param spec:    the magnitude spectrogram
     :param phase:   the phase spectrogram
-    :param epsilon: add epsilon to avoid division by 0 [default=0.000001]
+    :param epsilon: add epsilon to avoid division by 0
     :returns:       normalized weighted phase deviation onset detection
                     function
 
@@ -461,23 +456,18 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     :param activations: the onset activation function
     :param threshold:   threshold for peak-picking
     :param smooth:      smooth the activation function with the kernel
-                        [default=None]
     :param pre_avg:     use N frames past information for moving average
-                        [default=0]
     :param post_avg:    use N frames future information for moving average
-                        [default=0]
     :param pre_max:     use N frames past information for moving maximum
-                        [default=1]
     :param post_max:    use N frames future information for moving maximum
-                        [default=1]
 
     Notes: If no moving average is needed (e.g. the activations are independent
            of the signal's level as for neural network activations), set
            `pre_avg` and `post_avg` to 0.
 
-           For offline peak picking set `pre_max` and `post_max` to 1.
+           For offline peak picking, set `pre_max` and `post_max` to 1.
 
-           For online peak picking set all `post_` parameters to 0.
+           For online peak picking, set all `post_` parameters to 0.
 
     """
     # smooth activations
@@ -547,7 +537,7 @@ class Onset(object):
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
         :param online:      work in online mode (i.e. use only past
-                            information) [default=False]
+                            information)
         :param sep:         separator if activations are read from file
 
         """
@@ -574,18 +564,13 @@ class Onset(object):
         Detect the onsets with a given peak-picking method.
 
         :param threshold: threshold for peak-picking
-        :param combine:   only report one onset within N seconds [default=0.03]
-        :param delay:     report onsets N seconds delayed [default=0]
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
         :param smooth:    smooth the activation function over N seconds
-                          [default=0]
         :param pre_avg:   use N seconds past information for moving average
-                          [default=0.1]
         :param post_avg:  use N seconds future information for moving average
-                          [default=0.03]
         :param pre_max:   use N seconds past information for moving maximum
-                          [default=0.03]
         :param post_max:  use N seconds future information for moving maximum
-                          [default=0.07]
 
         Notes: If no moving average is needed (e.g. the activations are
                independent of the signal's level as for neural network
@@ -658,7 +643,7 @@ class Onset(object):
         Evaluate the detected onsets against this target file.
 
         :param filename: target file name or file handle
-        :param window:   evaluation window [seconds, default=0.025]
+        :param window:   evaluation window [seconds]
 
         """
         if filename:
@@ -676,12 +661,12 @@ class Onset(object):
         Save the onset activations to a file.
 
         :param filename: output file name or file handle
-        :param sep:      separator between activation values [default='']
+        :param sep:      separator between activation values
 
         Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
               separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
+              whitespace. Binary files are not platform independent.
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class
@@ -693,12 +678,12 @@ class Onset(object):
         Load the onset activations from a file.
 
         :param filename: the target file name
-        :param sep:      separator between activation values [default='']
+        :param sep:      separator between activation values
 
         Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
               separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
+              whitespace. Binary files are not platform independent.
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class

@@ -166,6 +166,7 @@ class ScoreFollowingEvaluation(object):
         """
         2d numpy array of event alignments corresponding to the elements
         present in the ground truth data.
+
         """
         if self._event_alignment is None:
             self._event_alignment = compute_event_alignment(self.alignment,
@@ -175,8 +176,9 @@ class ScoreFollowingEvaluation(object):
     @property
     def cont_metrics(self):
         """
-        Most of the evaluation metrics presented in Cont's paper contained
-        in a dictionary.
+        Most of the evaluation metrics presented in Cont's paper contained in
+        a dictionary.
+
         """
         if self._cont_metrics is None:
             self._cont_metrics = compute_cont_metrics(self.event_alignment,
@@ -187,52 +189,56 @@ class ScoreFollowingEvaluation(object):
     @property
     def cont_metrics_sorted(self):
         """
-        Most of the evaluation metrics presented in Cont's paper contained
-        in a list, sorted as defined in self._fields_sorted.
+        Most of the evaluation metrics presented in Cont's paper contained in
+        a list, sorted as defined in self._fields_sorted.
+
         """
         return [self.cont_metrics[f] for f in self._fields_sorted]
 
     @property
     def miss_rate(self):
         """
-        Percentage of missed events (events that exist in the reference
-        score, but are not reported
+        Percentage of missed events (events that exist in the reference score,
+        but are not reported.
+
         """
         return self.cont_metrics['miss_rate']
 
     @property
     def misalign_rate(self):
         """
-        Percentage of misaligned events (events with an alignment that
-        is off by more than defined in the threshold)
+        Percentage of misaligned events (events with an alignment that is off
+        by more than defined in the threshold).
+
         """
         return self.cont_metrics['misalign_rate']
 
     @property
     def avg_imprecision(self):
-        """ Average alignment error of non-misaligned events """
+        """Average alignment error of non-misaligned events."""
         return self.cont_metrics['avg_imprecision']
 
     @property
     def stddev_imprecision(self):
-        """ Standard deviation of alignment error of non-misaligned events """
+        """Standard deviation of alignment error of non-misaligned events."""
         return self.cont_metrics['stddev_imprecision']
 
     @property
     def avg_error(self):
-        """ Average alignment error """
+        """Average alignment error."""
         return self.cont_metrics['avg_error']
 
     @property
     def stddev_error(self):
-        """ Standard deviation of alignment error """
+        """Standard deviation of alignment error."""
         return self.cont_metrics['stddev_error']
 
     @property
     def piece_completion(self):
         """
         Percentage of events that was followed until the aligner hangs, i.e
-        from where on there are only misaligned or missed events
+        from where on there are only misaligned or missed events.
+
         """
         return self.cont_metrics['piece_completion']
 

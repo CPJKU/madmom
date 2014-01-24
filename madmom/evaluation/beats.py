@@ -35,7 +35,7 @@ def calc_intervals(events, fwd=False):
     Calculate the intervals of all events to the previous / next event.
 
     :param events: sequence of events to be matched [seconds]
-    :param fwd:    calculate the intervals to the next event [default=False]
+    :param fwd:    calculate the intervals to the next event
     :returns:      the intervals [seconds]
 
     Note: the sequences must be ordered!
@@ -60,7 +60,7 @@ def find_closest_intervals(detections, targets, matches=None):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches [default=None]
+    :param matches:    indices of the closest matches
     :returns:          a list of closest target intervals [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
@@ -103,7 +103,7 @@ def calc_relative_errors(detections, targets, matches=None):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches [default=None]
+    :param matches:    indices of the closest matches
     :returns:          a list of relative errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
@@ -456,18 +456,12 @@ class BeatEvaluation(OnsetEvaluation):
         :param detections:      sequence of estimated beat times [seconds]
         :param targets:         sequence of ground truth beat annotations
                                 [seconds]
-        :param window:          F-measure evaluation window
-                                [seconds, default=0.07]
+        :param window:          F-measure evaluation window [seconds]
         :param tolerance:       P-Score tolerance of median beat interval
-                                [default=0.2]
         :param sigma:           sigma of Gaussian window for Cemgil accuracy
-                                [default=0.04]
         :param tempo_tolerance: tempo tolerance window for [AC]ML[ct]
-                                [default=0.175]
-        :param phase_tolerance: phase (interval) tolerance window for
-                                [AC]ML[ct] [default=0.175]
+        :param phase_tolerance: phase tolerance window for [AC]ML[ct]
         :param bins:            number of bins for the error histogram
-                                [default=40]
 
         """
         self.detections = detections
@@ -576,7 +570,7 @@ class BeatEvaluation(OnsetEvaluation):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files [default=False]
+        :param tex: output format to be used in .tex files
 
         """
         # report the scores always in the range 0..1, because of formatting

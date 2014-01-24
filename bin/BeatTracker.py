@@ -55,7 +55,7 @@ def parser():
                               window=None)
     b = madmom.utils.params.beat(p)
     b.add_argument('--look_ahead', action='store', type=float, default=4,
-                   help='look ahead N seconds [default=4]')
+                   help='look ahead N seconds [default=%(default).2f]')
     madmom.utils.params.io(p)
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2013')

@@ -19,7 +19,7 @@ def calc_overlap(detections, targets, threshold=0.5):
 
     :param detections: array with detections
     :param targets:    array with targets
-    :param threshold:  binary decision threshold [default=0.5]
+    :param threshold:  threshold for binary decision
 
     """
     # detections and targets must have the same dimensions
@@ -147,7 +147,7 @@ class SimpleEvaluation(object):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files [default=False]
+        :param tex: output format to be used in .tex files
 
         """
         # print the errors

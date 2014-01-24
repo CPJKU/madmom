@@ -19,8 +19,8 @@ def files(path, ext=None):
     """
     Returns a list of files in path matching the given extension.
 
-    :param path: path or list of files to be filtered / searched
-    :param ext:  only return files with this extension [default=None]
+    :param path: path or list of files to be filtered/searched
+    :param ext:  only return files with this extension
     :returns:    list of files
 
     """
@@ -76,8 +76,8 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     :param filename:   file to be matched
     :param match_list: match to this list of files
     :param ext:        strip this extension from the file to match before
-                       performing the search for matching files [default=None]
-    :param match_ext:  only match files with this extension [default=None]
+                       performing the search for matching files
+    :param match_ext:  only match files with this extension
     :returns:          list of matched files
 
     """
@@ -195,7 +195,7 @@ def quantize_events(events, fps, length=None):
 
     :param events: sequence of events [seconds]
     :param fps:    quantize with N frames per second
-    :param length: length of the returned array [frames, default=last event]
+    :param length: length of the returned array [frames]
     :returns:      a quantized numpy array
 
     """
@@ -221,8 +221,8 @@ def combine_activations(in_dirs, out_dir, ext='.activations', sep=''):
 
     :param in_dirs: list of directories or files with activations
     :param out_dir: output directory
-    :param ext:     extension for files [default='.activations']
-    :param sep:     separator between activation values [default='']
+    :param ext:     extension for files
+    :param sep:     separator between activation values
 
     Note: The output directory must exist, existing files are overwritten.
 
@@ -266,22 +266,22 @@ def combine_activations(in_dirs, out_dir, ext='.activations', sep=''):
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
-def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
+def segment_axis(a, length, overlap=0, axis=None, end='cut', end_value=0):
     """
     Generate a new array that chops the given array along the given axis into
     overlapping frames.
 
-    :param a:        array to segment
-    :param length:   length of each frame
-    :param overlap:  number of elements by which the frames should overlap
-    :param axis:     axis to operate on; if None, act on the flattened array
-    :param end:      what to do with the last frame, if the array is not evenly
-                     divisible into pieces [default='cut']. possible values:
-                     'cut'  simply discard the extra values
-                     'wrap' copy values from the beginning of the array
-                     'pad'  pad with a constant value
-    :param endvalue: value to use for end='pad' [default=0]
-    :returns:        2-d array with overlapping frames
+    :param a:         array to segment
+    :param length:    length of each frame
+    :param overlap:   number of elements by which the frames should overlap
+    :param axis:      axis to operate on; if None, act on the flattened array
+    :param end:       what to do with the last frame, if the array is not
+                      evenly divisible into pieces; possible values:
+                      'cut'  simply discard the extra values
+                      'wrap' copy values from the beginning of the array
+                      'pad'  pad with a constant value
+    :param end_value: value to use for end='pad'
+    :returns:         2D array with overlapping frames
 
     The array is not copied unless necessary (either because it is unevenly
     strided and being flattened or because end is set to 'pad' or 'wrap').
@@ -331,7 +331,7 @@ def segment_axis(a, length, overlap=0, axis=None, end='cut', endvalue=0):
             b = np.empty(s, dtype=a.dtype)
             b[..., :l] = a
             if end == 'pad':
-                b[..., l:] = endvalue
+                b[..., l:] = end_value
             elif end == 'wrap':
                 b[..., l:] = a[..., :roundup - l]
             a = b

@@ -34,12 +34,12 @@ def parser():
                    help='separator for saving/loading the activation functions'
                         ' [default=\'\' (numpy binary format)]')
     p.add_argument('--ext', action='store', default='.activations',
-                   help='separator for saving/loading the activation functions'
-                        ' [default=\'\' (numpy binary format)]')
+                   help='file extension for the activation functions '
+                        '[default=%(default)s]')
     p.add_argument('--threads', action='store', type=int, default=2,
-                   help='number of threads [default=2]')
+                   help='number of threads [default=%(default)i]')
     p.add_argument('--set', action='store', type=str, default='test',
-                   help='use this set (train, val, test) [default=test]')
+                   help='use this set {train, val, test} [default=%(default)s]')
     # parse arguments
     args = p.parse_args()
     # print arguments

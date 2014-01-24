@@ -95,8 +95,8 @@ def bark_frequencies(fmin=20, fmax=15500):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
 
-    :param fmin: the minimum frequency [Hz, default=20]
-    :param fmax: the maximum frequency [Hz, default=15550]
+    :param fmin: the minimum frequency [Hz]
+    :param fmax: the maximum frequency [Hz]
     :returns:    a list of frequencies
 
     """
@@ -116,8 +116,8 @@ def bark_double_frequencies(fmin=20, fmax=15500):
     Generates a list of corner frequencies aligned on the Bark-scale.
     The list includes also center frequencies between the corner frequencies.
 
-    :param fmin: the minimum frequency [Hz, default=20]
-    :param fmax: the maximum frequency [Hz, default=15550]
+    :param fmin: the minimum frequency [Hz]
+    :param fmax: the maximum frequency [Hz]
     :returns:    a list of frequencies
 
     """
@@ -143,7 +143,7 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     :param bands_per_octave: number of filter bands per octave
     :param fmin:             the minimum frequency [Hz]
     :param fmax:             the maximum frequency [Hz]
-    :param a4:               tuning frequency of A4 [Hz, default=440]
+    :param a4:               tuning frequency of A4 [Hz]
     :returns:                a list of frequencies
 
     Note: if 12 bands per octave and a4=440 are used, the frequencies are
@@ -169,10 +169,8 @@ def semitone_frequencies(fmin, fmax, a4=A4):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :param a4:   tuning frequency of A4 [Hz, default=440]
+    :param a4:   tuning frequency of A4 [Hz]
     :returns:    a list of frequencies of semitones
-
-    Note: frequencies are aligned to MIDI notes with the default a4=440.
 
     """
     # return MIDI frequencies
@@ -185,7 +183,7 @@ def midi2hz(m, a4=A4):
     Convert frequencies to the corresponding MIDI notes.
 
     :param m:  input MIDI notes
-    :param a4: tuning frequency of A4 [Hz, default=440]
+    :param a4: tuning frequency of A4 [Hz]
     :returns:  frequencies in Hz
 
     For details see: http://www.phys.unsw.edu.au/jw/notes.html
@@ -199,7 +197,7 @@ def hz2midi(f, a4=A4):
     Convert MIDI notes to corresponding frequencies.
 
     :param f:  input frequencies [Hz]
-    :param a4: tuning frequency of A4 [Hz, default=440]
+    :param a4: tuning frequency of A4 [Hz]
     :returns:  MIDI notes
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
@@ -312,7 +310,7 @@ def multi_filterbank(filters, fft_bins, bands, norm):
                      array and the starting position
     :param fft_bins: number of FFT bins
     :param bands:    number of bands
-    :param norm:     normalise the area of each filter band to 1 if True
+    :param norm:     normalise the area of each filter band to 1 [bool]
     :returns:        filter bank with respective filter elements
 
     """
@@ -382,10 +380,10 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate,
     :param frequencies: a list of frequencies used for filter creation [Hz]
     :param fft_bins:    number of fft bins
     :param sample_rate: sample rate of the audio signal [Hz]
-    :param norm:        normalise the area of the filters to 1 [default=True]
+    :param norm:        normalise the area of the filters to 1 [bool]
     :param duplicates:  keep duplicate filters resulting from insufficient
-                        resolution of low frequencies [default=False]
-    :param overlap:     filters should overlap [default=True]
+                        resolution of low frequencies [bool]
+    :param overlap:     filters should overlap [bool]
     :returns:           filter bank
 
     """
@@ -555,12 +553,12 @@ class MelFilterBank(FilterBank):
 
         :param fft_bins:    number of FFT bins (= half the FFT window size)
         :param sample_rate: sample rate of the audio file [Hz]
-        :param fmin:        the minimum frequency [Hz, default=30]
-        :param fmax:        the maximum frequency [Hz, default=16000]
-        :param bands:       number of filter bands [default=40]
-        :param norm:        normalize the filters to area 1 [default=True]
+        :param fmin:        the minimum frequency [Hz]
+        :param fmax:        the maximum frequency [Hz]
+        :param bands:       number of filter bands
+        :param norm:        normalize the filters to area 1
         :param duplicates:  keep duplicate filters resulting from insufficient
-                            resolution of low frequencies [default=False]
+                            resolution of low frequencies
 
         """
         # get a list of frequencies
@@ -601,14 +599,12 @@ class BarkFilterBank(FilterBank):
 
         :param fft_bins:    number of FFT bins (= half the FFT window size)
         :param sample_rate: sample rate of the audio file [Hz]
-        :param fmin:        the minimum frequency [Hz, default=20]
-        :param fmax:        the maximum frequency [Hz, default=15500]
+        :param fmin:        the minimum frequency [Hz]
+        :param fmax:        the maximum frequency [Hz]
         :param double:      double the number of frequency bands
-                            [default=False]
         :param norm:        normalize the area of the filter to 1
-                            [default=True]
         :param duplicates:  keep duplicate filters resulting from insufficient
-                            resolution of low frequencies [default=False]
+                            resolution of low frequencies
 
         """
         # get a list of frequencies
@@ -651,15 +647,14 @@ class LogarithmicFilterBank(FilterBank):
 
         :param fft_bins:         number of FFT bins (=half the FFT window size)
         :param sample_rate:      sample rate of the audio file [Hz]
-        :param bands_per_octave: number of filter bands per octave [default=6]
-        :param fmin:             the minimum frequency [Hz, default=20]
-        :param fmax:             the maximum frequency [Hz, default=17000]
+        :param bands_per_octave: number of filter bands per octave
+        :param fmin:             the minimum frequency [Hz]
+        :param fmax:             the maximum frequency [Hz]
         :param norm:             normalize the area of the filter to 1
-                                 [default=True]
         :param duplicates:       keep duplicate filters resulting from
                                  insufficient resolution of low frequencies
-                                 [default=False]
-        :param a4:               tuning frequency of A4 [Hz, default=440]
+
+        :param a4:               tuning frequency of A4 [Hz]
 
         """
         # get a list of frequencies
@@ -716,13 +711,12 @@ class SemitoneFilterBank(LogarithmicFilterBank):
 
         :param fft_bins:    number of FFT bins (= half the FFT window size)
         :param sample_rate: sample rate of the audio file [Hz]
-        :param fmin:        the minimum frequency [Hz, default=27]
-        :param fmax:        the maximum frequency [Hz, default=17000]
+        :param fmin:        the minimum frequency [Hz]
+        :param fmax:        the maximum frequency [Hz]
         :param norm:        normalize the area of the filter to 1
-                            [default=True]
         :param duplicates:  keep duplicate filters resulting from insufficient
-                            resolution of low frequencies [default=False]
-        :param a4:          tuning frequency of A4 [Hz, default=440]
+                            resolution of low frequencies
+        :param a4:          tuning frequency of A4 [Hz]
 
         """
         # return a LogarithmicFilterBank with 12 bands per octave
@@ -735,21 +729,19 @@ class SimpleChromaFilterBank(FilterBank):
     A simple chroma filter bank based on the semitone filter.
     """
 
-    def __new__(cls, fft_bins, sample_rate,
-                fmin=FMIN, fmax=FMAX, norm=NORM_FILTERS,
-                duplicates=DUPLICATE_FILTERS, a4=A4):
+    def __new__(cls, fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
+                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
         """
         Creates a new Chroma Filter object instance.
 
-        :param fft_bins:    number of FFT bins (= half the window size of
-                            the FFT)
+        :param fft_bins:    number of FFT bins (= half the FFT window size)
         :param sample_rate: sample rate of the audio file [Hz]
-        :param fmin:        the minimum frequency [Hz, default=20]
-        :param fmax:        the maximum frequency [Hz, default=15500]
-        :param norm:        normalize the filter area to 1 [default=True]
+        :param fmin:        the minimum frequency [Hz]
+        :param fmax:        the maximum frequency [Hz]
+        :param norm:        normalize the area of the filter to 1
         :param duplicates:  omit duplicate filters resulting from insufficient
-                            resolution of low frequencies [default=True]
-        :param a4:          tuning frequency of A4 [Hz, default=440]
+                            resolution of low frequencies
+        :param a4:          tuning frequency of A4 [Hz]
 
         """
 

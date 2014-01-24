@@ -591,7 +591,7 @@ def create_nc_file(filename, data, targets, tags=None):
     :param filename: name of the file to create
     :param data:     input data
     :param targets:  corresponding targets
-    :param tags:     additional [default=None]
+    :param tags:     additional information [optional]
 
     """
     # create the .nc file
@@ -642,7 +642,7 @@ class TestThread(Thread):
 
         :param work_queue:   queue with work items
         :param return_queue: queue for the results
-        :param verbose:      show RNNLIB's output [default=False]
+        :param verbose:      show RNNLIB's output
 
         """
         # init the thread
@@ -706,8 +706,8 @@ def test_nc_files(nc_files, nn_files, threads=2, verbose=False):
 
     :param nc_files: list with .nc files to be tested
     :param nn_files: list with network files
-    :param threads:  number of parallel threads [default=2]
-    :param verbose:  be verbose [default=False]
+    :param threads:  number of parallel threads
+    :param verbose:  be verbose
 
     """
     if not nc_files:
@@ -881,11 +881,10 @@ class RnnConfig(object):
         """
         Test the given set of files.
 
-        :param out_dir:  output directory for activations [default=None]
-        :param file_set: which set should be tested (train, val, test)
-                         [default='test']
-        :param threads:  number of working threads [default=2]
-        :param sep:      separator between activation values [default='']
+        :param out_dir:  output directory for activations
+        :param file_set: which set should be tested {train, val, test}
+        :param threads:  number of working threads
+        :param sep:      separator between activation values
         :returns:        the output directory
 
         Note: If given, out_dir must exist. If none is given, a standard output
@@ -1019,10 +1018,10 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
 
     :param nn_files: list with network files
     :param out_dir:  output directory for activations
-    :param file_set: which set should be tested [default='test']
-                     file_set can be any of (train, val, test)
-    :param threads:  number of working threads [default=2]
-    :param sep:      separator between activation values [default='']
+    :param file_set: which set should be tested
+                     file_set can be any of {train, val, test}
+    :param threads:  number of working threads
+    :param sep:      separator between activation values
 
     Note: empty (“”) separator means the file should be treated as binary;
           spaces (” ”) in the separator match zero or more whitespace;

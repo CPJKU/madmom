@@ -18,10 +18,10 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
 
     :param x:        discrete signal (1D numpy array)
     :param window:   window function (1D numpy array)
-    :param hop_size: the hop size in samples between adjacent frames
-    :param offset:   position of the first sample inside the signal [default=0]
-    :param phase:    circular shift for correct phase [default=False]
-    :param fft_size: use given size for FFT [default=size of window]
+    :param hop_size: the hop size in samples between adjacent frames [float]
+    :param offset:   position of the first sample inside the signal [int]
+    :param phase:    circular shift for correct phase [bool]
+    :param fft_size: use given size for FFT [int, should be a power of 2]
     :returns:        the complex STFT of the signal
 
     The size of the window determines the frame size used for splitting the
@@ -72,14 +72,13 @@ def strided_stft(signal, window, hop_size, phase=True):
 
     :param signal:   the discrete signal
     :param window:   window function
-    :param hop_size: the hop size in samples between adjacent frames
-    :param phase:    circular shift for correct phase [default=False]
+    :param hop_size: the hop size in samples between adjacent frames [int]
+    :param phase:    circular shift for correct phase [bool]
     :returns:        the complex STFT of the signal
 
-    Note: This function is here only for completeness.
-          It is faster only in rare circumstances.
-          Also, seeking to the right position is only working properly, if
-          integer hop_sizes are used.
+    Note: This function is here only for completeness. It is faster only in
+          rare circumstances. Also, seeking to the right position is only
+          working properly, if integer hop_sizes are used.
 
     """
     from .signal import strided_frames
@@ -120,41 +119,39 @@ class Spectrogram(object):
         """
         Creates a new Spectrogram object instance of the given audio.
 
-        :param frames:   a FramedSignal object, or a file name or file handle
-        :param window:   window function [default=Hann window]
+        :param frames: a FramedSignal object, or a file name or file handle
+        :param window: window function
 
         Magnitude spectrogram manipulation parameters:
 
         :param filterbank: filterbank used for dimensionality reduction of the
-                           magnitude spectrogram [default=None]
+                           magnitude spectrogram
 
-        :param log: take the logarithm of the magnitudes [default=False]
-        :param mul: multiplier before taking the logarithm of the magnitudes
-                    [default=1]
-        :param add: add this value before taking the logarithm of the
-                    magnitudes [default=0]
+        :param log: take the logarithm of the magnitude [bool]
+        :param mul: multiplier before taking the logarithm of the magnitude
+        :param add: add this value before taking the logarithm of the magnitude
 
         Additional computations:
 
-        :param stft:  save the raw complex STFT [default=False]
-        :param phase: save the phase information [default=False]
-        :param lgd:   save the local group delay information [default=False]
+        :param stft:  save the raw complex STFT [bool]
+        :param phase: save the phase information [bool]
+        :param lgd:   save the local group delay information [bool]
 
         FFT parameters:
 
-        :param norm_window: set area of window function to 1 [default=False]
-        :param fft_size:    use this size for FFT [default=size of window]
+        :param norm_window: set area of window function to 1 [bool]
+        :param fft_size:    use this size for FFT [int, should be a power of 2]
 
         Diff parameters:
 
         :param ratio:       calculate the difference to the frame which window
-                            overlaps to this ratio [default=0.5]
+                            overlaps to this ratio [float]
         :param diff_frames: calculate the difference to the N-th previous frame
-                            [default=None] (if set, this overrides the value
-                            calculated from the ratio)
+                            [int] (if set, this overrides the value calculated
+                            from the ratio)
 
         Note: including phase and/or local group delay information slows down
-              calculation considerably (phase: x2; lgd: x3)!
+              calculation considerably (phase: *2; lgd: *3)!
 
         """
         from .signal import FramedSignal
@@ -468,8 +465,8 @@ class Spectrogram(object):
         """
         Return an adaptively whitened version of the magnitude spectrogram.
 
-        :param floor:      floor coefficient [default=0.5]
-        :param relaxation: relaxation time [_frames, default=10]
+        :param floor:      floor coefficient [float]
+        :param relaxation: relaxation time [frames]
         :returns:          the whitened magnitude spectrogram
 
         "Adaptive Whitening For Improved Real-time Audio Onset Detection"
@@ -504,11 +501,11 @@ class FilteredSpectrogram(Spectrogram):
         If no filterbank is given, one with the following parameters is created
         automatically:
 
-        :param bands_per_octave: number of filter bands per octave [default=12]
-        :param fmin:             the minimum frequency [Hz, default=30]
-        :param fmax:             the maximum frequency [Hz, default=17000]
-        :param norm_filters:     normalize the filter to area 1 [default=True]
-        :param a4:               tuning frequency of A4 [Hz, default=440]
+        :param bands_per_octave: number of filter bands per octave
+        :param fmin:             the minimum frequency [Hz]
+        :param fmax:             the maximum frequency [Hz]
+        :param norm_filters:     normalize the filter to area 1 [bool]
+        :param a4:               tuning frequency of A4 [Hz]
 
         """
         from filterbank import (LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,
@@ -551,9 +548,7 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
         logarithmic scale.
 
         :param mul: multiply the magnitude spectrogram with given value
-                    [default=1]
         :param add: add the given value to the magnitude spectrogram
-                    [default=1]
 
         """
         # fetch the arguments for logarithmic magnitude (or set defaults)
@@ -598,16 +593,18 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
         The magnitude spectrogram are separated with median filters with the
         given sizes into their harmonic and percussive parts.
 
-        :param harmonic_filter:   tuple with harmonic filter size (frames, bins)
-        :param percussive_filter: tuple with percussive filter size (frames,
-                                  bins)
+        :param harmonic_filter:   tuple with harmonic filter size
+                                  (frames, bins)
+        :param percussive_filter: tuple with percussive filter size
+                                  (frames, bins)
 
         """
         # fetch the arguments for separating the magnitude (or set defaults)
         harmonic_filter = kwargs.pop('harmonic_filter', HARMONIC_FILTER)
         percussive_filter = kwargs.pop('percussive_filter', PERCUSSIVE_FILTER)
         # create a Spectrogram object
-        super(HarmonicPercussiveSourceSeparation, self).__init__(*args, **kwargs)
+        super(HarmonicPercussiveSourceSeparation, self).__init__(*args,
+                                                                 **kwargs)
         # set the parameters, so they get used for computation
         self._harmonic_filter = harmonic_filter
         self._percussive_filter = percussive_filter

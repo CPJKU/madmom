@@ -134,9 +134,9 @@ class FeedForwardLayer(Layer):
         """
         Create a new Layer.
 
-        :param transfer_fn:       transfer function
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
+        :param transfer_fn: transfer function
+        :param weights:     weights (2D matrix)
+        :param bias:        bias (1D vector or scalar)
 
         """
         self.transfer_fn = transfer_fn

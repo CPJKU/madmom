@@ -36,14 +36,13 @@ def parser():
                    help='path for audio files')
     annotations = ['.onsets', '.beats', '.notes']
     p.add_argument('-a', dest='annotations', default=annotations,
-                   help='annotations to use [default=%s]' % annotations)
+                   help='annotations to use [default=%(default)s]')
     p.add_argument('--spec', dest='specs', default=None, type=int,
                    action='append', help='spectrogram size(s) to use')
     p.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
     # add onset detection related options to the existing parser
-    madmom.utils.params.audio(p, fps=100, norm=False,
-                                            window=None)
+    madmom.utils.params.audio(p, fps=100, norm=False, window=None)
     madmom.utils.params.spec(p)
     madmom.utils.params.filtering(p, bands=12)
     madmom.utils.params.log(p, log=True, mul=5, add=1)
