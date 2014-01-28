@@ -410,6 +410,7 @@ class Evaluation(SimpleEvaluation):
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
+        print self._eval_function
         numbers = self._eval_function(self._detections, self._targets,
                                       **self._kwargs)
         self._tp, self._fp, self._tn, self._fn = numbers
@@ -474,7 +475,13 @@ class Evaluation(SimpleEvaluation):
                 # FIXME: what is the error in case of no TPs
                 self._errors = np.zeros(0)
             else:
-                self._errors = calc_errors(self.tp, self._targets)
+                if self.tp.ndim > 1:
+                    # use only the first column (i.e. the timings)
+                    self._errors = calc_errors(self.tp[:, 0],
+                                               self._targets[:, 0])
+                else:
+                    # the only given dimension are the timings
+                    self._errors = calc_errors(self.tp, self._targets)
         return self._errors
 
     @property
