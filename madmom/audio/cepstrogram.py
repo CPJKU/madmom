@@ -60,10 +60,10 @@ class MFCC(Cepstrogram):
         If no filterbank is given, one with the following parameters is created
         automatically.
 
-        :param mel_bands:    number of filter bands per octave [default=40]
-        :param fmin:         the minimum frequency [Hz, default=30]
-        :param fmax:         the maximum frequency [Hz, default=17000]
-        :param norm_filters: normalize filter area to 1 [default=True]
+        :param mel_bands:    number of filter bands per octave
+        :param fmin:         the minimum frequency [Hz]
+        :param fmax:         the maximum frequency [Hz]
+        :param norm_filters: normalize filter area to 1
 
         """
         # from https://en.wikipedia.org/wiki/Mel-frequency_cepstrum:

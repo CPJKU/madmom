@@ -46,8 +46,8 @@ class OrderedDictYAMLLoader(yaml.Loader):
         if isinstance(node, yaml.MappingNode):
             self.flatten_mapping(node)
         else:
-            raise yaml.constructor.ConstructorError(None, None,
-                'expected a mapping node, but found %s' % node.id,
+            raise yaml.constructor.ConstructorError(
+                None, None, 'expected a mapping node, but found %s' % node.id,
                 node.start_mark)
 
         mapping = OrderedDict()
@@ -88,8 +88,8 @@ class OverridableParameters(object):
                                  dest='actualconfigfilename',
                                  default=configfilename,
                                  type=existing_config_file,
-                                 help='the name of the config file'
-                                 ' supplying all additional parameters')
+                                 help='the name of the config file '
+                                      'supplying all additional parameters')
 
         pre_args, _ = self.parser.parse_known_args()
 
@@ -114,8 +114,8 @@ class OverridableParameters(object):
             else:
                 raise ValueError("invalid section name: %s" % section)
 
-    def add_argument(self, *args, **kwords):
-        self.parser.add_argument(*args, **kwords)
+    def add_argument(self, *args, **kwargs):
+        self.parser.add_argument(*args, **kwargs)
 
     def parse_args(self):
         # ignore unknown stuff

@@ -55,14 +55,11 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1,
     Extract the dominant interval of the given activation function.
 
     :param activations: the onset activation function
-    :param threshold:   threshold for activation function before
-                        auto-correlation [default=0]
+    :param threshold:   threshold for the activation function before
+                        auto-correlation
     :param smooth:      smooth the activation function with the kernel
-                        [default=None]
-    :param min_tau:     minimal delta for correlation function
-                        [frames, default=1]
-    :param max_tau:     maximal delta for correlation function
-                        [frames, default=length of activation function]
+    :param min_tau:     minimal delta for correlation function [frames]
+    :param max_tau:     maximal delta for correlation function [frames]
 
     """
     # smooth activations
@@ -101,14 +98,11 @@ def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
     Compute the interval histogram of the given activation function.
 
     :param activations: the onset activation function
-    :param threshold:   threshold for activation function before
-                        auto-correlation [default=0]
+    :param threshold:   threshold for the activation function before
+                        auto-correlation
     :param smooth:      smooth the activation function with the kernel
-                        [default=None]
-    :param min_tau:     minimal delta for correlation function
-                        [frames, default=1]
-    :param max_tau:     maximal delta for correlation function
-                        [frames, default=length of activation function]
+    :param min_tau:     minimal delta for correlation function [frames]
+    :param max_tau:     maximal delta for correlation function [frames]
     :returns:           histogram
 
     """
@@ -149,7 +143,7 @@ def dominant_interval(histogram, smooth=None):
     Extract the dominant interval of the given histogram.
 
     :param histogram: histogram with interval distribution
-    :param smooth:    smooth the histogram with the kernel [default=None]
+    :param smooth:    smooth the histogram with the kernel
     :returns:         dominant interval
 
     """
@@ -179,7 +173,7 @@ def detect_tempo(histogram, fps, smooth=None):
 
     :param histogram: histogram with interval distribution
     :param fps:       frame rate of the original beat activations
-    :param smooth:    smooth the histogram with the kernel [default=None]
+    :param smooth:    smooth the histogram with the kernel
     :returns:         dominant interval
 
     """
@@ -199,9 +193,9 @@ def detect_tempo(histogram, fps, smooth=None):
     else:
         values = histogram[0]
     # to get the two dominant tempi, just keep peaks
-    values[:-1] = values[:-1] * ((values[1:] > values[:-1]) == False)
+    values[:-1] = values[:-1] * ((values[1:] > values[:-1]) is False)
     # zero out values if predecessor is greater
-    values[1:] = values[1:] * ((values[:-1] > values[1:]) == False)
+    values[1:] = values[1:] * ((values[:-1] > values[1:]) is False)
     # strongest tempo
     interval1 = histogram[1][np.argmax(values)]
     weight1 = values[np.argmax(values)]
@@ -229,9 +223,9 @@ def detect_beats(activations, interval, look_aside=0.2):
     :param activations: array with beat activations
     :param interval:    look for the next beat each N frames
     :param look_aside:  look this fraction of the interval to the side to
-                        detect the beats [default=False]
+                        detect the beats
 
-    Note: A Hamming window of 2*look_aside*interval is apllied for smoothing.
+    Note: A Hamming window of 2*look_aside*interval is applied for smoothing.
 
     """
     # TODO: make this faster!
@@ -312,7 +306,7 @@ class Beat(object):
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
         :param online:      work in online mode (i.e. use only past
-                            information) [default=False]
+                            information)
         :param sep:         separator if activations are read from file
 
         """
@@ -339,14 +333,12 @@ class Beat(object):
         """
         Detect the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking [default=0]
-        :param delay:      report onsets N seconds delayed [default=0]
+        :param threshold:  threshold for peak-picking
+        :param delay:      report onsets N seconds delayed
         :param smooth:     smooth the activation function over N seconds
-                           [default=0.9]
-        :param min_bpm:    minimum tempo used for beat tracking [default=60]
-        :param max_bpm:    maximum tempo used for beat tracking [default=240]
+        :param min_bpm:    minimum tempo used for beat tracking
+        :param max_bpm:    maximum tempo used for beat tracking
         :param look_aside: look this fraction of a beat interval to the side
-                           [default=0.2]
 
         First the global tempo is estimated and then the beats are aligned
         according to:
@@ -392,16 +384,14 @@ class Beat(object):
         """
         Track the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking [default=0]
-        :param delay:      report onsets N seconds delayed [default=0]
+        :param threshold:  threshold for peak-picking
+        :param delay:      report onsets N seconds delayed
         :param smooth:     smooth the activation function over N seconds
-                           [default=0.9]
-        :param min_bpm:    minimum tempo used for beat tracking [default=60]
-        :param max_bpm:    maximum tempo used for beat tracking [default=240]
+        :param min_bpm:    minimum tempo used for beat tracking
+        :param max_bpm:    maximum tempo used for beat tracking
         :param look_aside: look this fraction of a beat interval to the side
-                           [default=0.2]
         :param look_ahead: look N seconds ahead (and back) to determine the
-                           tempo [default=4]
+                           tempo
 
         First local tempo (in a range +- look_ahead seconds around the actual
         position) is estimated and then the next beat is tracked accordingly.
@@ -411,6 +401,7 @@ class Beat(object):
         by Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
         Effects (DAFx-11), Paris, France, September 2011
+
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
@@ -473,12 +464,11 @@ class Beat(object):
         """
         Detect the tempo on basis of the beat activation function.
 
-        :param threshold: threshold for peak-picking [default=0]
+        :param threshold: threshold for peak-picking
         :param smooth:    smooth the activation function over N seconds
-                          [default=0.9]
-        :param min_bpm:   minimum tempo used for beat tracking [default=60]
-        :param max_bpm:   maximum tempo used for beat tracking [default=240]
-        :param mirex:     always output the lower tempo first [default=False]
+        :param min_bpm:   minimum tempo used for beat tracking
+        :param max_bpm:   maximum tempo used for beat tracking
+        :param mirex:     always output the lower tempo first
         :returns:         tuple with the two most dominant tempi and the
                           relative weight of them
 
@@ -525,12 +515,12 @@ class Beat(object):
         Save the beat activations to a file.
 
         :param filename: output file name or file handle
-        :param sep:      separator between activation values [default='']
+        :param sep:      separator between activation values
 
         Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
               separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
+              whitespace. Binary files are not platform independent.
 
         """
         # TODO: put this (and the same in the Onset class) to an Event class
@@ -542,12 +532,12 @@ class Beat(object):
         Load the beat activations from a file.
 
         :param filename: the target file name
-        :param sep:      separator between activation values [default='']
+        :param sep:      separator between activation values
 
         Note: Empty (“”) separator means the file should be treated as binary;
               spaces (” ”) in the separator match zero or more whitespace;
               separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independen.
+              whitespace. Binary files are not platform independent.
 
         """
         # TODO: put this (and the same in the Onset class) to an Event class

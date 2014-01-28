@@ -14,7 +14,7 @@ def load_audio_file(filename, sample_rate=None):
     Load the audio data from the given file and return it as a numpy array.
 
     :param filename:    name of the file or file handle
-    :param sample_rate: sample rate of the signal [default=None]
+    :param sample_rate: sample rate of the signal [Hz]
     :returns:           tuple (signal, sample_rate)
 
     """

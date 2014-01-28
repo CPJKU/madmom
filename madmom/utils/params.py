@@ -26,7 +26,7 @@ def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     :param parser: existing argparse parser object
     :param online: online mode
     :param norm:   normalize the signal
-    :param att:    attenuate the signal by N dB
+    :param att:    attenuate the signal [dB]
     :param fps:    frames per second
     :param window: window / frame size
     :return:       the modified parser object

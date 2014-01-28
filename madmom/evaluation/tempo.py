@@ -37,7 +37,6 @@ def pscore(detections, targets, tolerance, strengths=None):
     :param targets:    array with (multiple) tempi [bpm]
     :param tolerance:  evaluation tolerance
     :param strengths:  array with the relative strengths of the tempi
-                       [floats, default=None]
     :returns:          p-score
 
     Note: If no relative strengths are given, an even distribution is assumed.
@@ -114,7 +113,7 @@ class TempoEvaluation(object):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files [default=False]
+        :param tex: output format to be used in .tex files
 
         """
         # print the errors

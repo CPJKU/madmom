@@ -16,3 +16,6 @@
 # PyCharm files
 /.idea/
 
+# MacOS files
+.DS_Store
+

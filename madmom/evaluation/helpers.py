@@ -47,7 +47,7 @@ def calc_errors(detections, targets, matches=None):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches [default=None]
+    :param matches:    indices of the closest matches
     :returns:          a list of errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list
@@ -70,7 +70,7 @@ def calc_absolute_errors(detections, targets, matches=None):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches [default=None]
+    :param matches:    indices of the closest matches
     :returns:          a list of errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list
@@ -88,7 +88,7 @@ def calc_relative_errors(detections, targets, matches=None):
 
     :param detections: sequence of events to be matched [seconds]
     :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches [default=None]
+    :param matches:    indices of the closest matches
     :returns:          a list of relative errors to closest matches [seconds]
 
     Note: the sequences must be ordered! To speed up the calculation, a list of
