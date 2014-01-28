@@ -35,6 +35,7 @@ SOFTWARE.
 
 import math
 import struct
+import numpy as np
 
 # constants
 OCTAVE_MAX_VALUE = 12
@@ -81,7 +82,13 @@ SIXTEENTH = 4
 THIRTY_SECOND = 5
 SIXTY_FOURTH = 6
 
-DEFAULT_MIDI_HEADER_SIZE = 14
+HEADER_SIZE = 14
+RESOLUTION = 480  # ticks per quarter note
+TEMPO = 120
+TIME_SIGNATURE_NUMERATOR = 4
+TIME_SIGNATURE_DENOMINATOR = 4
+SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
+SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
 
 # functions for packing / unpacking variable length data
@@ -239,7 +246,7 @@ class Event(AbstractEvent):
         :param kwargs: dictionary with all attributes to copy.
 
         """
-        raise ValueError("please remove the TODO as it seems needed")
+        raise ValueError('please remove the TODO as it seems to be needed')
         # TODO: can this method be removed?
         _kwargs = {'channel': self.channel, 'tick': self.tick,
                    'data': self.data}
@@ -664,48 +671,30 @@ class SetTempoEvent(MetaEvent):
     Set Tempo Event.
 
     """
-    __slots__ = ['bpm', 'ms_per_quarter_note']
+    __slots__ = ['microseconds_per_quarter_note']
     name = 'Set Tempo'
     meta_command = 0x51
     length = 3
 
     @property
-    def bpm(self):
+    def microseconds_per_quarter_note(self):
         """
-        Tempo in beats per minute.
-
-        """
-        return float(6e7) / self.ms_per_quarter_note
-
-    @bpm.setter
-    def bpm(self, bpm):
-        """
-        Set the tempo in beats per minute.
-
-        :param bpm: beats per minute
-
-        """
-        self.ms_per_quarter_note = int(float(6e7) / bpm)
-
-    @property
-    def ms_per_quarter_note(self):
-        """
-        Milliseconds per quarter note.
+        Microseconds per quarter note.
 
         """
         assert len(self.data) == 3
         values = [self.data[x] << (16 - (8 * x)) for x in xrange(3)]
         return sum(values)
 
-    @ms_per_quarter_note.setter
-    def ms_per_quarter_note(self, ms):
+    @microseconds_per_quarter_note.setter
+    def microseconds_per_quarter_note(self, microseconds):
         """
-        Set milliseconds per quarter note.
+        Set microseconds per quarter note.
 
-        :param ms: milliseconds
+        :param microseconds: microseconds
 
         """
-        self.data = [(ms >> (16 - (8 * x)) & 0xFF) for x in range(3)]
+        self.data = [(microseconds >> (16 - (8 * x)) & 0xFF) for x in range(3)]
 
 
 class SmpteOffsetEvent(MetaEvent):
@@ -852,6 +841,32 @@ class SequencerSpecificEvent(MetaEvent):
     meta_command = 0x7F
 
 
+# # Note class
+# class Note(object):
+#     """
+#     A Note is defined by its (onset) time, pitch, duration and velocity.
+#
+#     """
+#     def __init__(self, time, pitch, duration=None, velocity=None):
+#         self.time = time
+#         self.pitch = pitch
+#         self.duration = duration
+#         self.velocity = velocity
+#
+#
+# class Tempo(object):
+#     """
+#     A Tempo is measured in microseconds per tick.
+#
+#     """
+#     def __init__(self, tick, microseconds_per_tick):
+#         self.tick = tick
+#         self.microseconds_per_tick = microseconds_per_tick
+#
+#     def __repr__(self):
+#         print "%s, %s" % (self.tick, self.microseconds_per_tick)
+
+
 # MIDI Track
 class MidiTrack(object):
     """
@@ -865,7 +880,7 @@ class MidiTrack(object):
         """
         self.events = []
         self._relative_timing = True
-        self._status_msg = None  # needed for correct SysEx event handling
+        self._status = None  # needed for correct SysEx event handling
 
     def make_ticks_abs(self):
         """
@@ -900,7 +915,7 @@ class MidiTrack(object):
 
         """
         # reset the status
-        self._status_msg = None
+        self._status = None
         # first four bytes are Track header
         chunk = midi_file.read(4)
         if chunk != 'MTrk':
@@ -911,10 +926,6 @@ class MidiTrack(object):
         # read in all events
         while True:
             try:
-                # event, last_status_msg = _parse_midi_event(track_data,
-                #                                            last_status_msg)
-                # # append the events to the event list
-                # self.events.append(event)
                 # first datum is variable length representing the delta-time
                 tick = read_variable_length(track_data)
                 # next byte is status message
@@ -943,12 +954,11 @@ class MidiTrack(object):
                 else:
                     key = status_msg & 0xF0
                     if key not in EventRegistry.Events:
-
-                        assert self._status_msg, "Bad byte value"
+                        assert self._status, "Bad byte value"
                         data = []
-                        key = self._status_msg & 0xF0
+                        key = self._status & 0xF0
                         cls = EventRegistry.Events[key]
-                        channel = self._status_msg & 0x0F
+                        channel = self._status & 0x0F
                         data.append(status_msg)
                         data += [ord(track_data.next()) for _ in
                                  range(cls.length - 1)]
@@ -956,9 +966,9 @@ class MidiTrack(object):
                         self.events.append(cls(tick=tick, channel=channel,
                                                data=data))
                     else:
-                        self._status_msg = status_msg
+                        self._status = status_msg
                         cls = EventRegistry.Events[key]
-                        channel = self._status_msg & 0x0F
+                        channel = self._status & 0x0F
                         data = [ord(track_data.next()) for _ in
                                 range(cls.length)]
                         # create an event and append it to the list
@@ -980,7 +990,7 @@ class MidiTrack(object):
         # first make sure the timing information is relative
         self.make_ticks_rel()
         # and the last status message is unset
-        self._status_msg = None
+        self._status = None
         # then encode all events of the track
         track_data = ''
         for event in self.events:
@@ -999,10 +1009,10 @@ class MidiTrack(object):
                 track_data += chr(0xF7)
             # not a meta or SysEx event, must be a general message
             elif isinstance(event, Event):
-                if not self._status_msg or \
-                        self._status_msg.status_msg != event.status_msg or \
-                        self._status_msg.channel != event.channel:
-                    self._status_msg = event
+                if not self._status or \
+                        self._status.status_msg != event.status_msg or \
+                        self._status.channel != event.channel:
+                    self._status = event
                     track_data += chr(event.status_msg | event.channel)
                 track_data += str.join('', map(chr, event.data))
             else:
@@ -1020,11 +1030,152 @@ class MidiFile(object):
     MIDI File.
 
     """
-    def __init__(self, resolution=960, format=1):
+    def __init__(self, resolution=RESOLUTION, format=0):
         # init variables
         self.format = format
         self.resolution = resolution
+        self.fps = None
         self.tracks = []
+
+    @property
+    def ticks_per_quarter_note(self):
+        """
+        Number of ticks per quarter note.
+
+        """
+        return self.resolution
+
+    @property
+    def tempi(self):
+        """
+        Return a list with tempi.
+
+        :return: numpy array (tick, seconds per tick, cumulative time)
+
+        """
+        # first convert all events to have absolute tick counts
+        self.make_ticks_abs()
+        # create an empty tempo list
+        tempi = None
+        for track in self.tracks:
+            # get a list with tempo events
+            tempo_events = [e for e in track.events if
+                            isinstance(e, SetTempoEvent)]
+            if tempi is None and len(tempo_events) > 0:
+                # convert to desired format (tick, microseconds per tick)
+                tempi = [(e.tick, e.microseconds_per_quarter_note /
+                          (1e6 * self.resolution)) for e in tempo_events]
+            elif tempi is not None and len(tempo_events) > 0:
+                # tempo events should be contained only in the first track
+                # of a MIDI file
+                raise ValueError('SetTempoEvents should be only in the first '
+                                 'track of a MIDI file.')
+        # make sure a tempo is set and the first tempo occurs at tick 0
+        if tempi is None or tempi[0][0] > 0:
+            tempi.insert(0, (0, SECONDS_PER_TICK))
+        # sort (just to be sure)
+        tempi.sort()
+        # re-iterate over the list to calculate the cumulative time
+        for i in range(len(tempi)):
+            if i == 0:
+                tempi[i] = (tempi[i][0], tempi[i][1], 0)
+            else:
+                ticks = tempi[i][0] - tempi[i - 1][0]
+                cum_time = tempi[i - 1][2] + ticks * tempi[i - 1][1]
+                tempi[i] = (tempi[i][0], tempi[i][1], cum_time)
+        # return tempo
+        return np.asarray(tempi, np.float)
+
+    @property
+    def time_signatures(self):
+        """
+        Return a list with time signatures.
+
+        :return: numpy array (tick, numerator, denominator)
+
+        """
+        self.make_ticks_abs()
+        signatures = None
+        for track in self.tracks:
+            # get a list with time signature events
+            time_signature_events = [e for e in track.events if
+                                     isinstance(e, TimeSignatureEvent)]
+            if signatures is None and len(time_signature_events) > 0:
+                # convert to desired format
+                signatures = [(e.tick, e.numerator, e.denominator)
+                                   for e in time_signature_events]
+            elif signatures is not None and \
+                    len(time_signature_events) > 0:
+                # time signature events should be contained only in the first
+                # track of a MIDI file, thus raise an error
+                raise ValueError('TimeSignatureEvent should be only in the '
+                                 'first track of a MIDI file.')
+        # make sure a time signature is set and the first one occurs at tick 0
+        if signatures is None or signatures[0][0] > 0:
+            signatures.insert(0, (0, TIME_SIGNATURE_NUMERATOR,
+                                  TIME_SIGNATURE_DENOMINATOR))
+        # return tempo
+        return np.asarray(signatures, dtype=int)
+
+    @property
+    def notes(self):
+        """
+        Return a list with notes.
+
+        :return: numpy array (onset time, pitch, duration, velocity)
+
+        """
+        self.make_ticks_abs()
+        # list for all notes
+        notes = []
+        # dictionaries for storing the last onset and velocity per pitch
+        note_onsets = {}
+        note_velocities = {}
+        for track in self.tracks:
+            # get a list with note events
+            note_events = [e for e in track.events if isinstance(e, NoteEvent)]
+            # process all events
+            tick = 0
+            for e in note_events:
+                if tick > e.tick:
+                    raise AssertionError('note events must be sorted!')
+                # if it's a note on event with a velocity > 0,
+                if isinstance(e, NoteOnEvent) and e.velocity > 0:
+                    # save the onset time and velocity
+                    note_onsets[e.pitch] = e.tick
+                    note_velocities[e.pitch] = e.velocity
+                # if it's a note off event or a note on with a velocity of 0,
+                elif isinstance(e, NoteOffEvent) or (isinstance(e, NoteOnEvent)
+                                                     and e.velocity == 0):
+                    # the old velocity must be greater 0
+                    if note_velocities[e.pitch] <= 0:
+                        raise AssertionError('note velocity must be positive')
+                    if note_onsets[e.pitch] >= e.tick:
+                        raise AssertionError('note duration must be positive')
+                    # append the note to the list
+                    notes.append((note_onsets[e.pitch], e.pitch, e.tick,
+                                  note_velocities[e.pitch]))
+                else:
+                    raise TypeError('unexpected NoteEvent')
+                tick = e.tick
+        # sort the notes and convert to a numpy array
+        notes.sort()
+        # cache tempo
+        tempi = self.tempi
+        # iterate over all notes
+        # TODO: numpy-fy this!
+        for i in range(len(notes)):
+            onset, pitch, offset, velocity = notes[i]
+            # get last tempo for the onset and offset
+            t1 = tempi[np.argmax(tempi[:, 0] > onset) - 1]
+            t2 = tempi[np.argmax(tempi[:, 0] > offset) - 1]
+            # onset/offset calculation
+            onset = (onset - t1[0]) * t1[1] + t1[2]
+            offset = (offset - t2[0]) * t2[1] + t2[2]
+            # update the note onset
+            notes[i] = (onset, pitch, offset, velocity)
+        # return notes
+        return np.asarray(notes, np.float)
 
     def make_ticks_abs(self):
         """
@@ -1070,10 +1221,32 @@ class MidiFile(object):
             header_size = data[0]
             self.format = data[1]
             num_tracks = data[2]
-            self.resolution = data[3]
+            resolution = data[3]
+            # if the top bit of the resolution word is 0, the following 15 bits
+            # describe the time division in ticks per beat
+            if resolution & 0x8000 == 0:
+                self.resolution = resolution
+            # otherwise the following 15 bits describe the time division in
+            # frames per second
+            else:
+                # from http://www.sonicspot.com/guide/midifiles.html:
+                # Frames per second is defined by breaking the remaining 15
+                # bytes into two values. The top 7 bits (bit mask 0x7F00)
+                # define a value for the number of SMPTE frames and can be
+                # 24, 25, 29 (for 29.97 fps) or 30. The remaining byte
+                # (bit mask 0x00FF) defines how many clock ticks or track delta
+                # positions there are per frame. So a time division example of
+                # 0x9978 could be broken down into it's three parts: the top
+                # bit is one, so it is in SMPTE frames per second format, the
+                # following 7 bits have a value of 25 (0x19) and the bottom
+                # byte has a value of 120 (0x78). This means the example plays
+                # at 24(?) frames per second SMPTE time and has 120 ticks per
+                # frame.
+                raise NotImplementedError("frames per second resolution not "
+                                          "implemented yet.")
             # skip the remaining part of the header
-            if header_size > DEFAULT_MIDI_HEADER_SIZE:
-                midi_file.read(header_size - DEFAULT_MIDI_HEADER_SIZE)
+            if header_size > HEADER_SIZE:
+                midi_file.read(header_size - HEADER_SIZE)
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
