@@ -216,7 +216,7 @@ def main():
             targets = load_notes(tar_file)
             # shift the detections if needed
             if args.delay != 0:
-                detections += args.delay
+                detections[:, 0] += args.delay
             # add the NoteEvaluation to mean evaluation
             me += NoteEvaluation(detections, targets, window=args.window)
             # process the next target file
