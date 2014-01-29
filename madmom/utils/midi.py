@@ -1020,7 +1020,7 @@ def parse_midi_event(track_data, last_status_msg):
 
 
 # File I/O classes
-class MidiFile(object):
+class MIDIFile(object):
     """
     MIDI File.
 
