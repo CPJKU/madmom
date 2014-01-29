@@ -410,7 +410,6 @@ class Evaluation(SimpleEvaluation):
 
     def _calc_tp_fp_tn_fn(self):
         """Perform basic evaluation."""
-        print self._eval_function
         numbers = self._eval_function(self._detections, self._targets,
                                       **self._kwargs)
         self._tp, self._fp, self._tn, self._fn = numbers
@@ -576,6 +575,8 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
         for tar_file in matches:

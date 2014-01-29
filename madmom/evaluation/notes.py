@@ -27,7 +27,23 @@ def load_notes(filename, delimiter=None):
     return np.loadtxt(filename, delimiter=delimiter)
 
 
-# evaluation function for note detection
+def remove_duplicate_rows(data):
+    """
+    Remove duplicate rows of a numpy array.
+
+    :param data: 2D numpy array
+    :return:     same array with duplicate rows removed
+
+    """
+    # found at: http://pastebin.com/Ad6EgNjB
+    order = np.lexsort(data.T)
+    data = data[order]
+    diff = np.diff(data, axis=0)
+    unique = np.ones(len(data), 'bool')
+    unique[1:] = (diff != 0).any(axis=1)
+    return data[unique]
+
+
 def count_errors(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
@@ -47,6 +63,10 @@ def count_errors(detections, targets, window):
           this class, since it is magnitudes as big as the note class.
 
     """
+    # TODO: extend to also evaluate the duration and velocity of notes
+    #       until then only use the first two columns (onsets + pitch)
+    detections = remove_duplicate_rows(detections[:, :2])
+    targets = remove_duplicate_rows(targets[:, :2])
     # init TP, FP and FN lists
     tp = []
     fp = []
@@ -187,6 +207,8 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanNoteEvaluation()
         for tar_file in matches:
