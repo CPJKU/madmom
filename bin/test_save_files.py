@@ -39,7 +39,8 @@ def parser():
     p.add_argument('--threads', action='store', type=int, default=2,
                    help='number of threads [default=%(default)i]')
     p.add_argument('--set', action='store', type=str, default='test',
-                   help='use this set {train, val, test} [default=%(default)s]')
+                   help='use this set {train, val, test} [default='
+                        '%(default)s]')
     # parse arguments
     args = p.parse_args()
     # print arguments

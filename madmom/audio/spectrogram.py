@@ -9,7 +9,6 @@ This file contains spectrogram related functionality.
 
 import numpy as np
 import scipy.fftpack as fft
-import scipy.ndimage as sim
 
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
@@ -582,7 +581,7 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
 
     "Harmonic/percussive separation using median filtering."
     Derry FitzGerald.
-    In Proceedings of the 13th International Conference on Digital Audio Effects
+    Proceedings of the 13th International Conference on Digital Audio Effects
     (DAFx-10), Graz, Austria, September 2010.
 
     """
@@ -636,7 +635,8 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
         """Percussive part of the magnitude spectrogram."""
         if self._percussive is None:
             # calculate the percussive part
-            self._percussive = median_filter(self.spec, self._percussive_filter)
+            self._percussive = median_filter(self.spec,
+                                             self._percussive_filter)
         # return
         return self._percussive
 

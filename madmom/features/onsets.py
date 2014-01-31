@@ -10,8 +10,8 @@ This file contains all onset detection related functionality.
 import numpy as np
 import scipy.ndimage as sim
 
-
 EPSILON = 0.000001
+
 
 # helper functions
 def wraptopi(phase):

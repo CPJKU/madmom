@@ -125,14 +125,13 @@ class NoteTranscription(object):
     NoteTranscription class.
 
     """
-    def __init__(self, activations, fps, sep=''):
+    def __init__(self, activations, fps):
         """
         Creates a new NoteTranscription object instance with the given
         activations (can be read in from a file).
 
         :param activations: array with note activations or a file (handle)
         :param fps:         frame rate of the activations
-        :param sep:         separator if activations are read from file
 
         """
         self.activations = None  # onset activation function

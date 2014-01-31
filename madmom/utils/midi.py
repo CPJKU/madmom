@@ -1207,7 +1207,6 @@ class MIDIFile(object):
             close_file = True
         try:
             # read in file header
-            # self.format, num_tracks, self.resolution = parse_midi_header(midi_file)
             # first four bytes are MIDI header
             chunk = midi_file.read(4)
             if chunk != 'MThd':
