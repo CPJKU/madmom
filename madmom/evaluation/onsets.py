@@ -17,10 +17,11 @@ Retrieval Conference (ISMIR), 2012
 import numpy as np
 
 from .simple import Evaluation, SumEvaluation, MeanEvaluation
+from .helpers import calc_errors
 
 
 # evaluation function for onset detection
-def count_errors(detections, targets, window):
+def onset_evaluation(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
 
@@ -89,7 +90,7 @@ def count_errors(detections, targets, window):
     return tp, fp, np.zeros(0), fn
 
 
-#def count_errors(detections, targets, window):
+#def onset_evaluation(detections, targets, window):
 #    """
 #    Count the true and false detections of the given detections and targets.
 #
@@ -140,26 +141,27 @@ class OnsetEvaluation(Evaluation):
 
     """
     def __init__(self, detections, targets, window=WINDOW):
-        super(OnsetEvaluation, self).__init__(detections, targets,
-                                              count_errors, window=window)
+        super(OnsetEvaluation, self).__init__()
+        self.detections = detections
+        self.targets = targets
+        # evaluate
+        numbers = onset_evaluation(detections, targets, window)
+        self._tp, self._fp, self._tn, self._fn = numbers
 
+    @property
+    def errors(self):
+        """
+        Absolute errors of all true positive detections relative to the closest
+        targets.
 
-class SumOnsetEvaluation(SumEvaluation):
-    """
-    Simple evaluation class for summing true/false positive/(negative) onset
-    detections and calculate Precision, Recall and F-measure.
-
-    """
-    pass
-
-
-class MeanOnsetEvaluation(MeanEvaluation):
-    """
-    Simple evaluation class for averaging Precision, Recall and F-measure of
-    multiple onset evaluations.
-
-    """
-    pass
+        """
+        if self._errors is None:
+            if self.num_tp == 0:
+                # FIXME: what is the error in case of no TPs
+                self._errors = np.zeros(0)
+            else:
+                self._errors = calc_errors(self.tp, self.targets)
+        return self._errors
 
 
 def parser():
@@ -189,11 +191,11 @@ def parser():
     p.add_argument('-w', dest='window', action='store', type=float,
                    default=WINDOW,
                    help='evaluation window (+/- the given size) '
-                        '[seconds, default=%.3f]' % WINDOW)
+                        '[seconds, default=%(default).3f]')
     p.add_argument('-c', dest='combine', action='store',  type=float,
                    default=COMBINE,
                    help='combine target events within this range '
-                        '[seconds, default=%.3f]' % COMBINE)
+                        '[seconds, default=%(default).3f]')
     p.add_argument('--delay', action='store', type=float, default=0.,
                    help='add given delay to all detections [seconds]')
     p.add_argument('--tex', action='store_true',
@@ -229,8 +231,8 @@ def main():
         exit()
 
     # sum and mean evaluation for all files
-    sum_eval = SumOnsetEvaluation()
-    mean_eval = MeanOnsetEvaluation()
+    sum_eval = SumEvaluation()
+    mean_eval = MeanEvaluation()
     # evaluate all files
     for det_file in det_files:
         # get the detections file
@@ -244,7 +246,7 @@ def main():
         if args.verbose:
             print det_file
         # do a mean evaluation with all matched target files
-        me = MeanOnsetEvaluation()
+        me = MeanEvaluation()
         for tar_file in matches:
             # load the targets
             targets = load_events(tar_file)

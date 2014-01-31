@@ -9,8 +9,10 @@ This file contains note evaluation functionality.
 
 import numpy as np
 
+
+from .helpers import calc_errors
 from .simple import Evaluation, SumEvaluation, MeanEvaluation
-from .onsets import count_errors as count_onset_errors
+from .onsets import onset_evaluation
 
 
 def load_notes(filename, delimiter=None):
@@ -44,7 +46,7 @@ def remove_duplicate_rows(data):
     return data[unique]
 
 
-def count_errors(detections, targets, window):
+def note_evaluation(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
 
@@ -79,12 +81,12 @@ def count_errors(detections, targets, window):
         # perform normal onset detection on ech note
         det = detections[detections[:, 1] == note]
         tar = targets[targets[:, 1] == note]
-        _tp, _fp, _, _fn = count_onset_errors(det[:, 0], tar[:, 0], window)
+        tp_, fp_, _, fn_ = onset_evaluation(det[:, 0], tar[:, 0], window)
         # convert returned arrays to lists and append the detections and
         # targets to the correct lists
-        tp.extend(det[np.in1d(det[:, 0], _tp)].tolist())
-        fp.extend(det[np.in1d(det[:, 0], _fp)].tolist())
-        fn.extend(tar[np.in1d(tar[:, 0], _fn)].tolist())
+        tp.extend(det[np.in1d(det[:, 0], tp_)].tolist())
+        fp.extend(det[np.in1d(det[:, 0], fp_)].tolist())
+        fn.extend(tar[np.in1d(tar[:, 0], fn_)].tolist())
     # transform them back to numpy arrays
     tp = np.asarray(sorted(tp))
     fp = np.asarray(sorted(fp))
@@ -109,26 +111,27 @@ class NoteEvaluation(Evaluation):
 
     """
     def __init__(self, detections, targets, window=WINDOW):
-        super(NoteEvaluation, self).__init__(detections, targets, count_errors,
-                                             window=window)
+        super(NoteEvaluation, self).__init__()
+        self.detections = detections
+        self.targets = targets
+        # evaluate
+        numbers = note_evaluation(detections, targets, window)
+        self._tp, self._fp, self._tn, self._fn = numbers
 
+    @property
+    def errors(self):
+        """
+        Absolute errors of all true positive detections relative to the closest
+        targets.
 
-class SumNoteEvaluation(SumEvaluation):
-    """
-    Simple evaluation class for summing true/false positive/(negative) note
-    detections and calculate Precision, Recall and F-measure.
-
-    """
-    pass
-
-
-class MeanNoteEvaluation(MeanEvaluation):
-    """
-    Simple evaluation class for averaging Precision, Recall and F-measure of
-    multiple note evaluations.
-
-    """
-    pass
+        """
+        if self._errors is None:
+            if self.num_tp == 0:
+                # FIXME: what is the error in case of no TPs
+                self._errors = np.zeros(0)
+            else:
+                self._errors = calc_errors(self.tp[:, 0], self.targets[:, 0])
+        return self._errors
 
 
 def parser():
@@ -195,8 +198,8 @@ def main():
         exit()
 
     # sum and mean evaluation for all files
-    sum_eval = SumNoteEvaluation()
-    mean_eval = MeanNoteEvaluation()
+    sum_eval = SumEvaluation()
+    mean_eval = MeanEvaluation()
     # evaluate all files
     for det_file in det_files:
         # get the detections file
@@ -207,25 +210,25 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if len(matches) > 1:
+            print " found more than 1 target file for %s. exiting." % det_file
+            exit()
         if args.verbose:
             print det_file
-        # do a mean evaluation with all matched target files
-        me = MeanNoteEvaluation()
-        for tar_file in matches:
-            # load the targets
-            targets = load_notes(tar_file)
-            # shift the detections if needed
-            if args.delay != 0:
-                detections[:, 0] += args.delay
-            # add the NoteEvaluation to mean evaluation
-            me += NoteEvaluation(detections, targets, window=args.window)
-            # process the next target file
+        # load the targets
+        targets = load_notes(matches[0])
+        # shift the detections if needed
+        if args.delay != 0:
+            detections[:, 0] += args.delay
+        # add the NoteEvaluation to mean evaluation
+        ne = NoteEvaluation(detections, targets, window=args.window)
+        # process the next target file
         # print stats for each file
         if args.verbose:
-            me.print_errors(args.tex)
+            ne.print_errors(args.tex)
         # add this file's mean evaluation to the global evaluation
-        sum_eval += me
-        mean_eval += me
+        sum_eval += ne
+        mean_eval += ne
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

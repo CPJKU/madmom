@@ -466,105 +466,29 @@ class BeatEvaluation(OnsetEvaluation):
         """
         self.detections = detections
         self.targets = targets
-        # set the window for precision, recall & fmeasure to 0.07
+        # perform onset evaluation with the appropriate window
         super(BeatEvaluation, self).__init__(detections, targets, window)
-        self.tolerance = tolerance
+
         self.sigma = sigma
         self.tempo_tolerance = tempo_tolerance
         self.phase_tolerance = phase_tolerance
         self.bins = bins
         # scores
-        self._fmeasure = None
-        self._pscore = None
-        self._cemgil = None
-        self._cmlc = None
-        self._cmlt = None
-        self._amlc = None
-        self._amlt = None
+        self.pscore = pscore(detections, targets, tolerance)
+        self.cemgil = cemgil(detections, targets, sigma)
+        # continuity scores
+        scores = continuity(detections, targets, tempo_tolerance,
+                            phase_tolerance)
+        self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
-        self._information_gain = None
-        self._error_histogram = None
-
-    @property
-    def num(self):
-        """Number of evaluated files."""
-        return 1
-
-    @property
-    def pscore(self):
-        """P-Score."""
-        if self._pscore is None:
-            self._pscore = pscore(self.detections, self.targets,
-                                  self.tolerance)
-        return self._pscore
-
-    @property
-    def cemgil(self):
-        """Cemgil accuracy."""
-        if self._cemgil is None:
-            self._cemgil = cemgil(self.detections, self.targets, self.sigma)
-        return self._cemgil
-
-    def _calc_continuity(self):
-        """Perform continuity evaluation."""
-        # calculate scores
-        scores = continuity(self.detections, self.targets,
-                            self.tempo_tolerance, self.phase_tolerance)
-        self._cmlc, self._cmlt, self._amlc, self._amlt = scores
-
-    @property
-    def cmlc(self):
-        """CMLc."""
-        if self._cmlc is None:
-            self._calc_continuity()
-        return self._cmlc
-
-    @property
-    def cmlt(self):
-        """CMLt."""
-        if self._cmlt is None:
-            self._calc_continuity()
-        return self._cmlt
-
-    @property
-    def amlc(self):
-        """AMLc."""
-        if self._amlc is None:
-            self._calc_continuity()
-        return self._amlc
-
-    @property
-    def amlt(self):
-        """AMLt."""
-        if self._amlt is None:
-            self._calc_continuity()
-        return self._amlt
-
-    def __information_gain(self):
-        """Perform continuity evaluation."""
-        # calculate score and error histogram
-        ig_eh = information_gain(self.detections, self.targets, self.bins)
-        self._information_gain, self._error_histogram = ig_eh
-
-    @property
-    def information_gain(self):
-        """Information gain."""
-        if self._information_gain is None:
-            self.__information_gain()
-        return self._information_gain
+        scores = information_gain(self.detections, self.targets, self.bins)
+        self.information_gain, self.error_histogram = scores
 
     @property
     def global_information_gain(self):
         """Global information gain."""
         # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
-
-    @property
-    def error_histogram(self):
-        """Error histogram."""
-        if self._error_histogram is None:
-            self.__information_gain()
-        return self._error_histogram
 
     def print_errors(self, tex=False):
         """
@@ -736,28 +660,28 @@ def parser():
                    help='extensions of the targets [default: .beats]')
     # parameters for evaluation
     p.add_argument('--window', action='store', type=float, default=WINDOW,
-                   help='evaluation window for F-measure [seconds, default=%f]'
-                   % WINDOW)
+                   help='evaluation window for F-measure [seconds, '
+                        'default=%(default).3f]')
     p.add_argument('--tolerance', action='store', type=float,
                    default=TOLERANCE,
-                   help='evaluation tolerance for P-score [default=%f]'
-                   % TOLERANCE)
+                   help='evaluation tolerance for P-score [default='
+                        '%(default).3f]')
     p.add_argument('--sigma', action='store', default=SIGMA, type=float,
-                   help='sigma for Cemgil accuracy [default=%f]' % SIGMA)
+                   help='sigma for Cemgil accuracy [default=%(default).3f]')
     p.add_argument('--tempo_tolerance', action='store', type=float,
                    default=TEMPO_TOLERANCE,
                    help='tempo tolerance window for continuity accuracies '
-                        '[default=%f]' % TEMPO_TOLERANCE)
+                        '[default=%(default).3f]')
     p.add_argument('--phase_tolerance', action='store', type=float,
                    default=PHASE_TOLERANCE,
                    help='phase tolerance window for continuity accuracies '
-                        '[default=%f]' % PHASE_TOLERANCE)
+                        '[default=%(default).3f]')
     p.add_argument('--bins', action='store', type=int, default=BINS,
                    help='number of histogram bins for information gain '
-                        '[default=%i]' % BINS)
+                        '[default=%(default)i]')
     p.add_argument('--skip', action='store', type=float, default=SKIP,
-                   help='skip first N seconds for evaluation [default=%f]'
-                   % SKIP)
+                   help='skip first N seconds for evaluation [default='
+                        '%(default).3f]')
     # output options
     p.add_argument('--tex', action='store_true',
                    help='format errors for use in .tex files')
