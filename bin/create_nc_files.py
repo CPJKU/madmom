@@ -89,7 +89,8 @@ def main():
         wav_files = match_file(f, wav_files, annotation, '.wav')
         # no wav file found
         if len(wav_files) < 1:
-            continue
+            print "can't find audio file for %s" % f
+            exit()
         # create a Wav object
         w = Wav(wav_files[0], mono=True, norm=args.norm)
         # spec

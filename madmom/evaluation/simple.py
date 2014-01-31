@@ -474,7 +474,13 @@ class Evaluation(SimpleEvaluation):
                 # FIXME: what is the error in case of no TPs
                 self._errors = np.zeros(0)
             else:
-                self._errors = calc_errors(self.tp, self._targets)
+                if self.tp.ndim > 1:
+                    # use only the first column (i.e. the timings)
+                    self._errors = calc_errors(self.tp[:, 0],
+                                               self._targets[:, 0])
+                else:
+                    # the only given dimension are the timings
+                    self._errors = calc_errors(self.tp, self._targets)
         return self._errors
 
     @property
@@ -569,6 +575,8 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
         for tar_file in matches:

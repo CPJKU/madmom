@@ -803,6 +803,8 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s" % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanBeatEvaluation()
         for tar_file in matches:

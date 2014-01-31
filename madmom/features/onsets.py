@@ -507,8 +507,8 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
                                                origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
-    # return indices (as floats, since they get converted to seconds later on)
-    return np.nonzero(detections)[0].astype(np.float)
+    # return indices
+    return np.nonzero(detections)[0]
 
 
 # default values for onset peak-picking
@@ -594,11 +594,11 @@ class Onset(object):
             smooth = 0
             post_avg = 0
             post_max = 0
-        # detect onsets
+        # detect onsets (function returns int indices)
         detections = peak_picking(self.activations, threshold, smooth,
                                   pre_avg, post_avg, pre_max, post_max)
         # convert detected onsets to a list of timestamps
-        detections /= float(self.fps)
+        detections = detections.astype(np.float) / self.fps
         # shift if necessary
         if delay != 0:
             detections += delay

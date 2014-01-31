@@ -39,8 +39,8 @@ def count_errors(detections, targets, window):
 
     """
     # sort the detections and targets
-    det = detections.tolist()
-    tar = targets.tolist()
+    det = sorted(detections.tolist())
+    tar = sorted(targets.tolist())
     # cache variables
     det_length = len(detections)
     tar_length = len(targets)
@@ -241,6 +241,8 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanOnsetEvaluation()
         for tar_file in matches:

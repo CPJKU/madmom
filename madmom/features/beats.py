@@ -357,10 +357,10 @@ class Beat(object):
         # detect the dominant interval
         interval = detect_dominant_interval(self.activations, threshold,
                                             smooth, min_tau, max_tau)
-        # detect beats based on this interval
+        # detect beats based on this interval (function returns int indices)
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
-        detections /= float(self.fps)
+        detections = detections.astype(np.float) / self.fps
         # shift if necessary
         if delay != 0:
             detections += delay

@@ -870,10 +870,14 @@ class RnnConfig(object):
         # stack the output weights
         if self.bidirectional:
             num_output = len(self.layer_sizes) - 1
-            out_bwd = self.w.pop('layer_%s_0_weights' % num_output)
-            out_fwd = self.w.pop('layer_%s_1_weights' % num_output)
-            self.w['layer_%s_0_weights' % num_output] = np.vstack((out_bwd,
-                                                                   out_fwd))
+            size_output = self.layer_sizes[num_output]
+            bwd = self.w.pop('layer_%s_0_weights' % num_output)
+            fwd = self.w.pop('layer_%s_1_weights' % num_output)
+            # reshape weights
+            bwd = bwd.reshape((size_output, -1))
+            fwd = fwd.reshape((size_output, -1))
+            # stack weights
+            self.w['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
         # close the file
         f.close()
 
@@ -957,33 +961,33 @@ class RnnConfig(object):
             # layers
             h5_l = h5.create_group('layer')
             # create a subgroup for each layer
-            for l in range(len(self.layer_sizes)):
+            for layer in range(len(self.layer_sizes)):
                 bidirectional = False
                 # create group with layer number
-                grp = h5_l.create_group(str(l))
+                grp = h5_l.create_group(str(layer))
                 # iterate over all weights
-                for k in sorted(self.w.keys()):
+                for key in sorted(self.w.keys()):
                     # skip if it's not the right layer
-                    if not k.startswith('layer_%s_' % l):
+                    if not key.startswith('layer_%s_' % layer):
                         continue
                     # get the weights
-                    w = self.w[k]
+                    w = self.w[key]
                     name = None
-                    if k.endswith('peephole_weights'):
+                    if key.endswith('peephole_weights'):
                         name = 'peephole_weights'
-                    elif k.endswith('recurrent_weights'):
+                    elif key.endswith('recurrent_weights'):
                         name = 'recurrent_weights'
-                    elif k.endswith('weights'):
+                    elif key.endswith('weights'):
                         name = 'weights'
-                    elif k.endswith('bias'):
+                    elif key.endswith('bias'):
                         name = 'bias'
                     else:
-                        ValueError('key %s not understood' % k)
+                        ValueError('key %s not understood' % key)
                     # get the size of the layer to reshape it
-                    layer_size = self.layer_sizes[l]
+                    layer_size = self.layer_sizes[layer]
                     # if we use LSTM units, align weights differently
-                    if self.layer_types[l] == 'lstm':
-                        if 'peephole' in k:
+                    if self.layer_types[layer] == 'lstm':
+                        if 'peephole' in key:
                             # peephole connections
                             w = w.reshape(3 * layer_size, -1)
                         else:
@@ -993,15 +997,15 @@ class RnnConfig(object):
                     else:
                         w = w.reshape(layer_size, -1).T
                     # reverse
-                    if k.startswith('layer_%s_0' % l):
-                        if re.sub('layer_%s_0' % l, 'layer_%s_1' % l, k) \
-                            in self.w.keys():
-                                name = '%s_%s' % (REVERSE, name)
-                                bidirectional = True
+                    if key.startswith('layer_%s_0' % layer):
+                        if re.sub('layer_%s_0' % layer, 'layer_%s_1' % layer,
+                                  key) in self.w.keys():
+                            name = '%s_%s' % (REVERSE, name)
+                            bidirectional = True
                     # save the weights
                     grp.create_dataset(name, data=w.astype(np.float32))
                     # include the layer type as attribute
-                    layer_type = self.layer_types[l].capitalize()
+                    layer_type = self.layer_types[layer].capitalize()
                     if layer_type == 'Lstm':
                         layer_type = 'LSTM'
                     grp.attrs['type'] = str(layer_type)

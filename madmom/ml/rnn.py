@@ -77,6 +77,14 @@ class Layer(object):
         raise NotImplementedError("To be implemented by subclass")
 
     @property
+    def input_size(self):
+        """
+        Input size of the layer.
+
+        """
+        raise NotImplementedError("To be implemented by subclass")
+
+    @property
     def output_size(self):
         """
         Output size of the layer.
@@ -109,12 +117,22 @@ class BidirectionalLayer(Layer):
         :returns:    activations for this data
 
         """
-        # activate in fwd direction
+        # activate in forward direction
         fwd = self.fwd_layer.activate(data)
         # also activate with reverse input
         bwd = self.bwd_layer.activate(data[::-1])
         # stack data
         return np.hstack((bwd[::-1], fwd))
+
+    @property
+    def input_size(self):
+        """
+        Input size of the layer.
+
+        """
+        # the input sizes of the forward and backward layer must match
+        assert self.fwd_layer.input_size == self.bwd_layer.input_size
+        return self.fwd_layer.input_size
 
     @property
     def output_size(self):
@@ -152,9 +170,15 @@ class FeedForwardLayer(Layer):
 
         """
         # weight the data, add bias and apply transfer function
-        out = self.transfer_fn(np.dot(data, self.weights) + self.bias)
-        # return
-        return out
+        return self.transfer_fn(np.dot(data, self.weights) + self.bias)
+
+    @property
+    def input_size(self):
+        """
+        Output size of the layer.
+
+        """
+        return self.weights.shape[0]
 
     @property
     def output_size(self):
@@ -453,15 +477,15 @@ class RecurrentNeuralNetwork(object):
             # first check if we need to create a bidirectional layer
             bwd_layer = None
             if '%s_type' % REVERSE in params.keys():
-                # pop the params needed for the reverse (backward) layer
+                # pop the parameters needed for the reverse (backward) layer
                 bwd_type = params.pop('%s_type' % REVERSE)
-                bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                  for k in params.keys() if
+                bwd_params = dict((k.split('_', 1)[1], params.pop(k)) \
+                                  for k in params.keys() if \
                                   k.startswith('%s_' % REVERSE))
                 # construct the layer
                 bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)
 
-            # pop the params needed for the normal (forward) layer
+            # pop the parameters needed for the normal (forward) layer
             fwd_type = params.pop('type')
             fwd_params = params
             # construct the layer
@@ -470,7 +494,7 @@ class RecurrentNeuralNetwork(object):
             # return a (bidirectional) layer
             if bwd_layer is not None:
                 # construct a bidirectional layer with the forward and backward
-                # layer and return it
+                # layers and return it
                 return BidirectionalLayer(fwd_layer, bwd_layer)
             else:
                 # just return the forward layer

@@ -10,6 +10,7 @@ This file contains note evaluation functionality.
 import numpy as np
 
 from .simple import Evaluation, SumEvaluation, MeanEvaluation
+from .onsets import count_errors as count_onset_errors
 
 
 def load_notes(filename, delimiter=None):
@@ -17,48 +18,82 @@ def load_notes(filename, delimiter=None):
     Load a list of notes from file.
 
     :param filename:  name of the file
-    :param delimiter: string used to separate values [default=any whitespace]
+    :param delimiter: string used to separate values
     :return:          array with events
 
-    Expected file format: onset_time, MIDI_note, [length, [velocity]]
+    Expected file format: onset_time, MIDI_note, [duration, [velocity]]
 
     """
     return np.loadtxt(filename, delimiter=delimiter)
 
 
-# evaluation function for note detection
+def remove_duplicate_rows(data):
+    """
+    Remove duplicate rows of a numpy array.
+
+    :param data: 2D numpy array
+    :return:     same array with duplicate rows removed
+
+    """
+    # found at: http://pastebin.com/Ad6EgNjB
+    order = np.lexsort(data.T)
+    data = data[order]
+    diff = np.diff(data, axis=0)
+    unique = np.ones(len(data), 'bool')
+    unique[1:] = (diff != 0).any(axis=1)
+    return data[unique]
+
+
 def count_errors(detections, targets, window):
     """
     Count the true and false detections of the given detections and targets.
 
-    :param detections: 2D array of events [[seconds, label]]
-    :param targets: 2D array of events [[seconds, label]]
-    :param window: detection window [seconds]
-    :return: tuple of tp, fp, tn, fn numpy arrays
+    :param detections: array with detected notes
+                       [[onset, MIDI note, duration, velocity]]
+    :param targets:    array with target onsets (same format as detections)
+    :param window:     detection window [seconds]
+    :return:           tuple of tp, fp, tn, fn numpy arrays
 
-    tp: 2D numpy array with true positive detections
-    fp: 2D numpy array with false positive detections
-    tn: 2D numpy array with true negative detections (this one is empty!)
-    fn: 2D numpy array with false negative detections
+    tp: array with true positive detections
+    fp: array with false positive detections
+    tn: array with true negative detections (this one is empty!)
+    fn: array with false negative detections
+
+    Note: the true negative array is empty, because we are not interested in
+          this class, since it is magnitudes as big as the note class.
 
     """
-    from ..evaluation.helpers import calc_absolute_errors
-    # no detections
-    if detections.size == 0:
-        # all targets are FNs
-        return np.zeros(0), np.zeros(0), np.zeros(0), targets
-    # calc the absolute errors of detections wrt. targets
-    errors = calc_absolute_errors(detections, targets)
-    # true positive detections
-    tp = detections[errors <= window]
-    # the remaining detections are FP
-    fp = detections[errors > window]
-    # calc the absolute errors of detections wrt. targets
-    errors = np.asarray(calc_absolute_errors(targets, detections))
-    fn = targets[errors > window]
+    # TODO: extend to also evaluate the duration and velocity of notes
+    #       until then only use the first two columns (onsets + pitch)
+    detections = remove_duplicate_rows(detections[:, :2])
+    targets = remove_duplicate_rows(targets[:, :2])
+    # init TP, FP and FN lists
+    tp = []
+    fp = []
+    fn = []
+    # get a list of all notes
+    notes = np.unique(np.concatenate((detections[:, 1],
+                                      targets[:, 1]))).tolist()
+    # iterate over all notes
+    for note in notes:
+        # perform normal onset detection on ech note
+        det = detections[detections[:, 1] == note]
+        tar = targets[targets[:, 1] == note]
+        _tp, _fp, _, _fn = count_onset_errors(det[:, 0], tar[:, 0], window)
+        # convert returned arrays to lists and append the detections and
+        # targets to the correct lists
+        tp.extend(det[np.in1d(det[:, 0], _tp)].tolist())
+        fp.extend(det[np.in1d(det[:, 0], _fp)].tolist())
+        fn.extend(tar[np.in1d(tar[:, 0], _fn)].tolist())
+    # transform them back to numpy arrays
+    tp = np.asarray(sorted(tp))
+    fp = np.asarray(sorted(fp))
+    fn = np.asarray(sorted(fn))
+    # check calculation
+    assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
+    assert len(tp) + len(fn) == len(targets), 'bad FN calculation'
     # return the arrays
     return tp, fp, np.zeros(0), fn
-
 
 # default evaluation values
 WINDOW = 0.025
@@ -124,7 +159,7 @@ def parser():
     p.add_argument('-w', dest='window', action='store', type=float,
                    default=0.025,
                    help='evaluation window (+/- the given size) '
-                        '[seconds, default=0.025]')
+                        '[seconds, default=%(default)s]')
     p.add_argument('--delay', action='store', type=float, default=0.,
                    help='add given delay to all detections [seconds]')
     p.add_argument('--tex', action='store_true',
@@ -146,7 +181,7 @@ def main():
     Simple note evaluation.
 
     """
-    from ..utils.helpers import files, match_file, load_events
+    from ..utils.helpers import files, match_file
 
     # parse arguments
     args = parser()
@@ -165,21 +200,23 @@ def main():
     # evaluate all files
     for det_file in det_files:
         # get the detections file
-        detections = load_events(det_file)
+        detections = load_notes(det_file)
         # get the matching target files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         # quit if any file does not have a matching target file
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
+        if args.verbose:
+            print det_file
         # do a mean evaluation with all matched target files
         me = MeanNoteEvaluation()
         for tar_file in matches:
             # load the targets
-            targets = load_events(tar_file)
+            targets = load_notes(tar_file)
             # shift the detections if needed
             if args.delay != 0:
-                detections += args.delay
+                detections[:, 0] += args.delay
             # add the NoteEvaluation to mean evaluation
             me += NoteEvaluation(detections, targets, window=args.window)
             # process the next target file
