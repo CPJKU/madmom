@@ -280,7 +280,7 @@ def detect_beats(activations, interval, look_aside=0.2):
     positions = []
     recursive(pos)
     # return indices (as floats, since they get converted to seconds later on)
-    return np.array(positions, dtype=np.float32)
+    return np.array(positions, dtype=np.float)
 
 
 # default values for beat tracking

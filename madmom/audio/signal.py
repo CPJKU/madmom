@@ -37,7 +37,7 @@ def normalize(x):
     :returns: normalized signal
 
     """
-    return x.astype(np.float32) / np.max(x)
+    return x.astype(np.float) / np.max(x)
 
 
 def downmix(x):
