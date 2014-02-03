@@ -265,7 +265,7 @@ class Spectrogram(object):
         if self.filterbank is None:
             return self.num_fft_bins
         else:
-            return self.filterbank.bands
+            return self.filterbank.shape[1]
 
     @property
     def log(self):
