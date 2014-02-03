@@ -9,36 +9,6 @@ This file contains basic evaluation functionality.
 
 import numpy as np
 
-#def calc_overlap(detections, targets, threshold=0.5):
-#    """
-#    Very simple overlap calculation based on two numpy array of the same shape.
-#    The arrays should be a quantized version of any event lists.
-#
-#    :param detections: array with detections
-#    :param targets:    array with targets
-#    :param threshold:  threshold for binary decision
-#
-#    """
-#    # detections and targets must have the same dimensions
-#    if detections.size != targets.size:
-#        raise ValueError("dimension mismatch")
-#    if detections.ndim > 1:
-#        # TODO: implement for multi-dimensional arrays
-#        raise NotImplementedError("please add multi-dimensional functionality")
-#    # threshold detections
-#    detections = (detections >= threshold)
-#    # threshold targets
-#    targets = (targets >= threshold)
-#    # calculate overlap
-#    tp = np.nonzero(detections * targets)[0]
-#    fp = np.nonzero(detections > targets)[0]
-#    tn = np.nonzero(-detections * -targets)[0]
-#    fn = np.nonzero(detections < targets)[0]
-#    if tp.size + tn.size + fp.size + fn.size != detections.size:
-#        raise AssertionError('bad overlap calculation')
-#    # return
-#    return tp, tn, fp, fn
-
 
 class SimpleEvaluation(object):
     """
