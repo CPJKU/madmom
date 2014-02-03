@@ -63,7 +63,7 @@ class SimpleEvaluation(object):
         self._num_fp = num_fp
         self._num_tn = num_tn
         self._num_fn = num_fn
-        self._errors = None
+        self._errors = None  # None indicates not initialised
 
     @property
     def num_tp(self):
@@ -125,8 +125,9 @@ class SimpleEvaluation(object):
 
     @property
     def errors(self):
+        """Errors."""
         if self._errors is None:
-            self._errors = np.zeros(0)
+            return np.zeros(0)
         return self._errors
 
     @property
@@ -164,72 +165,47 @@ class SimpleEvaluation(object):
             print 'tex & Precision & Recall & F-measure & True Positives & '\
                   'False Positives & Accuracy & Mean & Std.dev\\\\'
             print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                  '%.2f ms & %.2f ms\\' % (targets, self.precision,
+                  '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
                   self.recall, self.fmeasure, tpr, fpr, self.accuracy,
                   self.mean_error * 1000., self.std_error * 1000.)
 
 
+# class for summing Evaluations
 class SumEvaluation(SimpleEvaluation):
     """
-    Simple evaluation class for summing true/false positive/(negative)
-    detections and calculate Precision, Recall and F-measure.
+    Simple evaluation class for summing Precision, Recall and F-measure.
 
     """
-    # inherit from Evaluation class, since this is basically the same
-    # this class just sums all the attributes and evaluates accordingly
-    def __init__(self, other=None):
-        super(SumEvaluation, self).__init__()
-        self._num_tp = 0
-        self._num_fp = 0
-        self._num_tn = 0
-        self._num_fn = 0
-        self._errors = np.zeros(0)
-        # instance can be initialized with a Evaluation object
-        if other:
-            # add this object to self
-            self += other
+    def __init__(self):
+        """
+        Creates a new SumEvaluation object instance.
 
-    # for adding an Evaluation object
+        """
+        super(SumEvaluation, self).__init__()
+        self._errors = np.zeros(0)
+
+    # for adding two SimpleEvaluation objects
     def __add__(self, other):
-        #if isinstance(other, Evaluation):
-        if issubclass(other.__class__, SimpleEvaluation):
-            # extend
+        if isinstance(other, SimpleEvaluation):
+            # increase the counters
             self._num_tp += other.num_tp
             self._num_fp += other.num_fp
             self._num_tn += other.num_tn
             self._num_fn += other.num_fn
-            self._errors = np.append(self._errors, other.errors)
+            # extend the errors array
+            self._errors = np.append(self.errors, other.errors)
             return self
         else:
             return NotImplemented
 
-    @property
-    def num_tp(self):
-        """Number of true positive detections."""
-        return self._num_tp
 
-    @property
-    def num_fp(self):
-        """Number of false positive detections."""
-        return self._num_fp
-
-    @property
-    def num_tn(self):
-        """Number of true negative detections."""
-        return self._num_tn
-
-    @property
-    def num_fn(self):
-        """Number of false negative detections."""
-        return self._num_fn
-
-
+# class for averaging Evaluations
 class MeanEvaluation(SimpleEvaluation):
     """
     Simple evaluation class for averaging Precision, Recall and F-measure.
 
     """
-    def __init__(self, other=None):
+    def __init__(self):
         """
         Creates a new MeanEvaluation object instance.
 
@@ -248,12 +224,8 @@ class MeanEvaluation(SimpleEvaluation):
         self._num_tn = np.zeros(0)
         self._num_fn = np.zeros(0)
         self.num = 0
-        # instance can be initialized with a Evaluation object
-        if other:
-            # add this object to self
-            self += other
 
-    # for adding a OnsetEvaluation object
+    # for adding another Evaluation object
     def __add__(self, other):
         """
         Appends the scores of another SimpleEvaluation object to the respective
@@ -262,7 +234,8 @@ class MeanEvaluation(SimpleEvaluation):
         :param other: SimpleEvaluation object
 
         """
-        if issubclass(other.__class__, SimpleEvaluation):
+        if isinstance(other, SimpleEvaluation):
+            # append the scores to an array so we can average later
             self._precision = np.append(self._precision, other.precision)
             self._recall = np.append(self._recall, other.recall)
             self._fmeasure = np.append(self._fmeasure, other.fmeasure)
@@ -270,11 +243,11 @@ class MeanEvaluation(SimpleEvaluation):
             self._mean = np.append(self._mean, other.mean_error)
             self._std = np.append(self._std, other.std_error)
             self._errors = np.append(self._errors, other.errors)
+            # do the same with the raw numbers and errors
             self._num_tp = np.append(self._num_tp, other.num_tp)
             self._num_fp = np.append(self._num_fp, other.num_fp)
             self._num_tn = np.append(self._num_tn, other.num_tn)
             self._num_fn = np.append(self._num_fn, other.num_fn)
-            self.num += 1
             return self
         else:
             return NotImplemented
@@ -357,7 +330,7 @@ class MeanEvaluation(SimpleEvaluation):
         return np.mean(self._std)
 
 
-# simple class for evaluation of Precision, Recall, F-measure
+# class for evaluation of Precision, Recall, F-measure with arrays
 class Evaluation(SimpleEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure based on
@@ -418,28 +391,3 @@ class Evaluation(SimpleEvaluation):
     def num_fn(self):
         """Number of false negative detections."""
         return len(self._fn)
-
-    def print_errors(self, tex=False):
-        """
-        Print errors.
-
-        :param tex: output format to be used in .tex files
-
-        """
-        # print the errors
-        targets = self.num_tp + self.num_fn
-        tpr = self.recall
-        fpr = (1 - self.precision)
-        print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f '\
-              'f=%.3f' % (targets, self.num_tp, self.num_fp, self.num_fn,
-                          self.precision, self.recall, self.fmeasure)
-        print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: '\
-              '%.1f ms' % (tpr * 100., fpr * 100., self.accuracy * 100.,
-                           self.mean_error * 1000., self.std_error * 1000.)
-        if tex:
-            print 'tex & Precision & Recall & F-measure & True Positives & '\
-                  'False Positives & Accuracy & Mean & Std.dev\\\\'
-            print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                  '%.2f ms & %.2f ms\\' % (targets, self.precision,
-                  self.recall, self.fmeasure, tpr, fpr, self.accuracy,
-                  self.mean_error * 1000., self.std_error * 1000.)

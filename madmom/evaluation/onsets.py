@@ -237,6 +237,9 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
+        # shift the detections if needed
+        if args.delay != 0:
+            detections += args.delay
         # get the matching target files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         # quit if any file does not have a matching target file
@@ -253,9 +256,6 @@ def main():
             # combine the targets if needed
             if args.combine > 0:
                 targets = combine_events(targets, args.combine)
-            # shift the detections if needed
-            if args.delay != 0:
-                detections += args.delay
             # add the OnsetEvaluation to mean evaluation
             me += OnsetEvaluation(detections, targets, window=args.window)
             # process the next target file
