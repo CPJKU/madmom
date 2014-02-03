@@ -215,56 +215,6 @@ def quantize_events(events, fps, length=None):
     return quantized
 
 
-def combine_activations(in_dirs, out_dir, ext='.activations', sep=''):
-    """
-    Quantize the activations of the given dirs.
-
-    :param in_dirs: list of directories or files with activations
-    :param out_dir: output directory
-    :param ext:     extension for files
-    :param sep:     separator between activation values
-
-    Note: The output directory must exist, existing files are overwritten.
-
-          Empty (“”) separator means the file should be treated as binary;
-          spaces (” ”) in the separator match zero or more whitespace;
-          separator consisting only of spaces must match at least one
-          whitespace.
-
-          If out_dir is set and multiple network files contain the same
-          files, the activations get averaged.
-
-    """
-    # get a list of activation files
-    file_list = []
-    for in_dir in in_dirs:
-        file_list.extend(files(in_dir, ext))
-
-    # get the base names of all files
-    base_names = [os.path.basename(f) for f in file_list]
-    # keep only unique names
-    base_names = list(set(base_names))
-
-    # combine all activations with the same base name
-    for base_name in base_names:
-        # get a list of all file matches
-        matched_files = match_file(base_name, file_list)
-        # init activations
-        activations = None
-        for matched_file in matched_files:
-            if activations is None:
-                activations = np.fromfile(matched_file, sep=sep)
-            else:
-                activations += np.fromfile(matched_file, sep=sep)
-        # average activations
-        if len(matched_files) > 1:
-            activations /= len(matched_files)
-        # output file
-        if activations is not None:
-            out_file = "%s/%s" % (out_dir, base_name)
-            activations.tofile(out_file, sep)
-
-
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
 def segment_axis(a, length, overlap=0, axis=None, end='cut', end_value=0):
     """

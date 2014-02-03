@@ -1069,6 +1069,6 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
             act_file = "%s/%s.activations" % (out_dir, basename)
-            # save the activations ( we only passed one .nc file, so it's the
+            # save the activations (we only passed one .nc file, so it's the
             # first activation in the returned list)
             activations[0].tofile(act_file, sep)
