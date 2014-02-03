@@ -53,7 +53,7 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.note(p, threshold=0.35, combine=0.03, smooth=0.07,
+    madmom.utils.params.note(p, threshold=0.3, combine=0.05, smooth=0.09,
                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
                              post_max=1. / FPS)
     madmom.utils.params.io(p)
@@ -93,7 +93,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        n = NoteTranscription(args.input, args.fps, args.sep)
+        n = NoteTranscription(args.input, args.fps)
     else:
         # exit if no NN files are given
         if not args.nn_files:
