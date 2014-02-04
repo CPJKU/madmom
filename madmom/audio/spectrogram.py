@@ -296,19 +296,16 @@ class Spectrogram(object):
 
         """
         # init spectrogram matrix
-        self._spec = np.zeros([self.num_frames, self.num_bins], np.float32)
+        spec = np.zeros([self.num_frames, self.num_fft_bins], np.float32)
         # STFT matrix
         if stft:
-            self._stft = np.zeros([self.num_frames, self.num_fft_bins],
-                                  np.complex64)
+            self._stft = np.zeros_like(spec, dtype=np.complex64)
         # phase matrix
         if phase:
-            self._phase = np.zeros([self.num_frames, self.num_fft_bins],
-                                   np.float32)
+            self._phase = np.zeros_like(spec, dtype=np.float32)
         # local group delay matrix
         if lgd:
-            self._lgd = np.zeros([self.num_frames, self.num_fft_bins],
-                                 np.float32)
+            np.zeros_like(spec, dtype=np.float32)
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
@@ -339,14 +336,16 @@ class Spectrogram(object):
                 self._lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
             # magnitude spectrogram
-            spec = np.abs(dft)
-            # filter with a given filterbank
-            if self.filterbank is not None:
-                spec = np.dot(spec, self.filterbank)
-            # take the logarithm if needed
-            if self.log:
-                spec = np.log10(self.mul * spec + self.add)
-            self._spec[f] = spec
+            spec[f] = np.abs(dft)
+
+        # filter with the given filterbank if needed
+        if self.filterbank is not None:
+            self._spec = np.dot(spec, self.filterbank)
+        else:
+            self._spec = spec
+        # take the logarithm if needed
+        if self.log:
+            self._spec = np.log10(self.mul * spec + self.add)
 
     @property
     def stft(self):
