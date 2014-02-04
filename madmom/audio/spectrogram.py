@@ -345,7 +345,7 @@ class Spectrogram(object):
             self._spec = spec
         # take the logarithm if needed
         if self.log:
-            self._spec = np.log10(self.mul * spec + self.add)
+            self._spec = np.log10(self.mul * self._spec + self.add)
 
     @property
     def stft(self):
