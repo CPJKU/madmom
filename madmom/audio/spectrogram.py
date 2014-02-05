@@ -508,13 +508,14 @@ class FilteredSpectrogram(Spectrogram):
 
         """
         from filterbank import (LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,
-                                FMAX, NORM_FILTERS)
+                                FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
         norm_filters = kwargs.pop('norm_filters', NORM_FILTERS)
+        duplicate_filters = kwargs.pop('duplicate_filters', DUPLICATE_FILTERS)
         # create Spectrogram object
         super(FilteredSpectrogram, self).__init__(*args, **kwargs)
         # if no filterbank was given, create one
@@ -523,7 +524,8 @@ class FilteredSpectrogram(Spectrogram):
             fb = LogarithmicFilterBank(fft_bins=self.num_fft_bins,
                                        sample_rate=sample_rate,
                                        bands_per_octave=bands_per_octave,
-                                       fmin=fmin, fmax=fmax, norm=norm_filters)
+                                       fmin=fmin, fmax=fmax, norm=norm_filters,
+                                       duplicates=duplicate_filters)
         # save the filterbank, so it gets used for computation
         self._filterbank = fb
 
