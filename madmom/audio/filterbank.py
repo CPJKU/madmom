@@ -247,7 +247,7 @@ def fft_freqs(fft_bins, sample_rate):
     """
     Frequencies of the FFT bins.
 
-    :param fft_bins:    number of FFT bins
+    :param fft_bins:    number of FFT bins (= half the FFT size)
     :param sample_rate: sample rate of the signal
     :return:            corresponding FFT bin frequencies
 
@@ -308,7 +308,7 @@ def multi_filterbank(filters, fft_bins, bands, norm):
     :param filters:  dictionary containing lists of filters per band; keys are
                      band ids. a filter is represented by a tuple of a numpy
                      array and the starting position
-    :param fft_bins: number of FFT bins
+    :param fft_bins: number of FFT bins (= half the FFT size)
     :param bands:    number of bands
     :param norm:     normalise the area of each filter band to 1 [bool]
     :returns:        filter bank with respective filter elements
@@ -378,7 +378,7 @@ def filterbank(filter_type, frequencies, fft_bins, sample_rate,
                         - norm:   normalise the filter (sum=1) or not [bool]
                         Examples: triangular_filter, rectangular_filter
     :param frequencies: a list of frequencies used for filter creation [Hz]
-    :param fft_bins:    number of fft bins
+    :param fft_bins:    number of FFT bins (= half the FFT size)
     :param sample_rate: sample rate of the audio signal [Hz]
     :param norm:        normalise the area of the filters to 1 [bool]
     :param duplicates:  keep duplicate filters resulting from insufficient
@@ -424,7 +424,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, fft_bins,
                                           normalise the filter (sum=1) or not
     :param fundamentals:        list of fundamental frequencies
     :param num_harmonics:       number of harmonics for each fundamental freq.
-    :param fft_bins:            number of fft bins
+    :param fft_bins:            number of FFT bins (= half the FFT size)
     :param sample_rate:         sample rate of the audio signal [Hz]
     :param harmonic_envelope:   function returning a weight for each harmonic
                                 and the f0. [default=lambda x: np.sqrt(1. / x)]
@@ -551,7 +551,7 @@ class MelFilterBank(FilterBank):
         """
         Creates a new Mel Filter Bank instance.
 
-        :param fft_bins:    number of FFT bins (= half the FFT window size)
+        :param fft_bins:    number of FFT bins (= half the FFT size)
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz]
         :param fmax:        the maximum frequency [Hz]
@@ -597,7 +597,7 @@ class BarkFilterBank(FilterBank):
         """
         Creates a new Bark Filter Bank instance.
 
-        :param fft_bins:    number of FFT bins (= half the FFT window size)
+        :param fft_bins:    number of FFT bins (= half the FFT size)
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz]
         :param fmax:        the maximum frequency [Hz]
@@ -645,7 +645,7 @@ class LogarithmicFilterBank(FilterBank):
         """
         Creates a new Logarithmic Filter Bank instance.
 
-        :param fft_bins:         number of FFT bins (=half the FFT window size)
+        :param fft_bins:         number of FFT bins (=half the FFT size)
         :param sample_rate:      sample rate of the audio file [Hz]
         :param bands_per_octave: number of filter bands per octave
         :param fmin:             the minimum frequency [Hz]
@@ -709,7 +709,7 @@ class SemitoneFilterBank(LogarithmicFilterBank):
         """
         Creates a new Semitone Filter Bank instance.
 
-        :param fft_bins:    number of FFT bins (= half the FFT window size)
+        :param fft_bins:    number of FFT bins (= half the FFT size)
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz]
         :param fmax:        the maximum frequency [Hz]
@@ -734,7 +734,7 @@ class SimpleChromaFilterBank(FilterBank):
         """
         Creates a new Chroma Filter object instance.
 
-        :param fft_bins:    number of FFT bins (= half the FFT window size)
+        :param fft_bins:    number of FFT bins (= half the FFT size)
         :param sample_rate: sample rate of the audio file [Hz]
         :param fmin:        the minimum frequency [Hz]
         :param fmax:        the maximum frequency [Hz]
