@@ -505,9 +505,6 @@ class FilterBank(np.ndarray):
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        # set default values here
-        self._fft_bins = getattr(obj, '_fft_bins')
-        self._bands = getattr(obj, '_bands')
 
     @property
     def fft_bins(self):
