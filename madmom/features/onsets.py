@@ -388,10 +388,10 @@ class SpectralOnsetDetection(object):
         # check spectrogram type
         if isinstance(spectrogram, Spectrogram):
             # already the right format
-            self.s = spectrogram
+            self.spectrogram = spectrogram
         else:
             # assume a file name, try to instantiate a Spectrogram object
-            self.s = Spectrogram(spectrogram, *args, **kwargs)
+            self.spectrogram = Spectrogram(spectrogram, *args, **kwargs)
         self.max_bins = max_bins
 
     # FIXME: do use s.spec and s.diff directly instead of passing the number of
@@ -400,15 +400,17 @@ class SpectralOnsetDetection(object):
     # Onset Detection Functions
     def hfc(self):
         """High Frequency Content."""
-        return high_frequency_content(self.s.spec)
+        return high_frequency_content(self.spectrogram.spec)
 
     def sd(self):
         """Spectral Diff."""
-        return spectral_diff(self.s.spec, self.s.num_diff_frames)
+        return spectral_diff(self.spectrogram.spec,
+                             self.spectrogram.num_diff_frames)
 
     def sf(self):
         """Spectral Flux."""
-        return spectral_flux(self.s.spec, self.s.num_diff_frames)
+        return spectral_flux(self.spectrogram.spec,
+                             self.spectrogram.num_diff_frames)
 
     def superflux(self, max_bins=None):
         """
@@ -420,31 +422,36 @@ class SpectralOnsetDetection(object):
         if max_bins:
             # overwrite the number of bins used for maximum filtering
             self.max_bins = max_bins
-        return superflux(self.s.spec, self.s.num_diff_frames, self.max_bins)
+        return superflux(self.spectrogram.spec,
+                         self.spectrogram.num_diff_frames, self.max_bins)
 
     def mkl(self):
         """Modified Kullback-Leibler."""
-        return modified_kullback_leibler(self.s.spec, self.s.num_diff_frames)
+        return modified_kullback_leibler(self.spectrogram.spec,
+                                         self.spectrogram.num_diff_frames)
 
     def pd(self):
         """Phase Deviation."""
-        return phase_deviation(self.s.phase)
+        return phase_deviation(self.spectrogram.phase)
 
     def wpd(self):
         """Weighted Phase Deviation."""
-        return weighted_phase_deviation(self.s.spec, self.s.phase)
+        return weighted_phase_deviation(self.spectrogram.spec,
+                                        self.spectrogram.phase)
 
     def nwpd(self):
         """Normalized Weighted Phase Deviation."""
-        return normalized_weighted_phase_deviation(self.s.spec, self.s.phase)
+        return normalized_weighted_phase_deviation(self.spectrogram.spec,
+                                                   self.spectrogram.phase)
 
     def cd(self):
         """Complex Domain."""
-        return complex_domain(self.s.spec, self.s.phase)
+        return complex_domain(self.spectrogram.spec, self.spectrogram.phase)
 
     def rcd(self):
         """Rectified Complex Domain."""
-        return rectified_complex_domain(self.s.spec, self.s.phase)
+        return rectified_complex_domain(self.spectrogram.spec,
+                                        self.spectrogram.phase)
 
 
 # universal peak-picking method
@@ -704,7 +711,7 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters, the software detects all onsets in
-    the given files in online mode according to the method proposed in:
+    the given files according to the method proposed in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
