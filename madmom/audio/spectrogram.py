@@ -44,9 +44,9 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     if fft_size is None:
         fft_size = window_size
     # number of resulting FFT bins
-    fft_bins = fft_size >> 1
+    num_fft_bins = fft_size >> 1
     # init stft matrix
-    stft = np.zeros([frames, fft_bins], np.complex64)
+    stft = np.zeros([frames, num_fft_bins], np.complex64)
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal
@@ -59,7 +59,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
             fft_signal = np.concatenate(fft_signal[window_size / 2:],
                                         fft_signal[:window_size / 2])
         # perform DFT
-        stft[frame] = fft.fft(fft_signal, fft_size)[:fft_bins]
+        stft[frame] = fft.fft(fft_signal, fft_size)[:num_fft_bins]
         # next frame
     # return
     return stft
@@ -265,7 +265,7 @@ class Spectrogram(object):
         if self.filterbank is None:
             return self.num_fft_bins
         else:
-            return self.filterbank.bands
+            return self.filterbank.shape[1]
 
     @property
     def log(self):
@@ -521,7 +521,7 @@ class FilteredSpectrogram(Spectrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.frames.signal.sample_rate
-            fb = LogarithmicFilterBank(fft_bins=self.num_fft_bins,
+            fb = LogarithmicFilterBank(num_fft_bins=self.num_fft_bins,
                                        sample_rate=sample_rate,
                                        bands_per_octave=bands_per_octave,
                                        fmin=fmin, fmax=fmax, norm=norm_filters,

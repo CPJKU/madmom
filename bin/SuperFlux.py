@@ -79,7 +79,8 @@ def main():
         w = Wav(args.input, mono=True, norm=args.norm, att=args.att)
         # create a Spectrogram object
         s = LogFiltSpec(w, frame_size=args.window, origin=args.origin,
-                        fps=args.fps, mul=args.mul, add=args.add,
+                        fps=args.fps, bands_per_octave=args.bands,
+                        mul=args.mul, add=args.add,
                         norm_filters=args.norm_filters)
         # create an SpectralOnsetDetection object
         # and perform detection function on the object

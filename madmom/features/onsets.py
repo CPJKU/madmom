@@ -796,9 +796,11 @@ def main():
                 # (re-)create filterbank if the sample rate is not the same
                 if fb is None or fb.sample_rate != w.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterBank(args.window / 2, w.sample_rate,
-                                               args.bands, args.fmin,
-                                               args.fmax, args.equal)
+                    fb = LogarithmicFilterBank(num_fft_bins=args.window / 2,
+                                               sample_rate=w.sample_rate,
+                                               bands_per_octave=args.bands,
+                                               fmin=args.fmin, fmax=args.fmax,
+                                               norm=args.equal)
             # create a Spectrogram object
             s = Spectrogram(w, frame_size=args.window, filterbank=fb,
                             log=args.log, mul=args.mul, add=args.add,
