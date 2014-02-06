@@ -136,7 +136,8 @@ class Spectrogram(object):
         :param norm_window: set area of window function to 1 [bool]
         :param fft_size:    use this size for FFT [int, should be a power of 2]
         :param block_size:  perform filtering in blocks of N frames
-                            [int, should be a power of 2]
+                            [int, should be a power of 2]; additionally `False`
+                            can be used to switch off block wise processing
 
         Diff parameters:
 
@@ -198,7 +199,10 @@ class Spectrogram(object):
         else:
             self._fft_size = fft_size
 
-        # perform some calculatione (e.g. filtering) in blocks of that size
+        # perform some calculations (e.g. filtering) in blocks of that size
+        if not block_size:
+            # use only one block with the number of frames
+            block_size = self.num_frames
         self.block_size = block_size
 
         # init matrices
@@ -302,21 +306,21 @@ class Spectrogram(object):
         """
         # cache variables
         num_frames = self.num_frames
+        num_fft_bins = self.num_fft_bins
 
         # init spectrogram matrix
         self._spec = np.zeros([num_frames, self.num_bins], np.float32)
         # STFT matrix
         if stft:
-            self._stft = np.zeros([num_frames, self.num_fft_bins],
+            self._stft = np.zeros([num_frames, num_fft_bins],
                                   dtype=np.complex64)
         # phase matrix
         if phase:
-            self._phase = np.zeros([num_frames, self.num_fft_bins],
+            self._phase = np.zeros([num_frames, num_fft_bins],
                                    dtype=np.float32)
         # local group delay matrix
         if lgd:
-            self._lgd = np.zeros([num_frames, self.num_fft_bins],
-                                 dtype=np.float32)
+            self._lgd = np.zeros([num_frames, num_fft_bins], dtype=np.float32)
 
         # process in blocks
         if block_size is None:
@@ -335,10 +339,10 @@ class Spectrogram(object):
             # only shift and perform complex DFT if needed
             if stft or phase or lgd:
                 # circular shift the signal (needed for correct phase)
-                signal = np.concatenate((signal[self.num_fft_bins:],
-                                         signal[:self.num_fft_bins]))
+                signal = np.concatenate((signal[num_fft_bins:],
+                                         signal[:num_fft_bins]))
             # perform DFT
-            dft = fft.fft(signal, self.fft_size)[:self.num_fft_bins]
+            dft = fft.fft(signal, self.fft_size)[:num_fft_bins]
 
             # save raw stft
             if stft:
