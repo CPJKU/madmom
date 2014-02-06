@@ -102,6 +102,7 @@ MUL = 1
 ADD = 1
 NORM_WINDOW = False
 FFT_SIZE = None
+BLOCK_SIZE = 2048
 RATIO = 0.5
 DIFF_FRAMES = None
 
@@ -113,8 +114,8 @@ class Spectrogram(object):
     """
     def __init__(self, frames, window=np.hanning, filterbank=FILTERBANK,
                  log=LOG, mul=MUL, add=ADD, norm_window=NORM_WINDOW,
-                 fft_size=FFT_SIZE, ratio=RATIO, diff_frames=DIFF_FRAMES,
-                 *args, **kwargs):
+                 fft_size=FFT_SIZE, block_size=BLOCK_SIZE, ratio=RATIO,
+                 diff_frames=DIFF_FRAMES, *args, **kwargs):
         """
         Creates a new Spectrogram object instance of the given audio.
 
@@ -130,16 +131,12 @@ class Spectrogram(object):
         :param mul: multiplier before taking the logarithm of the magnitude
         :param add: add this value before taking the logarithm of the magnitude
 
-        Additional computations:
-
-        :param stft:  save the raw complex STFT [bool]
-        :param phase: save the phase information [bool]
-        :param lgd:   save the local group delay information [bool]
-
         FFT parameters:
 
         :param norm_window: set area of window function to 1 [bool]
         :param fft_size:    use this size for FFT [int, should be a power of 2]
+        :param block_size:  perform filtering in blocks of N frames
+                            [int, should be a power of 2]
 
         Diff parameters:
 
@@ -200,6 +197,9 @@ class Spectrogram(object):
             self._fft_size = self.window.size
         else:
             self._fft_size = fft_size
+
+        # perform some calculatione (e.g. filtering) in blocks of that size
+        self.block_size = block_size
 
         # init matrices
         self._spec = None
@@ -285,7 +285,7 @@ class Spectrogram(object):
         """Add this value before taking the logarithm of the magnitude."""
         return self._add
 
-    def compute_stft(self, stft=None, phase=None, lgd=None, block_size=2048):
+    def compute_stft(self, stft=None, phase=None, lgd=None, block_size=None):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
@@ -319,10 +319,12 @@ class Spectrogram(object):
                                  dtype=np.float32)
 
         # process in blocks
+        if block_size is None:
+            block_size = self.block_size
         if block_size > num_frames:
             block_size = num_frames
+        # init block counter
         block = 0
-
         # init a matrix of that size
         spec = np.zeros([block_size, self.num_fft_bins])
 
