@@ -200,9 +200,6 @@ class Spectrogram(object):
             self._fft_size = fft_size
 
         # perform some calculations (e.g. filtering) in blocks of that size
-        if not block_size:
-            # use only one block with the number of frames
-            block_size = self.num_frames
         self.block_size = block_size
 
         # init matrices
