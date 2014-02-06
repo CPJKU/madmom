@@ -325,7 +325,7 @@ class Spectrogram(object):
         # process in blocks
         if block_size is None:
             block_size = self.block_size
-        if block_size > num_frames:
+        if not block_size or block_size > num_frames:
             block_size = num_frames
         # init block counter
         block = 0
