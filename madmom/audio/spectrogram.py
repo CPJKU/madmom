@@ -102,6 +102,7 @@ MUL = 1
 ADD = 1
 NORM_WINDOW = False
 FFT_SIZE = None
+BLOCK_SIZE = 2048
 RATIO = 0.5
 DIFF_FRAMES = None
 
@@ -113,8 +114,8 @@ class Spectrogram(object):
     """
     def __init__(self, frames, window=np.hanning, filterbank=FILTERBANK,
                  log=LOG, mul=MUL, add=ADD, norm_window=NORM_WINDOW,
-                 fft_size=FFT_SIZE, ratio=RATIO, diff_frames=DIFF_FRAMES,
-                 *args, **kwargs):
+                 fft_size=FFT_SIZE, block_size=BLOCK_SIZE, ratio=RATIO,
+                 diff_frames=DIFF_FRAMES, *args, **kwargs):
         """
         Creates a new Spectrogram object instance of the given audio.
 
@@ -130,16 +131,13 @@ class Spectrogram(object):
         :param mul: multiplier before taking the logarithm of the magnitude
         :param add: add this value before taking the logarithm of the magnitude
 
-        Additional computations:
-
-        :param stft:  save the raw complex STFT [bool]
-        :param phase: save the phase information [bool]
-        :param lgd:   save the local group delay information [bool]
-
         FFT parameters:
 
         :param norm_window: set area of window function to 1 [bool]
         :param fft_size:    use this size for FFT [int, should be a power of 2]
+        :param block_size:  perform filtering in blocks of N frames
+                            [int, should be a power of 2]; additionally `False`
+                            can be used to switch off block wise processing
 
         Diff parameters:
 
@@ -200,6 +198,9 @@ class Spectrogram(object):
             self._fft_size = self.window.size
         else:
             self._fft_size = fft_size
+
+        # perform some calculations (e.g. filtering) in blocks of that size
+        self.block_size = block_size
 
         # init matrices
         self._spec = None
@@ -285,30 +286,48 @@ class Spectrogram(object):
         """Add this value before taking the logarithm of the magnitude."""
         return self._add
 
-    def compute_stft(self, stft=None, phase=None, lgd=None):
+    def compute_stft(self, stft=None, phase=None, lgd=None, block_size=None):
         """
         This is a memory saving method to batch-compute different spectrograms.
 
-        :param stft:  save the raw complex STFT to the "stft" attribute
-        :param phase: save the phase of the STFT to the "phase" attribute
-        :param lgd:   save the local group delay of the STFT to the "lgd"
-                      attribute
+        :param stft:       save the raw complex STFT to the "stft" attribute
+        :param phase:      save the phase of the STFT to the "phase" attribute
+        :param lgd:        save the local group delay of the STFT to the "lgd"
+                           attribute
+        :param block_size: perform filtering in blocks of that size [frames]
+
+        Note: bigger blocks lead to higher memory consumption but generally get
+              computed faster than smaller blocks; too big block might decrease
+              performance again.
 
         """
+        # cache variables
+        num_frames = self.num_frames
+        num_fft_bins = self.num_fft_bins
+
         # init spectrogram matrix
-        self._spec = np.zeros([self.num_frames, self.num_bins], np.float32)
+        self._spec = np.zeros([num_frames, self.num_bins], np.float32)
         # STFT matrix
         if stft:
-            self._stft = np.zeros([self.num_frames, self.num_fft_bins],
-                                  np.complex64)
+            self._stft = np.zeros([num_frames, num_fft_bins],
+                                  dtype=np.complex64)
         # phase matrix
         if phase:
-            self._phase = np.zeros([self.num_frames, self.num_fft_bins],
-                                   np.float32)
+            self._phase = np.zeros([num_frames, num_fft_bins],
+                                   dtype=np.float32)
         # local group delay matrix
         if lgd:
-            self._lgd = np.zeros([self.num_frames, self.num_fft_bins],
-                                 np.float32)
+            self._lgd = np.zeros([num_frames, num_fft_bins], dtype=np.float32)
+
+        # process in blocks
+        if block_size is None:
+            block_size = self.block_size
+        if not block_size or block_size > num_frames:
+            block_size = num_frames
+        # init block counter
+        block = 0
+        # init a matrix of that size
+        spec = np.zeros([block_size, self.num_fft_bins])
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
@@ -317,10 +336,10 @@ class Spectrogram(object):
             # only shift and perform complex DFT if needed
             if stft or phase or lgd:
                 # circular shift the signal (needed for correct phase)
-                signal = np.concatenate((signal[self.num_fft_bins:],
-                                         signal[:self.num_fft_bins]))
+                signal = np.concatenate((signal[num_fft_bins:],
+                                         signal[:num_fft_bins]))
             # perform DFT
-            dft = fft.fft(signal, self.fft_size)[:self.num_fft_bins]
+            dft = fft.fft(signal, self.fft_size)[:num_fft_bins]
 
             # save raw stft
             if stft:
@@ -339,14 +358,21 @@ class Spectrogram(object):
                 self._lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
             # magnitude spectrogram
-            spec = np.abs(dft)
-            # filter with a given filterbank
-            if self.filterbank is not None:
-                spec = np.dot(spec, self.filterbank)
-            # take the logarithm if needed
-            if self.log:
-                spec = np.log10(self.mul * spec + self.add)
-            self._spec[f] = spec
+            spec[f % block_size] = np.abs(dft)
+
+            # end of a block or end of the signal reached
+            if (f + 1) / block_size > block or (f + 1) == num_frames:
+                # filter with the given filterbank if needed
+                if self.filterbank is not None:
+                    start = block * block_size
+                    stop = min(start + block_size, num_frames)
+                    self._spec[start:stop] = np.dot(spec[:stop - start],
+                                                    self.filterbank)
+                # increase the block counter
+                block += 1
+        # take the logarithm if needed
+        if self.log:
+            self._spec = np.log10(self.mul * self._spec + self.add)
 
     @property
     def stft(self):
