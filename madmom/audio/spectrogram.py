@@ -320,14 +320,15 @@ class Spectrogram(object):
             self._lgd = np.zeros([num_frames, num_fft_bins], dtype=np.float32)
 
         # process in blocks
-        if block_size is None:
-            block_size = self.block_size
-        if not block_size or block_size > num_frames:
-            block_size = num_frames
-        # init block counter
-        block = 0
-        # init a matrix of that size
-        spec = np.zeros([block_size, self.num_fft_bins])
+        if self._filterbank is not None:
+            if block_size is None:
+                block_size = self.block_size
+            if not block_size or block_size > num_frames:
+                block_size = num_frames
+            # init block counter
+            block = 0
+            # init a matrix of that size
+            spec = np.zeros([block_size, self.num_fft_bins])
 
         # calculate DFT for all frames
         for f in range(len(self.frames)):
@@ -357,19 +358,25 @@ class Spectrogram(object):
                 # local group delay is the derivative over frequency
                 self._lgd[f, :-1] = unwrapped_phase[:-1] - unwrapped_phase[1:]
 
-            # magnitude spectrogram
-            spec[f % block_size] = np.abs(dft)
+            # is block wise processing needed?
+            if self._filterbank is None:
+                # no filtering needed, thus no block wise processing needed
+                self._spec[f] = np.abs(dft)
+            else:
+                # filter in blocks
+                # magnitude spectrogram
+                spec[f % block_size] = np.abs(dft)
+                # end of a block or end of the signal reached
+                if (f + 1) / block_size > block or (f + 1) == num_frames:
+                    # filter with the given filterbank if needed
+                    if self.filterbank is not None:
+                        start = block * block_size
+                        stop = min(start + block_size, num_frames)
+                        self._spec[start:stop] = np.dot(spec[:stop - start],
+                                                        self.filterbank)
+                    # increase the block counter
+                    block += 1
 
-            # end of a block or end of the signal reached
-            if (f + 1) / block_size > block or (f + 1) == num_frames:
-                # filter with the given filterbank if needed
-                if self.filterbank is not None:
-                    start = block * block_size
-                    stop = min(start + block_size, num_frames)
-                    self._spec[start:stop] = np.dot(spec[:stop - start],
-                                                    self.filterbank)
-                # increase the block counter
-                block += 1
         # take the logarithm if needed
         if self.log:
             self._spec = np.log10(self.mul * self._spec + self.add)
