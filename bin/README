@@ -12,3 +12,7 @@ stable features, create a branch and set all parameters accordingly.
 Since some of the scripts are used directly for the annual MIREX evaluation,
 tagged branches reflecting the settings of these submitted algorithms should be
 created. 
+
+If you get segfaults on Mac OS X systems, please check if numpy and scipy use
+ATLAS instead of Apple's own Accelerate framework or use the "--threads 1"
+switch.
