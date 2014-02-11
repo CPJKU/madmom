@@ -8,6 +8,7 @@ This file contains filter and filterbank related functionality.
 """
 
 import numpy as np
+from collections import namedtuple
 from ..utils.helpers import segment_axis
 
 
@@ -256,6 +257,7 @@ def fft_freqs(num_fft_bins, sample_rate):
     return np.linspace(0, sample_rate / 2., num_fft_bins + 1)
 
 
+# filter functions
 def triangular_filter(width, center, norm):
     """
     Calculate a triangular window of the given size.
@@ -301,12 +303,18 @@ def rectangular_filter(width, norm, **unused):
     return np.ones(width) * height
 
 
+# actual filter
+Filter = namedtuple('Filter', ['filter', 'start_pos'])
+
+
+# combine multiple filters into a filterbank
+# TODO: rename function to assemble_filterbank()?
 def multi_filterbank(filters, num_fft_bins, num_bands, norm):
     """
     Creates a filter bank with multiple filters per band
 
-    :param filters:      dictionary containing lists of filters per band;
-                         keys are band ids. a filter is represented by a tuple
+    :param filters:      dictionary containing lists of Filters per band;
+                         keys are band ids. A Filter is represented by a tuple
                          of a numpy array and the starting position
     :param num_fft_bins: number of FFT bins (= half the FFT size)
     :param num_bands:    number of bands
@@ -314,15 +322,24 @@ def multi_filterbank(filters, num_fft_bins, num_bands, norm):
     :returns:            filter bank with respective filter elements
 
     """
+    # TODO: allow inference of num_bands from the highest filter id?
     # create filter bank
     bank = np.zeros((num_fft_bins, num_bands))
     # iterate over all filters
     for band_id, band_filters in filters.iteritems():
         for filt in band_filters:
-            start = filt[1]
-            stop = start + len(filt[0])
+            # set the start and stop positions of the filter inside the bank;
+            start = max(filt.start_pos, 0)
+            stop = min(start + len(filt.filter), num_fft_bins)
             filt_pos = bank[start:stop, band_id]
-            np.maximum(filt[0], filt_pos, out=filt_pos)
+            # FIXME: fix handling of negative start values and stop positions
+            # greater than num_fft_bins. The filters have to be adopted, just
+            # adjusting start and stop does not work
+
+            # if multiple filters overlap at the same positions, use the
+            # maximum value of all filters
+            # TODO: if needed allow other handling (like adding values)
+            np.maximum(filt.filter, filt_pos, out=filt_pos)
     # normalize filter bank
     if norm:
         bank /= bank.sum(0)
@@ -364,6 +381,7 @@ def band_bins(center_bins, duplicates, overlap):
         yield start, center, stop
 
 
+# filterbank creation functions
 def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS,
                overlap=OVERLAP_FILTERS):
@@ -397,12 +415,15 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     filters = {}
     band = 0
     for start, center, stop in band_bins(frequencies, duplicates, overlap):
-        # create the filter
+        # set filter arguments
         kwargs = {'width': stop - start,
                   'center': center - start,
                   'norm': norm}
-        filters[band] = [(filter_type(**kwargs), start)]
+        # create a filter of filter_type with the given arguments
+        # Note: multi_filterbank expects a list of filters, so wrap the filter
+        filters[band] = [Filter(filter_type(**kwargs), start)]
         band += 1
+    # create and return the filterbank
     # no normalisation here, since each filter is already normalised
     return multi_filterbank(filters, num_fft_bins, len(filters), norm=False)
 
@@ -442,17 +463,21 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
           TODO: inharmonicity_coeff should depend on the fundamental
                 frequency, and thus also be a function.
     """
-
+    # fundamental frequencies
     fundamentals = np.asarray(fundamentals)
+    #
     h = np.arange(num_harmonics + 1) + 1
     h_inh = h * np.sqrt(1 + h * h * inharmonicity_coeff)
+    #
     filter_centers = fundamentals * h_inh[:, np.newaxis]
 
+    #
     filter_widths = harmonic_width(h) / 2
     filter_weights = harmonic_envelope(h)
     filter_starts = filter_centers - filter_widths[:, np.newaxis]
     filter_ends = filter_centers + filter_widths[:, np.newaxis]
 
+    #
     factor = (sample_rate / 2.0) / num_fft_bins
     filter_centers = np.round(filter_centers / factor).astype(int)
     filter_starts = np.round(filter_starts / factor).astype(int)
@@ -460,19 +485,30 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
     filter_ends = np.round(filter_ends / factor).astype(int)
     filter_ends = np.maximum(filter_ends, filter_centers + 1)
 
+    # create a dictionary for the filters
     filters = {num: [] for num in range(len(fundamentals))}
 
+    # TODO: please document filter_starts!
+    #       also the index tuple is quite hard to understand
     for index, start in np.ndenumerate(filter_starts):
+        # determine center and end of filter
         end = filter_ends[index]
         center = filter_centers[index]
-
+        # skip if the complete filter would be outside the allowed range
+        if start > num_fft_bins:
+            continue
+        # set filter arguments
         params = {'width': end - start,
                   'center': center - start,
                   'norm': False}
+        # create a filter of filter_type with the given arguments and
+        # weight accordingly
         filt = filter_type(**params) * filter_weights[index[0]]
-
-        filters[index[1]] += [(filt, start)]
-
+        # add this filter to the list of filters for multi_filterbank
+        # TODO: it's a bit unclear to me what happens here, nicer would be
+        # something like filters[index].append(Filter(filt, start))
+        filters[index[1]] += [Filter(filt, start)]
+    # create and return the filterbank
     return multi_filterbank(filters, num_fft_bins, len(filters), True)
 
 
