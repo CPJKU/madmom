@@ -154,8 +154,8 @@ class SumEvaluation(SimpleEvaluation):
         super(SumEvaluation, self).__init__()
         self._errors = np.zeros(0)
 
-    # for adding two SimpleEvaluation objects
-    def __add__(self, other):
+    # for adding another Evaluation object
+    def __iadd__(self, other):
         if isinstance(other, SimpleEvaluation):
             # increase the counters
             self._num_tp += other.num_tp
@@ -196,7 +196,7 @@ class MeanEvaluation(SimpleEvaluation):
         self.num = 0
 
     # for adding another Evaluation object
-    def __add__(self, other):
+    def __iadd__(self, other):
         """
         Appends the scores of another SimpleEvaluation object to the respective
         arrays.

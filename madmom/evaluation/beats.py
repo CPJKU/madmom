@@ -545,7 +545,7 @@ class MeanBeatEvaluation(BeatEvaluation):
             self += other
 
     # for adding another BeatEvaluation object
-    def __add__(self, other):
+    def __iadd__(self, other):
         """
         Appends the scores of another BeatEvaluation object to the respective
         arrays.

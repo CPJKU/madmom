@@ -112,7 +112,7 @@ def load_events(filename):
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
         return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
-                           dtype=np.float)
+                           dtype=np.float128)
     finally:
         # close file if needed
         if own_fid:
@@ -153,16 +153,21 @@ def combine_events(events, delta):
     """
     # determine which events need to be combined
     diff = np.nonzero(np.diff(events) <= delta)[0]
-    if len(diff):
-        # combine the first in the list
-        idx = diff[0]
-        # combine them and
-        events[idx + 1] = 0.5 * (events[idx] + events[idx + 1])
-        # recursively rerun the whole process
-        return combine_events(np.concatenate((events[:idx], events[idx + 1:])),
-                              delta)
-    # until no events are left to combine
-    return events
+    # copy array since we are altering it; set the highest precision
+    events.astype(np.float128, copy=True)
+    # combine all events with the next one; the indices returned by np.diff
+    # refer to the first/left event which needs to be combined
+    for idx in diff:
+        # first re-check if the event and the next event still need to be
+        # combined; this check is needed since we're altering the content of
+        # the events array!
+        if events[idx + 1] - events[idx] > delta:
+            continue
+        # replace all events with the old values with the combined one
+        new = 0.5 * (events[idx] + events[idx + 1])
+        events[np.in1d(events, [events[idx], events[idx + 1]])] = new
+    # return just the unique events
+    return np.unique(events)
 
 
 def quantize_events(events, fps, length=None):

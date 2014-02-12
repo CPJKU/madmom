@@ -148,7 +148,7 @@ class MeanTempoEvaluation(TempoEvaluation):
             self += other
 
     # for adding another TempoEvaluation object
-    def __add__(self, other):
+    def __iadd__(self, other):
         """
         Appends the scores of another TempoEvaluation object.
 
