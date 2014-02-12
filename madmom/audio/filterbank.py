@@ -325,9 +325,9 @@ def _put_filter(filt, band):
         start = 0
 
     # truncate the filter if it ends after the last frequency bin
-    if stop > len(bank):
-        fltr = fltr[:stop - len(bank)]
-        stop = len(bank)
+    if stop > len(band):
+        fltr = fltr[:stop - len(band)]
+        stop = len(band)
 
     # Put the filter in place
     # TODO: if needed allow other handling (like adding values)
@@ -518,13 +518,13 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
     filter_ends = np.maximum(filter_ends, filter_centers + 1)
 
     # create a list of filters per band
-    filters = [[] * len(fundamentals)]
+    filters = [[] for i in range(len(fundamentals))]
 
     # iterate over filters for each harmonic in each filter band
     for harm_id, band_id in np.ndindex(filter_starts.shape):
         start = filter_starts[harm_id, band_id]
         center = filter_centers[harm_id, band_id]
-        end = filter_centers[harm_id, band_id]
+        end = filter_ends[harm_id, band_id]
 
         # skip if the complete filter would be outside the allowed range
         if start > num_fft_bins or end < 0:
@@ -537,7 +537,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
 
         # create a filter of filter_type with the given arguments and
         # weight accordingly
-        filt = filter_type(**params) * weight[harm_id]
+        filt = filter_type(**params) * filter_weights[harm_id]
 
         # add this filter to the list of filters for multi_filterbank
         filters[band_id].append(Filter(filt, start))
