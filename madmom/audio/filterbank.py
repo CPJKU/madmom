@@ -317,18 +317,19 @@ def _put_filter(filt, band):
     """
     start = filt.start_pos
     stop = start + len(filt.filter)
+    fltr = filt.filter
     # truncate the filter if it starts before the 0th frequency bin
     if start < 0:
-        filt.filter = filt.filter[-start:]
+        fltr = fltr[-start:]
         start = 0
     # truncate the filter if it ends after the last frequency bin
     if stop > len(band):
-        filt.filter = filt.filter[:stop - len(band)]
+        fltr = fltr[:stop - len(band)]
         stop = len(band)
     # put the filter in place
     filt_pos = band[start:stop]
     # TODO: if needed allow other handling (like adding values)
-    np.maximum(filt.filter, filt_pos, out=filt_pos)
+    np.maximum(fltr, filt_pos, out=filt_pos)
 
 
 def assemble_filterbank(filters, num_fft_bins, norm):
