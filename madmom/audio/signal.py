@@ -231,6 +231,24 @@ class Signal(object):
         """Length of signal in seconds."""
         return float(self.num_samples) / float(self.sample_rate)
 
+    def copy(self, sample_rate=None, mono=None, norm=None, att=None):
+        """
+        Copies the Signal object and adjusts some parameters.
+
+        :param sample_rate: sample rate of the signal [Hz]
+        :param mono:        down-mix the signal to mono
+        :param norm:        normalize the signal
+        :param att:         attenuate the signal [dB]
+        :return:            Signal object with given parameters
+
+        """
+        # copy the object attributes unless overwritten by passing other values
+        if sample_rate is None:
+            sample_rate = self.sample_rate
+        # return a new Signal
+        return Signal(self.data, sample_rate=sample_rate, mono=mono, norm=norm,
+                      att=att)
+
 
 # function for splitting a signal into frames
 def signal_frame(x, index, frame_size, hop_size, offset=0):
@@ -362,16 +380,7 @@ class FramedSignal(object):
 
         """
         # signal handling
-        if isinstance(signal, FramedSignal):
-            # already a FramedSignal, copy the object attributes (which can be
-            # overwritten by passing other values to the constructor)
-            self._signal = signal.signal
-            self._frame_size = signal.frame_size
-            self._hop_size = signal.hop_size
-            self._origin = signal.origin
-            self._start = signal.start
-            self._num_frames = signal.num_frames
-        elif isinstance(signal, Signal):
+        if isinstance(signal, Signal):
             # already a signal
             self._signal = signal
         else:
@@ -385,7 +394,7 @@ class FramedSignal(object):
             self._hop_size = float(hop_size)
         # use fps instead of hop_size
         if fps:
-            # Note: using fps overwrites the hop_size
+            # overwrite the hop_size
             self._hop_size = self._signal.sample_rate / float(fps)
 
         # translate literal values
@@ -458,7 +467,7 @@ class FramedSignal(object):
             # determine the start sample
             start_sample = self.start + self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
-            return FramedSignal(self, frame_size=self.frame_size,
+            return FramedSignal(self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
         # other index types are invalid
@@ -508,3 +517,38 @@ class FramedSignal(object):
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
         return 1.0 - self.hop_size / self.frame_size
+
+    def copy(self, frame_size=None, hop_size=None, fps=None, origin=None,
+             start=None, num_frames=None):
+        """
+        Copies the FramedSignal object and adjusts some parameters.
+
+        :param frame_size: size of one frame [int]
+        :param hop_size:   progress N samples between adjacent frames [float]
+        :param fps:        use given frames per second (instead of using
+                           `hop_size`; if set, this overwrites the `hop_size`
+                           value) [float]
+        :param origin:     location of the window relative to the signal
+                           position [int]
+        :param start:      start sample [int]
+        :param num_frames: number of frames to return
+        :return:           FramedSignal object with given parameters
+
+        """
+        # copy the object attributes unless overwritten by passing other values
+        if frame_size is None:
+            frame_size = self.frame_size
+        if hop_size is None:
+            hop_size = self.hop_size
+        if fps is None:
+            fps = self.fps
+        if origin is None:
+            origin = self.origin
+        if start is None:
+            start = self.start
+        if num_frames is None:
+            num_frames = self.num_frames
+        # return a new FramedSignal
+        return FramedSignal(self.signal, frame_size=frame_size,
+                            hop_size=hop_size, fps=fps, origin=origin,
+                            start=start, num_frames=num_frames)

@@ -29,5 +29,5 @@ class Wav(Signal):
         self.filename = filename        # the name of the file
         # read in the audio from the file
         sample_rate, data = wavfile.read(self.filename)
-        # instantiate a FramedAudio object
+        # instantiate a Signal object
         super(Wav, self).__init__(data, sample_rate, *args, **kwargs)
