@@ -147,6 +147,8 @@ class OnsetEvaluation(Evaluation):
         # evaluate
         numbers = onset_evaluation(detections, targets, window)
         self._tp, self._fp, self._tn, self._fn = numbers
+        # init errors
+        self._errors = None
 
     @property
     def errors(self):
@@ -157,7 +159,7 @@ class OnsetEvaluation(Evaluation):
         """
         if self._errors is None:
             if self.num_tp == 0:
-                # FIXME: what is the error in case of no TPs
+                # FIXME: what is the error in case of no TPs?
                 self._errors = np.zeros(0)
             else:
                 self._errors = calc_errors(self.tp, self.targets)
@@ -257,14 +259,14 @@ def main():
             if args.combine > 0:
                 targets = combine_events(targets, args.combine)
             # add the OnsetEvaluation to mean evaluation
-            me += OnsetEvaluation(detections, targets, window=args.window)
+            me.append(OnsetEvaluation(detections, targets, window=args.window))
             # process the next target file
         # print stats for each file
         if args.verbose:
             me.print_errors(args.tex)
         # add the resulting sum counter
         sum_eval += me
-        mean_eval += me
+        mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

@@ -518,13 +518,9 @@ class MeanBeatEvaluation(BeatEvaluation):
 
     """
 
-    def __init__(self, other=None):
+    def __init__(self):
         """
-        MeanBeatEvaluation object can be either instantiated as an empty object
-        or by passing in a BeatEvaluation object with the scores taken from
-        that object.
-
-        :param other: BeatEvaluation object
+        Class for averaging beat evaluation scores.
 
         """
         # simple scores
@@ -539,13 +535,9 @@ class MeanBeatEvaluation(BeatEvaluation):
         # information gain stuff
         self._information_gain = np.zeros(0)
         self._error_histogram = None
-        # instance can be initialized with a Evaluation object
-        if isinstance(other, BeatEvaluation):
-            # add this object to self
-            self += other
 
     # for adding another BeatEvaluation object
-    def __iadd__(self, other):
+    def append(self, other):
         """
         Appends the scores of another BeatEvaluation object to the respective
         arrays.
@@ -570,9 +562,8 @@ class MeanBeatEvaluation(BeatEvaluation):
             else:
                 # otherwise just add them
                 self._error_histogram += other.error_histogram
-            return self
         else:
-            return NotImplemented
+            raise TypeError("Can't append to MeanBeatEvaluation.")
 
     @property
     def num(self):
@@ -740,18 +731,19 @@ def main():
                 detections = detections[np.where(detections > args.skip)]
                 targets = targets[np.where(targets > args.skip)]
             # add the BeatEvaluation this file's mean evaluation
-            me += BeatEvaluation(detections, targets, window=args.window,
-                                 tolerance=args.tolerance, sigma=args.sigma,
-                                 tempo_tolerance=args.tempo_tolerance,
-                                 phase_tolerance=args.phase_tolerance,
-                                 bins=args.bins)
+            me.append(BeatEvaluation(detections, targets, window=args.window,
+                                     tolerance=args.tolerance,
+                                     sigma=args.sigma,
+                                     tempo_tolerance=args.tempo_tolerance,
+                                     phase_tolerance=args.phase_tolerance,
+                                     bins=args.bins))
             # process the next target file
         # print stats for each file
         if args.verbose:
             print det_file
             me.print_errors(args.tex)
         # add this file's mean evaluation to the global evaluation
-        mean_eval += me
+        mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'mean for %i files:' % (len(det_files))

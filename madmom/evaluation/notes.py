@@ -222,9 +222,9 @@ def main():
         # print stats for each file
         if args.verbose:
             ne.print_errors(args.tex)
-        # add this file's mean evaluation to the global evaluation
+        # add this file's evaluation to the global evaluation
         sum_eval += ne
-        mean_eval += ne
+        mean_eval.append(ne)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

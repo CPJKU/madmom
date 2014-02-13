@@ -18,7 +18,8 @@ class SimpleEvaluation(object):
     Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
-    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
+    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0,
+                 errors=np.zeros(0)):
         """
         Creates a new SimpleEvaluation object instance.
 
@@ -26,6 +27,7 @@ class SimpleEvaluation(object):
         :param num_fp: number of false positive detections
         :param num_tn: number of true negative detections
         :param num_fn: number of false negative detections
+        :param num_fn: array with the errors of the true positive detections
 
         """
         # hidden variables, to be able to overwrite them in subclasses
@@ -33,7 +35,33 @@ class SimpleEvaluation(object):
         self._num_fp = num_fp
         self._num_tn = num_tn
         self._num_fn = num_fn
-        self._errors = None  # None indicates not initialised
+        self._errors = np.asarray(errors)
+
+    # for adding another SimpleEvaluation object, i.e. summing them
+    def __iadd__(self, other):
+        if isinstance(other, SimpleEvaluation):
+            # increase the counters
+            self._num_tp += other.num_tp
+            self._num_fp += other.num_fp
+            self._num_tn += other.num_tn
+            self._num_fn += other.num_fn
+            # extend the errors array
+            self._errors = np.append(self.errors, other.errors)
+            return self
+        else:
+            raise TypeError("Can't add %s to SimpleEvaluation." % type(other))
+
+    # for adding two SimpleEvaluation objects
+    def __add__(self, other):
+        if isinstance(other, SimpleEvaluation):
+            num_tp = self._num_tp + other.num_tp
+            num_fp = self._num_fp + other.num_fp
+            num_tn = self._num_tn + other.num_tn
+            num_fn = self._num_fn + other.num_fn
+            errors = np.append(self.errors, other.errors)
+            return SimpleEvaluation(num_tp, num_fp, num_tn, num_fn, errors)
+        else:
+            raise TypeError("Can't add %s to SimpleEvaluation." % type(other))
 
     @property
     def num_tp(self):
@@ -96,8 +124,6 @@ class SimpleEvaluation(object):
     @property
     def errors(self):
         """Errors."""
-        if self._errors is None:
-            return np.zeros(0)
         return self._errors
 
     @property
@@ -141,32 +167,7 @@ class SimpleEvaluation(object):
 
 
 # class for summing Evaluations
-class SumEvaluation(SimpleEvaluation):
-    """
-    Simple evaluation class for summing Precision, Recall and F-measure.
-
-    """
-    def __init__(self):
-        """
-        Creates a new SumEvaluation object instance.
-
-        """
-        super(SumEvaluation, self).__init__()
-        self._errors = np.zeros(0)
-
-    # for adding another Evaluation object
-    def __iadd__(self, other):
-        if isinstance(other, SimpleEvaluation):
-            # increase the counters
-            self._num_tp += other.num_tp
-            self._num_fp += other.num_fp
-            self._num_tn += other.num_tn
-            self._num_fn += other.num_fn
-            # extend the errors array
-            self._errors = np.append(self.errors, other.errors)
-            return self
-        else:
-            return NotImplemented
+SumEvaluation = SimpleEvaluation
 
 
 # class for averaging Evaluations
@@ -196,7 +197,7 @@ class MeanEvaluation(SimpleEvaluation):
         self.num = 0
 
     # for adding another Evaluation object
-    def __iadd__(self, other):
+    def append(self, other):
         """
         Appends the scores of another SimpleEvaluation object to the respective
         arrays.
@@ -213,14 +214,13 @@ class MeanEvaluation(SimpleEvaluation):
             self._mean = np.append(self._mean, other.mean_error)
             self._std = np.append(self._std, other.std_error)
             self._errors = np.append(self._errors, other.errors)
-            # do the same with the raw numbers and errors
+            # do the same with the raw numbers
             self._num_tp = np.append(self._num_tp, other.num_tp)
             self._num_fp = np.append(self._num_fp, other.num_fp)
             self._num_tn = np.append(self._num_tn, other.num_tn)
             self._num_fn = np.append(self._num_fn, other.num_fn)
-            return self
         else:
-            return NotImplemented
+            raise TypeError("Can't append to MeanEvaluation.")
 
     @property
     def num_tp(self):

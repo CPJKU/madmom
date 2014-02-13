@@ -112,7 +112,7 @@ def load_events(filename):
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
         return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
-                           dtype=np.float128)
+                           dtype=np.float)
     finally:
         # close file if needed
         if own_fid:
@@ -151,10 +151,12 @@ def combine_events(events, delta):
     :return:       list of combined events
 
     """
+    # add a very small value to delta, otherwise we end in floating point hell
+    delta += np.finfo(np.float).resolution
     # determine which events need to be combined
     diff = np.nonzero(np.diff(events) <= delta)[0]
-    # copy array since we are altering it; set the highest precision
-    events.astype(np.float128, copy=True)
+    # copy array since we are altering it
+    events = np.copy(events)
     # combine all events with the next one; the indices returned by np.diff
     # refer to the first/left event which needs to be combined
     for idx in diff:
