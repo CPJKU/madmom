@@ -231,6 +231,11 @@ class Signal(object):
         """Length of signal in seconds."""
         return float(self.num_samples) / float(self.sample_rate)
 
+    def __str__(self):
+        return "Signal: %d samples (%.2f sec); %d channel(s); %d Hz sample " \
+               "rate" % (self.num_samples, self.length, self.num_channels,
+                         self.sample_rate)
+
 
 # function for splitting a signal into frames
 def signal_frame(x, index, frame_size, hop_size, offset=0):
@@ -508,3 +513,9 @@ class FramedSignal(object):
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
         return 1.0 - self.hop_size / self.frame_size
+
+    def __str__(self):
+        return "FramedSignal: %d frame(s); %d frame size; %.1f hop size\n %s"\
+               % (self.num_frames, self.frame_size, self.hop_size,
+                  str(self.signal))
+

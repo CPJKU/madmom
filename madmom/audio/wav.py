@@ -31,3 +31,9 @@ class Wav(Signal):
         sample_rate, data = wavfile.read(self.filename)
         # instantiate a FramedAudio object
         super(Wav, self).__init__(data, sample_rate, *args, **kwargs)
+
+    def __str__(self):
+        return "Wav file: '%s'; %d samples (%.2f sec); %d channel(s); %d " \
+               "Hz sample rate" % (self.filename, self.num_samples,
+                                   self.length, self.num_channels,
+                                   self.sample_rate)

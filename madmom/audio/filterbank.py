@@ -587,6 +587,10 @@ class FilterBank(np.ndarray):
         """Maximum frequency of the filter bank."""
         return self.bin_freqs[np.nonzero(self)[0][-1]]
 
+    def __str__(self):
+        return "Filterbank: %d FFT bins; %d bands; fmin: %.1f; fmax: %.1f" %\
+               (self.num_fft_bins, self.num_bands, self.fmin, self.fmax)
+
 
 class MelFilterBank(FilterBank):
     """
