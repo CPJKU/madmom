@@ -142,7 +142,7 @@ def write_events(events, filename):
             fid.close()
 
 
-def combine_events(events, delta, in_place=False):
+def combine_events(events, delta):
     """
     Combine all events within a certain range.
 
@@ -157,9 +157,8 @@ def combine_events(events, delta, in_place=False):
     # return immediately if possible
     if len(events) <= 1:
         return events
-    # create working copy if needed
-    if not in_place:
-        events = np.array(events, copy=True)
+    # create working copy
+    events = np.array(events, copy=True)
     # set start position
     idx = 0
     # get first event
