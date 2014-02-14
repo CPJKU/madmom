@@ -14,6 +14,8 @@ import fnmatch
 
 import numpy as np
 
+import madmom
+
 
 def files(path, ext=None):
     """
@@ -106,22 +108,11 @@ def load_events(filename):
     :return:         numpy array of events
 
     """
-    own_fid = False
-    # open file if needed
-    if isinstance(filename, basestring):
-        fid = open(filename, 'rb')
-        own_fid = True
-    else:
-        fid = filename
-    try:
+    with madmom.utils.open(filename) as f:
         # read in the events, one per line
         # 1st column is the event's time, the rest is ignored
-        return np.fromiter((float(line.split(None, 1)[0]) for line in fid),
+        return np.fromiter((float(line.split(None, 1)[0]) for line in f),
                            dtype=np.float)
-    finally:
-        # close file if needed
-        if own_fid:
-            fid.close()
 
 
 def write_events(events, filename):
@@ -132,19 +123,8 @@ def write_events(events, filename):
     :param filename: output file name or file handle
 
     """
-    own_fid = False
-    # open file if needed
-    if isinstance(filename, basestring):
-        fid = open(filename, 'wb')
-        own_fid = True
-    else:
-        fid = filename
-    try:
-        fid.writelines('%g\n' % e for e in events)
-    finally:
-        # close file if needed
-        if own_fid:
-            fid.close()
+    with madmom.utils.open(filename) as f:
+        f.writelines('%g\n' % e for e in events)
 
 
 def combine_events(events, delta):
