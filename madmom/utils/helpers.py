@@ -146,9 +146,9 @@ def combine_events(events, delta):
     """
     Combine all events within a certain range.
 
-    :param events:   list of events [seconds]
-    :param delta:    combination length [seconds]
-    :return:         list of combined events
+    :param events: list of events [seconds]
+    :param delta:  combination length [seconds]
+    :return:       list of combined events
 
     """
     # add a small value to delta, otherwise we end in floating point hell
