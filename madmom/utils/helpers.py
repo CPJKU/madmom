@@ -148,7 +148,6 @@ def combine_events(events, delta):
 
     :param events:   list of events [seconds]
     :param delta:    combination length [seconds]
-    :param in_place: modify the events in-place
     :return:         list of combined events
 
     """
