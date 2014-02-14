@@ -142,34 +142,39 @@ def write_events(events, filename):
             fid.close()
 
 
-def combine_events(events, delta):
+def combine_events(events, delta, in_place=False):
     """
     Combine all events within a certain range.
 
-    :param events: list of events [seconds]
-    :param delta:  combination length [seconds]
-    :return:       list of combined events
+    :param events:   list of events [seconds]
+    :param delta:    combination length [seconds]
+    :param in_place: modify the events in-place
+    :return:         list of combined events
 
     """
-    # add a very small value to delta, otherwise we end in floating point hell
-    delta += np.finfo(np.float).resolution
-    # determine which events need to be combined
-    diff = np.nonzero(np.diff(events) <= delta)[0]
-    # copy array since we are altering it
-    events = np.copy(events)
-    # combine all events with the next one; the indices returned by np.diff
-    # refer to the first/left event which needs to be combined
-    for idx in diff:
-        # first re-check if the event and the next event still need to be
-        # combined; this check is needed since we're altering the content of
-        # the events array!
-        if events[idx + 1] - events[idx] > delta:
-            continue
-        # replace all events with the old values with the combined one
-        new = 0.5 * (events[idx] + events[idx + 1])
-        events[np.in1d(events, [events[idx], events[idx + 1]])] = new
-    # return just the unique events
-    return np.unique(events)
+    # add a small value to delta, otherwise we end in floating point hell
+    delta += 1e-12
+    # return immediately if possible
+    if len(events) <= 1:
+        return events
+    # create working copy if needed
+    if not in_place:
+        events = np.array(events, copy=True)
+    # set start position
+    idx = 0
+    # get first event
+    left = events[idx]
+    # iterate over all remaining events
+    for right in events[1:]:
+        if right - left <= delta:
+            # combine the two events
+            left = events[idx] = 0.5 * (right + left)
+        else:
+            # move forward
+            idx += 1
+            left = events[idx] = right
+    # return the combined events
+    return events[:idx + 1]
 
 
 def quantize_events(events, fps, length=None):

@@ -7,7 +7,7 @@ package is in $PYTHONPATH.
 
 Example:
 
-python -m cp.evaluation.simple /dir/to/be/evaluated
+python -m madmom.evaluation.onsets /dir/to/be/evaluated
 
 """
 import onsets
