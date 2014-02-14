@@ -143,35 +143,47 @@ def write_variable_length(value):
     return result
 
 
-# Event classes
-class EventRegistry(object):
+class EventRegistry(type):
     """
-    Event Registry.
+    Class for automatically registering usable Events.
 
     """
+
     Events = {}
     MetaEvents = {}
 
-    @classmethod
-    def register_event(cls, event, bases):
+    def __init__(cls, name, bases, dct):
         """
         Registers an event in the registry.
-        :param event:      the event to register
-        :param bases:      the base class
+
+        :param name:       the name of the event to register
+        :param bases:      the base class(es)
+        :param dct:        dictionary with all the stuff
         :raise ValueError: for unknown events
 
         """
-        if (Event in bases) or (NoteEvent in bases):
-            assert event.status_msg not in cls.Events, \
-                "Event %s already registered" % event.name
-            cls.Events[event.status_msg] = event
-        elif (MetaEvent in bases) or (MetaEventWithText in bases):
-            assert event.meta_command not in cls.MetaEvents, \
-                "Event %s already registered" % event.name
-            cls.MetaEvents[event.meta_command] = event
-        else:
-            raise ValueError("Unknown bases class in event type: %s" %
-                             event.name)
+        super(EventRegistry, cls).__init__(name, bases, dct)
+        # register the event
+        if cls.register:
+            # normal events
+            if any(x in [Event, NoteEvent] for x in bases):
+                # raise an error if the event class is registered already
+                if cls.status_msg in EventRegistry.Events:
+                    raise AssertionError("Event %s already registered" %
+                                         cls.name)
+                # register the Event
+                EventRegistry.Events[cls.status_msg] = cls
+            # meta events
+            elif any(x in [MetaEvent, MetaEventWithText] for x in bases):
+                # raise an error if the meta event class is registered already
+                if cls.meta_command in EventRegistry.MetaEvents:
+                    raise AssertionError("Event %s already registered" %
+                                         cls.name)
+                # register the MetaEvent
+                EventRegistry.MetaEvents[cls.meta_command] = cls
+            else:
+                # raise an error
+                raise ValueError("Unknown base class in event type: %s" % name)
 
 
 class AbstractEvent(object):
@@ -179,20 +191,12 @@ class AbstractEvent(object):
     Abstract Event.
 
     """
+    __metaclass__ = EventRegistry
     __slots__ = ['tick', 'data']
     name = "Generic MIDI Event"
     length = 0
     status_msg = 0x0
-
-    class __metaclass__(type):
-        """
-        Class factory class.
-
-        """
-        def __init__(cls, name, bases, dict):
-            if name not in ['AbstractEvent', 'Event', 'MetaEvent', 'NoteEvent',
-                            'MetaEventWithText']:
-                EventRegistry.register_event(cls, bases)
+    register = False
 
     def __init__(self, **kwargs):
         if type(self.length) == int:
@@ -348,6 +352,7 @@ class NoteOnEvent(NoteEvent):
     Note On Event.
 
     """
+    register = True
     status_msg = 0x90
     name = 'Note On'
 
@@ -357,6 +362,7 @@ class NoteOffEvent(NoteEvent):
     Note Off Event.
 
     """
+    register = True
     status_msg = 0x80
     name = 'Note Off'
 
@@ -366,6 +372,7 @@ class AfterTouchEvent(Event):
     After Touch Event.
 
     """
+    register = True
     status_msg = 0xA0
     length = 2
     name = 'After Touch'
@@ -377,6 +384,7 @@ class ControlChangeEvent(Event):
 
     """
     __slots__ = ['control', 'value']
+    register = True
     status_msg = 0xB0
     length = 2
     name = 'Control Change'
@@ -424,6 +432,7 @@ class ProgramChangeEvent(Event):
 
     """
     __slots__ = ['value']
+    register = True
     status_msg = 0xC0
     length = 1
     name = 'Program Change'
@@ -452,6 +461,7 @@ class ChannelAfterTouchEvent(Event):
 
     """
     __slots__ = ['value']
+    register = True
     status_msg = 0xD0
     length = 1
     name = 'Channel After Touch'
@@ -480,6 +490,7 @@ class PitchWheelEvent(Event):
 
     """
     __slots__ = ['pitch']
+    register = True
     status_msg = 0xE0
     length = 2
     name = 'Pitch Wheel'
@@ -510,9 +521,10 @@ class SysExEvent(Event):
     System Exclusive Event.
 
     """
+    register = True
     status_msg = 0xF0
-    name = 'SysEx'
     length = 'variable'
+    name = 'SysEx'
 
     @classmethod
     def is_event(cls, status_msg):
@@ -531,9 +543,10 @@ class SequenceNumberMetaEvent(MetaEvent):
     Sequence Number Meta Event.
 
     """
-    name = 'Sequence Number'
+    register = True
     meta_command = 0x00
     length = 2
+    name = 'Sequence Number'
 
 
 class MetaEventWithText(MetaEvent):
@@ -555,9 +568,10 @@ class TextMetaEvent(MetaEventWithText):
     Text Meta Event.
 
     """
-    name = 'Text'
+    register = True
     meta_command = 0x01
     length = 'variable'
+    name = 'Text'
 
 
 class CopyrightMetaEvent(MetaEventWithText):
@@ -565,9 +579,10 @@ class CopyrightMetaEvent(MetaEventWithText):
     Copyright Meta Event.
 
     """
-    name = 'Copyright Notice'
+    register = True
     meta_command = 0x02
     length = 'variable'
+    name = 'Copyright Notice'
 
 
 class TrackNameEvent(MetaEventWithText):
@@ -575,9 +590,10 @@ class TrackNameEvent(MetaEventWithText):
     Track Name Event.
 
     """
-    name = 'Track Name'
+    register = True
     meta_command = 0x03
     length = 'variable'
+    name = 'Track Name'
 
 
 class InstrumentNameEvent(MetaEventWithText):
@@ -585,9 +601,10 @@ class InstrumentNameEvent(MetaEventWithText):
     Instrument Name Event.
 
     """
-    name = 'Instrument Name'
+    register = True
     meta_command = 0x04
     length = 'variable'
+    name = 'Instrument Name'
 
 
 class LyricsEvent(MetaEventWithText):
@@ -595,9 +612,10 @@ class LyricsEvent(MetaEventWithText):
     Lyrics Event.
 
     """
-    name = 'Lyrics'
+    register = True
     meta_command = 0x05
     length = 'variable'
+    name = 'Lyrics'
 
 
 class MarkerEvent(MetaEventWithText):
@@ -605,9 +623,10 @@ class MarkerEvent(MetaEventWithText):
     Marker Event.
 
     """
-    name = 'Marker'
+    register = True
     meta_command = 0x06
     length = 'variable'
+    name = 'Marker'
 
 
 class CuePointEvent(MetaEventWithText):
@@ -615,9 +634,10 @@ class CuePointEvent(MetaEventWithText):
     Cue Point Event.
 
     """
-    name = 'Cue Point'
+    register = True
     meta_command = 0x07
     length = 'variable'
+    name = 'Cue Point'
 
 
 class SomethingEvent(MetaEvent):
@@ -625,8 +645,9 @@ class SomethingEvent(MetaEvent):
     Something Event.
 
     """
-    name = 'Something'
+    register = True
     meta_command = 0x09
+    name = 'Something'
 
 
 class ChannelPrefixEvent(MetaEvent):
@@ -634,9 +655,10 @@ class ChannelPrefixEvent(MetaEvent):
     Channel Prefix Event.
 
     """
-    name = 'Channel Prefix'
+    register = True
     meta_command = 0x20
     length = 1
+    name = 'Channel Prefix'
 
 
 class PortEvent(MetaEvent):
@@ -644,8 +666,9 @@ class PortEvent(MetaEvent):
     Port Event.
 
     """
-    name = 'MIDI Port/Cable'
+    register = True
     meta_command = 0x21
+    name = 'MIDI Port/Cable'
 
 
 class TrackLoopEvent(MetaEvent):
@@ -653,8 +676,9 @@ class TrackLoopEvent(MetaEvent):
     Track Loop Event.
 
     """
-    name = 'Track Loop'
+    register = True
     meta_command = 0x2E
+    name = 'Track Loop'
 
 
 class EndOfTrackEvent(MetaEvent):
@@ -662,8 +686,9 @@ class EndOfTrackEvent(MetaEvent):
     End Of Track Event.
 
     """
-    name = 'End of Track'
+    register = True
     meta_command = 0x2F
+    name = 'End of Track'
 
 
 class SetTempoEvent(MetaEvent):
@@ -672,9 +697,10 @@ class SetTempoEvent(MetaEvent):
 
     """
     __slots__ = ['microseconds_per_quarter_note']
-    name = 'Set Tempo'
+    register = True
     meta_command = 0x51
     length = 3
+    name = 'Set Tempo'
 
     @property
     def microseconds_per_quarter_note(self):
@@ -702,8 +728,9 @@ class SmpteOffsetEvent(MetaEvent):
     SMPTE Offset Event.
 
     """
-    name = 'SMPTE Offset'
+    register = True
     meta_command = 0x54
+    name = 'SMPTE Offset'
 
 
 class TimeSignatureEvent(MetaEvent):
@@ -712,9 +739,10 @@ class TimeSignatureEvent(MetaEvent):
 
     """
     __slots__ = ['numerator', 'denominator', 'metronome', 'thirty_seconds']
-    name = 'Time Signature'
+    register = True
     meta_command = 0x58
     length = 4
+    name = 'Time Signature'
 
     @property
     def numerator(self):
@@ -791,9 +819,10 @@ class KeySignatureEvent(MetaEvent):
 
     """
     __slots__ = ['alternatives', 'minor']
-    name = 'Key Signature'
+    register = True
     meta_command = 0x59
     length = 2
+    name = 'Key Signature'
 
     @property
     def alternatives(self):
@@ -837,34 +866,9 @@ class SequencerSpecificEvent(MetaEvent):
     Sequencer Specific Event.
 
     """
-    name = 'Sequencer Specific'
+    register = True
     meta_command = 0x7F
-
-
-# # Note class
-# class Note(object):
-#     """
-#     A Note is defined by its (onset) time, pitch, duration and velocity.
-#
-#     """
-#     def __init__(self, time, pitch, duration=None, velocity=None):
-#         self.time = time
-#         self.pitch = pitch
-#         self.duration = duration
-#         self.velocity = velocity
-#
-#
-# class Tempo(object):
-#     """
-#     A Tempo is measured in microseconds per tick.
-#
-#     """
-#     def __init__(self, tick, microseconds_per_tick):
-#         self.tick = tick
-#         self.microseconds_per_tick = microseconds_per_tick
-#
-#     def __repr__(self):
-#         print "%s, %s" % (self.tick, self.microseconds_per_tick)
+    name = 'Sequencer Specific'
 
 
 # MIDI Track
@@ -1070,8 +1074,11 @@ class MIDIFile(object):
                 # of a MIDI file
                 raise ValueError('SetTempoEvents should be only in the first '
                                  'track of a MIDI file.')
-        # make sure a tempo is set and the first tempo occurs at tick 0
-        if tempi is None or tempi[0][0] > 0:
+        # make sure a tempo is set
+        if tempi is None:
+            tempi = [(0, SECONDS_PER_TICK)]
+        # and the first tempo occurs at tick 0
+        if tempi[0][0] > 0:
             tempi.insert(0, (0, SECONDS_PER_TICK))
         # sort (just to be sure)
         tempi.sort()
