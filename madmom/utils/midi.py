@@ -215,18 +215,9 @@ class AbstractEvent(object):
             return 1
         return cmp(self.data, other.data)
 
-    def __baserepr__(self, keys=[]):
-        keys = ['tick'] + keys + ['data']
-        body = []
-        for key in keys:
-            val = getattr(self, key)
-            key_val = "%s=%r" % (key, val)
-            body.append(key_val)
-        body = str.join(', ', body)
-        return "midi.%s(%s)" % (self.__class__.__name__, body)
-
-    def __repr__(self):
-        return self.__baserepr__()
+    def __str__(self):
+        return "%s: tick: %s data: %s" % (self.__class__.__name__, self.tick,
+                                          self.data)
 
 
 class Event(AbstractEvent):
@@ -243,19 +234,19 @@ class Event(AbstractEvent):
             kwargs['channel'] = 0
         super(Event, self).__init__(**kwargs)
 
-    def copy(self, **kwargs):
-        """
-        Copy an event.
-
-        :param kwargs: dictionary with all attributes to copy.
-
-        """
-        raise ValueError('please remove the TODO as it seems to be needed')
-        # TODO: can this method be removed?
-        _kwargs = {'channel': self.channel, 'tick': self.tick,
-                   'data': self.data}
-        _kwargs.update(kwargs)
-        return self.__class__(**_kwargs)
+    # def copy(self, **kwargs):
+    #     """
+    #     Copy an event.
+    #
+    #     :param kwargs: dictionary with all attributes to copy.
+    #
+    #     """
+    #     raise ValueError('please remove the TODO as it seems to be needed')
+    #     # TODO: can this method be removed?
+    #     _kwargs = {'channel': self.channel, 'tick': self.tick,
+    #                'data': self.data}
+    #     _kwargs.update(kwargs)
+    #     return self.__class__(**_kwargs)
 
     def __cmp__(self, other):
         if self.tick < other.tick:
@@ -264,8 +255,9 @@ class Event(AbstractEvent):
             return 1
         return 0
 
-    def __repr__(self):
-        return self.__baserepr__(['channel'])
+    def __str__(self):
+        return "%s: tick: %s channel: %s" % (self.__class__.__name__,
+                                             self.tick, self.channel)
 
     @classmethod
     def is_event(cls, status_msg):
@@ -559,8 +551,8 @@ class MetaEventWithText(MetaEvent):
         if 'text' not in kwargs:
             self.text = ''.join(chr(datum) for datum in self.data)
 
-    def __repr__(self):
-        return self.__baserepr__(['text'])
+    def __str__(self):
+        return "%s: %s" % (self.__class__.__name__, self.text)
 
 
 class TextMetaEvent(MetaEventWithText):
