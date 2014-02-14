@@ -43,7 +43,6 @@ class Cepstrogram(object):
     s = spectrogram
 
 
-# TODO: set other defaults than those in cp.audio.filterbank for MFCCs?
 class MFCC(Cepstrogram):
     """
     MFCC is a subclass of Cepstrogram which filters the magnitude spectrogram
@@ -79,6 +78,7 @@ class MFCC(Cepstrogram):
         # • The MFCCs are the amplitudes of the resulting spectrum
         from .filterbank import (MelFilterBank, MEL_BANDS, FMIN, FMAX,
                                  NORM_FILTERS)
+        # TODO: set other defaults than those in .filterbank for MFCCs?
         from .spectrogram import MUL, ADD
 
         # fetch the arguments for filterbank creation (or set defaults)
