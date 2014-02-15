@@ -9,7 +9,8 @@ This file contains filter and filterbank related functionality.
 
 import numpy as np
 from collections import namedtuple
-from ..utils.helpers import segment_axis
+
+from .signal import segment_axis
 
 
 # default values for filters
@@ -384,7 +385,7 @@ def band_bins(center_bins, duplicates, overlap):
     if len(center_bins) < 3:
         raise ValueError("Cannot create filterbank with less than 1 band")
     # return the frequencies
-    for start, center, stop in segment_axis(center_bins, 3, 2):
+    for start, center, stop in segment_axis(center_bins, 3, 1):
         # create non-overlapping filters
         if not overlap:
             # re-arrange the start and stop positions
