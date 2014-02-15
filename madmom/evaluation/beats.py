@@ -25,7 +25,7 @@ results.
 
 import numpy as np
 
-from .helpers import find_closest_matches, calc_errors, calc_absolute_errors
+from . import find_closest_matches, calc_errors, calc_absolute_errors
 from .onsets import OnsetEvaluation
 
 

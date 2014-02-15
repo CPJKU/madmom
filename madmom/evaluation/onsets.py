@@ -16,8 +16,7 @@ Retrieval Conference (ISMIR), 2012
 
 import numpy as np
 
-from .simple import Evaluation, SumEvaluation, MeanEvaluation
-from .helpers import calc_errors
+from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection

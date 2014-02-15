@@ -10,8 +10,7 @@ This file contains note evaluation functionality.
 import numpy as np
 
 
-from .helpers import calc_errors
-from .simple import Evaluation, SumEvaluation, MeanEvaluation
+from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 from .onsets import onset_evaluation
 
 
