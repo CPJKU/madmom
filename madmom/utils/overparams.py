@@ -66,13 +66,13 @@ class OrderedDictYAMLLoader(yaml.Loader):
 
 class OverridableParameters(object):
     def __init__(self,
-                 configfilename='config.yaml',
-                 sectionnames=[],
+                 config_filename='config.yaml',
+                 section_names=[],
                  description=''):
 
-        self.sectionnames = sectionnames
+        self.section_names = section_names
 
-        add_help = False if os.path.isfile(configfilename) else True
+        add_help = False if os.path.isfile(config_filename) else True
 
         def existing_config_file(cf):
             if os.path.isfile(cf):
@@ -86,7 +86,7 @@ class OverridableParameters(object):
 
         self.parser.add_argument('--config',
                                  dest='actualconfigfilename',
-                                 default=configfilename,
+                                 default=config_filename,
                                  type=existing_config_file,
                                  help='the name of the config file '
                                       'supplying all additional parameters')
@@ -100,17 +100,17 @@ class OverridableParameters(object):
         config = yaml.load(open(pre_args.actualconfigfilename),
                            OrderedDictYAMLLoader)
 
-        for section in self.sectionnames:
+        for section in self.section_names:
             if section in config:
                 group = self.parser.add_argument_group(section)
-                for optionname, option in config[section].items():
-                    optionvalue = option[0]
-                    optionhelptxt = option[1]
+                for option_name, option in config[section].items():
+                    option_value = option[0]
+                    option_helptxt = option[1]
 
-                    group.add_argument('--%s' % optionname,
-                                       type=type(optionvalue),
-                                       default=optionvalue,
-                                       help=optionhelptxt)
+                    group.add_argument('--%s' % option_name,
+                                       type=type(option_value),
+                                       default=option_value,
+                                       help=option_helptxt)
             else:
                 raise ValueError("invalid section name: %s" % section)
 

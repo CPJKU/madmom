@@ -193,7 +193,7 @@ def parser():
                    default=WINDOW,
                    help='evaluation window (+/- the given size) '
                         '[seconds, default=%(default).3f]')
-    p.add_argument('-c', dest='combine', action='store',  type=float,
+    p.add_argument('-c', dest='combine', action='store', type=float,
                    default=COMBINE,
                    help='combine target events within this range '
                         '[seconds, default=%(default).3f]')

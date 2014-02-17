@@ -134,7 +134,7 @@ def main():
         act = act.reshape(-1, 88)
 
         # create an Note object with the activations
-        n = NoteTranscription(act, args.fps, args.online)
+        n = NoteTranscription(act, args.fps)
 
     # save note activations or detect the notes
     if args.save:

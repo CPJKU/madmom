@@ -16,6 +16,7 @@ from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
 from madmom.features.beats import Beat
 from madmom.ml.rnn import RecurrentNeuralNetwork
+from madmom.utils import open
 
 # set the path to saved neural networks and generate lists of NN files
 NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
@@ -142,15 +143,8 @@ def main():
                                  min_bpm=args.min_bpm, max_bpm=args.max_bpm,
                                  mirex=True)
         # write to output
-        was_closed = False
-        if not isinstance(args.output, file):
-            # open the file if necessary
-            args.output = open(args.output, 'w')
-            was_closed = True
-        args.output.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, weight))
-        # close the output again?
-        if was_closed:
-            args.output.close()
+        with open(args.output, 'rb') as f:
+            f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, weight))
 
 if __name__ == '__main__':
     main()
