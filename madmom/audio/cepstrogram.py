@@ -26,10 +26,9 @@ class Cepstrogram(object):
         """
         from .spectrogram import Spectrogram
         # audio signal stuff
-        if isinstance(spectrogram, Cepstrogram):
-            # already a Cepstrogram object, copy the attributes (which can be
-            # overwritten by passing other values to the constructor)
-            self._spectrogram = spectrogram.spectrogram
+        if isinstance(spectrogram, Spectrogram):
+            # already a Spectrogram object
+            self._spectrogram = spectrogram
         else:
             # try to instantiate a Spectrogram object
             self._spectrogram = Spectrogram(spectrogram, *args, **kwargs)
@@ -38,9 +37,6 @@ class Cepstrogram(object):
     def spectrogram(self):
         """Spectrogram."""
         return self._spectrogram
-
-    # alias
-    s = spectrogram
 
 
 class MFCC(Cepstrogram):
