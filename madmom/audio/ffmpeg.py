@@ -118,10 +118,8 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
     # proc.wait needs to be called in any case.
     call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate,
                                  num_channels, skip, maxlen)
-    proc = subprocess.Popen(call,
-            stdout=subprocess.PIPE,  # stdout is redirected to a pipe
-            bufsize=bufsize,  # the pipe is buffered as requested
-            )
+    # redirect stdout to a pipe and buffer as requested
+    proc = subprocess.Popen(call, stdout=subprocess.PIPE, bufsize=bufsize)
     return proc.stdout, proc
 
 

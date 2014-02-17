@@ -179,6 +179,7 @@ def combine_events(events, delta):
     # return the combined events
     return events[:idx + 1]
 
+
 def quantize_events(events, fps, length=None):
     """
     Quantize the events with the given resolution.
