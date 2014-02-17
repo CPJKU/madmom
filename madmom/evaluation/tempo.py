@@ -131,24 +131,16 @@ class MeanTempoEvaluation(TempoEvaluation):
 
     """
 
-    def __init__(self, other=None):
+    def __init__(self):
         """
-        MeanTempoEvaluation object can be either instantiated as an empty
-        object or by passing in a TempoEvaluation object with the scores taken
-        from that object.
-
-        :param other: TempoEvaluation object
+        Class for averaging tempo evaluation scores.
 
         """
         # simple scores
         self._pscore = np.zeros(0)
-        # instance can be initialized with a Evaluation object
-        if isinstance(other, TempoEvaluation):
-            # add this object to self
-            self += other
 
     # for adding another TempoEvaluation object
-    def __add__(self, other):
+    def __iadd__(self, other):
         """
         Appends the scores of another TempoEvaluation object.
 
@@ -251,13 +243,13 @@ def main():
             # load the targets
             targets = load_events(tar_file)
             # add the Evaluation to mean evaluation
-            me += TempoEvaluation(detections, targets, args.tolerance)
+            me.append(TempoEvaluation(detections, targets, args.tolerance))
             # process the next target file
         # print stats for each file
         if args.verbose:
             me.print_errors(args.tex)
             # add the resulting sum counter
-        mean_counter += me
+        mean_counter.append(me)
         # process the next detection file
     # print summary
     print 'mean for %i files:' % (len(det_files))

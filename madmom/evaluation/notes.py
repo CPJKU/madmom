@@ -10,8 +10,7 @@ This file contains note evaluation functionality.
 import numpy as np
 
 
-from .helpers import calc_errors
-from .simple import Evaluation, SumEvaluation, MeanEvaluation
+from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 from .onsets import onset_evaluation
 
 
@@ -95,7 +94,7 @@ def note_evaluation(detections, targets, window):
     assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
     assert len(tp) + len(fn) == len(targets), 'bad FN calculation'
     # return the arrays
-    return tp, fp, np.zeros(0), fn
+    return tp, fp, np.zeros((0, 2)), fn
 
 # default evaluation values
 WINDOW = 0.025
@@ -106,8 +105,7 @@ WINDOW = 0.025
 # TODO: extend to also report the measures without octave errors
 class NoteEvaluation(Evaluation):
     """
-    Simple evaluation class for measuring Precision, Recall and F-measure of
-    notes.
+    Evaluation class for measuring Precision, Recall and F-measure of notes.
 
     """
     def __init__(self, detections, targets, window=WINDOW):
@@ -204,31 +202,28 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_notes(det_file)
+        # shift the detections if needed
+        if args.delay != 0:
+            detections[:, 0] += args.delay
         # get the matching target files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
-        # quit if any file does not have a matching target file
-        if len(matches) == 0:
-            print " can't find a target file found for %s. exiting." % det_file
-            exit()
-        if len(matches) > 1:
-            print " found more than 1 target file for %s. exiting." % det_file
+        # quit if any file does not have exactly one matching target file
+        if len(matches) != 1:
+            print " can't find exactly 1 target file for %s." % det_file
             exit()
         if args.verbose:
             print det_file
         # load the targets
         targets = load_notes(matches[0])
-        # shift the detections if needed
-        if args.delay != 0:
-            detections[:, 0] += args.delay
         # add the NoteEvaluation to mean evaluation
         ne = NoteEvaluation(detections, targets, window=args.window)
         # process the next target file
         # print stats for each file
         if args.verbose:
             ne.print_errors(args.tex)
-        # add this file's mean evaluation to the global evaluation
+        # add this file's evaluation to the global evaluation
         sum_eval += ne
-        mean_eval += ne
+        mean_eval.append(ne)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

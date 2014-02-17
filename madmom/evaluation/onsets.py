@@ -16,8 +16,7 @@ Retrieval Conference (ISMIR), 2012
 
 import numpy as np
 
-from .simple import Evaluation, SumEvaluation, MeanEvaluation
-from .helpers import calc_errors
+from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection
@@ -147,6 +146,8 @@ class OnsetEvaluation(Evaluation):
         # evaluate
         numbers = onset_evaluation(detections, targets, window)
         self._tp, self._fp, self._tn, self._fn = numbers
+        # init errors
+        self._errors = None
 
     @property
     def errors(self):
@@ -157,7 +158,7 @@ class OnsetEvaluation(Evaluation):
         """
         if self._errors is None:
             if self.num_tp == 0:
-                # FIXME: what is the error in case of no TPs
+                # FIXME: what is the error in case of no TPs?
                 self._errors = np.zeros(0)
             else:
                 self._errors = calc_errors(self.tp, self.targets)
@@ -237,6 +238,9 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
+        # shift the detections if needed
+        if args.delay != 0:
+            detections += args.delay
         # get the matching target files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         # quit if any file does not have a matching target file
@@ -253,18 +257,15 @@ def main():
             # combine the targets if needed
             if args.combine > 0:
                 targets = combine_events(targets, args.combine)
-            # shift the detections if needed
-            if args.delay != 0:
-                detections += args.delay
             # add the OnsetEvaluation to mean evaluation
-            me += OnsetEvaluation(detections, targets, window=args.window)
+            me.append(OnsetEvaluation(detections, targets, window=args.window))
             # process the next target file
         # print stats for each file
         if args.verbose:
             me.print_errors(args.tex)
         # add the resulting sum counter
         sum_eval += me
-        mean_eval += me
+        mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))

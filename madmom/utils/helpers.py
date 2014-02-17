@@ -28,7 +28,7 @@ def files(path, ext=None):
     if type(path) == list:
         # a list of files or paths is given
         file_list = []
-        # recursively call the function
+        # recursively call the function for each file/path
         for f in path:
             file_list.extend(files(f, ext))
     elif os.path.isdir(path):
@@ -83,19 +83,14 @@ def match_file(filename, match_list, ext=None, match_ext=None):
     """
     # get the base name without the path
     basename = os.path.basename(strip_ext(filename, ext))
-    # init return list
-    matches = []
     # look for files with the same base name in the files_list
     if match_ext is not None:
-        pattern = "*%s*%s" % (basename, match_ext)
+        pattern = "*%s%s" % (basename, match_ext)
     else:
         pattern = "*%s" % basename
-    for match in fnmatch.filter(match_list, pattern):
-        # base names must match exactly
-        if basename == os.path.basename(strip_ext(match, match_ext)):
-            matches.append(match)
-    # return the matches
-    return matches
+    # files must match the pattern and the basename must be the same
+    return [m for m in fnmatch.filter(match_list, pattern) if
+            os.path.basename(strip_ext(m, match_ext)) == basename]
 
 
 def load_events(filename):
@@ -156,37 +151,28 @@ def combine_events(events, delta):
     :return:       list of combined events
 
     """
-    # return array if no events must be combined
-    diff = np.diff(events)
-    if not (events[1:][diff <= delta].any()):
+    # add a small value to delta, otherwise we end in floating point hell
+    delta += 1e-12
+    # return immediately if possible
+    if len(events) <= 1:
         return events
-    # array for combined events
-    comb = []
-    # copy the events, because the array is modified later
-    events = np.copy(events)
-    # iterate over all events
+    # create working copy
+    events = np.array(events, copy=True)
+    # set start position
     idx = 0
-    while idx < events.size - 1:
-        # get the first event
-        first = events[idx]
-        # increase the events index
-        idx += 1
-        # get the second event
-        second = events[idx]
-        # combine the two events?
-        if second - first <= delta:
-            # two events within the combination window, combine them and
-            # replace the second event in the original array with the mean
-            # of the events
-            events[idx] = (first + second) / 2.
+    # get first event
+    left = events[idx]
+    # iterate over all remaining events
+    for right in events[1:]:
+        if right - left <= delta:
+            # combine the two events
+            left = events[idx] = 0.5 * (right + left)
         else:
-            # the two events can not be combined,
-            # store the first event in the new list
-            comb.append(first)
-    # always append the last element of the list
-    comb.append(events[-1])
+            # move forward
+            idx += 1
+            left = events[idx] = right
     # return the combined events
-    return np.asarray(comb)
+    return events[:idx + 1]
 
 
 def quantize_events(events, fps, length=None):
