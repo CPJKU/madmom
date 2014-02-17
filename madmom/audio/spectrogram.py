@@ -153,23 +153,11 @@ class Spectrogram(object):
         """
         from .signal import FramedSignal
         # audio signal stuff
-        if isinstance(frames, Spectrogram):
-            # already a Spectrogram object, copy the attributes (which can be
-            # overwritten by passing other values to the constructor)
-            self._frames = frames.frames
-            self._window = frames.window
-            self._fft_size = frames.fft_size
-            self._filterbank = frames.filterbank
-            self._log = frames.log
-            self._mul = frames.mul
-            self._add = frames.add
-            self._ratio = frames.ratio
-            # do not copy diff_frames, it is calculated or set manually
-        elif isinstance(frames, FramedSignal):
+        if isinstance(frames, FramedSignal):
             # already a FramedSignal
             self._frames = frames
         else:
-            # try to instantiate a Framed object
+            # try to instantiate a FramedSignal object
             self._frames = FramedSignal(frames, *args, **kwargs)
 
         # determine window to use
@@ -516,6 +504,56 @@ class Spectrogram(object):
                 p[f] = np.maximum(self.spec[f], floor)
         # return the whitened spectrogram
         return self.spec / p
+
+    def copy(self, window=None, filterbank=None, log=None, mul=None, add=None,
+             norm_window=None, fft_size=None, block_size=None, ratio=None,
+             diff_frames=None):
+        """
+        Copies the Spectrogram object and adjusts some parameters.
+
+        :param window:      window function
+        :param filterbank:  filterbank used for dimensionality reduction of the
+                            magnitude spectrogram
+        :param log:         take the logarithm of the magnitude [bool]
+        :param mul:         multiplier before taking the logarithm
+        :param add:         add this value before taking the logarithm
+        :param norm_window: set area of window function to 1 [bool]
+        :param fft_size:    use this size for FFT [int, should be a power of 2]
+        :param block_size:  perform filtering in blocks of N frames
+        :param ratio:       calculate the difference to the frame which window
+                            overlaps to this ratio [float]
+        :param diff_frames: calculate the difference to the N-th previous frame
+                            [int] (if set, this overrides the value calculated
+                            from the ratio)
+        :return:            a new Spectrogram object
+
+        """
+        # copy the object attributes unless overwritten by passing other values
+        if window is None:
+            window = self.window
+        if filterbank is None:
+            filterbank = self.filterbank
+        if log is None:
+            log = self.log
+        if mul is None:
+            mul = self.mul
+        if add is None:
+            add = self.add
+        if norm_window is None:
+            norm_window = self.norm_window
+        if fft_size is None:
+            fft_size = self.fft_size
+        if block_size is None:
+            block_size = self.block_size
+        if norm_window is None:
+            ratio = self.ratio
+        if diff_frames is None:
+            diff_frames = self.diff_frames
+        # return a new FramedSignal
+        return Spectrogram(self.frames, window=window, filterbank=filterbank,
+                           log=log, mul=mul, add=add, norm_window=norm_window,
+                           fft_size=fft_size, block_size=block_size,
+                           ratio=ratio, diff_frames=diff_frames)
 
 
 class FilteredSpectrogram(Spectrogram):

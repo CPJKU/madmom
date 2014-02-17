@@ -231,6 +231,24 @@ class Signal(object):
         """Length of signal in seconds."""
         return float(self.num_samples) / float(self.sample_rate)
 
+    def copy(self, sample_rate=None, mono=None, norm=None, att=None):
+        """
+        Copies the Signal object and adjusts some parameters.
+
+        :param sample_rate: sample rate of the signal [Hz]
+        :param mono:        down-mix the signal to mono
+        :param norm:        normalize the signal
+        :param att:         attenuate the signal [dB]
+        :return:            Signal object with given parameters
+
+        """
+        # copy the object attributes unless overwritten by passing other values
+        if sample_rate is None:
+            sample_rate = self.sample_rate
+        # return a new Signal
+        return Signal(self.data, sample_rate=sample_rate, mono=mono, norm=norm,
+                      att=att)
+
 
 # function for splitting a signal into frames
 def signal_frame(x, index, frame_size, hop_size, offset=0):
@@ -239,10 +257,10 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
 
     :param x:          the signal (numpy array)
     :param index:      the index of the frame to return
-    :param frame_size: size of one frame in samples
-    :param hop_size:   progress N samples between adjacent frames
+    :param frame_size: size of each frame in samples
+    :param hop_size:   the hop size in samples between adjacent frames
     :param offset:     position of the first sample inside the signal
-    :returns:          the requested single frame of the audio signal
+    :returns:          the requested frame of the signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
     each following frame is placed `hop_size` samples after the previous one.
@@ -282,9 +300,9 @@ def strided_frames(x, frame_size, hop_size):
     Returns a 2D representation of the signal with overlapping frames.
 
     :param x:          the signal (numpy array)
-    :param frame_size: size of each frame
+    :param frame_size: size of each frame in samples
     :param hop_size:   the hop size in samples between adjacent frames
-    :returns:          the framed signal
+    :returns:          2D array with overlapping frames
 
     Note: This function is here only for completeness. It is faster only in
           rare circumstances. Also, seeking to the right position is only
@@ -293,13 +311,109 @@ def strided_frames(x, frame_size, hop_size):
     """
     # init variables
     samples = np.shape(x)[0]
-    print samples
     # FIXME: does seeking only the right way for integer hop_size
     # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
     as_strided = np.lib.stride_tricks.as_strided
     # return the strided array
     return as_strided(x, (samples, frame_size),
                       (x.strides[0], x.strides[0]))[::hop_size]
+
+
+# taken from: http://www.scipy.org/Cookbook/SegmentAxis
+def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
+    """
+    Generate a new array that chops the given array along the given axis into
+    overlapping frames.
+
+    :param x:          the signal (numpy array)
+    :param frame_size: size of each frame in samples
+    :param hop_size:   the hop size in samples between adjacent frames
+    :param axis:       axis to operate on; if None, act on the flattened array
+    :param end:        what to do with the last frame, if the array is not
+                       evenly divisible into pieces; possible values:
+                       'cut'  simply discard the extra values
+                       'wrap' copy values from the beginning of the array
+                       'pad'  pad with a constant value
+    :param end_value:  value to use for end='pad'
+    :returns:          2D array with overlapping frames
+
+    The array is not copied unless necessary (either because it is unevenly
+    strided and being flattened or because end is set to 'pad' or 'wrap').
+
+    Example:
+    >>> segment_axis(np.arange(10), 4, 2)
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 5],
+           [4, 5, 6, 7],
+           [6, 7, 8, 9]])
+
+    """
+
+    if axis is None:
+        x = np.ravel(x)  # may copy
+        axis = 0
+
+    length = x.shape[axis]
+
+    if hop_size <= 0:
+        raise ValueError("hop_size must be positive.")
+    if frame_size <= 0:
+        raise ValueError("frame_size must be positive.")
+
+    if length < frame_size or (length - frame_size) % hop_size:
+        if length > frame_size:
+            roundup = (frame_size + (1 + (length - frame_size) // hop_size) *
+                       hop_size)
+            rounddown = (frame_size + ((length - frame_size) // hop_size) *
+                         hop_size)
+        else:
+            roundup = frame_size
+            rounddown = 0
+        assert rounddown < length < roundup
+        assert roundup == rounddown + hop_size or (roundup == frame_size and
+                                                   rounddown == 0)
+        x = x.swapaxes(-1, axis)
+
+        if end == 'cut':
+            x = x[..., :rounddown]
+        elif end in ['pad', 'wrap']:
+            # need to copy
+            s = list(x.shape)
+            s[-1] = roundup
+            y = np.empty(s, dtype=x.dtype)
+            y[..., :length] = x
+            if end == 'pad':
+                y[..., length:] = end_value
+            elif end == 'wrap':
+                y[..., length:] = x[..., :roundup - length]
+            x = y
+
+        x = x.swapaxes(-1, axis)
+
+    length = x.shape[axis]
+    if length == 0:
+        raise ValueError("Not enough data points to segment array in 'cut' "
+                         "mode; try 'pad' or 'wrap'")
+    assert length >= frame_size
+    assert (length - frame_size) % hop_size == 0
+    n = 1 + (length - frame_size) // hop_size
+    s = x.strides[axis]
+    new_shape = x.shape[:axis] + (n, frame_size) + x.shape[axis + 1:]
+    new_strides = x.strides[:axis] + (hop_size * s, s) + x.strides[axis + 1:]
+
+    try:
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=x, dtype=x.dtype)
+    except TypeError:
+        # TODO: remove warning?
+        import warnings
+        warnings.warn("Problem with ndarray creation forces copy.")
+        x = x.copy()
+        # Shape doesn't change but strides does
+        new_strides = (x.strides[:axis] + (hop_size * s, s) +
+                       x.strides[axis + 1:])
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=x, dtype=x.dtype)
 
 
 # default values for splitting a signal into overlapping frames
@@ -362,16 +476,7 @@ class FramedSignal(object):
 
         """
         # signal handling
-        if isinstance(signal, FramedSignal):
-            # already a FramedSignal, copy the object attributes (which can be
-            # overwritten by passing other values to the constructor)
-            self._signal = signal.signal
-            self._frame_size = signal.frame_size
-            self._hop_size = signal.hop_size
-            self._origin = signal.origin
-            self._start = signal.start
-            self._num_frames = signal.num_frames
-        elif isinstance(signal, Signal):
+        if isinstance(signal, Signal):
             # already a signal
             self._signal = signal
         else:
@@ -385,7 +490,7 @@ class FramedSignal(object):
             self._hop_size = float(hop_size)
         # use fps instead of hop_size
         if fps:
-            # Note: using fps overwrites the hop_size
+            # overwrite the hop_size
             self._hop_size = self._signal.sample_rate / float(fps)
 
         # translate literal values
@@ -458,7 +563,7 @@ class FramedSignal(object):
             # determine the start sample
             start_sample = self.start + self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
-            return FramedSignal(self, frame_size=self.frame_size,
+            return FramedSignal(self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
         # other index types are invalid
@@ -508,3 +613,38 @@ class FramedSignal(object):
     def overlap_factor(self):
         """Overlap factor of two adjacent frames."""
         return 1.0 - self.hop_size / self.frame_size
+
+    def copy(self, frame_size=None, hop_size=None, fps=None, origin=None,
+             start=None, num_frames=None):
+        """
+        Copies the FramedSignal object and adjusts some parameters.
+
+        :param frame_size: size of one frame [int]
+        :param hop_size:   progress N samples between adjacent frames [float]
+        :param fps:        use given frames per second (instead of using
+                           `hop_size`; if set, this overwrites the `hop_size`
+                           value) [float]
+        :param origin:     location of the window relative to the signal
+                           position [int]
+        :param start:      start sample [int]
+        :param num_frames: number of frames to return
+        :return:           FramedSignal object with given parameters
+
+        """
+        # copy the object attributes unless overwritten by passing other values
+        if frame_size is None:
+            frame_size = self.frame_size
+        if hop_size is None:
+            hop_size = self.hop_size
+        if fps is None:
+            fps = self.fps
+        if origin is None:
+            origin = self.origin
+        if start is None:
+            start = self.start
+        if num_frames is None:
+            num_frames = self.num_frames
+        # return a new FramedSignal
+        return FramedSignal(self.signal, frame_size=frame_size,
+                            hop_size=hop_size, fps=fps, origin=origin,
+                            start=start, num_frames=num_frames)

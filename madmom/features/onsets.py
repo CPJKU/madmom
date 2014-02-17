@@ -631,7 +631,7 @@ class Onset(object):
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class
-        from ..utils.helpers import write_events
+        from ..utils import write_events
         write_events(self.detections, filename)
 
     def load(self, filename):
@@ -642,7 +642,7 @@ class Onset(object):
 
         """
         # TODO: put this (and the same in the Beat class) to an Event class
-        from ..utils.helpers import load_events
+        from ..utils import load_events
         self.targets = load_events(filename)
 
     def evaluate(self, filename=None, window=0.025):
@@ -755,7 +755,7 @@ def main():
     """
     import os.path
 
-    from ..utils.helpers import files
+    from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
     from ..audio.filterbank import LogarithmicFilterBank

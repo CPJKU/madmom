@@ -182,7 +182,7 @@ def main():
     Simple note evaluation.
 
     """
-    from ..utils.helpers import files, match_file
+    from ..utils import files, match_file
 
     # parse arguments
     args = parser()

@@ -1,12 +1,13 @@
 # Compiled python files
 *.pyc
 
-# Mac Finder files
-*.DS_Store
-
 # Python distutil files
 /dist/
 /MANIFEST
+
+# ipython notebook files
+.ipynb_checkpoints
+*.ipynb
 
 # Vim swap files
 *.swp
