@@ -317,10 +317,9 @@ class Spectrogram(object):
             spec = np.zeros([block_size, self.num_fft_bins])
 
         # calculate DFT for all frames
-        # TODO: make FramedSignal a proper iterable so we can use enumerate
-        for f in range(len(self.frames)):
+        for f, frame in enumerate(self.frames):
             # multiply the signal frame with the window function
-            signal = np.multiply(self.frames[f], self._fft_window)
+            signal = np.multiply(frame, self._fft_window)
             # only shift and perform complex DFT if needed
             if stft or phase or lgd:
                 # circular shift the signal (needed for correct phase)
