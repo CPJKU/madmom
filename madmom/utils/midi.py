@@ -1102,9 +1102,8 @@ class MIDIFile(object):
             if signatures is None and len(time_signature_events) > 0:
                 # convert to desired format
                 signatures = [(e.tick, e.numerator, e.denominator)
-                                   for e in time_signature_events]
-            elif signatures is not None and \
-                    len(time_signature_events) > 0:
+                              for e in time_signature_events]
+            elif signatures is not None and len(time_signature_events) > 0:
                 # time signature events should be contained only in the first
                 # track of a MIDI file, thus raise an error
                 raise ValueError('TimeSignatureEvent should be only in the '
