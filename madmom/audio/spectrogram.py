@@ -313,15 +313,13 @@ class Spectrogram(object):
                 block_size = self.block_size
             if not block_size or block_size > num_frames:
                 block_size = num_frames
-            # init block counter
-            block = 0
             # init a matrix of that size
             spec = np.zeros([block_size, self.num_fft_bins])
 
         # calculate DFT for all frames
-        for f in range(len(self.frames)):
+        for f, frame in enumerate(self.frames):
             # multiply the signal frame with the window function
-            signal = np.multiply(self.frames[f], self._fft_window)
+            signal = np.multiply(frame, self._fft_window)
             # only shift and perform complex DFT if needed
             if stft or phase or lgd:
                 # circular shift the signal (needed for correct phase)
@@ -351,19 +349,15 @@ class Spectrogram(object):
                 # no filtering needed, thus no block wise processing needed
                 self._spec[f] = np.abs(dft)
             else:
-                # filter in blocks
-                # magnitude spectrogram
+                # filter the magnitude spectrogram in blocks
                 spec[f % block_size] = np.abs(dft)
-                # end of a block or end of the signal reached
-                if (f + 1) / block_size > block or (f + 1) == num_frames:
-                    # filter with the given filterbank if needed
-                    if self.filterbank is not None:
-                        start = block * block_size
-                        stop = min(start + block_size, num_frames)
-                        self._spec[start:stop] = np.dot(spec[:stop - start],
-                                                        self.filterbank)
-                    # increase the block counter
-                    block += 1
+                # if the end of a block or end of the signal is reached
+                end_of_block = (f + 1) % block_size == 0
+                end_of_signal = (f + 1) == num_frames
+                if end_of_block or end_of_signal:
+                    start = f // block_size * block_size
+                    self._spec[start:f + 1] = np.dot(spec[:f % block_size + 1],
+                                                     self.filterbank)
 
         # take the logarithm if needed
         if self.log:

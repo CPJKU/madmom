@@ -542,7 +542,7 @@ class FramedSignal(object):
         # a single index is given
         if isinstance(index, int):
             # return a single frame
-            if index <= self.num_frames:
+            if index < self.num_frames:
                 # return the frame at this index
                 # subtract the origin from the start position and use as offset
                 return signal_frame(self.signal.data, index,
