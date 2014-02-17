@@ -356,9 +356,8 @@ class Spectrogram(object):
                 end_of_signal = (f + 1) == num_frames
                 if end_of_block or end_of_signal:
                     start = f // block_size * block_size
-                    stop = min(f + 1, num_frames)
-                    self._spec[start:stop] = np.dot(spec[:f % block_size + 1],
-                                                    self.filterbank)
+                    self._spec[start:f + 1] = np.dot(spec[:f % block_size + 1],
+                                                     self.filterbank)
 
         # take the logarithm if needed
         if self.log:
