@@ -151,12 +151,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         if isinstance(other, TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
         else:
-            raise TypeError("Can't append to TempoEvaluation.")
-
-    @property
-    def num(self):
-        """Number of evaluated files."""
-        return len(self._pscore)
+            raise TypeError('can only append TempoEvaluation (not "%s") to '
+                            'MeanTempoEvaluation' % type(other).__name__)
 
     @property
     def pscore(self):

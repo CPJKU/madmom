@@ -564,7 +564,8 @@ class MeanBeatEvaluation(BeatEvaluation):
                 # otherwise just add them
                 self._error_histogram += other.error_histogram
         else:
-            raise TypeError("Can't append to MeanBeatEvaluation.")
+            raise TypeError('can only append BeatEvaluation (not "%s") to '
+                            'MeanBeatEvaluation' % type(other).__name__)
 
     @property
     def num(self):
