@@ -140,9 +140,10 @@ class MeanTempoEvaluation(TempoEvaluation):
         self._pscore = np.zeros(0)
 
     # for adding another TempoEvaluation object
-    def __iadd__(self, other):
+    def append(self, other):
         """
-        Appends the scores of another TempoEvaluation object.
+        Appends the scores of another TempoEvaluation object to the respective
+        arrays.
 
         :param other: TempoEvaluation object
 
@@ -150,12 +151,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         if isinstance(other, TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
         else:
-            return NotImplemented
-
-    @property
-    def num(self):
-        """Number of evaluated files."""
-        return len(self._pscore)
+            raise TypeError('can only append TempoEvaluation (not "%s") to '
+                            'MeanTempoEvaluation' % type(other).__name__)
 
     @property
     def pscore(self):

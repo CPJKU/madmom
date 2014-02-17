@@ -93,7 +93,7 @@ class MFCC(Cepstrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.spectrogram.frames.signal.sample_rate
-            fb = MelFilterBank(fft_bins=self.spectrogram.num_fft_bins,
+            fb = MelFilterBank(num_fft_bins=self.spectrogram.num_fft_bins,
                                sample_rate=sample_rate,
                                bands=mel_bands, fmin=fmin, fmax=fmax,
                                norm=norm_filters)

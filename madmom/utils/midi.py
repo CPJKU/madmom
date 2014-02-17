@@ -37,6 +37,8 @@ import math
 import struct
 import numpy as np
 
+from ..utils import open
+
 # constants
 OCTAVE_MAX_VALUE = 12
 OCTAVE_VALUES = range(OCTAVE_MAX_VALUE)
@@ -530,17 +532,6 @@ class SysExEvent(Event):
         return cls.status_msg == status_msg
 
 
-class SequenceNumberMetaEvent(MetaEvent):
-    """
-    Sequence Number Meta Event.
-
-    """
-    register = True
-    meta_command = 0x00
-    length = 2
-    name = 'Sequence Number'
-
-
 class MetaEventWithText(MetaEvent):
     """
     Meta Event With Text.
@@ -553,6 +544,17 @@ class MetaEventWithText(MetaEvent):
 
     def __str__(self):
         return "%s: %s" % (self.__class__.__name__, self.text)
+
+
+class SequenceNumberMetaEvent(MetaEvent):
+    """
+    Sequence Number Meta Event.
+
+    """
+    register = True
+    meta_command = 0x00
+    length = 2
+    name = 'Sequence Number'
 
 
 class TextMetaEvent(MetaEventWithText):
@@ -1195,15 +1197,10 @@ class MIDIFile(object):
         """
         Read in a midi file.
 
-        :param midi_file: the midi file name
+        :param midi_file: the midi file name or file handle
 
         """
-        close_file = False
-        # open file if needed
-        if isinstance(midi_file, basestring):
-            midi_file = open(midi_file, 'rb')
-            close_file = True
-        try:
+        with open(midi_file, 'rb') as midi_file:
             # read in file header
             # first four bytes are MIDI header
             chunk = midi_file.read(4)
@@ -1249,10 +1246,6 @@ class MIDIFile(object):
                 # read in one track and append it to the tracks list
                 track = MidiTrack().read(midi_file)
                 self.tracks.append(track)
-        finally:
-            # close file if needed
-            if close_file:
-                midi_file.close()
         # return the object
         return self
 
@@ -1264,12 +1257,7 @@ class MIDIFile(object):
         :param midi_file: the MIDI file handle
 
         """
-        close_file = False
-        # open file if needed
-        if isinstance(midi_file, basestring):
-            midi_file = open(midi_file, 'wb')
-            close_file = True
-        try:
+        with open(midi_file, 'rb') as midi_file:
             # write a MIDI header
             header_data = struct.pack(">LHHH", 6, self.format,
                                       len(self.tracks), self.resolution)
@@ -1278,7 +1266,3 @@ class MIDIFile(object):
             for track in self.tracks:
                 # write each track to file
                 track.write(midi_file)
-        # close file if needed
-        finally:
-            if close_file:
-                midi_file.close()

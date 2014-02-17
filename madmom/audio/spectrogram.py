@@ -539,16 +539,14 @@ class Spectrogram(object):
             mul = self.mul
         if add is None:
             add = self.add
-        if norm_window is None:
-            norm_window = self.norm_window
         if fft_size is None:
             fft_size = self.fft_size
         if block_size is None:
             block_size = self.block_size
-        if norm_window is None:
+        if ratio is None:
             ratio = self.ratio
         if diff_frames is None:
-            diff_frames = self.diff_frames
+            diff_frames = self.num_diff_frames
         # return a new FramedSignal
         return Spectrogram(self.frames, window=window, filterbank=filterbank,
                            log=log, mul=mul, add=add, norm_window=norm_window,
