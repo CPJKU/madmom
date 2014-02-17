@@ -335,22 +335,23 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
         x = np.ravel(x)  # may copy
         axis = 0
 
-    l = x.shape[axis]
+    length = x.shape[axis]
 
     if hop_size <= 0:
         raise ValueError("hop_size must be positive.")
     if frame_size <= 0:
         raise ValueError("frame_size must be positive.")
 
-    if l < frame_size or (l - frame_size) % hop_size:
-        if l > frame_size:
-            roundup = frame_size + (1 + (l - frame_size) // hop_size) *\
-                      hop_size
-            rounddown = frame_size + ((l - frame_size) // hop_size) * hop_size
+    if length < frame_size or (length - frame_size) % hop_size:
+        if length > frame_size:
+            roundup = (frame_size + (1 + (length - frame_size) // hop_size) *
+                       hop_size)
+            rounddown = (frame_size + ((length - frame_size) // hop_size) *
+                         hop_size)
         else:
             roundup = frame_size
             rounddown = 0
-        assert rounddown < l < roundup
+        assert rounddown < length < roundup
         assert roundup == rounddown + hop_size or (roundup == frame_size and
                                                    rounddown == 0)
         x = x.swapaxes(-1, axis)
@@ -362,26 +363,25 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
             s = list(x.shape)
             s[-1] = roundup
             y = np.empty(s, dtype=x.dtype)
-            y[..., :l] = x
+            y[..., :length] = x
             if end == 'pad':
-                y[..., l:] = end_value
+                y[..., length:] = end_value
             elif end == 'wrap':
-                y[..., l:] = x[..., :roundup - l]
+                y[..., length:] = x[..., :roundup - length]
             x = y
 
         x = x.swapaxes(-1, axis)
 
-    l = x.shape[axis]
-    if l == 0:
+    length = x.shape[axis]
+    if length == 0:
         raise ValueError("Not enough data points to segment array in 'cut' "
                          "mode; try 'pad' or 'wrap'")
-    assert l >= frame_size
-    assert (l - frame_size) % hop_size == 0
-    n = 1 + (l - frame_size) // hop_size
+    assert length >= frame_size
+    assert (length - frame_size) % hop_size == 0
+    n = 1 + (length - frame_size) // hop_size
     s = x.strides[axis]
     new_shape = x.shape[:axis] + (n, frame_size) + x.shape[axis + 1:]
-    new_strides = x.strides[:axis] + (hop_size * s, s) +\
-                  x.strides[axis + 1:]
+    new_strides = x.strides[:axis] + (hop_size * s, s) + x.strides[axis + 1:]
 
     try:
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
@@ -392,8 +392,8 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
         warnings.warn("Problem with ndarray creation forces copy.")
         x = x.copy()
         # Shape doesn't change but strides does
-        new_strides = x.strides[:axis] + (hop_size * s, s) +\
-                      x.strides[axis + 1:]
+        new_strides = (x.strides[:axis] + (hop_size * s, s) +
+                       x.strides[axis + 1:])
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
                                   shape=new_shape, buffer=x, dtype=x.dtype)
 

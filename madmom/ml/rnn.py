@@ -479,8 +479,8 @@ class RecurrentNeuralNetwork(object):
             if '%s_type' % REVERSE in params.keys():
                 # pop the parameters needed for the reverse (backward) layer
                 bwd_type = params.pop('%s_type' % REVERSE)
-                bwd_params = dict((k.split('_', 1)[1], params.pop(k)) \
-                                  for k in params.keys() if \
+                bwd_params = dict((k.split('_', 1)[1], params.pop(k))
+                                  for k in params.keys() if
                                   k.startswith('%s_' % REVERSE))
                 # construct the layer
                 bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)

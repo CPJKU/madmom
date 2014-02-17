@@ -660,7 +660,7 @@ def main():
                          min_bpm=args.min_bpm, max_bpm=args.max_bpm)
             else:
                 b.track(args.threshold, delay=args.delay, smooth=args.smooth,
-                         min_bpm=args.min_bpm, max_bpm=args.max_bpm)
+                        min_bpm=args.min_bpm, max_bpm=args.max_bpm)
             # write the beats to a file
             b.write("%s.%s" % (filename, args.ext))
             # also output them to stdout if vebose
