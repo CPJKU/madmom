@@ -429,6 +429,7 @@ class Evaluation(SimpleEvaluation):
 
     @property
     def tp(self):
+        """True positive detections."""
         return self._tp
 
     @property
@@ -438,6 +439,7 @@ class Evaluation(SimpleEvaluation):
 
     @property
     def fp(self):
+        """False positive detections."""
         return self._fp
 
     @property
@@ -447,6 +449,7 @@ class Evaluation(SimpleEvaluation):
 
     @property
     def tn(self):
+        """True negative detections."""
         return self._tn
 
     @property
@@ -456,6 +459,7 @@ class Evaluation(SimpleEvaluation):
 
     @property
     def fn(self):
+        """False negative detections."""
         return self._fn
 
     @property

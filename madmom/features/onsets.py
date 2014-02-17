@@ -634,35 +634,6 @@ class Onset(object):
         from ..utils import write_events
         write_events(self.detections, filename)
 
-    def load(self, filename):
-        """
-        Load the target onsets from a file.
-
-        :param filename: input file name or file handle
-
-        """
-        # TODO: put this (and the same in the Beat class) to an Event class
-        from ..utils import load_events
-        self.targets = load_events(filename)
-
-    def evaluate(self, filename=None, window=0.025):
-        """
-        Evaluate the detected onsets against this target file.
-
-        :param filename: target file name or file handle
-        :param window:   evaluation window [seconds]
-
-        """
-        if filename:
-            # load the targets
-            self.load(filename)
-        if self.targets is None:
-            # no targets given, can't evaluate
-            return None
-        # evaluate
-        from ..evaluation.onsets import OnsetEvaluation
-        return OnsetEvaluation(self.detections, self.targets, window)
-
     def save_activations(self, filename, sep=''):
         """
         Save the onset activations to a file.

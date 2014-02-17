@@ -499,17 +499,6 @@ class Beat(object):
         from ..utils import write_events
         write_events(self.detections, filename)
 
-    def load(self, filename):
-        """
-        Load the target beats from a file.
-
-        :param filename: input file name or file handle
-
-        """
-        # TODO: put this (and the same in the Onset class) to an Event class
-        from ..utils import load_events
-        self.targets = load_events(filename)
-
     def save_activations(self, filename, sep=''):
         """
         Save the beat activations to a file.

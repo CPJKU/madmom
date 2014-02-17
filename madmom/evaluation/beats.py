@@ -506,11 +506,11 @@ class BeatEvaluation(OnsetEvaluation):
         if tex:
             print 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & '\
                   'AMLt & D & Dg \\\\'
-            print '%i file(s) & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
+            print '& %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
                   '%.3f & %.3f & %.3f\\\\' %\
-                  (self.num, self.fmeasure, self.pscore, self.cemgil,
-                   self.cmlc, self.cmlt, self.amlc, self.amlt,
-                   self.information_gain, self.global_information_gain)
+                  (self.fmeasure, self.pscore, self.cemgil, self.cmlc,
+                   self.cmlt, self.amlc, self.amlt, self.information_gain,
+                   self.global_information_gain)
 
 
 class MeanBeatEvaluation(BeatEvaluation):
@@ -564,7 +564,8 @@ class MeanBeatEvaluation(BeatEvaluation):
                 # otherwise just add them
                 self._error_histogram += other.error_histogram
         else:
-            raise TypeError("Can't append to MeanBeatEvaluation.")
+            raise TypeError('can only append BeatEvaluation (not "%s") to '
+                            'MeanBeatEvaluation' % type(other).__name__)
 
     @property
     def num(self):

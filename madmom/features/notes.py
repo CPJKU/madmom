@@ -11,6 +11,8 @@ import numpy as np
 import scipy.ndimage as sim
 import scipy.signal as sig
 
+from ..utils import open
+
 
 def load_notes(filename):
     """
@@ -20,20 +22,8 @@ def load_notes(filename):
     :returns:        numpy array with notes
 
     """
-    own_fid = False
-    # open file if needed
-    if isinstance(filename, basestring):
-        fid = open(filename, 'rb')
-        own_fid = True
-    else:
-        fid = filename
-    try:
-        # read in the events, one per line
-        return np.loadtxt(fid)
-    finally:
-        # close file if needed
-        if own_fid:
-            fid.close()
+    with open(filename, 'rb') as f:
+        return np.loadtxt(f)
 
 
 # universal peak-picking method
@@ -216,43 +206,21 @@ class NoteTranscription(object):
         # also return the detections
         return self.detections
 
-    def write(self, output, sep='\t'):
+    def write(self, filename, sep='\t'):
         """
         Write the detected notes to a file.
 
-        :param output: output file name or file handle
-        :param sep:    separator for the fields [default='\t']
+        :param filename: output file name or file handle
+        :param sep:      separator for the fields [default='\t']
 
         Note: detect() method must be called first.
 
         """
         # write the detected notes to the output
-        for note in self.detections:
-            output.write(sep.join([str(x) for x in note]) + '\n')
-
-    def load(self, filename):
-        """
-        Load the target notes from a file.
-
-        :param filename: input file name or file handle
-
-        """
-        own_fid = False
-        # open file if needed
-        if isinstance(filename, basestring):
-            fid = open(filename, 'rb')
-            own_fid = True
-        else:
-            fid = filename
-        try:
-            # read in the events, one per line
-            # 1st column is the event's time, the rest is ignored
-            return np.fromiter((float(line.split(None, 1)[0]) for line in fid
-                                if not line.startswith('#')), dtype=np.float)
-        finally:
-            # close file if needed
-            if own_fid:
-                fid.close()
+        with open(filename, 'wb') as f:
+            for note in self.detections:
+                # f.writelines('%g\n' % e for e in events)
+                f.write(sep.join([str(x) for x in note]) + '\n')
 
     def save_activations(self, filename):
         """

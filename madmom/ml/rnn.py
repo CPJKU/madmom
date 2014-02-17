@@ -345,16 +345,16 @@ class Gate(Cell):
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
         self.peephole_weights = peephole_weights
 
-    def activate(self, data, state, out):
+    def activate(self, data, out, state):
         """
         Activate the cell with the given data, state (if peephole connections
         are used) and the output (if recurrent connections are used).
 
         :param data:  input data for the cell (1D vector or scalar)
-        :param state: state data of the {current | previous} time step (1D
-                      vector or scalar)
         :param out:   output data of the previous time step (1D vector or
                       scalar)
+        :param state: state data of the {current | previous} time step (1D
+                      vector or scalar)
         :returns:     activations of the cell
 
         """
@@ -414,10 +414,10 @@ class LSTMLayer(object):
         for i in range(size):
             # input gate:
             # operate on current data, previous state and previous output
-            ig = self.input_gate.activate(data[i], state[i - 1], out[i - 1])
+            ig = self.input_gate.activate(data[i], out[i - 1], state[i - 1])
             # forget gate:
             # operate on current data, previous state and previous output
-            fg = self.forget_gate.activate(data[i], state[i - 1], out[i - 1])
+            fg = self.forget_gate.activate(data[i], out[i - 1], state[i - 1])
             # cell:
             # operate on current data and previous output
             cell = self.cell.activate(data[i], out[i - 1])
@@ -427,7 +427,7 @@ class LSTMLayer(object):
             state[i] = cell * ig + state[i - 1] * fg
             # output gate:
             # operate on current data, current state and previous output
-            og = self.output_gate.activate(data[i], state[i], out[i - 1])
+            og = self.output_gate.activate(data[i], out[i - 1], state[i])
             # output:
             # apply transfer function to state and weight by output gate
             out[i] = tanh(state[i]) * og
