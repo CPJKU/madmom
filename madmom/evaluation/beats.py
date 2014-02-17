@@ -499,17 +499,18 @@ class BeatEvaluation(OnsetEvaluation):
         """
         # report the scores always in the range 0..1, because of formatting
         print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: '\
-              '%.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % (self.fmeasure,
-              self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc,
-              self.amlt, self.information_gain, self.global_information_gain)
+              '%.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' %\
+              (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt,
+               self.amlc, self.amlt, self.information_gain,
+               self.global_information_gain)
         if tex:
             print 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & '\
                   'AMLt & D & Dg \\\\'
             print '%i file(s) & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                  '%.3f & %.3f & %.3f\\\\' % (self.num, self.fmeasure,
-                  self.pscore, self.cemgil, self.cmlc, self.cmlt, self.amlc,
-                  self.amlt, self.information_gain,
-                  self.global_information_gain)
+                  '%.3f & %.3f & %.3f\\\\' %\
+                  (self.num, self.fmeasure, self.pscore, self.cemgil,
+                   self.cmlc, self.cmlt, self.amlc, self.amlt,
+                   self.information_gain, self.global_information_gain)
 
 
 class MeanBeatEvaluation(BeatEvaluation):

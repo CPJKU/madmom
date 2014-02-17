@@ -261,8 +261,10 @@ class SimpleEvaluation(object):
                   'False Positives & Accuracy & Mean & Std.dev\\\\'
             print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
                   '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
-                  self.recall, self.fmeasure, tpr, fpr, self.accuracy,
-                  self.mean_error * 1000., self.std_error * 1000.)
+                                             self.recall, self.fmeasure,
+                                             tpr, fpr, self.accuracy,
+                                             self.mean_error * 1000.,
+                                             self.std_error * 1000.)
 
 
 # class for summing Evaluations
