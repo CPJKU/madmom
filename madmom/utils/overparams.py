@@ -94,8 +94,8 @@ class OverridableParameters(object):
         pre_args, _ = self.parser.parse_known_args()
 
         # re-new the parser
-        self.parser = argparse.ArgumentParser(description=description,
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        self.parser = (argparse.ArgumentParser(description=description,
+                       formatter_class=argparse.ArgumentDefaultsHelpFormatter))
 
         config = yaml.load(open(pre_args.actualconfigfilename),
                            OrderedDictYAMLLoader)

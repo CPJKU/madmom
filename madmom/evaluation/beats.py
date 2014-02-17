@@ -702,7 +702,7 @@ def main():
     Simple beat evaluation.
 
     """
-    from ..utils.helpers import files, match_file, load_events
+    from ..utils import files, match_file, load_events
 
     # parse arguments
     args = parser()

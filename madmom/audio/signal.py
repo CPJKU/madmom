@@ -239,10 +239,10 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
 
     :param x:          the signal (numpy array)
     :param index:      the index of the frame to return
-    :param frame_size: size of one frame in samples
-    :param hop_size:   progress N samples between adjacent frames
+    :param frame_size: size of each frame in samples
+    :param hop_size:   the hop size in samples between adjacent frames
     :param offset:     position of the first sample inside the signal
-    :returns:          the requested single frame of the audio signal
+    :returns:          the requested frame of the signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
     each following frame is placed `hop_size` samples after the previous one.
@@ -282,9 +282,9 @@ def strided_frames(x, frame_size, hop_size):
     Returns a 2D representation of the signal with overlapping frames.
 
     :param x:          the signal (numpy array)
-    :param frame_size: size of each frame
+    :param frame_size: size of each frame in samples
     :param hop_size:   the hop size in samples between adjacent frames
-    :returns:          the framed signal
+    :returns:          2D array with overlapping frames
 
     Note: This function is here only for completeness. It is faster only in
           rare circumstances. Also, seeking to the right position is only
@@ -293,13 +293,109 @@ def strided_frames(x, frame_size, hop_size):
     """
     # init variables
     samples = np.shape(x)[0]
-    print samples
     # FIXME: does seeking only the right way for integer hop_size
     # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
     as_strided = np.lib.stride_tricks.as_strided
     # return the strided array
     return as_strided(x, (samples, frame_size),
                       (x.strides[0], x.strides[0]))[::hop_size]
+
+
+# taken from: http://www.scipy.org/Cookbook/SegmentAxis
+def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
+    """
+    Generate a new array that chops the given array along the given axis into
+    overlapping frames.
+
+    :param x:          the signal (numpy array)
+    :param frame_size: size of each frame in samples
+    :param hop_size:   the hop size in samples between adjacent frames
+    :param axis:       axis to operate on; if None, act on the flattened array
+    :param end:        what to do with the last frame, if the array is not
+                       evenly divisible into pieces; possible values:
+                       'cut'  simply discard the extra values
+                       'wrap' copy values from the beginning of the array
+                       'pad'  pad with a constant value
+    :param end_value:  value to use for end='pad'
+    :returns:          2D array with overlapping frames
+
+    The array is not copied unless necessary (either because it is unevenly
+    strided and being flattened or because end is set to 'pad' or 'wrap').
+
+    Example:
+    >>> segment_axis(np.arange(10), 4, 2)
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 5],
+           [4, 5, 6, 7],
+           [6, 7, 8, 9]])
+
+    """
+
+    if axis is None:
+        x = np.ravel(x)  # may copy
+        axis = 0
+
+    length = x.shape[axis]
+
+    if hop_size <= 0:
+        raise ValueError("hop_size must be positive.")
+    if frame_size <= 0:
+        raise ValueError("frame_size must be positive.")
+
+    if length < frame_size or (length - frame_size) % hop_size:
+        if length > frame_size:
+            roundup = (frame_size + (1 + (length - frame_size) // hop_size) *
+                       hop_size)
+            rounddown = (frame_size + ((length - frame_size) // hop_size) *
+                         hop_size)
+        else:
+            roundup = frame_size
+            rounddown = 0
+        assert rounddown < length < roundup
+        assert roundup == rounddown + hop_size or (roundup == frame_size and
+                                                   rounddown == 0)
+        x = x.swapaxes(-1, axis)
+
+        if end == 'cut':
+            x = x[..., :rounddown]
+        elif end in ['pad', 'wrap']:
+            # need to copy
+            s = list(x.shape)
+            s[-1] = roundup
+            y = np.empty(s, dtype=x.dtype)
+            y[..., :length] = x
+            if end == 'pad':
+                y[..., length:] = end_value
+            elif end == 'wrap':
+                y[..., length:] = x[..., :roundup - length]
+            x = y
+
+        x = x.swapaxes(-1, axis)
+
+    length = x.shape[axis]
+    if length == 0:
+        raise ValueError("Not enough data points to segment array in 'cut' "
+                         "mode; try 'pad' or 'wrap'")
+    assert length >= frame_size
+    assert (length - frame_size) % hop_size == 0
+    n = 1 + (length - frame_size) // hop_size
+    s = x.strides[axis]
+    new_shape = x.shape[:axis] + (n, frame_size) + x.shape[axis + 1:]
+    new_strides = x.strides[:axis] + (hop_size * s, s) + x.strides[axis + 1:]
+
+    try:
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=x, dtype=x.dtype)
+    except TypeError:
+        # TODO: remove warning?
+        import warnings
+        warnings.warn("Problem with ndarray creation forces copy.")
+        x = x.copy()
+        # Shape doesn't change but strides does
+        new_strides = (x.strides[:axis] + (hop_size * s, s) +
+                       x.strides[axis + 1:])
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=x, dtype=x.dtype)
 
 
 # default values for splitting a signal into overlapping frames

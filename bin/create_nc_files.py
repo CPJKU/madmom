@@ -65,8 +65,7 @@ def main():
     import os
     from madmom.audio.wav import Wav
     from madmom.audio.spectrogram import LogFiltSpec
-    from madmom.utils.helpers import (files, match_file, load_events,
-                                      quantize_events)
+    from madmom.utils import files, match_file, load_events, quantize_events
 
     # treat all files as annotation files and try to create .nc files
     for f in args.files:
