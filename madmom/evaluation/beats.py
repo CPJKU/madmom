@@ -139,16 +139,16 @@ def pscore(detections, targets, tolerance):
     # since we need an interval for the calculation of the score, at least two
     # targets must be given
     # FIXME: what if only 1 target and detection are given; same with none?
-    if detections.size == 0 or targets.size < 2:
-        return 0
+    if len(detections) == 0 or len(targets) < 2:
+        return 0.
     # the error window is the given fraction of the median beat interval
     window = tolerance * np.median(np.diff(targets))
     # errors
     errors = calc_absolute_errors(detections, targets)
     # count the instances where the error is smaller or equal than the window
-    p = detections[errors <= window].size
+    p = len(detections[errors <= window])
     # normalize by the max number of detections/targets
-    p /= float(max(detections.size, targets.size))
+    p /= float(max(len(detections), len(targets)))
     # return p-score
     return p
 
@@ -168,9 +168,9 @@ def cemgil(detections, targets, sigma):
 
     """
     # beat accuracy is initially zero
-    acc = 0
+    acc = 0.
     # no detections
-    if detections.size == 0:
+    if len(detections) == 0:
         return acc
     # determine the absolute errors of the detections to the closest targets
     # Note: the original implementation searches for the closest matches of
@@ -213,8 +213,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
 
     """
     # at least 2 detections and targets are needed to calculate the intervals
-    if min(detections.size, targets.size) < 2:
-        return 0, 0
+    if min(len(detections), len(targets)) < 2:
+        return 0., 0.
     # determine closest targets to detections
     closest = find_closest_matches(detections, targets)
     # errors of the detections wrt. to the targets
@@ -238,15 +238,16 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     # convert on indices
     correct_idx = np.searchsorted(detections, correct)
     # add a fake start and end
+    # TODO: find a better solution for this!
     correct_idx = np.append(-5, correct_idx)
-    correct_idx = np.append(correct_idx, detections.size + 5)
+    correct_idx = np.append(correct_idx, len(detections) + 5)
     # get continuous segment
     segments = np.nonzero(np.diff(correct_idx) != 1)[0]
     # determine the max length of those segment
-    if segments.size == 0:
+    if len(segments) == 0:
         # all detections are correct
-        cont = detections.size
-    elif segments.size == 1:
+        cont = len(detections)
+    elif len(segments) == 1:
         # only one long segment
         cont = segments
     else:
@@ -290,7 +291,7 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     """
     # needs at least 2 detections and targets to interpolate
     if min(len(targets), len(detections)) < 2:
-        return 0, 0, 0, 0
+        return 0., 0., 0., 0.
 
     # create a target sequence with double tempo
     same = np.arange(0, len(targets))
@@ -343,9 +344,9 @@ def information_gain(detections, targets, bins):
 
     """
     # in case of no detections
-    if detections.size == 0 or targets.size < 2:
+    if len(detections) == 0 or len(targets) < 2:
         # return information gain = 0 and a uniform beat error histogram
-        return 0, np.ones(bins) * len(targets) / bins
+        return 0., np.ones(bins) * len(targets) / float(bins)
 
     # only allow even number of bins
     if bins % 2 != 0:
@@ -427,7 +428,7 @@ def calc_information_gain(error_histogram):
     # calculate entropy
     entropy = - np.sum(histogram * np.log2(histogram))
     # return information gain
-    return np.log2(histogram.size) - entropy
+    return np.log2(len(histogram)) - entropy
 
 
 # default evaluation values

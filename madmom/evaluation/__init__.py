@@ -22,7 +22,7 @@ def find_closest_matches(detections, targets):
     :param targets:    sequence of possible matches [seconds]
     :returns:          a numpy array of indices with closest matches
 
-    Note: the sequences must be ordered!
+    Note: The sequences must be ordered!
 
     """
     # if no targets are given
@@ -54,7 +54,7 @@ def calc_errors(detections, targets, matches=None):
     :param matches:    indices of the closest matches
     :returns:          a list of errors to closest matches [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list
+    Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
 
     """
@@ -77,7 +77,7 @@ def calc_absolute_errors(detections, targets, matches=None):
     :param matches:    indices of the closest matches
     :returns:          a list of errors to closest matches [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list
+    Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
 
     """
@@ -95,7 +95,7 @@ def calc_relative_errors(detections, targets, matches=None):
     :param matches:    indices of the closest matches
     :returns:          a list of relative errors to closest matches [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list of
+    Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
@@ -233,7 +233,7 @@ class SimpleEvaluation(object):
         """Errors."""
         # if any errors are given, they have to be the same length as the true
         # positive detections
-        if self._errors.any() and len(self._errors) != self._num_tp:
+        if len(self._errors) != self._num_tp:
             raise AssertionError("length of the errors and number of true "
                                  "positive detections must match")
         return self._errors
@@ -241,14 +241,14 @@ class SimpleEvaluation(object):
     @property
     def mean_error(self):
         """Mean of the errors."""
-        if not self.errors.any():
+        if len(self.errors) == 0:
             return 0.
         return np.mean(self.errors)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        if not self.errors.any():
+        if len(self.errors) == 0:
             return 0.
         return np.std(self.errors)
 
@@ -339,77 +339,77 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        if self._num_tp.size == 0:
+        if len(self._num_tp) == 0:
             return 0.
         return np.mean(self._num_tp)
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        if self._num_fp.size == 0:
+        if len(self._num_fp) == 0:
             return 0.
         return np.mean(self._num_fp)
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        if self._num_tn.size == 0:
+        if len(self._num_tn) == 0:
             return 0.
         return np.mean(self._num_tn)
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        if self._num_fn.size == 0:
+        if len(self._num_fn) == 0:
             return 0.
         return np.mean(self._num_fn)
 
     @property
     def precision(self):
         """Precision."""
-        if self._precision.size == 0:
+        if len(self._precision) == 0:
             return 0.
         return np.mean(self._precision)
 
     @property
     def recall(self):
         """Recall."""
-        if self._recall.size == 0:
+        if len(self._recall) == 0:
             return 0.
         return np.mean(self._recall)
 
     @property
     def fmeasure(self):
         """F-measure."""
-        if self._fmeasure.size == 0:
+        if len(self._fmeasure) == 0:
             return 0.
         return np.mean(self._fmeasure)
 
     @property
     def accuracy(self):
         """Accuracy."""
-        if self._accuracy.size == 0:
+        if len(self._accuracy) == 0:
             return 0.
         return np.mean(self._accuracy)
 
     @property
     def errors(self):
         """Errors."""
-        if self._errors.size == 0:
+        if len(self._errors) == 0:
             return 0.
         return self._errors
 
     @property
     def mean_error(self):
         """Mean of the errors."""
-        if self._mean.size == 0:
+        if len(self._mean) == 0:
             return 0.
         return np.mean(self._mean)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        if self._std.size == 0:
+        if len(self._std) == 0:
             return 0.
         return np.mean(self._std)
 

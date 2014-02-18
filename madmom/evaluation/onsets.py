@@ -34,7 +34,7 @@ def onset_evaluation(detections, targets, window):
     tn: array with true negative detections (this one is empty!)
     fn: array with false negative detections
 
-    Note: the true negative array is empty, because we are not interested in
+    Note: The true negative array is empty, because we are not interested in
           this class, since it is ~20 times as big as the onset class.
 
     """
@@ -55,7 +55,7 @@ def onset_evaluation(detections, targets, window):
         d = det[det_index]
         # fetch the first target
         t = tar[tar_index]
-        # shift with delay
+        # compare them
         if abs(d - t) <= window:
             # TP detection
             tp.append(d)
@@ -69,7 +69,7 @@ def onset_evaluation(detections, targets, window):
             det_index += 1
             # do not increase the target index
         elif d > t:
-            # we missed a target, thus FN
+            # we missed a target: FN
             fn.append(t)
             # do not increase the detection index
             # increase the target index
