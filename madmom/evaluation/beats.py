@@ -548,6 +548,7 @@ class MeanBeatEvaluation(BeatEvaluation):
 
         """
         if isinstance(other, BeatEvaluation):
+            # append the scores to the arrays
             self._fmeasure = np.append(self._fmeasure, other.fmeasure)
             self._pscore = np.append(self._pscore, other.pscore)
             self._cemgil = np.append(self._cemgil, other.cemgil)
@@ -565,8 +566,9 @@ class MeanBeatEvaluation(BeatEvaluation):
                 # otherwise just add them
                 self._error_histogram += other.error_histogram
         else:
-            raise TypeError('can only append BeatEvaluation (not "%s") to '
-                            'MeanBeatEvaluation' % type(other).__name__)
+            raise TypeError('Can only append BeatEvaluation to '
+                            'MeanBeatEvaluation, not %s' %
+                            type(other).__name__)
 
     @property
     def num(self):

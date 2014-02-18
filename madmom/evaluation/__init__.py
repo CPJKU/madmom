@@ -145,10 +145,12 @@ class SimpleEvaluation(object):
             self._num_tn += other.num_tn
             self._num_fn += other.num_fn
             # extend the errors array
-            self._errors = np.append(self.errors, other.errors)
+            self._errors = np.append(self._errors, other.errors)
             return self
         else:
-            raise TypeError("Can't add %s to SimpleEvaluation." % type(other))
+            raise TypeError('Can only add SimpleEvaluation or derived class '
+                            'to SimpleEvaluation, not %s' %
+                            type(other).__name__)
 
     # for adding two SimpleEvaluation objects
     def __add__(self, other):
@@ -161,11 +163,13 @@ class SimpleEvaluation(object):
             new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
             # modify the hidden variable directly
             # (needed for correct inheritance)
-            new._errors = np.append(self.errors, other.errors)
+            new._errors = np.append(self._errors, other.errors)
             # return the newly created object
             return new
         else:
-            raise TypeError("Can't add %s to SimpleEvaluation." % type(other))
+            raise TypeError('Can only add SimpleEvaluation or derived class '
+                            'to SimpleEvaluation, not %s' %
+                            type(other).__name__)
 
     @property
     def num_tp(self):
@@ -230,7 +234,11 @@ class SimpleEvaluation(object):
 
     @property
     def errors(self):
-        """Errors."""
+        """
+        Errors of the true positive detections relative to the corresponding
+        targets.
+
+        """
         # if any errors are given, they have to be the same length as the true
         # positive detections
         if len(self._errors) > 0 and len(self._errors) != self._num_tp:
@@ -279,6 +287,38 @@ class SimpleEvaluation(object):
                                              self.mean_error * 1000.,
                                              self.std_error * 1000.)
 
+#    def __str__(self):
+#        """
+#        Print errors.
+#
+#        :param tex: output format to be used in .tex files
+#
+#        """
+#        # print the errors
+#        targets = self.num_tp + self.num_fn
+#        tpr = self.recall
+#        fpr = (1 - self.precision)
+#        return '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f '\
+#               'f=%.3f\n  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms '\
+#               'std: %.1f ms' % (targets, self.num_tp, self.num_fp,
+#                                 self.num_fn, self.precision, self.recall,
+#                                 self.fmeasure, tpr * 100., fpr * 100.,
+#                                 self.accuracy * 100., self.mean_error * 1000.,
+#                                 self.std_error * 1000.)
+#
+#    def print_tex(self):
+#        targets = self.num_tp + self.num_fn
+#        tpr = self.recall
+#        fpr = (1 - self.precision)
+#        print 'tex & Precision & Recall & F-measure & True Positives & '\
+#              'False Positives & Accuracy & Mean & Std.dev\\\\'
+#        print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
+#              '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
+#                                         self.recall, self.fmeasure,
+#                                         tpr, fpr, self.accuracy,
+#                                         self.mean_error * 1000.,
+#                                         self.std_error * 1000.)
+
 
 # class for summing Evaluations
 SumEvaluation = SimpleEvaluation
@@ -296,45 +336,45 @@ class MeanEvaluation(SimpleEvaluation):
 
         """
         super(MeanEvaluation, self).__init__()
-        # redefine most of the stuff
-        self._precision = np.zeros(0)
-        self._recall = np.zeros(0)
-        self._fmeasure = np.zeros(0)
-        self._accuracy = np.zeros(0)
-        self._mean = np.zeros(0)
-        self._std = np.zeros(0)
-        self._errors = np.zeros(0)
+        # redefine most of the stuff as arrays so we can average them
         self._num_tp = np.zeros(0)
         self._num_fp = np.zeros(0)
         self._num_tn = np.zeros(0)
         self._num_fn = np.zeros(0)
+        self._precision = np.zeros(0)
+        self._recall = np.zeros(0)
+        self._fmeasure = np.zeros(0)
+        self._accuracy = np.zeros(0)
+        self._errors = np.zeros(0)
+        self._mean = np.zeros(0)
+        self._std = np.zeros(0)
 
     # for adding another Evaluation object
     def append(self, other):
         """
-        Appends the scores of another SimpleEvaluation object to the respective
-        arrays.
+        Appends the scores of another SimpleEvaluation (or derived class)
+        object to the respective arrays.
 
-        :param other: SimpleEvaluation object
+        :param other: SimpleEvaluation (or derived class) object
 
         """
         if isinstance(other, SimpleEvaluation):
-            # append the scores to an array so we can average later
-            self._precision = np.append(self._precision, other.precision)
-            self._recall = np.append(self._recall, other.recall)
-            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
-            self._accuracy = np.append(self._accuracy, other.accuracy)
-            self._mean = np.append(self._mean, other.mean_error)
-            self._std = np.append(self._std, other.std_error)
-            self._errors = np.append(self._errors, other.errors)
-            # do the same with the raw numbers
+            # append the numbers of any Evaluation object to the arrays
             self._num_tp = np.append(self._num_tp, other.num_tp)
             self._num_fp = np.append(self._num_fp, other.num_fp)
             self._num_tn = np.append(self._num_tn, other.num_tn)
             self._num_fn = np.append(self._num_fn, other.num_fn)
+            self._precision = np.append(self._precision, other.precision)
+            self._recall = np.append(self._recall, other.recall)
+            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
+            self._accuracy = np.append(self._accuracy, other.accuracy)
+            self._errors = np.append(self._errors, other.errors)
+            self._mean = np.append(self._mean, other.mean_error)
+            self._std = np.append(self._std, other.std_error)
         else:
-            raise TypeError('can only append SimpleEvaluation (not "%s") to '
-                            'MeanEvaluation' % type(other).__name__)
+            raise TypeError('Can only append SimpleEvaluation or derived class'
+                            ' to MeanBeatEvaluation, not %s' %
+                            type(other).__name__)
 
     @property
     def num_tp(self):
@@ -393,11 +433,6 @@ class MeanEvaluation(SimpleEvaluation):
         return np.mean(self._accuracy)
 
     @property
-    def errors(self):
-        """Errors."""
-        return self._errors
-
-    @property
     def mean_error(self):
         """Mean of the errors."""
         if len(self._mean) == 0:
@@ -448,7 +483,8 @@ class Evaluation(SimpleEvaluation):
             self._errors = np.append(self.errors, other.errors)
             return self
         else:
-            raise TypeError("Can't add %s to Evaluation." % type(other))
+            raise TypeError('Can only add Evaluation or derived class to '
+                            'Evaluation, not %s' % type(other).__name__)
 
     # for adding two Evaluation objects
     def __add__(self, other):
@@ -466,7 +502,8 @@ class Evaluation(SimpleEvaluation):
             # return the newly created object
             return new
         else:
-            raise TypeError("Can't add %s to Evaluation." % type(other))
+            raise TypeError('Can only add Evaluation or derived class to '
+                            'Evaluation, not %s' % type(other).__name__)
 
     @property
     def tp(self):
