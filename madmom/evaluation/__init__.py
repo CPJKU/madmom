@@ -233,7 +233,7 @@ class SimpleEvaluation(object):
         """Errors."""
         # if any errors are given, they have to be the same length as the true
         # positive detections
-        if len(self._errors) != self._num_tp:
+        if len(self._errors) > 0 and len(self._errors) != self._num_tp:
             raise AssertionError("length of the errors and number of true "
                                  "positive detections must match")
         return self._errors
@@ -395,8 +395,6 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def errors(self):
         """Errors."""
-        if len(self._errors) == 0:
-            return 0.
         return self._errors
 
     @property

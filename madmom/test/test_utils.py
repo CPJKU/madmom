@@ -13,8 +13,8 @@ from madmom.test import DATA_PATH
 from madmom.utils import *
 
 
-ONSET_TARGETS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
-ONSET_DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.030000001]
+TARGETS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.030000001]
 
 
 class TestFileSelection(unittest.TestCase):
@@ -74,14 +74,14 @@ class TestFileHandling(unittest.TestCase):
     # test file handle handling
     def test_write_events_to_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
-        self.assertRaises(IOError, write_events, ONSET_TARGETS, file_handle)
+        self.assertRaises(IOError, write_events, TARGETS, file_handle)
 
     def test_read_events_from_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'w')
         self.assertRaises(IOError, load_events, file_handle)
 
     def test_write_events_to_file(self):
-        self.assertIsNone(write_events(ONSET_TARGETS, DATA_PATH + 'file_txt'))
+        self.assertIsNone(write_events(TARGETS, DATA_PATH + 'file_txt'))
 
     def test_load_events_from_file(self):
         targets = load_events(DATA_PATH + 'file_txt')
@@ -89,7 +89,7 @@ class TestFileHandling(unittest.TestCase):
 
     def test_write_events_to_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'w')
-        self.assertIsNone(write_events(ONSET_TARGETS, file_handle))
+        self.assertIsNone(write_events(TARGETS, file_handle))
         file_handle.close()
 
     def test_load_events_from_file_handle(self):
@@ -102,9 +102,9 @@ class TestFileHandling(unittest.TestCase):
 class TestFileValues(unittest.TestCase):
     # test correct value writing / loading
     def test_write_and_load_events(self):
-        write_events(ONSET_TARGETS, DATA_PATH + 'file_txt')
+        write_events(TARGETS, DATA_PATH + 'file_txt')
         targets = load_events(DATA_PATH + 'file_txt')
-        self.assertTrue(np.array_equal(targets, ONSET_TARGETS))
+        self.assertTrue(np.array_equal(targets, TARGETS))
 
     def test_load_file_without_comments(self):
         events = load_events(DATA_PATH + 'file.onsets.txt')
@@ -112,11 +112,11 @@ class TestFileValues(unittest.TestCase):
 
     def test_load_onset_targets(self):
         targets = load_events(DATA_PATH + 'file.onsets')
-        self.assertTrue(np.array_equal(targets, ONSET_TARGETS))
+        self.assertTrue(np.array_equal(targets, TARGETS))
 
     def test_load_onset_detections(self):
         detections = load_events(DATA_PATH + 'file.onsets.txt')
-        self.assertTrue(np.array_equal(detections, ONSET_DETECTIONS))
+        self.assertTrue(np.array_equal(detections, DETECTIONS))
 
     # TODO: write a test for speed
     # def test_speed_loading_files(self):
