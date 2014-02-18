@@ -117,8 +117,7 @@ class SimpleEvaluation(object):
     Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
-    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0,
-                 errors=np.zeros(0)):
+    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
         Creates a new SimpleEvaluation object instance.
 
@@ -126,15 +125,16 @@ class SimpleEvaluation(object):
         :param num_fp: number of false positive detections
         :param num_tn: number of true negative detections
         :param num_fn: number of false negative detections
-        :param num_fn: array with the errors of the true positive detections
 
         """
         # hidden variables, to be able to overwrite them in subclasses
-        self._num_tp = num_tp
-        self._num_fp = num_fp
-        self._num_tn = num_tn
-        self._num_fn = num_fn
-        self._errors = np.asarray(errors)
+        self._num_tp = int(num_tp)
+        self._num_fp = int(num_fp)
+        self._num_tn = int(num_tn)
+        self._num_fn = int(num_fn)
+        # define the errors as an (empty) array here
+        # subclasses are required to redefine as needed
+        self._errors = np.zeros(0, dtype=np.float)
 
     # for adding another SimpleEvaluation object, i.e. summing them
     def __iadd__(self, other):
@@ -157,8 +157,13 @@ class SimpleEvaluation(object):
             num_fp = self._num_fp + other.num_fp
             num_tn = self._num_tn + other.num_tn
             num_fn = self._num_fn + other.num_fn
-            errors = np.append(self.errors, other.errors)
-            return SimpleEvaluation(num_tp, num_fp, num_tn, num_fn, errors)
+            # create a new object we can return
+            new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
+            # modify the hidden variable directly
+            # (needed for correct inheritance)
+            new._errors = np.append(self.errors, other.errors)
+            # return the newly created object
+            return new
         else:
             raise TypeError("Can't add %s to SimpleEvaluation." % type(other))
 
@@ -205,6 +210,7 @@ class SimpleEvaluation(object):
     @property
     def fmeasure(self):
         """F-measure."""
+        # 2pr / (p+r)
         numerator = 2. * self.precision * self.recall
         if numerator == 0:
             return 0.
@@ -214,29 +220,36 @@ class SimpleEvaluation(object):
     def accuracy(self):
         """Accuracy."""
         # acc: (TP + TN) / (TP + FP + TN + FN)
+        denominator = self.num_fp + self.num_fn + self.num_tp + self.num_tn
+        if denominator == 0:
+            return 1.
         numerator = float(self.num_tp + self.num_tn)
         if numerator == 0:
             return 0.
-        return numerator / (self.num_fp + self.num_fn + self.num_tp +
-                            self.num_tn)
+        return numerator / denominator
 
     @property
     def errors(self):
         """Errors."""
+        # if any errors are given, they have to be the same length as the true
+        # positive detections
+        if self._errors.any() and len(self._errors) != self._num_tp:
+            raise AssertionError("length of the errors and number of true "
+                                 "positive detections must match")
         return self._errors
 
     @property
     def mean_error(self):
         """Mean of the errors."""
         if not self.errors.any():
-            return 0
+            return 0.
         return np.mean(self.errors)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
         if not self.errors.any():
-            return 0
+            return 0.
         return np.std(self.errors)
 
     def print_errors(self, tex=False):
@@ -295,7 +308,6 @@ class MeanEvaluation(SimpleEvaluation):
         self._num_fp = np.zeros(0)
         self._num_tn = np.zeros(0)
         self._num_fn = np.zeros(0)
-        self.num = 0
 
     # for adding another Evaluation object
     def append(self, other):
@@ -321,83 +333,84 @@ class MeanEvaluation(SimpleEvaluation):
             self._num_tn = np.append(self._num_tn, other.num_tn)
             self._num_fn = np.append(self._num_fn, other.num_fn)
         else:
-            raise TypeError("Can't append to MeanEvaluation.")
+            raise TypeError('can only append SimpleEvaluation (not "%s") to '
+                            'MeanEvaluation' % type(other).__name__)
 
     @property
     def num_tp(self):
         """Number of true positive detections."""
         if self._num_tp.size == 0:
-            return 0
+            return 0.
         return np.mean(self._num_tp)
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
         if self._num_fp.size == 0:
-            return 0
+            return 0.
         return np.mean(self._num_fp)
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
         if self._num_tn.size == 0:
-            return 0
+            return 0.
         return np.mean(self._num_tn)
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
         if self._num_fn.size == 0:
-            return 0
+            return 0.
         return np.mean(self._num_fn)
 
     @property
     def precision(self):
         """Precision."""
         if self._precision.size == 0:
-            return 0
+            return 0.
         return np.mean(self._precision)
 
     @property
     def recall(self):
         """Recall."""
         if self._recall.size == 0:
-            return 0
+            return 0.
         return np.mean(self._recall)
 
     @property
     def fmeasure(self):
         """F-measure."""
         if self._fmeasure.size == 0:
-            return 0
+            return 0.
         return np.mean(self._fmeasure)
 
     @property
     def accuracy(self):
         """Accuracy."""
         if self._accuracy.size == 0:
-            return 0
+            return 0.
         return np.mean(self._accuracy)
 
     @property
     def errors(self):
         """Errors."""
         if self._errors.size == 0:
-            return 0
+            return 0.
         return self._errors
 
     @property
     def mean_error(self):
         """Mean of the errors."""
         if self._mean.size == 0:
-            return 0
+            return 0.
         return np.mean(self._mean)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
         if self._std.size == 0:
-            return 0
+            return 0.
         return np.mean(self._std)
 
 
@@ -421,11 +434,41 @@ class Evaluation(SimpleEvaluation):
 
         """
         super(Evaluation, self).__init__()
-        # init some hidden variables as None, calculate them on demand
-        self._tp = tp
-        self._fp = fp
-        self._tn = tn
-        self._fn = fn
+        self._tp = np.asarray(tp, dtype=np.float)
+        self._fp = np.asarray(fp, dtype=np.float)
+        self._tn = np.asarray(tn, dtype=np.float)
+        self._fn = np.asarray(fn, dtype=np.float)
+
+    # for adding another Evaluation object, i.e. summing them
+    def __iadd__(self, other):
+        if isinstance(other, Evaluation):
+            # extend the arrays
+            self._tp = np.append(self.tp, other.tp)
+            self._fp = np.append(self.fp, other.fp)
+            self._tn = np.append(self.tn, other.tn)
+            self._fn = np.append(self.fn, other.fn)
+            self._errors = np.append(self.errors, other.errors)
+            return self
+        else:
+            raise TypeError("Can't add %s to Evaluation." % type(other))
+
+    # for adding two Evaluation objects
+    def __add__(self, other):
+        if isinstance(other, Evaluation):
+            # extend the arrays
+            tp = np.append(self.tp, other.tp)
+            fp = np.append(self.fp, other.fp)
+            tn = np.append(self.tn, other.tn)
+            fn = np.append(self.fn, other.fn)
+            # create a new object we can return
+            new = Evaluation(tp, fp, tn, fn)
+            # modify the hidden variable directly
+            # (needed for correct inheritance)
+            new._errors = np.append(self.errors, other.errors)
+            # return the newly created object
+            return new
+        else:
+            raise TypeError("Can't add %s to Evaluation." % type(other))
 
     @property
     def tp(self):
