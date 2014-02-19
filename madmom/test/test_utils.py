@@ -176,6 +176,18 @@ class TestQuantizeEvents(unittest.TestCase):
         correct = [40]
         self.assertTrue(np.array_equal(idx, correct))
 
+    def test_quantize_rounding_395_length_40(self):
+        quantized = quantize_events([3.95], 10, length=40)
+        idx = np.nonzero(quantized)[0]
+        correct = []
+        self.assertTrue(np.array_equal(idx, correct))
+
+    def test_quantize_rounding_39499999_length_40(self):
+        quantized = quantize_events([3.9499999], 10, length=40)
+        idx = np.nonzero(quantized)[0]
+        correct = [39]
+        self.assertTrue(np.array_equal(idx, correct))
+
     def test_quantize_rounding_394(self):
         quantized = quantize_events([3.949999999], 10, length=None)
         idx = np.nonzero(quantized)[0]

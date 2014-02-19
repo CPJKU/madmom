@@ -56,6 +56,7 @@ def onset_evaluation(detections, targets, window):
         # fetch the first target
         t = tar[tar_index]
         # compare them
+        # FIXME: use < instead? some beat stuff uses < as well...
         if abs(d - t) <= window:
             # TP detection
             tp.append(d)
