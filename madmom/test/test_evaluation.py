@@ -263,8 +263,8 @@ class TestSimpleEvaluationResults5341(unittest.TestCase):
 
     def test_fmeasure(self):
         # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 2 * (5. / 8.) * (5. / 6.) /
-                         ((5. / 8.) + (5. / 6.)))
+        correct = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
+        self.assertEqual(self.e.fmeasure, correct)
 
     def test_accuracy(self):
         # (TP + TN) / (TP + FP + TN + FN)
@@ -448,16 +448,16 @@ class TestEvaluationResults3102(unittest.TestCase):
     e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
 
     def test_tp(self):
-        self.assertTrue(np.array_equal(self.e.tp, np.asarray([1, 2, 3],
-                                                             dtype=np.float)))
+        correct = np.asarray([1, 2, 3], dtype=np.float)
+        self.assertTrue(np.array_equal(self.e.tp, correct))
 
     def test_fp(self):
-        self.assertTrue(np.array_equal(self.e.fp, np.asarray([1.5],
-                                                             dtype=np.float)))
+        correct = np.asarray([1.5], dtype=np.float)
+        self.assertTrue(np.array_equal(self.e.fp, correct))
 
     def test_fn(self):
-        self.assertTrue(np.array_equal(self.e.fn, np.asarray([0, 3.1],
-                                                             dtype=np.float)))
+        correct = np.asarray([0, 3.1], dtype=np.float)
+        self.assertTrue(np.array_equal(self.e.fn, correct))
 
     def test_num_tp(self):
         self.assertEqual(self.e.num_tp, 3)
@@ -643,8 +643,8 @@ class TestSumEvaluationResults5341(unittest.TestCase):
 
     def test_fmeasure(self):
         # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 2 * (5. / 8.) * (5. / 6.) /
-                         ((5. / 8.) + (5. / 6.)))
+        correct = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
+        self.assertEqual(self.e.fmeasure, correct)
 
     def test_accuracy(self):
         # (TP + TN) / (TP + FP + TN + FN)

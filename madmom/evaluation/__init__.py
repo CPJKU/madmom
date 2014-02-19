@@ -159,12 +159,9 @@ class SimpleEvaluation(object):
             num_fp = self._num_fp + other.num_fp
             num_tn = self._num_tn + other.num_tn
             num_fn = self._num_fn + other.num_fn
-            # create a new object we can return
-            #new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
-            # create a new object of the same class
-            new = self.__new__(self.__class__, num_tp, num_fp, num_tn, num_fn)
-            # modify the hidden variable directly
-            # (needed for correct inheritance)
+            # create a new object of the same class as the left argument
+            new = self.__class__(num_tp, num_fp, num_tn, num_fn)
+            # modify the hidden _errors variable directly
             new._errors = np.append(self._errors, other.errors)
             # return the newly created object
             return new
@@ -497,10 +494,9 @@ class Evaluation(SimpleEvaluation):
             fp = np.append(self.fp, other.fp)
             tn = np.append(self.tn, other.tn)
             fn = np.append(self.fn, other.fn)
-            # create a new object we can return
-            # new = Evaluation(tp, fp, tn, fn)
+            # create a new object of the same class as the left argument
             new = self.__new__(self.__class__, tp, fp, tn, fn)
-            # modify the hidden errors variable directly
+            # modify the hidden _errors variable directly
             new._errors = np.append(self.errors, other.errors)
             # return the newly created object
             return new
