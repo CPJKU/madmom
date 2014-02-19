@@ -493,27 +493,35 @@ class BeatEvaluation(OnsetEvaluation):
         # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
 
-    def print_errors(self, tex=False):
+    def print_errors(self, indent='', tex=False):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files
+        :param indent: use the given string as indentation
+        :param tex:    output format to be used in .tex files
 
         """
         # report the scores always in the range 0..1, because of formatting
-        print '  F-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f CMLt: '\
-              '%.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' %\
-              (self.fmeasure, self.pscore, self.cemgil, self.cmlc, self.cmlt,
-               self.amlc, self.amlt, self.information_gain,
-               self.global_information_gain)
+        ret = ''
         if tex:
-            print 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc & '\
-                  'AMLt & D & Dg \\\\'
-            print '& %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                  '%.3f & %.3f & %.3f\\\\' %\
-                  (self.fmeasure, self.pscore, self.cemgil, self.cmlc,
-                   self.cmlt, self.amlc, self.amlt, self.information_gain,
-                   self.global_information_gain)
+            # tex formatting
+            ret += 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc &'\
+                   ' AMLt & D & Dg \\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f &'\
+                   ' %.3f & %.3f & %.3f & %.3f\\\\' %\
+                   (self.fmeasure, self.pscore, self.cemgil, self.cmlc,
+                    self.cmlt, self.amlc, self.amlt, self.information_gain,
+                    self.global_information_gain)
+        else:
+            # normal formatting
+            ret += '%sF-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f '\
+                   'CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' %\
+                   (indent, self.fmeasure, self.pscore, self.cemgil, self.cmlc,
+                    self.cmlt, self.amlc, self.amlt, self.information_gain,
+                    self.global_information_gain)
+        return ret
+
+    def __str__(self):
+        return self.print_errors()
 
 
 class MeanBeatEvaluation(BeatEvaluation):
@@ -725,8 +733,6 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s" % det_file
             exit()
-        if args.verbose:
-            print det_file
         # do a mean evaluation with all matched target files
         me = MeanBeatEvaluation()
         for tar_file in matches:
@@ -749,13 +755,13 @@ def main():
         # print stats for each file
         if args.verbose:
             print det_file
-            me.print_errors(args.tex)
+            print me.print_errors('  ', args.tex)
         # add this file's mean evaluation to the global evaluation
         mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'mean for %i files:' % (len(det_files))
-    mean_eval.print_errors(args.tex)
+    print mean_eval.print_errors('  ', args.tex)
 
 if __name__ == '__main__':
     main()

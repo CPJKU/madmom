@@ -247,8 +247,6 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
-        if args.verbose:
-            print det_file
         # do a mean evaluation with all matched target files
         me = MeanEvaluation()
         for tar_file in matches:
@@ -262,16 +260,17 @@ def main():
             # process the next target file
         # print stats for each file
         if args.verbose:
-            me.print_errors(args.tex)
+            print det_file
+            print me.print_errors('  ', args.tex)
         # add the resulting sum counter
         sum_eval += me
         mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))
-    sum_eval.print_errors(args.tex)
+    print sum_eval.print_errors('  ', args.tex)
     print 'mean for %i files:' % (len(det_files))
-    mean_eval.print_errors(args.tex)
+    print mean_eval.print_errors('  ', args.tex)
 
 if __name__ == '__main__':
     main()

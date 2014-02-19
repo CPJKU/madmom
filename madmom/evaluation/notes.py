@@ -211,8 +211,6 @@ def main():
         if len(matches) != 1:
             print " can't find exactly 1 target file for %s." % det_file
             exit()
-        if args.verbose:
-            print det_file
         # load the targets
         targets = load_notes(matches[0])
         # add the NoteEvaluation to mean evaluation
@@ -220,16 +218,17 @@ def main():
         # process the next target file
         # print stats for each file
         if args.verbose:
-            ne.print_errors(args.tex)
+            print det_file
+            print ne.print_errors('  ', args.tex)
         # add this file's evaluation to the global evaluation
         sum_eval += ne
         mean_eval.append(ne)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))
-    sum_eval.print_errors(args.tex)
+    print sum_eval.print_errors('  ', args.tex)
     print 'mean for %i files:' % (len(det_files))
-    mean_eval.print_errors(args.tex)
+    print mean_eval.print_errors('  ', args.tex)
 
 if __name__ == '__main__':
     main()

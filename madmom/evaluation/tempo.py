@@ -109,20 +109,24 @@ class TempoEvaluation(object):
                                   self.tolerance)
         return self._pscore
 
-    def print_errors(self, tex=False):
+    def print_errors(self, indent='', tex=False):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files
+        :param indent: use the given string as indentation
+        :param tex:    output format to be used in .tex files
 
         """
-        # print the errors
-        print '  pscore=%.3f (target tempi: %s detections: %s tolerance: ' \
-              ' %.1f\%)' % (self.pscore, self.targets, self.detections,
-                            self.tolerance * 100)
+        ret = ''
         if tex:
-            print "%i events & P-Score\\\\" % self.num
-            print "tex & %.3f \\\\" % self.pscore
+            # tex formatting
+            ret += 'tex & P-Score\\\\\n& %.3f\\\\' % self.pscore
+        else:
+            # normal formatting
+            ret += '%spscore=%.3f (target tempi: %s detections: %s tolerance:'\
+                   ' %.1f\%)' % (indent, self.pscore, self.targets,
+                                 self.detections, self.tolerance * 100)
+        return ret
 
 
 class MeanTempoEvaluation(TempoEvaluation):
@@ -151,8 +155,9 @@ class MeanTempoEvaluation(TempoEvaluation):
         if isinstance(other, TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
         else:
-            raise TypeError('can only append TempoEvaluation (not "%s") to '
-                            'MeanTempoEvaluation' % type(other).__name__)
+            raise TypeError('Can only append TempoEvaluation to '
+                            'MeanTempoEvaluation, not %s' %
+                            type(other).__name__)
 
     @property
     def pscore(self):
@@ -220,8 +225,8 @@ def main():
         print "no files to evaluate. exiting."
         exit()
 
-    # sum and mean counter for all files
-    mean_counter = MeanTempoEvaluation()
+    # mean evaluation for all files
+    mean_eval = MeanTempoEvaluation()
     # evaluate all files
     for det_file in det_files:
         # get the detections file
@@ -232,8 +237,6 @@ def main():
         if len(matches) == 0:
             print " can't find a target file found for %s. exiting." % det_file
             exit()
-        if args.verbose:
-            print det_file
         # do a mean evaluation with all matched target files
         me = MeanTempoEvaluation()
         for tar_file in matches:
@@ -244,13 +247,14 @@ def main():
             # process the next target file
         # print stats for each file
         if args.verbose:
-            me.print_errors(args.tex)
-            # add the resulting sum counter
-        mean_counter.append(me)
+            print det_file
+            print me.print_errors('  ', args.tex)
+        # add this file's mean evaluation to the global evaluation
+        mean_eval.append(me)
         # process the next detection file
     # print summary
     print 'mean for %i files:' % (len(det_files))
-    mean_counter.print_errors(args.tex)
+    print mean_eval.print_errors('  ', args.tex)
 
 
 if __name__ == '__main__':

@@ -259,64 +259,44 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
-    def print_errors(self, tex=False):
+    def print_errors(self, indent='', tex=False):
         """
         Print errors.
 
-        :param tex: output format to be used in .tex files
+        :param indent: use the given string as indentation
+        :param tex:    output format to be used in .tex files
 
         """
         # print the errors
         targets = self.num_tp + self.num_fn
         tpr = self.recall
         fpr = (1 - self.precision)
-        print '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f '\
-              'f=%.3f' % (targets, self.num_tp, self.num_fp, self.num_fn,
-                          self.precision, self.recall, self.fmeasure)
-        print '  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std: '\
-              '%.1f ms' % (tpr * 100., fpr * 100., self.accuracy * 100.,
-                           self.mean_error * 1000., self.std_error * 1000.)
+        ret = ''
         if tex:
-            print 'tex & Precision & Recall & F-measure & True Positives & '\
-                  'False Positives & Accuracy & Mean & Std.dev\\\\'
-            print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                  '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
-                                             self.recall, self.fmeasure,
-                                             tpr, fpr, self.accuracy,
-                                             self.mean_error * 1000.,
-                                             self.std_error * 1000.)
+            # tex formatting
+            ret += 'tex & Precision & Recall & F-measure & True Positives & '\
+                   'False Positives & Accuracy & Mean & Std.dev\\\\\n'\
+                   '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
+                   '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
+                                              self.recall, self.fmeasure,
+                                              tpr, fpr, self.accuracy,
+                                              self.mean_error * 1000.,
+                                              self.std_error * 1000.)
+        else:
+            # normal formatting
+            ret += '%stargets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f'\
+                   ' f=%.3f\n' % (indent, targets, self.num_tp, self.num_fp,
+                                  self.num_fn, self.precision, self.recall,
+                                  self.fmeasure)
+            ret += '%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std:'\
+                   ' %.1f ms' % (indent, tpr * 100., fpr * 100.,
+                                 self.accuracy * 100., self.mean_error * 1000.,
+                                 self.std_error * 1000.)
+        # return
+        return ret
 
-#    def __str__(self):
-#        """
-#        Print errors.
-#
-#        :param tex: output format to be used in .tex files
-#
-#        """
-#        # print the errors
-#        targets = self.num_tp + self.num_fn
-#        tpr = self.recall
-#        fpr = (1 - self.precision)
-#        return '  targets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f '\
-#               'f=%.3f\n  tpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms '\
-#               'std: %.1f ms' % (targets, self.num_tp, self.num_fp,
-#                                 self.num_fn, self.precision, self.recall,
-#                                 self.fmeasure, tpr * 100., fpr * 100.,
-#                                 self.accuracy * 100., self.mean_error * 1000.,
-#                                 self.std_error * 1000.)
-#
-#    def print_tex(self):
-#        targets = self.num_tp + self.num_fn
-#        tpr = self.recall
-#        fpr = (1 - self.precision)
-#        print 'tex & Precision & Recall & F-measure & True Positives & '\
-#              'False Positives & Accuracy & Mean & Std.dev\\\\'
-#        print '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-#              '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
-#                                         self.recall, self.fmeasure,
-#                                         tpr, fpr, self.accuracy,
-#                                         self.mean_error * 1000.,
-#                                         self.std_error * 1000.)
+    def __str__(self):
+        return self.print_errors()
 
 
 # class for summing Evaluations
