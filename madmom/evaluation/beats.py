@@ -225,15 +225,13 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     tar_interval = calc_intervals(targets)[closest]
     # a detection is correct, if it fulfills 3 conditions:
     # 1) must match an annotation within a certain tolerance window
-    # FIXME: should this be <= instead? see onsets & pscore
-    correct = detections[errors < tempo_tolerance * tar_interval]
+    correct = detections[errors <= tempo_tolerance * tar_interval]
     # 2) same must be true for the previous detection / target combination
     # Note: Not enforced, since this condition is kind of pointless. Why not
     #       count a beat if it is correct only because the one before is not?
     #       Also, the original Matlab implementation does not enforce it.
     # 3) the interval must be within the phase tolerance
-    # FIXME: should this be <= instead? see onsets & pscore
-    correct_interval = detections[abs(1 - (det_interval / tar_interval)) <
+    correct_interval = detections[abs(1 - (det_interval / tar_interval)) <=
                                   phase_tolerance]
     # now combine the conditions
     correct = np.intersect1d(correct, correct_interval)
@@ -741,8 +739,10 @@ def main():
             # remove beats and annotations that are within the first N seconds
             if args.skip > 0:
                 # FIXME: this definitely alters the results
-                detections = detections[np.where(detections > args.skip)]
-                targets = targets[np.where(targets > args.skip)]
+                start_idx = np.searchsorted(detections, args.skip, 'right')
+                detections = detections[start_idx:]
+                start_idx = np.searchsorted(targets, args.skip, 'right')
+                targets = targets[start_idx:]
             # add the BeatEvaluation this file's mean evaluation
             me.append(BeatEvaluation(detections, targets,
                                      window=args.window,
