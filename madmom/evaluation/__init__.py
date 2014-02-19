@@ -496,8 +496,7 @@ class Evaluation(SimpleEvaluation):
             fn = np.append(self.fn, other.fn)
             # create a new object we can return
             new = Evaluation(tp, fp, tn, fn)
-            # modify the hidden variable directly
-            # (needed for correct inheritance)
+            # modify the hidden errors variable directly
             new._errors = np.append(self.errors, other.errors)
             # return the newly created object
             return new

@@ -70,55 +70,114 @@ class TestFileMatching(unittest.TestCase):
                          ['/path/file.txt.other'])
 
 
-class TestFileHandling(unittest.TestCase):
-    # test file handle handling
-    def test_write_events_to_closed_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
-        self.assertRaises(IOError, write_events, TARGETS, file_handle)
+class TestReadFiles(unittest.TestCase):
 
     def test_read_events_from_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'w')
         self.assertRaises(IOError, load_events, file_handle)
 
-    def test_write_events_to_file(self):
-        self.assertIsNone(write_events(TARGETS, DATA_PATH + 'file_txt'))
-
-    def test_load_events_from_file(self):
+    def test_read_events_from_file(self):
         targets = load_events(DATA_PATH + 'file_txt')
         self.assertIsInstance(targets, np.ndarray)
+
+    def test_read_events_from_file_handle(self):
+        file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
+        targets = load_events(file_handle)
+        self.assertIsInstance(targets, np.ndarray)
+        file_handle.close()
+
+    def test_read_onset_targets(self):
+        targets = load_events(DATA_PATH + 'file.onsets')
+        self.assertTrue(np.array_equal(targets, TARGETS))
+
+    def test_read_onset_detections(self):
+        detections = load_events(DATA_PATH + 'file.onsets.txt')
+        self.assertTrue(np.array_equal(detections, DETECTIONS))
+
+    def test_read_file_without_comments(self):
+        events = load_events(DATA_PATH + 'file.onsets.txt')
+        self.assertTrue(events.any())
+
+
+class TestWriteFiles(unittest.TestCase):
+
+    def test_write_events_to_closed_file_handle(self):
+        file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
+        self.assertRaises(IOError, write_events, TARGETS, file_handle)
+
+    def test_write_events_to_file(self):
+        self.assertIsNone(write_events(TARGETS, DATA_PATH + 'file_txt'))
 
     def test_write_events_to_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'w')
         self.assertIsNone(write_events(TARGETS, file_handle))
         file_handle.close()
 
-    def test_load_events_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
-        targets = load_events(file_handle)
-        self.assertIsInstance(targets, np.ndarray)
-        file_handle.close()
-
-
-class TestFileValues(unittest.TestCase):
-    # test correct value writing / loading
-    def test_write_and_load_events(self):
+    def test_write_and_read_events(self):
         write_events(TARGETS, DATA_PATH + 'file_txt')
         targets = load_events(DATA_PATH + 'file_txt')
         self.assertTrue(np.array_equal(targets, TARGETS))
 
-    def test_load_file_without_comments(self):
-        events = load_events(DATA_PATH + 'file.onsets.txt')
-        self.assertTrue(events.any())
 
-    def test_load_onset_targets(self):
-        targets = load_events(DATA_PATH + 'file.onsets')
-        self.assertTrue(np.array_equal(targets, TARGETS))
+class TestCombineEvents(unittest.TestCase):
 
-    def test_load_onset_detections(self):
-        detections = load_events(DATA_PATH + 'file.onsets.txt')
-        self.assertTrue(np.array_equal(detections, DETECTIONS))
+    def test_combine_000(self):
+        comb = combine_events(TARGETS, 0.)
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.array_equal(comb, correct))
 
-    # TODO: write a test for speed
-    # def test_speed_loading_files(self):
-    #     """load_events() function is much faster than e.g. np.fromtxt()"""
+    def test_combine_001(self):
+        comb = combine_events(TARGETS, 0.01)
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.array_equal(comb, correct))
 
+    def test_combine_003(self):
+        comb = combine_events(TARGETS, 0.03)
+        correct = np.asarray([1.01, 1.5, 2.015, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+
+    def test_combine_0035(self):
+        comb = combine_events(TARGETS, 0.035)
+        correct = np.asarray([1.01, 1.5, 2.0325, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+
+
+class TestQuantizeEvents(unittest.TestCase):
+
+    def test_quantize_10(self):
+        quantized = quantize_events(TARGETS, 10, length=None)
+        idx = np.nonzero(quantized)[0]
+        # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+        correct = [10, 15, 20, 21, 25, 30]
+        self.assertTrue(np.array_equal(idx, correct))
+
+    def test_quantize_100(self):
+        quantized = quantize_events(TARGETS, 100, length=None)
+        idx = np.nonzero(quantized)[0]
+        # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+        correct = [100, 102, 150, 200, 203, 205, 250, 300]
+        self.assertTrue(np.array_equal(idx, correct))
+
+    def test_quantize_length_280(self):
+        length = 280
+        quantized = quantize_events(TARGETS, 100, length=length)
+        self.assertTrue(len(quantized), length)
+
+    def test_quantize_100_length_280(self):
+        quantized = quantize_events(TARGETS, 100, length=280)
+        idx = np.nonzero(quantized)[0]
+        # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+        correct = [100, 102, 150, 200, 203, 205, 250]
+        self.assertTrue(np.array_equal(idx, correct))
+
+    def test_quantize_rounding_395(self):
+        quantized = quantize_events([3.95], 10, length=None)
+        idx = np.nonzero(quantized)[0]
+        correct = [40]
+        self.assertTrue(np.array_equal(idx, correct))
+
+    def test_quantize_rounding_394(self):
+        quantized = quantize_events([3.949999999], 10, length=None)
+        idx = np.nonzero(quantized)[0]
+        correct = [39]
+        self.assertTrue(np.array_equal(idx, correct))
