@@ -237,22 +237,14 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     correct = np.intersect1d(correct, correct_interval)
     # convert on indices
     correct_idx = np.searchsorted(detections, correct)
-    # add a fake start and end
-    # TODO: find a better solution for this!
-    correct_idx = np.append(-5, correct_idx)
-    correct_idx = np.append(correct_idx, len(detections) + 5)
-    # get continuous segment
-    segments = np.nonzero(np.diff(correct_idx) != 1)[0]
-    # determine the max length of those segment
-    if len(segments) == 0:
-        # all detections are correct
-        cont = len(detections)
-    elif len(segments) == 1:
-        # only one long segment
-        cont = segments
-    else:
-        # multiple segments
-        cont = np.max(np.diff(segments))
+    # get continuous segment, i.e. diff == 1
+    # thus look for indices != 1, these are interrupting the segments
+    # finally add 1 since np.diff(x)[0] is x[1] - x[0]
+    segments = np.nonzero(np.diff(correct_idx) != 1)[0] + 1
+    # add a start (index 0) and stop (length of correct detections)
+    segments = np.concatenate(([0], segments, [len(correct)]))
+    # calculate the maximum length of the individual segment
+    cont = np.max(np.diff(segments))
     # maximal length of the given sequences
     length = float(max(len(detections), len(targets)))
     # accuracy for the longest continuous detections
