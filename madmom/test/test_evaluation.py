@@ -227,7 +227,7 @@ class TestSimpleEvaluationResultsNone(unittest.TestCase):
         self.assertEqual(self.e.accuracy, 1)
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
 
     def test_mean_error(self):
@@ -271,7 +271,7 @@ class TestSimpleEvaluationResults5341(unittest.TestCase):
         self.assertEqual(self.e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
 
     def test_mean_error(self):
@@ -433,7 +433,7 @@ class TestEvaluationResults0000(unittest.TestCase):
         self.assertEqual(self.e.accuracy, 1)
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
 
     def test_mean_error(self):
@@ -489,7 +489,7 @@ class TestEvaluationResults3102(unittest.TestCase):
         self.assertEqual(self.e.accuracy, 3. / (3 + 1 + 2))
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
 
     def test_mean_error(self):
@@ -606,7 +606,7 @@ class TestSumEvaluationResults0000(unittest.TestCase):
         self.assertEqual(self.e.accuracy, 1)
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
 
     def test_mean_error(self):
@@ -651,7 +651,7 @@ class TestSumEvaluationResults5341(unittest.TestCase):
         self.assertEqual(self.e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
 
     def test_errors(self):
-        # correct / relevant
+        # array with errors
         self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
 
     def test_mean_error(self):

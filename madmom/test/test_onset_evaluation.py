@@ -102,51 +102,97 @@ class TestOnsetEvaluationAddition(unittest.TestCase):
             self.e += MeanEvaluation()
 
 
-
 # test results with 0.01 seconds detection window
 class TestOnsetEvaluationResults001(unittest.TestCase):
-    oe = OnsetEvaluation(DETECTIONS, TARGETS, 0.01)
+    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.01)
 
     def test_tp(self):
-        self.assertEqual(self.oe.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                               2.02, 2.5])
+        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
+                                              2.02, 2.5])
 
     def test_fp(self):
-        self.assertEqual(self.oe.fp.tolist(), [1.45, 3.030000001])
+        self.assertEqual(self.e.fp.tolist(), [1.45, 3.030000001])
 
     def test_tn(self):
-        self.assertEqual(self.oe.tn.tolist(), [])
+        self.assertEqual(self.e.tn.tolist(), [])
 
     def test_fn(self):
-        self.assertEqual(self.oe.fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05, 3.0])
+
+    def test_num_tp(self):
+        self.assertEqual(self.e.num_tp, 5)
+
+    def test_num_fp(self):
+        self.assertEqual(self.e.num_fp, 2)
+
+    def test_num_tn(self):
+        self.assertEqual(self.e.num_tn, 0)
+
+    def test_num_fn(self):
+        self.assertEqual(self.e.num_fn, 3)
+
+    def test_precision(self):
+        # correct / retrieved
+        self.assertEqual(self.e.precision, 5. / 7.)
+
+    def test_recall(self):
+        # correct / relevant
+        self.assertEqual(self.e.recall, 5. / 8.)
+
+    def test_fmeasure(self):
+        # 2 * P * R / (P + R)
+        self.assertEqual(self.e.fmeasure, 2 * (5. / 7.) * (5. / 8.) /
+                         ((5. / 7.) + (5. / 8.)))
+
+    def test_accuracy(self):
+        # (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(self.e.accuracy, (5. + 0) / (5 + 2 + 0 + 3))
+
+    def test_errors(self):
+        # array with errors
+        # det 0.99999999, 1.02999999, 1.45, 2.01, 2.02,       2.5, 3.030000001
+        # tar 1,          1.02,       1.5,  2.0,  2.03, 2.05, 2.5, 3
+        correct = [0.99999999 - 1, 1.02999999 - 1.02,  # 1.45 - 1.5,
+                   2.01 - 2, 2.02 - 2.03, 2.5 - 2.5]  #, 3.030000001 - 3
+        self.assertTrue(np.array_equal(self.e.errors, correct))
+
+    def test_mean_error(self):
+        correct = np.mean([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
+                           2.02 - 2.03, 2.5 - 2.5])
+        self.assertEqual(self.e.mean_error, correct)
+
+    def test_std_error(self):
+        correct = np.std([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
+                          2.02 - 2.03, 2.5 - 2.5])
+        self.assertEqual(self.e.std_error, correct)
 
 
 # test results with 0.03 seconds detection window
 class TestOnsetEvaluationResults003(unittest.TestCase):
-    oe = OnsetEvaluation(DETECTIONS, TARGETS, 0.03)
+    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.03)
 
     def test_tp(self):
-        self.assertEqual(self.oe.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                               2.02, 2.5])
+        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
+                                              2.02, 2.5])
 
     def test_fp(self):
-        self.assertEqual(self.oe.fp.tolist(), [1.45, 3.030000001])
+        self.assertEqual(self.e.fp.tolist(), [1.45, 3.030000001])
 
     def test_fn(self):
-        self.assertEqual(self.oe.fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05, 3.0])
 
 
 # test results with 0.04 seconds detection window
 class TestOnsetEvaluationResults004(unittest.TestCase):
-    oe = OnsetEvaluation(DETECTIONS, TARGETS, 0.04)
+    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.04)
 
     def test_tp(self):
-        self.assertEqual(self.oe.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                               2.02, 2.5, 3.030000001])
+        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
+                                              2.02, 2.5, 3.030000001])
 
     def test_fp(self):
-        self.assertEqual(self.oe.fp.tolist(), [1.45])
+        self.assertEqual(self.e.fp.tolist(), [1.45])
 
     def test_fn(self):
-        self.assertEqual(self.oe.fn.tolist(), [1.5, 2.05])
+        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05])
 
