@@ -195,8 +195,7 @@ def quantize_events(events, fps, length=None):
         length = int(round(np.max(events) * float(fps))) + 1
     else:
         # else filter all events which do not fit in the array
-        events = np.asarray(events)
-        events = events[events <= float(length) / fps]
+        events = events[:np.searchsorted(events, float(length) / fps)]
     # init array
     quantized = np.zeros(length)
     # set the events
