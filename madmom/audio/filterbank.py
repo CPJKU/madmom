@@ -107,8 +107,8 @@ def bark_frequencies(fmin=20, fmax=15500):
                             1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700,
                             4400, 5300, 6400, 7700, 9500, 12000, 15500])
     # filter frequencies
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -131,8 +131,8 @@ def bark_double_frequencies(fmin=20, fmax=15500):
                             4000, 4400, 4800, 5300, 5800, 6400, 7000, 7700,
                             8500, 9500, 10500, 12000, 13500, 15500])
     # filter frequencies
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -159,8 +159,8 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     frequencies = a4 * 2. ** (np.arange(left, right) / float(bands_per_octave))
     # filter frequencies
     # needed, because range might be bigger because of the use of floor/ceil
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -427,7 +427,7 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     factor = (sample_rate / 2.0) / num_fft_bins
     frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
     # filter out all frequencies outside the valid range
-    frequencies = frequencies[frequencies < num_fft_bins]
+    frequencies = frequencies[:np.searchsorted(frequencies, num_fft_bins)]
     # FIXME: skip the DC bin 0?
 
     # create filter bank
