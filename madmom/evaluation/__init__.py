@@ -148,9 +148,9 @@ class SimpleEvaluation(object):
             self._errors = np.append(self._errors, other.errors)
             return self
         else:
-            raise TypeError('Can only add SimpleEvaluation or derived class '
-                            'to SimpleEvaluation, not %s' %
-                            type(other).__name__)
+            raise TypeError('Can only add SimpleEvaluation or derived class to'
+                            ' %s, not %s' % (type(self).__name__,
+                                             type(other).__name__))
 
     # for adding two SimpleEvaluation objects
     def __add__(self, other):
@@ -160,16 +160,18 @@ class SimpleEvaluation(object):
             num_tn = self._num_tn + other.num_tn
             num_fn = self._num_fn + other.num_fn
             # create a new object we can return
-            new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
+            #new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
+            # create a new object of the same class
+            new = self.__new__(self.__class__, num_tp, num_fp, num_tn, num_fn)
             # modify the hidden variable directly
             # (needed for correct inheritance)
             new._errors = np.append(self._errors, other.errors)
             # return the newly created object
             return new
         else:
-            raise TypeError('Can only add SimpleEvaluation or derived class '
-                            'to SimpleEvaluation, not %s' %
-                            type(other).__name__)
+            raise TypeError('Can only add SimpleEvaluation or derived class to'
+                            ' %s, not %s' % (type(self).__name__,
+                                             type(other).__name__))
 
     @property
     def num_tp(self):
@@ -373,8 +375,8 @@ class MeanEvaluation(SimpleEvaluation):
             self._std = np.append(self._std, other.std_error)
         else:
             raise TypeError('Can only append SimpleEvaluation or derived class'
-                            ' to MeanBeatEvaluation, not %s' %
-                            type(other).__name__)
+                            ' to %s, not %s' % (type(self).__name__,
+                                                type(other).__name__))
 
     @property
     def num_tp(self):
@@ -483,8 +485,9 @@ class Evaluation(SimpleEvaluation):
             self._errors = np.append(self.errors, other.errors)
             return self
         else:
-            raise TypeError('Can only add Evaluation or derived class to '
-                            'Evaluation, not %s' % type(other).__name__)
+            raise TypeError('Can only add Evaluation or derived class to %s, '
+                            'not %s' % (type(self).__name__,
+                                        type(other).__name__))
 
     # for adding two Evaluation objects
     def __add__(self, other):
@@ -495,14 +498,16 @@ class Evaluation(SimpleEvaluation):
             tn = np.append(self.tn, other.tn)
             fn = np.append(self.fn, other.fn)
             # create a new object we can return
-            new = Evaluation(tp, fp, tn, fn)
+            # new = Evaluation(tp, fp, tn, fn)
+            new = self.__new__(self.__class__, tp, fp, tn, fn)
             # modify the hidden errors variable directly
             new._errors = np.append(self.errors, other.errors)
             # return the newly created object
             return new
         else:
-            raise TypeError('Can only add Evaluation or derived class to '
-                            'Evaluation, not %s' % type(other).__name__)
+            raise TypeError('Can only add Evaluation or derived class to %s, '
+                            'not %s' % (type(self).__name__,
+                                        type(other).__name__))
 
     @property
     def tp(self):
