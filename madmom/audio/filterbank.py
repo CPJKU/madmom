@@ -328,9 +328,9 @@ def _put_filter(filt, band):
         filter_ = filter_[:stop - len(band)]
         stop = len(band)
     # put the filter in place
-    filt_pos = band[start:stop]
-    # TODO: if needed allow other handling (like adding values)
-    np.maximum(filter_, filt_pos, out=filt_pos)
+    filter_pos = band[start:stop]
+    # TODO: if needed, allow other handling (like adding values)
+    np.maximum(filter_, filter_pos, out=filter_pos)
 
 
 def assemble_filterbank(filters, num_fft_bins, norm):
