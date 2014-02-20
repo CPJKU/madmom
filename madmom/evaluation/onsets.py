@@ -141,10 +141,10 @@ class OnsetEvaluation(Evaluation):
     """
     def __init__(self, detections, targets, window=WINDOW):
         super(OnsetEvaluation, self).__init__()
-        self.detections = detections
-        self.targets = targets
+        self.detections = np.asarray(detections)
+        self.targets = np.asarray(targets)
         # evaluate
-        numbers = onset_evaluation(detections, targets, window)
+        numbers = onset_evaluation(self.detections, self.targets, window)
         self._tp, self._fp, self._tn, self._fn = numbers
         # init errors
         self._errors = None

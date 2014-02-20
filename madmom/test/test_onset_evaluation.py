@@ -60,11 +60,11 @@ class TestOnsetEvaluationAddition(unittest.TestCase):
     # add
     def test_add_evaluation_object(self):
         e = self.e + Evaluation()
-        self.assertIsInstance(e, OnsetEvaluation)
+        self.assertIsInstance(e, Evaluation)
 
     def test_add_onset_evaluation_object(self):
         e = self.e + OnsetEvaluation(DETECTIONS, TARGETS)
-        self.assertIsInstance(e, OnsetEvaluation)
+        self.assertIsInstance(e, Evaluation)
 
     # others should fail
     def test_add_simple_evaluation_object(self):

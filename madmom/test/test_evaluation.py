@@ -573,6 +573,44 @@ class TestSumEvaluationAddition(unittest.TestCase):
         self.assertIsInstance(self.e, SumEvaluation)
 
 
+class TestSumEvaluationAdditionTypes(unittest.TestCase):
+    e = SumEvaluation()
+    e += SimpleEvaluation()
+
+    def test_num_tp_type(self):
+        self.assertIsInstance(self.e.num_tp, int)
+
+    def test_num_fp_type(self):
+        self.assertIsInstance(self.e.num_fp, int)
+
+    def test_num_tn_type(self):
+        self.assertIsInstance(self.e.num_tn, int)
+
+    def test_num_fn_type(self):
+        self.assertIsInstance(self.e.num_fn, int)
+
+    def test_precision_type(self):
+        self.assertIsInstance(self.e.precision, float)
+
+    def test_recall_type(self):
+        self.assertIsInstance(self.e.recall, float)
+
+    def test_fmeasure_type(self):
+        self.assertIsInstance(self.e.fmeasure, float)
+
+    def test_accuracy_type(self):
+        self.assertIsInstance(self.e.accuracy, float)
+
+    def test_errors_type(self):
+        self.assertIsInstance(self.e.errors, np.ndarray)
+
+    def test_mean_error_type(self):
+        self.assertIsInstance(self.e.mean_error, float)
+
+    def test_std_error_type(self):
+        self.assertIsInstance(self.e.std_error, float)
+
+
 class TestSumEvaluationResults0000(unittest.TestCase):
     e = SumEvaluation()
     e += SimpleEvaluation()
@@ -708,6 +746,35 @@ class TestMeanEvaluationAppend(unittest.TestCase):
     def test_append_mean_evaluation_object(self):
         self.e.append(MeanEvaluation())
         self.assertIsInstance(self.e, MeanEvaluation)
+
+
+class TestMeanEvaluationAppendTypes(unittest.TestCase):
+    e = MeanEvaluation()
+    e.append(Evaluation())
+
+    def test_num_tp_type(self):
+        self.assertIsInstance(self.e.num_tp, float)
+
+    def test_num_fp_type(self):
+        self.assertIsInstance(self.e.num_fp, float)
+
+    def test_num_tn_type(self):
+        self.assertIsInstance(self.e.num_tn, float)
+
+    def test_num_fn_type(self):
+        self.assertIsInstance(self.e.num_fn, float)
+
+    def test_precision_type(self):
+        self.assertIsInstance(self.e.precision, float)
+
+    def test_recall_type(self):
+        self.assertIsInstance(self.e.recall, float)
+
+    def test_fmeasure_type(self):
+        self.assertIsInstance(self.e.fmeasure, float)
+
+    def test_errors_type(self):
+        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
 
 
 # test results
