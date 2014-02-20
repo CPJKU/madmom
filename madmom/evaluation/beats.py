@@ -34,11 +34,11 @@ def calc_intervals(events, fwd=False):
     """
     Calculate the intervals of all events to the previous / next event.
 
-    :param events: sequence of events to be matched [seconds]
-    :param fwd:    calculate the intervals to the next event
+    :param events: numpy array with the detected events [float, seconds]
+    :param fwd:    calculate the intervals towards the next event [bool]
     :returns:      the intervals [seconds]
 
-    Note: the sequences must be ordered!
+    Note: The sequences must be ordered!
 
     """
     interval = np.zeros_like(events)
@@ -58,20 +58,20 @@ def find_closest_intervals(detections, targets, matches=None):
     """
     Find the closest target interval surrounding the detections.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches
-    :returns:          a list of closest target intervals [seconds]
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the target beats [float, seconds]
+    :param matches:    indices of the closest matches [int]
+    :returns:          numpy array with closest target intervals [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list of
+    Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
     # init array
     closest_interval = np.ones_like(detections)
-    # init array for intervals
-    # Note: if we combine the forward and backward intervals this is faster,
-    # but we need expand the size accordingly
+    # intervals
+    # Note: it is faster if we combine the forward and backward intervals,
+    # but we need to take care of the sizes
     intervals = np.zeros(len(targets) + 1)
     # intervals to previous target
     intervals[1:-1] = np.diff(targets)
@@ -97,16 +97,15 @@ def find_closest_intervals(detections, targets, matches=None):
 
 def calc_relative_errors(detections, targets, matches=None):
     """
-    Relative errors of the detections to the closest targets.
-    The absolute error is weighted by the interval of two targets surrounding
-    each detection.
+    Errors of the detections relative to the surrounding target interval.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches
-    :returns:          a list of relative errors to closest matches [seconds]
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the target beats [float, seconds]
+    :param matches:    indices of the closest matches [int]
+    :returns:          numpy array with errors relative to surrounding target
+                       interval [seconds]
 
-    Note: the sequences must be ordered! To speed up the calculation, a list of
+    Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
@@ -126,8 +125,8 @@ def pscore(detections, targets, tolerance):
     """
     Calculate the P-Score accuracy.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the beats annotations [float, seconds]
     :param tolerance:  tolerance window (fraction of the median beat interval)
     :returns:          p-score
 
@@ -157,9 +156,9 @@ def cemgil(detections, targets, sigma):
     """
     Calculate the Cemgil accuracy.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets:    sequence of ground truth beat annotations [seconds]
-    :param sigma:      sigma for Gaussian error function
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the beats annotations [float, seconds]
+    :param sigma:      sigma for Gaussian error function [float]
     :returns:          beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
@@ -193,10 +192,12 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Calculate cmlc, cmlt for the given detection and target sequences.
 
-    :param detections:      sequence of estimated beat times [seconds]
-    :param targets:         sequence of ground truth beat annotations [seconds]
-    :param tempo_tolerance: tempo tolerance window
-    :param phase_tolerance: phase (interval) tolerance window
+    :param detections:      numpy array with the detected beats
+                            [float, seconds]
+    :param targets:         numpy array with the beats annotations
+                            [float, seconds]
+    :param tempo_tolerance: tempo tolerance window [float]
+    :param phase_tolerance: phase (interval) tolerance window [float]
     :returns:               cmlc, cmlt
 
     cmlc: tracking accuracy, continuity at the correct metrical level required
@@ -260,10 +261,12 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     Calculate cmlc, cmlt, amlc, amlt for the given detection and target
     sequences.
 
-    :param detections:      sequence of estimated beat times [seconds]
-    :param targets:         sequence of ground truth beat annotations [seconds]
-    :param tempo_tolerance: tempo tolerance window
-    :param phase_tolerance: phase (interval) tolerance window
+    :param detections:      numpy array with the detected beats
+                            [float, seconds]
+    :param targets:         numpy array with the beats annotations
+                            [float, seconds]
+    :param tempo_tolerance: tempo tolerance window [float]
+    :param phase_tolerance: phase (interval) tolerance window [float]
     :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
 
     cmlc: tracking accuracy, continuity at the correct metrical level required
@@ -324,9 +327,9 @@ def information_gain(detections, targets, bins):
     """
     Calculate information gain.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets:    sequence of ground truth beat annotations [seconds]
-    :param bins:       number of bins for the error histogram
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the beats annotations [float, seconds]
+    :param bins:       number of bins for the error histogram [int, even]
     :returns:          information gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a
@@ -377,8 +380,8 @@ def error_histogram(detections, targets, bins):
     Calculate the relative errors of the given detection wrt. the targets and
     map them to an error histogram with the given bins.
 
-    :param detections: sequence of estimated beat times [seconds]
-    :param targets:    sequence of ground truth beat annotations [seconds]
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the beats annotations [float, seconds]
     :param bins:       histogram bins for mapping
     :returns:          error histogram
 
@@ -457,21 +460,24 @@ class BeatEvaluation(OnsetEvaluation):
         :param bins:            number of bins for the error histogram
 
         """
-        self.detections = detections
-        self.targets = targets
+        # save the detections and targets
+        self.detections = np.asarray(sorted(detections), dtype=np.float)
+        self.targets = np.asarray(sorted(targets), dtype=np.float)
+        # save the evaluation parameters
+        self.sigma = float(sigma)
+        self.tolerance = float(tolerance)
+        self.tempo_tolerance = float(tempo_tolerance)
+        self.phase_tolerance = float(phase_tolerance)
+        self.bins = int(bins)
         # perform onset evaluation with the appropriate window
-        super(BeatEvaluation, self).__init__(detections, targets, window)
-
-        self.sigma = sigma
-        self.tempo_tolerance = tempo_tolerance
-        self.phase_tolerance = phase_tolerance
-        self.bins = bins
-        # scores
-        self.pscore = pscore(detections, targets, tolerance)
-        self.cemgil = cemgil(detections, targets, sigma)
+        super(BeatEvaluation, self).__init__(self.detections, self.targets,
+                                             window)
+        # other scores
+        self.pscore = pscore(self.detections, self.targets, self.tolerance)
+        self.cemgil = cemgil(self.detections, self.targets, self.sigma)
         # continuity scores
-        scores = continuity(detections, targets, tempo_tolerance,
-                            phase_tolerance)
+        scores = continuity(self.detections, self.targets,
+                            self.tempo_tolerance, self.phase_tolerance)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
         scores = information_gain(self.detections, self.targets, self.bins)
