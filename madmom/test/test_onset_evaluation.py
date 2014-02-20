@@ -102,6 +102,44 @@ class TestOnsetEvaluationAddition(unittest.TestCase):
             self.e += MeanEvaluation()
 
 
+class TestOnsetEvaluationAdditionTypes(unittest.TestCase):
+    e = OnsetEvaluation(DETECTIONS, TARGETS)
+    e += OnsetEvaluation(DETECTIONS, TARGETS)
+
+    def test_num_tp_type(self):
+        self.assertIsInstance(self.e.num_tp, int)
+
+    def test_num_fp_type(self):
+        self.assertIsInstance(self.e.num_fp, int)
+
+    def test_num_tn_type(self):
+        self.assertIsInstance(self.e.num_tn, int)
+
+    def test_num_fn_type(self):
+        self.assertIsInstance(self.e.num_fn, int)
+
+    def test_precision_type(self):
+        self.assertIsInstance(self.e.precision, float)
+
+    def test_recall_type(self):
+        self.assertIsInstance(self.e.recall, float)
+
+    def test_fmeasure_type(self):
+        self.assertIsInstance(self.e.fmeasure, float)
+
+    def test_accuracy_type(self):
+        self.assertIsInstance(self.e.accuracy, float)
+
+    def test_errors_type(self):
+        self.assertIsInstance(self.e.errors, np.ndarray)
+
+    def test_mean_error_type(self):
+        self.assertIsInstance(self.e.mean_error, float)
+
+    def test_std_error_type(self):
+        self.assertIsInstance(self.e.std_error, float)
+
+
 # test results with 0.01 seconds detection window
 class TestOnsetEvaluationResults001(unittest.TestCase):
     e = OnsetEvaluation(DETECTIONS, TARGETS, 0.01)

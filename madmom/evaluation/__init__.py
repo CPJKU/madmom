@@ -146,6 +146,7 @@ class SimpleEvaluation(object):
             self._num_fn += other.num_fn
             # extend the errors array
             self._errors = np.append(self._errors, other.errors)
+            # return the modified object
             return self
         else:
             raise TypeError('Can only add SimpleEvaluation or derived class to'
@@ -460,6 +461,7 @@ class Evaluation(SimpleEvaluation):
             self._tn = np.append(self.tn, other.tn)
             self._fn = np.append(self.fn, other.fn)
             self._errors = np.append(self.errors, other.errors)
+            # return the modified object
             return self
         else:
             raise TypeError('Can only add Evaluation or derived class to %s, '

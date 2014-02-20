@@ -747,6 +747,10 @@ class TestMeanEvaluationAppend(unittest.TestCase):
         self.e.append(MeanEvaluation())
         self.assertIsInstance(self.e, MeanEvaluation)
 
+    def test_append_evaluation_return_type(self):
+        # append should not return anything
+        self.assertEqual(self.e.append(Evaluation()), None)
+
 
 class TestMeanEvaluationAppendTypes(unittest.TestCase):
     e = MeanEvaluation()
