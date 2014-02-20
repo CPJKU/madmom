@@ -140,12 +140,15 @@ class OnsetEvaluation(Evaluation):
 
     """
     def __init__(self, detections, targets, window=WINDOW):
-        super(OnsetEvaluation, self).__init__()
-        self.detections = np.asarray(detections)
-        self.targets = np.asarray(targets)
+        # save the detections and targets (needed for error calculation)
+        self.detections = np.asarray(sorted(detections), dtype=np.float)
+        self.targets = np.asarray(sorted(targets), dtype=np.float)
+        # save the evaluation parameters
+        self.window = float(window)
         # evaluate
-        numbers = onset_evaluation(self.detections, self.targets, window)
-        self._tp, self._fp, self._tn, self._fn = numbers
+        numbers = onset_evaluation(self.detections, self.targets, self.window)
+        # tp, fp, tn, fn = numbers
+        super(OnsetEvaluation, self).__init__(*numbers)
         # init errors
         self._errors = None
 

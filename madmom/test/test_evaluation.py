@@ -16,7 +16,7 @@ TARGETS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
 
 
 # test functions
-class TestFindClosestMatches(unittest.TestCase):
+class TestFindClosestMatchesFunction(unittest.TestCase):
 
     def test_wrong_passed_type(self):
         with self.assertRaises(AttributeError):
@@ -36,7 +36,7 @@ class TestFindClosestMatches(unittest.TestCase):
         self.assertTrue(np.array_equal(matches, correct))
 
 
-class TestCalcErrors(unittest.TestCase):
+class TestCalcErrorsFunction(unittest.TestCase):
 
     def test_wrong_passed_type(self):
         with self.assertRaises(AttributeError):
@@ -60,7 +60,7 @@ class TestCalcErrors(unittest.TestCase):
         self.assertTrue(np.allclose(errors, correct))
 
 
-class TestCalcAbsoluteErrors(unittest.TestCase):
+class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
 
     def test_wrong_passed_type(self):
         with self.assertRaises(AttributeError):
@@ -85,7 +85,7 @@ class TestCalcAbsoluteErrors(unittest.TestCase):
         self.assertTrue(np.allclose(errors, correct))
 
 
-class TestCalcRelativeErrors(unittest.TestCase):
+class TestCalcRelativeErrorsFunction(unittest.TestCase):
 
     def test_wrong_passed_type(self):
         with self.assertRaises(AttributeError):
@@ -118,707 +118,347 @@ class TestCalcRelativeErrors(unittest.TestCase):
         self.assertTrue(np.allclose(errors, correct))
 
 
-# SimpleEvaluation
+# test classes
+class TestSimpleEvaluationClass(unittest.TestCase):
 
-# test types
-class TestSimpleEvaluationTypes(unittest.TestCase):
-    e = Evaluation()
+    def test_types(self):
+        e = SimpleEvaluation()
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.mean_error, float)
+        self.assertIsInstance(e.std_error, float)
 
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
+    def test_conversion(self):
+        # conversion from float should work
+        e = SimpleEvaluation(float(0), float(0), float(0), float(0))
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        # conversion from list or dict should fail
+        self.assertRaises(TypeError, SimpleEvaluation, [0], [0], [0], [0])
+        self.assertRaises(TypeError, SimpleEvaluation, {}, {}, {}, {})
 
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
+    def test_add(self):
+        e = SimpleEvaluation()
+        self.assertIsInstance(e + Evaluation(), SimpleEvaluation)
+        self.assertIsInstance(e + SimpleEvaluation(), SimpleEvaluation)
+        self.assertIsInstance(e + SumEvaluation(), SimpleEvaluation)
+        self.assertIsInstance(e + MeanEvaluation(), SimpleEvaluation)
 
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.accuracy, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_mean_error_type(self):
-        self.assertIsInstance(self.e.mean_error, float)
-
-    def test_std_error_type(self):
-        self.assertIsInstance(self.e.std_error, float)
-
-
-class TestSimpleEvaluationAddition(unittest.TestCase):
-    e = SimpleEvaluation()
-
-    def test_add_evaluation_object(self):
-        e = self.e + Evaluation()
+    def test_iadd(self):
+        e = SimpleEvaluation()
+        e += SimpleEvaluation()
+        self.assertIsInstance(e, SimpleEvaluation)
+        e += Evaluation()
+        self.assertIsInstance(e, SimpleEvaluation)
+        e += SumEvaluation()
+        self.assertIsInstance(e, SimpleEvaluation)
+        e += MeanEvaluation()
         self.assertIsInstance(e, SimpleEvaluation)
 
-    def test_add_simple_evaluation_object(self):
-        e = self.e + SimpleEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-
-    def test_add_sum_evaluation_object(self):
-        e = self.e + SumEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-
-    def test_add_mean_evaluation_object(self):
-        e = self.e + MeanEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-
-    def test_iadd_evaluation_object(self):
-        self.e += Evaluation()
-        self.assertIsInstance(self.e, SimpleEvaluation)
-
-    def test_iadd_simple_evaluation_object(self):
-        self.e += SimpleEvaluation()
-        self.assertIsInstance(self.e, SimpleEvaluation)
-
-    def test_iadd_sum_evaluation_object(self):
-        self.e += SumEvaluation()
-        self.assertIsInstance(self.e, SimpleEvaluation)
-
-    def test_iadd_mean_evaluation_object(self):
-        self.e += MeanEvaluation()
-        self.assertIsInstance(self.e, SimpleEvaluation)
-
-
-# test results
-class TestSimpleEvaluationResultsNone(unittest.TestCase):
-    e = SimpleEvaluation()
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 0)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 0)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 0)
-
-    def test_precision(self):
+    def test_results(self):
+        e = SimpleEvaluation()
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
         # all correct (none) retrieved
-        self.assertEqual(self.e.precision, 1)
-
-    def test_recall(self):
+        self.assertEqual(e.precision, 1)
         # all retrieved (none) are correct
-        self.assertEqual(self.e.recall, 1)
-
-    def test_fmeasure(self):
+        self.assertEqual(e.recall, 1)
         # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 1)
-
-    def test_accuracy(self):
+        self.assertEqual(e.fmeasure, 1)
         # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, 1)
+        self.assertEqual(e.accuracy, 1)
+        # errors
+        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
 
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
-
-
-# test results with other values
-class TestSimpleEvaluationResults5341(unittest.TestCase):
-    e = SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 5)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 3)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 4)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 1)
-
-    def test_precision(self):
+    def test_results_5341(self):
+        e = SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
+        self.assertEqual(e.num_tp, 5)
+        self.assertEqual(e.num_fp, 3)
+        self.assertEqual(e.num_tn, 4)
+        self.assertEqual(e.num_fn, 1)
         # correct / retrieved
-        self.assertEqual(self.e.precision, 5. / 8.)
-
-    def test_recall(self):
+        self.assertEqual(e.precision, 5. / 8.)
         # correct / relevant
-        self.assertEqual(self.e.recall, 5. / 6.)
-
-    def test_fmeasure(self):
+        self.assertEqual(e.recall, 5. / 6.)
         # 2 * P * R / (P + R)
-        correct = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
-        self.assertEqual(self.e.fmeasure, correct)
-
-    def test_accuracy(self):
+        f = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
+        self.assertEqual(e.fmeasure, f)
         # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
-
-    def test_errors(self):
+        self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
         # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
 
 
-# Evaluation
+class TestEvaluationClass(unittest.TestCase):
 
-# test types
-class TestEvaluationTypes(unittest.TestCase):
-    e = Evaluation()
+    def test_types(self):
+        e = Evaluation()
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
 
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_tp_type(self):
-        self.assertIsInstance(self.e.tp, np.ndarray)
-
-    def test_fp_type(self):
-        self.assertIsInstance(self.e.fp, np.ndarray)
-
-    def test_tn_type(self):
-        self.assertIsInstance(self.e.tn, np.ndarray)
-
-    def test_fn_type(self):
-        self.assertIsInstance(self.e.fn, np.ndarray)
-
-    def test_conversion_from_float(self):
+    def test_conversion(self):
+        # conversion from float should work
         e = Evaluation(tp=float(0), fp=float(0), tn=float(0), fn=float(0))
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-
-    def test_conversion_from_int(self):
+        # conversion from int should work
         e = Evaluation(tp=int(0), fp=int(0), tn=int(0), fn=int(0))
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-
-    def test_conversion_from_list(self):
+        # conversion from list should work
         e = Evaluation(tp=[0], fp=[0], tn=[0], fn=[0])
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-
-    def test_conversion_from_dict(self):
+        # conversion from dict should fail
         self.assertRaises(TypeError, Evaluation(), tp={}, fp={}, tn={}, fn={})
 
+    def test_add(self):
+        e = Evaluation()
+        self.assertIsInstance(e + Evaluation(), Evaluation)
+        # can't add the following, because the don't have TP, FP, TN, FN arrays
+        with self.assertRaises(TypeError):
+            e + SimpleEvaluation()
+        with self.assertRaises(TypeError):
+            e + SumEvaluation()
+        with self.assertRaises(TypeError):
+            e + MeanEvaluation()
 
-class TestEvaluationAddition(unittest.TestCase):
-    e = Evaluation()
-
-    def test_add_evaluation_object(self):
-        e = self.e + Evaluation()
+    def test_iadd(self):
+        e = Evaluation()
+        e += Evaluation()
         self.assertIsInstance(e, Evaluation)
-
-    def test_iadd_evaluation_object(self):
-        self.e += Evaluation()
-        self.assertIsInstance(self.e, Evaluation)
-
-    # can't add the following, because the don't have TP, FP, TN, FN arrays
-    def test_add_simple_evaluation_object(self):
+        # can't add the following, because the don't have TP, FP, TN, FN arrays
         with self.assertRaises(TypeError):
-            self.e + SimpleEvaluation()
-
-    def test_add_sum_evaluation_object(self):
+            e += SimpleEvaluation()
         with self.assertRaises(TypeError):
-            self.e + SumEvaluation()
-
-    def test_add_mean_evaluation_object(self):
+            e += SumEvaluation()
         with self.assertRaises(TypeError):
-            self.e + MeanEvaluation()
+            e += MeanEvaluation()
 
-    def test_iadd_simple_evaluation_object(self):
-        with self.assertRaises(TypeError):
-            self.e += SimpleEvaluation()
+    def test_results_empty(self):
+        e = Evaluation()
+        self.assertTrue(np.array_equal(e.tp, np.empty(0)))
+        self.assertTrue(np.array_equal(e.fp, np.empty(0)))
+        self.assertTrue(np.array_equal(e.tn, np.empty(0)))
+        self.assertTrue(np.array_equal(e.fn, np.empty(0)))
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        # p: all correct (none) retrieved
+        self.assertEqual(e.precision, 1)
+        # r: all retrieved (none) are correct
+        self.assertEqual(e.recall, 1)
+        # f: 2 * P * R / (P + R)
+        self.assertEqual(e.fmeasure, 1)
+        # acc: (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, 1)
+        # errors
+        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
 
-    def test_iadd_sum_evaluation_object(self):
-        with self.assertRaises(TypeError):
-            self.e += SumEvaluation()
-
-    def test_iadd_mean_evaluation_object(self):
-        with self.assertRaises(TypeError):
-            self.e += MeanEvaluation()
-
-
-# test results
-class TestEvaluationResults0000(unittest.TestCase):
-    e = Evaluation()
-
-    def test_tp(self):
-        self.assertTrue(np.array_equal(self.e.tp, np.empty(0)))
-
-    def test_fp(self):
-        self.assertTrue(np.array_equal(self.e.fp, np.empty(0)))
-
-    def test_tn(self):
-        self.assertTrue(np.array_equal(self.e.tn, np.empty(0)))
-
-    def test_fn(self):
-        self.assertTrue(np.array_equal(self.e.fn, np.empty(0)))
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 0)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 0)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 0)
-
-    def test_precision(self):
-        # all correct (none) retrieved
-        self.assertEqual(self.e.precision, 1)
-
-    def test_recall(self):
-        # all retrieved (none) are correct
-        self.assertEqual(self.e.recall, 1)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 1)
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, 1)
-
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
+    def test_results_3102(self):
+        e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
+        tp = np.asarray([1, 2, 3], dtype=np.float)
+        self.assertTrue(np.array_equal(e.tp, tp))
+        fp = np.asarray([1.5], dtype=np.float)
+        self.assertTrue(np.array_equal(e.fp, fp))
+        tn = np.asarray([], dtype=np.float)
+        self.assertTrue(np.array_equal(e.tn, tn))
+        fn = np.asarray([0, 3.1], dtype=np.float)
+        self.assertTrue(np.array_equal(e.fn, fn))
+        self.assertEqual(e.num_tp, 3)
+        self.assertEqual(e.num_fp, 1)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 2)
+        # p: correct / retrieved
+        self.assertEqual(e.precision, 3. / 4.)
+        # r: correct / relevant
+        self.assertEqual(e.recall, 3. / 5.)
+        # f: 2 * P * R / (P + R)
+        f = 2 * (3. / 4.) * (3. / 5.) / ((3. / 4.) + (3. / 5.))
+        self.assertEqual(e.fmeasure, f)
+        # acc: (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, 3. / (3 + 1 + 2))
+        # errors
+        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
 
 
-# test results with other values
-class TestEvaluationResults3102(unittest.TestCase):
-    e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
+class TestSumEvaluationClass(unittest.TestCase):
 
-    def test_tp(self):
-        correct = np.asarray([1, 2, 3], dtype=np.float)
-        self.assertTrue(np.array_equal(self.e.tp, correct))
+    def test_types(self):
+        e = SumEvaluation()
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.mean_error, float)
+        self.assertIsInstance(e.std_error, float)
 
-    def test_fp(self):
-        correct = np.asarray([1.5], dtype=np.float)
-        self.assertTrue(np.array_equal(self.e.fp, correct))
+    def test_add(self):
+        e = SumEvaluation()
+        self.assertIsInstance(e + Evaluation(), SumEvaluation)
+        self.assertIsInstance(e + SimpleEvaluation(), SumEvaluation)
+        self.assertIsInstance(e + SumEvaluation(), SumEvaluation)
+        self.assertIsInstance(e + MeanEvaluation(), SumEvaluation)
 
-    def test_fn(self):
-        correct = np.asarray([0, 3.1], dtype=np.float)
-        self.assertTrue(np.array_equal(self.e.fn, correct))
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 3)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 1)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 2)
-
-    def test_precision(self):
-        # correct / retrieved
-        self.assertEqual(self.e.precision, 3. / 4.)
-
-    def test_recall(self):
-        # correct / relevant
-        self.assertEqual(self.e.recall, 3. / 5.)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 2 * (3. / 4.) * (3. / 5.) /
-                         ((3. / 4.) + (3. / 5.)))
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, 3. / (3 + 1 + 2))
-
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
-
-
-# SumEvaluation
-class TestSumEvaluationTypes(unittest.TestCase):
-    e = SumEvaluation()
-
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.accuracy, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_mean_error_type(self):
-        self.assertIsInstance(self.e.mean_error, float)
-
-    def test_std_error_type(self):
-        self.assertIsInstance(self.e.std_error, float)
-
-
-class TestSumEvaluationAddition(unittest.TestCase):
-    e = SumEvaluation()
-
-    def test_add_evaluation_object(self):
-        e = self.e + Evaluation()
+    def test_iadd(self):
+        e = SumEvaluation()
+        e += Evaluation()
+        self.assertIsInstance(e, SumEvaluation)
+        e += SimpleEvaluation()
+        self.assertIsInstance(e, SumEvaluation)
+        e += SumEvaluation()
+        self.assertIsInstance(e, SumEvaluation)
+        e += MeanEvaluation()
         self.assertIsInstance(e, SumEvaluation)
 
-    def test_add_simple_evaluation_object(self):
-        e = self.e + SimpleEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-
-    def test_add_sum_evaluation_object(self):
-        e = self.e + SumEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-
-    def test_add_mean_evaluation_object(self):
-        e = self.e + MeanEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-
-    def test_iadd_evaluation_object(self):
-        self.e += Evaluation()
-        self.assertIsInstance(self.e, SumEvaluation)
-
-    def test_iadd_simple_evaluation_object(self):
-        self.e += SimpleEvaluation()
-        self.assertIsInstance(self.e, SumEvaluation)
-
-    def test_iadd_sum_evaluation_object(self):
-        self.e += SumEvaluation()
-        self.assertIsInstance(self.e, SumEvaluation)
-
-    def test_iadd_mean_evaluation_object(self):
-        self.e += MeanEvaluation()
-        self.assertIsInstance(self.e, SumEvaluation)
-
-
-class TestSumEvaluationAdditionTypes(unittest.TestCase):
-    e = SumEvaluation()
-    e += SimpleEvaluation()
-
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.accuracy, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_mean_error_type(self):
-        self.assertIsInstance(self.e.mean_error, float)
-
-    def test_std_error_type(self):
-        self.assertIsInstance(self.e.std_error, float)
-
-
-class TestSumEvaluationResults0000(unittest.TestCase):
-    e = SumEvaluation()
-    e += SimpleEvaluation()
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 0)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 0)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 0)
-
-    def test_precision(self):
-        # all correct (none) retrieved
-        self.assertEqual(self.e.precision, 1)
-
-    def test_recall(self):
-        # all retrieved (none) are correct
-        self.assertEqual(self.e.recall, 1)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 1)
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, 1)
-
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.empty(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
-
-
-class TestSumEvaluationResults5341(unittest.TestCase):
-    e = SumEvaluation()
-    e += SimpleEvaluation()
-    e += SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 5)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 3)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 4)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 1)
-
-    def test_precision(self):
-        # correct / retrieved
-        self.assertEqual(self.e.precision, 5. / 8.)
-
-    def test_recall(self):
-        # correct / relevant
-        self.assertEqual(self.e.recall, 5. / 6.)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        correct = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
-        self.assertEqual(self.e.fmeasure, correct)
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
-
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
-
-
-# MeanEvaluation
-class TestMeanEvaluationTypes(unittest.TestCase):
-    e = MeanEvaluation()
-
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, float)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, float)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, float)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, float)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_errors_type(self):
-        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
-
-
-class TestMeanEvaluationAppend(unittest.TestCase):
-    e = MeanEvaluation()
-
-    def test_append_evaluation_object(self):
-        self.e.append(Evaluation())
-        self.assertIsInstance(self.e, MeanEvaluation)
-
-    def test_append_simple_evaluation_object(self):
-        self.e.append(SimpleEvaluation())
-        self.assertIsInstance(self.e, MeanEvaluation)
-
-    def test_append_sum_evaluation_object(self):
-        self.e.append(SumEvaluation())
-        self.assertIsInstance(self.e, MeanEvaluation)
-
-    def test_append_mean_evaluation_object(self):
-        self.e.append(MeanEvaluation())
-        self.assertIsInstance(self.e, MeanEvaluation)
-
-    def test_append_evaluation_return_type(self):
-        # append should not return anything
-        self.assertEqual(self.e.append(Evaluation()), None)
-
-
-class TestMeanEvaluationAppendTypes(unittest.TestCase):
-    e = MeanEvaluation()
-    e.append(Evaluation())
-
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, float)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, float)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, float)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, float)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_errors_type(self):
-        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
-
-
-# test results
-class TestMeanEvaluationResults0000(unittest.TestCase):
-    e = MeanEvaluation()
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 0)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 0)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 0)
-
-    def test_precision(self):
-        # all correct (none) retrieved
-        self.assertEqual(self.e.precision, 0)
-
-    def test_recall(self):
-        # all retrieved (none) are correct
-        self.assertEqual(self.e.recall, 0)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 0)
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, 0)
-
-    def test_errors(self):
-        # array with errors
-        self.assertTrue(np.array_equal(self.e.errors, np.zeros(0)))
-
-    def test_mean_error(self):
-        self.assertEqual(self.e.mean_error, 0)
-
-    def test_std_error(self):
-        self.assertEqual(self.e.std_error, 0)
+    def test_iadd_types(self):
+        e = SumEvaluation()
+        e += SimpleEvaluation()
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.mean_error, float)
+        self.assertIsInstance(e.std_error, float)
+
+    def test_results_empty(self):
+        e = SumEvaluation()
+        e += SimpleEvaluation()
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        # p: all correct (none) retrieved
+        self.assertEqual(e.precision, 1)
+        # r: all retrieved (none) are correct
+        self.assertEqual(e.recall, 1)
+        # f: 2 * P * R / (P + R)
+        self.assertEqual(e.fmeasure, 1)
+        # acc: (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, 1)
+        # errors
+        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
+
+    def test_results_5341(self):
+        e = SumEvaluation()
+        e += SimpleEvaluation()
+        e += SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
+        self.assertEqual(e.num_tp, 5)
+        self.assertEqual(e.num_fp, 3)
+        self.assertEqual(e.num_tn, 4)
+        self.assertEqual(e.num_fn, 1)
+        self.assertEqual(e.precision, 5. / 8.)
+        self.assertEqual(e.recall, 5. / 6.)
+        f = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
+        self.assertEqual(e.fmeasure, f)
+        self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
+
+
+class TestMeanEvaluationClass(unittest.TestCase):
+
+    def test_types(self):
+        e = MeanEvaluation()
+        self.assertIsInstance(e.num_tp, float)
+        self.assertIsInstance(e.num_fp, float)
+        self.assertIsInstance(e.num_tn, float)
+        self.assertIsInstance(e.num_fn, float)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+
+    def test_append(self):
+        e = MeanEvaluation()
+        e.append(Evaluation())
+        self.assertIsInstance(e, MeanEvaluation)
+        e.append(SimpleEvaluation())
+        self.assertIsInstance(e, MeanEvaluation)
+        e.append(SumEvaluation())
+        self.assertIsInstance(e, MeanEvaluation)
+        e.append(MeanEvaluation())
+        self.assertIsInstance(e, MeanEvaluation)
+        # appending something should not return anything
+        self.assertEqual(e.append(Evaluation()), None)
+
+    def test_append_types(self):
+        e = MeanEvaluation()
+        e.append(Evaluation())
+        self.assertIsInstance(e.num_tp, float)
+        self.assertIsInstance(e.num_fp, float)
+        self.assertIsInstance(e.num_tn, float)
+        self.assertIsInstance(e.num_fn, float)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+
+    def test_results_empty(self):
+        e = MeanEvaluation()
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        # p: all correct (none) retrieved
+        self.assertEqual(e.precision, 0)
+        # r: all retrieved (none) are correct
+        self.assertEqual(e.recall, 0)
+        # f: 2 * P * R / (P + R)
+        self.assertEqual(e.fmeasure, 0)
+        # acc: (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, 0)
+        # errors
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)

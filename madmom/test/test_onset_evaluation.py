@@ -16,221 +16,148 @@ DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
 TARGETS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
 
 
-# test types
-class TestOnsetEvaluationTypes(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS)
+# test evaluation function
+class TestOnsetEvaluationFunction(unittest.TestCase):
 
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
+    def test_window_001(self):
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.01)
+        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
+                                       2.5])
+        self.assertEqual(fp.tolist(), [1.45, 3.030000001])
+        self.assertEqual(tn.tolist(), [])
+        self.assertEqual(fn.tolist(), [1.5, 2.05, 3.0])
 
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
+    def test_window_003(self):
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.03)
+        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
+                                       2.5])
+        self.assertEqual(fp.tolist(), [1.45, 3.030000001])
+        self.assertEqual(tn.tolist(), [])
+        self.assertEqual(fn.tolist(), [1.5, 2.05, 3.0])
 
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
+    def test_window_004(self):
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.04)
 
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.accuracy, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_mean_error_type(self):
-        self.assertIsInstance(self.e.mean_error, float)
-
-    def test_std_error_type(self):
-        self.assertIsInstance(self.e.std_error, float)
+        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02, 2.5,
+                                       3.030000001])
+        self.assertEqual(fp.tolist(), [1.45])
+        self.assertEqual(tn.tolist(), [])
+        self.assertEqual(fn.tolist(), [1.5, 2.05])
 
 
-class TestOnsetEvaluationAddition(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS)
+# test evaluation class
+class TestOnsetEvaluationClass(unittest.TestCase):
 
-    # add
-    def test_add_evaluation_object(self):
-        e = self.e + Evaluation()
-        self.assertIsInstance(e, Evaluation)
+    def test_types(self):
+        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        self.assertIsInstance(e.detections, np.ndarray)
+        self.assertEqual(e.detections.dtype, np.float)
+        self.assertIsInstance(e.targets, np.ndarray)
+        self.assertEqual(e.targets.dtype, np.float)
+        self.assertIsInstance(e.window, float)
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.mean_error, float)
+        self.assertIsInstance(e.std_error, float)
 
-    def test_add_onset_evaluation_object(self):
-        e = self.e + OnsetEvaluation(DETECTIONS, TARGETS)
-        self.assertIsInstance(e, Evaluation)
+    def test_conversion(self):
+        # conversion from list should work
+        e = OnsetEvaluation([0], [0])
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        # conversion from dict should work as well
+        e = OnsetEvaluation({}, {})
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        # others should fail
+        self.assertRaises(TypeError, OnsetEvaluation, float(0), float(0))
+        self.assertRaises(TypeError, OnsetEvaluation, int(0), int(0))
 
-    # others should fail
-    def test_add_simple_evaluation_object(self):
+    def test_add(self):
+        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        # adding an Evaluation or OnsetEvaluation object should work
+        self.assertIsInstance(e + Evaluation(), Evaluation)
+        self.assertIsInstance(e + OnsetEvaluation(DETECTIONS, TARGETS),
+                              Evaluation)
+        # adding others should fail
         with self.assertRaises(TypeError):
-            self.e + SimpleEvaluation()
-
-    def test_add_sum_evaluation_object(self):
+            e + SimpleEvaluation()
         with self.assertRaises(TypeError):
-            self.e + SumEvaluation()
-
-    def test_add_mean_evaluation_object(self):
+            e + SumEvaluation()
         with self.assertRaises(TypeError):
-            self.e + MeanEvaluation()
+            e + MeanEvaluation()
 
-    # iadd
-    def test_iadd_evaluation_object(self):
-        self.e += Evaluation()
-        self.assertIsInstance(self.e, OnsetEvaluation)
-
-    def test_iadd_onset_evaluation_object(self):
-        self.e += OnsetEvaluation(DETECTIONS, TARGETS)
-        self.assertIsInstance(self.e, OnsetEvaluation)
-
-    # others should fail
-    def test_iadd_simple_evaluation_object(self):
+    def test_iadd(self):
+        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        # adding an Evaluation
+        e += Evaluation()
+        self.assertIsInstance(e, OnsetEvaluation)
+        # or OnsetEvaluation object should work
+        e += OnsetEvaluation(DETECTIONS, TARGETS)
+        self.assertIsInstance(e, OnsetEvaluation)
+        # adding others should fail
         with self.assertRaises(TypeError):
-            self.e += SimpleEvaluation()
-
-    def test_iadd_sum_evaluation_object(self):
+            e += SimpleEvaluation()
         with self.assertRaises(TypeError):
-            self.e += SumEvaluation()
-
-    def test_iadd_mean_evaluation_object(self):
+            e += SumEvaluation()
         with self.assertRaises(TypeError):
-            self.e += MeanEvaluation()
+            e += MeanEvaluation()
 
+    def test_iadd_types(self):
+        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        e += OnsetEvaluation(DETECTIONS, TARGETS)
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.mean_error, float)
+        self.assertIsInstance(e.std_error, float)
 
-class TestOnsetEvaluationAdditionTypes(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS)
-    e += OnsetEvaluation(DETECTIONS, TARGETS)
-
-    def test_num_tp_type(self):
-        self.assertIsInstance(self.e.num_tp, int)
-
-    def test_num_fp_type(self):
-        self.assertIsInstance(self.e.num_fp, int)
-
-    def test_num_tn_type(self):
-        self.assertIsInstance(self.e.num_tn, int)
-
-    def test_num_fn_type(self):
-        self.assertIsInstance(self.e.num_fn, int)
-
-    def test_precision_type(self):
-        self.assertIsInstance(self.e.precision, float)
-
-    def test_recall_type(self):
-        self.assertIsInstance(self.e.recall, float)
-
-    def test_fmeasure_type(self):
-        self.assertIsInstance(self.e.fmeasure, float)
-
-    def test_accuracy_type(self):
-        self.assertIsInstance(self.e.accuracy, float)
-
-    def test_errors_type(self):
-        self.assertIsInstance(self.e.errors, np.ndarray)
-
-    def test_mean_error_type(self):
-        self.assertIsInstance(self.e.mean_error, float)
-
-    def test_std_error_type(self):
-        self.assertIsInstance(self.e.std_error, float)
-
-
-# test results with 0.01 seconds detection window
-class TestOnsetEvaluationResults001(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.01)
-
-    def test_tp(self):
-        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                              2.02, 2.5])
-
-    def test_fp(self):
-        self.assertEqual(self.e.fp.tolist(), [1.45, 3.030000001])
-
-    def test_tn(self):
-        self.assertEqual(self.e.tn.tolist(), [])
-
-    def test_fn(self):
-        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05, 3.0])
-
-    def test_num_tp(self):
-        self.assertEqual(self.e.num_tp, 5)
-
-    def test_num_fp(self):
-        self.assertEqual(self.e.num_fp, 2)
-
-    def test_num_tn(self):
-        self.assertEqual(self.e.num_tn, 0)
-
-    def test_num_fn(self):
-        self.assertEqual(self.e.num_fn, 3)
-
-    def test_precision(self):
-        # correct / retrieved
-        self.assertEqual(self.e.precision, 5. / 7.)
-
-    def test_recall(self):
-        # correct / relevant
-        self.assertEqual(self.e.recall, 5. / 8.)
-
-    def test_fmeasure(self):
-        # 2 * P * R / (P + R)
-        self.assertEqual(self.e.fmeasure, 2 * (5. / 7.) * (5. / 8.) /
-                         ((5. / 7.) + (5. / 8.)))
-
-    def test_accuracy(self):
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(self.e.accuracy, (5. + 0) / (5 + 2 + 0 + 3))
-
-    def test_errors(self):
-        # array with errors
+    def test_results(self):
+        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        self.assertEqual(e.tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
+                                         2.5])
+        self.assertEqual(e.fp.tolist(), [1.45, 3.030000001])
+        self.assertEqual(e.tn.tolist(), [])
+        self.assertEqual(e.fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(e.num_tp, 5)
+        self.assertEqual(e.num_fp, 2)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 3)
+        # p = correct / retrieved
+        self.assertEqual(e.precision, 5. / 7.)
+        # r = correct / relevant
+        self.assertEqual(e.recall, 5. / 8.)
+        # f = 2 * P * R / (P + R)
+        f = 2 * (5. / 7.) * (5. / 8.) / ((5. / 7.) + (5. / 8.))
+        self.assertEqual(e.fmeasure, f)
+        # acc = (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, (5. + 0) / (5 + 2 + 0 + 3))
+        # errors
         # det 0.99999999, 1.02999999, 1.45, 2.01, 2.02,       2.5, 3.030000001
         # tar 1,          1.02,       1.5,  2.0,  2.03, 2.05, 2.5, 3
-        correct = [0.99999999 - 1, 1.02999999 - 1.02,  # 1.45 - 1.5,
-                   2.01 - 2, 2.02 - 2.03, 2.5 - 2.5]  #, 3.030000001 - 3
-        self.assertTrue(np.array_equal(self.e.errors, correct))
-
-    def test_mean_error(self):
-        correct = np.mean([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
-                           2.02 - 2.03, 2.5 - 2.5])
-        self.assertEqual(self.e.mean_error, correct)
-
-    def test_std_error(self):
-        correct = np.std([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
-                          2.02 - 2.03, 2.5 - 2.5])
-        self.assertEqual(self.e.std_error, correct)
-
-
-# test results with 0.03 seconds detection window
-class TestOnsetEvaluationResults003(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.03)
-
-    def test_tp(self):
-        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                              2.02, 2.5])
-
-    def test_fp(self):
-        self.assertEqual(self.e.fp.tolist(), [1.45, 3.030000001])
-
-    def test_fn(self):
-        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05, 3.0])
-
-
-# test results with 0.04 seconds detection window
-class TestOnsetEvaluationResults004(unittest.TestCase):
-    e = OnsetEvaluation(DETECTIONS, TARGETS, 0.04)
-
-    def test_tp(self):
-        self.assertEqual(self.e.tp.tolist(), [0.99999999, 1.02999999, 2.01,
-                                              2.02, 2.5, 3.030000001])
-
-    def test_fp(self):
-        self.assertEqual(self.e.fp.tolist(), [1.45])
-
-    def test_fn(self):
-        self.assertEqual(self.e.fn.tolist(), [1.5, 2.05])
-
+        errors = [0.99999999 - 1, 1.02999999 - 1.02,  # 1.45 - 1.5,
+                  2.01 - 2, 2.02 - 2.03, 2.5 - 2.5]  # , 3.030000001 - 3
+        self.assertTrue(np.array_equal(e.errors, errors))
+        mean = np.mean([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
+                        2.02 - 2.03, 2.5 - 2.5])
+        self.assertEqual(e.mean_error, mean)
+        std = np.std([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2, 2.02 - 2.03,
+                      2.5 - 2.5])
+        self.assertEqual(e.std_error, std)
