@@ -123,22 +123,11 @@ class TestPscoreFunction(unittest.TestCase):
         self.assertEqual(score, 0.9)
 
 
-
-
 # test evaluation class
 class TestBeatEvaluationClass(unittest.TestCase):
 
     def test_types(self):
         e = BeatEvaluation(DETECTIONS, TARGETS)
-        self.assertIsInstance(e.detections, np.ndarray)
-        self.assertEqual(e.detections.dtype, np.float)
-        self.assertIsInstance(e.targets, np.ndarray)
-        self.assertEqual(e.targets.dtype, np.float)
-        self.assertIsInstance(e.sigma, float)
-        self.assertIsInstance(e.tolerance, float)
-        self.assertIsInstance(e.tempo_tolerance, float)
-        self.assertIsInstance(e.phase_tolerance, float)
-        self.assertIsInstance(e.bins, int)
         # from OnsetEvaluation
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)

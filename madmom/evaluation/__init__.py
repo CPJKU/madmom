@@ -241,7 +241,9 @@ class SimpleEvaluation(object):
         """
         # if any errors are given, they have to be the same length as the true
         # positive detections
-        if len(self._errors) > 0 and len(self._errors) != self._num_tp:
+        # Note: access the hidden variable _errors and the property num_tp
+        #       because different classes implement the latter differently
+        if len(self._errors) > 0 and len(self._errors) != self.num_tp:
             raise AssertionError("length of the errors and number of true "
                                  "positive detections must match")
         return self._errors
@@ -460,7 +462,7 @@ class Evaluation(SimpleEvaluation):
             self._fp = np.append(self.fp, other.fp)
             self._tn = np.append(self.tn, other.tn)
             self._fn = np.append(self.fn, other.fn)
-            self._errors = np.append(self.errors, other.errors)
+            self._errors = np.append(self._errors, other.errors)
             # return the modified object
             return self
         else:
@@ -479,7 +481,7 @@ class Evaluation(SimpleEvaluation):
             # create a new object
             new = Evaluation(tp, fp, tn, fn)
             # modify the hidden _errors variable directly
-            new._errors = np.append(self.errors, other.errors)
+            new._errors = np.append(self._errors, other.errors)
             # return the newly created object
             return new
         else:

@@ -140,32 +140,15 @@ class OnsetEvaluation(Evaluation):
 
     """
     def __init__(self, detections, targets, window=WINDOW):
-        # save the detections and targets (needed for error calculation)
-        self.detections = np.asarray(sorted(detections), dtype=np.float)
-        self.targets = np.asarray(sorted(targets), dtype=np.float)
-        # save the evaluation parameters
-        self.window = float(window)
+        # convert the detections and targets
+        detections = np.asarray(sorted(detections), dtype=np.float)
+        targets = np.asarray(sorted(targets), dtype=np.float)
         # evaluate
-        numbers = onset_evaluation(self.detections, self.targets, self.window)
+        numbers = onset_evaluation(detections, targets, window)
         # tp, fp, tn, fn = numbers
         super(OnsetEvaluation, self).__init__(*numbers)
-        # init errors
-        self._errors = None
-
-    @property
-    def errors(self):
-        """
-        Absolute errors of all true positive detections relative to the closest
-        targets.
-
-        """
-        if self._errors is None:
-            if self.num_tp == 0:
-                # FIXME: what is the error in case of no TPs?
-                self._errors = np.zeros(0)
-            else:
-                self._errors = calc_errors(self.tp, self.targets)
-        return self._errors
+        # calculate errors
+        self._errors = calc_errors(self.tp, targets)
 
 
 def parser():

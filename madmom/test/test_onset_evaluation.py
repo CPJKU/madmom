@@ -50,11 +50,6 @@ class TestOnsetEvaluationClass(unittest.TestCase):
 
     def test_types(self):
         e = OnsetEvaluation(DETECTIONS, TARGETS)
-        self.assertIsInstance(e.detections, np.ndarray)
-        self.assertEqual(e.detections.dtype, np.float)
-        self.assertIsInstance(e.targets, np.ndarray)
-        self.assertEqual(e.targets.dtype, np.float)
-        self.assertIsInstance(e.window, float)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)

@@ -460,27 +460,20 @@ class BeatEvaluation(OnsetEvaluation):
         :param bins:            number of bins for the error histogram
 
         """
-        # save the detections and targets
-        self.detections = np.asarray(sorted(detections), dtype=np.float)
-        self.targets = np.asarray(sorted(targets), dtype=np.float)
-        # save the evaluation parameters
-        self.sigma = float(sigma)
-        self.tolerance = float(tolerance)
-        self.tempo_tolerance = float(tempo_tolerance)
-        self.phase_tolerance = float(phase_tolerance)
-        self.bins = int(bins)
+        # convert the detections and targets
+        detections = np.asarray(sorted(detections), dtype=np.float)
+        targets = np.asarray(sorted(targets), dtype=np.float)
         # perform onset evaluation with the appropriate window
-        super(BeatEvaluation, self).__init__(self.detections, self.targets,
-                                             window)
+        super(BeatEvaluation, self).__init__(detections, targets, window)
         # other scores
-        self.pscore = pscore(self.detections, self.targets, self.tolerance)
-        self.cemgil = cemgil(self.detections, self.targets, self.sigma)
+        self.pscore = pscore(detections, targets, tolerance)
+        self.cemgil = cemgil(detections, targets, sigma)
         # continuity scores
-        scores = continuity(self.detections, self.targets,
-                            self.tempo_tolerance, self.phase_tolerance)
+        scores = continuity(detections, targets,
+                            tempo_tolerance, phase_tolerance)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
-        scores = information_gain(self.detections, self.targets, self.bins)
+        scores = information_gain(detections, targets, bins)
         self.information_gain, self.error_histogram = scores
 
     @property
