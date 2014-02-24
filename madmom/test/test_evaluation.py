@@ -18,19 +18,24 @@ TARGETS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
 # test functions
 class TestFindClosestMatchesFunction(unittest.TestCase):
 
-    def test_wrong_passed_type(self):
+    def test_types(self):
+        matches = find_closest_matches([], [])
+        self.assertIsInstance(matches, np.ndarray)
+        self.assertEqual(matches.dtype, np.int)
+        # lists don't have searchsorted
         with self.assertRaises(AttributeError):
             find_closest_matches([0, 1], [2, 3])
-
-    def test_return_type(self):
         self.assertIsInstance(find_closest_matches([], []), np.ndarray)
 
-    def test_return_value(self):
+    def test_value(self):
+        # empty sequences
+        matches = find_closest_matches([], [])
+        self.assertTrue(np.array_equal(matches, []))
+        # detections relative to targets
         matches = find_closest_matches(DETECTIONS, TARGETS)
         correct = np.asarray([0, 1, 2, 3, 6, 6])
         self.assertTrue(np.array_equal(matches, correct))
-
-    def test_return_value_reverse(self):
+        # targets relative to detections
         matches = find_closest_matches(TARGETS, DETECTIONS)
         correct = np.asarray([0, 1, 2, 3, 3, 3, 4])
         self.assertTrue(np.array_equal(matches, correct))
@@ -38,23 +43,23 @@ class TestFindClosestMatchesFunction(unittest.TestCase):
 
 class TestCalcErrorsFunction(unittest.TestCase):
 
-    def test_wrong_passed_type(self):
+    def test_types(self):
+        errors = calc_errors(DETECTIONS, TARGETS)
+        self.assertIsInstance(errors, np.ndarray)
+        self.assertEqual(errors.dtype, np.float)
+        # lists don't have searchsorted
         with self.assertRaises(AttributeError):
             calc_errors([0, 1], [2, 3])
 
-    def test_wrong_passed_matches_type(self):
-        with self.assertRaises(TypeError):
-            calc_errors([], [], [0, 1])
-
-    def test_return_type(self):
-        self.assertIsInstance(calc_errors(DETECTIONS, TARGETS), np.ndarray)
-
-    def test_return_value(self):
+    def test_values(self):
+        # empty sequences
+        matches = calc_errors([], [])
+        self.assertTrue(np.array_equal(matches, []))
+        # detections relative to targets
         errors = calc_errors(DETECTIONS, TARGETS)
         correct = np.asarray([-0.01, -0.05, 0.01, -0.015, 0.1, 5.1])
         self.assertTrue(np.allclose(errors, correct))
-
-    def test_return_value_reverse(self):
+        # targets relative to detections
         errors = calc_errors(TARGETS, DETECTIONS)
         correct = np.asarray([0.01, 0.05, -0.01, 0.015, 0.035, 0.485, -0.1])
         self.assertTrue(np.allclose(errors, correct))
@@ -62,24 +67,23 @@ class TestCalcErrorsFunction(unittest.TestCase):
 
 class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
 
-    def test_wrong_passed_type(self):
+    def test_types(self):
+        errors = calc_absolute_errors(DETECTIONS, TARGETS)
+        self.assertIsInstance(errors, np.ndarray)
+        self.assertEqual(errors.dtype, np.float)
+        # lists don't have searchsorted
         with self.assertRaises(AttributeError):
             calc_absolute_errors([0, 1], [2, 3])
 
-    def test_wrong_passed_matches_type(self):
-        with self.assertRaises(TypeError):
-            calc_absolute_errors([], [], [0, 1])
-
-    def test_return_type(self):
-        self.assertIsInstance(calc_absolute_errors(DETECTIONS, TARGETS),
-                              np.ndarray)
-
-    def test_return_value(self):
+    def test_values(self):
+        # empty sequences
+        errors = calc_absolute_errors([], [])
+        self.assertTrue(np.allclose(errors, []))
+        # detections relative to targets
         errors = calc_absolute_errors(DETECTIONS, TARGETS)
         correct = np.asarray([0.01, 0.05, 0.01, 0.015, 0.1, 5.1])
         self.assertTrue(np.allclose(errors, correct))
-
-    def test_return_value_reverse(self):
+        # targets relative to detections
         errors = calc_absolute_errors(TARGETS, DETECTIONS)
         correct = np.asarray([0.01, 0.05, 0.01, 0.015, 0.035, 0.485, 0.1])
         self.assertTrue(np.allclose(errors, correct))
@@ -87,19 +91,17 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
 
 class TestCalcRelativeErrorsFunction(unittest.TestCase):
 
-    def test_wrong_passed_type(self):
+    def test_types(self):
+        errors = calc_relative_errors(DETECTIONS, TARGETS)
+        self.assertIsInstance(errors, np.ndarray)
         with self.assertRaises(AttributeError):
             calc_relative_errors([0, 1], [2, 3])
 
-    def test_wrong_passed_matches_type(self):
-        with self.assertRaises(TypeError):
-            calc_relative_errors([], [], [0, 1])
-
-    def test_return_type(self):
-        self.assertIsInstance(calc_relative_errors(DETECTIONS, TARGETS),
-                              np.ndarray)
-
-    def test_return_value(self):
+    def test_values(self):
+        # empty sequences
+        errors = calc_relative_errors([], [])
+        self.assertTrue(np.allclose(errors, []))
+        # detections relative to targets
         errors = calc_relative_errors(DETECTIONS, TARGETS)
         # np.abs(1 - (errors / targets[matches]))
         # det: [0.99, 1.45, 2.01, 2.015,            3.1,  8.1])
@@ -108,8 +110,7 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
                                      1 - 0.01 / 2, 1 + 0.015 / 2.03,
                                      1 - 0.1 / 3, 1 - 5.1 / 3]))
         self.assertTrue(np.allclose(errors, correct))
-
-    def test_return_value_reverse(self):
+        # targets relative to detections
         errors = calc_relative_errors(TARGETS, DETECTIONS)
         correct = np.abs(np.asarray([1 - 0.01 / 0.99, 1 - 0.05 / 1.45,
                                      1 + 0.01 / 2.01, 1 - 0.015 / 2.015,
@@ -164,7 +165,7 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         e += MeanEvaluation()
         self.assertIsInstance(e, SimpleEvaluation)
 
-    def test_results(self):
+    def test_results_empty(self):
         e = SimpleEvaluation()
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
@@ -370,6 +371,7 @@ class TestSumEvaluationClass(unittest.TestCase):
 
     def test_results_empty(self):
         e = SumEvaluation()
+        # add an empty SimpleEvaluation
         e += SimpleEvaluation()
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
@@ -388,9 +390,11 @@ class TestSumEvaluationClass(unittest.TestCase):
         self.assertEqual(e.mean_error, 0)
         self.assertEqual(e.std_error, 0)
 
-    def test_results_5341(self):
+    def test_results_empty_5341(self):
         e = SumEvaluation()
+        # add an empty SimpleEvaluation
         e += SimpleEvaluation()
+        # add another SimpleEvaluation
         e += SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
         self.assertEqual(e.num_tp, 5)
         self.assertEqual(e.num_fp, 3)
@@ -429,8 +433,9 @@ class TestMeanEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e, MeanEvaluation)
         e.append(MeanEvaluation())
         self.assertIsInstance(e, MeanEvaluation)
-        # appending something should not return anything
+        # appending something valid should not return anything
         self.assertEqual(e.append(Evaluation()), None)
+        # appending something else should not work
 
     def test_append_types(self):
         e = MeanEvaluation()
@@ -446,6 +451,8 @@ class TestMeanEvaluationClass(unittest.TestCase):
 
     def test_results_empty(self):
         e = MeanEvaluation()
+        # append an empty evaluation
+        e.append(MeanEvaluation())
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
@@ -459,6 +466,31 @@ class TestMeanEvaluationClass(unittest.TestCase):
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 0)
         # errors
+        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+        self.assertEqual(e.mean_error, 0)
+        self.assertEqual(e.std_error, 0)
+
+    def test_results_5341(self):
+        e = MeanEvaluation()
+        # append an empty evaluation
+        e.append(MeanEvaluation())
+        # append a SimpleEvaluation
+        e.append(SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1))
+        # all number should be half of the last added SimpleEvaluation
+        self.assertEqual(e.num_tp, 5 / 2.)
+        self.assertEqual(e.num_fp, 3 / 2.)
+        self.assertEqual(e.num_tn, 4 / 2.)
+        self.assertEqual(e.num_fn, 1 / 2.)
+        # correct / retrieved
+        self.assertEqual(e.precision, 5. / 8. / 2.)
+        # correct / relevant
+        self.assertEqual(e.recall, 5. / 6. / 2.)
+        # 2 * P * R / (P + R)
+        f = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.)) / 2.
+        self.assertEqual(e.fmeasure, f)
+        # (TP + TN) / (TP + FP + TN + FN)
+        self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1) / 2.)
+        # array with errors
         self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
         self.assertEqual(e.mean_error, 0)
         self.assertEqual(e.std_error, 0)

@@ -16,21 +16,19 @@ import numpy as np
 # evaluation helper functions
 def find_closest_matches(detections, targets):
     """
-    Find the closest matches for detections in targets.
+    Find the closest target for each detection.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :returns:          a numpy array of indices with closest matches
+    :param detections: numpy array with the detected events [float, seconds]
+    :param targets:    numpy array with the target events [float, seconds]
+    :returns:          numpy array with indices of the closest matches [int]
 
     Note: The sequences must be ordered!
 
     """
-    # if no targets are given
-    if len(targets) == 0:
+    # if no detections or targets are given
+    if len(detections) == 0 or len(targets) == 0:
         # return a empty array
         return np.zeros(0, dtype=np.int)
-        # FIXME: raise an error instead?
-        #raise ValueError("at least one target must be given")
     # if only a single target is given
     if len(targets) == 1:
         # return an array as long as the detections with indices 0
@@ -47,17 +45,21 @@ def find_closest_matches(detections, targets):
 
 def calc_errors(detections, targets, matches=None):
     """
-    Calculates the errors of the detections relative to the closest targets.
+    Errors of the detections relative to the closest targets.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches
-    :returns:          a list of errors to closest matches [seconds]
+    :param detections: numpy array with the detected events [float, seconds]
+    :param targets:    numpy array with the target events [float, seconds]
+    :param matches:    numpy array with indices of the closest events [int]
+    :returns:          numpy array with the errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
 
     """
+    # if no detections or targets are given
+    if len(detections) == 0 or len(targets) == 0:
+        # return a empty array
+        return np.zeros(0, dtype=np.float)
     # determine the closest targets
     if matches is None:
         matches = find_closest_matches(detections, targets)
@@ -69,13 +71,12 @@ def calc_errors(detections, targets, matches=None):
 
 def calc_absolute_errors(detections, targets, matches=None):
     """
-    Calculate absolute errors of the detections relative to the closest
-    targets.
+    Absolute errors of the detections relative to the closest targets.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches
-    :returns:          a list of errors to closest matches [seconds]
+    :param detections: numpy array with the detected events [float, seconds]
+    :param targets:    numpy array with the target events [float, seconds]
+    :param matches:    numpy array with indices of the closest events [int]
+    :returns:          numpy array with the absolute errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
@@ -90,15 +91,19 @@ def calc_relative_errors(detections, targets, matches=None):
     Relative errors of the detections to the closest targets.
     The absolute error is weighted by the absolute value of the target.
 
-    :param detections: sequence of events to be matched [seconds]
-    :param targets:    sequence of possible matches [seconds]
-    :param matches:    indices of the closest matches
-    :returns:          a list of relative errors to closest matches [seconds]
+    :param detections: numpy array with the detected events [float, seconds]
+    :param targets:    numpy array with the target events [float, seconds]
+    :param matches:    numpy array with indices of the closest events [int]
+    :returns:          numpy array with the relative errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
+    # if no detections or targets are given
+    if len(detections) == 0 or len(targets) == 0:
+        # return a empty array
+        return np.zeros(0, dtype=np.float)
     # determine the closest targets
     if matches is None:
         matches = find_closest_matches(detections, targets)
