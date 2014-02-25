@@ -107,8 +107,8 @@ def bark_frequencies(fmin=20, fmax=15500):
                             1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700,
                             4400, 5300, 6400, 7700, 9500, 12000, 15500])
     # filter frequencies
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -131,8 +131,8 @@ def bark_double_frequencies(fmin=20, fmax=15500):
                             4000, 4400, 4800, 5300, 5800, 6400, 7000, 7700,
                             8500, 9500, 10500, 12000, 13500, 15500])
     # filter frequencies
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -159,8 +159,8 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     frequencies = a4 * 2. ** (np.arange(left, right) / float(bands_per_octave))
     # filter frequencies
     # needed, because range might be bigger because of the use of floor/ceil
-    frequencies = frequencies[frequencies >= fmin]
-    frequencies = frequencies[frequencies <= fmax]
+    frequencies = frequencies[np.searchsorted(frequencies, fmin):]
+    frequencies = frequencies[:np.searchsorted(frequencies, fmax, 'right')]
     # return
     return frequencies
 
@@ -318,19 +318,19 @@ def _put_filter(filt, band):
     """
     start = filt.start_pos
     stop = start + len(filt.filter)
-    fltr = filt.filter
+    filter_ = filt.filter
     # truncate the filter if it starts before the 0th frequency bin
     if start < 0:
-        fltr = fltr[-start:]
+        filter_ = filter_[-start:]
         start = 0
     # truncate the filter if it ends after the last frequency bin
     if stop > len(band):
-        fltr = fltr[:stop - len(band)]
+        filter_ = filter_[:stop - len(band)]
         stop = len(band)
     # put the filter in place
-    filt_pos = band[start:stop]
-    # TODO: if needed allow other handling (like adding values)
-    np.maximum(fltr, filt_pos, out=filt_pos)
+    filter_pos = band[start:stop]
+    # TODO: if needed, allow other handling (like adding values)
+    np.maximum(filter_, filter_pos, out=filter_pos)
 
 
 def assemble_filterbank(filters, num_fft_bins, norm):
@@ -425,16 +425,15 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     """
     # map the frequencies to the spectrogram bins
     factor = (sample_rate / 2.0) / num_fft_bins
-    frequencies = np.round(np.asarray(frequencies) / factor).astype(int)
-    # filter out all frequencies outside the valid range
-    frequencies = frequencies[frequencies < num_fft_bins]
+    bins = np.round(np.asarray(frequencies) / factor).astype(int)
+    # filter out all bins outside the valid range
+    bins = bins[:np.searchsorted(bins, num_fft_bins)]
     # FIXME: skip the DC bin 0?
 
     # create filter bank
     filters = []
-    # get (overlapping) start, center and stop frequencies from a list of
-    # center frequencies
-    for start, center, stop in band_bins(frequencies, duplicates, overlap):
+    # get (overlapping) start, center and stop frequencies from a list of bins
+    for start, center, stop in band_bins(bins, duplicates, overlap):
         # set filter arguments
         kwargs = {'width': stop - start,
                   'center': center - start,
