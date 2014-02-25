@@ -84,7 +84,7 @@ def main():
                         norm_filters=args.norm_filters)
         # create an SpectralOnsetDetection object
         # and perform detection function on the object
-        act = SpectralOnsetDetection(s).superflux()
+        act = SpectralOnsetDetection(s, max_bins=args.max_bins).superflux()
         # create an Onset object with the activations
         o = Onset(act, args.fps, args.online)
 

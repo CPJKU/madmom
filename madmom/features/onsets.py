@@ -412,16 +412,8 @@ class SpectralOnsetDetection(object):
         return spectral_flux(self.spectrogram.spec,
                              self.spectrogram.num_diff_frames)
 
-    def superflux(self, max_bins=None):
-        """
-        SuperFlux.
-
-        :param max_bins: number of bins for the maximum filter [default=None]
-
-        """
-        if max_bins:
-            # overwrite the number of bins used for maximum filtering
-            self.max_bins = max_bins
+    def superflux(self):
+        """SuperFlux."""
         return superflux(self.spectrogram.spec,
                          self.spectrogram.num_diff_frames, self.max_bins)
 
