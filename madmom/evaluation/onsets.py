@@ -83,48 +83,10 @@ def onset_evaluation(detections, targets, window):
     fp = np.asarray(fp)
     fn = np.asarray(fn)
     # check calculation
-    assert tp.size + fp.size == detections.size, 'bad TP / FP calculation'
-    assert tp.size + fn.size == targets.size, 'bad FN calculation'
+    assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
+    assert len(tp) + len(fn) == len(targets), 'bad FN calculation'
     # return the arrays
     return tp, fp, np.zeros(0), fn
-
-
-#def onset_evaluation(detections, targets, window):
-#    """
-#    Count the true and false detections of the given detections and targets.
-#
-#    :param detections: array with detected onsets [seconds]
-#    :param targets:    array with target onsets [seconds]
-#    :param window:     detection window [seconds]
-#    :return:           tuple of tp, fp, tn, fn numpy arrays
-#
-#    tp: array with true positive detections
-#    fp: array with false positive detections
-#    tn: array with true negative detections (this one is empty!)
-#    fn: array with false negative detections
-#
-#    Note: the true negative array is empty, because we are not interested in
-#          this class, since it is ~20 times as big as the onset class.
-#
-#    """
-#     FIXME: is there a numpy like way to achieve the same behavior as above
-#     i.e. detections and targets can match only once?
-#    from .helpers import calc_absolute_errors
-#    # no detections
-#    if detections.size == 0:
-#        # all targets are FNs
-#        return np.zeros(0), np.zeros(0), np.zeros(0), targets
-#    # for TP & FP, calc the absolute errors of detections wrt. targets
-#    errors = calc_absolute_errors(detections, targets)
-#    # true positive detections
-#    tp = detections[errors <= window]
-#    # the remaining detections are FP
-#    fp = detections[errors > window]
-#    # for FN, calc the absolute errors of targets wrt. detections
-#    errors = calc_absolute_errors(targets, detections)
-#    fn = targets[errors > window]
-#    # return the arrays
-#    return tp, fp, np.zeros(0), fn
 
 
 # default values
@@ -133,7 +95,7 @@ COMBINE = 0.03
 
 
 # for onset evaluation with Precision, Recall, F-measure use the Evaluation
-# class and just define the evaluation function
+# class and just define the evaluation and error functions
 class OnsetEvaluation(Evaluation):
     """
     Simple class for measuring Precision, Recall and F-measure.
