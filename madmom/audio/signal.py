@@ -248,6 +248,10 @@ class Signal(object):
         # return a new Signal
         return Signal(self.data, sample_rate=sample_rate, mono=mono, norm=norm,
                       att=att)
+    def __str__(self):
+        return "Signal: %d samples (%.2f sec); %d channel(s); %d Hz sample " \
+               "rate" % (self.num_samples, self.length, self.num_channels,
+                         self.sample_rate)
 
 
 # function for splitting a signal into frames
@@ -648,3 +652,8 @@ class FramedSignal(object):
         return FramedSignal(self.signal, frame_size=frame_size,
                             hop_size=hop_size, fps=fps, origin=origin,
                             start=start, num_frames=num_frames)
+
+    def __str__(self):
+        return "FramedSignal: %d frame(s); %d frame size; %.1f hop size\n %s"\
+               % (self.num_frames, self.frame_size, self.hop_size,
+                  str(self.signal))

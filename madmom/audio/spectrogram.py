@@ -547,6 +547,15 @@ class Spectrogram(object):
                            fft_size=fft_size, block_size=block_size,
                            ratio=ratio, diff_frames=diff_frames)
 
+    def __str__(self):
+        txt = "Spectrogram: "
+        if self.log:
+            txt += "logarithmic magnitude; mul: %.2f; add: %.2f; " % (self.mul,
+                                                                      self.add)
+        if self.filterbank is not None:
+            txt += "\n %s" % str(self.filterbank)
+        return "%s\n %s" % (txt, str(self.frames))
+
 
 class FilteredSpectrogram(Spectrogram):
     """
