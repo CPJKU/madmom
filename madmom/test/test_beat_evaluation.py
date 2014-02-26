@@ -86,6 +86,37 @@ class TestFindClosestInterval(unittest.TestCase):
         # TODO: same tests with matches given
 
 
+class TestFindLongestContinuousSegmentFunction(unittest.TestCase):
+
+    def test_types(self):
+        length, start = find_longest_continuous_segment(np.asarray([]))
+        self.assertIsInstance(length, int)
+        self.assertIsInstance(start, int)
+        length, start = find_longest_continuous_segment([])
+        self.assertIsInstance(length, int)
+        self.assertIsInstance(start, int)
+        # events must be correct type
+        with self.assertRaises(IndexError):
+            find_longest_continuous_segment(None)
+        with self.assertRaises(IndexError):
+            find_longest_continuous_segment(1)
+
+    def test_values(self):
+        length, start = find_longest_continuous_segment([])
+        self.assertEqual(length, 0)
+        self.assertEqual(start, 0)
+        length, start = find_longest_continuous_segment([5])
+        self.assertEqual(length, 1)
+        self.assertEqual(start, 0)
+        #
+        length, start = find_longest_continuous_segment([0, 1, 2, 3])
+        self.assertEqual(length, 4)
+        self.assertEqual(start, 0)
+        length, start = find_longest_continuous_segment([0, 2, 3, 5, 6, 7, 9])
+        self.assertEqual(length, 3)
+        self.assertEqual(start, 3)
+
+
 class TestCalcRelativeErrorsFunction(unittest.TestCase):
 
     def test_types(self):
@@ -216,6 +247,52 @@ class TestCemgilFunction(unittest.TestCase):
         # normal calculation
         score = cemgil(DETECTIONS, TARGETS, 0.04)
         self.assertEqual(score, 0.74710035298713695)
+
+
+class TestGotoFunction(unittest.TestCase):
+
+    def test_types(self):
+        score = goto(DETECTIONS, TARGETS, 0.175, 0.2, 0.2)
+        self.assertIsInstance(score, float)
+        # detections / targets must be correct type
+        score = goto([], [], 0.175, 0.2, 0.2)
+        self.assertIsInstance(score, float)
+        score = goto({}, {}, 0.175, 0.2, 0.2)
+        self.assertIsInstance(score, float)
+        with self.assertRaises(AttributeError):
+            goto(DETECTIONS.tolist(), TARGETS.tolist(), 0.175, 0.2, 0.2)
+        with self.assertRaises(TypeError):
+            goto(None, TARGETS, 0.175, 0.2, 0.2)
+        with self.assertRaises(TypeError):
+            goto(DETECTIONS, None, 0.175, 0.2, 0.2)
+        # parameters must be correct type
+        score = goto(DETECTIONS, TARGETS, int(0.175), 0.2, 0.2)
+        self.assertIsInstance(score, float)
+        score = goto(DETECTIONS, TARGETS, 0.175, int(0.2), 0.2)
+        self.assertIsInstance(score, float)
+        score = goto(DETECTIONS, TARGETS, 0.175, 0.2, int(0.2))
+        self.assertIsInstance(score, float)
+
+    def test_values(self):
+        # parameters must not be None
+        score = goto(DETECTIONS, TARGETS, None, 0.2, 0.2)
+        self.assertEqual(score, 0)
+        score = goto(DETECTIONS, TARGETS, 0.175, None, 0.2)
+        self.assertEqual(score, 0)
+        score = goto(DETECTIONS, TARGETS, 0.175, 0.2, None)
+        self.assertEqual(score, 0)
+        # empty sequences should return 0
+        score = goto([], [], 0.175, 0.2, 0.2)
+        self.assertEqual(score, 0)
+        # no detections should return 0
+        score = goto([], TARGETS, 0.175, 0.2, 0.2)
+        self.assertEqual(score, 0)
+        # no targets should return 0
+        score = goto(DETECTIONS, [], 0.175, 0.2, 0.2)
+        self.assertEqual(score, 0)
+        # normal calculation
+        score = goto(DETECTIONS, TARGETS, 0.175, 0.2, 0.2)
+        self.assertEqual(score, 1)
 
 
 class TestCmlFunction(unittest.TestCase):
@@ -433,6 +510,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         # additional beat score types
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.cemgil, float)
+        self.assertIsInstance(e.goto, float)
         self.assertIsInstance(e.cmlc, float)
         self.assertIsInstance(e.cmlt, float)
         self.assertIsInstance(e.amlc, float)
@@ -463,6 +541,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, 1)
         self.assertEqual(e.pscore, 0)
         self.assertEqual(e.cemgil, 0)
+        self.assertEqual(e.goto, 0)
         self.assertEqual(e.cmlc, 0)
         self.assertEqual(e.cmlt, 0)
         self.assertEqual(e.amlc, 0)
@@ -498,6 +577,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.pscore, 9. / 10.)
         # cemgil:
         self.assertEqual(e.cemgil, 0.74710035298713695)
+        self.assertEqual(e.goto, 1)
         self.assertEqual(e.cmlc, 0.4)
         self.assertEqual(e.cmlt, 0.8)
         self.assertEqual(e.amlc, 0.4)
@@ -520,6 +600,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.cemgil, float)
+        self.assertIsInstance(e.goto, float)
         self.assertIsInstance(e.cmlc, float)
         self.assertIsInstance(e.cmlt, float)
         self.assertIsInstance(e.amlc, float)
@@ -544,6 +625,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.cemgil, float)
+        self.assertIsInstance(e.goto, float)
         self.assertIsInstance(e.cmlc, float)
         self.assertIsInstance(e.cmlt, float)
         self.assertIsInstance(e.amlc, float)
@@ -559,6 +641,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, 1)
         self.assertEqual(e.pscore, 0)
         self.assertEqual(e.cemgil, 0)
+        self.assertEqual(e.goto, 0)
         self.assertEqual(e.cmlc, 0)
         self.assertEqual(e.cmlt, 0)
         self.assertEqual(e.amlc, 0)
@@ -574,6 +657,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, f)
         self.assertEqual(e.pscore, 9. / 10.)
         self.assertEqual(e.cemgil, 0.74710035298713695)
+        self.assertEqual(e.goto, 1)
         self.assertEqual(e.cmlc, 0.4)
         self.assertEqual(e.cmlt, 0.8)
         self.assertEqual(e.amlc, 0.4)

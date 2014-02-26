@@ -104,26 +104,25 @@ def find_closest_intervals(detections, targets, matches=None):
     return closest_interval
 
 
-def find_longest_continuous_segment(correct):
+def find_longest_continuous_segment(sequence_indices):
     """
-    Find the longest consecutive segment
+    Find the longest consecutive segment in the given sequence_indices.
 
-    :param correct: numpy array with the indices of the events [int]
-    :returns:       length and start position of the longest continuous segment
-                    [(int, int)]
-
-    Note: The sequence must be ordered!
+    :param sequence_indices: numpy array with the indices of the events [int]
+    :returns:               length and start position of the longest continuous
+                            segment [(int, int)]
 
     """
-    # get sequences of correctly tracked beats
-    segments = np.nonzero(np.diff(correct) != 1)[0] + 1
+    # continuous segments hve consecutive indices, i.e. diffs =! 1 are
+    # boundaries between continuous segments; add 1 to get the correct index
+    boundaries = np.nonzero(np.diff(sequence_indices) != 1)[0] + 1
     # add a start (index 0) and stop (length of correct detections) to the
     # segment boundary indices
-    boundaries = np.concatenate(([0], segments, [len(correct)]))
+    boundaries = np.concatenate(([0], boundaries, [len(sequence_indices)]))
     # lengths of the individual segments
-    lengths = np.diff(boundaries)
+    segment_lengths = np.diff(boundaries)
     # return the length and start position of the longest continuous segment
-    return np.max(lengths), boundaries[np.argmax(lengths)]
+    return np.max(segment_lengths), boundaries[np.argmax(segment_lengths)]
 
 
 def calc_relative_errors(detections, targets, matches=None):
@@ -202,11 +201,9 @@ def cemgil(detections, targets, sigma):
     Journal Of New Music Research, vol. 28, no. 4, pp. 259–273, 2001
 
     """
-    # beat accuracy is initially zero
-    acc = 0.
     # no detections or targets
     if len(detections) == 0 or len(targets) == 0:
-        return acc
+        return 0.
     # sigma must be greater than 0
     if sigma <= 0:
         raise ValueError("sigma must be greater than 0")
@@ -226,7 +223,7 @@ def cemgil(detections, targets, sigma):
     return acc
 
 
-def goto(detections, targets, threshold=0.175, mu=0.2, sigma=0.2):
+def goto(detections, targets, threshold, mu, sigma):
     """
     Calculate the Goto and Muraoka accuracy for the given detection and target
     sequences.
@@ -247,16 +244,15 @@ def goto(detections, targets, threshold=0.175, mu=0.2, sigma=0.2):
     # at least 1 detection and 2 targets must be given
     if len(detections) < 1 or len(targets) < 2:
         return 0.
-
-    # get the indices of the closest detections to the targets
-    # use them to determine the longest continuous segment
+    # get the indices of the closest detections to the targets to determine the
+    # longest continuous segment
     closest = find_closest_matches(targets, detections)
     # keep only those which have abs(errors) <= threshold
     # Note: both the original paper and the Matlab implementation normalize by
     #       half a beat interval, thus our threshold is halved
-    # errors of the detections relative to the surrounding target interval
-    errors = calc_relative_errors(detections, targets)
-    closest = closest[np.abs(errors[closest]) <= threshold]
+    # abs. errors of the detections relative to the surrounding target interval
+    errors = np.abs(calc_relative_errors(detections, targets))
+    closest = closest[errors[closest] <= threshold]
     # get the length and start position of the longest continuous segment
     length, start = find_longest_continuous_segment(closest)
     # three conditions must be met to identify the segment as correct
@@ -269,10 +265,8 @@ def goto(detections, targets, threshold=0.175, mu=0.2, sigma=0.2):
         return 0.
     # errors of the longest segment
     segment_errors = errors[closest[start: start + length]]
-    assert np.max(segment_errors) <= threshold, 'beats with errors above the '\
-                                                'threshold in the segment.'
     # 2) mean of the errors must not exceed mu
-    if np.mean(np.abs(segment_errors)) > mu:
+    if np.mean(segment_errors) > mu:
         return 0.
     # 3) std deviation of the errors must not exceed sigma
     if np.std(segment_errors) > sigma:
@@ -281,7 +275,6 @@ def goto(detections, targets, threshold=0.175, mu=0.2, sigma=0.2):
     return 1.
 
 
-# helper function for continuity calculation
 def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
     Helper function to calculate the cmlc and cmlt scores for the given
@@ -466,7 +459,6 @@ def information_gain(detections, targets, bins):
         return bwd_ig, bwd_histogram
 
 
-# information gain helper functions
 def _error_histogram(detections, targets, histogram_bins):
     """
     Helper function to calculate the relative errors of the given detection
@@ -528,21 +520,26 @@ def _information_gain(error_histogram):
 WINDOW = 0.07
 TOLERANCE = 0.2
 SIGMA = 0.04
+GOTO_THRESHOLD = 0.175
+GOTO_SIGMA = 0.2
+GOTO_MU = 0.2
 TEMPO_TOLERANCE = 0.175
 PHASE_TOLERANCE = 0.175
 BINS = 40
 
 
-# basic beat evaluation
+# beat evaluation class
 class BeatEvaluation(OnsetEvaluation):
     # this class inherits from OnsetEvaluation the Precision, Recall, and
-    # F-measure evaluation stuff; only the evaluation window is adjusted
+    # F-measure evaluation stuff but uses a different evaluation window
     """
     Beat evaluation class.
 
     """
     def __init__(self, detections, targets, window=WINDOW, tolerance=TOLERANCE,
-                 sigma=SIGMA, tempo_tolerance=TEMPO_TOLERANCE,
+                 sigma=SIGMA, goto_threshold=GOTO_THRESHOLD,
+                 goto_sigma=GOTO_SIGMA, goto_mu=GOTO_MU,
+                 tempo_tolerance=TEMPO_TOLERANCE,
                  phase_tolerance=PHASE_TOLERANCE, bins=BINS):
         """
         Evaluate the given detection and target sequences.
@@ -553,6 +550,9 @@ class BeatEvaluation(OnsetEvaluation):
         :param window:          F-measure evaluation window [seconds]
         :param tolerance:       P-Score tolerance of median beat interval
         :param sigma:           sigma of Gaussian window for Cemgil accuracy
+        :param goto_threshold:  threshold for Goto error
+        :param goto_sigma:      sigma for Goto error
+        :param goto_mu:         mu for Goto error
         :param tempo_tolerance: tempo tolerance window for [AC]ML[ct]
         :param phase_tolerance: phase tolerance window for [AC]ML[ct]
         :param bins:            number of bins for the error histogram
@@ -566,7 +566,8 @@ class BeatEvaluation(OnsetEvaluation):
         # other scores
         self.pscore = pscore(detections, targets, tolerance)
         self.cemgil = cemgil(detections, targets, sigma)
-        self.goto = goto(detections, targets)
+        self.goto = goto(detections, targets, goto_threshold, goto_sigma,
+                         goto_mu)
         # continuity scores
         scores = continuity(detections, targets,
                             tempo_tolerance, phase_tolerance)
