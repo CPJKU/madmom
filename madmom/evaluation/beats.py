@@ -104,6 +104,28 @@ def find_closest_intervals(detections, targets, matches=None):
     return closest_interval
 
 
+def find_longest_continuous_segment(correct):
+    """
+    Find the longest consecutive segment
+
+    :param correct: numpy array with the indices of the events [int]
+    :returns:       length and start position of the longest continuous segment
+                    [(int, int)]
+
+    Note: The sequence must be ordered!
+
+    """
+    # get sequences of correctly tracked beats
+    segments = np.nonzero(np.diff(correct) != 1)[0] + 1
+    # add a start (index 0) and stop (length of correct detections) to the
+    # segment boundary indices
+    boundaries = np.concatenate(([0], segments, [len(correct)]))
+    # lengths of the individual segments
+    lengths = np.diff(boundaries)
+    # return the length and start position of the longest continuous segment
+    return np.max(lengths), boundaries[np.argmax(lengths)]
+
+
 def calc_relative_errors(detections, targets, matches=None):
     """
     Errors of the detections relative to the (surrounding) target interval.
@@ -204,6 +226,61 @@ def cemgil(detections, targets, sigma):
     return acc
 
 
+def goto(detections, targets, threshold=0.175, mu=0.2, sigma=0.2):
+    """
+    Calculate the Goto and Muraoka accuracy for the given detection and target
+    sequences.
+
+    :param detections: numpy array with the detected beats [float, seconds]
+    :param targets:    numpy array with the beat annotations [float, seconds]
+    :param threshold:  threshold [float]
+    :param mu:         mu [float]
+    :param sigma:      sigma for Gaussian error function [float]
+    :returns:          beat tracking accuracy
+
+    "Issues in evaluating beat tracking systems"
+    M. Goto and Y. Muraoka
+    Working Notes of the IJCAI-97 Workshop on Issues in AI and Music -
+    Evaluation and Assessment, pp. 9–16, 1997
+
+    """
+    # at least 1 detection and 2 targets must be given
+    if len(detections) < 1 or len(targets) < 2:
+        return 0.
+
+    # get the indices of the closest detections to the targets
+    # use them to determine the longest continuous segment
+    closest = find_closest_matches(targets, detections)
+    # keep only those which have abs(errors) <= threshold
+    # Note: both the original paper and the Matlab implementation normalize by
+    #       half a beat interval, thus our threshold is halved
+    # errors of the detections relative to the surrounding target interval
+    errors = calc_relative_errors(detections, targets)
+    closest = closest[np.abs(errors[closest]) <= threshold]
+    # get the length and start position of the longest continuous segment
+    length, start = find_longest_continuous_segment(closest)
+    # three conditions must be met to identify the segment as correct
+    # 1) the length of the segment must be at least 1/4 of the total length
+    # Note: the original paper requires that the first element must occur
+    #       within the first 3/4 of the excerpt, but this was altered in the
+    #       Matlab implementation to the above condition to be able to deal
+    #       with audio with varying tempo
+    if length < 0.25 * len(targets):
+        return 0.
+    # errors of the longest segment
+    segment_errors = errors[closest[start: start + length]]
+    assert np.max(segment_errors) <= threshold, 'beats with errors above the '\
+                                                'threshold in the segment.'
+    # 2) mean of the errors must not exceed mu
+    if np.mean(np.abs(segment_errors)) > mu:
+        return 0.
+    # 3) std deviation of the errors must not exceed sigma
+    if np.std(segment_errors) > sigma:
+        return 0.
+    # otherwise return 1
+    return 1.
+
+
 # helper function for continuity calculation
 def cml(detections, targets, tempo_tolerance, phase_tolerance):
     """
@@ -245,32 +322,24 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     tar_interval = calc_intervals(targets)[closest]
     # a detection is correct, if it fulfills 3 conditions:
     # 1) must match an annotation within a certain tolerance window
-    correct = detections[errors <= tempo_tolerance * tar_interval]
+    correct_tempo = detections[errors <= tar_interval * tempo_tolerance]
     # 2) same must be true for the previous detection / target combination
     # Note: Not enforced, since this condition is kind of pointless. Why not
-    #       count a beat if it is correct only because the one before is not?
+    #       count a correct beat just because its predecessor is not?
     #       Also, the original Matlab implementation does not enforce it.
     # 3) the interval must be within the phase tolerance
-    correct_interval = detections[abs(1 - (det_interval / tar_interval)) <=
-                                  phase_tolerance]
-    # now combine the conditions
-    correct = np.intersect1d(correct, correct_interval)
-    # convert on indices
+    correct_phase = detections[abs(1 - (det_interval / tar_interval)) <=
+                               phase_tolerance]
+    # combine the conditions
+    correct = np.intersect1d(correct_tempo, correct_phase)
+    # convert to indices
     correct_idx = np.searchsorted(detections, correct)
-    # get continuous segment, i.e. diff == 1
-    # thus look for indices != 1, these are interrupting the segments
-    # finally add 1 since np.diff(x)[0] is x[1] - x[0]
-    segments = np.nonzero(np.diff(correct_idx) != 1)[0] + 1
-    # add a start (index 0) and stop (length of correct detections) to the
-    # segment boundaries
-    segments = np.concatenate(([0], segments, [len(correct)]))
-    # calculate the maximum length of the individual segment
-    cont = np.max(np.diff(segments))
-    # maximal length of the given sequences
+    # cmlc: longest continuous segment of detections normalized by the max.
+    #       length of both sequences (detection and targets)
     length = float(max(len(detections), len(targets)))
-    # accuracy for the longest continuous detections
-    cmlc = cont / length
-    # accuracy of all correct detections
+    longest, _ = find_longest_continuous_segment(correct_idx)
+    cmlc = longest / length
+    # cmlt: same but for all detections (no need for continuity)
     cmlt = len(correct) / length
     # return a tuple
     return cmlc, cmlt
@@ -497,6 +566,7 @@ class BeatEvaluation(OnsetEvaluation):
         # other scores
         self.pscore = pscore(detections, targets, tolerance)
         self.cemgil = cemgil(detections, targets, sigma)
+        self.goto = goto(detections, targets)
         # continuity scores
         scores = continuity(detections, targets,
                             tempo_tolerance, phase_tolerance)
@@ -523,19 +593,20 @@ class BeatEvaluation(OnsetEvaluation):
         ret = ''
         if tex:
             # tex formatting
-            ret += 'tex & F-measure & P-score & Cemgil & CMLc & CMLt & AMLc &'\
-                   ' AMLt & D & Dg \\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f &'\
-                   ' %.3f & %.3f & %.3f & %.3f\\\\' %\
-                   (self.fmeasure, self.pscore, self.cemgil, self.cmlc,
-                    self.cmlt, self.amlc, self.amlt, self.information_gain,
-                    self.global_information_gain)
+            ret += 'tex & F-measure & P-score & Cemgil & Goto & CMLc & CMLt &'\
+                   ' AMLc & AMLt & D & Dg \\\\\n& %.3f & %.3f & %.3f & %.3f &'\
+                   '%.3f & %.3f & %.3f & %.3f & %.3f & %.3f\\\\' %\
+                   (self.fmeasure, self.pscore, self.cemgil, self.goto,
+                    self.cmlc, self.cmlt, self.amlc, self.amlt,
+                    self.information_gain, self.global_information_gain)
         else:
             # normal formatting
-            ret += '%sF-measure: %.3f P-score: %.3f Cemgil: %.3f CMLc: %.3f '\
-                   'CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' %\
-                   (indent, self.fmeasure, self.pscore, self.cemgil, self.cmlc,
-                    self.cmlt, self.amlc, self.amlt, self.information_gain,
-                    self.global_information_gain)
+            ret += '%sF-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
+                   'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
+                   'Dg: %.3f' %\
+                   (indent, self.fmeasure, self.pscore, self.cemgil, self.goto,
+                    self.cmlc, self.cmlt, self.amlc, self.amlt,
+                    self.information_gain, self.global_information_gain)
         return ret
 
     def __str__(self):
@@ -557,6 +628,7 @@ class MeanBeatEvaluation(BeatEvaluation):
         self._fmeasure = np.zeros(0)
         self._pscore = np.zeros(0)
         self._cemgil = np.zeros(0)
+        self._goto = np.zeros(0)
         # continuity scores
         self._cmlc = np.zeros(0)
         self._cmlt = np.zeros(0)
@@ -580,6 +652,7 @@ class MeanBeatEvaluation(BeatEvaluation):
             self._fmeasure = np.append(self._fmeasure, other.fmeasure)
             self._pscore = np.append(self._pscore, other.pscore)
             self._cemgil = np.append(self._cemgil, other.cemgil)
+            self._goto = np.append(self._goto, other.goto)
             self._cmlc = np.append(self._cmlc, other.cmlc)
             self._cmlt = np.append(self._cmlt, other.cmlt)
             self._amlc = np.append(self._amlc, other.amlc)
@@ -618,6 +691,13 @@ class MeanBeatEvaluation(BeatEvaluation):
         if len(self._cemgil) == 0:
             return 0.
         return np.mean(self._cemgil)
+
+    @property
+    def goto(self):
+        """Goto accuracy."""
+        if len(self._goto) == 0:
+            return 0.
+        return np.mean(self._goto)
 
     @property
     def cmlc(self):
