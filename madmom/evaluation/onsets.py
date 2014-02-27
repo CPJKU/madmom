@@ -236,7 +236,7 @@ def main():
     mean_eval = MeanEvaluation()
     # evaluate all files
     for det_file in det_files:
-        # get the detections file
+        # load the detections
         detections = load_events(det_file)
         # shift the detections if needed
         if args.delay != 0:
