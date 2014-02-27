@@ -26,6 +26,11 @@ def parser():
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script matches a file with detections against multiple files or folder
     with targets.
+
+    This small tool for can help to match annotations to audio files with
+    completely unrelated names. Using any automated feature extraction method
+    and then matching these detections against the ground-truth sometimes does
+    the trick.
     """)
     # files used for evaluation
     p.add_argument('file', help='file to be matched')
