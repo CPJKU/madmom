@@ -201,7 +201,7 @@ def cemgil(detections, targets, sigma):
     Journal Of New Music Research, vol. 28, no. 4, pp. 259–273, 2001
 
     """
-    # no detections or targets
+    # no detections or no targets
     if len(detections) == 0 or len(targets) == 0:
         return 0.
     # sigma must be greater than 0
@@ -249,10 +249,12 @@ def goto(detections, targets, threshold, mu, sigma):
     closest = find_closest_matches(targets, detections)
     # keep only those which have abs(errors) <= threshold
     # Note: both the original paper and the Matlab implementation normalize by
-    #       half a beat interval, thus our threshold is halved
-    # abs. errors of the detections relative to the surrounding target interval
-    errors = np.abs(calc_relative_errors(detections, targets))
-    closest = closest[errors[closest] <= threshold]
+    #       half a beat interval, thus our threshold is halved (same applies to
+    #       sigma and mu)
+    # errors of the detections relative to the surrounding target interval
+    errors = calc_relative_errors(detections, targets)
+    # the absolute error must be smaller than the given threshold
+    closest = closest[np.abs(errors[closest]) <= threshold]
     # get the length and start position of the longest continuous segment
     length, start = find_longest_continuous_segment(closest)
     # three conditions must be met to identify the segment as correct
@@ -266,9 +268,12 @@ def goto(detections, targets, threshold, mu, sigma):
     # errors of the longest segment
     segment_errors = errors[closest[start: start + length]]
     # 2) mean of the errors must not exceed mu
-    if np.mean(segment_errors) > mu:
+    if np.mean(np.abs(segment_errors)) > mu:
         return 0.
     # 3) std deviation of the errors must not exceed sigma
+    # Note: contrary to the original paper and in line with the Matlab code,
+    #       we calculate the std. deviation based on the raw errors and not on
+    #       their absolute values.
     if np.std(segment_errors) > sigma:
         return 0.
     # otherwise return 1
@@ -428,11 +433,18 @@ def information_gain(detections, targets, bins):
     # at least 2 detection and 2 targets must be given
     if len(detections) < 2 or len(targets) < 2:
         # return an information gain of 0 and a uniform beat error histogram
-        return 0., np.ones(bins) / float(bins)
+        dist = np.ones(bins) * max(len(detections), len(targets)) / float(bins)
+        return 0., dist
+
+    # check if there are enough beat annotations for the number of bins
+    if bins > len(targets):
+        import warnings
+        warnings.warn("Not enough beat targets (%d) for %d histogram bins." %
+                      (len(targets), bins))
 
     # create bins for the error histogram that cover the range from -0.5 to 0.5
     # make the first and last bin half as wide as the rest, so that the last
-    # and the first can be added together later (make the histogram circular)
+    # and the first bin can be added together (to make the histogram circular)
 
     # this is more or less accomplished automatically since np.histogram
     # accepts a sequence of bin edges instead of bin centres, but we need to
@@ -521,8 +533,8 @@ WINDOW = 0.07
 TOLERANCE = 0.2
 SIGMA = 0.04
 GOTO_THRESHOLD = 0.175
-GOTO_SIGMA = 0.2
-GOTO_MU = 0.2
+GOTO_SIGMA = 0.1
+GOTO_MU = 0.1
 TEMPO_TOLERANCE = 0.175
 PHASE_TOLERANCE = 0.175
 BINS = 40
