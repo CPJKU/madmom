@@ -19,3 +19,8 @@ python setup.py install
 
 You might need higher privileges (use su or sudo) to install the files to a
 common place like '/usr/local' or similar.
+
+The package is designed to have as few as possible external requirements,
+usually only numpy and scipy is required. If you get segfaults on Mac OS X
+systems, please check if numpy and scipy use ATLAS instead of Apple's own
+Accelerate framework or use the '--threads 1' switch where appropriate.

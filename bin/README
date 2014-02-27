@@ -14,5 +14,5 @@ tagged branches reflecting the settings of these submitted algorithms should be
 created. 
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
-ATLAS instead of Apple's own Accelerate framework or use the "--threads 1"
+ATLAS instead of Apple's own Accelerate framework or use the '--threads 1'
 switch.
