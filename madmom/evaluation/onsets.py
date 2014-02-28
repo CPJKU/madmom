@@ -20,14 +20,14 @@ from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection
-def onset_evaluation(detections, targets, window):
+def onset_evaluation(detections, annotations, window):
     """
-    Count the true and false detections of the given detections and targets.
+    Determine the true/false positive/negative detections.
 
-    :param detections: array with detected onsets [seconds]
-    :param targets:    array with target onsets [seconds]
-    :param window:     detection window [seconds]
-    :return:           tuple of tp, fp, tn, fn numpy arrays
+    :param detections:  array with detected onsets [seconds]
+    :param annotations: array with annotated onsets [seconds]
+    :param window:      detection window [seconds]
+    :return:            tuple of tp, fp, tn, fn numpy arrays
 
     tp: array with true positive detections
     fp: array with false positive detections
@@ -38,12 +38,12 @@ def onset_evaluation(detections, targets, window):
           this class, since it is ~20 times as big as the onset class.
 
     """
-    # sort the detections and targets
+    # sort the detections and annotations
     det = sorted(detections.tolist())
-    tar = sorted(targets.tolist())
+    tar = sorted(annotations.tolist())
     # cache variables
     det_length = len(detections)
-    tar_length = len(targets)
+    tar_length = len(annotations)
     det_index = 0
     tar_index = 0
     # arrays for collecting the detections
@@ -53,13 +53,13 @@ def onset_evaluation(detections, targets, window):
     while det_index < det_length and tar_index < tar_length:
         # fetch the first detection
         d = det[det_index]
-        # fetch the first target
+        # fetch the first annotation
         t = tar[tar_index]
         # compare them
         if abs(d - t) <= window:
             # TP detection
             tp.append(d)
-            # increase the detection and target index
+            # increase the detection and annotation index
             det_index += 1
             tar_index += 1
         elif d < t:
@@ -67,16 +67,16 @@ def onset_evaluation(detections, targets, window):
             fp.append(d)
             # increase the detection index
             det_index += 1
-            # do not increase the target index
+            # do not increase the annotation index
         elif d > t:
-            # we missed a target: FN
+            # we missed a annotation: FN
             fn.append(t)
             # do not increase the detection index
-            # increase the target index
+            # increase the annotation index
             tar_index += 1
     # the remaining detections are FP
     fp.extend(det[det_index:])
-    # the remaining targets are FN
+    # the remaining annotations are FN
     fn.extend(tar[tar_index:])
     # transform them back to numpy arrays
     tp = np.asarray(tp)
@@ -84,7 +84,7 @@ def onset_evaluation(detections, targets, window):
     fn = np.asarray(fn)
     # check calculation
     assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
-    assert len(tp) + len(fn) == len(targets), 'bad FN calculation'
+    assert len(tp) + len(fn) == len(annotations), 'bad FN calculation'
     # return the arrays
     return tp, fp, np.zeros(0), fn
 
@@ -101,16 +101,16 @@ class OnsetEvaluation(Evaluation):
     Simple class for measuring Precision, Recall and F-measure.
 
     """
-    def __init__(self, detections, targets, window=WINDOW):
-        # convert the detections and targets
+    def __init__(self, detections, annotations, window=WINDOW):
+        # convert the detections and annotations
         detections = np.asarray(sorted(detections), dtype=np.float)
-        targets = np.asarray(sorted(targets), dtype=np.float)
+        annotations = np.asarray(sorted(annotations), dtype=np.float)
         # evaluate
-        numbers = onset_evaluation(detections, targets, window)
+        numbers = onset_evaluation(detections, annotations, window)
         # tp, fp, tn, fn = numbers
         super(OnsetEvaluation, self).__init__(*numbers)
         # calculate errors
-        self._errors = calc_errors(self.tp, targets)
+        self._errors = calc_errors(self.tp, annotations)
 
 
 def parser():
@@ -125,8 +125,8 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
-    folder with targets. Extensions can be given to filter the detection and
-    target file lists.
+    folder with annotations. Extensions can be given to filter the detection
+    and annotation files accordingly.
     """)
     # files used for evaluation
     p.add_argument('files', nargs='*',
@@ -135,7 +135,7 @@ def parser():
     p.add_argument('-d', dest='det_ext', action='store', default='.onsets.txt',
                    help='extension of the detection files')
     p.add_argument('-t', dest='tar_ext', action='store', default='.onsets',
-                   help='extension of the target files')
+                   help='extension of the annotation files')
     # parameters for evaluation
     p.add_argument('-w', dest='window', action='store', type=float,
                    default=WINDOW,
@@ -143,7 +143,7 @@ def parser():
                         '[seconds, default=%(default).3f]')
     p.add_argument('-c', dest='combine', action='store', type=float,
                    default=COMBINE,
-                   help='combine target events within this range '
+                   help='combine annotation events within this range '
                         '[seconds, default=%(default).3f]')
     p.add_argument('--delay', action='store', type=float, default=0.,
                    help='add given delay to all detections [seconds]')
@@ -171,7 +171,7 @@ def main():
     # parse arguments
     args = parser()
 
-    # get detection and target files
+    # get detection and annotation files
     det_files = files(args.files, args.det_ext)
     tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
@@ -189,23 +189,24 @@ def main():
         # shift the detections if needed
         if args.delay != 0:
             detections += args.delay
-        # get the matching target files
+        # get the matching annotation files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
-        # quit if any file does not have a matching target file
+        # quit if any file does not have a matching annotation file
         if len(matches) == 0:
-            print " can't find a target file found for %s. exiting." % det_file
+            print " can't find an annotation file for %s. exiting." % det_file
             exit()
-        # do a mean evaluation with all matched target files
+        # do a mean evaluation with all matched annotation files
         me = MeanEvaluation()
         for tar_file in matches:
-            # load the targets
-            targets = load_events(tar_file)
-            # combine the targets if needed
+            # load the annotations
+            annotations = load_events(tar_file)
+            # combine the annotations if needed
             if args.combine > 0:
-                targets = combine_events(targets, args.combine)
+                annotations = combine_events(annotations, args.combine)
             # add the OnsetEvaluation to mean evaluation
-            me.append(OnsetEvaluation(detections, targets, window=args.window))
-            # process the next target file
+            me.append(OnsetEvaluation(detections, annotations,
+                                      window=args.window))
+            # process the next annotation file
         # print stats for each file
         if args.verbose:
             print det_file

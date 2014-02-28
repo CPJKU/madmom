@@ -14,103 +14,102 @@ import numpy as np
 
 
 # evaluation helper functions
-def find_closest_matches(detections, targets):
+def find_closest_matches(detections, annotations):
     """
-    Find the closest target for each detection.
+    Find the closest annotation for each detection.
 
-    :param detections: numpy array with the detected events [float, seconds]
-    :param targets:    numpy array with the target events [float, seconds]
-    :returns:          numpy array with indices of the closest matches [int]
+    :param detections:  numpy array with the detected events [float, seconds]
+    :param annotations: numpy array with the annotated events [float, seconds]
+    :returns:           numpy array with indices of the closest matches [int]
 
     Note: The sequences must be ordered!
 
     """
-    # if no detections or targets are given
-    if len(detections) == 0 or len(targets) == 0:
+    # if no detections or annotations are given
+    if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
         return np.zeros(0, dtype=np.int)
-    # if only a single target is given
-    if len(targets) == 1:
+    # if only a single annotation is given
+    if len(annotations) == 1:
         # return an array as long as the detections with indices 0
         return np.zeros(len(detections), dtype=np.int)
     # solution found at: http://stackoverflow.com/questions/8914491/
-    indices = targets.searchsorted(detections)
-    indices = np.clip(indices, 1, len(targets) - 1)
-    left = targets[indices - 1]
-    right = targets[indices]
+    indices = annotations.searchsorted(detections)
+    indices = np.clip(indices, 1, len(annotations) - 1)
+    left = annotations[indices - 1]
+    right = annotations[indices]
     indices -= detections - left < right - detections
     # return the indices of the closest matches
     return indices
 
 
-def calc_errors(detections, targets, matches=None):
+def calc_errors(detections, annotations, matches=None):
     """
-    Errors of the detections relative to the closest targets.
+    Errors of the detections relative to the closest annotations.
 
-    :param detections: numpy array with the detected events [float, seconds]
-    :param targets:    numpy array with the target events [float, seconds]
-    :param matches:    numpy array with indices of the closest events [int]
-    :returns:          numpy array with the errors [seconds]
+    :param detections:  numpy array with the detected events [float, seconds]
+    :param annotations: numpy array with the annotated events [float, seconds]
+    :param matches:     numpy array with indices of the closest events [int]
+    :returns:           numpy array with the errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
 
     """
-    # if no detections or targets are given
-    if len(detections) == 0 or len(targets) == 0:
+    # if no detections or annotations are given
+    if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
         return np.zeros(0, dtype=np.float)
-    # determine the closest targets
+    # determine the closest annotations
     if matches is None:
-        matches = find_closest_matches(detections, targets)
-    # calc error relative to those targets
-    errors = detections - targets[matches]
+        matches = find_closest_matches(detections, annotations)
+    # calc error relative to those annotations
+    errors = detections - annotations[matches]
     # return the errors
     return errors
 
 
-def calc_absolute_errors(detections, targets, matches=None):
+def calc_absolute_errors(detections, annotations, matches=None):
     """
-    Absolute errors of the detections relative to the closest targets.
+    Absolute errors of the detections relative to the closest annotations.
 
-    :param detections: numpy array with the detected events [float, seconds]
-    :param targets:    numpy array with the target events [float, seconds]
-    :param matches:    numpy array with indices of the closest events [int]
-    :returns:          numpy array with the absolute errors [seconds]
+    :param detections:  numpy array with the detected events [float, seconds]
+    :param annotations: numpy array with the annotated events [float, seconds]
+    :param matches:     numpy array with indices of the closest events [int]
+    :returns:           numpy array with the absolute errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
 
     """
     # return the errors
-    return np.abs(calc_errors(detections, targets, matches))
+    return np.abs(calc_errors(detections, annotations, matches))
 
 
-def calc_relative_errors(detections, targets, matches=None):
+def calc_relative_errors(detections, annotations, matches=None):
     """
-    Relative errors of the detections to the closest targets.
-    The absolute error is weighted by the absolute value of the target.
+    Relative errors of the detections to the closest annotations.
 
-    :param detections: numpy array with the detected events [float, seconds]
-    :param targets:    numpy array with the target events [float, seconds]
-    :param matches:    numpy array with indices of the closest events [int]
-    :returns:          numpy array with the relative errors [seconds]
+    :param detections:  numpy array with the detected events [float, seconds]
+    :param annotations: numpy array with the annotated events [float, seconds]
+    :param matches:     numpy array with indices of the closest events [int]
+    :returns:           numpy array with the relative errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
-    # if no detections or targets are given
-    if len(detections) == 0 or len(targets) == 0:
+    # if no detections or annotations are given
+    if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
         return np.zeros(0, dtype=np.float)
-    # determine the closest targets
+    # determine the closest annotations
     if matches is None:
-        matches = find_closest_matches(detections, targets)
+        matches = find_closest_matches(detections, annotations)
     # calculate the absolute errors
-    errors = calc_errors(detections, targets, matches)
+    errors = calc_errors(detections, annotations, matches)
     # return the relative errors
-    return np.abs(1 - (errors / targets[matches]))
+    return np.abs(1 - (errors / annotations[matches]))
 
 
 # evaluation classes
@@ -211,7 +210,7 @@ class SimpleEvaluation(object):
         """Recall."""
         # correct / relevant
         relevant = float(self.num_tp + self.num_fn)
-        # if there are no positive targets, we recalled all of them
+        # if there are no positive annotations, we recalled all of them
         if relevant == 0:
             return 1.
         return self.num_tp / relevant
@@ -241,7 +240,7 @@ class SimpleEvaluation(object):
     def errors(self):
         """
         Errors of the true positive detections relative to the corresponding
-        targets.
+        annotations.
 
         """
         # if any errors are given, they have to be the same length as the true
@@ -276,30 +275,28 @@ class SimpleEvaluation(object):
 
         """
         # print the errors
-        targets = self.num_tp + self.num_fn
+        annotations = self.num_tp + self.num_fn
         tpr = self.recall
         fpr = (1 - self.precision)
         ret = ''
         if tex:
             # tex formatting
-            ret += 'tex & Precision & Recall & F-measure & True Positives & '\
-                   'False Positives & Accuracy & Mean & Std.dev\\\\\n'\
-                   '%i targets & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & '\
-                   '%.2f ms & %.2f ms\\\\' % (targets, self.precision,
-                                              self.recall, self.fmeasure,
-                                              tpr, fpr, self.accuracy,
-                                              self.mean_error * 1000.,
-                                              self.std_error * 1000.)
+            ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
+                  'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
+                  'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
+                  '%.2f ms & %.2f ms\\\\' % \
+                  (annotations, self.precision, self.recall, self.fmeasure,
+                   tpr, fpr, self.accuracy, self.mean_error * 1000.,
+                   self.std_error * 1000.)
         else:
             # normal formatting
-            ret += '%stargets: %5d correct: %5d fp: %4d fn: %4d p=%.3f r=%.3f'\
-                   ' f=%.3f\n' % (indent, targets, self.num_tp, self.num_fp,
-                                  self.num_fn, self.precision, self.recall,
-                                  self.fmeasure)
-            ret += '%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ms std:'\
-                   ' %.1f ms' % (indent, tpr * 100., fpr * 100.,
-                                 self.accuracy * 100., self.mean_error * 1000.,
-                                 self.std_error * 1000.)
+            ret = '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
+                  'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
+                  'mean: %.1f ms std: %.1f ms' % \
+                  (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
+                   self.precision, self.recall, self.fmeasure, indent,
+                   tpr * 100., fpr * 100., self.accuracy * 100.,
+                   self.mean_error * 1000., self.std_error * 1000.)
         # return
         return ret
 

@@ -13,7 +13,7 @@ Technical Report C4DM-TR-09-06
 Centre for Digital Music, Queen Mary University of London, 2009
 
 Please note that this is a complete re-implementation, which took some other
-design decisions. For example, the beat detections and targets are not
+design decisions. For example, the beat detections and annotations are not
 quantized before being evaluated with F-measure, P-score and other metrics.
 Hence these evaluation functions DO NOT report the exact same results/scores.
 This approach was chosen, because it is simpler and produces more accurate
@@ -32,7 +32,7 @@ from .onsets import OnsetEvaluation
 # helper functions for beat evaluation
 def calc_intervals(events, fwd=False):
     """
-    Calculate the intervals of all events to the previous / next event.
+    Calculate the intervals of all events to the previous/next event.
 
     :param events: numpy array with the detected events [float, seconds]
     :param fwd:    calculate the intervals towards the next event [bool]
@@ -57,14 +57,14 @@ def calc_intervals(events, fwd=False):
     return interval
 
 
-def find_closest_intervals(detections, targets, matches=None):
+def find_closest_intervals(detections, annotations, matches=None):
     """
-    Find the closest target interval (surrounding) the detections.
+    Find the closest annotated interval for each beat detection.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the target beats [float, seconds]
-    :param matches:    numpy array with indices of the closest beats [int]
-    :returns:          numpy array with closest target intervals [seconds]
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
+    :param matches:     numpy array with indices of the closest beats [int]
+    :returns:           numpy array with closest annotated intervals [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
@@ -73,32 +73,32 @@ def find_closest_intervals(detections, targets, matches=None):
           interval, it always returns the closest interval.
 
     """
-    # at least 1 detection and 2 targets must be given
-    if len(detections) < 1 or len(targets) < 2:
+    # at least 1 detection and 2 annotations must be given
+    if len(detections) < 1 or len(annotations) < 2:
         return np.zeros(0, dtype=np.float)
     # init array
     closest_interval = np.ones_like(detections)
     # intervals
     # Note: it is faster if we combine the forward and backward intervals,
-    #       but we need to take care of the sizes; intervals to the next target
-    #       are always the same as those at the next index
-    intervals = np.zeros(len(targets) + 1)
-    # intervals to previous target
-    intervals[1:-1] = np.diff(targets)
-    # interval from the first target to the left is the same as to the right
+    #       but we need to take care of the sizes; intervals to the next
+    #       annotation are always the same as those at the next index
+    intervals = np.zeros(len(annotations) + 1)
+    # intervals to previous annotation
+    intervals[1:-1] = np.diff(annotations)
+    # interval of the first annotation to the left is the same as to the right
     intervals[0] = intervals[1]
-    # interval from the last target to the right is the same as to the left
+    # interval of the last annotation to the right is the same as to the left
     intervals[-1] = intervals[-2]
-    # determine the closest targets
+    # determine the closest annotations
     if matches is None:
-        matches = find_closest_matches(detections, targets)
+        matches = find_closest_matches(detections, annotations)
     # calculate the absolute errors
-    errors = calc_errors(detections, targets, matches)
-    # if the errors are positive, the detection is after the target
-    # thus use the interval towards the next target
+    errors = calc_errors(detections, annotations, matches)
+    # if the errors are positive, the detection is after the annotation
+    # thus use the interval towards the next annotation
     closest_interval[errors > 0] = intervals[matches[errors > 0] + 1]
-    # if the errors are 0 or negative, the detection is before the target or at
-    # the same position; thus use the interval to previous target accordingly
+    # if the errors are 0 or negative, the detection is before the annotation
+    # or at the same position; thus use the interval to previous annotation
     closest_interval[errors <= 0] = intervals[matches[errors <= 0]]
     # return the closest interval
     return closest_interval
@@ -125,111 +125,110 @@ def find_longest_continuous_segment(sequence_indices):
     return np.max(segment_lengths), boundaries[np.argmax(segment_lengths)]
 
 
-def calc_relative_errors(detections, targets, matches=None):
+def calc_relative_errors(detections, annotations, matches=None):
     """
-    Errors of the detections relative to the (surrounding) target interval.
+    Errors of the detections relative to the closest annotated interval.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the target beats [float, seconds]
-    :param matches:    numpy array with indices of the closest beats [int]
-    :returns:          numpy array with errors relative to surrounding target
-                       interval [seconds]
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
+    :param matches:     numpy array with indices of the closest beats [int]
+    :returns:           numpy array with errors relative to surrounding
+                        annotated interval [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
 
     """
-    # at least 1 detection and 2 targets must be given
-    if len(detections) < 1 or len(targets) < 2:
+    # at least 1 detection and 2 annotations must be given
+    if len(detections) < 1 or len(annotations) < 2:
         return np.zeros(0, dtype=np.float)
-    # determine the closest targets
+    # determine the closest annotations
     if matches is None:
-        matches = find_closest_matches(detections, targets)
+        matches = find_closest_matches(detections, annotations)
     # calculate the absolute errors
-    errors = calc_errors(detections, targets, matches)
+    errors = calc_errors(detections, annotations, matches)
     # get the closest intervals
-    intervals = find_closest_intervals(detections, targets, matches)
+    intervals = find_closest_intervals(detections, annotations, matches)
     # return the relative errors
     return errors / intervals
 
 
 # evaluation functions for beat detection
-def pscore(detections, targets, tolerance):
+def pscore(detections, annotations, tolerance):
     """
-    Calculate the P-Score accuracy for the given detection and target
-    sequences.
+    Calculate the P-Score accuracy for the given detections and annotations.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the beat annotations [float, seconds]
-    :param tolerance:  tolerance window (fraction of the median beat interval)
-    :returns:          p-score
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
+    :param tolerance:   tolerance window (fraction of the median beat interval)
+    :returns:           p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. F. McKinney, D. Moelants, M. E. P. Davies, and A. Klapuri
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
-    # at least 1 detection and 2 targets must be given
-    if len(detections) < 1 or len(targets) < 2:
+    # at least 1 detection and 2 annotations must be given
+    if len(detections) < 1 or len(annotations) < 2:
         return 0.
     # tolerance must be greater than 0
     if tolerance <= 0:
         raise ValueError("tolerance must be greater than 0")
     # the error window is the given fraction of the median beat interval
-    window = tolerance * np.median(np.diff(targets))
+    window = tolerance * np.median(np.diff(annotations))
     # errors
-    errors = calc_absolute_errors(detections, targets)
+    errors = calc_absolute_errors(detections, annotations)
     # count the instances where the error is smaller or equal than the window
     p = len(detections[errors <= window])
-    # normalize by the max number of detections/targets
-    p /= float(max(len(detections), len(targets)))
+    # normalize by the max number of detections/annotations
+    p /= float(max(len(detections), len(annotations)))
     # return p-score
     return p
 
 
-def cemgil(detections, targets, sigma):
+def cemgil(detections, annotations, sigma):
     """
-    Calculate the Cemgil accuracy for the given detection and target sequences.
+    Calculate the Cemgil accuracy for the given detections and annotations.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the beat annotations [float, seconds]
-    :param sigma:      sigma for Gaussian error function [float]
-    :returns:          beat tracking accuracy
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
+    :param sigma:       sigma for Gaussian error function [float]
+    :returns:           beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
     A.T. Cemgil, B. Kappen, P. Desain, and H. Honing
     Journal Of New Music Research, vol. 28, no. 4, pp. 259–273, 2001
 
     """
-    # no detections or no targets
-    if len(detections) == 0 or len(targets) == 0:
+    # no detections or no annotations
+    if len(detections) == 0 or len(annotations) == 0:
         return 0.
     # sigma must be greater than 0
     if sigma <= 0:
         raise ValueError("sigma must be greater than 0")
-    # determine the absolute errors of the detections to the closest targets
+    # determine the abs. errors of the detections to the closest annotations
     # Note: the original implementation searches for the closest matches of
-    # detections to given targets. Since absolute errors > a usual beat
-    # interval produce high errors (and thus in turn add negligible values to
-    # the accuracy), it is safe to swap those two.
-    errors = calc_absolute_errors(detections, targets)
+    #       detections given the annotations. Since absolute errors > a usual
+    #       beat interval produce high errors (and thus in turn add negligible
+    #       values to the accuracy), it is safe to swap those two.
+    errors = calc_absolute_errors(detections, annotations)
     # apply a Gaussian error function with the given std. dev. on the errors
     acc = np.exp(-(errors ** 2.) / (2. * (sigma ** 2.)))
     # and sum up the accuracy
     acc = np.sum(acc)
-    # normalized by the mean of the number of detections and targets
-    acc /= 0.5 * (len(targets) + len(detections))
+    # normalized by the mean of the number of detections and annotations
+    acc /= 0.5 * (len(annotations) + len(detections))
     # return accuracy
     return acc
 
 
-def goto(detections, targets, threshold, mu, sigma):
+def goto(detections, annotations, threshold, mu, sigma):
     """
-    Calculate the Goto and Muraoka accuracy for the given detection and target
-    sequences.
+    Calculate the Goto and Muraoka accuracy for the given detections and
+    annotations.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the beat annotations [float, seconds]
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
     :param threshold:  threshold [float]
     :param mu:         mu [float]
     :param sigma:      sigma for Gaussian error function [float]
@@ -241,18 +240,18 @@ def goto(detections, targets, threshold, mu, sigma):
     Evaluation and Assessment, pp. 9–16, 1997
 
     """
-    # at least 1 detection and 2 targets must be given
-    if len(detections) < 1 or len(targets) < 2:
+    # at least 1 detection and 2 annotations must be given
+    if len(detections) < 1 or len(annotations) < 2:
         return 0.
-    # get the indices of the closest detections to the targets to determine the
-    # longest continuous segment
-    closest = find_closest_matches(targets, detections)
+    # get the indices of the closest detections to the annotations to determine
+    # the longest continuous segment
+    closest = find_closest_matches(annotations, detections)
     # keep only those which have abs(errors) <= threshold
     # Note: both the original paper and the Matlab implementation normalize by
     #       half a beat interval, thus our threshold is halved (same applies to
     #       sigma and mu)
-    # errors of the detections relative to the surrounding target interval
-    errors = calc_relative_errors(detections, targets)
+    # errors of the detections relative to the surrounding annotation interval
+    errors = calc_relative_errors(detections, annotations)
     # the absolute error must be smaller than the given threshold
     closest = closest[np.abs(errors[closest]) <= threshold]
     # get the length and start position of the longest continuous segment
@@ -263,7 +262,7 @@ def goto(detections, targets, threshold, mu, sigma):
     #       within the first 3/4 of the excerpt, but this was altered in the
     #       Matlab implementation to the above condition to be able to deal
     #       with audio with varying tempo
-    if length < 0.25 * len(targets):
+    if length < 0.25 * len(annotations):
         return 0.
     # errors of the longest segment
     segment_errors = errors[closest[start: start + length]]
@@ -280,14 +279,14 @@ def goto(detections, targets, threshold, mu, sigma):
     return 1.
 
 
-def cml(detections, targets, tempo_tolerance, phase_tolerance):
+def cml(detections, annotations, tempo_tolerance, phase_tolerance):
     """
     Helper function to calculate the cmlc and cmlt scores for the given
-    detection and target sequences.
+    detections and annotations.
 
     :param detections:      numpy array with the detected beats
                             [float, seconds]
-    :param targets:         numpy array with the beat annotations
+    :param annotations:     numpy array with the annotated beats
                             [float, seconds]
     :param tempo_tolerance: tempo tolerance window [float]
     :param phase_tolerance: phase (interval) tolerance window [float]
@@ -303,25 +302,25 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     pp. 342–355, 2006.
 
     """
-    # at least 2 detection and targets must be given
-    if len(detections) < 2 or len(targets) < 2:
+    # at least 2 detection and annotations must be given
+    if len(detections) < 2 or len(annotations) < 2:
         return 0., 0.
     # tolerances must be greater than 0
     if tempo_tolerance <= 0 or phase_tolerance <= 0:
         raise ValueError("tolerances must be greater than 0")
 
-    # determine closest targets to detections
-    closest = find_closest_matches(detections, targets)
-    # errors of the detections wrt. to the targets
-    errors = calc_absolute_errors(detections, targets, closest)
+    # determine closest annotations to detections
+    closest = find_closest_matches(detections, annotations)
+    # errors of the detections wrt. to the annotations
+    errors = calc_absolute_errors(detections, annotations, closest)
     # detection intervals
     det_interval = calc_intervals(detections)
-    # target intervals (get those intervals at the correct positions)
-    tar_interval = calc_intervals(targets)[closest]
+    # annotation intervals (get those intervals at the correct positions)
+    tar_interval = calc_intervals(annotations)[closest]
     # a detection is correct, if it fulfills 3 conditions:
     # 1) must match an annotation within a certain tolerance window
     correct_tempo = detections[errors <= tar_interval * tempo_tolerance]
-    # 2) same must be true for the previous detection / target combination
+    # 2) same must be true for the previous detection / annotation combination
     # Note: Not enforced, since this condition is kind of pointless. Why not
     #       count a correct beat just because its predecessor is not?
     #       Also, the original Matlab implementation does not enforce it.
@@ -333,8 +332,8 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     # convert to indices
     correct_idx = np.searchsorted(detections, correct)
     # cmlc: longest continuous segment of detections normalized by the max.
-    #       length of both sequences (detection and targets)
-    length = float(max(len(detections), len(targets)))
+    #       length of both sequences (detection and annotations)
+    length = float(max(len(detections), len(annotations)))
     longest, _ = find_longest_continuous_segment(correct_idx)
     cmlc = longest / length
     # cmlt: same but for all detections (no need for continuity)
@@ -343,14 +342,14 @@ def cml(detections, targets, tempo_tolerance, phase_tolerance):
     return cmlc, cmlt
 
 
-def continuity(detections, targets, tempo_tolerance, phase_tolerance):
+def continuity(detections, annotations, tempo_tolerance, phase_tolerance):
     """
-    Calculate the cmlc, cmlt, amlc and amlt scores for the given detection and
-    target sequences.
+    Calculate the cmlc, cmlt, amlc and amlt scores for the given detections and
+    annotations.
 
     :param detections:      numpy array with the detected beats
                             [float, seconds]
-    :param targets:         numpy array with the beat annotations
+    :param annotations:     numpy array with the annotated beats
                             [float, seconds]
     :param tempo_tolerance: tempo tolerance window [float]
     :param phase_tolerance: phase (interval) tolerance window [float]
@@ -371,12 +370,12 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     pp. 342–355, 2006.
 
     """
-    # at least 2 detection and targets must be given
-    if len(detections) < 2 or len(targets) < 2:
+    # at least 2 detection and annotations must be given
+    if len(detections) < 2 or len(annotations) < 2:
         return 0., 0., 0., 0.
 
     # evaluate the correct tempo
-    cmlc, cmlt = cml(detections, targets, tempo_tolerance, phase_tolerance)
+    cmlc, cmlt = cml(detections, annotations, tempo_tolerance, phase_tolerance)
     amlc = cmlc
     amlt = cmlt
     # speed up calculation by skipping other metrical levels if the score is
@@ -385,17 +384,17 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     if cmlc > 0.5:
         return cmlc, cmlt, amlc, amlt
 
-    # create a target sequence with double tempo
-    same = np.arange(0, len(targets))
-    shifted = np.arange(0, len(targets), 0.5)
+    # create a annotation sequence with double tempo
+    same = np.arange(0, len(annotations))
+    shifted = np.arange(0, len(annotations), 0.5)
     # np.interp does not extrapolate the last value, so skip it
-    double_targets = np.interp(shifted, same, targets)[:-1]
+    double_annotations = np.interp(shifted, same, annotations)[:-1]
     # make different variants of the annotations:
     # double tempo, odd off-beats, even off-beats
     # half tempo odd beats (i.e. 1,3,1,3), half tempo even beats (i.e. 2,4,2,4)
     # TODO: include a third tempo as well? This might be needed for fast Waltz
-    variations = [double_targets, double_targets[1::2], targets[::2],
-                  targets[1::2], targets[::3]]
+    variations = [double_annotations, double_annotations[1::2],
+                  annotations[::2], annotations[1::2], annotations[::3]]
     # evaluate these metrical variants
     for variation in variations:
         # if other metrical levels achieve higher accuracies, take these values
@@ -407,14 +406,14 @@ def continuity(detections, targets, tempo_tolerance, phase_tolerance):
     return cmlc, cmlt, amlc, amlt
 
 
-def information_gain(detections, targets, bins):
+def information_gain(detections, annotations, bins):
     """
-    Calculate information gain.
+    Calculate information gain for the given detections and annotations.
 
-    :param detections: numpy array with the detected beats [float, seconds]
-    :param targets:    numpy array with the beat annotations [float, seconds]
-    :param bins:       number of bins for the error histogram [int, even]
-    :returns:          information gain, beat error histogram
+    :param detections:  numpy array with the detected beats [float, seconds]
+    :param annotations: numpy array with the annotated beats [float, seconds]
+    :param bins:        number of bins for the error histogram [int, even]
+    :returns:           information gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a
     beat error histogram"
@@ -430,17 +429,21 @@ def information_gain(detections, targets, bins):
         raise ValueError("Number of error histogram bins must be even and "
                          "greater than 0")
 
-    # at least 2 detection and 2 targets must be given
-    if len(detections) < 2 or len(targets) < 2:
+    # at least 2 detection and 2 annotations must be given
+    if len(detections) < 2 or len(annotations) < 2:
         # return an information gain of 0 and a uniform beat error histogram
-        dist = np.ones(bins) * max(len(detections), len(targets)) / float(bins)
-        return 0., dist
+        # Note: Because we want flipped detections and annotations return the
+        #       same uniform histogram, the maximum length of both the
+        #       detections and annotations is chosen instead of just the length
+        #       of the annotations as in the Matlab implementation.
+        max_length = max(len(detections), len(annotations))
+        return 0., np.ones(bins) * max_length / float(bins)
 
     # check if there are enough beat annotations for the number of bins
-    if bins > len(targets):
+    if bins > len(annotations):
         import warnings
-        warnings.warn("Not enough beat targets (%d) for %d histogram bins." %
-                      (len(targets), bins))
+        warnings.warn("Not enough beat annotations (%d) for %d histogram bins."
+                      % (len(annotations), bins))
 
     # create bins for the error histogram that cover the range from -0.5 to 0.5
     # make the first and last bin half as wide as the rest, so that the last
@@ -454,14 +457,14 @@ def information_gain(detections, targets, bins):
     # the number of bins by a total of 2
     histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
 
-    # evaluate detections against targets
-    fwd_histogram = _error_histogram(detections, targets, histogram_bins)
+    # evaluate detections against annotations
+    fwd_histogram = _error_histogram(detections, annotations, histogram_bins)
     fwd_ig = _information_gain(fwd_histogram)
 
     # in case of only few (but correct) detections, the errors could be small
-    # thus evaluate also the targets against the detections, i.e. simulate a
-    # lot of false positive detections
-    bwd_histogram = _error_histogram(targets, detections, histogram_bins)
+    # thus evaluate also the annotations against the detections, i.e. simulate
+    # a lot of false positive detections
+    bwd_histogram = _error_histogram(annotations, detections, histogram_bins)
     bwd_ig = _information_gain(bwd_histogram)
 
     # only use the lower information gain
@@ -471,13 +474,13 @@ def information_gain(detections, targets, bins):
         return bwd_ig, bwd_histogram
 
 
-def _error_histogram(detections, targets, histogram_bins):
+def _error_histogram(detections, annotations, histogram_bins):
     """
-    Helper function to calculate the relative errors of the given detection
-    wrt. the targets and map them to an error histogram with the given bins.
+    Helper function to calculate the relative errors of the given detections
+    and annotations and map them to an error histogram with the given bins.
 
     :param detections:     numpy array with the detected beats [float, seconds]
-    :param targets:        numpy array with the beat annotations
+    :param annotations:    numpy array with the annotated beats
                            [float, seconds]
     :param histogram_bins: sequence of histogram bin edges for mapping
     :returns:              error histogram
@@ -487,8 +490,8 @@ def _error_histogram(detections, targets, histogram_bins):
           mapped to the first bin.
 
     """
-    # get the relative errors of the detections to the targets
-    errors = calc_relative_errors(detections, targets)
+    # get the relative errors of the detections to the annotations
+    errors = calc_relative_errors(detections, annotations)
     # map the relative beat errors to the range of -0.5..0.5
     errors = np.mod(errors + 0.5, -1) + 0.5
     # get bin counts for the given errors over the distribution
@@ -548,16 +551,16 @@ class BeatEvaluation(OnsetEvaluation):
     Beat evaluation class.
 
     """
-    def __init__(self, detections, targets, window=WINDOW, tolerance=TOLERANCE,
-                 sigma=SIGMA, goto_threshold=GOTO_THRESHOLD,
-                 goto_sigma=GOTO_SIGMA, goto_mu=GOTO_MU,
-                 tempo_tolerance=TEMPO_TOLERANCE,
+    def __init__(self, detections, annotations, window=WINDOW,
+                 tolerance=TOLERANCE, sigma=SIGMA,
+                 goto_threshold=GOTO_THRESHOLD, goto_sigma=GOTO_SIGMA,
+                 goto_mu=GOTO_MU, tempo_tolerance=TEMPO_TOLERANCE,
                  phase_tolerance=PHASE_TOLERANCE, bins=BINS):
         """
-        Evaluate the given detection and target sequences.
+        Evaluate the given detections and annotations.
 
         :param detections:      sequence of estimated beat times [seconds]
-        :param targets:         sequence of ground truth beat annotations
+        :param annotations:     sequence of ground truth beat annotations
                                 [seconds]
         :param window:          F-measure evaluation window [seconds]
         :param tolerance:       P-Score tolerance of median beat interval
@@ -570,22 +573,22 @@ class BeatEvaluation(OnsetEvaluation):
         :param bins:            number of bins for the error histogram
 
         """
-        # convert the detections and targets
+        # convert the detections and annotations
         detections = np.asarray(sorted(detections), dtype=np.float)
-        targets = np.asarray(sorted(targets), dtype=np.float)
+        annotations = np.asarray(sorted(annotations), dtype=np.float)
         # perform onset evaluation with the appropriate window
-        super(BeatEvaluation, self).__init__(detections, targets, window)
+        super(BeatEvaluation, self).__init__(detections, annotations, window)
         # other scores
-        self.pscore = pscore(detections, targets, tolerance)
-        self.cemgil = cemgil(detections, targets, sigma)
-        self.goto = goto(detections, targets, goto_threshold, goto_sigma,
+        self.pscore = pscore(detections, annotations, tolerance)
+        self.cemgil = cemgil(detections, annotations, sigma)
+        self.goto = goto(detections, annotations, goto_threshold, goto_sigma,
                          goto_mu)
         # continuity scores
-        scores = continuity(detections, targets,
+        scores = continuity(detections, annotations,
                             tempo_tolerance, phase_tolerance)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
-        scores = information_gain(detections, targets, bins)
+        scores = information_gain(detections, annotations, bins)
         self.information_gain, self.error_histogram = scores
 
     @property
@@ -773,8 +776,9 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters the script evaluates pairs of files
-    with the targets (.beats) and detection (.beats.txt) as simple text
-    files with one beat timestamp per line.
+    with the annotations (.beats) and detection (.beats.txt) as simple text
+    files with one beat timestamp per line. Extensions can be given to filter
+    the detection and annotation files accordingly.
     """)
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
@@ -782,7 +786,7 @@ def parser():
     p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt',
                    help='extensions of the detections [default: %(default)s]')
     p.add_argument('-t', dest='tar_ext', action='store', default='.beats',
-                   help='extensions of the targets [default: %(default)s]')
+                   help='extensions of the annotations [default: %(default)s]')
     # parameters for evaluation
     p.add_argument('--window', action='store', type=float, default=WINDOW,
                    help='evaluation window for F-measure '
@@ -840,7 +844,7 @@ def main():
     # parse arguments
     args = parser()
 
-    # get detection and target files
+    # get detection and annotation files
     det_files = files(args.files, args.det_ext)
     tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
@@ -854,26 +858,26 @@ def main():
     for det_file in det_files:
         # get the detections file
         detections = load_events(det_file)
-        # get the matching target files
+        # get the matching annotation files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
-        # quit if any file does not have a matching target file
+        # quit if any file does not have a matching annotation file
         if len(matches) == 0:
-            print " can't find a target file found for %s" % det_file
+            print " can't find a annotation file found for %s" % det_file
             exit()
-        # do a mean evaluation with all matched target files
+        # do a mean evaluation with all matched annotation files
         me = MeanBeatEvaluation()
         for tar_file in matches:
-            # load the targets
-            targets = load_events(tar_file)
+            # load the annotations
+            annotations = load_events(tar_file)
             # remove beats and annotations that are within the first N seconds
             if args.skip > 0:
                 # FIXME: this definitely alters the results
                 start_idx = np.searchsorted(detections, args.skip, 'right')
                 detections = detections[start_idx:]
-                start_idx = np.searchsorted(targets, args.skip, 'right')
-                targets = targets[start_idx:]
+                start_idx = np.searchsorted(annotations, args.skip, 'right')
+                annotations = annotations[start_idx:]
             # add the BeatEvaluation this file's mean evaluation
-            me.append(BeatEvaluation(detections, targets,
+            me.append(BeatEvaluation(detections, annotations,
                                      window=args.window,
                                      tolerance=args.tolerance,
                                      sigma=args.sigma,
@@ -883,7 +887,7 @@ def main():
                                      tempo_tolerance=args.tempo_tolerance,
                                      phase_tolerance=args.phase_tolerance,
                                      bins=args.bins))
-            # process the next target file
+            # process the next annotation file
         # print stats for each file
         if args.verbose:
             print det_file

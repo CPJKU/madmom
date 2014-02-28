@@ -106,7 +106,7 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
     missed = np.isnan(abs_error)
 
     # TODO: Check out why the following computation is so complicated and
-    #       if diff and cumsum don't cancel each other out
+    #       if diff and cumulative sum don't cancel each other out
 
     # consider the unlikely case that EVERYTHING was missed or misaligned
     mi_ma_series = np.diff((missed | misaligned).cumsum())
