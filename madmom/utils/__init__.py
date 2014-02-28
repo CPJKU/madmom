@@ -127,6 +127,8 @@ def load_events(filename):
     :param filename: name of the file or file handle
     :return:         numpy array of events
 
+    Note: The file must not contain any other information (e.g. comments).
+
     """
     with open(filename, 'rb') as f:
         # read in the events, one per line
@@ -156,7 +158,7 @@ def combine_events(events, delta):
     :return:       list of combined events
 
     """
-    # add a small value to delta, otherwise we end in floating point hell
+    # add a small value to delta, otherwise we end up in floating point hell
     delta += 1e-12
     # return immediately if possible
     if len(events) <= 1:

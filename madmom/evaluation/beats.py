@@ -712,7 +712,7 @@ def main():
     mean_eval = MeanBeatEvaluation()
     # evaluate all files
     for det_file in det_files:
-        # get the detections file
+        # load the detections
         detections = load_events(det_file)
         # get the matching target files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
