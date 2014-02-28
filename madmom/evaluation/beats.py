@@ -760,9 +760,6 @@ class MeanBeatEvaluation(BeatEvaluation):
         return self._error_histogram
 
 
-SKIP = 5.
-
-
 def parser():
     """
     Create a parser and parse the arguments.
@@ -783,19 +780,27 @@ def parser():
                    help='files (or folder) to be evaluated')
     # extensions used for evaluation
     p.add_argument('-d', dest='det_ext', action='store', default='.beats.txt',
-                   help='extensions of the detections [default: .beats.txt]')
+                   help='extensions of the detections [default: %(default)s]')
     p.add_argument('-t', dest='tar_ext', action='store', default='.beats',
-                   help='extensions of the targets [default: .beats]')
+                   help='extensions of the targets [default: %(default)s]')
     # parameters for evaluation
     p.add_argument('--window', action='store', type=float, default=WINDOW,
-                   help='evaluation window for F-measure [seconds, '
-                        'default=%(default).3f]')
+                   help='evaluation window for F-measure '
+                        '[seconds, default=%(default).3f]')
     p.add_argument('--tolerance', action='store', type=float,
                    default=TOLERANCE,
-                   help='evaluation tolerance for P-score [default='
-                        '%(default).3f]')
+                   help='evaluation tolerance for P-score '
+                        '[default=%(default).3f]')
     p.add_argument('--sigma', action='store', default=SIGMA, type=float,
                    help='sigma for Cemgil accuracy [default=%(default).3f]')
+    p.add_argument('--goto_threshold', action='store', type=float,
+                   default=GOTO_THRESHOLD,
+                   help='threshold for Goto error [default=%(default).3f]')
+    p.add_argument('--goto_sigma', action='store', type=float,
+                   default=GOTO_SIGMA,
+                   help='sigma for Goto error [default=%(default).3f]')
+    p.add_argument('--goto_mu', action='store', type=float, default=GOTO_MU,
+                   help='mu for Goto error [default=%(default).3f]')
     p.add_argument('--tempo_tolerance', action='store', type=float,
                    default=TEMPO_TOLERANCE,
                    help='tempo tolerance window for continuity accuracies '
@@ -807,9 +812,9 @@ def parser():
     p.add_argument('--bins', action='store', type=int, default=BINS,
                    help='number of histogram bins for information gain '
                         '[default=%(default)i]')
-    p.add_argument('--skip', action='store', type=float, default=SKIP,
-                   help='skip first N seconds for evaluation [default='
-                        '%(default).3f]')
+    p.add_argument('--skip', action='store', type=float, default=0,
+                   help='skip first N seconds for evaluation '
+                        '[default=%(default).3f]')
     # output options
     p.add_argument('--tex', action='store_true',
                    help='format errors for use in .tex files')
@@ -872,6 +877,9 @@ def main():
                                      window=args.window,
                                      tolerance=args.tolerance,
                                      sigma=args.sigma,
+                                     goto_threshold=args.goto_threshold,
+                                     goto_sigma=args.goto_sigma,
+                                     goto_mu=args.goto_mu,
                                      tempo_tolerance=args.tempo_tolerance,
                                      phase_tolerance=args.phase_tolerance,
                                      bins=args.bins))
