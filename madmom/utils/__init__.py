@@ -30,6 +30,7 @@ def open(filename, mode='r'):
     else:
         f = filename
         fid = None
+    # TODO: include automatic (un-)zipping here?
     # yield an open file handle
     yield f
     # close the file if needed

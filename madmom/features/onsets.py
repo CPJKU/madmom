@@ -10,7 +10,9 @@ This file contains all onset detection related functionality.
 import numpy as np
 import scipy.ndimage as sim
 
-EPSILON = 0.000001
+from . import Event
+
+EPSILON = 1e-6
 
 
 # helper functions
@@ -522,8 +524,7 @@ COMBINE = 0.03
 DELAY = 0
 
 
-# TODO: common stuff should be moved into an Event class
-class Onset(object):
+class Onset(Event):
     """
     Onset Class.
 
@@ -540,21 +541,10 @@ class Onset(object):
         :param sep:         separator if activations are read from file
 
         """
-        self.activations = None  # onset activation function
-        self.fps = float(fps)    # frame rate of the activation function
-        self.online = online     # online peak-picking
-        # TODO: is it better to init the detections as np.zeros(0)?
-        # this way the write() method would not throw an error, but the
-        # evaluation might not be correct?!
-        self.detections = None   # list of detected onsets [seconds]
-        self.targets = None      # list of target onsets [seconds]
-        # set / load activations
-        if isinstance(activations, np.ndarray):
-            # activations are given as an array
-            self.activations = activations
-        else:
-            # read in the activations from a file
-            self.load_activations(activations, sep)
+        # inherit most stuff from the base class
+        super(Onset, self).__init__(activations, fps, sep)
+        # online peak-picking
+        self.online = online
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
@@ -612,53 +602,6 @@ class Onset(object):
             self.detections = detections
         # also return the detections
         return self.detections
-
-    def write(self, filename):
-        """
-        Write the detected onsets to a file.
-
-        :param filename: output file name or file handle
-
-        Note: detect() method must be called first.
-
-        """
-        # TODO: put this (and the same in the Beat class) to an Event class
-        from ..utils import write_events
-        write_events(self.detections, filename)
-
-    def save_activations(self, filename, sep=''):
-        """
-        Save the onset activations to a file.
-
-        :param filename: output file name or file handle
-        :param sep:      separator between activation values
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independent.
-
-        """
-        # TODO: put this (and the same in the Beat class) to an Event class
-        # save the activations
-        self.activations.tofile(filename, sep=sep)
-
-    def load_activations(self, filename, sep=''):
-        """
-        Load the onset activations from a file.
-
-        :param filename: the target file name
-        :param sep:      separator between activation values
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independent.
-
-        """
-        # TODO: put this (and the same in the Beat class) to an Event class
-        # load the activations
-        self.activations = np.fromfile(filename, sep=sep)
 
 
 def parser():
