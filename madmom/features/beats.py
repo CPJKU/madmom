@@ -10,6 +10,8 @@ This file contains all beat tracking related functionality.
 import sys
 import numpy as np
 
+from . import Event
+
 
 ## TODO: implement some simple algorithms
 #class SpectralBeatTracking(object):
@@ -293,17 +295,17 @@ LOOK_AHEAD = 4
 DELAY = 0
 
 
-class Beat(object):
+class Beat(Event):
     """
     Beat Class.
 
     """
     def __init__(self, activations, fps, online=False, sep=''):
         """
-        Creates a new Onset object instance with the given activations of the
-        ODF (OnsetDetectionFunction). The activations can be read in from file.
+        Creates a new Beat object instance with the given activations.
+        The activations can be read in from file.
 
-        :param activations: array with ODF activations or a file (handle)
+        :param activations: array with the beat activations or a file (handle)
         :param fps:         frame rate of the activations
         :param online:      work in online mode (i.e. use only past
                             information)
@@ -311,22 +313,9 @@ class Beat(object):
 
         """
         if online:
-            raise NotImplementedError('online mode not implemented')
-        self.activations = None  # onset activation function
-        self.fps = float(fps)    # frame rate of the activation function
-        self.online = online     # online beat-tracking
-        # TODO: is it better to init the detections as np.zeros(0)?
-        # this way the write() method would not throw an error, but the
-        # evaluation might not be correct?!
-        self.detections = None   # list of detected onsets [seconds]
-        self.targets = None      # list of target onsets [seconds]
-        # set / load activations
-        if isinstance(activations, np.ndarray):
-            # activations are given as an array
-            self.activations = activations
-        else:
-            # read in the activations from a file
-            self.load_activations(activations, sep)
+            raise NotImplementedError('online mode not implemented (yet)')
+        # inherit most stuff from the base class
+        super(Beat, self).__init__(activations, fps, sep)
 
     def detect(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
                min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE):
@@ -486,177 +475,3 @@ class Beat(object):
             return t2, t1, 1 - weight
         return t1, t2, weight
 
-    def write(self, filename):
-        """
-        Write the detected beats to a file.
-
-        :param filename: output file name or file handle
-
-        Note: detect() method must be called first.
-
-        """
-        # TODO: put this (and the same in the Onset class) to an Event class
-        from ..utils import write_events
-        write_events(self.detections, filename)
-
-    def save_activations(self, filename, sep=''):
-        """
-        Save the beat activations to a file.
-
-        :param filename: output file name or file handle
-        :param sep:      separator between activation values
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independent.
-
-        """
-        # TODO: put this (and the same in the Onset class) to an Event class
-        # save the activations
-        self.activations.tofile(filename, sep=sep)
-
-    def load_activations(self, filename, sep=''):
-        """
-        Load the beat activations from a file.
-
-        :param filename: the target file name
-        :param sep:      separator between activation values
-
-        Note: Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace. Binary files are not platform independent.
-
-        """
-        # TODO: put this (and the same in the Onset class) to an Event class
-        # load the activations
-        self.activations = np.fromfile(filename, sep=sep)
-
-
-def parser():
-    """
-    Command line argument parser for beat detection.
-
-    """
-    import argparse
-    from ..utils.params import audio, spec, filtering, log, spectral_odf, beat
-
-    # define parser
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters, the software detects all beats in the
-    given files with the method described in:
-
-    "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    by Sebastian Böck and Markus Schedl
-    Proceedings of the 14th International Conference on Digital Audio Effects
-    (DAFx-11), Paris, France, September 2011
-
-    """)
-    # general options
-    p.add_argument('files', metavar='files', nargs='+',
-                   help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='count',
-                   help='increase verbosity level')
-    p.add_argument('--track', action='store_true', default=False,
-                   help='track, not detect')
-    p.add_argument('--ext', action='store', type=str, default='txt',
-                   help='extension for detections [default=txt]')
-    # add other argument groups
-    audio(p, fps=100)
-    spec(p)
-    filtering(p, filtering=True)
-    log(p, log=True)
-    spectral_odf(p)
-    beat(p)
-    # parse arguments
-    args = p.parse_args()
-    # print arguments
-    if args.verbose:
-        print args
-    # return args
-    return args
-
-
-def main():
-    """
-    Example beat tracking program.
-
-    """
-    import os.path
-
-    from ..utils import files
-#    from ..audio.wav import Wav
-#    from ..audio.spectrogram import Spectrogram
-#    from ..audio.filterbank import LogarithmicFilterBank
-
-    # parse arguments
-    args = parser()
-
-    # init filterbank
-#    fb = None
-
-    # which files to process
-    if args.load:
-        # load the activations
-        ext = '.activations'
-    else:
-        # only process .wav files
-        ext = '.wav'
-    # process the files
-    for f in files(args.files, ext):
-        if args.verbose:
-            print f
-
-        # use the name of the file without the extension
-        filename = os.path.splitext(f)[0]
-
-        # do the processing stuff unless the activations are loaded from file
-        if args.load:
-            # load the activations from file
-            # FIXME: fps must be encoded in the file
-            b = Beat(f, args.fps, args.online)
-        else:
-            raise NotImplementedError('only loading of beat activations '
-                                      'supported so far.')
-#            w = Wav(f, mono=True, norm=args.norm, att=args.att)
-#            if args.filter:
-#                # (re-)create filterbank if the sample rate is not the same
-#                if fb is None or fb.sample_rate != w.sample_rate:
-#                    # create filterbank if needed
-#                    fb = LogarithmicFilterBank(args.window / 2, w.sample_rate,
-#                                               args.bands, args.fmin,
-#                                               args.fmax, args.equal)
-#            # create a Spectrogram object
-#            s = Spectrogram(w, frame_size=args.window, filterbank=fb,
-#                            log=args.log, mul=args.mul, add=args.add,
-#                            ratio=args.ratio, diff_frames=args.diff_frames)
-#            # create a SpectralBeatTracking object
-#            sbdf = SpectralBeatTracking(s)
-#            # perform detection function on the object
-#            act = getattr(sbdf, args.bdf)()
-#            # create an Onset object with the activations
-#            b = Beat(act, args.fps, args.online)
-        # save onset activations or detect onsets
-        if args.save:
-            # save the raw beat activations
-            b.save_activations("%s.activations" % filename)
-        else:
-            # detect the beats
-            if not args.track:
-                b.detect(args.threshold, delay=args.delay, smooth=args.smooth,
-                         min_bpm=args.min_bpm, max_bpm=args.max_bpm)
-            else:
-                b.track(args.threshold, delay=args.delay, smooth=args.smooth,
-                        min_bpm=args.min_bpm, max_bpm=args.max_bpm)
-            # write the beats to a file
-            b.write("%s.%s" % (filename, args.ext))
-            # also output them to stdout if vebose
-            if args.verbose > 2:
-                print 'tempo:     ', 60. / np.median(np.diff(b.detections))
-                print 'tempo:     ', 60. / np.mean(np.diff(b.detections))
-        # continue with next file
-
-if __name__ == '__main__':
-    main()

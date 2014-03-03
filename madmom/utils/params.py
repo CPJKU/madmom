@@ -324,9 +324,9 @@ def io(parser):
                    help='save the activations to file')
     g.add_argument('-l', dest='load', action='store_true', default=False,
                    help='load the activations from file')
-    g.add_argument('--sep', action='store', default='',
+    g.add_argument('--sep', action='store', default=None,
                    help='separator for saving/loading the activation '
-                        'function [default=\'\'; numpy binary format]')
+                        'function [default: numpy binary format]')
 
 
 def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
