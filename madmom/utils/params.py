@@ -140,8 +140,13 @@ def log(parser, log=None, mul=MUL, add=ADD):
     # add log related options to the existing parser
     g = parser.add_argument_group('logarithic magnitude arguments')
     if log is not None:
-        g.add_argument('--log', action='store_true', default=log,
-                       help='logarithmic magnitude [default=%(default)s]')
+        if log is False:
+            g.add_argument('--log', action='store_true', default=log,
+                           help='logarithmic magnitude [default=%(default)s]')
+        else:
+            g.add_argument('--no_log', dest='log', action='store_false',
+                           default=log, help='no logarithmic magnitude '
+                                             '[default=%(default)s]')
     if mul is not None:
         g.add_argument('--mul', action='store', type=float, default=mul,
                        help='multiplier (before taking the log) '
