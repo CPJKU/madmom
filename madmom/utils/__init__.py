@@ -193,17 +193,18 @@ def quantize_events(events, fps, length=None):
     :returns:      a quantized numpy array
 
     """
-    # length of the array
     if length is None:
-        length = int(round(events[-1] * fps)) + 1
+        # set the length to be long enough to cover all events
+        length = int(round(np.max(events) * float(fps))) + 1
+    else:
+        # else filter all events which do not fit in the array
+        # since we apply rounding later, we need to subtract half a bin
+        events = events[:np.searchsorted(events, float(length - 0.5) / fps)]
     # init array
     quantized = np.zeros(length)
     # set the events
     for event in events:
         idx = int(round(event * float(fps)))
-        try:
-            quantized[idx] = 1
-        except IndexError:
-            pass
-    # return the events
+        quantized[idx] = 1
+    # return the quantized array
     return quantized

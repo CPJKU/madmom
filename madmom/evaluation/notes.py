@@ -45,15 +45,15 @@ def remove_duplicate_rows(data):
     return data[unique]
 
 
-def note_evaluation(detections, targets, window):
+def note_evaluation(detections, annotations, window):
     """
-    Count the true and false detections of the given detections and targets.
+    Determine the true/false positive/negative detections.
 
-    :param detections: array with detected notes
-                       [[onset, MIDI note, duration, velocity]]
-    :param targets:    array with target onsets (same format as detections)
-    :param window:     detection window [seconds]
-    :return:           tuple of tp, fp, tn, fn numpy arrays
+    :param detections:  array with detected notes
+                        [[onset, MIDI note, duration, velocity]]
+    :param annotations: array with annotated notes (same format as detections)
+    :param window:      detection window [seconds]
+    :return:            tuple of tp, fp, tn, fn numpy arrays
 
     tp: array with true positive detections
     fp: array with false positive detections
@@ -67,22 +67,22 @@ def note_evaluation(detections, targets, window):
     # TODO: extend to also evaluate the duration and velocity of notes
     #       until then only use the first two columns (onsets + pitch)
     detections = remove_duplicate_rows(detections[:, :2])
-    targets = remove_duplicate_rows(targets[:, :2])
+    annotations = remove_duplicate_rows(annotations[:, :2])
     # init TP, FP and FN lists
     tp = []
     fp = []
     fn = []
     # get a list of all notes
     notes = np.unique(np.concatenate((detections[:, 1],
-                                      targets[:, 1]))).tolist()
+                                      annotations[:, 1]))).tolist()
     # iterate over all notes
     for note in notes:
         # perform normal onset detection on ech note
         det = detections[detections[:, 1] == note]
-        tar = targets[targets[:, 1] == note]
+        tar = annotations[annotations[:, 1] == note]
         tp_, fp_, _, fn_ = onset_evaluation(det[:, 0], tar[:, 0], window)
         # convert returned arrays to lists and append the detections and
-        # targets to the correct lists
+        # annotations to the correct lists
         tp.extend(det[np.in1d(det[:, 0], tp_)].tolist())
         fp.extend(det[np.in1d(det[:, 0], fp_)].tolist())
         fn.extend(tar[np.in1d(tar[:, 0], fn_)].tolist())
@@ -92,7 +92,7 @@ def note_evaluation(detections, targets, window):
     fn = np.asarray(sorted(fn))
     # check calculation
     assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
-    assert len(tp) + len(fn) == len(targets), 'bad FN calculation'
+    assert len(tp) + len(fn) == len(annotations), 'bad FN calculation'
     # return the arrays
     return tp, fp, np.zeros((0, 2)), fn
 
@@ -108,19 +108,19 @@ class NoteEvaluation(Evaluation):
     Evaluation class for measuring Precision, Recall and F-measure of notes.
 
     """
-    def __init__(self, detections, targets, window=WINDOW):
+    def __init__(self, detections, annotations, window=WINDOW):
         super(NoteEvaluation, self).__init__()
         self.detections = detections
-        self.targets = targets
+        self.annotations = annotations
         # evaluate
-        numbers = note_evaluation(detections, targets, window)
+        numbers = note_evaluation(detections, annotations, window)
         self._tp, self._fp, self._tn, self._fn = numbers
 
     @property
     def errors(self):
         """
         Absolute errors of all true positive detections relative to the closest
-        targets.
+        annotations.
 
         """
         if self._errors is None:
@@ -128,7 +128,8 @@ class NoteEvaluation(Evaluation):
                 # FIXME: what is the error in case of no TPs
                 self._errors = np.zeros(0)
             else:
-                self._errors = calc_errors(self.tp[:, 0], self.targets[:, 0])
+                self._errors = calc_errors(self.tp[:, 0],
+                                           self.annotations[:, 0])
         return self._errors
 
 
@@ -144,8 +145,8 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
-    folder with targets. Extensions can be given to filter the detection and
-    target file lists.
+    folder with annotations. Extensions can be given to filter the detection
+    and annotation files accordingly.
 
     """)
     # files used for evaluation
@@ -155,7 +156,7 @@ def parser():
     p.add_argument('-d', dest='det_ext', action='store', default='.notes.txt',
                    help='extension of the detection files')
     p.add_argument('-t', dest='tar_ext', action='store', default='.notes',
-                   help='extension of the target files')
+                   help='extension of the annotation files')
     # parameters for evaluation
     p.add_argument('-w', dest='window', action='store', type=float,
                    default=0.025,
@@ -187,7 +188,7 @@ def main():
     # parse arguments
     args = parser()
 
-    # get detection and target files
+    # get detection and annotation files
     det_files = files(args.files, args.det_ext)
     tar_files = files(args.files, args.tar_ext)
     # quit if no files are found
@@ -205,31 +206,30 @@ def main():
         # shift the detections if needed
         if args.delay != 0:
             detections[:, 0] += args.delay
-        # get the matching target files
+        # get the matching annotation files
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
-        # quit if any file does not have exactly one matching target file
+        # quit if any file does not have exactly one matching annotation file
         if len(matches) != 1:
-            print " can't find exactly 1 target file for %s." % det_file
+            print " can't find exactly 1 annotation file for %s." % det_file
             exit()
-        if args.verbose:
-            print det_file
-        # load the targets
-        targets = load_notes(matches[0])
+        # load the annotations
+        annotations = load_notes(matches[0])
         # add the NoteEvaluation to mean evaluation
-        ne = NoteEvaluation(detections, targets, window=args.window)
-        # process the next target file
+        ne = NoteEvaluation(detections, annotations, window=args.window)
+        # process the next annotation file
         # print stats for each file
         if args.verbose:
-            ne.print_errors(args.tex)
+            print det_file
+            print ne.print_errors('  ', args.tex)
         # add this file's evaluation to the global evaluation
         sum_eval += ne
         mean_eval.append(ne)
         # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))
-    sum_eval.print_errors(args.tex)
+    print sum_eval.print_errors('  ', args.tex)
     print 'mean for %i files:' % (len(det_files))
-    mean_eval.print_errors(args.tex)
+    print mean_eval.print_errors('  ', args.tex)
 
 if __name__ == '__main__':
     main()
