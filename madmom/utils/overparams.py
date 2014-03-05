@@ -2,20 +2,21 @@
 # encoding: utf-8
 """
 Abstract:
-A wrapper for the standard 'ArgumentParser' class (module argparse) to be able to
-override values coming from a YAML configuration file conveniently from the commandline
+A wrapper for the standard 'ArgumentParser' class (module argparse) to be able
+to override values coming from a YAML configuration file conveniently from the
+command line
 
 Description:
-This wrapper reads in values from different sections of a YAML
-configuration file, whose name is specifiable on the commandline via '--config'.
+This wrapper reads in values from different sections of a YAML configuration
+file, whose name is specifiable on the command line via '--config'.
 
-It then adds each of the values as an optional(!) commandline parameter,
-- allowing them to be overridden by specifying them on the commandline
+It then adds each of the values as an optional(!) command line parameter,
+- allowing them to be overridden by specifying them on the command line
 - merging them with additionally specified (mostly positional) parameters
 
-If you ever find yourself in the situation that you have lots of different commandline
-scripts, sharing common parameters (encoding of audio-streams, fft parameters,
-filtersizes, etc...) this is the ArgumentParser-wrapper to use.
+If you ever find yourself in the situation that you have lots of different
+command line scripts, sharing common parameters (encoding of audio-streams, FFT
+parameters, filter sizes, etc...) this is the ArgumentParser-wrapper to use.
 
 
 YAML-Format is as follows:
@@ -28,8 +29,8 @@ An example:
 -----------------------------------------------------------------------
 config.yaml:
 sectionA:
-  param1: [0, 'this is the help text for param 1']
-  param2: ['something', 'this is the help for param 2']
+  param1: [0, 'this is the help text for parameter 1']
+  param2: ['something', 'this is the help for parameter 2']
 
 sectionB:
   ...
@@ -47,7 +48,7 @@ args = parser.parse_args()
 print args
 
 -----------------------------------------------------------------------
-Calling this script from the commandline yields:
+Calling this script from the command line yields:
 
 $ python test_overparams.py aloha
 Namespace(config='config.yaml',
@@ -118,9 +119,11 @@ class OrderedDictYAMLLoader(yaml.Loader):
 class OverridableParameters():
     """
     Wrapper class for argparse.ArgumentParser. See module docs.
+
     :param configfilename: the default configfilename
-    :param sectionnames: which sections from the YAML file to include as parameters
-    :param description: optional description of the argument parser
+    :param sectionnames:   which sections from the YAML file to include as
+                           parameters
+    :param description:    optional description of the argument parser
     """
     def __init__(self,
                  configfilename='config.yaml',
@@ -133,15 +136,15 @@ class OverridableParameters():
             configfilename = sys.argv[2]
 
         # create the parser
-        self.parser = argparse.ArgumentParser(description=description,
-                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        self.parser = argparse.ArgumentParser(
+            description=description,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
         def existing_config_file(cfn):
             if os.path.isfile(cfn):
                 return cfn
             else:
                 raise argparse.ArgumentTypeError('config file does not exist')
-
 
         self.parser.add_argument('--config',
                                  default=configfilename,
@@ -167,7 +170,8 @@ class OverridableParameters():
                                            default=optionvalue,
                                            help=optionhelptxt)
                 else:
-                    raise ValueError('invalid section name encountered "' + section + '"')
+                    raise ValueError('invalid section name encountered: "%s"' %
+                                     section)
 
     def add_argument(self, *args, **kwords):
         self.parser.add_argument(*args, **kwords)
