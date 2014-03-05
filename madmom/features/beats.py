@@ -474,4 +474,3 @@ class Beat(Event):
         if mirex and t1 > t2:
             return t2, t1, 1 - weight
         return t1, t2, weight
-

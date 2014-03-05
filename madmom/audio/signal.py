@@ -248,6 +248,7 @@ class Signal(object):
         # return a new Signal
         return Signal(self.data, sample_rate=sample_rate, mono=mono, norm=norm,
                       att=att)
+
     def __str__(self):
         return "Signal: %d samples (%.2f sec); %d channel(s); %d Hz sample " \
                "rate" % (self.num_samples, self.length, self.num_channels,
