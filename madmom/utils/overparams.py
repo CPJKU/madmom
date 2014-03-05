@@ -2,15 +2,65 @@
 # encoding: utf-8
 """
 Abstract:
-convenience wrapper to be able to override values from configuration file
-from the commandline
+A wrapper for the standard 'ArgumentParser' class (module argparse) to be able to
+override values coming from a YAML configuration file conveniently from the commandline
 
 Description:
-this wrapper reads in values from different sections of a YAML/JSON
-configuration file, whose name is specifiable on the commandline via '--config'
-it then adds each of the values as a commandline parameter,
+This wrapper reads in values from different sections of a YAML
+configuration file, whose name is specifiable on the commandline via '--config'.
+
+It then adds each of the values as an optional(!) commandline parameter,
 - allowing them to be overridden by specifying them on the commandline
 - merging them with additionally specified (mostly positional) parameters
+
+If you ever find yourself in the situation that you have lots of different commandline
+scripts, sharing common parameters (encoding of audio-streams, fft parameters,
+filtersizes, etc...) this is the ArgumentParser-wrapper to use.
+
+
+YAML-Format is as follows:
+<sectionname>:
+  <parametername>: [<value>, <help-text>]
+
+
+An example:
+
+-----------------------------------------------------------------------
+config.yaml:
+sectionA:
+  param1: [0, 'this is the help text for param 1']
+  param2: ['something', 'this is the help for param 2']
+
+sectionB:
+  ...
+  ...
+
+-----------------------------------------------------------------------
+test_overparams.py:
+import madmom.utils.overparams as overparams
+parser = overparams.OverridableParameters(description='description',
+                                          sectionnames=['sectionA'])
+
+parser.add_argument('positional', help='some positional arguments')
+args = parser.parse_args()
+
+print args
+
+-----------------------------------------------------------------------
+Calling this script from the commandline yields:
+
+$ python test_overparams.py aloha
+Namespace(config='config.yaml',
+          param1=0,
+          param2='something',
+          positional='aloha')
+
+python testop.py aloha --param1 23 --param2 "something completely different"
+Namespace(config='config.yaml',
+          param1=23,
+          param2='something completely different',
+          positional='aloha')
+
 
 @author: Rainer Kelz <rainer.kelz@jku.at>
 
@@ -18,6 +68,7 @@ it then adds each of the values as a commandline parameter,
 
 import argparse
 import os
+import sys
 import yaml.constructor
 from collections import OrderedDict
 
@@ -64,71 +115,62 @@ class OrderedDictYAMLLoader(yaml.Loader):
         return mapping
 
 
-class OverridableParameters(object):
+class OverridableParameters():
+    """
+    Wrapper class for argparse.ArgumentParser. See module docs.
+    :param configfilename: the default configfilename
+    :param sectionnames: which sections from the YAML file to include as parameters
+    :param description: optional description of the argument parser
+    """
     def __init__(self,
-                 config_filename='config.yaml',
-                 section_names=[],
+                 configfilename='config.yaml',
+                 sectionnames=[],
                  description=''):
 
-        self.section_names = section_names
+        self.sectionnames = sectionnames
 
-        add_help = False if os.path.isfile(config_filename) else True
+        if len(sys.argv) >= 3 and sys.argv[1] == '--config':
+            configfilename = sys.argv[2]
 
-        def existing_config_file(cf):
-            if os.path.isfile(cf):
-                return cf
+        # create the parser
+        self.parser = argparse.ArgumentParser(description=description,
+                                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+        def existing_config_file(cfn):
+            if os.path.isfile(cfn):
+                return cfn
             else:
                 raise argparse.ArgumentTypeError('config file does not exist')
 
-        self.parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            description=description, add_help=add_help)
 
         self.parser.add_argument('--config',
-                                 dest='actualconfigfilename',
-                                 default=config_filename,
+                                 default=configfilename,
                                  type=existing_config_file,
-                                 help='the name of the config file '
-                                      'supplying all additional parameters')
+                                 help='the name of the config file'
+                                 ' supplying all additional parameters')
 
-        pre_args, _ = self.parser.parse_known_args()
+        if os.path.isfile(configfilename):
+            config = yaml.load(open(configfilename, 'r'),
+                               OrderedDictYAMLLoader)
 
-        # re-new the parser
-        self.parser = (argparse.ArgumentParser(description=description,
-                       formatter_class=argparse.ArgumentDefaultsHelpFormatter))
+            for section in self.sectionnames:
+                if section in config:
+                    group = self.parser.add_argument_group(section)
+                    for optionname, option in config[section].items():
+                        optionvalue = option[0]
+                        optionhelptxt = ''
+                        if len(option) > 1:
+                            optionhelptxt = option[1]
 
-        config = yaml.load(open(pre_args.actualconfigfilename),
-                           OrderedDictYAMLLoader)
+                        group.add_argument('--%s' % optionname,
+                                           type=type(optionvalue),
+                                           default=optionvalue,
+                                           help=optionhelptxt)
+                else:
+                    raise ValueError('invalid section name encountered "' + section + '"')
 
-        for section in self.section_names:
-            if section in config:
-                group = self.parser.add_argument_group(section)
-                for option_name, option in config[section].items():
-                    option_value = option[0]
-                    option_helptxt = option[1]
+    def add_argument(self, *args, **kwords):
+        self.parser.add_argument(*args, **kwords)
 
-                    group.add_argument('--%s' % option_name,
-                                       type=type(option_value),
-                                       default=option_value,
-                                       help=option_helptxt)
-            else:
-                raise ValueError("invalid section name: %s" % section)
-
-    def add_argument(self, *args, **kwargs):
-        self.parser.add_argument(*args, **kwargs)
-
-    def parse_args(self):
-        # ignore unknown stuff
-        args, _ = self.parser.parse_known_args()
-        return args
-
-    def _convert(self, yamlobj):
-        if isinstance(yamlobj, dict):
-            return {self._convert(key): self._convert(value)
-                    for key, value in yamlobj.iteritems()}
-        elif isinstance(yamlobj, list):
-            return [self._convert(element) for element in yamlobj]
-        elif isinstance(yamlobj, unicode):
-            return str(yamlobj)
-        else:
-            return yamlobj
+    def parse_args(self, args=None, namespace=None):
+        return self.parser.parse_args(args, namespace)
