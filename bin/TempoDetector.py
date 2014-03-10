@@ -117,11 +117,11 @@ def main():
         data = np.hstack((data, s.spec, s.pos_diff))
 
         # init a pool of workers (if needed)
-        _map = map
+        map_ = map
         if args.threads != 1:
-            _map = mp.Pool(args.threads).map
+            map_ = mp.Pool(args.threads).map
         # compute predictions with all saved neural networks (in parallel)
-        activations = _map(process, it.izip(args.nn_files, it.repeat(data)))
+        activations = map_(process, it.izip(args.nn_files, it.repeat(data)))
 
         # average activations if needed
         nn_files = len(args.nn_files)
