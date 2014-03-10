@@ -142,11 +142,11 @@ def log(parser, log=None, mul=MUL, add=ADD):
     if log is not None:
         if log is False:
             g.add_argument('--log', action='store_true', default=log,
-                           help='logarithmic magnitude [default=%(default)s]')
+                           help='logarithmic magnitude [default=linear]')
         else:
             g.add_argument('--no_log', dest='log', action='store_false',
                            default=log, help='no logarithmic magnitude '
-                                             '[default=%(default)s]')
+                                             '[default=logarithmic]')
     if mul is not None:
         g.add_argument('--mul', action='store', type=float, default=mul,
                        help='multiplier (before taking the log) '

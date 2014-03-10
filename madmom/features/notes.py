@@ -117,8 +117,10 @@ class SpectralNoteTranscription(object):
                 sums[:, f] = fsum
             # convert to MIDI scale
             fmin = midi2hz(-1)
-            fb = LogarithmicFilterBank(self.spectrogram.num_fft_bins, 44100, 12,
-                                       norm=True, duplicates=True, fmin=fmin)
+            fb = LogarithmicFilterBank(
+                self.spectrogram.num_fft_bins,
+                self.spectrogram.frames.signal.sample_rate, 12, norm=True,
+                duplicates=True, fmin=fmin)
             # save the notes
             self._notes = np.dot(sums, fb)
         # return notes

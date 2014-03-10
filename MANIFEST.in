@@ -17,8 +17,5 @@ exclude madmom/features/notes.py
 exclude madmom/ml/rnnlib.py
 exclude madmom/utils/overparams.py
 exclude madmom/utils/stats.py
-exclude bin/create_nc_files.py
-exclude bin/test_save_files.py
-exclude bin/PianoTranscription.py
 # never include tests
 prune madmom/test

@@ -683,6 +683,7 @@ class TestThread(Thread):
                 # TODO: which exception should be raised?
                 raise SystemExit('rnnlib binary not found')
             # read the activations
+            act = None
             try:
                 # classification output
                 act = Activations('%s/output_outputActivations' %
@@ -690,7 +691,8 @@ class TestThread(Thread):
                 # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
-                raise NotImplementedError("regression not implemented yet")
+                pass
+                # raise NotImplementedError("regression not implemented yet")
             # put a tuple with nc file, nn file and activations
             # in the return queue
             self.return_queue.put((nc_file, nn_file, act))
@@ -881,23 +883,17 @@ class RnnConfig(object):
         # close the file
         f.close()
 
-    def test(self, out_dir=None, file_set='test', threads=2, sep=''):
+    def test(self, out_dir=None, file_set='test', threads=2):
         """
         Test the given set of files.
 
         :param out_dir:  output directory for activations
         :param file_set: which set should be tested {train, val, test}
         :param threads:  number of working threads
-        :param sep:      separator between activation values
         :returns:        the output directory
 
-        Note: If given, out_dir must exist. If none is given, a standard output
+        Note: If given, out_dir must exist. If none is given, an output
               directory is created.
-
-              Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace.
 
         """
         # if no output directory was given, use the name of the file + set
@@ -921,7 +917,7 @@ class RnnConfig(object):
             # position in the list
             f_idx = nc_files.index(f)
             # save
-            activations[f_idx].tofile(act_file, sep)
+            np.save(act_file, activations[f_idx])
         # return the output directory
         return out_dir
 
@@ -1015,8 +1011,8 @@ class RnnConfig(object):
                 # next layer
 
 
-def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
-                    sep=''):
+def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
+    # FIXME: function only works if called in the directory of the NN file
     """
     Test the given set of files.
 
@@ -1025,22 +1021,16 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
     :param file_set: which set should be tested
                      file_set can be any of {train, val, test}
     :param threads:  number of working threads
-    :param sep:      separator between activation values
 
-    Note: empty (“”) separator means the file should be treated as binary;
-          spaces (” ”) in the separator match zero or more whitespace;
-          separator consisting only of spaces must match at least one
-          whitespace.
-
-          If out_dir is set and multiple network files contain the same
-          files, the activations get averaged.
+    Note: If 'out_dir' is set and multiple network files contain the same
+          files, the activations get averaged and saved to 'out_dir'.
 
     """
     if out_dir is None:
         # test all NN files individually
         for nn_file in nn_files:
             nn = RnnConfig(nn_file)
-            nn.test(file_set=file_set, threads=threads, sep=sep)
+            nn.test(file_set=file_set, threads=threads)
     else:
         # average all activations and output them in the given directory
         try:
@@ -1068,7 +1058,166 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             activations = test_nc_files([nc_file], nc_nn_files, threads)
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
-            act_file = "%s/%s.activations" % (out_dir, basename)
+            act_file = "%s/%s" % (out_dir, basename)
             # save the activations (we only passed one .nc file, so it's the
             # first activation in the returned list)
-            activations[0].tofile(act_file, sep)
+            np.save(act_file, activations[0])
+
+
+def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
+    import argparse
+    from ..utils.params import audio, spec, filtering, log
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    This module creates .nc files to be used by RNNLIB.
+    Tests .save files produced by RNNLIB.
+
+    """)
+    # general options
+    p.add_argument('files', nargs='+', help='files to be processed')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
+    p.add_argument('-o', dest='output', default=None,
+                   help='output directory')
+    p.add_argument('--threads', action='store', type=int, default=2,
+                   help='number of threads [default=%(default)i]')
+
+    # .save file testing options
+    g = p.add_argument_group('arguments for .save file testing')
+    g.add_argument('--set', action='store', type=str, default='test',
+                   help='use this set {train, val, test} [default='
+                        '%(default)s]')
+    # .nc file creation options
+    g = p.add_argument_group('arguments for .nc file creation')
+    g.add_argument('-a', dest='annotations',
+                   default=['.onsets', '.beats', '.notes'],
+                   help='annotations to use [default=%(default)s]')
+    g.add_argument('--spec', dest='specs', default=None, type=int,
+                   action='append', help='spectrogram size(s) to use')
+    g.add_argument('--split', default=None, type=float,
+                   help='split files every N seconds')
+    # add other options to the existing parser
+    audio(p, fps=100, norm=False, window=None)
+    spec(p)
+    filtering(p, bands=12)
+    log(p, log=True, mul=5, add=1)
+    # parse arguments
+    args = p.parse_args()
+    # add defaults
+    if args.specs is None:
+        args.specs = [1024, 2048, 4096]
+    # print arguments
+    if args.verbose >= 2:
+        print args
+    # return
+    return args
+
+
+def main():
+    """
+    Example script for testing RNNLIB .save files or creating .nc files
+    understood by RNNLIB.
+
+    """
+    from ..audio.wav import Wav
+    from ..audio.spectrogram import LogFiltSpec
+    from ..utils import files, match_file, load_events, quantize_events
+
+    # parse arguments
+    args = parser()
+
+    # test all .save files
+    save_files = files(args.files, '.save')
+    test_save_files(save_files, out_dir=args.output, file_set=args.set,
+                    threads=args.threads)
+
+    # treat all files as annotation files
+    ann_files = []
+    for ext in args.annotations:
+        ann_files.extend(files(args.files, ext))
+    # create .nc files
+    for f in ann_files:
+        # split the extension of the input file
+        annotation = os.path.splitext(f)[1]
+        # get the matching wav file to the input file
+        wav_files = match_file(f, files(args.files), annotation, '.wav')
+        # no wav file found
+        if len(wav_files) < 1:
+            print "can't find audio file for %s" % f
+            exit()
+        # print file
+        if args.verbose:
+            print f
+        # create a Wav object
+        w = Wav(wav_files[0], mono=True, norm=args.norm)
+        # spec
+        nc_data = None
+        for spec in args.specs:
+            s = LogFiltSpec(w, frame_size=spec, fps=args.fps,
+                            bands_per_octave=args.bands, fmin=args.fmin,
+                            fmax=args.fmax, mul=args.mul, add=args.add,
+                            ratio=args.ratio, norm_filters=args.norm_filters)
+            if nc_data is None:
+                nc_data = np.hstack((s.spec, s.pos_diff))
+            else:
+                nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+        # targets
+        if f.endswith('.notes'):
+            # load notes
+            from madmom.features.notes import load_notes
+            notes = load_notes(f)
+            targets = np.zeros((s.num_frames, 88))
+            notes[:, 0] *= args.fps
+            notes[:, 2] -= 21
+            for note in notes:
+                try:
+                    targets[int(note[0]), int(note[2])] = 1
+                except IndexError:
+                    pass
+        else:
+            # load events (onset/beat)
+            targets = load_events(f)
+            targets = quantize_events(targets, args.fps, length=s.num_frames)
+        # tags
+        tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s |" \
+               "norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" %\
+               (f, args.fps, args.specs, args.bands, args.fmin, args.fmax,
+                args.norm_filters, args.log, args.mul, args.add, args.ratio)
+        # .nc file name
+        if args.output:
+            nc_file = "%s/%s" % (args.output, f)
+        else:
+            nc_file = "%s" % os.path.abspath(f)
+        # split files
+        if args.split is None:
+            # create a .nc file
+            create_nc_file(nc_file + '.nc', nc_data, targets, tags)
+        else:
+            # length of one part
+            length = int(args.split * args.fps)
+            # number of parts
+            parts = int(np.ceil(s.num_frames / float(length)))
+            digits = int(np.ceil(np.log10(parts + 1)))
+            if digits > 4:
+                raise ValueError('please chose longer splits')
+            for i in range(parts):
+                nc_part_file = "%s.part%04d.nc" % (nc_file, i)
+                start = i * length
+                stop = start + length
+                if stop > s.num_frames:
+                    stop = s.num_frames
+                part_tags = "%s | part=%s | start=%s | stop=%s" %\
+                            (tags, i, start, stop - 1)
+                create_nc_file(nc_part_file, nc_data[start:stop],
+                               targets[start:stop], part_tags)
+
+
+if __name__ == '__main__':
+    main()
