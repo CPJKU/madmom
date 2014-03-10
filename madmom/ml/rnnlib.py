@@ -944,8 +944,8 @@ class RnnConfig(object):
         # set the number of the output layer
         num_output = len(self.layer_sizes) - 1
         if num_output > 8:
-            # FIXME: I know that works only with layer nums 0..9, too come
-            # up with a proper solution right now...
+            # FIXME: I know that works only with layer nums 0..9, have to come
+            #        up with a proper solution.
             raise ValueError('too many layers, please fix me.')
         # save model
         with h5py.File(filename, 'w') as h5:

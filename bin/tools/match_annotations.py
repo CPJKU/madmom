@@ -9,6 +9,7 @@ Script for matching detections against ground truth annotations.
 
 import numpy as np
 import operator
+import argparse
 
 from madmom.evaluation.onsets import OnsetEvaluation
 
@@ -20,7 +21,6 @@ def parser():
     :return: the parsed arguments
 
     """
-    import argparse
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
