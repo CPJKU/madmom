@@ -789,6 +789,7 @@ class RnnConfig(object):
         :param filename: name of the configuration file
 
         """
+        # TODO: use madmom.utils.open
         # open the config file
         f = open(filename, 'r')
         # read in every line
@@ -881,6 +882,30 @@ class RnnConfig(object):
             # stack weights
             self.w['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
         # close the file
+        f.close()
+
+    def save(self, filename):
+        # write the config file(s)
+        # TODO: use madmom.utils.open
+        f = open(filename, 'wb')
+        f.write('task %s\n' % self.task)
+        f.write('autosave true\n')
+        # use the 1st hidden layer
+        f.write('hiddenType %s\n' % self.layer_types[0])
+        f.write('hiddenSize %s\n' % ",".join(str(x) for x in self.layer_sizes))
+        f.write('bidirectional %s\n' % str(self.bidirectional).lower())
+        f.write('dataFraction 1\n')
+        f.write('maxTestsNoBest %s\n' % 20)
+        f.write('learnRate %s\n' % str(self.learn_rate))
+        f.write('momentum %s\n' % str(self.momentum))
+        f.write('optimiser %s\n' % str(self.optimizer))
+        f.write('randSeed %s\n' % str(self.rand_seed))
+        if len(self.train_files) > 0:
+            f.write('trainFile %s\n' % ",".join(self.train_files))
+        if len(self.val_files) > 0:
+            f.write('valFile %s\n' % ",".join(self.val_files))
+        if len(self.test_files) > 0:
+            f.write('testFile %s\n' % ",".join(self.test_files))
         f.close()
 
     def test(self, out_dir=None, file_set='test', threads=2):
@@ -1064,6 +1089,42 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
             np.save(act_file, activations[0])
 
 
+def cross_validation(files, filename, folds=8, randomize=True,
+                     bidirectional=True, task='classification',
+                     learn_rate=1e-4, layer_sizes=[25, 25, 25],
+                     layer_type='lstm', momentum=0.9, optimizer='steepest'):
+    # shuffle the files
+    if randomize:
+        import random
+        random.shuffle(files)
+    # split into N parts
+    splits = {}
+    for fold in range(folds):
+        splits[fold] = [f for i, f in enumerate(files) if i % folds == fold]
+    # create N config files
+    assert folds >= 3, 'cannot create split with less than 3 folds.'
+    for i in range(folds):
+        config = RnnConfig()
+        test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
+        val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
+        train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
+        # assign the sets
+        config.test_files = splits[int(test_fold)]
+        config.val_files = splits[int(val_fold)]
+        config.train_files = []
+        for j in train_fold.tolist():
+            config.train_files.extend(splits[j])
+        config.task = task
+        config.bidirectional = bidirectional
+        config.learn_rate = learn_rate
+        config.layer_sizes = layer_sizes
+        config.layer_types = [layer_type] * len(layer_sizes)
+        config.momentum = momentum
+        config.optimizer = optimizer
+        # save the file
+        config.save('%s_%s' % (filename, i))
+
+
 def parser():
     """
     Create a parser and parse the arguments.
@@ -1088,7 +1149,6 @@ def parser():
                    help='output directory')
     p.add_argument('--threads', action='store', type=int, default=2,
                    help='number of threads [default=%(default)i]')
-
     # .save file testing options
     g = p.add_argument_group('arguments for .save file testing')
     g.add_argument('--set', action='store', type=str, default='test',
@@ -1103,6 +1163,28 @@ def parser():
                    action='append', help='spectrogram size(s) to use')
     g.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
+    # config file creation options
+    g = p.add_argument_group('arguments for config file creation')
+    g.add_argument('-c', dest='config', default=None,
+                   help='config file base name')
+    g.add_argument('--folds', default=8,
+                   help='%(default)s-fold cross validation')
+    g.add_argument('--random', action='store_true', default=False,
+                   help='randomize splitting [default=%(default)s]')
+    g.add_argument('--task', default='classification', type=str,
+                   help='learning task [default=%(default)s]')
+    g.add_argument('--bidirectional', action='store_true', default=False,
+                   help='bidirectional network [default=%(default)s]')
+    g.add_argument('--learn_rate', default=1e-4, type=float,
+                   help='learn rate [default=%(default)s]')
+    g.add_argument('--layer_sizes', default=[25, 25, 25], type=int,
+                   help='layer sizes [default=%(default)s]')
+    g.add_argument('--layer_type', default='tanh', type=str,
+                   help='layer type [default=%(default)s]')
+    g.add_argument('--momentum', default=0.9, type=float,
+                   help='momentum for learning [default=%(default)s]')
+    g.add_argument('--optimizer', default='steepest', type=str,
+                   help='optimizer [default=%(default)s]')
     # add other options to the existing parser
     audio(p, fps=100, norm=False, window=None)
     spec(p)
@@ -1132,6 +1214,17 @@ def main():
 
     # parse arguments
     args = parser()
+
+    # create config file(s)
+    if args.config:
+        nc_files = files(args.files, '.nc')
+        cross_validation(nc_files, args.config, folds=args.folds,
+                         randomize=args.random, task=args.task,
+                         bidirectional=args.bidirectional,
+                         learn_rate=args.learn_rate,
+                         layer_sizes=args.layer_sizes,
+                         layer_type=args.layer_type, momentum=args.momentum,
+                         optimizer=args.optimizer)
 
     # test all .save files
     save_files = files(args.files, '.save')
