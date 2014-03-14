@@ -430,7 +430,7 @@ class Spectrogram(object):
     def pos_diff(self):
         """Positive differences of the magnitude spectrogram."""
         # return only the positive elements of the diff
-        return self.diff * (self.diff > 0)
+        return np.maximum(self.diff, 0)
 
     @property
     def phase(self):
