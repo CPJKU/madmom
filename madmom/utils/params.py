@@ -17,7 +17,10 @@ from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
-
+from ..features.notes import (THRESHOLDS as N_THRESHOLDS, SMOOTH as N_SMOOTH,
+                              COMBINE as N_COMBINE, DELAY as N_DELAY,
+                              PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
+                              PRE_MAX as N_PRE_MAX, POST_MAX as N_POST_MAX)
 
 def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     """
@@ -266,50 +269,50 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     return g
 
 
-def note(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
-         delay=DELAY, pre_avg=PRE_AVG, post_avg=POST_AVG, pre_max=PRE_MAX,
-         post_max=POST_MAX):
+def note(parser, thresholds=N_THRESHOLDS, smooth=N_SMOOTH, combine=N_COMBINE,
+         delay=N_DELAY, pre_avg=N_PRE_AVG, post_avg=N_POST_AVG,
+         pre_max=N_PRE_MAX, post_max=N_POST_MAX):
     """
     Add note transcription related arguments to an existing parser object.
 
-    :param parser:    existing argparse parser object
-    :param threshold: threshold for peak-picking
-    :param smooth:    smooth the note activations over N seconds
-    :param combine:   only report one note within N seconds and pitch
-    :param delay:     report notes N seconds delayed
-    :param pre_avg:   use N seconds past information for moving average
-    :param post_avg:  use N seconds future information for moving average
-    :param pre_max:   use N seconds past information for moving maximum
-    :param post_max:  use N seconds future information for moving maximum
-    :return:          the modified parser object
+    :param parser:     existing argparse parser object
+    :param thresholds: threshold for peak-picking
+    :param smooth:     smooth the note activations over N seconds
+    :param combine:    only report one note within N seconds and pitch
+    :param delay:      report notes N seconds delayed
+    :param pre_avg:    use N seconds past information for moving average
+    :param post_avg:   use N seconds future information for moving average
+    :param pre_max:    use N seconds past information for moving maximum
+    :param post_max:   use N seconds future information for moving maximum
+    :return:           the modified parser object
 
     """
     # add note transcription detection related options to the existing parser
     g = parser.add_argument_group('note transcription arguments')
-    g.add_argument('-t', dest='threshold', action='store', type=float,
-                   default=threshold,
-                   help='detection threshold [default=%.2f]' % threshold)
+    g.add_argument('-t', dest='thresholds', action='store', type=list,
+                   default=thresholds,
+                   help='detection threshold [default=%(default)s]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                    help='smooth the note activations over N seconds '
-                        '[default=%.2f]' % smooth)
+                        '[default=%(default).2f]')
     g.add_argument('--combine', action='store', type=float, default=combine,
                    help='combine notes within N seconds (per pitch)'
-                        '[default=%.2f]' % combine)
+                        '[default=%(default).2f]')
     g.add_argument('--pre_avg', action='store', type=float, default=pre_avg,
                    help='build average over N previous seconds '
-                        '[default=%.2f]' % pre_avg)
+                        '[default=%(default).2f]')
     g.add_argument('--post_avg', action='store', type=float, default=post_avg,
                    help='build average over N following seconds '
-                        '[default=%.2f]' % post_avg)
+                        '[default=%(default).2f]')
     g.add_argument('--pre_max', action='store', type=float, default=pre_max,
                    help='search maximum over N previous seconds '
-                        '[default=%.2f]' % pre_max)
+                        '[default=%(default).2f]')
     g.add_argument('--post_max', action='store', type=float, default=post_max,
                    help='search maximum over N following seconds '
-                        '[default=%.2f]' % post_max)
+                        '[default=%(default).2f]')
     g.add_argument('--delay', action='store', type=float, default=delay,
                    help='report the notes N seconds delayed '
-                        '[default=%i]' % delay)
+                        '[default=%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 

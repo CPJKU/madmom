@@ -104,7 +104,7 @@ class SpectralNoteTranscription(object):
                 spec *= lgd
 
             # bin of the last fundamental
-            last_fundamental_bin = np.argmax(self.spectrogram.bin_freqs >=
+            last_fundamental_bin = np.argmax(self.spectrogram.fft_freqs >=
                                              midi2hz(109))
             # spec sums
             sums = np.zeros_like(spec)
@@ -138,13 +138,13 @@ class SpectralNoteTranscription(object):
 
 
 # universal peak-picking method
-def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
+def peak_picking(activations, thresholds, smooth=None, pre_avg=0, post_avg=0,
                  pre_max=1, post_max=1):
     """
     Perform thresholding and peak-picking on the given activation function.
 
     :param activations: note activations (2D numpy array)
-    :param threshold:   threshold for peak-picking
+    :param thresholds:  thresholds for peak-picking (1D numpy array)
     :param smooth:      smooth the activation function with the kernel
                         [default=None]
     :param pre_avg:     use N frames past information for moving average
@@ -192,7 +192,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         # do not use a moving average
         mov_avg = 0
     # detections are those activations above the moving average + the threshold
-    detections = activations * (activations >= mov_avg + threshold)
+    detections = activations * (activations >= mov_avg + thresholds)
     # peak-picking
     max_length = pre_max + post_max + 1
     if max_length > 1:
@@ -207,7 +207,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
 
 # default values for note peak-picking
-THRESHOLD = 0.35
+THRESHOLDS = [0.35] * 88
 SMOOTH = 0.05
 PRE_AVG = 0
 POST_AVG = 0
@@ -256,8 +256,8 @@ class NoteTranscription(Event):
         """
         Detect the notes with the given peak-picking parameters.
 
-        :param threshold: threshold for peak-picking
-        :param combine:   only report one onset within N seconds [default=0.03]
+        :param threshold: array with thresholds for peak-picking
+        :param combine:   only report one note within N seconds [default=0.03]
         :param delay:     report onsets N seconds delayed [default=0]
         :param smooth:    smooth the activation function over N seconds
                           [default=0]
@@ -336,8 +336,7 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (audio, spec, filtering, log, spectral_odf,
-                                onset, io)
+    from ..utils.params import (audio, spec, filtering, log, note, io)
 
     # define parser
     p = argparse.ArgumentParser(
@@ -358,6 +357,7 @@ def parser():
     spec(p)
     filtering(p, filtering=False)
     log(p, log=True)
+    note(p)
     io(p)
     # parse arguments
     args = p.parse_args()
@@ -432,7 +432,7 @@ def main():
             n.save_activations("%s.%s" % (filename, args.odf))
         else:
             # detect the notes
-            n.detect(args.threshold, combine=args.combine, delay=args.delay,
+            n.detect(args.thresholds, combine=args.combine, delay=args.delay,
                      smooth=args.smooth, pre_avg=args.pre_avg,
                      post_avg=args.post_avg, pre_max=args.pre_max,
                      post_max=args.post_max)

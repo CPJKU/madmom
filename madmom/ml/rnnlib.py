@@ -777,6 +777,10 @@ class RnnConfig(object):
         self.layer_types = None
         self.bidirectional = False
         self.task = None
+        self.learn_rate = None
+        self.momentum = None
+        self.optimizer = None
+        self.rand_seed = 0
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -885,6 +889,12 @@ class RnnConfig(object):
         f.close()
 
     def save(self, filename):
+        """
+        Save the RNNLIB config file.
+
+        :param filename: the name of the file
+
+        """
         # write the config file(s)
         # TODO: use madmom.utils.open
         f = open(filename, 'wb')
@@ -1037,7 +1047,6 @@ class RnnConfig(object):
 
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
-    # FIXME: function only works if called in the directory of the NN file
     """
     Test the given set of files.
 
@@ -1051,6 +1060,7 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
           files, the activations get averaged and saved to 'out_dir'.
 
     """
+    # FIXME: function only works if called in the directory of the NN file
     if out_dir is None:
         # test all NN files individually
         for nn_file in nn_files:
@@ -1089,18 +1099,34 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
             np.save(act_file, activations[0])
 
 
-def cross_validation(files, filename, folds=8, randomize=True,
+def cross_validation(nc_files, filename, folds=8, randomize=True,
                      bidirectional=True, task='classification',
                      learn_rate=1e-4, layer_sizes=[25, 25, 25],
                      layer_type='lstm', momentum=0.9, optimizer='steepest'):
+    """
+    Creates RNNLIB config files for N-fold cross validation.
+
+    :param nc_files:      use these .ns nc_files
+    :param filename:      common base name for the config files
+    :param folds:         number of folds
+    :param randomize:     shuffle files before splitting
+    :param bidirectional: use bidirectional neural networks
+    :param task:          neural network task
+    :param learn_rate:    learn rate to use
+    :param layer_sizes:   sizes of the hidden layers
+    :param layer_type:    hidden layer types
+    :param momentum:      momentum for steepest descent
+    :param optimizer:     which optimizer to use {'steepest, 'rprop'}
+
+    """
     # shuffle the files
     if randomize:
         import random
-        random.shuffle(files)
+        random.shuffle(nc_files)
     # split into N parts
     splits = {}
     for fold in range(folds):
-        splits[fold] = [f for i, f in enumerate(files) if i % folds == fold]
+        splits[fold] = [f for i, f in enumerate(nc_files) if i % folds == fold]
     # create N config files
     assert folds >= 3, 'cannot create split with less than 3 folds.'
     for i in range(folds):

@@ -33,7 +33,7 @@ def remove_duplicate_rows(data):
     Remove duplicate rows of a numpy array.
 
     :param data: 2D numpy array
-    :return:     same array with duplicate rows removed
+    :return:     array with duplicate rows removed
 
     """
     # found at: http://pastebin.com/Ad6EgNjB

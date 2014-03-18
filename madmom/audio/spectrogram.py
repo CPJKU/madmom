@@ -10,6 +10,8 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
+from .filterbank import fft_freqs
+
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     """
@@ -237,6 +239,11 @@ class Spectrogram(object):
     def fft_size(self):
         """Size of the FFT."""
         return self._fft_size
+
+    @property
+    def fft_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_freqs(self.num_fft_bins, self.frames.signal.sample_rate)
 
     @property
     def num_fft_bins(self):
