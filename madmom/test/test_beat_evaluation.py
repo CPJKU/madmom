@@ -454,24 +454,27 @@ class TestInformationGainFunction(unittest.TestCase):
             information_gain(DETECTIONS, TARGETS, 2.1)
         with self.assertRaises(ValueError):
             information_gain(DETECTIONS, TARGETS, 5)
-        # empty sequences should return 0 and a uniform histogram
+        # empty sequences should return 0 and a zero histogram
         ig, histogram = information_gain([], [], 4)
         self.assertEqual(ig, 0)
-        self.assertTrue(np.allclose(histogram, np.ones(4) / 4.))
+        self.assertTrue(np.allclose(histogram, np.zeros(4)))
         # less than 2 detections should return 0 and a uniform histogram
         ig, histogram = information_gain([], TARGETS, 4)
         self.assertEqual(ig, 0)
-        self.assertTrue(np.allclose(histogram, np.ones(4) / 4.))
+        print histogram
+        self.assertTrue(np.allclose(histogram, np.ones(4) * len(TARGETS) / 4.))
         ig, histogram = information_gain([1.], TARGETS, 4)
         self.assertEqual(ig, 0)
-        self.assertTrue(np.allclose(histogram, np.ones(4) / 4.))
+        self.assertTrue(np.allclose(histogram, np.ones(4) * len(TARGETS) / 4.))
         # less than 2 targets should return 0 and a uniform histogram
         ig, histogram = information_gain(DETECTIONS, [], 4)
         self.assertEqual(ig, 0)
-        self.assertTrue(np.allclose(histogram, np.ones(4) / 4.))
+        self.assertTrue(np.allclose(histogram, np.ones(4) * len(DETECTIONS) /
+                                    4.))
         ig, histogram = information_gain(DETECTIONS, [1.], 4)
         self.assertEqual(ig, 0)
-        self.assertTrue(np.allclose(histogram, np.ones(4) / 4.))
+        self.assertTrue(np.allclose(histogram, np.ones(4) * len(DETECTIONS) /
+                                    4.))
         # normal calculation
         ig, histogram = information_gain(DETECTIONS, TARGETS, 4)
         # tar: [1,    2, 3,    4, 5, 6, 7, 8, 9,   10]
@@ -504,7 +507,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
         # additional beat score types
@@ -522,16 +525,16 @@ class TestBeatEvaluationClass(unittest.TestCase):
     def test_conversion(self):
         # conversion from list should work
         e = BeatEvaluation([], [])
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
         # conversion from dict should work as well
         e = BeatEvaluation({}, {})
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
         # others should fail
         self.assertRaises(TypeError, BeatEvaluation, float(0), float(0))
         self.assertRaises(TypeError, BeatEvaluation, int(0), int(0))
@@ -548,7 +551,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.amlt, 0)
         self.assertEqual(e.information_gain, 0)
         self.assertEqual(e.global_information_gain, 0)
-        self.assertTrue(np.allclose(e.error_histogram, np.ones(40) / 40.))
+        self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
 
     def test_results(self):
         e = BeatEvaluation(DETECTIONS, TARGETS)
@@ -560,10 +563,10 @@ class TestBeatEvaluationClass(unittest.TestCase):
         # TEMPO_TOLERANCE = 0.175
         # PHASE_TOLERANCE = 0.175
         # BINS = 40
-        self.assertEqual(e.tp.tolist(), [1.01, 2, 2.95, 4, 6, 7, 8, 10])
-        self.assertEqual(e.fp.tolist(), [9.1, 11])
-        self.assertEqual(e.tn.tolist(), [])
-        self.assertEqual(e.fn.tolist(), [5, 9])
+        self.assertEqual(e.tp, [1.01, 2, 2.95, 4, 6, 7, 8, 10])
+        self.assertEqual(e.fp, [9.1, 11])
+        self.assertEqual(e.tn, [])
+        self.assertEqual(e.fn, [5, 9])
         self.assertEqual(e.num_tp, 8)
         self.assertEqual(e.num_fp, 2)
         self.assertEqual(e.num_tn, 0)
@@ -647,8 +650,8 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.amlc, 0)
         self.assertEqual(e.amlt, 0)
         self.assertEqual(e.information_gain, 0)
-        self.assertEqual(e.global_information_gain, 0)
-        self.assertTrue(np.allclose(e.error_histogram, np.ones(40) / 40.))
+        self.assertTrue(np.allclose(e.global_information_gain, 0))
+        self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
 
     def test_results(self):
         e = MeanBeatEvaluation()

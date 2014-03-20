@@ -10,7 +10,7 @@ This file contains note evaluation functionality.
 import numpy as np
 
 
-from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
+from . import calc_errors, Evaluation, MultiClassEvaluation
 from .onsets import onset_evaluation
 
 
@@ -68,9 +68,10 @@ def note_evaluation(detections, annotations, window):
     #       until then only use the first two columns (onsets + pitch)
     detections = remove_duplicate_rows(detections[:, :2])
     annotations = remove_duplicate_rows(annotations[:, :2])
-    # init TP, FP and FN lists
+    # init TP, FP, TN and FN lists
     tp = []
     fp = []
+    tn = []
     fn = []
     # get a list of all notes
     notes = np.unique(np.concatenate((detections[:, 1],
@@ -86,15 +87,11 @@ def note_evaluation(detections, annotations, window):
         tp.extend(det[np.in1d(det[:, 0], tp_)].tolist())
         fp.extend(det[np.in1d(det[:, 0], fp_)].tolist())
         fn.extend(tar[np.in1d(tar[:, 0], fn_)].tolist())
-    # transform them back to numpy arrays
-    tp = np.asarray(sorted(tp))
-    fp = np.asarray(sorted(fp))
-    fn = np.asarray(sorted(fn))
     # check calculation
     assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
     assert len(tp) + len(fn) == len(annotations), 'bad FN calculation'
     # return the arrays
-    return tp, fp, np.zeros((0, 2)), fn
+    return tp, fp, tn, fn
 
 # default evaluation values
 WINDOW = 0.025
@@ -114,7 +111,8 @@ class NoteEvaluation(Evaluation):
         self.annotations = annotations
         # evaluate
         numbers = note_evaluation(detections, annotations, window)
-        self._tp, self._fp, self._tn, self._fn = numbers
+        # tp, fp, tn, fn = numbers
+        super(NoteEvaluation, self).__init__(*numbers)
 
     @property
     def errors(self):
@@ -126,10 +124,12 @@ class NoteEvaluation(Evaluation):
         if self._errors is None:
             if self.num_tp == 0:
                 # FIXME: what is the error in case of no TPs
-                self._errors = np.zeros(0)
+                self._errors = []
             else:
+                # just use the first column to calculate the errors
+                # FIXME: do this for all notes individually
                 self._errors = calc_errors(self.tp[:, 0],
-                                           self.annotations[:, 0])
+                                           self.annotations[:, 0]).tolist()
         return self._errors
 
 
@@ -197,8 +197,7 @@ def main():
         exit()
 
     # sum and mean evaluation for all files
-    sum_eval = SumEvaluation()
-    mean_eval = MeanEvaluation()
+    sum_eval = MultiClassEvaluation()
     # evaluate all files
     for det_file in det_files:
         # load the detections
@@ -220,16 +219,15 @@ def main():
         # print stats for each file
         if args.verbose:
             print det_file
-            print ne.print_errors('  ', args.tex)
+            if args.verbose >= 2:
+                print ne.print_errors('  ', args.tex, True)
+            else:
+                print ne.print_errors('  ', args.tex, False)
         # add this file's evaluation to the global evaluation
         sum_eval += ne
-        mean_eval.append(ne)
-        # process the next detection file
     # print summary
     print 'sum for %i files:' % (len(det_files))
-    print sum_eval.print_errors('  ', args.tex)
-    print 'mean for %i files:' % (len(det_files))
-    print mean_eval.print_errors('  ', args.tex)
+    print sum_eval.print_errors('  ', args.tex, args.verbose)
 
 if __name__ == '__main__':
     main()

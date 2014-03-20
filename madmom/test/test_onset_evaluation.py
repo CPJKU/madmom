@@ -21,28 +21,26 @@ class TestOnsetEvaluationFunction(unittest.TestCase):
 
     def test_window_001(self):
         tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.01)
-        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
-                                       2.5])
-        self.assertEqual(fp.tolist(), [1.45, 3.030000001])
-        self.assertEqual(tn.tolist(), [])
-        self.assertEqual(fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5])
+        self.assertEqual(fp, [1.45, 3.030000001])
+        self.assertEqual(tn, [])
+        self.assertEqual(fn, [1.5, 2.05, 3.0])
 
     def test_window_003(self):
         tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.03)
-        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
-                                       2.5])
-        self.assertEqual(fp.tolist(), [1.45, 3.030000001])
-        self.assertEqual(tn.tolist(), [])
-        self.assertEqual(fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5])
+        self.assertEqual(fp, [1.45, 3.030000001])
+        self.assertEqual(tn, [])
+        self.assertEqual(fn, [1.5, 2.05, 3.0])
 
     def test_window_004(self):
         tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.04)
 
-        self.assertEqual(tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02, 2.5,
-                                       3.030000001])
-        self.assertEqual(fp.tolist(), [1.45])
-        self.assertEqual(tn.tolist(), [])
-        self.assertEqual(fn.tolist(), [1.5, 2.05])
+        self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5,
+                              3.030000001])
+        self.assertEqual(fp, [1.45])
+        self.assertEqual(tn, [])
+        self.assertEqual(fn, [1.5, 2.05])
 
 
 # test evaluation class
@@ -58,23 +56,23 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
 
     def test_conversion(self):
         # conversion from list should work
         e = OnsetEvaluation([0], [0])
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
         # conversion from dict should work as well
         e = OnsetEvaluation({}, {})
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
         # others should fail
         self.assertRaises(TypeError, OnsetEvaluation, float(0), float(0))
         self.assertRaises(TypeError, OnsetEvaluation, int(0), int(0))
@@ -120,17 +118,17 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
 
     def test_results(self):
         e = OnsetEvaluation(DETECTIONS, TARGETS)
-        self.assertEqual(e.tp.tolist(), [0.99999999, 1.02999999, 2.01, 2.02,
-                                         2.5])
-        self.assertEqual(e.fp.tolist(), [1.45, 3.030000001])
-        self.assertEqual(e.tn.tolist(), [])
-        self.assertEqual(e.fn.tolist(), [1.5, 2.05, 3.0])
+        self.assertEqual(e.tp, [0.99999999, 1.02999999, 2.01, 2.02,
+                                2.5])
+        self.assertEqual(e.fp, [1.45, 3.030000001])
+        self.assertEqual(e.tn, [])
+        self.assertEqual(e.fn, [1.5, 2.05, 3.0])
         self.assertEqual(e.num_tp, 5)
         self.assertEqual(e.num_fp, 2)
         self.assertEqual(e.num_tn, 0)

@@ -137,8 +137,8 @@ class SimpleEvaluation(object):
         self._num_tn = int(num_tn)
         self._num_fn = int(num_fn)
         # define the errors as an (empty) array here
-        # subclasses are required to redefine as needed
-        self._errors = np.zeros(0, dtype=np.float)
+        # derived classes must redefine them accordingly
+        self._errors = []
 
     # for adding another SimpleEvaluation object, i.e. summing them
     def __iadd__(self, other):
@@ -149,7 +149,7 @@ class SimpleEvaluation(object):
             self._num_tn += other.num_tn
             self._num_fn += other.num_fn
             # extend the errors array
-            self._errors = np.append(self._errors, other.errors)
+            self._errors.extend(other.errors)
             # return the modified object
             return self
         else:
@@ -167,7 +167,9 @@ class SimpleEvaluation(object):
             # create a new object
             new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
             # modify the hidden _errors variable directly
-            new._errors = np.append(self._errors, other.errors)
+            # first copy the list and then extend it
+            new._errors = list(self.errors)
+            new._errors.extend(other.errors)
             # return the newly created object
             return new
         else:
@@ -266,12 +268,13 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
-    def print_errors(self, indent='', tex=False):
+    def print_errors(self, indent='', tex=False, verbose=True):
         """
         Print errors.
 
-        :param indent: use the given string as indentation
-        :param tex:    output format to be used in .tex files
+        :param indent:  use the given string as indentation
+        :param tex:     output format to be used in .tex files
+        :param verbose: add true/false positive rates and mean/std of errors
 
         """
         # print the errors
@@ -291,12 +294,15 @@ class SimpleEvaluation(object):
         else:
             # normal formatting
             ret = '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-                  'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
-                  'mean: %.1f ms std: %.1f ms' % \
-                  (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
-                   self.precision, self.recall, self.fmeasure, indent,
-                   tpr * 100., fpr * 100., self.accuracy * 100.,
-                   self.mean_error * 1000., self.std_error * 1000.)
+                  'r=%.3f f=%.3f' % (indent, annotations, self.num_tp,
+                                     self.num_fp, self.num_fn, self.precision,
+                                     self.recall, self.fmeasure)
+            if verbose:
+                ret += '\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ' \
+                       'ms std: %.1f ms' % (indent, tpr * 100., fpr * 100.,
+                                            self.accuracy * 100.,
+                                            self.mean_error * 1000.,
+                                            self.std_error * 1000.)
         # return
         return ret
 
@@ -321,17 +327,17 @@ class MeanEvaluation(SimpleEvaluation):
         """
         super(MeanEvaluation, self).__init__()
         # redefine most of the stuff as arrays so we can average them
-        self._num_tp = np.zeros(0)
-        self._num_fp = np.zeros(0)
-        self._num_tn = np.zeros(0)
-        self._num_fn = np.zeros(0)
-        self._precision = np.zeros(0)
-        self._recall = np.zeros(0)
-        self._fmeasure = np.zeros(0)
-        self._accuracy = np.zeros(0)
-        self._errors = np.zeros(0)
-        self._mean = np.zeros(0)
-        self._std = np.zeros(0)
+        self._num_tp = []
+        self._num_fp = []
+        self._num_tn = []
+        self._num_fn = []
+        self._precision = []
+        self._recall = []
+        self._fmeasure = []
+        self._accuracy = []
+        self._errors = []
+        self._mean = []
+        self._std = []
 
     # for adding another Evaluation object
     def append(self, other):
@@ -344,17 +350,19 @@ class MeanEvaluation(SimpleEvaluation):
         """
         if isinstance(other, SimpleEvaluation):
             # append the numbers of any Evaluation object to the arrays
-            self._num_tp = np.append(self._num_tp, other.num_tp)
-            self._num_fp = np.append(self._num_fp, other.num_fp)
-            self._num_tn = np.append(self._num_tn, other.num_tn)
-            self._num_fn = np.append(self._num_fn, other.num_fn)
-            self._precision = np.append(self._precision, other.precision)
-            self._recall = np.append(self._recall, other.recall)
-            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
-            self._accuracy = np.append(self._accuracy, other.accuracy)
-            self._errors = np.append(self._errors, other.errors)
-            self._mean = np.append(self._mean, other.mean_error)
-            self._std = np.append(self._std, other.std_error)
+            self._num_tp.append(other.num_tp)
+            self._num_fp.append(other.num_fp)
+            self._num_tn.append(other.num_tn)
+            self._num_fn.append(other.num_fn)
+            self._precision.append(other.precision)
+            self._recall.append(other.recall)
+            self._fmeasure.append(other.fmeasure)
+            self._accuracy.append(other.accuracy)
+            # TODO: extend the errors list instead of appending, might lead to
+            #       undesired effects with lists of tuples or lists of lists
+            self._errors.extend(other.errors)
+            self._mean.append(other.mean_error)
+            self._std.append(other.std_error)
         else:
             raise TypeError('Can only append SimpleEvaluation or derived class'
                             ' to %s, not %s' % (type(self).__name__,
@@ -431,7 +439,7 @@ class MeanEvaluation(SimpleEvaluation):
         return np.mean(self._std)
 
 
-# class for evaluation of Precision, Recall, F-measure with arrays
+# class for evaluation of Precision, Recall, F-measure with lists
 class Evaluation(SimpleEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure based on
@@ -439,32 +447,31 @@ class Evaluation(SimpleEvaluation):
 
     """
 
-    def __init__(self, tp=np.empty(0), fp=np.empty(0),
-                 tn=np.empty(0), fn=np.empty(0)):
+    def __init__(self, tp=[], fp=[], tn=[], fn=[]):
         """
         Creates a new Evaluation object instance.
 
-        :param tp: numpy array with true positive detections [seconds]
-        :param fp: numpy array with false positive detections [seconds]
-        :param tn: numpy array with true negative detections [seconds]
-        :param fn: numpy array with false negative detections [seconds]
+        :param tp: list with true positive detections [seconds]
+        :param fp: list with false positive detections [seconds]
+        :param tn: list with true negative detections [seconds]
+        :param fn: list with false negative detections [seconds]
 
         """
         super(Evaluation, self).__init__()
-        self._tp = np.asarray(tp, dtype=np.float)
-        self._fp = np.asarray(fp, dtype=np.float)
-        self._tn = np.asarray(tn, dtype=np.float)
-        self._fn = np.asarray(fn, dtype=np.float)
+        self._tp = list(tp)
+        self._fp = list(fp)
+        self._tn = list(tn)
+        self._fn = list(fn)
 
     # for adding another Evaluation object, i.e. summing them
     def __iadd__(self, other):
         if isinstance(other, Evaluation):
             # extend the arrays
-            self._tp = np.append(self.tp, other.tp)
-            self._fp = np.append(self.fp, other.fp)
-            self._tn = np.append(self.tn, other.tn)
-            self._fn = np.append(self.fn, other.fn)
-            self._errors = np.append(self._errors, other.errors)
+            self._tp.extend(other.tp)
+            self._fp.extend(other.fp)
+            self._tn.extend(other.tn)
+            self._fn.extend(other.fn)
+            self._errors.extend(other.errors)
             # return the modified object
             return self
         else:
@@ -475,15 +482,21 @@ class Evaluation(SimpleEvaluation):
     # for adding two Evaluation objects
     def __add__(self, other):
         if isinstance(other, Evaluation):
-            # extend the arrays
-            tp = np.append(self.tp, other.tp)
-            fp = np.append(self.fp, other.fp)
-            tn = np.append(self.tn, other.tn)
-            fn = np.append(self.fn, other.fn)
+            # copy the lists
+            tp = list(self.tp)
+            fp = list(self.fp)
+            tn = list(self.tn)
+            fn = list(self.fn)
+            # and extend them
+            tp.extend(other.tp)
+            fp.extend(other.fp)
+            tn.extend(other.tn)
+            fn.extend(other.fn)
             # create a new object
             new = Evaluation(tp, fp, tn, fn)
             # modify the hidden _errors variable directly
-            new._errors = np.append(self._errors, other.errors)
+            new._errors = list(self._errors)
+            new._errors.extend(other.errors)
             # return the newly created object
             return new
         else:
@@ -530,3 +543,61 @@ class Evaluation(SimpleEvaluation):
     def num_fn(self):
         """Number of false negative detections."""
         return len(self._fn)
+
+
+# class for evaluation of Precision, Recall, F-measure with 2D arrays
+class MultiClassEvaluation(Evaluation):
+    """
+    Evaluation class for measuring Precision, Recall and F-measure based on
+    2D numpy arrays with true/false positive/negative detections.
+
+    """
+
+    def print_errors(self, indent='', tex=False, verbose=True):
+        """
+        Print errors.
+
+        :param indent:  use the given string as indentation
+        :param tex:     output format to be used in .tex files
+        :param verbose: add evaluation for individual classes
+
+        """
+        # print the errors
+        annotations = self.num_tp + self.num_fn
+        tpr = self.recall
+        fpr = (1 - self.precision)
+        if tex:
+            # tex formatting
+            ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
+                  'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
+                  'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
+                  '%.2f ms & %.2f ms\\\\' % \
+                  (annotations, self.precision, self.recall, self.fmeasure,
+                   tpr, fpr, self.accuracy, self.mean_error * 1000.,
+                   self.std_error * 1000.)
+            # TODO: add individual class output
+        else:
+            # normal formatting
+            ret = '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
+                  'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
+                  'mean: %.1f ms std: %.1f ms' % \
+                  (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
+                   self.precision, self.recall, self.fmeasure, indent,
+                   tpr * 100., fpr * 100., self.accuracy * 100.,
+                   self.mean_error * 1000., self.std_error * 1000.)
+            if verbose:
+                tp = np.asarray(self.tp)
+                fp = np.asarray(self.fp)
+                fn = np.asarray(self.fn)
+                # print errors for all classes individually
+                for note in range(21, 109):
+                    tp_ = tp[tp[:, 1] == note]
+                    fp_ = fp[fp[:, 1] == note]
+                    fn_ = fn[fn[:, 1] == note]
+                    if len(tp_) + len(fp_) + len(fn_) > 0:
+                        e = Evaluation(tp_, fp_, self.tn, fn_)
+                        # append to the output string
+                        string = e.print_errors(indent * 2, verbose=True)
+                        ret += '\n%s Class %s\n%s' % (indent, note, string)
+        # return
+        return ret
