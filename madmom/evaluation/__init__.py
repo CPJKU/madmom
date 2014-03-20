@@ -566,6 +566,7 @@ class MultiClassEvaluation(Evaluation):
         annotations = self.num_tp + self.num_fn
         tpr = self.recall
         fpr = (1 - self.precision)
+        ret = ''
         if tex:
             # tex formatting
             ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
@@ -577,27 +578,41 @@ class MultiClassEvaluation(Evaluation):
                    self.std_error * 1000.)
             # TODO: add individual class output
         else:
-            # normal formatting
-            ret = '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-                  'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
-                  'mean: %.1f ms std: %.1f ms' % \
-                  (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
-                   self.precision, self.recall, self.fmeasure, indent,
-                   tpr * 100., fpr * 100., self.accuracy * 100.,
-                   self.mean_error * 1000., self.std_error * 1000.)
             if verbose:
+                # print errors for all classes individually
                 tp = np.asarray(self.tp)
                 fp = np.asarray(self.fp)
+                tn = np.asarray(self.tn)
                 fn = np.asarray(self.fn)
-                # print errors for all classes individually
-                for note in range(21, 109):
-                    tp_ = tp[tp[:, 1] == note]
-                    fp_ = fp[fp[:, 1] == note]
-                    fn_ = fn[fn[:, 1] == note]
-                    if len(tp_) + len(fp_) + len(fn_) > 0:
-                        e = Evaluation(tp_, fp_, self.tn, fn_)
-                        # append to the output string
-                        string = e.print_errors(indent * 2, verbose=True)
-                        ret += '\n%s Class %s\n%s' % (indent, note, string)
+                # extract all classes
+                classes = []
+                if tp.any():
+                    np.append(classes, np.unique(tp[:, 1]))
+                if fp.any():
+                    np.append(classes, np.unique(fp[:, 1]))
+                if tn.any():
+                    np.append(classes, np.unique(tn[:, 1]))
+                if fn.any():
+                    np.append(classes, np.unique(fn[:, 1]))
+                for cls in sorted(np.unique(classes)):
+                    # extract the TP, FP, TN and FN of this class
+                    tp_ = tp[tp[:, 1] == cls]
+                    fp_ = fp[fp[:, 1] == cls]
+                    tn_ = tn[tn[:, 1] == cls]
+                    fn_ = fn[fn[:, 1] == cls]
+                    # evaluate them
+                    e = Evaluation(tp_, fp_, tn_, fn_)
+                    # append to the output string
+                    string = e.print_errors(indent * 2, verbose=False)
+                    ret += '%s Class %s:\n%s\n' % (indent, cls, string)
+            # normal formatting
+            ret += '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
+                   'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
+                   'mean: %.1f ms std: %.1f ms' % \
+                   (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
+                    self.precision, self.recall, self.fmeasure, indent,
+                    tpr * 100., fpr * 100., self.accuracy * 100.,
+                    self.mean_error * 1000., self.std_error * 1000.)
+
         # return
         return ret

@@ -10,7 +10,7 @@ This file contains note evaluation functionality.
 import numpy as np
 
 
-from . import calc_errors, Evaluation, MultiClassEvaluation
+from . import calc_errors, Evaluation, MultiClassEvaluation, MeanEvaluation
 from .onsets import onset_evaluation
 
 
@@ -198,6 +198,7 @@ def main():
 
     # sum and mean evaluation for all files
     sum_eval = MultiClassEvaluation()
+    mean_eval = MeanEvaluation()
     # evaluate all files
     for det_file in det_files:
         # load the detections
@@ -225,9 +226,12 @@ def main():
                 print ne.print_errors('  ', args.tex, False)
         # add this file's evaluation to the global evaluation
         sum_eval += ne
+        mean_eval.append(ne)
     # print summary
     print 'sum for %i files:' % (len(det_files))
     print sum_eval.print_errors('  ', args.tex, args.verbose)
+    print 'mean for %i files:' % (len(det_files))
+    print mean_eval.print_errors('  ', args.tex, args.verbose)
 
 if __name__ == '__main__':
     main()
