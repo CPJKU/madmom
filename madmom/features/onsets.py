@@ -47,7 +47,7 @@ def diff(spec, diff_frames=1, pos=False):
     diff[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
     # keep only positive values
     if pos:
-        diff *= (diff > 0)
+        np.maximum(diff, 0, diff)
     return diff
 
 
@@ -88,7 +88,7 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
             spec[f - diff_frames, bin_start:bin_stop]
     # keep only positive values
     if pos:
-        diff *= (diff > 0)
+        np.maximum(diff, 0, diff)
     return diff
 
 
@@ -180,7 +180,7 @@ def superflux(spec, diff_frames=1, max_bins=3):
     # calculate the diff
     diff[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
     # keep only positive values
-    diff *= (diff > 0)
+    np.maximum(diff, 0, diff)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
     return np.sum(diff, axis=1)
 

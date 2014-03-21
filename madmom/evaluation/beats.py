@@ -520,11 +520,11 @@ def _information_gain(error_histogram):
         # Note: this is needed, otherwise a histogram with all bins = 0 would
         #       return the maximum possible information gain because the
         #       normalization in the next step would fail
-        histogram += 1
+        histogram += 1.
     # normalize the histogram
     histogram /= np.sum(histogram)
     # set 0 values to 1, to make entropy calculation well-behaved
-    histogram[histogram == 0] = 1
+    histogram[histogram == 0] = 1.
     # calculate entropy
     entropy = - np.sum(histogram * np.log2(histogram))
     # return information gain

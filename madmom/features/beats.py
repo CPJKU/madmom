@@ -80,7 +80,7 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1,
 
     # threshold function if needed
     if threshold > 0:
-        activations *= (activations >= threshold)
+        activations[activations < threshold] = 0
 
     # test all possible intervals
     taus = range(min_tau, max_tau)
@@ -124,7 +124,7 @@ def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
 
     # threshold function if needed
     if threshold > 0:
-        activations *= (activations >= threshold)
+        activations[activations < threshold] = 0
 
     if max_tau is None:
         max_tau = len(activations) - min_tau
@@ -474,4 +474,3 @@ class Beat(Event):
         if mirex and t1 > t2:
             return t2, t1, 1 - weight
         return t1, t2, weight
-

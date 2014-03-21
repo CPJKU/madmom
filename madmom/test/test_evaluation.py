@@ -132,7 +132,7 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
 
@@ -217,33 +217,25 @@ class TestEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.fmeasure, float)
-        self.assertIsInstance(e.errors, np.ndarray)
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.errors, list)
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
 
     def test_conversion(self):
-        # conversion from float should work
-        e = Evaluation(tp=float(0), fp=float(0), tn=float(0), fn=float(0))
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
-        # conversion from int should work
-        e = Evaluation(tp=int(0), fp=int(0), tn=int(0), fn=int(0))
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
-        # conversion from list should work
-        e = Evaluation(tp=[0], fp=[0], tn=[0], fn=[0])
-        self.assertIsInstance(e.tp, np.ndarray)
-        self.assertIsInstance(e.fp, np.ndarray)
-        self.assertIsInstance(e.tn, np.ndarray)
-        self.assertIsInstance(e.fn, np.ndarray)
-        # conversion from dict should fail
-        self.assertRaises(TypeError, Evaluation(), tp={}, fp={}, tn={}, fn={})
+        # conversion from float should fail
+        with self.assertRaises(TypeError):
+            Evaluation(tp=float(0), fp=float(0), tn=float(0), fn=float(0))
+        # conversion from int should fail
+        with self.assertRaises(TypeError):
+            Evaluation(tp=int(0), fp=int(0), tn=int(0), fn=int(0))
+        # conversion from dict should work
+        e = Evaluation(tp={}, fp={}, tn={}, fn={})
+        self.assertIsInstance(e.tp, list)
+        self.assertIsInstance(e.fp, list)
+        self.assertIsInstance(e.tn, list)
+        self.assertIsInstance(e.fn, list)
 
     def test_add(self):
         e = Evaluation()
@@ -332,7 +324,7 @@ class TestSumEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
 
@@ -365,7 +357,7 @@ class TestSumEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, np.ndarray)
+        self.assertIsInstance(e.errors, list)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
 

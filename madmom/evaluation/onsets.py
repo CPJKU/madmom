@@ -38,30 +38,36 @@ def onset_evaluation(detections, annotations, window):
           this class, since it is ~20 times as big as the onset class.
 
     """
+    # convert numpy array to lists if needed
+    if isinstance(detections, np.ndarray):
+        detections = detections.tolist()
+    if isinstance(annotations, np.ndarray):
+        annotations = annotations.tolist()
     # sort the detections and annotations
-    det = sorted(detections.tolist())
-    tar = sorted(annotations.tolist())
+    det = sorted(detections)
+    ann = sorted(annotations)
     # cache variables
     det_length = len(detections)
-    tar_length = len(annotations)
+    ann_length = len(annotations)
     det_index = 0
-    tar_index = 0
-    # arrays for collecting the detections
+    ann_index = 0
+    # init TP, FP, TN and FN lists
     tp = []
     fp = []
+    tn = []
     fn = []
-    while det_index < det_length and tar_index < tar_length:
+    while det_index < det_length and ann_index < ann_length:
         # fetch the first detection
         d = det[det_index]
         # fetch the first annotation
-        t = tar[tar_index]
+        t = ann[ann_index]
         # compare them
         if abs(d - t) <= window:
             # TP detection
             tp.append(d)
             # increase the detection and annotation index
             det_index += 1
-            tar_index += 1
+            ann_index += 1
         elif d < t:
             # FP detection
             fp.append(d)
@@ -73,20 +79,16 @@ def onset_evaluation(detections, annotations, window):
             fn.append(t)
             # do not increase the detection index
             # increase the annotation index
-            tar_index += 1
+            ann_index += 1
     # the remaining detections are FP
     fp.extend(det[det_index:])
     # the remaining annotations are FN
-    fn.extend(tar[tar_index:])
-    # transform them back to numpy arrays
-    tp = np.asarray(tp)
-    fp = np.asarray(fp)
-    fn = np.asarray(fn)
+    fn.extend(ann[ann_index:])
     # check calculation
     assert len(tp) + len(fp) == len(detections), 'bad TP / FP calculation'
     assert len(tp) + len(fn) == len(annotations), 'bad FN calculation'
     # return the arrays
-    return tp, fp, np.zeros(0), fn
+    return tp, fp, tn, fn
 
 
 # default values
@@ -110,7 +112,7 @@ class OnsetEvaluation(Evaluation):
         # tp, fp, tn, fn = numbers
         super(OnsetEvaluation, self).__init__(*numbers)
         # calculate errors
-        self._errors = calc_errors(self.tp, annotations)
+        self._errors = calc_errors(self.tp, annotations).tolist()
 
 
 def parser():

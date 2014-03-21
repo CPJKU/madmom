@@ -202,7 +202,7 @@ def peak_picking(activations, thresholds, smooth=None, pre_avg=0, post_avg=0,
                                  origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
-    # return indices (as floats, since they get converted to seconds later on)
+    # return indices
     return np.nonzero(detections)
 
 
