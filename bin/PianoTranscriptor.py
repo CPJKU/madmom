@@ -53,10 +53,12 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.note(p, threshold=0.3, combine=0.05, smooth=0.09,
+    madmom.utils.params.note(p, thresholds=0.3, combine=0.05, smooth=0.09,
                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
                              post_max=1. / FPS)
     madmom.utils.params.io(p)
+    # output as MIDI
+    p.add_argument('--midi', action='store_true', help='save as MIDI')
     # version
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
@@ -94,6 +96,7 @@ def main():
     if args.load:
         # load activations
         n = NoteTranscription(args.input, args.fps)
+        print 'loaded', n
     else:
         # exit if no NN files are given
         if not args.nn_files:
@@ -142,12 +145,17 @@ def main():
         n.save_activations(args.output)
     else:
         # detect the notes
-        n.detect(args.threshold, combine=args.combine, delay=args.delay,
+        n.detect(args.thresholds, combine=args.combine, delay=args.delay,
                  smooth=args.smooth, pre_avg=args.pre_avg,
                  post_avg=args.post_avg, pre_max=args.pre_max,
                  post_max=args.post_max)
         # write the notes to output
-        n.write(args.output)
+        if args.midi:
+            import madmom.utils.midi as midi
+            m = midi.MIDIFile(np.asarray(n.detections))
+            m.write(args.output)
+        else:
+            n.write(args.output)
 
 if __name__ == '__main__':
     main()

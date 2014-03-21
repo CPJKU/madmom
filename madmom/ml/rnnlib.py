@@ -691,15 +691,17 @@ class TestThread(Thread):
                 # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
-                pass
-                # raise NotImplementedError("regression not implemented yet")
-            # put a tuple with nc file, nn file and activations
-            # in the return queue
-            self.return_queue.put((nc_file, nn_file, act))
-            # clean up
-            shutil.rmtree(tmp_work_path)
-            # signal to queue that job is done
-            self.work_queue.task_done()
+                with open("%s/log" % tmp_work_path, 'rb') as log:
+                    print log.read()
+                raise RuntimeError("Error while RNNLIB processing.")
+            finally:
+                # put a tuple with nc file, nn file and activations
+                # in the return queue
+                self.return_queue.put((nc_file, nn_file, act))
+                # clean up
+                shutil.rmtree(tmp_work_path)
+                # signal to queue that job is done
+                self.work_queue.task_done()
 
 
 def test_nc_files(nc_files, nn_files, threads=2, verbose=False):
@@ -892,7 +894,7 @@ class RnnConfig(object):
         """
         Save the RNNLIB config file.
 
-        :param filename: the name of the file
+        :param filename: name of the config file
 
         """
         # write the config file(s)
@@ -918,7 +920,7 @@ class RnnConfig(object):
             f.write('testFile %s\n' % ",".join(self.test_files))
         f.close()
 
-    def test(self, out_dir=None, file_set='test', threads=2):
+    def test(self, out_dir=None, file_set='test', threads=2, verbose=False):
         """
         Test the given set of files.
 
@@ -943,7 +945,8 @@ class RnnConfig(object):
         # test all files of the given set
         nc_files = eval("self.%s_files" % file_set)
         # test all files
-        activations = test_nc_files(nc_files, [self.filename], threads)
+        activations = test_nc_files(nc_files, [self.filename], threads,
+                                    verbose)
         # save all activations
         for f in nc_files:
             # name of the activations file
@@ -1046,7 +1049,9 @@ class RnnConfig(object):
                 # next layer
 
 
-def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
+def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
+                    verbose=False):
+    # FIXME: function only works if called in the directory of the NN file
     """
     Test the given set of files.
 
@@ -1055,6 +1060,7 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
     :param file_set: which set should be tested
                      file_set can be any of {train, val, test}
     :param threads:  number of working threads
+    :param verbose:  be verbose
 
     Note: If 'out_dir' is set and multiple network files contain the same
           files, the activations get averaged and saved to 'out_dir'.
@@ -1081,7 +1087,9 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
             nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
-        # test all .nc files against the NN files if this file in the given set
+        # test each .nc files against the NN files if it is in the given set
+        # Note: do not flip the order of the loops, otherwise files could be
+        #       tested even if they were included in the train set!
         for nc_file in nc_files:
             # check in which NN files the .nc file is included
             nc_nn_files = []
@@ -1090,7 +1098,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2):
                 if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
-            activations = test_nc_files([nc_file], nc_nn_files, threads)
+            activations = test_nc_files([nc_file], nc_nn_files, threads,
+                                        verbose)
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
             act_file = "%s/%s" % (out_dir, basename)
@@ -1254,8 +1263,12 @@ def main():
 
     # test all .save files
     save_files = files(args.files, '.save')
+    if args.verbose >= 2:
+        test_verbose = True
+    else:
+        test_verbose = False
     test_save_files(save_files, out_dir=args.output, file_set=args.set,
-                    threads=args.threads)
+                    threads=args.threads, verbose=test_verbose)
 
     # treat all files as annotation files
     ann_files = []
