@@ -232,6 +232,7 @@ class Event(AbstractEvent):
 
     def __init__(self, **kwargs):
         if 'channel' not in kwargs:
+            # TODO: copying needed?
             kwargs = kwargs.copy()
             kwargs['channel'] = 0
         super(Event, self).__init__(**kwargs)
@@ -866,7 +867,7 @@ class SequencerSpecificEvent(MetaEvent):
 
 
 # MIDI Track
-class MidiTrack(object):
+class MIDITrack(object):
     """
     MIDI Track.
 
@@ -1028,12 +1029,21 @@ class MIDIFile(object):
     MIDI File.
 
     """
-    def __init__(self, resolution=RESOLUTION, format=0):
+    def __init__(self, data=None, resolution=RESOLUTION, format=0):
         # init variables
         self.format = format
-        self.resolution = resolution
+        self.resolution = resolution  # i.e. microseconds per quarter note
         self.fps = None
         self.tracks = []
+        # process data
+        if isinstance(data, np.ndarray):
+            # data present as numpy array, convert the data to MIDI and add
+            # them to a new track
+            track = self.add_notes_to_track(data, track=MIDITrack())
+            self.tracks.append(track)
+        elif isinstance(data, (basestring, file)):
+            # try to read the data from file
+            self.read(data)
 
     @property
     def ticks_per_quarter_note(self):
@@ -1111,7 +1121,10 @@ class MIDIFile(object):
                 raise ValueError('TimeSignatureEvent should be only in the '
                                  'first track of a MIDI file.')
         # make sure a time signature is set and the first one occurs at tick 0
-        if signatures is None or signatures[0][0] > 0:
+        if signatures is None:
+            signatures = [(0, TIME_SIGNATURE_NUMERATOR,
+                           TIME_SIGNATURE_DENOMINATOR)]
+        if signatures[0][0] > 0:
             signatures.insert(0, (0, TIME_SIGNATURE_NUMERATOR,
                                   TIME_SIGNATURE_DENOMINATOR))
         # return tempo
@@ -1244,7 +1257,7 @@ class MIDIFile(object):
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MidiTrack().read(midi_file)
+                track = MIDITrack().read(midi_file)
                 self.tracks.append(track)
         # return the object
         return self
@@ -1257,7 +1270,7 @@ class MIDIFile(object):
         :param midi_file: the MIDI file handle
 
         """
-        with open(midi_file, 'rb') as midi_file:
+        with open(midi_file, 'wb') as midi_file:
             # write a MIDI header
             header_data = struct.pack(">LHHH", 6, self.format,
                                       len(self.tracks), self.resolution)
@@ -1266,3 +1279,47 @@ class MIDIFile(object):
             for track in self.tracks:
                 # write each track to file
                 track.write(midi_file)
+
+    def add_notes_to_track(self, notes, track):
+        """
+        Add the notes of the given array to the first track.
+
+        :param notes: numpy array with notes
+        :param track: a MIDITrack instance
+
+        """
+        # FIXME: what we do here s basically writing a MIDI format 0 file,
+        #        since we put all events in a single (the given) track. The
+        #        tempo and time signature stuff is just a hack!
+        track._relative_timing = False
+        # first set a tempo, assume a tempo of 120bpm and 4/4 time
+        # signature, thus 1 quarter note is 0.5 sec long
+        tempo = SetTempoEvent()
+        tempo.microseconds_per_quarter_note = int(0.5 * 1e6)
+        sig = TimeSignatureEvent()
+        sig.denominator = 4
+        sig.numerator = 4
+        # beats per second
+        bps = 2
+        # add them to the track
+        track.events.append(tempo)
+        track.events.append(sig)
+        events = []
+        # add the notes
+        for note in range(len(notes)):
+            # add NoteOn
+            e_on = NoteOnEvent()
+            e_on.tick = int(notes[note, 0] * self.resolution * bps)
+            e_on.pitch = int(notes[note, 1])
+            e_on.velocity = int(notes[note, 3])
+            # and NoteOff
+            e_off = NoteOffEvent()
+            e_off.tick = int(notes[note, 2] * self.resolution * bps)
+            e_off.pitch = int(notes[note, 1])
+            events.append(e_on)
+            events.append(e_off)
+        # sort the events and add them to the track
+        track.events = sorted(events)
+        track.make_ticks_rel()
+        # return the track
+        return track
