@@ -53,7 +53,7 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.note(p, thresholds=0.3, combine=0.05, smooth=0.09,
+    madmom.utils.params.note(p, threshold=0.35, combine=0.05, smooth=0.09,
                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
                              post_max=1. / FPS)
     madmom.utils.params.io(p)
@@ -96,7 +96,6 @@ def main():
     if args.load:
         # load activations
         n = NoteTranscription(args.input, args.fps)
-        print 'loaded', n
     else:
         # exit if no NN files are given
         if not args.nn_files:
@@ -145,14 +144,21 @@ def main():
         n.save_activations(args.output)
     else:
         # detect the notes
-        n.detect(args.thresholds, combine=args.combine, delay=args.delay,
+        n.detect(args.threshold, combine=args.combine, delay=args.delay,
                  smooth=args.smooth, pre_avg=args.pre_avg,
                  post_avg=args.post_avg, pre_max=args.pre_max,
                  post_max=args.post_max)
         # write the notes to output
         if args.midi:
             import madmom.utils.midi as midi
-            m = midi.MIDIFile(np.asarray(n.detections))
+            notes = np.asarray(n.detections)
+            # expand the array
+            notes = np.hstack((notes, np.ones_like(notes)))
+            # set dummy offset
+            notes[:, 2] = notes[:, 0] + 0.5
+            # set dummy velocity
+            notes[:, 3] *= 60.
+            m = midi.MIDIFile(notes)
             m.write(args.output)
         else:
             n.write(args.output)

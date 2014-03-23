@@ -17,7 +17,7 @@ from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
-from ..features.notes import (THRESHOLDS as N_THRESHOLDS, SMOOTH as N_SMOOTH,
+from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
                               PRE_MAX as N_PRE_MAX, POST_MAX as N_POST_MAX)
@@ -269,14 +269,14 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     return g
 
 
-def note(parser, thresholds=N_THRESHOLDS, smooth=N_SMOOTH, combine=N_COMBINE,
+def note(parser, threshold=N_THRESHOLD, smooth=N_SMOOTH, combine=N_COMBINE,
          delay=N_DELAY, pre_avg=N_PRE_AVG, post_avg=N_POST_AVG,
          pre_max=N_PRE_MAX, post_max=N_POST_MAX):
     """
     Add note transcription related arguments to an existing parser object.
 
     :param parser:     existing argparse parser object
-    :param thresholds: threshold for peak-picking
+    :param threshold: threshold for peak-picking
     :param smooth:     smooth the note activations over N seconds
     :param combine:    only report one note within N seconds and pitch
     :param delay:      report notes N seconds delayed
@@ -289,8 +289,8 @@ def note(parser, thresholds=N_THRESHOLDS, smooth=N_SMOOTH, combine=N_COMBINE,
     """
     # add note transcription detection related options to the existing parser
     g = parser.add_argument_group('note transcription arguments')
-    g.add_argument('-t', dest='thresholds', action='store', type=list,
-                   default=thresholds,
+    g.add_argument('-t', dest='threshold', action='store', type=float,
+                   default=threshold,
                    help='detection threshold [default=%(default)s]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                    help='smooth the note activations over N seconds '

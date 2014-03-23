@@ -15,6 +15,8 @@ from . import Event
 from ..utils import open
 from ..audio.filterbank import midi2hz, LogarithmicFilterBank
 
+import matplotlib.pylab as plt
+
 
 def load_notes(filename):
     """
@@ -85,10 +87,38 @@ class SpectralNoteTranscription(object):
 
     @property
     def notes(self):
+        print '...'
         """Notes."""
         if self._notes is None:
             # alias
             spec = self.spectrogram.spec
+            
+            lgd = self.spectrogram.lgd
+            plt.figure()
+            plt.imshow(lgd[:,:200].T, aspect='auto', interpolation=None, origin='lower')
+            plt.colorbar()
+            
+            lgd_mean = uniform_filter(lgd, (self.harmonic_frames, 1))
+            plt.figure()
+            plt.imshow(lgd_mean[:,:200].T, aspect='auto', interpolation=None, origin='lower')
+            plt.colorbar()
+            
+            lgd_mean = uniform_filter(np.abs(lgd), (self.harmonic_frames, 1))
+            plt.figure()
+            plt.imshow(lgd_mean[:,:200].T, aspect='auto', interpolation=None, origin='lower')
+            plt.colorbar()
+            
+            lgd_std = maximum_filter(lgd, (self.harmonic_frames, 1))
+            plt.figure()
+            plt.imshow(lgd_std[:,:200].T, aspect='auto', interpolation=None, origin='lower')
+            plt.colorbar()
+            
+            lgd_std = maximum_filter(np.abs(lgd), (self.harmonic_frames, 1))
+            plt.figure()
+            plt.imshow(lgd_std[:,:200].T, aspect='auto', interpolation=None, origin='lower')
+            plt.colorbar()
+            
+            plt.show()
 
             # use only harmonic parts
             if self.harmonic_frames > 1:
@@ -138,13 +168,13 @@ class SpectralNoteTranscription(object):
 
 
 # universal peak-picking method
-def peak_picking(activations, thresholds, smooth=None, pre_avg=0, post_avg=0,
+def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
                  pre_max=1, post_max=1):
     """
     Perform thresholding and peak-picking on the given activation function.
 
     :param activations: note activations (2D numpy array)
-    :param thresholds:  thresholds for peak-picking (1D numpy array)
+    :param threshold:   threshold for peak-picking (1D numpy array)
     :param smooth:      smooth the activation function with the kernel
                         [default=None]
     :param pre_avg:     use N frames past information for moving average
@@ -192,7 +222,7 @@ def peak_picking(activations, thresholds, smooth=None, pre_avg=0, post_avg=0,
         # do not use a moving average
         mov_avg = 0
     # detections are those activations above the moving average + the threshold
-    detections = activations * (activations >= mov_avg + thresholds)
+    detections = activations * (activations >= mov_avg + threshold)
     # peak-picking
     max_length = pre_max + post_max + 1
     if max_length > 1:
@@ -207,7 +237,7 @@ def peak_picking(activations, thresholds, smooth=None, pre_avg=0, post_avg=0,
 
 
 # default values for note peak-picking
-THRESHOLDS = [0.35] * 88
+THRESHOLD = 0.35
 SMOOTH = 0.05
 PRE_AVG = 0
 POST_AVG = 0
@@ -366,6 +396,8 @@ def parser():
         print args
     if args.length is not None:
         args.length *= args.fps
+    else:
+        args.length = 'extend'
     # return args
     return args
 
