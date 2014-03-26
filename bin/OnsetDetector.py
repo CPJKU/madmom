@@ -47,8 +47,8 @@ def parser():
     If invoked without any parameters, the software detects all onsets in the
     given input (file) and writes them to the output (file).
     ''')
-    # mirex options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
@@ -56,7 +56,7 @@ def parser():
     madmom.utils.params.onset(p, threshold=0.35, combine=0.03, smooth=0.07,
                               pre_avg=0, post_avg=0, pre_max=1. / FPS,
                               post_max=1. / FPS)
-    madmom.utils.params.io(p)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments

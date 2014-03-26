@@ -366,7 +366,7 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import (audio, spec, filtering, log, note, io)
+    from ..utils.params import (audio, spec, filtering, log, note, save_load)
 
     # define parser
     p = argparse.ArgumentParser(
@@ -388,7 +388,7 @@ def parser():
     filtering(p, filtering=False)
     log(p, log=True)
     note(p)
-    io(p)
+    save_load(p)
     # parse arguments
     args = p.parse_args()
     # print arguments

@@ -609,7 +609,7 @@ def parser():
     """
     import argparse
     from ..utils.params import (audio, spec, filtering, log, spectral_odf,
-                                onset, io)
+                                onset, save_load)
 
     # define parser
     p = argparse.ArgumentParser(
@@ -642,7 +642,7 @@ def parser():
                'cd', 'rcd']
     o.add_argument('-o', dest='odf', default='superflux',
                    help='use this onset detection function %s' % methods)
-    io(p)
+    save_load(p)
     # parse arguments
     args = p.parse_args()
     # print arguments

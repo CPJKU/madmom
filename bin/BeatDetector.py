@@ -47,14 +47,14 @@ def parser():
     If invoked without any parameters, the software detects all beats in the
     given input (file) and writes them to the output (file).
     ''')
-    # mirex options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
     madmom.utils.params.beat(p)
-    madmom.utils.params.io(p)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')
     # parse arguments

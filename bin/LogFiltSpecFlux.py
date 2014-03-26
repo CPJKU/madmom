@@ -31,15 +31,15 @@ def parser():
     Music Information Retrieval Conference (ISMIR), 2012
 
     ''')
-    # general options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.audio(p, fps=100, online=False)
     madmom.utils.params.spec(p)
     madmom.utils.params.filtering(p, bands=12, norm_filters=False)
     madmom.utils.params.log(p, mul=1, add=1)
     madmom.utils.params.onset(p, threshold=2.75)
-    madmom.utils.params.io(p)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version',
                    version='LogFiltSpecFlux.2013')

@@ -47,8 +47,8 @@ def parser():
     If invoked without any parameters, the software detects all notes in
     the given input (file) and writes them to the output (file).
     ''')
-    # mirex options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
@@ -56,9 +56,8 @@ def parser():
     madmom.utils.params.note(p, threshold=0.35, combine=0.05, smooth=0.09,
                              pre_avg=0, post_avg=0, pre_max=1. / FPS,
                              post_max=1. / FPS)
-    madmom.utils.params.io(p)
-    # output as MIDI
-    p.add_argument('--midi', action='store_true', help='save as MIDI')
+    madmom.utils.params.midi(p, length=0.6, velocity=100)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
@@ -155,9 +154,9 @@ def main():
             # expand the array
             notes = np.hstack((notes, np.ones_like(notes)))
             # set dummy offset
-            notes[:, 2] = notes[:, 0] + 0.5
+            notes[:, 2] = notes[:, 0] + args.note_length
             # set dummy velocity
-            notes[:, 3] *= 60.
+            notes[:, 3] *= args.note_velocity
             m = midi.MIDIFile(notes)
             m.write(args.output)
         else:
