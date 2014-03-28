@@ -22,6 +22,7 @@ from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
                               PRE_MAX as N_PRE_MAX, POST_MAX as N_POST_MAX)
 
+
 def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     """
     Add audio related arguments to an existing parser object.

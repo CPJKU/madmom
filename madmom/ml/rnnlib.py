@@ -1221,7 +1221,7 @@ def parser():
     g.add_argument('--optimizer', default='steepest', type=str,
                    help='optimizer [default=%(default)s]')
     # add other options to the existing parser
-    audio(p, fps=100, norm=False, window=None)
+    audio(p, online=False, fps=100, norm=False, window=None)
     spec(p)
     filtering(p, bands=12)
     log(p, log=True, mul=5, add=1)
@@ -1230,6 +1230,11 @@ def parser():
     # add defaults
     if args.specs is None:
         args.specs = [1024, 2048, 4096]
+    # translate online/offline mode
+    if args.online:
+        args.origin = 'online'
+    else:
+        args.origin = 'offline'
     # print arguments
     if args.verbose >= 2:
         print args
@@ -1293,8 +1298,9 @@ def main():
         nc_data = None
         for spec in args.specs:
             s = LogFiltSpec(w, frame_size=spec, fps=args.fps,
-                            bands_per_octave=args.bands, fmin=args.fmin,
-                            fmax=args.fmax, mul=args.mul, add=args.add,
+                            origin=args.origin, bands_per_octave=args.bands,
+                            fmin=args.fmin, fmax=args.fmax,
+                            mul=args.mul, add=args.add,
                             ratio=args.ratio, norm_filters=args.norm_filters)
             if nc_data is None:
                 nc_data = np.hstack((s.spec, s.pos_diff))
@@ -1305,9 +1311,10 @@ def main():
             # load notes
             from madmom.features.notes import load_notes
             notes = load_notes(f)
-            targets = np.zeros((s.num_frames, 88))
-            notes[:, 0] *= args.fps
+            notes[:, 0] *= float(args.fps)
             notes[:, 2] -= 21
+            # set the tarets
+            targets = np.zeros((s.num_frames, 88))
             for note in notes:
                 try:
                     targets[int(note[0]), int(note[2])] = 1
