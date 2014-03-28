@@ -9,8 +9,9 @@ Script for converting ground truth annotations into the GiantSteps format.
 
 import argparse
 import os
-import glob
 
+
+# TODO: code a proper definition file parser
 CONVERTER = {}
 CONVERTER['onsets'] = '#@onset\ttimestamp'
 CONVERTER['beats'] = '#@beat\ttimestamp\tbar.beat'
