@@ -227,7 +227,7 @@ class NoteTranscription(Event):
     def __init__(self, activations, fps):
         """
             Creates a new NoteTranscription object instance with the given
-            activations (can be read in from a file).
+            activations (can be read from a file).
 
             :param activations: array with note activations or a file (handle)
             :param fps:         frame rate of the activations
@@ -245,18 +245,13 @@ class NoteTranscription(Event):
         Detect the notes with the given peak-picking parameters.
 
         :param threshold: array with thresholds for peak-picking
-        :param combine:   only report one note within N seconds [default=0.03]
-        :param delay:     report onsets N seconds delayed [default=0]
+        :param combine:   only report one note within N seconds
+        :param delay:     report onsets N seconds delayed
         :param smooth:    smooth the activation function over N seconds
-                          [default=0]
         :param pre_avg:   use N seconds past information for moving average
-                          [default=0.1]
         :param post_avg:  use N seconds future information for moving average
-                          [default=0.03]
         :param pre_max:   use N seconds past information for moving maximum
-                          [default=0.03]
         :param post_max:  use N seconds future information for moving maximum
-                          [default=0.07]
 
         Notes: If no moving average is needed (e.g. the activations are
                independent of the signal's level as for neural network

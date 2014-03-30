@@ -534,8 +534,7 @@ class Onset(Event):
 
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
-        :param online:      work in online mode (i.e. use only past
-                            information)
+        :param online:      online mode (i.e. use only past information)
         :param sep:         separator if activations are read from file
 
         """
