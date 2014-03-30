@@ -348,7 +348,7 @@ def rectified_complex_domain(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     recified complex domain onset detection function
+    :returns:     rectified complex domain onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon

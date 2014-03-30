@@ -12,10 +12,9 @@ import os
 
 
 # TODO: code a proper definition file parser
-CONVERTER = {}
-CONVERTER['onsets'] = '#@onset\ttimestamp'
-CONVERTER['beats'] = '#@beat\ttimestamp\tbar.beat'
-CONVERTER['notes'] = '#@note\ttimestamp\tpitch\tduration\tvelocity'
+CONVERTER = {'onsets': '#@onset\ttimestamp',
+             'beats': '#@beat\ttimestamp\tbar.beat',
+             'notes': '#@note\ttimestamp\tpitch\tduration\tvelocity'}
 
 
 def main():

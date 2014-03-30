@@ -15,8 +15,6 @@ from . import Event
 from ..utils import open
 from ..audio.filterbank import midi2hz, LogarithmicFilterBank
 
-import matplotlib.pylab as plt
-
 
 def load_notes(filename):
     """
@@ -87,38 +85,10 @@ class SpectralNoteTranscription(object):
 
     @property
     def notes(self):
-        print '...'
-        """Notes."""
+        """Naïve implementation of notes."""
         if self._notes is None:
             # alias
             spec = self.spectrogram.spec
-            
-            lgd = self.spectrogram.lgd
-            plt.figure()
-            plt.imshow(lgd[:,:200].T, aspect='auto', interpolation=None, origin='lower')
-            plt.colorbar()
-            
-            lgd_mean = uniform_filter(lgd, (self.harmonic_frames, 1))
-            plt.figure()
-            plt.imshow(lgd_mean[:,:200].T, aspect='auto', interpolation=None, origin='lower')
-            plt.colorbar()
-            
-            lgd_mean = uniform_filter(np.abs(lgd), (self.harmonic_frames, 1))
-            plt.figure()
-            plt.imshow(lgd_mean[:,:200].T, aspect='auto', interpolation=None, origin='lower')
-            plt.colorbar()
-            
-            lgd_std = maximum_filter(lgd, (self.harmonic_frames, 1))
-            plt.figure()
-            plt.imshow(lgd_std[:,:200].T, aspect='auto', interpolation=None, origin='lower')
-            plt.colorbar()
-            
-            lgd_std = maximum_filter(np.abs(lgd), (self.harmonic_frames, 1))
-            plt.figure()
-            plt.imshow(lgd_std[:,:200].T, aspect='auto', interpolation=None, origin='lower')
-            plt.colorbar()
-            
-            plt.show()
 
             # use only harmonic parts
             if self.harmonic_frames > 1:
@@ -140,11 +110,11 @@ class SpectralNoteTranscription(object):
             sums = np.zeros_like(spec)
             for f in range(1, last_fundamental_bin):
                 # sum the given number of harmonics
-                fsum = np.sum(spec[:, f::f][:, :self.num_harmonics], axis=1)
+                f_sum = np.sum(spec[:, f::f][:, :self.num_harmonics], axis=1)
                 # weight with the fundamental
-                fsum *= spec[:, f]
+                f_sum *= spec[:, f]
                 # save for the given fundamental
-                sums[:, f] = fsum
+                sums[:, f] = f_sum
             # convert to MIDI scale
             fmin = midi2hz(-1)
             fb = LogarithmicFilterBank(
@@ -253,31 +223,19 @@ class NoteTranscription(Event):
     NoteTranscription class.
 
     """
+
     def __init__(self, activations, fps):
         """
-        Creates a new NoteTranscription object instance with the given
-        activations (can be read in from a file).
+            Creates a new NoteTranscription object instance with the given
+            activations (can be read in from a file).
 
-        :param activations: array with note activations or a file (handle)
-        :param fps:         frame rate of the activations
+            :param activations: array with note activations or a file (handle)
+            :param fps:         frame rate of the activations
 
-        """
-        self.activations = None  # onset activation function
-        self.fps = fps           # frame rate of the activation function
-        # TODO: is it better to init the detections as np.zeros(0)?
-        # this way the write() method would not throw an error, but the
-        # evaluation might not be correct?!
-        self.detections = None   # list of detected onsets [seconds]
-        self.targets = None      # list of target onsets [seconds]
-        # set / load activations
-        if isinstance(activations, np.ndarray):
-            # activations are given as an array
-            self.activations = activations
-        else:
-            # read in the activations from a file
-            self.load_activations(activations)
-        # reshape it to reflect the 88 MIDI notes
-        if self.activations.shape[1] != 88:
+            """
+        super(NoteTranscription, self).__init__(activations, fps)
+        # reshape the activations
+        if self.activations is not None and self.activations.shape[1] != 88:
             self.activations = self.activations.reshape(-1, 88)
 
     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,

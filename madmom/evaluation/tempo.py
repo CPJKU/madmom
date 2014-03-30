@@ -135,7 +135,7 @@ class MeanTempoEvaluation(TempoEvaluation):
     Class for averaging tempo evaluation scores.
 
     """
-
+    # we just want to inherit the print_errors() function
     def __init__(self):
         """
         Class for averaging tempo evaluation scores.

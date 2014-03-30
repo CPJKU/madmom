@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains filter and filterbank related functionality.
+This file contains filter and filter bankrelated functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 

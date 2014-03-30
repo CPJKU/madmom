@@ -13,6 +13,7 @@ import __builtin__
 import numpy as np
 
 
+# overwrite the built-in open() to transparently apply some magic file handling
 @contextlib.contextmanager
 def open(filename, mode='r'):
     """

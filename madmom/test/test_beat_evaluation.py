@@ -372,12 +372,14 @@ class TestContinuityFunction(unittest.TestCase):
         with self.assertRaises(TypeError):
             continuity(DETECTIONS, None, 0.175, 0.175)
         # tolerances must be correct type
-        cmlc, cmlt, amlc, amlt = continuity(DETECTIONS, TARGETS, int(1), int(1))
+        scores = continuity(DETECTIONS, TARGETS, int(1), int(1))
+        cmlc, cmlt, amlc, amlt = scores
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)
         self.assertIsInstance(amlt, float)
-        cmlc, cmlt, amlc, amlt = continuity(DETECTIONS, TARGETS, [0.175], [0.175])
+        scores = continuity(DETECTIONS, TARGETS, [0.175], [0.175])
+        cmlc, cmlt, amlc, amlt = scores
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)

@@ -634,7 +634,7 @@ class MeanBeatEvaluation(BeatEvaluation):
     Class for averaging beat evaluation scores.
 
     """
-
+    # we just want to inherit the print_errors() function
     def __init__(self):
         """
         Class for averaging beat evaluation scores.

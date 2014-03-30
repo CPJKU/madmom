@@ -7,7 +7,6 @@ This file contains test functions for the madmom.utils.helpers module.
 """
 
 import unittest
-import __builtin__
 
 from madmom.test import DATA_PATH
 from madmom.utils import *
