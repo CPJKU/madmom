@@ -4,6 +4,7 @@
 Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
 
 Redistribution in any form is not permitted!
+
 """
 
 import os

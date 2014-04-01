@@ -674,7 +674,7 @@ class TestThread(Thread):
                     '--valFile=""',
                     '--testFile=%s' % nc_file, nn_file]
             try:
-                if self.verbose:
+                if self.verbose > 1:
                     subprocess.call(args)
                 else:
                     devnull = open(os.devnull, 'w')
@@ -688,9 +688,10 @@ class TestThread(Thread):
                 # classification output
                 act = Activations('%s/output_outputActivations' %
                                   tmp_work_path)
-                # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
+                # TODO: make regression task work as well
+                #       until then just output the log
                 with open("%s/log" % tmp_work_path, 'rb') as log:
                     print log.read()
                 raise RuntimeError("Error while RNNLIB processing.")
@@ -1051,7 +1052,6 @@ class RnnConfig(object):
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
                     verbose=False):
-    # FIXME: function only works if called in the directory of the NN file
     """
     Test the given set of files.
 
@@ -1105,6 +1105,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             act_file = "%s/%s" % (out_dir, basename)
             # save the activations (we only passed one .nc file, so it's the
             # first activation in the returned list)
+            if verbose:
+                print act_file
             np.save(act_file, activations[0])
 
 
@@ -1268,12 +1270,8 @@ def main():
 
     # test all .save files
     save_files = files(args.files, '.save')
-    if args.verbose >= 2:
-        test_verbose = True
-    else:
-        test_verbose = False
     test_save_files(save_files, out_dir=args.output, file_set=args.set,
-                    threads=args.threads, verbose=test_verbose)
+                    threads=args.threads, verbose=args.verbose)
 
     # treat all files as annotation files
     ann_files = []
