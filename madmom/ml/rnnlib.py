@@ -1113,7 +1113,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
 def cross_validation(nc_files, filename, folds=8, randomize=True,
                      bidirectional=True, task='classification',
                      learn_rate=1e-4, layer_sizes=[25, 25, 25],
-                     layer_type='lstm', momentum=0.9, optimizer='steepest'):
+                     layer_type='lstm', momentum=0.9, optimizer='steepest',
+                     splitting=None):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
@@ -1128,6 +1129,10 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
     :param layer_type:    hidden layer types
     :param momentum:      momentum for steepest descent
     :param optimizer:     which optimizer to use {'steepest, 'rprop'}
+    :param splitting:     use pre-defined splittings
+
+    Note: The 'splitting' can be either a dictionary with keys numerated from 0
+          upwards or a list of files which contain one file per line.
 
     """
     # shuffle the files
@@ -1136,9 +1141,26 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
         random.shuffle(nc_files)
     # split into N parts
     splits = {}
-    for fold in range(folds):
-        splits[fold] = [f for i, f in enumerate(nc_files) if i % folds == fold]
-    # create N config files
+    if isinstance(splitting, dict):
+        # use the splitting as is
+        splits = splitting
+    if isinstance(splitting, list):
+        from madmom.utils import match_file
+        for fold, split_file in enumerate(splitting):
+            with open(split_file, 'rb') as split:
+                splits[fold] = []
+                for line in split:
+                    line = line.strip()
+                    nc_file = match_file(line, nc_files, match_ext='.nc')
+                    splits[fold].append(nc_file[0])
+    else:
+        # use a standard splitting
+        for fold in range(folds):
+            splits[fold] = [f for i, f in enumerate(nc_files)
+                            if i % folds == fold]
+    # set the number of folds
+    folds = len(splits)
+    # create the config files
     assert folds >= 3, 'cannot create split with less than 3 folds.'
     for i in range(folds):
         config = RnnConfig()
@@ -1206,6 +1228,9 @@ def parser():
                    help='config file base name')
     g.add_argument('--folds', default=8,
                    help='%(default)s-fold cross validation')
+    g.add_argument('--splitting', action='append', default=None,
+                   help='use this pre-defined splittings (argument needed '
+                        'multiple times, one per splitting file)')
     g.add_argument('--random', action='store_true', default=False,
                    help='randomize splitting [default=%(default)s]')
     g.add_argument('--task', default='classification', type=str,
@@ -1266,7 +1291,7 @@ def main():
                          learn_rate=args.learn_rate,
                          layer_sizes=args.layer_sizes,
                          layer_type=args.layer_type, momentum=args.momentum,
-                         optimizer=args.optimizer)
+                         optimizer=args.optimizer, splitting=args.splitting)
 
     # test all .save files
     save_files = files(args.files, '.save')
