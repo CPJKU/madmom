@@ -1222,6 +1222,8 @@ def parser():
                    action='append', help='spectrogram size(s) to use')
     g.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
+    g.add_argument('--shift', default=None, type=float,
+                   help='shift targets N seconds')
     # config file creation options
     g = p.add_argument_group('arguments for config file creation')
     g.add_argument('-c', dest='config', default=None,
@@ -1277,7 +1279,7 @@ def main():
     """
     from ..audio.wav import Wav
     from ..audio.spectrogram import LogFiltSpec
-    from ..utils import files, match_file, load_events, quantize_events
+    from ..utils import files, match_file, load_events, quantise_events
 
     # parse arguments
     args = parser()
@@ -1335,8 +1337,10 @@ def main():
             from madmom.features.notes import load_notes
             notes = load_notes(f)
             notes[:, 0] *= float(args.fps)
+            if args.shift:
+                notes[:, 0] += args.shift
             notes[:, 2] -= 21
-            # set the tarets
+            # set the targets
             targets = np.zeros((s.num_frames, 88))
             for note in notes:
                 try:
@@ -1346,12 +1350,15 @@ def main():
         else:
             # load events (onset/beat)
             targets = load_events(f)
-            targets = quantize_events(targets, args.fps, length=s.num_frames)
+            targets = quantise_events(targets, args.fps, length=s.num_frames,
+                                      shift=args.shift)
         # tags
-        tags = "file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s |" \
-               "norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s" %\
-               (f, args.fps, args.specs, args.bands, args.fmin, args.fmax,
-                args.norm_filters, args.log, args.mul, args.add, args.ratio)
+        tags = ("file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | "
+                "norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s | "
+                "shift=%s" %
+                (f, args.fps, args.specs, args.bands, args.fmin, args.fmax,
+                 args.norm_filters, args.log, args.mul, args.add, args.ratio,
+                 args.shift))
         # .nc file name
         if args.output:
             nc_file = "%s/%s" % (args.output, f)

@@ -184,16 +184,21 @@ def combine_events(events, delta):
     return events[:idx + 1]
 
 
-def quantize_events(events, fps, length=None):
+def quantise_events(events, fps, length=None, shift=None):
     """
-    Quantize the events with the given resolution.
+    Quantise the events with the given resolution.
 
     :param events: sequence of events [seconds]
     :param fps:    quantize with N frames per second
     :param length: length of the returned array [frames]
+    :param shift:  shift the events by N seconds before quantisation
     :returns:      a quantized numpy array
 
     """
+    # shift all events if needed
+    if shift:
+        events = np.asarray(events) + shift
+    # determine the length for the quantised array
     if length is None:
         # set the length to be long enough to cover all events
         length = int(round(np.max(events) * float(fps))) + 1
