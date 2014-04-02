@@ -26,7 +26,10 @@ def main():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script converts ground-truth annotation files into format used by the
-    GiantSteps project.
+    GiantSteps project. The files are supposed tho have extensions like:
+    - .onsets
+    - .beats
+    - .notes
 
     TODO: include a quick overview here when definition is ready.
 
