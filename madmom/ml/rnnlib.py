@@ -1361,7 +1361,7 @@ def main():
                  args.shift))
         # .nc file name
         if args.output:
-            nc_file = "%s/%s" % (args.output, f)
+            nc_file = "%s/%s" % (args.output, os.path.basename(f))
         else:
             nc_file = "%s" % os.path.abspath(f)
         # split files
