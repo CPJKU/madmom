@@ -1336,9 +1336,12 @@ def main():
             # load notes
             from madmom.features.notes import load_notes
             notes = load_notes(f)
-            notes[:, 0] *= float(args.fps)
+            # shift the notes if needed
             if args.shift:
                 notes[:, 0] += args.shift
+            # convert to frame numbers
+            notes[:, 0] *= float(args.fps)
+            # set the range of MIDI notes to 0..88
             notes[:, 2] -= 21
             # set the targets
             targets = np.zeros((s.num_frames, 88))
