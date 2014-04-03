@@ -7,7 +7,6 @@ This file contains test functions for the madmom.utils.helpers module.
 """
 
 import unittest
-import __builtin__
 
 from madmom.test import DATA_PATH
 from madmom.utils import *
@@ -142,54 +141,54 @@ class TestCombineEvents(unittest.TestCase):
         self.assertTrue(np.allclose(comb, correct))
 
 
-class TestQuantizeEvents(unittest.TestCase):
+class TestQuantiseEvents(unittest.TestCase):
 
-    def test_quantize_10(self):
-        quantized = quantize_events(TARGETS, 10, length=None)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_10(self):
+        quantised = quantise_events(TARGETS, 10, length=None)
+        idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [10, 15, 20, 21, 25, 30]
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_100(self):
-        quantized = quantize_events(TARGETS, 100, length=None)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_100(self):
+        quantised = quantise_events(TARGETS, 100, length=None)
+        idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_length_280(self):
+    def test_quantise_length_280(self):
         length = 280
-        quantized = quantize_events(TARGETS, 100, length=length)
-        self.assertTrue(len(quantized), length)
+        quantised = quantise_events(TARGETS, 100, length=length)
+        self.assertTrue(len(quantised), length)
 
-    def test_quantize_100_length_280(self):
-        quantized = quantize_events(TARGETS, 100, length=280)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_100_length_280(self):
+        quantised = quantise_events(TARGETS, 100, length=280)
+        idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250]
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_rounding_395(self):
-        quantized = quantize_events([3.95], 10, length=None)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_rounding_395(self):
+        quantised = quantise_events([3.95], 10, length=None)
+        idx = np.nonzero(quantised)[0]
         correct = [40]
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_rounding_395_length_40(self):
-        quantized = quantize_events([3.95], 10, length=40)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_rounding_395_length_40(self):
+        quantised = quantise_events([3.95], 10, length=40)
+        idx = np.nonzero(quantised)[0]
         correct = []
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_rounding_39499999_length_40(self):
-        quantized = quantize_events([3.9499999], 10, length=40)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_rounding_39499999_length_40(self):
+        quantised = quantise_events([3.9499999], 10, length=40)
+        idx = np.nonzero(quantised)[0]
         correct = [39]
         self.assertTrue(np.array_equal(idx, correct))
 
-    def test_quantize_rounding_394(self):
-        quantized = quantize_events([3.949999999], 10, length=None)
-        idx = np.nonzero(quantized)[0]
+    def test_quantise_rounding_394(self):
+        quantised = quantise_events([3.949999999], 10, length=None)
+        idx = np.nonzero(quantised)[0]
         correct = [39]
         self.assertTrue(np.array_equal(idx, correct))

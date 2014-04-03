@@ -674,7 +674,7 @@ class TestThread(Thread):
                     '--valFile=""',
                     '--testFile=%s' % nc_file, nn_file]
             try:
-                if self.verbose:
+                if self.verbose > 1:
                     subprocess.call(args)
                 else:
                     devnull = open(os.devnull, 'w')
@@ -683,21 +683,26 @@ class TestThread(Thread):
                 # TODO: which exception should be raised?
                 raise SystemExit('rnnlib binary not found')
             # read the activations
+            act = None
             try:
                 # classification output
                 act = Activations('%s/output_outputActivations' %
                                   tmp_work_path)
-                # TODO: make regression task work as well
             except IOError:
                 # could not read in the activations, try regression
-                raise NotImplementedError("regression not implemented yet")
-            # put a tuple with nc file, nn file and activations
-            # in the return queue
-            self.return_queue.put((nc_file, nn_file, act))
-            # clean up
-            shutil.rmtree(tmp_work_path)
-            # signal to queue that job is done
-            self.work_queue.task_done()
+                # TODO: make regression task work as well
+                #       until then just output the log
+                with open("%s/log" % tmp_work_path, 'rb') as log:
+                    print log.read()
+                raise RuntimeError("Error while RNNLIB processing.")
+            finally:
+                # put a tuple with nc file, nn file and activations
+                # in the return queue
+                self.return_queue.put((nc_file, nn_file, act))
+                # clean up
+                shutil.rmtree(tmp_work_path)
+                # signal to queue that job is done
+                self.work_queue.task_done()
 
 
 def test_nc_files(nc_files, nn_files, threads=2, verbose=False):
@@ -775,6 +780,10 @@ class RnnConfig(object):
         self.layer_types = None
         self.bidirectional = False
         self.task = None
+        self.learn_rate = None
+        self.momentum = None
+        self.optimizer = None
+        self.rand_seed = 0
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -787,6 +796,7 @@ class RnnConfig(object):
         :param filename: name of the configuration file
 
         """
+        # TODO: use madmom.utils.open
         # open the config file
         f = open(filename, 'r')
         # read in every line
@@ -881,23 +891,47 @@ class RnnConfig(object):
         # close the file
         f.close()
 
-    def test(self, out_dir=None, file_set='test', threads=2, sep=''):
+    def save(self, filename):
+        """
+        Save the RNNLIB config file.
+
+        :param filename: name of the config file
+
+        """
+        # write the config file(s)
+        # TODO: use madmom.utils.open
+        f = open(filename, 'wb')
+        f.write('task %s\n' % self.task)
+        f.write('autosave true\n')
+        # use the 1st hidden layer
+        f.write('hiddenType %s\n' % self.layer_types[0])
+        f.write('hiddenSize %s\n' % ",".join(str(x) for x in self.layer_sizes))
+        f.write('bidirectional %s\n' % str(self.bidirectional).lower())
+        f.write('dataFraction 1\n')
+        f.write('maxTestsNoBest %s\n' % 20)
+        f.write('learnRate %s\n' % str(self.learn_rate))
+        f.write('momentum %s\n' % str(self.momentum))
+        f.write('optimiser %s\n' % str(self.optimizer))
+        f.write('randSeed %s\n' % str(self.rand_seed))
+        if len(self.train_files) > 0:
+            f.write('trainFile %s\n' % ",".join(self.train_files))
+        if len(self.val_files) > 0:
+            f.write('valFile %s\n' % ",".join(self.val_files))
+        if len(self.test_files) > 0:
+            f.write('testFile %s\n' % ",".join(self.test_files))
+        f.close()
+
+    def test(self, out_dir=None, file_set='test', threads=2, verbose=False):
         """
         Test the given set of files.
 
         :param out_dir:  output directory for activations
         :param file_set: which set should be tested {train, val, test}
         :param threads:  number of working threads
-        :param sep:      separator between activation values
         :returns:        the output directory
 
-        Note: If given, out_dir must exist. If none is given, a standard output
+        Note: If given, out_dir must exist. If none is given, an output
               directory is created.
-
-              Empty (“”) separator means the file should be treated as binary;
-              spaces (” ”) in the separator match zero or more whitespace;
-              separator consisting only of spaces must match at least one
-              whitespace.
 
         """
         # if no output directory was given, use the name of the file + set
@@ -912,7 +946,8 @@ class RnnConfig(object):
         # test all files of the given set
         nc_files = eval("self.%s_files" % file_set)
         # test all files
-        activations = test_nc_files(nc_files, [self.filename], threads)
+        activations = test_nc_files(nc_files, [self.filename], threads,
+                                    verbose)
         # save all activations
         for f in nc_files:
             # name of the activations file
@@ -921,7 +956,7 @@ class RnnConfig(object):
             # position in the list
             f_idx = nc_files.index(f)
             # save
-            activations[f_idx].tofile(act_file, sep)
+            np.save(act_file, activations[f_idx])
         # return the output directory
         return out_dir
 
@@ -948,8 +983,8 @@ class RnnConfig(object):
         # set the number of the output layer
         num_output = len(self.layer_sizes) - 1
         if num_output > 8:
-            # FIXME: I know that works only with layer nums 0..9, too come
-            # up with a proper solution right now...
+            # FIXME: I know that works only with layer nums 0..9, have to come
+            #        up with a proper solution.
             raise ValueError('too many layers, please fix me.')
         # save model
         with h5py.File(filename, 'w') as h5:
@@ -1016,7 +1051,7 @@ class RnnConfig(object):
 
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
-                    sep=''):
+                    verbose=False):
     """
     Test the given set of files.
 
@@ -1025,22 +1060,18 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
     :param file_set: which set should be tested
                      file_set can be any of {train, val, test}
     :param threads:  number of working threads
-    :param sep:      separator between activation values
+    :param verbose:  be verbose
 
-    Note: empty (“”) separator means the file should be treated as binary;
-          spaces (” ”) in the separator match zero or more whitespace;
-          separator consisting only of spaces must match at least one
-          whitespace.
-
-          If out_dir is set and multiple network files contain the same
-          files, the activations get averaged.
+    Note: If 'out_dir' is set and multiple network files contain the same
+          files, the activations get averaged and saved to 'out_dir'.
 
     """
+    # FIXME: function only works if called in the directory of the NN file
     if out_dir is None:
         # test all NN files individually
         for nn_file in nn_files:
             nn = RnnConfig(nn_file)
-            nn.test(file_set=file_set, threads=threads, sep=sep)
+            nn.test(file_set=file_set, threads=threads)
     else:
         # average all activations and output them in the given directory
         try:
@@ -1056,7 +1087,9 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
-        # test all .nc files against the NN files if this file in the given set
+        # test each .nc files against the NN files if it is in the given set
+        # Note: do not flip the order of the loops, otherwise files could be
+        #       tested even if they were included in the train set!
         for nc_file in nc_files:
             # check in which NN files the .nc file is included
             nc_nn_files = []
@@ -1065,10 +1098,298 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
                 if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
-            activations = test_nc_files([nc_file], nc_nn_files, threads)
+            activations = test_nc_files([nc_file], nc_nn_files, threads,
+                                        verbose)
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
-            act_file = "%s/%s.activations" % (out_dir, basename)
+            act_file = "%s/%s" % (out_dir, basename)
             # save the activations (we only passed one .nc file, so it's the
             # first activation in the returned list)
-            activations[0].tofile(act_file, sep)
+            if verbose:
+                print act_file
+            np.save(act_file, activations[0])
+
+
+def cross_validation(nc_files, filename, folds=8, randomize=True,
+                     bidirectional=True, task='classification',
+                     learn_rate=1e-4, layer_sizes=[25, 25, 25],
+                     layer_type='lstm', momentum=0.9, optimizer='steepest',
+                     splitting=None):
+    """
+    Creates RNNLIB config files for N-fold cross validation.
+
+    :param nc_files:      use these .ns nc_files
+    :param filename:      common base name for the config files
+    :param folds:         number of folds
+    :param randomize:     shuffle files before splitting
+    :param bidirectional: use bidirectional neural networks
+    :param task:          neural network task
+    :param learn_rate:    learn rate to use
+    :param layer_sizes:   sizes of the hidden layers
+    :param layer_type:    hidden layer types
+    :param momentum:      momentum for steepest descent
+    :param optimizer:     which optimizer to use {'steepest, 'rprop'}
+    :param splitting:     use pre-defined splittings
+
+    Note: The 'splitting' can be either a dictionary with keys numerated from 0
+          upwards or a list of files which contain one file per line.
+
+    """
+    # shuffle the files
+    if randomize:
+        import random
+        random.shuffle(nc_files)
+    # split into N parts
+    splits = {}
+    if isinstance(splitting, dict):
+        # use the splitting as is
+        splits = splitting
+    if isinstance(splitting, list):
+        from madmom.utils import match_file
+        for fold, split_file in enumerate(splitting):
+            with open(split_file, 'rb') as split:
+                splits[fold] = []
+                for line in split:
+                    line = line.strip()
+                    nc_file = match_file(line, nc_files, match_ext='.nc')
+                    splits[fold].append(nc_file[0])
+    else:
+        # use a standard splitting
+        for fold in range(folds):
+            splits[fold] = [f for i, f in enumerate(nc_files)
+                            if i % folds == fold]
+    # set the number of folds
+    folds = len(splits)
+    # create the config files
+    assert folds >= 3, 'cannot create split with less than 3 folds.'
+    for i in range(folds):
+        config = RnnConfig()
+        test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
+        val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
+        train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
+        # assign the sets
+        config.test_files = splits[int(test_fold)]
+        config.val_files = splits[int(val_fold)]
+        config.train_files = []
+        for j in train_fold.tolist():
+            config.train_files.extend(splits[j])
+        config.task = task
+        config.bidirectional = bidirectional
+        config.learn_rate = learn_rate
+        config.layer_sizes = layer_sizes
+        config.layer_types = [layer_type] * len(layer_sizes)
+        config.momentum = momentum
+        config.optimizer = optimizer
+        # save the file
+        config.save('%s_%s' % (filename, i))
+
+
+def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
+
+    """
+    import argparse
+    from ..utils.params import audio, spec, filtering, log
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+    This module creates .nc files to be used by RNNLIB.
+    Tests .save files produced by RNNLIB.
+
+    """)
+    # general options
+    p.add_argument('files', nargs='+', help='files to be processed')
+    p.add_argument('-v', dest='verbose', action='count',
+                   help='increase verbosity level')
+    p.add_argument('-o', dest='output', default=None,
+                   help='output directory')
+    p.add_argument('--threads', action='store', type=int, default=2,
+                   help='number of threads [default=%(default)i]')
+    # .save file testing options
+    g = p.add_argument_group('arguments for .save file testing')
+    g.add_argument('--set', action='store', type=str, default='test',
+                   help='use this set {train, val, test} [default='
+                        '%(default)s]')
+    # .nc file creation options
+    g = p.add_argument_group('arguments for .nc file creation')
+    g.add_argument('-a', dest='annotations',
+                   default=['.onsets', '.beats', '.notes'],
+                   help='annotations to use [default=%(default)s]')
+    g.add_argument('--spec', dest='specs', default=None, type=int,
+                   action='append', help='spectrogram size(s) to use')
+    g.add_argument('--split', default=None, type=float,
+                   help='split files every N seconds')
+    g.add_argument('--shift', default=None, type=float,
+                   help='shift targets N seconds')
+    # config file creation options
+    g = p.add_argument_group('arguments for config file creation')
+    g.add_argument('-c', dest='config', default=None,
+                   help='config file base name')
+    g.add_argument('--folds', default=8,
+                   help='%(default)s-fold cross validation')
+    g.add_argument('--splitting', action='append', default=None,
+                   help='use this pre-defined splittings (argument needed '
+                        'multiple times, one per splitting file)')
+    g.add_argument('--random', action='store_true', default=False,
+                   help='randomize splitting [default=%(default)s]')
+    g.add_argument('--task', default='classification', type=str,
+                   help='learning task [default=%(default)s]')
+    g.add_argument('--bidirectional', action='store_true', default=False,
+                   help='bidirectional network [default=%(default)s]')
+    g.add_argument('--learn_rate', default=1e-4, type=float,
+                   help='learn rate [default=%(default)s]')
+    g.add_argument('--layer_sizes', default=[25, 25, 25], type=int,
+                   help='layer sizes [default=%(default)s]')
+    g.add_argument('--layer_type', default='tanh', type=str,
+                   help='layer type [default=%(default)s]')
+    g.add_argument('--momentum', default=0.9, type=float,
+                   help='momentum for learning [default=%(default)s]')
+    g.add_argument('--optimizer', default='steepest', type=str,
+                   help='optimizer [default=%(default)s]')
+    # add other options to the existing parser
+    audio(p, online=False, fps=100, norm=False, window=None)
+    spec(p)
+    filtering(p, bands=12)
+    log(p, log=True, mul=5, add=1)
+    # parse arguments
+    args = p.parse_args()
+    # add defaults
+    if args.specs is None:
+        args.specs = [1024, 2048, 4096]
+    # translate online/offline mode
+    if args.online:
+        args.origin = 'online'
+    else:
+        args.origin = 'offline'
+    # print arguments
+    if args.verbose >= 2:
+        print args
+    # return
+    return args
+
+
+def main():
+    """
+    Example script for testing RNNLIB .save files or creating .nc files
+    understood by RNNLIB.
+
+    """
+    from ..audio.wav import Wav
+    from ..audio.spectrogram import LogFiltSpec
+    from ..utils import files, match_file, load_events, quantise_events
+
+    # parse arguments
+    args = parser()
+
+    # create config file(s)
+    if args.config:
+        nc_files = files(args.files, '.nc')
+        cross_validation(nc_files, args.config, folds=args.folds,
+                         randomize=args.random, task=args.task,
+                         bidirectional=args.bidirectional,
+                         learn_rate=args.learn_rate,
+                         layer_sizes=args.layer_sizes,
+                         layer_type=args.layer_type, momentum=args.momentum,
+                         optimizer=args.optimizer, splitting=args.splitting)
+
+    # test all .save files
+    save_files = files(args.files, '.save')
+    test_save_files(save_files, out_dir=args.output, file_set=args.set,
+                    threads=args.threads, verbose=args.verbose)
+
+    # treat all files as annotation files
+    ann_files = []
+    for ext in args.annotations:
+        ann_files.extend(files(args.files, ext))
+    # create .nc files
+    for f in ann_files:
+        # split the extension of the input file
+        annotation = os.path.splitext(f)[1]
+        # get the matching wav file to the input file
+        wav_files = match_file(f, files(args.files), annotation, '.wav')
+        # no wav file found
+        if len(wav_files) < 1:
+            print "can't find audio file for %s" % f
+            exit()
+        # print file
+        if args.verbose:
+            print f
+        # create a Wav object
+        w = Wav(wav_files[0], mono=True, norm=args.norm)
+        # spec
+        nc_data = None
+        for spec in args.specs:
+            s = LogFiltSpec(w, frame_size=spec, fps=args.fps,
+                            origin=args.origin, bands_per_octave=args.bands,
+                            fmin=args.fmin, fmax=args.fmax,
+                            mul=args.mul, add=args.add,
+                            ratio=args.ratio, norm_filters=args.norm_filters)
+            if nc_data is None:
+                nc_data = np.hstack((s.spec, s.pos_diff))
+            else:
+                nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+        # targets
+        if f.endswith('.notes'):
+            # load notes
+            from madmom.features.notes import load_notes
+            notes = load_notes(f)
+            # shift the notes if needed
+            if args.shift:
+                notes[:, 0] += args.shift
+            # convert to frame numbers
+            notes[:, 0] *= float(args.fps)
+            # set the range of MIDI notes to 0..88
+            notes[:, 2] -= 21
+            # set the targets
+            targets = np.zeros((s.num_frames, 88))
+            for note in notes:
+                try:
+                    targets[int(note[0]), int(note[2])] = 1
+                except IndexError:
+                    pass
+        else:
+            # load events (onset/beat)
+            targets = load_events(f)
+            targets = quantise_events(targets, args.fps, length=s.num_frames,
+                                      shift=args.shift)
+        # tags
+        tags = ("file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | "
+                "norm_filter=%s | log=%s | mul=%s | add=%s | ratio=%s | "
+                "shift=%s" %
+                (f, args.fps, args.specs, args.bands, args.fmin, args.fmax,
+                 args.norm_filters, args.log, args.mul, args.add, args.ratio,
+                 args.shift))
+        # .nc file name
+        if args.output:
+            nc_file = "%s/%s" % (args.output, os.path.basename(f))
+        else:
+            nc_file = "%s" % os.path.abspath(f)
+        # split files
+        if args.split is None:
+            # create a .nc file
+            create_nc_file(nc_file + '.nc', nc_data, targets, tags)
+        else:
+            # length of one part
+            length = int(args.split * args.fps)
+            # number of parts
+            parts = int(np.ceil(s.num_frames / float(length)))
+            digits = int(np.ceil(np.log10(parts + 1)))
+            if digits > 4:
+                raise ValueError('please chose longer splits')
+            for i in range(parts):
+                nc_part_file = "%s.part%04d.nc" % (nc_file, i)
+                start = i * length
+                stop = start + length
+                if stop > s.num_frames:
+                    stop = s.num_frames
+                part_tags = "%s | part=%s | start=%s | stop=%s" %\
+                            (tags, i, start, stop - 1)
+                create_nc_file(nc_part_file, nc_data[start:stop],
+                               targets[start:stop], part_tags)
+
+
+if __name__ == '__main__':
+    main()

@@ -30,8 +30,8 @@ def parser():
     (DAFx-13), Maynooth, Ireland, September 2013
 
     ''')
-    # general options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.audio(p, fps=200, online=False)
     madmom.utils.params.spec(p)
@@ -39,7 +39,7 @@ def parser():
     madmom.utils.params.log(p, mul=1, add=1)
     madmom.utils.params.spectral_odf(p)
     madmom.utils.params.onset(p)
-    madmom.utils.params.io(p)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2013')
     # parse arguments

@@ -1029,9 +1029,20 @@ class MIDIFile(object):
     MIDI File.
 
     """
-    def __init__(self, data=None, resolution=RESOLUTION, format=0):
+    def __init__(self, data=None, resolution=RESOLUTION):
+        """
+        Instantiate a new MIDI file object instance.
+
+        :param data:       can be a .mid file or numpy array with notes
+        :param resolution: resolution, i.e. microseconds per quarter note
+
+        Note: If a .mid file is given as data, it is read in automatically.
+              If a numpy array with notes is given, the information can be
+              converted to a MIDI file by calling the write() method.
+
+        """
         # init variables
-        self.format = format
+        self.format = 0  # TODO: right now we only write format 0 files
         self.resolution = resolution  # i.e. microseconds per quarter note
         self.fps = None
         self.tracks = []
@@ -1208,9 +1219,9 @@ class MIDIFile(object):
 
     def read(self, midi_file):
         """
-        Read in a midi file.
+        Read in a MIDI file.
 
-        :param midi_file: the midi file name or file handle
+        :param midi_file: the file name or a file handle
 
         """
         with open(midi_file, 'rb') as midi_file:
@@ -1265,7 +1276,7 @@ class MIDIFile(object):
     # methods for writing MIDI stuff
     def write(self, midi_file):
         """
-        Write a midi file.
+        Write a MIDI file.
 
         :param midi_file: the MIDI file handle
 

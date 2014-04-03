@@ -38,14 +38,6 @@ class Event(object):
             # read in the activations from a file
             self.load_activations(activations, sep)
 
-    def detect(self):
-        """
-        Detect the events in the given activations. To be implemented by
-        inferred classes.
-
-        """
-        raise NotImplementedError("Must be implemented by inferred classes.")
-
     def write(self, filename):
         """
         Write the detections to a file.

@@ -4,6 +4,7 @@
 Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
 
 Redistribution in any form is not permitted!
+
 """
 
 import os
@@ -47,8 +48,8 @@ def parser():
     If invoked without any parameters, the software detects all beats in the
     given input (file) and writes them to the output (file).
     ''')
-    # mirex options
-    madmom.utils.params.mirex(p)
+    # input/output options
+    madmom.utils.params.io(p)
     # add other argument groups
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
@@ -56,7 +57,7 @@ def parser():
     b = madmom.utils.params.beat(p)
     b.add_argument('--look_ahead', action='store', type=float, default=4,
                    help='look ahead N seconds [default=%(default).2f]')
-    madmom.utils.params.io(p)
+    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2013')
     # parse arguments

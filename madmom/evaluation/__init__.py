@@ -281,7 +281,6 @@ class SimpleEvaluation(object):
         annotations = self.num_tp + self.num_fn
         tpr = self.recall
         fpr = (1 - self.precision)
-        ret = ''
         if tex:
             # tex formatting
             ret = 'tex & Precision & Recall & F-measure & True Positives & ' \

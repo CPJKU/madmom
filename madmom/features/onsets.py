@@ -8,7 +8,7 @@ This file contains all onset detection related functionality.
 """
 
 import numpy as np
-import scipy.ndimage as sim
+from scipy.ndimage.filters import uniform_filter, maximum_filter
 
 from . import Event
 
@@ -176,7 +176,7 @@ def superflux(spec, diff_frames=1, max_bins=3):
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # widen the spectrogram in frequency dimension by `max_bins`
-    max_spec = sim.maximum_filter(spec, size=[1, max_bins])
+    max_spec = maximum_filter(spec, size=[1, max_bins])
     # calculate the diff
     diff[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
     # keep only positive values
@@ -348,7 +348,7 @@ def rectified_complex_domain(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     recified complex domain onset detection function
+    :returns:     rectified complex domain onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon
@@ -490,9 +490,8 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         # compute a moving average
         avg_origin = int(np.floor((pre_avg - post_avg) / 2))
         # TODO: make the averaging function exchangable (mean/median/etc.)
-        mov_avg = sim.filters.uniform_filter1d(activations, avg_length,
-                                               mode='constant',
-                                               origin=avg_origin)
+        mov_avg = uniform_filter(activations, avg_length, mode='constant',
+                                 origin=avg_origin)
     else:
         # do not use a moving average
         mov_avg = 0
@@ -503,9 +502,8 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     if max_length > 1:
         # compute a moving maximum
         max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = sim.filters.maximum_filter1d(detections, max_length,
-                                               mode='constant',
-                                               origin=max_origin)
+        mov_max = maximum_filter(detections, max_length, mode='constant',
+                                 origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
     # return indices
@@ -536,8 +534,7 @@ class Onset(Event):
 
         :param activations: array with ODF activations or a file (handle)
         :param fps:         frame rate of the activations
-        :param online:      work in online mode (i.e. use only past
-                            information)
+        :param online:      online mode (i.e. use only past information)
         :param sep:         separator if activations are read from file
 
         """
@@ -611,7 +608,7 @@ def parser():
     """
     import argparse
     from ..utils.params import (audio, spec, filtering, log, spectral_odf,
-                                onset, io)
+                                onset, save_load)
 
     # define parser
     p = argparse.ArgumentParser(
@@ -644,7 +641,7 @@ def parser():
                'cd', 'rcd']
     o.add_argument('-o', dest='odf', default='superflux',
                    help='use this onset detection function %s' % methods)
-    io(p)
+    save_load(p)
     # parse arguments
     args = p.parse_args()
     # print arguments

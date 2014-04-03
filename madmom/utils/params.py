@@ -17,6 +17,10 @@ from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
+from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
+                              COMBINE as N_COMBINE, DELAY as N_DELAY,
+                              PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
+                              PRE_MAX as N_PRE_MAX, POST_MAX as N_POST_MAX)
 
 
 def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
@@ -29,7 +33,7 @@ def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     :param att:    attenuate the signal [dB]
     :param fps:    frames per second
     :param window: window / frame size
-    :return:       the modified parser object
+    :return:       audio argument parser group object
 
     """
     # if audio gets normalized, switch to offline mode
@@ -66,7 +70,7 @@ def spec(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
     :param ratio:       calculate the difference to the frame which window
                         overlaps to this ratio
     :param diff_frames: calculate the difference to the N-th previous frame
-    :return:            the modified parser object
+    :return:            spectrogram argument parser group object
 
     """
     # add spec related options to the existing parser
@@ -93,7 +97,7 @@ def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
     :param fmax:         the maximum frequency
     :param bands:        number of filter bands per octave
     :param norm_filters: normalize the area of the filter
-    :return:             the modified parser object
+    :return:             filtering argument parser group object
 
     """
     # add filter related options to the existing parser
@@ -134,14 +138,19 @@ def log(parser, log=None, mul=MUL, add=ADD):
     :param log:    add a switch for the whole group
     :param mul:    multiply the magnitude spectrogram with given value
     :param add:    add the given value to the magnitude spectrogram
-    :return:       the modified parser object
+    :return:       logarithmic argument parser group object
 
     """
     # add log related options to the existing parser
     g = parser.add_argument_group('logarithic magnitude arguments')
     if log is not None:
-        g.add_argument('--log', action='store_true', default=log,
-                       help='logarithmic magnitude [default=%(default)s]')
+        if log is False:
+            g.add_argument('--log', action='store_true', default=log,
+                           help='logarithmic magnitude [default=linear]')
+        else:
+            g.add_argument('--no_log', dest='log', action='store_false',
+                           default=log, help='no logarithmic magnitude '
+                                             '[default=logarithmic]')
     if mul is not None:
         g.add_argument('--mul', action='store', type=float, default=mul,
                        help='multiplier (before taking the log) '
@@ -162,7 +171,7 @@ def spectral_odf(parser, method='superflux', methods=None, max_bins=MAX_BINS):
     :param method:   default ODF method
     :param methods:  list of ODF methods
     :param max_bins: number of bins for the maximum filter (for SuperFlux)
-    :return:         the modified parser object
+    :return:         spectral onset detection argument parser group object
 
     """
     # add spec related options to the existing parser
@@ -200,7 +209,7 @@ def onset(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
     :param post_avg:  use N seconds future information for moving average
     :param pre_max:   use N seconds past information for moving maximum
     :param post_max:  use N seconds future information for moving maximum
-    :return:          the modified parser object
+    :return:          onset detection argument parser group object
 
     """
     # add onset detection related options to the existing parser
@@ -242,7 +251,7 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     :param smooth:    smooth the beat activations over N seconds
     :param min_bpm:   minimum tempo [bpm]
     :param max_bpm:   maximum tempo [bpm]
-    :return:          the modified parser object
+    :return:          beat argument parser group object
 
     """
     # add onset detection related options to the existing parser
@@ -261,60 +270,60 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     return g
 
 
-def note(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
-         delay=DELAY, pre_avg=PRE_AVG, post_avg=POST_AVG, pre_max=PRE_MAX,
-         post_max=POST_MAX):
+def note(parser, threshold=N_THRESHOLD, smooth=N_SMOOTH, combine=N_COMBINE,
+         delay=N_DELAY, pre_avg=N_PRE_AVG, post_avg=N_POST_AVG,
+         pre_max=N_PRE_MAX, post_max=N_POST_MAX):
     """
     Add note transcription related arguments to an existing parser object.
 
-    :param parser:    existing argparse parser object
+    :param parser:     existing argparse parser object
     :param threshold: threshold for peak-picking
-    :param smooth:    smooth the note activations over N seconds
-    :param combine:   only report one note within N seconds and pitch
-    :param delay:     report notes N seconds delayed
-    :param pre_avg:   use N seconds past information for moving average
-    :param post_avg:  use N seconds future information for moving average
-    :param pre_max:   use N seconds past information for moving maximum
-    :param post_max:  use N seconds future information for moving maximum
-    :return:          the modified parser object
+    :param smooth:     smooth the note activations over N seconds
+    :param combine:    only report one note within N seconds and pitch
+    :param delay:      report notes N seconds delayed
+    :param pre_avg:    use N seconds past information for moving average
+    :param post_avg:   use N seconds future information for moving average
+    :param pre_max:    use N seconds past information for moving maximum
+    :param post_max:   use N seconds future information for moving maximum
+    :return:           note argument parser group object
 
     """
     # add note transcription detection related options to the existing parser
     g = parser.add_argument_group('note transcription arguments')
     g.add_argument('-t', dest='threshold', action='store', type=float,
                    default=threshold,
-                   help='detection threshold [default=%.2f]' % threshold)
+                   help='detection threshold [default=%(default)s]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                    help='smooth the note activations over N seconds '
-                        '[default=%.2f]' % smooth)
+                        '[default=%(default).2f]')
     g.add_argument('--combine', action='store', type=float, default=combine,
                    help='combine notes within N seconds (per pitch)'
-                        '[default=%.2f]' % combine)
+                        '[default=%(default).2f]')
     g.add_argument('--pre_avg', action='store', type=float, default=pre_avg,
                    help='build average over N previous seconds '
-                        '[default=%.2f]' % pre_avg)
+                        '[default=%(default).2f]')
     g.add_argument('--post_avg', action='store', type=float, default=post_avg,
                    help='build average over N following seconds '
-                        '[default=%.2f]' % post_avg)
+                        '[default=%(default).2f]')
     g.add_argument('--pre_max', action='store', type=float, default=pre_max,
                    help='search maximum over N previous seconds '
-                        '[default=%.2f]' % pre_max)
+                        '[default=%(default).2f]')
     g.add_argument('--post_max', action='store', type=float, default=post_max,
                    help='search maximum over N following seconds '
-                        '[default=%.2f]' % post_max)
+                        '[default=%(default).2f]')
     g.add_argument('--delay', action='store', type=float, default=delay,
                    help='report the notes N seconds delayed '
-                        '[default=%i]' % delay)
+                        '[default=%(default)i]')
     # return the argument group so it can be modified if needed
     return g
 
 
-def io(parser):
+def save_load(parser):
     """
     Add options to save/load activations to an existing parser object.
 
     :param parser: existing argparse parser object
-    :return:       the modified parser object
+    :return:       input/output argument parser group object
 
     """
     # add onset detection related options to the existing parser
@@ -327,6 +336,8 @@ def io(parser):
     g.add_argument('--sep', action='store', default=None,
                    help='separator for saving/loading the activation '
                         'function [default: numpy binary format]')
+    # return the argument group so it can be modified if needed
+    return g
 
 
 def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
@@ -336,7 +347,7 @@ def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
     :param parser:   existing argparse parser object
     :param nn_files: list of NN files
     :param threads:  number of threads to run in parallel
-    :return:         the modified parser object
+    :return:         neural network argument parser group object
 
     """
     # add neural network related options to the existing parser
@@ -347,15 +358,40 @@ def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
                         'argument)')
     g.add_argument('--threads', action='store', type=int, default=threads,
                    help='number of parallel threads [default=%(default)s]')
+    # return the argument group so it can be modified if needed
+    return g
 
 
-def mirex(parser):
+def midi(parser, length=None, velocity=None):
     """
-    Add MIREX related input / output related arguments to an existing parser
-    object.
+    Add MIDI related arguments to an existing parser object.
+
+    :param parser:   existing argparse parser object
+    :param length:   default length of the notes
+    :param velocity: default velocity of the notes
+    :return:         MIDI argument parser group object
+
+    """
+    # add MIDI related options to the existing parser
+    g = parser.add_argument_group('MIDI arguments')
+    g.add_argument('--midi', action='store_true', help='save as MIDI')
+    if length is not None:
+        g.add_argument('--note_length', action='store', type=float,
+                       default=length,
+                       help='set the note length [default=%(default).2f]')
+    if velocity is not None:
+        g.add_argument('--note_velocity', action='store', type=int,
+                       default=velocity,
+                       help='set the note velocity [default=%(default)i]')
+    # return the argument group so it can be modified if needed
+    return g
+
+
+def io(parser):
+    """
+    Add input / output related arguments to an existing parser object.
 
     :param parser: existing argparse parser object
-    :return:       the modified parser object
 
     """
     import sys
