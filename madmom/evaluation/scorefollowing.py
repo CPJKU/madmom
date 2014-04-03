@@ -287,6 +287,7 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
 def main():
     """
     Simple score following evaluation.
