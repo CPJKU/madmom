@@ -53,19 +53,12 @@ def compute_event_alignment(alignment, ground_truth):
     gt_pos = ground_truth[:, _SCORE_POS]
     al_pos = alignment[:, _SCORE_POS]
 
-    # t will become a 2d-matrix with each cell indicating if the proposed
-    # alignment (horizontal axis) is greater or equal the ground truth
-    # alignment (vertical axis)
-    t = ~(al_pos < gt_pos[:, np.newaxis])
+    # do not allow to move backwards
+    for i in range(1, al_pos.shape[0]):
+        al_pos[i] = max(al_pos[i-1], al_pos[i])
 
-    # now we get the indices of the 'true' cells
-    t = t.nonzero()
-
-    # the first array in the tuple t are the indices of the ground truth
-    # alignment positions, the second one are the ones of the proposed
-    # alignment positions.
-    # we extract only the first ones, since the tracker can't move forward!
-    al_idxs = t[1][np.nonzero(np.r_[1, np.diff(t[0])])]
+    # find corresponding indices
+    al_idxs = np.searchsorted(al_pos, gt_pos)
 
     # now, the number of indexes in the alignment should correspond
     # to the number of aligned positions in the ground truth
@@ -293,7 +286,6 @@ def parse_arguments():
                         dest='table_output')
 
     return parser.parse_args()
-
 
 def main():
     """
