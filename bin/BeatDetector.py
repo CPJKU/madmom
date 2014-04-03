@@ -54,7 +54,11 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p)
+    b = madmom.utils.params.beat(p)
+    b.add_argument('--look_aside', action='store', type=float, default=0.2,
+                   help='look this fraction of the beat interval around the '
+                        'beat to get the strongest one [default=%(default)'
+                        '.2f]')
     madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')
@@ -140,7 +144,7 @@ def main():
     else:
         # detect the beats
         b.detect(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm,
-                 max_bpm=args.max_bpm)
+                 max_bpm=args.max_bpm, look_aside=args.look_aside)
         # write the beats to output
         b.write(args.output)
 

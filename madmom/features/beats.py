@@ -353,17 +353,8 @@ class Beat(Event):
         # shift if necessary
         if delay != 0:
             detections += delay
-        # always use the first detection and all others if none was reported
-        # within the duration equivalent to max_bpm
-        if detections.size > 1:
-            # FIXME: check if this is needed!
-            # filter all detections which occur within one beat interval
-            combined_detections = detections[1:][np.diff(detections) >
-                                                 (60. / max_bpm)]
-            # add them after the first detection
-            self.detections = np.append(detections[0], combined_detections)
-        else:
-            self.detections = detections
+        # remove beats with negative times
+        self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self.detections
 
@@ -398,6 +389,7 @@ class Beat(Event):
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         look_ahead_frames = int(look_ahead * self.fps)
+
         # detect the beats
         detections = []
         pos = 0
@@ -427,27 +419,17 @@ class Beat(Event):
             # append to the beats
             detections.append(pos)
             pos += interval
-
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
         # shift if necessary
         if delay != 0:
             detections += delay
-        # always use the first detection and all others if none was reported
-        # within the duration equivalent to max_bpm
-        if detections.size > 1:
-            # FIXME: check if this is needed!
-            # filter all detections which occur within one beat interval
-            combined_detections = detections[1:][np.diff(detections) >
-                                                 (60. / max_bpm)]
-            # add them after the first detection
-            self.detections = np.append(detections[0], combined_detections)
-        else:
-            self.detections = detections
+        # remove beats with negative times
+        self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self.detections
 
-    # TODO: make an extra Tempo class!
+    # TODO: make an extra Tempo class
     def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM,
               max_bpm=MAX_BPM, mirex=False):
         """
