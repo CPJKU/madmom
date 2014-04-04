@@ -289,16 +289,16 @@ def note(parser, threshold=N_THRESHOLD, smooth=N_SMOOTH, combine=N_COMBINE,
     """
     Add note transcription related arguments to an existing parser object.
 
-    :param parser:     existing argparse parser object
+    :param parser:    existing argparse parser object
     :param threshold: threshold for peak-picking
-    :param smooth:     smooth the note activations over N seconds
-    :param combine:    only report one note within N seconds and pitch
-    :param delay:      report notes N seconds delayed
-    :param pre_avg:    use N seconds past information for moving average
-    :param post_avg:   use N seconds future information for moving average
-    :param pre_max:    use N seconds past information for moving maximum
-    :param post_max:   use N seconds future information for moving maximum
-    :return:           note argument parser group object
+    :param smooth:    smooth the note activations over N seconds
+    :param combine:   only report one note within N seconds and pitch
+    :param delay:     report notes N seconds delayed
+    :param pre_avg:   use N seconds past information for moving average
+    :param post_avg:  use N seconds future information for moving average
+    :param pre_max:   use N seconds past information for moving maximum
+    :param post_max:  use N seconds future information for moving maximum
+    :return:          note argument parser group object
 
     """
     # add note transcription detection related options to the existing parser
