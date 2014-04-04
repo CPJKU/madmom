@@ -72,10 +72,10 @@ def downsample(x, factor=2):
     if x.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         raise NotImplementedError("please implement stereo functionality")
-    # when downsampling by an integer factor, a simple view is more efficient
+    # when down-sampling by an integer factor, a simple view is more efficient
     if type(factor) == int:
         return x[::factor]
-    # otherwise do more or less propoer down-sampling
+    # otherwise do more or less proper down-sampling
     # TODO: maybe use sox to implement this
     from scipy.signal import decimate
     # naive down-sampling
@@ -367,30 +367,30 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
 
     if length < frame_size or (length - frame_size) % hop_size:
         if length > frame_size:
-            roundup = (frame_size + (1 + (length - frame_size) // hop_size) *
-                       hop_size)
-            rounddown = (frame_size + ((length - frame_size) // hop_size) *
-                         hop_size)
+            round_up = (frame_size + (1 + (length - frame_size) // hop_size) *
+                        hop_size)
+            round_down = (frame_size + ((length - frame_size) // hop_size) *
+                          hop_size)
         else:
-            roundup = frame_size
-            rounddown = 0
-        assert rounddown < length < roundup
-        assert roundup == rounddown + hop_size or (roundup == frame_size and
-                                                   rounddown == 0)
+            round_up = frame_size
+            round_down = 0
+        assert round_down < length < round_up
+        assert round_up == round_down + hop_size or (round_up == frame_size and
+                                                     round_down == 0)
         x = x.swapaxes(-1, axis)
 
         if end == 'cut':
-            x = x[..., :rounddown]
+            x = x[..., :round_down]
         elif end in ['pad', 'wrap']:
             # need to copy
             s = list(x.shape)
-            s[-1] = roundup
+            s[-1] = round_up
             y = np.empty(s, dtype=x.dtype)
             y[..., :length] = x
             if end == 'pad':
                 y[..., length:] = end_value
             elif end == 'wrap':
-                y[..., length:] = x[..., :roundup - length]
+                y[..., length:] = x[..., :round_up - length]
             x = y
 
         x = x.swapaxes(-1, axis)

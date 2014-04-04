@@ -1253,7 +1253,7 @@ def parser():
     audio(p, online=False, fps=100, norm=False, window=None)
     spec(p)
     filtering(p, bands=12)
-    log(p, log=True, mul=5, add=1)
+    log(p, default=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     # add defaults

@@ -20,8 +20,8 @@ parameters, filter sizes, etc...) this is the ArgumentParser-wrapper to use.
 
 
 YAML-Format is as follows:
-<sectionname>:
-  <parametername>: [<value>, <help-text>]
+<section_name>:
+  <parameter_name>: [<value>, <help-text>]
 
 
 An example:
@@ -40,7 +40,7 @@ sectionB:
 test_overparams.py:
 import madmom.utils.overparams as overparams
 parser = overparams.OverridableParameters(description='description',
-                                          sectionnames=['sectionA'])
+                                          section_names=['sectionA'])
 
 parser.add_argument('positional', help='some positional arguments')
 args = parser.parse_args()
@@ -120,20 +120,21 @@ class OverridableParameters():
     """
     Wrapper class for argparse.ArgumentParser. See module docs.
 
-    :param configfilename: the default configfilename
-    :param sectionnames:   which sections from the YAML file to include as
-                           parameters
-    :param description:    optional description of the argument parser
+    :param config_filename: the default config_filename
+    :param section_names:   which sections from the YAML file to include as
+                            parameters
+    :param description:     optional description of the argument parser
+
     """
     def __init__(self,
-                 configfilename='config.yaml',
-                 sectionnames=[],
+                 config_filename='config.yaml',
+                 section_names=[],
                  description=''):
 
-        self.sectionnames = sectionnames
+        self.section_names = section_names
 
         if len(sys.argv) >= 3 and sys.argv[1] == '--config':
-            configfilename = sys.argv[2]
+            config_filename = sys.argv[2]
 
         # create the parser
         self.parser = argparse.ArgumentParser(
@@ -147,34 +148,34 @@ class OverridableParameters():
                 raise argparse.ArgumentTypeError('config file does not exist')
 
         self.parser.add_argument('--config',
-                                 default=configfilename,
+                                 default=config_filename,
                                  type=existing_config_file,
                                  help='the name of the config file'
                                  ' supplying all additional parameters')
 
-        if os.path.isfile(configfilename):
-            config = yaml.load(open(configfilename, 'r'),
+        if os.path.isfile(config_filename):
+            config = yaml.load(open(config_filename, 'r'),
                                OrderedDictYAMLLoader)
 
-            for section in self.sectionnames:
+            for section in self.section_names:
                 if section in config:
                     group = self.parser.add_argument_group(section)
-                    for optionname, option in config[section].items():
-                        optionvalue = option[0]
-                        optionhelptxt = ''
+                    for option_name, option in config[section].items():
+                        option_value = option[0]
+                        option_help_txt = ''
                         if len(option) > 1:
-                            optionhelptxt = option[1]
+                            option_help_txt = option[1]
 
-                        group.add_argument('--%s' % optionname,
-                                           type=type(optionvalue),
-                                           default=optionvalue,
-                                           help=optionhelptxt)
+                        group.add_argument('--%s' % option_name,
+                                           type=type(option_value),
+                                           default=option_value,
+                                           help=option_help_txt)
                 else:
                     raise ValueError('invalid section name encountered: "%s"' %
                                      section)
 
-    def add_argument(self, *args, **kwords):
-        self.parser.add_argument(*args, **kwords)
+    def add_argument(self, *args, **kwargs):
+        self.parser.add_argument(*args, **kwargs)
 
     def parse_args(self, args=None, namespace=None):
         return self.parser.parse_args(args, namespace)

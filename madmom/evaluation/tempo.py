@@ -29,7 +29,7 @@ def load_tempo(filename):
 
 
 # this evaluation function can evaluate multiple tempi simultaneously
-def pscore(detections, annotations, tolerance, strengths=None):
+def tempo_evaluation(detections, annotations, tolerance, strengths=None):
     """
     Calculate the tempo P-Score.
 
@@ -90,24 +90,11 @@ class TempoEvaluation(object):
         :param tolerance:   tolerance
 
         """
-        self.detections = detections
-        self.annotations = annotations
-        self.tolerance = tolerance
-        # score
-        self._pscore = None
-
-    @property
-    def num(self):
-        """Number of evaluated files."""
-        return 1
-
-    @property
-    def pscore(self):
-        """P-Score."""
-        if self._pscore is None:
-            self._pscore = pscore(self.detections, self.annotations,
-                                  self.tolerance)
-        return self._pscore
+        # convert the detections and annotations
+        detections = np.asarray(sorted(detections), dtype=np.float)
+        annotations = np.asarray(sorted(annotations), dtype=np.float)
+        # evaluate
+        self.pscore = tempo_evaluation(detections, annotations, tolerance)
 
     def print_errors(self, indent='', tex=False):
         """
@@ -117,16 +104,12 @@ class TempoEvaluation(object):
         :param tex:    output format to be used in .tex files
 
         """
-        ret = ''
         if tex:
             # tex formatting
-            ret += 'tex & P-Score\\\\\n& %.3f\\\\' % self.pscore
+            ret = 'tex & P-Score\\\\\n& %.3f\\\\' % self.pscore
         else:
             # normal formatting
-            ret += '%spscore=%.3f (annotated tempi: %s detections: %s ' \
-                   'tolerance: %.1f\%)' % (indent, self.pscore,
-                                           self.annotations, self.detections,
-                                           self.tolerance * 100)
+            ret = '%spscore=%.3f' % (indent, self.pscore)
         return ret
 
 
@@ -159,11 +142,6 @@ class MeanTempoEvaluation(TempoEvaluation):
             raise TypeError('Can only append TempoEvaluation to '
                             'MeanTempoEvaluation, not %s' %
                             type(other).__name__)
-
-    @property
-    def pscore(self):
-        """P-Score."""
-        return np.mean(self._pscore)
 
 
 def parser():
@@ -238,6 +216,8 @@ def main():
             print " can't find a annotation file for %s. exiting." % det_file
             exit()
         # do a mean evaluation with all matched annotation files
+        # TODO: decide whether we want multiple annotations per file or
+        #       multiple files and do a mean_evaluation on those
         me = MeanTempoEvaluation()
         for tar_file in matches:
             # load the annotations

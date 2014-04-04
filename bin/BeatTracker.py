@@ -141,7 +141,8 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # track the beats
-        b.track(args.threshold, smooth=args.smooth, look_ahead=args.look_ahead,
+        b.track(args.threshold, smooth=args.smooth,
+                look_ahead=args.look_ahead, look_aside=args.look_aside,
                 min_bpm=args.min_bpm, max_bpm=args.max_bpm)
         # write the beats to output
         b.write(args.output)

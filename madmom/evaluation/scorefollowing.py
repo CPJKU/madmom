@@ -121,7 +121,7 @@ class ScoreFollowingEvaluation(object):
     """
     Score following evaluation class for beat-level score followers.
     Beat-level score followers output beat positions for points in time,
-    rather than computing a timestep for each individual note in the
+    rather than computing a time step for each individual note in the
     score.
     """
 

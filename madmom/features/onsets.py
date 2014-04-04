@@ -16,7 +16,7 @@ EPSILON = 1e-6
 
 
 # helper functions
-def wraptopi(phase):
+def wrap_to_pi(phase):
     """
     Wrap the phase information to the range -π...π.
 
@@ -229,7 +229,7 @@ def _phase_deviation(phase):
     # ψ′′(n, k) = ψ′(n, k) − ψ′(n − 1, k)
     pd[2:] = phase[2:] - 2 * phase[1:-1] + phase[:-2]
     # map to the range -pi..pi
-    return wraptopi(pd)
+    return wrap_to_pi(pd)
 
 
 def phase_deviation(phase):
@@ -489,7 +489,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     if avg_length > 1:
         # compute a moving average
         avg_origin = int(np.floor((pre_avg - post_avg) / 2))
-        # TODO: make the averaging function exchangable (mean/median/etc.)
+        # TODO: make the averaging function exchangeable (mean/median/etc.)
         mov_avg = uniform_filter(activations, avg_length, mode='constant',
                                  origin=avg_origin)
     else:
@@ -632,8 +632,8 @@ def parser():
     # add other argument groups
     audio(p, online=False)
     spec(p)
-    filtering(p, filtering=True)
-    log(p, log=True)
+    filtering(p, default=True)
+    log(p, default=True)
     spectral_odf(p)
     o = onset(p)
     # list of offered ODFs
@@ -726,7 +726,7 @@ def main():
                      post_max=args.post_max)
             # write the onsets to a file
             o.write("%s.%s" % (filename, args.ext))
-            # also output them to stdout if vebose
+            # also output them to stdout if verbose
             if args.verbose:
                 print 'detections:', o.detections
         # continue with next file
