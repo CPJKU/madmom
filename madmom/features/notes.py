@@ -338,8 +338,8 @@ def parser():
     # add other argument groups
     audio(p, online=False)
     spec(p)
-    filtering(p, filtering=False)
-    log(p, log=True)
+    filtering(p, default=False)
+    log(p, default=True)
     note(p)
     save_load(p)
     # parse arguments

@@ -16,7 +16,8 @@ from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
-from ..features.beats import THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM
+from ..features.beats import (THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM,
+                              LOOK_ASIDE)
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
@@ -86,13 +87,13 @@ def spec(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
     return g
 
 
-def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
+def filtering(parser, default=None, fmin=FMIN, fmax=FMAX,
               bands=BANDS_PER_OCTAVE, norm_filters=NORM_FILTERS):
     """
     Add filter related arguments to an existing parser object.
 
     :param parser:       existing argparse parser object
-    :param filtering:    add a switch for the whole filter group
+    :param default:      set the default (adds a switch to negate)
     :param fmin:         the minimum frequency
     :param fmax:         the maximum frequency
     :param bands:        number of filter bands per octave
@@ -102,10 +103,15 @@ def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
     """
     # add filter related options to the existing parser
     g = parser.add_argument_group('filtered magnitude spectrogram arguments')
-    if filtering is not None:
-        g.add_argument('--filter', action='store_true', default=False,
+    if default is False:
+        g.add_argument('--filter', action='store_true', default=default,
                        help='filter the magnitude spectrogram with a '
-                            'filterbank [default=%(default)s]')
+                            'filterbank (apply values below)')
+    elif default is True:
+        g.add_argument('--no_filter', action='store_false', default=default,
+                       dest='filter',
+                       help='do not filter the magnitude spectrogram with a '
+                            'filterbank (ignore values below)')
     if bands is not None:
         g.add_argument('--bands', action='store', type=int, default=bands,
                        help='filter bands per octave [default=%(default)i]')
@@ -130,27 +136,26 @@ def filtering(parser, filtering=None, fmin=FMIN, fmax=FMAX,
     return g
 
 
-def log(parser, log=None, mul=MUL, add=ADD):
+def log(parser, default=None, mul=MUL, add=ADD):
     """
     Add logarithmic magnitude related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :param log:    add a switch for the whole group
-    :param mul:    multiply the magnitude spectrogram with given value
-    :param add:    add the given value to the magnitude spectrogram
-    :return:       logarithmic argument parser group object
+    :param parser:  existing argparse parser object
+    :param default: set the default (adds a switch to negate)
+    :param mul:     multiply the magnitude spectrogram with given value
+    :param add:     add the given value to the magnitude spectrogram
+    :return:        logarithmic argument parser group object
 
     """
     # add log related options to the existing parser
-    g = parser.add_argument_group('logarithic magnitude arguments')
-    if log is not None:
-        if log is False:
-            g.add_argument('--log', action='store_true', default=log,
-                           help='logarithmic magnitude [default=linear]')
-        else:
-            g.add_argument('--no_log', dest='log', action='store_false',
-                           default=log, help='no logarithmic magnitude '
-                                             '[default=logarithmic]')
+    g = parser.add_argument_group('logarithmic magnitude arguments')
+    if default is False:
+        g.add_argument('--log', action='store_true', default=default,
+                       help='logarithmic magnitude [default=linear]')
+    elif default is True:
+        g.add_argument('--no_log', dest='log', action='store_false',
+                       default=default,
+                       help='no logarithmic magnitude [default=logarithmic]')
     if mul is not None:
         g.add_argument('--mul', action='store', type=float, default=mul,
                        help='multiplier (before taking the log) '
@@ -242,16 +247,19 @@ def onset(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
     return g
 
 
-def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+         look_aside=LOOK_ASIDE):
     """
     Add beat tracking related arguments to an existing parser object.
 
-    :param parser:    existing argparse parser object
-    :param threshold: threshold the beat activation function
-    :param smooth:    smooth the beat activations over N seconds
-    :param min_bpm:   minimum tempo [bpm]
-    :param max_bpm:   maximum tempo [bpm]
-    :return:          beat argument parser group object
+    :param parser:     existing argparse parser object
+    :param threshold:  threshold the beat activation function
+    :param smooth:     smooth the beat activations over N seconds
+    :param min_bpm:    minimum tempo [bpm]
+    :param max_bpm:    maximum tempo [bpm]
+    :param look_aside: fraction of beat interval to look aside for the
+                       strongest beat
+    :return:           beat argument parser group object
 
     """
     # add onset detection related options to the existing parser
@@ -266,6 +274,11 @@ def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
                    help='minimum tempo [bpm, default=%(default).2f]')
     g.add_argument('--max_bpm', action='store', type=float, default=max_bpm,
                    help='maximum tempo [bpm, default=%(default).2f]')
+    g.add_argument('--look_aside', action='store', type=float,
+                   default=look_aside,
+                   help='look this fraction of the beat interval around the '
+                        'beat to get the strongest one [default=%(default)'
+                        '.2f]')
     # return the argument group so it can be modified if needed
     return g
 
@@ -403,35 +416,3 @@ def io(parser):
                         help='output file [default: STDOUT]')
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
-
-
-def parser():
-    """
-    Example parser.
-
-    :return: the parsed arguments
-
-    """
-    # define parser
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""This is just an example parser.""")
-    # general options
-    p.add_argument('files', metavar='files', nargs='+',
-                   help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='count',
-                   help='increase verbosity level')
-    # add other argument groups
-    audio(p)
-    filtering(p)
-    log(p)
-    spectral_odf(p)
-    o = onset(p)
-    o.add_argument('--not_needed', action='store_true', default=True,
-                   help='we usually do not need this option')
-    # version
-    p.add_argument('--version', action='version', version='%(prog)s 0.1')
-    # parse arguments
-    args = p.parse_args()
-    # return args
-    return args

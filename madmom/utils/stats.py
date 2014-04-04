@@ -55,7 +55,7 @@ class TanhProb(object):
 
         :param i:     i-parameter of the tanh distribution
         :param phi:   phi-parameter of the tanh distribution
-        :param lmbda: lambda parameter of the tahn distribution
+        :param lmbda: lambda parameter of the tanh distribution
         :param x:     values for which the PDF shall be computed
         :returns:     PDF at the positions given in `x`
 
