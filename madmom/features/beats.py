@@ -333,7 +333,7 @@ class Beat(Event):
         according to:
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        by Sebastian Böck and Markus Schedl
+        Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
         Effects (DAFx-11), Paris, France, September 2011
 
@@ -378,7 +378,7 @@ class Beat(Event):
         Then the same procedure is repeated from this new position.
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        by Sebastian Böck and Markus Schedl
+        Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
         Effects (DAFx-11), Paris, France, September 2011
 

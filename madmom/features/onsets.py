@@ -101,7 +101,7 @@ def high_frequency_content(spec):
     :returns:    high frequency content onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
-    Signals"
+     Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
@@ -138,7 +138,7 @@ def spectral_flux(spec, diff_frames=1):
     :returns:           spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
-    Signals"
+     Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
@@ -165,24 +165,25 @@ def superflux(spec, diff_frames=1, max_bins=3):
     (DAFx-13), 2013.
 
     Note: this method works only properly, if the spectrogram is filtered with
-    a filterbank of the right frequency spacing. Filter banks with 24 bands per
-    octave (i.e. quarter-tone resolution) usually yield good results. With
-    `max_bins=3`, the maximum of the bins k-1, k, k+1 of the frame
-    `diff_frames` to the left is used for the calculation of the difference.
+          a filterbank of the right frequency spacing. Filter banks with 24
+          bands per octave (i.e. quarter-tone resolution) usually yield good
+          results. With `max_bins=3`, the maximum of the bins k-1, k, k+1 of
+          the frame `diff_frames` to the left is used for the calculation of
+          the difference.
 
     """
     # init diff matrix
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # widen the spectrogram in frequency dimension by `max_bins`
     max_spec = maximum_filter(spec, size=[1, max_bins])
     # calculate the diff
-    diff[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
+    diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
     # keep only positive values
-    np.maximum(diff, 0, diff)
+    np.maximum(diff_spec, 0, diff_spec)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(diff, axis=1)
+    return np.sum(diff_spec, axis=1)
 
 
 def modified_kullback_leibler(spec, diff_frames=1, epsilon=EPSILON):
@@ -240,7 +241,7 @@ def phase_deviation(phase):
     :returns:     phase deviation onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
-    domain"
+     domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 
@@ -333,7 +334,7 @@ def complex_domain(spec, phase):
     :returns:     complex domain onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
-    domain"
+     domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 

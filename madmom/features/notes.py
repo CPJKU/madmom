@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains all note transcription related functionality.
+This file contains note transcription related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
