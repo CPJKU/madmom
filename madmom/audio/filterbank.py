@@ -28,6 +28,9 @@ HARMONIC_ENVELOPE = lambda x: np.sqrt(1. / x)
 HARMONIC_WIDTH = lambda x: 50 * 1.1 ** x
 INHARMONICITY_COEFF = 0.0
 
+# pitch class profile
+PCP_CLASSES = 12
+
 
 # Mel frequency scale
 def hz2mel(f):
@@ -255,7 +258,7 @@ def fft_freqs(num_fft_bins, sample_rate):
 
     """
     # slower: np.fft.fftfreq(num_fft_bins * 2)[:num_fft_bins] * sample_rate
-    return np.linspace(0, sample_rate / 2., num_fft_bins + 1)
+    return np.linspace(0, sample_rate / 2., num_fft_bins + 1)[:-1]
 
 
 # filter functions
@@ -779,13 +782,13 @@ class SemitoneFilterBank(LogarithmicFilterBank):
 
 class SimpleChromaFilterBank(FilterBank):
     """
-    A simple chroma filter bank based on the semitone filter.
-    """
+    A Simple Chroma Filter Bank based on the semitone filter.
 
+    """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
         """
-        Creates a new Chroma Filter object instance.
+        Creates a new Simple Chroma Filter Bank object instance.
 
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio file [Hz]
@@ -836,3 +839,61 @@ class SimpleChromaFilterBank(FilterBank):
     def a4(self):
         """Tuning frequency of A4."""
         return self._a4
+
+
+class PitchClassProfileFilterBank(FilterBank):
+    """
+    Filter bank for extracting pitch class profiles (PCP).
+
+    "Realtime chord recognition of musical sound: a system using Common Lisp
+     Music"
+    T. Fujishima
+    Proceedings of the International Computer Music Conference (ICMC 1999),
+    Beijing, China
+
+    """
+    def __new__(cls, num_fft_bins, sample_rate, num_classes=PCP_CLASSES,
+                fmin=FMIN, fmax=FMAX, fref=A4):
+        """
+        Creates a new PitchClassProfile (PCP) Filter Bank object instance.
+
+        :param num_fft_bins: number of FFT bins (= half the FFT size)
+        :param sample_rate:  sample rate of the audio file [Hz]
+        :param num_classes:  number of pitch classes
+        :param fmin:         the minimum frequency [Hz]
+        :param fmax:         the maximum frequency [Hz]
+        :param fref:         reference frequency for the first PCP bin [Hz]
+
+        """
+        # init a filterbank
+        fb = np.zeros((num_fft_bins, num_classes))
+        # frequencies of the bins
+        bin_freqs = fft_freqs(num_fft_bins, sample_rate)
+        # log deviation from the reference frequency
+        log_dev = np.log2(bin_freqs / fref)
+        # define the pitch class profile mask
+        for c in range(num_classes):
+            # map the log deviation to pitch class profiles
+            num_class = np.round(num_classes * log_dev) % num_classes
+            # set the corresponding bins to 1
+            fb[num_class == c, c] = 1
+        # set all bins outside the allowed frequency range to 0
+        fb[np.searchsorted(bin_freqs, fmax, 'right'):] = 0
+        fb[:np.searchsorted(bin_freqs, fmin)] = 0
+        # cast to FilterBank
+        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # set additional attributes
+        obj._fref = fref
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self._fref = getattr(obj, '_fref', A4)
+
+    @property
+    def fref(self):
+        """Reference frequency of the first PCP bin."""
+        return self._fref
