@@ -648,6 +648,7 @@ LFS = LogFiltSpec
 
 # harmonic/percussive separation stuff
 # TODO: move this to an extra module?
+MASKING = 'binary'
 HARMONIC_FILTER = (15, 1)
 PERCUSSIVE_FILTER = (1, 15)
 
@@ -673,24 +674,38 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
         The magnitude spectrogram are separated with median filters with the
         given sizes into their harmonic and percussive parts.
 
+        :param masking:           masking (see below)
         :param harmonic_filter:   tuple with harmonic filter size
                                   (frames, bins)
         :param percussive_filter: tuple with percussive filter size
                                   (frames, bins)
 
+        Note: `masking` can be either the literal 'binary' or any float
+              coefficient resulting in a soft mask. `None` translates to a
+              binary mask, too.
+
         """
-        # fetch the arguments for separating the magnitude (or set defaults)
+        # fetch the arguments for source separation (or set defaults)
+        masking = kwargs.pop('masking', MASKING)
         harmonic_filter = kwargs.pop('harmonic_filter', HARMONIC_FILTER)
         percussive_filter = kwargs.pop('percussive_filter', PERCUSSIVE_FILTER)
         # create a Spectrogram object
         super(HarmonicPercussiveSourceSeparation, self).__init__(*args,
                                                                  **kwargs)
         # set the parameters, so they get used for computation
-        self._harmonic_filter = harmonic_filter
-        self._percussive_filter = percussive_filter
+        self._masking = masking
+        self._harmonic_filter = int(harmonic_filter)
+        self._percussive_filter = int(percussive_filter)
         # init arrays
         self._harmonic = None
         self._percussive = None
+        self._harmonic_slice = None
+        self._percussive_slice = None
+
+    @property
+    def masking(self):
+        """Masking coefficient."""
+        return self._masking
 
     @property
     def harmonic_filter(self):
@@ -703,22 +718,65 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
         return self._percussive_filter
 
     @property
-    def harmonic(self):
-        """Harmonic part of the magnitude spectrogram."""
-        if self._harmonic is None:
+    def harmonic_slice(self):
+        """Harmonic slice of the magnitude spectrogram."""
+        if self._harmonic_slice is None:
             # calculate the harmonic part
-            self._harmonic = median_filter(self.spec, self._harmonic_filter)
+            self._harmonic_slice = median_filter(self.spec,
+                                                 self._harmonic_filter)
         # return
+        return self._harmonic_slice
+
+    @property
+    def percussive_slice(self):
+        """Percussive slice of the magnitude spectrogram."""
+        if self._percussive_slice is None:
+            # calculate the percussive part
+            self._percussive_slice = median_filter(self.spec,
+                                                   self._percussive_filter)
+        # return
+        return self._percussive_slice
+
+    @property
+    def harmonic_mask(self):
+        """Harmonic mask for the spectrogram."""
+        if self.masking in [None, 'binary']:
+            # return a binary mask
+            return self.harmonic_slice > self.percussive_slice
+        else:
+            # return a soft mask
+            p = float(self.masking)
+            return self.harmonic_slice ** p / (self.harmonic_slice ** p +
+                                               self.percussive_slice ** p)
+
+    @property
+    def percussive_mask(self):
+        """Percussive mask for the spectrogram."""
+        if self.masking in [None, 'binary']:
+            # return a binary mask
+            return self.percussive_slice > self.harmonic_slice
+        else:
+            # return a soft mask
+            p = float(self.masking)
+            return self.percussive_slice ** p / (self.percussive_slice ** p +
+                                                 self.harmonic_slice ** p)
+
+    @property
+    def harmonic(self):
+        """Harmonic spectrogram."""
+        if self._harmonic is None:
+            # multiply the spectrogram with the harmonic mask
+            self._harmonic = self.spec * self.harmonic_mask
+        # return the harmonic spectrogram
         return self._harmonic
 
     @property
     def percussive(self):
-        """Percussive part of the magnitude spectrogram."""
+        """Percussive spectrogram."""
         if self._percussive is None:
-            # calculate the percussive part
-            self._percussive = median_filter(self.spec,
-                                             self._percussive_filter)
-        # return
+            # multiply the spectrogram with the percussive mask
+            self._percussive = self.spec * self.percussive_mask
+        # return the percussive spectrogram
         return self._percussive
 
 
