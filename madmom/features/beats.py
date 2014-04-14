@@ -235,7 +235,8 @@ def detect_beats(activations, interval, look_aside=0.2):
     # look for which starting beat the sum gets maximized
     sums = np.zeros(interval)
     positions = []
-    frames_look_aside = int(interval * look_aside)
+    # always look at least 1 frame to each side
+    frames_look_aside = max(1, int(interval * look_aside))
     win = np.hamming(2 * frames_look_aside)
     for i in range(interval):
         # TODO: threads?
