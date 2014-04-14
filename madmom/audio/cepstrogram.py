@@ -72,7 +72,7 @@ class MFCC(Cepstrogram):
         # • Take the discrete cosine transform of the list of mel log powers,
         #   as if it were a signal.
         # • The MFCCs are the amplitudes of the resulting spectrum
-        from .filterbank import (MelFilterBank, MEL_BANDS, FMIN, FMAX,
+        from .filterbank import (MelFilterbank, MEL_BANDS, FMIN, FMAX,
                                  NORM_FILTERS)
         # TODO: set other defaults than those in .filterbank for MFCCs?
         from .spectrogram import MUL, ADD
@@ -93,7 +93,7 @@ class MFCC(Cepstrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.spectrogram.frames.signal.sample_rate
-            fb = MelFilterBank(num_fft_bins=self.spectrogram.num_fft_bins,
+            fb = MelFilterbank(num_fft_bins=self.spectrogram.num_fft_bins,
                                sample_rate=sample_rate,
                                bands=mel_bands, fmin=fmin, fmax=fmax,
                                norm=norm_filters)

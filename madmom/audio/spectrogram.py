@@ -10,7 +10,7 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
-from .filterbank import fft_freqs
+from .filterbank import fft_freqs, A4
 
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
@@ -97,9 +97,36 @@ def strided_stft(signal, window, hop_size, phase=True):
     return fft.fft(fft_signal)[:, :ffts]
 
 
+def determine_tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
+    """
+    Determines the tuning frequency based on the given (peak) magnitude
+    spectrogram.
+
+    :param spec:          (peak) magnitude spectrogram [2D numpy array]
+    :param sample_rate:   sample rate of the audio file [Hz]
+    :param num_hist_bins: number of histogram bins
+    :param fref:          reference tuning frequency [Hz]
+    :return:              tuning frequency
+
+    """
+    # frequencies of the bins
+    bin_freqs = fft_freqs(spec.shape[1], sample_rate)
+    # interval of spectral bins from the reference frequency in semitones
+    semitone_int = 12. * np.log2(bin_freqs / fref)
+    # deviation from the next semitone
+    semitone_dev = semitone_int - np.round(semitone_int)
+    # build a histogram
+    hist = np.histogram(semitone_dev, bins=num_hist_bins,
+                        range=(-0.5, 0.5))
+    # deviation
+    dev = -0.5 + num_hist_bins * np.argmax(hist)
+    # calculate the reference frequency
+    return fref * 2. ** (dev / 12.)
+
+
 # Spectrogram defaults
 FILTERBANK = None
-LOG = False         # default: linear spectrogram
+LOG = False  # default: linear spectrogram
 MUL = 1
 ADD = 1
 NORM_WINDOW = False
@@ -506,6 +533,21 @@ class Spectrogram(object):
         # return the whitened spectrogram
         return self.spec / p
 
+    @property
+    def tuning_frequency(self):
+        """
+        Determines the tuning frequency of the spectrogram.
+
+        :return: tuning frequency
+
+        """
+        # calculate the reference frequency
+        if self.filterbank is None:
+            spec = self.spec
+        else:
+            spec = np.abs(self.stft)
+        return determine_tuning_frequency(spec, self.frames.signal.sample_rate)
+
     def copy(self, window=None, filterbank=None, log=None, mul=None, add=None,
              norm_window=None, fft_size=None, block_size=None, ratio=None,
              diff_frames=None):
@@ -586,7 +628,7 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz]
 
         """
-        from filterbank import (LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,
+        from filterbank import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
                                 FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
@@ -600,7 +642,7 @@ class FilteredSpectrogram(Spectrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.frames.signal.sample_rate
-            fb = LogarithmicFilterBank(num_fft_bins=self.num_fft_bins,
+            fb = LogarithmicFilterbank(num_fft_bins=self.num_fft_bins,
                                        sample_rate=sample_rate,
                                        bands_per_octave=bands_per_octave,
                                        fmin=fmin, fmax=fmax, norm=norm_filters,

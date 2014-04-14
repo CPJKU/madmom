@@ -662,7 +662,7 @@ def main():
     from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterBank
+    from ..audio.filterbank import LogarithmicFilterbank
 
     # parse arguments
     args = parser()
@@ -700,7 +700,7 @@ def main():
                 # (re-)create filterbank if the sample rate is not the same
                 if fb is None or fb.sample_rate != w.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterBank(num_fft_bins=args.window / 2,
+                    fb = LogarithmicFilterbank(num_fft_bins=args.window / 2,
                                                sample_rate=w.sample_rate,
                                                bands_per_octave=args.bands,
                                                fmin=args.fmin, fmax=args.fmax,

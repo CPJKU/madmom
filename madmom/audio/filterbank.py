@@ -30,6 +30,10 @@ INHARMONICITY_COEFF = 0.0
 
 # pitch class profile
 PCP_CLASSES = 12
+HPCP_FMIN = 100
+HPCP_FMAX = 5000
+HPCP_CLASSES = 36
+HPCP_WINDOW = 4
 
 
 # Mel frequency scale
@@ -338,7 +342,7 @@ def _put_filter(filt, band):
 
 def assemble_filterbank(filters, num_fft_bins, norm):
     """
-    Creates a filter bank with possibly multiple filters per band.
+    Creates a filterbank with possibly multiple filters per band.
 
     :param filters:      list containing the filters per band; if multiple
                          filters per band are desired, they should be also
@@ -347,10 +351,10 @@ def assemble_filterbank(filters, num_fft_bins, norm):
                          "Filter"
     :param num_fft_bins: number of FFT bins (= half the FFT size)
     :param norm:         normalise the area of each filter band to 1 [bool]
-    :returns:            filter bank with respective filter elements
+    :returns:            filterbank with respective filter elements
 
     """
-    # create filter bank
+    # create filterbank
     bank = np.zeros((num_fft_bins, len(filters)))
     # iterate over all filters
     for band_id, band_filter in enumerate(filters):
@@ -361,10 +365,10 @@ def assemble_filterbank(filters, num_fft_bins, norm):
                 _put_filter(filt, band)
         else:
             _put_filter(band_filter, band)
-    # normalize filter bank
+    # normalize filterbank
     if norm:
         bank /= bank.sum(axis=0)
-    # return filter bank
+    # return filterbank
     return bank
 
 
@@ -407,7 +411,7 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS,
                overlap=OVERLAP_FILTERS):
     """
-    Creates a filter bank with one filter per band.
+    Creates a filterbank with one filter per band.
 
     :param filter_type:  function that creates a filter and thus define its
                          shape. the function must return a numpy array. the
@@ -423,7 +427,7 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     :param duplicates:   keep duplicate filters resulting from insufficient
                          resolution of low frequencies [bool]
     :param overlap:      filters should overlap [bool]
-    :returns:            filter bank
+    :returns:            filterbank
 
     """
     # map the frequencies to the spectrogram bins
@@ -433,7 +437,7 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     bins = bins[:np.searchsorted(bins, num_fft_bins)]
     # FIXME: skip the DC bin 0?
 
-    # create filter bank
+    # create filterbank
     filters = []
     # get (overlapping) start, center and stop frequencies from a list of bins
     for start, center, stop in band_bins(bins, duplicates, overlap):
@@ -453,7 +457,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
                         harmonic_width=HARMONIC_WIDTH,
                         inharmonicity_coeff=INHARMONICITY_COEFF):
     """
-    Creates a filter bank in which each band represents a fundamental frequency
+    Creates a filterbank in which each band represents a fundamental frequency
     and its harmonics.
 
     :param filter_type:         function that creates a filter. the function
@@ -474,7 +478,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
     :param inharmonicity_coeff: coefficient for calculating the drift of
                                 harmonics for not perfectly harmonic
                                 instruments
-    :returns:                   harmonic filter bank
+    :returns:                   harmonic filterbank
 
     Note: harmonic_envelope and harmonic_width must accept a numpy array of
           the harmonic ids, where the fundamental's id is 1, the second
@@ -530,15 +534,15 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
     return assemble_filterbank(filters, num_fft_bins, norm=True)
 
 
-class FilterBank(np.ndarray):
+class Filterbank(np.ndarray):
     """
-    Generic Filter Bank Class.
+    Generic Filterbank class.
 
     """
 
     def __new__(cls, data, sample_rate):
         """
-        Creates a new FilterBank array.
+        Creates a new Filterbank array.
 
         :param data:        2-d numpy array
         :param sample_rate: sample rate of the audio signal [Hz]
@@ -546,10 +550,10 @@ class FilterBank(np.ndarray):
         """
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
-            # cast as FilterBank
+            # cast as Filterbank
             obj = np.asarray(data).view(cls)
         else:
-            raise TypeError("wrong input data for FilterBank")
+            raise TypeError("wrong input data for Filterbank")
         # set attributes
         obj._num_fft_bins, obj._num_bands = obj.shape
         obj._sample_rate = sample_rate
@@ -582,12 +586,12 @@ class FilterBank(np.ndarray):
 
     @property
     def fmin(self):
-        """Minimum frequency of the filter bank."""
+        """Minimum frequency of the filterbank."""
         return self.bin_freqs[np.nonzero(self)[0][0]]
 
     @property
     def fmax(self):
-        """Maximum frequency of the filter bank."""
+        """Maximum frequency of the filterbank."""
         return self.bin_freqs[np.nonzero(self)[0][-1]]
 
     def __str__(self):
@@ -595,25 +599,25 @@ class FilterBank(np.ndarray):
                (self.num_fft_bins, self.num_bands, self.fmin, self.fmax)
 
 
-class MelFilterBank(FilterBank):
+class MelFilterbank(Filterbank):
     """
-    Mel Filter Bank Class.
+    Mel filterbank class.
 
     """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 bands=MEL_BANDS, norm=NORM_FILTERS,
                 duplicates=DUPLICATE_FILTERS):
         """
-        Creates a new Mel Filter Bank instance.
+        Creates a new MelFilterbank instance.
 
-        :param num_fft_bins:    number of FFT bins (= half the FFT size)
-        :param sample_rate: sample rate of the audio file [Hz]
-        :param fmin:        the minimum frequency [Hz]
-        :param fmax:        the maximum frequency [Hz]
-        :param bands:       number of filter bands
-        :param norm:        normalize the filters to area 1
-        :param duplicates:  keep duplicate filters resulting from insufficient
-                            resolution of low frequencies
+        :param num_fft_bins: number of FFT bins (= half the FFT size)
+        :param sample_rate:  sample rate of the audio file [Hz]
+        :param fmin:         the minimum frequency [Hz]
+        :param fmax:         the maximum frequency [Hz]
+        :param bands:        number of filter bands
+        :param norm:         normalize the filters to area 1
+        :param duplicates:   keep duplicate filters resulting from insufficient
+                             resolution of low frequencies
 
         """
         # get a list of frequencies
@@ -622,8 +626,8 @@ class MelFilterBank(FilterBank):
         # create filterbank
         fb = filterbank(triangular_filter, frequencies, num_fft_bins,
                         sample_rate, norm, duplicates, overlap=True)
-        # cast to FilterBank
-        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -641,16 +645,16 @@ class MelFilterBank(FilterBank):
         return self._norm
 
 
-class BarkFilterBank(FilterBank):
+class BarkFilterbank(Filterbank):
     """
-    Bark Filter Bank Class.
+    Bark filterbank Class.
 
     """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 double=BARK_DOUBLE, norm=NORM_FILTERS,
                 duplicates=DUPLICATE_FILTERS):
         """
-        Creates a new Bark Filter Bank instance.
+        Creates a new BarkFilterbank instance.
 
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio file [Hz]
@@ -670,8 +674,8 @@ class BarkFilterBank(FilterBank):
         # create filterbank
         fb = filterbank(triangular_filter, frequencies, num_fft_bins,
                         sample_rate, norm, duplicates, overlap=True)
-        # cast to FilterBank
-        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -689,18 +693,18 @@ class BarkFilterBank(FilterBank):
         return self._norm
 
 
-class LogarithmicFilterBank(FilterBank):
+class LogarithmicFilterbank(Filterbank):
     """
-    Logarithmic Filter Bank class.
+    Logarithmic filterbank class.
 
     """
     def __new__(cls, num_fft_bins, sample_rate,
                 bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
         """
-        Creates a new Logarithmic Filter Bank instance.
+        Creates a new LogarithmicFilterbank instance.
 
-        :param num_fft_bins:         number of FFT bins (=half the FFT size)
+        :param num_fft_bins:     number of FFT bins (=half the FFT size)
         :param sample_rate:      sample rate of the audio file [Hz]
         :param bands_per_octave: number of filter bands per octave
         :param fmin:             the minimum frequency [Hz]
@@ -708,7 +712,6 @@ class LogarithmicFilterBank(FilterBank):
         :param norm:             normalize the area of the filter to 1
         :param duplicates:       keep duplicate filters resulting from
                                  insufficient resolution of low frequencies
-
         :param a4:               tuning frequency of A4 [Hz]
 
         """
@@ -717,8 +720,8 @@ class LogarithmicFilterBank(FilterBank):
         # create filterbank
         fb = filterbank(triangular_filter, frequencies, num_fft_bins,
                         sample_rate, norm, duplicates, overlap=True)
-        # cast to FilterBank
-        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._bands_per_octave = bands_per_octave
         obj._norm = norm
@@ -751,18 +754,18 @@ class LogarithmicFilterBank(FilterBank):
         return self._a4
 
 # alias
-LogFilterBank = LogarithmicFilterBank
+LogFilterbank = LogarithmicFilterbank
 
 
-class SemitoneFilterBank(LogarithmicFilterBank):
+class SemitoneFilterbank(LogarithmicFilterbank):
     """
-    Semitone Filter Bank class.
+    Semitone filterbank class.
 
     """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
         """
-        Creates a new Semitone Filter Bank instance.
+        Creates a new SemitoneFilterbank instance.
 
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio file [Hz]
@@ -774,21 +777,21 @@ class SemitoneFilterBank(LogarithmicFilterBank):
         :param a4:           tuning frequency of A4 [Hz]
 
         """
-        # return a LogarithmicFilterBank with 12 bands per octave
-        return LogarithmicFilterBank.__new__(cls, num_fft_bins, sample_rate,
+        # return a LogarithmicFilterbank with 12 bands per octave
+        return LogarithmicFilterbank.__new__(cls, num_fft_bins, sample_rate,
                                              12, fmin, fmax, norm, duplicates,
                                              a4)
 
 
-class SimpleChromaFilterBank(FilterBank):
+class SimpleChromaFilterbank(Filterbank):
     """
-    A Simple Chroma Filter Bank based on the semitone filter.
+    A simple chroma filterbank based on the semitone filter.
 
     """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
         """
-        Creates a new Simple Chroma Filter Bank object instance.
+        Creates a new SimpleChromaFilterbank instance.
 
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio file [Hz]
@@ -801,7 +804,7 @@ class SimpleChromaFilterBank(FilterBank):
 
         """
 
-        stf = SemitoneFilterBank(num_fft_bins, sample_rate, fmin, fmax, norm,
+        stf = SemitoneFilterbank(num_fft_bins, sample_rate, fmin, fmax, norm,
                                  duplicates, a4)
 
         fb = np.empty((stf.shape[0], 12))
@@ -815,8 +818,8 @@ class SimpleChromaFilterBank(FilterBank):
         # TODO: check if this should depend on the norm parameter
         fb /= fb.sum(0)
 
-        # cast to FilterBank
-        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._norm = norm
         obj._a4 = a4
@@ -841,9 +844,9 @@ class SimpleChromaFilterBank(FilterBank):
         return self._a4
 
 
-class PitchClassProfileFilterBank(FilterBank):
+class PitchClassProfileFilterbank(Filterbank):
     """
-    Filter bank for extracting pitch class profiles (PCP).
+    Filterbank for extracting pitch class profiles (PCP).
 
     "Realtime chord recognition of musical sound: a system using Common Lisp
      Music"
@@ -855,7 +858,7 @@ class PitchClassProfileFilterBank(FilterBank):
     def __new__(cls, num_fft_bins, sample_rate, num_classes=PCP_CLASSES,
                 fmin=FMIN, fmax=FMAX, fref=A4):
         """
-        Creates a new PitchClassProfile (PCP) Filter Bank object instance.
+        Creates a new PitchClassProfile (PCP) filterbank instance.
 
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio file [Hz]
@@ -871,17 +874,16 @@ class PitchClassProfileFilterBank(FilterBank):
         bin_freqs = fft_freqs(num_fft_bins, sample_rate)
         # log deviation from the reference frequency
         log_dev = np.log2(bin_freqs / fref)
-        # define the pitch class profile mask
-        for c in range(num_classes):
-            # map the log deviation to pitch class profiles
-            num_class = np.round(num_classes * log_dev) % num_classes
-            # set the corresponding bins to 1
-            fb[num_class == c, c] = 1
+        # map the log deviation to the closets pitch class profiles
+        num_class = np.round(num_classes * log_dev) % num_classes
+        # define the pitch class profile filterbank
+        # skip log_dev[0], since it is NaN
+        fb[np.arange(1, num_fft_bins), num_class.astype(int)[1:]] = 1
         # set all bins outside the allowed frequency range to 0
         fb[np.searchsorted(bin_freqs, fmax, 'right'):] = 0
         fb[:np.searchsorted(bin_freqs, fmin)] = 0
-        # cast to FilterBank
-        obj = FilterBank.__new__(cls, fb, sample_rate)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
         obj._fref = fref
         # return the object
@@ -896,4 +898,71 @@ class PitchClassProfileFilterBank(FilterBank):
     @property
     def fref(self):
         """Reference frequency of the first PCP bin."""
+        return self._fref
+
+
+class HarmonicPitchClassProfileFilterbank(Filterbank):
+    """
+    Filterbank for extracting harmonic pitch class profiles (HPCP).
+
+    "Tonal Description of Music Audio Signals"
+    E. Gómez
+    PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
+
+    """
+    def __new__(cls, num_fft_bins, sample_rate, num_classes=HPCP_CLASSES,
+                fmin=HPCP_FMIN, fmax=HPCP_FMAX, fref=A4, window=HPCP_WINDOW):
+        """
+        Creates a new HarmonicPitchClassProfile (HPCP) filterbank instance.
+
+        :param num_fft_bins:  number of FFT bins (= half the FFT size)
+        :param sample_rate:   sample rate of the audio file [Hz]
+        :param num_classes:   number of harmonic pitch classes
+        :param fmin:          the minimum frequency [Hz]
+        :param fmax:          the maximum frequency [Hz]
+        :param fref:          reference frequency for the first HPCP bin [Hz]
+        :param window:        length of the weighting window [bins]
+
+        """
+        # init a filterbank
+        fb = np.zeros((num_fft_bins, num_classes))
+        # frequencies of the FFT bins
+        bin_freqs = fft_freqs(num_fft_bins, sample_rate)
+        # log deviation from the reference frequency
+        log_dev = np.log2(bin_freqs / fref)
+        # map the log deviation to pitch class profiles
+        num_class = (num_classes * log_dev) % num_classes
+        # weight the bins
+        for c in range(num_classes):
+            # calculate the distance of the bins to the current class
+            distance = num_class - c
+            # unwrap
+            distance[distance < -num_classes / 2.] += num_classes
+            distance[distance > num_classes / 2.] -= num_classes
+            # get all bins which are within the defined window
+            idx = np.abs(distance) < window / 2.
+            # apply the weighting function
+            fb[idx, c] = np.cos((num_class[idx] - c) * np.pi / window) ** 2.
+        # set all bins outside the allowed frequency range to 0
+        fb[np.searchsorted(bin_freqs, fmax, 'right'):] = 0
+        fb[:np.searchsorted(bin_freqs, fmin)] = 0
+        # normalise the filterbank
+        # TODO: maybe I misunderstood eq. (3.36), but it does not do anything
+        # fb /= np.max(fb, axis=0)
+        # cast to Filterbank
+        obj = Filterbank.__new__(cls, fb, sample_rate)
+        # set additional attributes
+        obj._fref = fref
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self._fref = getattr(obj, '_fref', A4)
+
+    @property
+    def fref(self):
+        """Reference frequency of the first HPCP bin."""
         return self._fref
