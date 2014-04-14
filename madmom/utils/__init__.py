@@ -59,18 +59,25 @@ def files(path, ext=None):
         # use all files in the given path
         if ext is None:
             file_list = glob.glob("%s/*" % path)
+        elif isinstance(ext, list):
+            file_list = []
+            for e in ext:
+                file_list.extend(glob.glob("%s/*%s" % (path, e)))
         else:
             file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
+        file_list = []
         # no matching needed
         if ext is None:
             file_list = [path]
-        # file must have the correct extension
+        # a list of extensions is given
+        elif isinstance(ext, list):
+            for e in ext:
+                if path.endswith(e):
+                    file_list = [path]
+        # a single extension is given
         elif path.endswith(ext):
             file_list = [path]
-        # file does not match any condition
-        else:
-            file_list = []
     else:
         raise ValueError("only files or folders are supported.")
     # sort files
@@ -84,12 +91,21 @@ def strip_ext(filename, ext=None):
     Strip of the extension of the given filename or string.
 
     :param filename: filename to process
-    :param ext:      strip of this extension
+    :param ext:      strip of this extension(s)
     :returns:        filename without extension
 
     """
-    if ext is not None and filename.endswith(ext):
-        return filename[:-len(ext)]
+    if ext:
+        # if a list of extensions is given
+        if isinstance(ext, list):
+            # try each extension
+            for e in ext:
+                if filename.endswith(e):
+                    return filename[:-len(e)]
+        # only one extension is given
+        elif filename.endswith(ext):
+            return filename[:-len(ext)]
+    # no extension is given
     return filename
 
 

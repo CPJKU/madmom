@@ -5,16 +5,23 @@ Script for converting ground truth annotations into the GiantSteps format.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
+Version history:
+0.1 initial version
+0.2 added #@format: prefix
+0.3 preserve directory structure
+0.4 added tempo format
+
 """
 
 import argparse
 import os
 
 
-# TODO: code a proper definition file parser
-CONVERTER = {'onsets': '#@onset\ttimestamp',
-             'beats': '#@beat\ttimestamp\tbar.beat',
-             'notes': '#@note\ttimestamp\tpitch\tduration\tvelocity'}
+# TODO: code a proper definition file parser or add other definitions
+CONVERTER = {'onsets': '#@format: onset\ttimestamp',
+             'beats': '#@format: beat\ttimestamp\tbar.beat',
+             'notes': '#@format: note\ttimestamp\tpitch\tduration\tvelocity',
+             'tempo': '#@format: tempo\ttimestamp\tbpm'}
 
 
 def main():
@@ -30,6 +37,7 @@ def main():
     - .onsets
     - .beats
     - .notes
+    - .tempo
 
     TODO: include a quick overview here when definition is ready.
 
@@ -41,6 +49,7 @@ def main():
                    help='output directory')
     p.add_argument('--ext', dest='extension', default=None,
                    help='append the given file extension')
+    p.add_argument('--version', action='version', version='0.4')
     # parse arguments
     args = p.parse_args()
 
@@ -50,35 +59,44 @@ def main():
                          ' either an extension or another output directory.')
 
     # convert all files
-    for f in args.files:
+    for in_file in args.files:
         # split extension form file
-        ext = os.path.splitext(f)[1]
+        ext = os.path.splitext(in_file)[1]
         # determine the output file name
         if args.output:
-            outfile = "%s/%s" % (args.output, os.path.basename(f))
+            out_file = "%s/%s/%s" % (args.output, os.path.dirname(in_file),
+                                     os.path.basename(in_file))
+            out_path = os.path.dirname(out_file)
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
         else:
-            outfile = f
-        # add the extension if needed
+            out_file = in_file
+        # add an extension if needed
         if args.extension:
-            outfile += args.extension
+            out_file += args.extension
         # determine header (key = extension without the leading dot)
         header = CONVERTER[ext[1:]]
-        # determine prefix (= first value without trailing '#@')
-        prefix = header.split('\t')[0][2:]
+        # determine prefix (= first value without trailing
+        # whitespace after '#@format:')
+        prefix = header.split('\t')[0].split(':')[1].strip()
         # write the new output file
-        with open(outfile, 'wb') as o:
+        with open(out_file, 'wb') as o:
             o.write('%s\n' % header)
-            with open(f, 'rb') as i:
+            with open(in_file, 'rb') as i:
                 for l in i:
                     # skip our format lines
                     if l.startswith('#@'):
                         continue
                     # copy comments as is
                     elif l.startswith('#'):
-                        o.write('%s\n' % l)
+                        o.write('%s' % l)
                     # add first column
                     else:
-                        o.write('%s\t%s' % (prefix, l))
+                        # we need to add a timestamp 0 for the tempo
+                        if prefix == 'tempo':
+                            o.write('%s\t0\t%s' % (prefix, l))
+                        else:
+                            o.write('%s\t%s' % (prefix, l))
 
 if __name__ == '__main__':
     main()
