@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Script for converting .npy and .npy files in .mat files.
+Script for converting .npy and .npz files in .mat files.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 

@@ -42,16 +42,16 @@ def main():
         print args
 
     # correct all files
-    for infile in files(args.files, '.beats'):
+    for in_file in files(args.files, '.beats'):
         if args.verbose:
-            print infile
+            print in_file
 
         # create a histogram of inter beat intervals
-        beats = np.loadtxt(infile)[:, 0]
+        beats = np.loadtxt(in_file)[:, 0]
         intervals = calc_intervals(beats)
 
         # write the tempo file
-        with open("%s.bpm" % strip_ext(infile, '.beats'), 'wb') as o:
+        with open("%s.bpm" % strip_ext(in_file, '.beats'), 'wb') as o:
             # convert to bpm
             bpm = 60. / np.median(intervals)
             o.write('%.2f\n' % bpm)

@@ -859,6 +859,7 @@ def main():
         # load the detections
         detections = load_events(det_file)
         # get the matching annotation files
+
         matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
         # quit if any file does not have a matching annotation file
         if len(matches) == 0:
