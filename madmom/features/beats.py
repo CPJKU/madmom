@@ -82,6 +82,9 @@ def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1,
     if threshold > 0:
         activations[activations < threshold] = 0
 
+    # set the maximal delta to the length of the signal
+    if not max_tau:
+        max_tau = len(activations)
     # test all possible intervals
     taus = range(min_tau, max_tau)
     sums = []
