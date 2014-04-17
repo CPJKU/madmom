@@ -710,9 +710,9 @@ def main():
                             log=args.log, mul=args.mul, add=args.add,
                             ratio=args.ratio, diff_frames=args.diff_frames)
             # create a SpectralOnsetDetection object
-            sodf = SpectralOnsetDetection(s, max_bins=args.max_bins)
+            sod = SpectralOnsetDetection(s, max_bins=args.max_bins)
             # perform detection function on the object
-            act = getattr(sodf, args.odf)()
+            act = getattr(sod, args.odf)()
             # create an Onset object with the activations
             o = Onset(act, args.fps, args.online)
         # save onset activations or detect onsets

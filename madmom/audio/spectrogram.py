@@ -97,7 +97,7 @@ def strided_stft(signal, window, hop_size, phase=True):
     return fft.fft(fft_signal)[:, :ffts]
 
 
-def determine_tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
+def tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
     """
     Determines the tuning frequency based on the given (peak) magnitude
     spectrogram.
@@ -249,6 +249,7 @@ class Spectrogram(object):
 
         # other stuff
         self._ssd = None
+        self._tuning_frequency = None
 
     @property
     def frames(self):
@@ -567,12 +568,16 @@ class Spectrogram(object):
         :return: tuning frequency
 
         """
-        # calculate the reference frequency
-        if self.filterbank is None:
-            spec = self.spec
-        else:
-            spec = np.abs(self.stft)
-        return determine_tuning_frequency(spec, self.frames.signal.sample_rate)
+        if self._tuning_frequency is None:
+            # make sure the spec is in the right form to do the calculation
+            if self.filterbank is None:
+                spec = self.spec
+            else:
+                spec = np.abs(self.stft)
+            # calculate the reference frequency
+            fref = tuning_frequency(spec, self.frames.signal.sample_rate)
+            self._tuning_frequency = fref
+        return self._tuning_frequency
 
     def copy(self, window=None, filterbank=None, log=None, mul=None, add=None,
              norm_window=None, fft_size=None, block_size=None, ratio=None,
@@ -640,7 +645,7 @@ class FilteredSpectrogram(Spectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new FilteredSpectrogram object instance.
+        Creates a new FilteredSpectrogram instance.
 
         :param filterbank: filterbank for dimensionality reduction
 
@@ -690,7 +695,7 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new LogarithmicFilteredSpectrogram object instance.
+        Creates a new LogarithmicFilteredSpectrogram instance.
 
         The magnitudes of the filtered spectrogram are then converted to a
         logarithmic scale.
