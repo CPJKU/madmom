@@ -963,3 +963,80 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
     def fref(self):
         """Reference frequency of the first HPCP bin."""
         return self._fref
+
+
+# time filters
+def feed_forward_comb_filter(x, tau, alpha):
+    """
+    Filter the signal with a feed forward comb filter.
+
+    :param x:     signal
+    :param tau:   delay length
+    :param alpha: scaling factor
+    :return:      comb filtered signal
+
+    """
+    # y[n] = x[n] + α * x[n - τ]
+    if tau <= 0:
+        raise ValueError('tau must be greater than 0')
+    y = np.copy(x)
+    # add the delayed signal
+    y[tau:] += alpha * x[:-tau]
+    # return
+    return y
+
+
+def feed_backward_comb_filter(x, tau, alpha):
+    """
+    Filter the signal with a feed backward comb filter.
+
+    :param x:     signal
+    :param tau:   delay length
+    :param alpha: scaling factor
+    :return:      comb filtered signal
+
+    """
+    # y[n] = x[n] + α * y[n - τ]
+    if tau <= 0:
+        raise ValueError('tau must be greater than 0')
+    y = np.copy(x)
+    # loop over the complete signal
+    for n in range(tau, len(x)):
+        y[n] = x[n] + alpha * y[n - tau]
+    # return
+    return y
+
+
+def comb_filterbank(x, comb_filter, min_tau, max_tau, alpha,
+                    half_energy_time=None, endpoint=True):
+    """
+    Filter the signal with a bank of either feed forward or backward comb
+    filters.
+
+    :param x:                signal
+    :param comb_filter:      comb filter to use (feed forward or backward)
+    :param min_tau:          minimum delay [samples]
+    :param max_tau:          maximum delay [samples]
+    :param alpha:            scaling factor
+    :param half_energy_time: set the scaling factors such that each band
+                             has this equivalent half-energy time
+    :param endpoint:         include 'max_tau' value
+    :return:                 comb filtered signal with the different taus
+                             aligned along the (new) 1st dimension
+
+    """
+    # include max_tau?
+    if endpoint:
+        max_tau += 1
+    # determine output array size
+    size = list(x.shape)
+    # add dimension of tau range size (new 1st dim)
+    size.insert(0, max_tau - min_tau)
+    # init output array
+    y = np.zeros(tuple(size))
+    for tau in range(min_tau, max_tau):
+        if half_energy_time:
+            alpha = 0.5 ** (half_energy_time / float(tau))
+        y_ = comb_filter(x, tau, alpha)
+        y[tau - min_tau] = y_
+    return y
