@@ -946,9 +946,6 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         # set all bins outside the allowed frequency range to 0
         fb[np.searchsorted(bin_freqs, fmax, 'right'):] = 0
         fb[:np.searchsorted(bin_freqs, fmin)] = 0
-        # normalise the filterbank
-        # TODO: maybe I misunderstood eq. (3.36), but it does not do anything
-        # fb /= np.max(fb, axis=0)
         # cast to Filterbank
         obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes

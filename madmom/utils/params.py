@@ -13,7 +13,7 @@ import multiprocessing
 # get the default values from the corresponding modules
 from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
 from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
-from ..audio.filterbank import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
+from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import (THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM,

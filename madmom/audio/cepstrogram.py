@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains all Cepstrogram related functionality.
+This file contains all cepstrogram related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -72,8 +72,8 @@ class MFCC(Cepstrogram):
         # • Take the discrete cosine transform of the list of mel log powers,
         #   as if it were a signal.
         # • The MFCCs are the amplitudes of the resulting spectrum
-        from .filterbank import (MelFilterbank, MEL_BANDS, FMIN, FMAX,
-                                 NORM_FILTERS)
+        from .filters import (MelFilterbank, MEL_BANDS, FMIN, FMAX,
+                              NORM_FILTERS)
         # TODO: set other defaults than those in .filterbank for MFCCs?
         from .spectrogram import MUL, ADD
 

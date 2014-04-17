@@ -378,7 +378,7 @@ class SpectralOnsetDetection(object):
     """
     def __init__(self, spectrogram, max_bins=MAX_BINS, *args, **kwargs):
         """
-        Creates a new SpectralOnsetDetection object instance.
+        Creates a new SpectralOnsetDetection instance.
 
         :param spectrogram: the spectrogram object on which the detections
                             functions operate
@@ -662,7 +662,7 @@ def main():
     from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterbank
+    from ..audio.filters import LogarithmicFilterbank
 
     # parse arguments
     args = parser()

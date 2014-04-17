@@ -13,7 +13,7 @@ from scipy.ndimage.filters import median_filter, uniform_filter, maximum_filter
 
 from . import Event
 from ..utils import open
-from ..audio.filterbank import midi2hz, LogarithmicFilterbank
+from ..audio.filters import midi2hz, LogarithmicFilterbank
 
 
 def load_notes(filename):
@@ -365,7 +365,7 @@ def main():
     from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterbank
+    from ..audio.filters import LogarithmicFilterbank
 
     # parse arguments
     args = parser()

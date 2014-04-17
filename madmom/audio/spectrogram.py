@@ -10,7 +10,7 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
-from .filterbank import fft_freqs, A4
+from .filters import fft_freqs, A4
 
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
@@ -116,8 +116,8 @@ def determine_tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
     # deviation from the next semitone
     semitone_dev = semitone_int - np.round(semitone_int)
     # build a histogram
-    hist = np.histogram(semitone_dev, bins=num_hist_bins,
-                        range=(-0.5, 0.5))
+    hist = np.histogram(semitone_dev * spec,
+                        bins=num_hist_bins, range=(-0.5, 0.5))
     # deviation
     dev = -0.5 + num_hist_bins * np.argmax(hist)
     # calculate the reference frequency
@@ -246,6 +246,9 @@ class Spectrogram(object):
         if diff_frames < 1:
             diff_frames = 1
         self._diff_frames = diff_frames
+
+        # other stuff
+        self._ssd = None
 
     @property
     def frames(self):
@@ -534,6 +537,29 @@ class Spectrogram(object):
         return self.spec / p
 
     @property
+    def ssd(self):
+        """
+        Statistical Spectrum Descriptors of the STFT.
+
+        "Evaluation of Feature Extractors and Psycho-acoustic Transformations
+         for Music Genre Classification."
+        T. Lidy and A. Rauber
+        Proceedings of the 6th International Conference on Music Information
+        Retrieval (ISMIR 2005), London, UK, September 2005
+
+        """
+        if self._ssd is None:
+            from scipy.stats import skew, kurtosis
+            self._ssd = {'mean': np.mean(self.spec, axis=0),
+                         'median': np.median(self.spec, axis=0),
+                         'variance': np.var(self.spec, axis=0),
+                         'skewness': skew(self.spec, axis=0),
+                         'kurtosis': kurtosis(self.spec, axis=0),
+                         'min': np.min(self.spec, axis=0),
+                         'max': np.max(self.spec, axis=0)}
+        return self._ssd
+
+    @property
     def tuning_frequency(self):
         """
         Determines the tuning frequency of the spectrogram.
@@ -628,7 +654,7 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz]
 
         """
-        from filterbank import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
+        from filters import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
                                 FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
