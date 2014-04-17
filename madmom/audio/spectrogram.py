@@ -146,7 +146,7 @@ class Spectrogram(object):
                  fft_size=FFT_SIZE, block_size=BLOCK_SIZE, ratio=RATIO,
                  diff_frames=DIFF_FRAMES, *args, **kwargs):
         """
-        Creates a new Spectrogram object instance of the given audio.
+        Creates a new Spectrogram instance of the given audio.
 
         :param frames: a FramedSignal object, or a file name or file handle
         :param window: window function
@@ -742,7 +742,7 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new HarmonicPercussiveSourceSeparation object instance.
+        Creates a new HarmonicPercussiveSourceSeparation instance.
 
         The magnitude spectrogram are separated with median filters with the
         given sizes into their harmonic and percussive parts.

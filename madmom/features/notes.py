@@ -37,7 +37,7 @@ class SpectralNoteTranscription(object):
     def __init__(self, spectrogram, num_harmonics=5, harmonic_frames=11,
                  lgd=True, *args, **kwargs):
         """
-        Creates a new SpectralNoteTranscription object instance.
+        Creates a new SpectralNoteTranscription instance.
 
         :param spectrogram:     the spectrogram object on which the note
                                 transcription operates
@@ -226,7 +226,7 @@ class NoteTranscription(Event):
 
     def __init__(self, activations, fps):
         """
-            Creates a new NoteTranscription object instance with the given
+            Creates a new NoteTranscription instance with the given
             activations (can be read from a file).
 
             :param activations: array with note activations or a file (handle)

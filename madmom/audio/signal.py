@@ -160,7 +160,7 @@ class Signal(object):
     """
     def __init__(self, data, sample_rate=None, mono=MONO, norm=NORM, att=ATT):
         """
-        Creates a new Signal object instance.
+        Creates a new Signal instance.
 
         :param data:        numpy array (`sample_rate` must be given as well)
                             or Signal instance or file name or file handle
@@ -439,7 +439,7 @@ class FramedSignal(object):
                  fps=None, origin=ORIGIN, start=START, num_frames=NUM_FRAMES,
                  *args, **kwargs):
         """
-        Creates a new FramedSignal object instance.
+        Creates a new FramedSignal instance.
 
         :param signal:     a Signal or FramedSignal instance
                            or anything a Signal can be instantiated from

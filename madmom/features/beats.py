@@ -22,7 +22,7 @@ from . import Event
 #    """
 #    def __init__(self, spectrogram):
 #        """
-#        Creates a new SpectralBeatTracking object instance.
+#        Creates a new SpectralBeatTracking instance.
 #
 #        :param spectrogram: the spectrogram object on which the detections
 #                            functions operate
@@ -303,7 +303,7 @@ class Beat(Event):
     """
     def __init__(self, activations, fps, online=False, sep=''):
         """
-        Creates a new Beat object instance with the given activations.
+        Creates a new Beat instance with the given activations.
         The activations can be read in from file.
 
         :param activations: array with the beat activations or a file (handle)

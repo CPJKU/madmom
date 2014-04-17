@@ -16,7 +16,7 @@ class Event(object):
     """
     def __init__(self, activations, fps, sep=''):
         """
-        Creates a new Event object instance with the given activations.
+        Creates a new Event instance with the given activations.
         The activations can be read in from file.
 
         :param activations: array with the beat activations or a file (handle)

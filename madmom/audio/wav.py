@@ -20,7 +20,7 @@ class Wav(Signal):
 
     def __init__(self, filename, *args, **kwargs):
         """
-        Creates a new Wav object instance.
+        Creates a new Wav instance.
 
         :param filename: name of the .wav file or file handle
 

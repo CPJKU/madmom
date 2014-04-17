@@ -874,7 +874,7 @@ class MIDITrack(object):
     """
     def __init__(self):
         """
-        Instantiate a new MIDI track object instance.
+        Instantiate a new MIDI track instance.
 
         """
         self.events = []
@@ -1031,7 +1031,7 @@ class MIDIFile(object):
     """
     def __init__(self, data=None, resolution=RESOLUTION):
         """
-        Instantiate a new MIDI file object instance.
+        Instantiate a new MIDI file instance.
 
         :param data:       can be a .mid file or numpy array with notes
         :param resolution: resolution, i.e. microseconds per quarter note

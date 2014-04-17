@@ -19,7 +19,7 @@ class Cepstrogram(object):
     """
     def __init__(self, spectrogram, *args, **kwargs):
         """
-        Creates a new Cepstrogram object instance for the given spectrogram
+        Creates a new Cepstrogram instance for the given spectrogram.
 
         :param spectrogram: spectrogram to operate on
 
@@ -48,7 +48,7 @@ class MFCC(Cepstrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new MFCC object instance.
+        Creates a new MFCC instance.
 
         :param filterbank: filterbank for dimensionality reduction
 

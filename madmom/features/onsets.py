@@ -530,7 +530,7 @@ class Onset(Event):
     """
     def __init__(self, activations, fps, online=False, sep=''):
         """
-        Creates a new Onset object instance with the given activations of the
+        Creates a new Onset instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read from a file.
 
         :param activations: array with ODF activations or a file (handle)

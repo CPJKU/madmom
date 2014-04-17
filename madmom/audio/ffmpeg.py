@@ -160,7 +160,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
 #    def __init__(self, filename, sample_rate=44100, num_channels=1,
 #                 frame_size=2048, hop_size=441.0, online=False):
 #        """
-#        Creates a new FFmpegFile object instance.
+#        Creates a new FFmpegFile instance.
 #
 #        :param filename:     name of the audio file to decode
 #        :param sample_rate:  sample_rate to re-sample the file to

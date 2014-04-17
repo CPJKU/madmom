@@ -49,7 +49,7 @@ class PitchClassProfile(object):
     def __init__(self, spectrogram, num_classes=PCP_CLASSES, fmin=FMIN,
                  fmax=FMAX, fref=None, filterbank=None, *args, **kwargs):
         """
-        Creates a new PitchClassProfile object instance.
+        Creates a new PitchClassProfile instance.
 
         :param spectrogram: a spectrogram to operate on
         :param num_classes: number of harmonic pitch classes
