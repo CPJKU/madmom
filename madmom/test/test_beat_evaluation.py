@@ -410,6 +410,8 @@ class TestContinuityFunction(unittest.TestCase):
         scores = continuity(DETECTIONS, TARGETS, 0.175, 0.175)
         self.assertEqual(scores, (0.4, 0.8, 0.4, 0.8))
         # double tempo targets
+        scores = continuity(DETECTIONS, DOUBLE_TARGETS, 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 0.4, 0.8))
         scores = continuity(DETECTIONS, DOUBLE_TARGETS, 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
@@ -417,9 +419,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0.4, 0.8))
         scores = continuity(DETECTIONS, DOUBLE_TARGETS, 0.175, 0.175,
-                            double=True, triple=True)
-        self.assertEqual(scores, (0., 0., 0.4, 0.8))
+                            double=False, triple=True)
+        self.assertEqual(scores, (0., 0., 0., 0.))
         # half tempo targets (even beats)
+        scores = continuity(DETECTIONS, TARGETS[::2], 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 0.4, 0.8))
         scores = continuity(DETECTIONS, TARGETS[::2], 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0.1, 0.1))
@@ -427,9 +431,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0.4, 0.8))
         scores = continuity(DETECTIONS, TARGETS[::2], 0.175, 0.175,
-                            double=True, triple=True)
-        self.assertEqual(scores, (0., 0., 0.4, 0.8))
+                            double=False, triple=True)
+        self.assertEqual(scores, (0., 0., 0.1, 0.1))
         # half tempo targets (odd beats)
+        scores = continuity(DETECTIONS, TARGETS[1::2], 0.175, 0.175)
+        self.assertEqual(scores, (0.1, 0.1, 0.5, 0.8))
         scores = continuity(DETECTIONS, TARGETS[1::2], 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0.1, 0.1, 0.1, 0.1))
@@ -437,9 +443,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0.1, 0.1, 0.5, 0.8))
         scores = continuity(DETECTIONS, TARGETS[1::2], 0.175, 0.175,
-                            double=True, triple=True)
-        self.assertEqual(scores, (0.1, 0.1, 0.5, 0.8))
+                            double=False, triple=True)
+        self.assertEqual(scores, (0.1, 0.1, 0.1, 0.1))
         # triple tempo targets
+        scores = continuity(DETECTIONS, TRIPLE_TARGETS, 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 0.4, 0.8))
         scores = continuity(DETECTIONS, TRIPLE_TARGETS, 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
@@ -447,9 +455,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
         scores = continuity(DETECTIONS, TRIPLE_TARGETS, 0.175, 0.175,
-                            double=True, triple=True)
+                            double=False, triple=True)
         self.assertEqual(scores, (0., 0., 0.4, 0.8))
         # third tempo targets (starting with 1st beat)
+        scores = continuity(DETECTIONS, TARGETS[::3], 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 5. / 12, 0.75))
         scores = continuity(DETECTIONS, TARGETS[::3], 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
@@ -457,9 +467,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
         scores = continuity(DETECTIONS, TARGETS[::3], 0.175, 0.175,
-                            double=True, triple=True)
+                            double=False, triple=True)
         self.assertEqual(scores, (0., 0., 5. / 12, 0.75))
         # third tempo targets (starting with 2nd beat)
+        scores = continuity(DETECTIONS, TARGETS[1::3], 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 0.4, 0.7))
         scores = continuity(DETECTIONS, TARGETS[1::3], 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
@@ -467,9 +479,11 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
         scores = continuity(DETECTIONS, TARGETS[1::3], 0.175, 0.175,
-                            double=True, triple=True)
+                            double=False, triple=True)
         self.assertEqual(scores, (0., 0., 0.4, 0.7))
         # third tempo targets (starting with 3rd beat)
+        scores = continuity(DETECTIONS, TARGETS[2::3], 0.175, 0.175)
+        self.assertEqual(scores, (0., 0., 0.5, 0.7))
         scores = continuity(DETECTIONS, TARGETS[2::3], 0.175, 0.175,
                             double=False, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
@@ -477,7 +491,7 @@ class TestContinuityFunction(unittest.TestCase):
                             double=True, triple=False)
         self.assertEqual(scores, (0., 0., 0., 0.))
         scores = continuity(DETECTIONS, TARGETS[2::3], 0.175, 0.175,
-                            double=True, triple=True)
+                            double=False, triple=True)
         self.assertEqual(scores, (0., 0., 0.5, 0.7))
 
 
