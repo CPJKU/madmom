@@ -555,7 +555,6 @@ class Filterbank(np.ndarray):
         else:
             raise TypeError("wrong input data for Filterbank")
         # set attributes
-        obj._num_fft_bins, obj._num_bands = obj.shape
         obj._sample_rate = sample_rate
         # return the object
         return obj
@@ -567,12 +566,12 @@ class Filterbank(np.ndarray):
     @property
     def num_fft_bins(self):
         """Number of FFT bins."""
-        return self._num_fft_bins
+        return self.shape[0]
 
     @property
     def num_bands(self):
         """Number of bands."""
-        return self._num_bands
+        return self.shape[1]
 
     @property
     def sample_rate(self):
@@ -1007,36 +1006,145 @@ def feed_backward_comb_filter(x, tau, alpha):
     return y
 
 
-def comb_filterbank(x, comb_filter, min_tau, max_tau, alpha,
-                    half_energy_time=None, endpoint=True):
+def comb_filterbank(x, comb_filter, tau, alpha):
     """
     Filter the signal with a bank of either feed forward or backward comb
     filters.
 
-    :param x:                signal
-    :param comb_filter:      comb filter to use (feed forward or backward)
-    :param min_tau:          minimum delay [samples]
-    :param max_tau:          maximum delay [samples]
-    :param alpha:            scaling factor
-    :param half_energy_time: set the scaling factors such that each band
-                             has this equivalent half-energy time
-    :param endpoint:         include 'max_tau' value
-    :return:                 comb filtered signal with the different taus
-                             aligned along the (new) 1st dimension
+    :param x:           signal [numpy array]
+    :param comb_filter: comb filter to use (feed forward or backward)
+    :param tau:         delay length(s) [list/array of samples]
+    :param alpha:       corresponding scaling factor(s) [list/array of floats]
+    :return:            comb filtered signal with the different taus aligned
+                        along the (new) 1st dimension
 
     """
-    # include max_tau?
-    if endpoint:
-        max_tau += 1
+    # convert tau to a integer numpy array
+    tau = np.asarray(tau, dtype=int)
+    if tau.ndim != 1:
+        raise ValueError('tau must be 1D numpy array')
+    # convert alpha to a numpy array
+    alpha = np.asarray(alpha, dtype=float)
+    if alpha.ndim != 1:
+        raise ValueError('alpha must be 1D numpy array')
+    # alpha & tau must have the same size
+    if tau.size != alpha.size:
+        raise AssertionError('alpha & tau must have the same size')
     # determine output array size
     size = list(x.shape)
     # add dimension of tau range size (new 1st dim)
-    size.insert(0, max_tau - min_tau)
+    size.insert(0, len(tau))
     # init output array
     y = np.zeros(tuple(size))
-    for tau in range(min_tau, max_tau):
-        if half_energy_time:
-            alpha = 0.5 ** (half_energy_time / float(tau))
-        y_ = comb_filter(x, tau, alpha)
-        y[tau - min_tau] = y_
+    for i, t in np.ndenumerate(tau):
+        y[i] = comb_filter(x, t, alpha[i])
     return y
+
+
+HALF_ENERGY_TIME = None
+
+
+class CombFilterbank(np.ndarray):
+    """
+    Comb Filterbank class.
+
+    """
+
+    def __new__(cls, data, comb_filter, tau, alpha=None,
+                half_energy_time=None):
+        """
+        Creates a new CombFilterbank array, i.e. a comb filtered version of
+        the input data with the different tau values aligned along the (new)
+        1st dimension.
+
+        :param data:             numpy array
+        :param comb_filter:      comb filter to use (feed forward or backward)
+        :param tau:              delay length(s)
+                                 [samples, list/array of samples]
+        :param alpha:            scaling factor(s)
+                                 [float, list/array of floats]
+        :param half_energy_time: set the scaling factors such that each band
+                                 has this equivalent half-energy time
+
+        """
+        # convert tau to a numpy array
+        if isinstance(tau, int):
+            tau = np.asarray([tau], dtype=int)
+        elif isinstance(tau, list):
+            tau = np.asarray(tau, dtype=int)
+        elif isinstance(tau, np.ndarray):
+            tau = np.asarray(tau, dtype=int)
+        else:
+            raise ValueError('tau must be convertible to an int numpy array')
+
+        # set the filter function
+        if comb_filter in ['forward', feed_backward_comb_filter]:
+            comb_filter = feed_backward_comb_filter
+        elif comb_filter in ['backward', feed_backward_comb_filter]:
+            comb_filter = feed_backward_comb_filter
+        else:
+            raise ValueError('wrong comb_filter type')
+
+        # set alphas according to the half energy time
+        if half_energy_time:
+            alpha = 0.5 ** (half_energy_time / tau.astype(float))
+        if alpha is None:
+            raise ValueError('either alpha or half_energy_time must be given')
+        # convert alpha to a numpy array
+        if isinstance(alpha, (float, int)):
+            alpha = np.asarray([alpha] * len(tau), dtype=float)
+        elif isinstance(alpha, list):
+            alpha = np.asarray(alpha, dtype=float)
+        elif isinstance(alpha, np.ndarray):
+            alpha = np.asarray(alpha, dtype=float)
+        else:
+            raise ValueError('alpha must be convertible to a float numpy '
+                             'array')
+
+        # comb filter the signal
+        cfb = comb_filterbank(data, comb_filter, tau, alpha)
+        # cast to CombFilterbank
+        obj = np.asarray(cfb).view(cls)
+        # set attributes
+        obj._data = data
+        obj._comb_filter = comb_filter
+        obj._tau = tau
+        obj._alpha = alpha
+        obj._half_energy_time = half_energy_time
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self._half_energy_time = getattr(obj, '_half_energy_time',
+                                         HALF_ENERGY_TIME)
+
+    @property
+    def data(self):
+        """Original non-comb filtered data."""
+        return self._data
+
+    @property
+    def comb_filter(self):
+        """Comb filter function."""
+        return self._comb_filter
+
+    @property
+    def tau(self):
+        """Tau value(s), i.e. the delay length(s) of the filterbank."""
+        return self._tau
+
+    @property
+    def alpha(self):
+        """Scaling factor(s)."""
+        return self._alpha
+
+    @property
+    def half_energy_time(self):
+        """Half energy time in samples."""
+        return self._half_energy_time
+
+    def __str__(self):
+        return "CombFilterbank: %d delay steps %s" % (len(self.tau), self.tau)
