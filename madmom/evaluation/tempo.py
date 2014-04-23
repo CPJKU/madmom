@@ -9,44 +9,76 @@ This file contains tempo evaluation functionality.
 
 import numpy as np
 
+from madmom.utils import open
 
-def load_tempo(filename):
+
+def load_tempo(filename, split_value=1.):
     """
-    Load tempo ground-truth from a file.
+    Load tempo information from a file.
 
-    :param filename: name of the file
-    :return:         tempo
+    :param filename:    name of the file
+    :param split_value: values > split_value are interpreted as tempi in bpm,
+                        values <= split_value are interpreted as strengths
+    :return:            tuple with arrays containing the tempi and
+                        their relative strengths
 
-    Expected file format: tempo_1 [tempo_2 [rel_strength_1 [rel_strength_2]]]
+    Note: All tempi and strength information must be present in a single line.
 
     """
-    return np.loadtxt(filename)
-
+    # read in the tempi
+    with open(filename, 'rb') as f:
+        # TODO: what to do if more information is in the file?
+        #       right now we only keep the last line...
+        for line in f:
+            if line.startswith('#'):
+                # ignore comments
+                continue
+            elif line:
+                # non-empty line
+                values = np.asarray(line.rstrip().split(None), dtype=float)
+        # split the values according to their values into tempi and strengths
+        tempi = values[values > split_value]
+        strengths = values[values <= split_value]
+        # format the relative strengths
+        if len(tempi) - len(strengths) == 1:
+            # one relative strength is missing, add a calculated one
+            strengths = np.append(strengths, 1. - np.sum(strengths))
+        # tempi and strengths must have same length
+        if len(strengths) > 0:
+            if len(tempi) != len(strengths):
+                raise ValueError('tempi and strengths must have same length')
+        # return
+    return tempi, strengths
 
 # def average_tempi(tempi):
-#     # implement the McKinney Paper with merging multiple annotations
+#     # implement the McKinney paper with merging multiple annotations
 #     raise NotImplementedError
 
 
 # this evaluation function can evaluate multiple tempi simultaneously
-def tempo_evaluation(detections, annotations, tolerance, strengths=None):
+def tempo_evaluation(detections, annotations, strengths, tolerance):
     """
     Calculate the tempo P-Score.
 
     :param detections:  array with (multiple) tempi [bpm]
     :param annotations: array with (multiple) tempi [bpm]
-    :param tolerance:   evaluation tolerance
     :param strengths:   array with the relative strengths of the tempi
+    :param tolerance:   evaluation tolerance
     :returns:           p-score
 
-    Note: If no relative strengths are given, an even distribution is assumed.
+    Note: If no relative strengths are given, evenly distributed strengths
+          are assumed.
+
+    "Evaluation of audio beat tracking and music tempo extraction algorithms"
+    M. McKinney, D. Moelants, M. Davies and A. Klapuri
+    Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
     # no detections are given
-    if detections.size == 0:
+    if len(detections) == 0:
         return 0
     # no annotations are given
-    if annotations.size == 0:
+    if len(annotations) == 0:
         raise TypeError("Target tempo must be given.")
     # if no annotation strengths are given, distribute evenly
     if strengths is None:
@@ -56,15 +88,15 @@ def tempo_evaluation(detections, annotations, tolerance, strengths=None):
     # strengths must sum up to 1
     strengths_sum = np.sum(strengths)
     if strengths_sum == 0:
-        # distribute evenly
+        # create evenly distributed strengths
         strengths = np.ones_like(annotations) / float(annotations.size)
     elif strengths_sum != 1:
+        # normalize strengths
         strengths /= float(strengths_sum)
-
-    # test each detected tempi against all annotation tempi
+    # test all detected tempi against all annotated tempi
     errors = np.abs(1 - (detections[:, np.newaxis] / annotations))
     # correctly identified annotation tempi
-    correct = np.asarray(np.sum(errors < tolerance, axis=0), np.bool)
+    correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
     # the p-score is the sum of the strengths of the correctly identified tempi
     return np.sum(strengths[correct])
 
@@ -79,23 +111,24 @@ class TempoEvaluation(object):
 
     """
 
-    def __init__(self, detections, annotations, tolerance=TOLERANCE):
+    def __init__(self, detections, annotations, strengths,
+                 tolerance=TOLERANCE):
         """
         Evaluate the given detection and annotation sequences.
 
         :param detections:  array with detected tempi [bpm]
-        :param annotations: tuple with 2 numpy arrays (tempi, strength)
-                            [bpm, floats] The first contains all tempi, the
-                            second their relative strengths. If no strengths
-                            are given, an even distribution is assumed.
+        :param annotations: array with the annotated tempi [bpm]
+        :param strengths:   array with the relative strengths of the tempi
         :param tolerance:   tolerance
 
         """
         # convert the detections and annotations
-        detections = np.asarray(sorted(detections), dtype=np.float)
-        annotations = np.asarray(sorted(annotations), dtype=np.float)
+        detections = np.asarray(detections, dtype=np.float)
+        annotations = np.asarray(annotations, dtype=np.float)
+        strengths = np.asarray(strengths, dtype=np.float)
         # evaluate
-        self.pscore = tempo_evaluation(detections, annotations, tolerance)
+        self.pscore = tempo_evaluation(detections, annotations, strengths,
+                                       tolerance)
 
     def print_errors(self, indent='', tex=False):
         """
@@ -144,6 +177,13 @@ class MeanTempoEvaluation(TempoEvaluation):
                             'MeanTempoEvaluation, not %s' %
                             type(other).__name__)
 
+    @property
+    def pscore(self):
+        """P-Score."""
+        if len(self._pscore) == 0:
+            return 0.
+        return np.mean(self._pscore)
+
 
 def parser():
     """
@@ -191,7 +231,7 @@ def main():
     Simple tempo evaluation.
 
     """
-    from ..utils import files, match_file, load_events
+    from ..utils import files, match_file
 
     # parse arguments
     args = parser()
@@ -208,8 +248,6 @@ def main():
     mean_eval = MeanTempoEvaluation()
     # evaluate all files
     for det_file in det_files:
-        # get the detections file
-        detections = load_events(det_file)
         # get the matching annotation files
         matches = match_file(det_file, ann_files, args.det_suffix,
                              args.ann_suffix)
@@ -217,15 +255,18 @@ def main():
         if len(matches) == 0:
             print " can't find a annotation file for %s. exiting." % det_file
             exit()
+        # get the detections tempi (ignore the strengths)
+        detections, _ = load_tempo(det_file)
         # do a mean evaluation with all matched annotation files
         # TODO: decide whether we want multiple annotations per file or
         #       multiple files and do a mean_evaluation on those
         me = MeanTempoEvaluation()
         for ann_file in matches:
             # load the annotations
-            annotations = load_events(ann_file)
+            annotations, strengths = load_tempo(ann_file)
             # add the Evaluation to mean evaluation
-            me.append(TempoEvaluation(detections, annotations, args.tolerance))
+            me.append(TempoEvaluation(detections, annotations, strengths,
+                                      args.tolerance))
             # process the next annotation file
         # print stats for each file
         if args.verbose:

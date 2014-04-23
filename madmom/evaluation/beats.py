@@ -165,7 +165,7 @@ def pscore(detections, annotations, tolerance):
     :returns:           p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
-    M. F. McKinney, D. Moelants, M. E. P. Davies, and A. Klapuri
+    M. McKinney, D. Moelants, M. Davies and A. Klapuri
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
