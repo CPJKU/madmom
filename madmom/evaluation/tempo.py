@@ -120,7 +120,7 @@ class TempoEvaluation(object):
         :param detections:  array with detected tempi [bpm]
         :param annotations: array with the annotated tempi [bpm]
         :param strengths:   array with the relative strengths of the tempi
-        :param tolerance:   tolerance
+        :param tolerance:   allowed tempo deviation
 
         """
         # convert the detections and annotations
@@ -142,7 +142,8 @@ class TempoEvaluation(object):
         """
         if tex:
             # tex formatting
-            ret = 'tex & P-Score\\\\\n& %.3f\\\\' % self.pscore
+            ret = 'tex & P-Score & one tempo & both tempi\\\\\n& %.3f ' \
+                  '& %.3f & %.3f\\\\' % (self.pscore, self.any, self.all)
         else:
             # normal formatting
             ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)' % \
