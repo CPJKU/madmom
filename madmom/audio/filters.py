@@ -1001,6 +1001,7 @@ def feed_backward_comb_filter(x, tau, alpha):
     y = np.copy(x)
     # loop over the complete signal
     for n in range(tau, len(x)):
+        # add a delayed version of the output signal
         y[n] = x[n] + alpha * y[n - tau]
     # return
     return y
@@ -1145,6 +1146,3 @@ class CombFilterbank(np.ndarray):
     def half_energy_time(self):
         """Half energy time in samples."""
         return self._half_energy_time
-
-    def __str__(self):
-        return "CombFilterbank: %d delay steps %s" % (len(self.tau), self.tau)
