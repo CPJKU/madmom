@@ -11,6 +11,7 @@ import sys
 import numpy as np
 
 from . import Event
+from scipy.signal import argrelmax
 
 
 ## TODO: implement some simple algorithms
@@ -194,28 +195,25 @@ def detect_tempo(histogram, fps, smooth=None):
         values = np.convolve(histogram[0], kernel, 'same')
     else:
         values = histogram[0]
-    # to get the two dominant tempi, just keep peaks
-    values[:-1] = values[:-1] * ((values[1:] > values[:-1]) is False)
-    # zero out values if predecessor is greater
-    values[1:] = values[1:] * ((values[:-1] > values[1:]) is False)
-    # strongest tempo
-    interval1 = histogram[1][np.argmax(values)]
-    weight1 = values[np.argmax(values)]
-    tempo1 = 60.0 * fps / interval1
-    # set it to 0
-    values[np.argmax(values)] = 0
-    # get the second strongest tempo
-    interval2 = histogram[1][np.argmax(values)]
-    weight2 = values[np.argmax(values)]
-    tempo2 = 60.0 * fps / interval2
-    # determine their relative strength
-    try:
-        weight = weight1 / (weight1 + weight2)
-    except ZeroDivisionError:
-        # just make sure we have some values
-        weight = 1.0
-    # return the 2 dominant tempi and their relative weight
-    return tempo1, tempo2, weight
+    tempi = 60.0 * fps / histogram[1]
+    # to get the two dominant tempi, just keep the peaks
+    # use 'wrap' mode to also get peaks at the borders
+    peaks = argrelmax(values, mode='wrap')[0]
+    # get the weights of the peaks to sort them in descending order
+    strengths = values[peaks]
+    sorted_peaks = peaks[np.argsort(strengths)[::-1]]
+    # if we have more than 2 peaks, we can report multiple tempi
+    if len(sorted_peaks) > 1:
+        # get the 2 strongest tempi
+        t1, t2 = tempi[sorted_peaks[:2]]
+        # calculate the relative strength
+        strength = values[sorted_peaks[0]]
+        strength /= np.sum(values[sorted_peaks[:2]])
+        # return the tempi + the relative strength
+        return t1, t2, strength
+    else:
+        # return just the strongest tempo
+        return tempi[sorted_peaks[0]], np.nan, 1.
 
 
 def detect_beats(activations, interval, look_aside=0.2):

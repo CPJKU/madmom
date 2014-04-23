@@ -348,7 +348,7 @@ def save_load(parser):
                    help='load the activations from file')
     g.add_argument('--sep', action='store', default=None,
                    help='separator for saving/loading the activation '
-                        'function [default: numpy binary format]')
+                        'function [default: None, i.e. numpy binary format]')
     # return the argument group so it can be modified if needed
     return g
 

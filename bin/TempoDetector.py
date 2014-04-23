@@ -55,7 +55,7 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p)
+    madmom.utils.params.beat(p, min_bpm=40, max_bpm=240)
     madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2013')
