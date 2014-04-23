@@ -127,17 +127,18 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script evaluates a file or folder with detections against a file or
-    folder with annotations. Extensions can be given to filter the detection
-    and annotation files accordingly.
+    folder with annotations. Suffixes can be given to filter the detection
+    and annotation files.
+
     """)
     # files used for evaluation
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default='.onsets.txt',
-                   help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default='.onsets',
-                   help='extension of the annotation files')
+    p.add_argument('-d', dest='det_suffix', action='store', default='.onsets.txt',
+                   help='suffix of the detection files')
+    p.add_argument('-t', dest='ann_suffix', action='store', default='.onsets',
+                   help='suffix of the annotation files')
     # parameters for evaluation
     p.add_argument('-w', dest='window', action='store', type=float,
                    default=WINDOW,
@@ -174,8 +175,8 @@ def main():
     args = parser()
 
     # get detection and annotation files
-    det_files = files(args.files, args.det_ext)
-    tar_files = files(args.files, args.tar_ext)
+    det_files = files(args.files, args.det_suffix)
+    ann_files = files(args.files, args.ann_suffix)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -192,16 +193,16 @@ def main():
         if args.delay != 0:
             detections += args.delay
         # get the matching annotation files
-        matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
+        matches = match_file(det_file, ann_files, args.det_suffix, args.ann_suffix)
         # quit if any file does not have a matching annotation file
         if len(matches) == 0:
             print " can't find an annotation file for %s. exiting." % det_file
             exit()
         # do a mean evaluation with all matched annotation files
         me = MeanEvaluation()
-        for tar_file in matches:
+        for ann_file in matches:
             # load the annotations
-            annotations = load_events(tar_file)
+            annotations = load_events(ann_file)
             # combine the annotations if needed
             if args.combine > 0:
                 annotations = combine_events(annotations, args.combine)

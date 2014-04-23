@@ -56,6 +56,7 @@ def tempo_evaluation(detections, annotations, tolerance, strengths=None):
     # strengths must sum up to 1
     strengths_sum = np.sum(strengths)
     if strengths_sum == 0:
+        # distribute evenly
         strengths = np.ones_like(annotations) / float(annotations.size)
     elif strengths_sum != 1:
         strengths /= float(strengths_sum)
@@ -164,10 +165,10 @@ def parser():
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
     # extensions used for evaluation
-    p.add_argument('-d', dest='det_ext', action='store', default='.bpm.txt',
-                   help='extension of the detection files')
-    p.add_argument('-t', dest='tar_ext', action='store', default='.bpm',
-                   help='extension of the annotation files')
+    p.add_argument('-d', dest='det_suffix', action='store', default='.bpm.txt',
+                   help='suffix of the detection files')
+    p.add_argument('-t', dest='ann_suffix', action='store', default='.bpm',
+                   help='suffix of the annotation files')
     # evaluation parameter
     p.add_argument('--tolerance', dest='tolerance', action='store',
                    default=TOLERANCE, help='tolerance for tempo detection')
@@ -196,8 +197,8 @@ def main():
     args = parser()
 
     # get detection and annotation files
-    det_files = files(args.files, args.det_ext)
-    tar_files = files(args.files, args.tar_ext)
+    det_files = files(args.files, args.det_suffix)
+    ann_files = files(args.files, args.ann_suffix)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -210,7 +211,8 @@ def main():
         # get the detections file
         detections = load_events(det_file)
         # get the matching annotation files
-        matches = match_file(det_file, tar_files, args.det_ext, args.tar_ext)
+        matches = match_file(det_file, ann_files, args.det_suffix,
+                             args.ann_suffix)
         # quit if any file does not have a matching annotation file
         if len(matches) == 0:
             print " can't find a annotation file for %s. exiting." % det_file
@@ -219,9 +221,9 @@ def main():
         # TODO: decide whether we want multiple annotations per file or
         #       multiple files and do a mean_evaluation on those
         me = MeanTempoEvaluation()
-        for tar_file in matches:
+        for ann_file in matches:
             # load the annotations
-            annotations = load_events(tar_file)
+            annotations = load_events(ann_file)
             # add the Evaluation to mean evaluation
             me.append(TempoEvaluation(detections, annotations, args.tolerance))
             # process the next annotation file

@@ -809,7 +809,7 @@ def parser():
     If invoked without any parameters the script evaluates pairs of files
     with the annotations (.beats) and detection (.beats.txt) as simple text
     files with one beat timestamp per line. Suffixes can be given to filter
-    the detection and annotation files accordingly.
+    the detection and annotation files.
 
     To maintain compatibility with the original Matlab implementation, use
     the arguments '--skip 5 --no_triple'.

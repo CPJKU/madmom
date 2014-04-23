@@ -79,44 +79,43 @@ def files(path, ext=None):
     return file_list
 
 
-def strip_ext(filename, ext=None):
+def strip_suffix(filename, suffix=None):
     """
-    Strip of the extension of the given filename or string.
+    Strip of the suffix of the given filename or string.
 
-    :param filename: filename to process
-    :param ext:      strip of this extension
-    :returns:        filename without extension
+    :param filename: filename or string to process
+    :param suffix:   suffix to be stripped off
+    :returns:        filename or string without suffix
 
     """
-    if ext is not None and filename.endswith(ext):
-        return filename[:-len(ext)]
+    if suffix is not None and filename.endswith(suffix):
+        return filename[:-len(suffix)]
     return filename
 
 
-def match_file(filename, match_list, ext=None, match_ext=None):
+def match_file(filename, match_list, suffix=None, match_suffix=None):
     """
-    Match a file against a list of other files.
+    Match a filename or string against a list of other filenames or strings.
 
-    :param filename:   file to be matched
-    :param match_list: match to this list of files
-    :param ext:        strip this extension from the file to match before
-                       performing the search for matching files
-    :param match_ext:  only match files with this extension
-    :returns:          list of matched files
+    :param filename:     filename or string to be matched
+    :param match_list:   match to this list of filenames or strings
+    :param suffix:       ignore this suffix of the filename when matching
+    :param match_suffix: only match files with this suffix
+    :returns:            list of matched files
 
     """
     # get the base name without the path
-    basename = os.path.basename(strip_ext(filename, ext))
+    basename = os.path.basename(strip_suffix(filename, suffix))
     # init return list
     matches = []
     # look for files with the same base name in the files_list
-    if match_ext is not None:
-        pattern = "*%s*%s" % (basename, match_ext)
+    if match_suffix is not None:
+        pattern = "*%s*%s" % (basename, match_suffix)
     else:
         pattern = "*%s" % basename
     for match in fnmatch.filter(match_list, pattern):
         # base names must match exactly
-        if basename == os.path.basename(strip_ext(match, match_ext)):
+        if basename == os.path.basename(strip_suffix(match, match_suffix)):
             matches.append(match)
     # return the matches
     return matches
