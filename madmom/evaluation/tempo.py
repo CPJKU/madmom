@@ -163,8 +163,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         """
         # simple scores
         self._pscore = np.zeros(0)
-        self._any = np.zeros(0)
-        self._all = np.zeros(0)
+        self._any = np.zeros(0, dtype=bool)
+        self._all = np.zeros(0, dtype=bool)
 
     # for adding another TempoEvaluation object
     def append(self, other):
