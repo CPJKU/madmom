@@ -129,7 +129,7 @@ def load_events(filename):
     :param filename: name of the file or file handle
     :return:         numpy array of events
 
-    Note: Comments (i.e. lines tarting with '#' are ignored.
+    Note: Comments (i.e. lines tarting with '#') are ignored.
 
     """
     with open(filename, 'rb') as f:
