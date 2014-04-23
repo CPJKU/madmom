@@ -64,7 +64,8 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     :param annotations: array with (multiple) tempi [bpm]
     :param strengths:   array with the relative strengths of the tempi
     :param tolerance:   evaluation tolerance
-    :returns:           p-score
+    :returns:           p-score, at least one tempo correctly identified
+                        (float, bool)
 
     Note: If no relative strengths are given, evenly distributed strengths
           are assumed.
@@ -98,7 +99,7 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     # correctly identified annotation tempi
     correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
     # the p-score is the sum of the strengths of the correctly identified tempi
-    return np.sum(strengths[correct])
+    return np.sum(strengths[correct]), correct.any(), correct.all()
 
 
 TOLERANCE = 0.08
@@ -127,8 +128,9 @@ class TempoEvaluation(object):
         annotations = np.asarray(annotations, dtype=np.float)
         strengths = np.asarray(strengths, dtype=np.float)
         # evaluate
-        self.pscore = tempo_evaluation(detections, annotations, strengths,
-                                       tolerance)
+        results = tempo_evaluation(detections, annotations, strengths,
+                                   tolerance)
+        self.pscore, self.any, self.all = results
 
     def print_errors(self, indent='', tex=False):
         """
@@ -143,7 +145,8 @@ class TempoEvaluation(object):
             ret = 'tex & P-Score\\\\\n& %.3f\\\\' % self.pscore
         else:
             # normal formatting
-            ret = '%spscore=%.3f' % (indent, self.pscore)
+            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)' % \
+                  (indent, self.pscore, self.any, self.all)
         return ret
 
 
@@ -160,6 +163,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         """
         # simple scores
         self._pscore = np.zeros(0)
+        self._any = np.zeros(0)
+        self._all = np.zeros(0)
 
     # for adding another TempoEvaluation object
     def append(self, other):
@@ -172,6 +177,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         """
         if isinstance(other, TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
+            self._any = np.append(self._any, other.any)
+            self._all = np.append(self._all, other.all)
         else:
             raise TypeError('Can only append TempoEvaluation to '
                             'MeanTempoEvaluation, not %s' %
@@ -183,6 +190,20 @@ class MeanTempoEvaluation(TempoEvaluation):
         if len(self._pscore) == 0:
             return 0.
         return np.mean(self._pscore)
+
+    @property
+    def any(self):
+        """At least one tempo correct."""
+        if len(self._any) == 0:
+            return 0.
+        return np.mean(self._any)
+
+    @property
+    def all(self):
+        """All tempi correct."""
+        if len(self._all) == 0:
+            return 0.
+        return np.mean(self._all)
 
 
 def parser():
