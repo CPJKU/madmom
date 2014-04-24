@@ -13,7 +13,7 @@ from madmom.test import DATA_PATH
 from madmom.utils import *
 
 
-TARGETS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+ANNOTATIONS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.030000001]
 
 
@@ -24,6 +24,7 @@ class TestFileSelection(unittest.TestCase):
         self.assertEqual(all_files, [DATA_PATH + 'commented_file.txt',
                                      DATA_PATH + 'file.onsets',
                                      DATA_PATH + 'file.onsets.txt',
+                                     DATA_PATH + 'file.tempo',
                                      DATA_PATH + 'file_txt'])
 
     def test_txt_files(self):
@@ -56,8 +57,8 @@ class TestFileMatching(unittest.TestCase):
 
     def test_match_other_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
-        self.assertEqual(match_file('file.txt', match_list, match_suffix='other'),
-                         [])
+        self.assertEqual(match_file('file.txt', match_list,
+                                    match_suffix='other'), [])
 
     def test_match_dot_other_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
@@ -73,18 +74,18 @@ class TestReadFiles(unittest.TestCase):
         self.assertRaises(IOError, load_events, file_handle)
 
     def test_read_events_from_file(self):
-        targets = load_events(DATA_PATH + 'file_txt')
-        self.assertIsInstance(targets, np.ndarray)
+        annotations = load_events(DATA_PATH + 'file_txt')
+        self.assertIsInstance(annotations, np.ndarray)
 
     def test_read_events_from_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
-        targets = load_events(file_handle)
-        self.assertIsInstance(targets, np.ndarray)
+        annotations = load_events(file_handle)
+        self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()
 
-    def test_read_onset_targets(self):
-        targets = load_events(DATA_PATH + 'file.onsets')
-        self.assertTrue(np.array_equal(targets, TARGETS))
+    def test_read_onset_annotations(self):
+        annotations = load_events(DATA_PATH + 'file.onsets')
+        self.assertTrue(np.array_equal(annotations, ANNOTATIONS))
 
     def test_read_onset_detections(self):
         detections = load_events(DATA_PATH + 'file.onsets.txt')
@@ -103,41 +104,41 @@ class TestWriteFiles(unittest.TestCase):
 
     def test_write_events_to_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'r')
-        self.assertRaises(IOError, write_events, TARGETS, file_handle)
+        self.assertRaises(IOError, write_events, ANNOTATIONS, file_handle)
 
     def test_write_events_to_file(self):
-        self.assertIsNone(write_events(TARGETS, DATA_PATH + 'file_txt'))
+        self.assertIsNone(write_events(ANNOTATIONS, DATA_PATH + 'file_txt'))
 
     def test_write_events_to_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'file_txt', 'w')
-        self.assertIsNone(write_events(TARGETS, file_handle))
+        self.assertIsNone(write_events(ANNOTATIONS, file_handle))
         file_handle.close()
 
     def test_write_and_read_events(self):
-        write_events(TARGETS, DATA_PATH + 'file_txt')
-        targets = load_events(DATA_PATH + 'file_txt')
-        self.assertTrue(np.array_equal(targets, TARGETS))
+        write_events(ANNOTATIONS, DATA_PATH + 'file_txt')
+        annotations = load_events(DATA_PATH + 'file_txt')
+        self.assertTrue(np.array_equal(annotations, ANNOTATIONS))
 
 
 class TestCombineEvents(unittest.TestCase):
 
     def test_combine_000(self):
-        comb = combine_events(TARGETS, 0.)
+        comb = combine_events(ANNOTATIONS, 0.)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
         self.assertTrue(np.array_equal(comb, correct))
 
     def test_combine_001(self):
-        comb = combine_events(TARGETS, 0.01)
+        comb = combine_events(ANNOTATIONS, 0.01)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
         self.assertTrue(np.array_equal(comb, correct))
 
     def test_combine_003(self):
-        comb = combine_events(TARGETS, 0.03)
+        comb = combine_events(ANNOTATIONS, 0.03)
         correct = np.asarray([1.01, 1.5, 2.015, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
 
     def test_combine_0035(self):
-        comb = combine_events(TARGETS, 0.035)
+        comb = combine_events(ANNOTATIONS, 0.035)
         correct = np.asarray([1.01, 1.5, 2.0325, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
 
@@ -145,14 +146,14 @@ class TestCombineEvents(unittest.TestCase):
 class TestQuantiseEvents(unittest.TestCase):
 
     def test_quantise_10(self):
-        quantised = quantise_events(TARGETS, 10, length=None)
+        quantised = quantise_events(ANNOTATIONS, 10, length=None)
         idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [10, 15, 20, 21, 25, 30]
         self.assertTrue(np.array_equal(idx, correct))
 
     def test_quantise_100(self):
-        quantised = quantise_events(TARGETS, 100, length=None)
+        quantised = quantise_events(ANNOTATIONS, 100, length=None)
         idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
@@ -160,11 +161,11 @@ class TestQuantiseEvents(unittest.TestCase):
 
     def test_quantise_length_280(self):
         length = 280
-        quantised = quantise_events(TARGETS, 100, length=length)
+        quantised = quantise_events(ANNOTATIONS, 100, length=length)
         self.assertTrue(len(quantised), length)
 
     def test_quantise_100_length_280(self):
-        quantised = quantise_events(TARGETS, 100, length=280)
+        quantised = quantise_events(ANNOTATIONS, 100, length=280)
         idx = np.nonzero(quantised)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250]

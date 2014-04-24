@@ -13,28 +13,28 @@ from madmom.evaluation.onsets import *
 
 DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
                          3.030000001])
-TARGETS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+ANNOTATIONS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
 
 
 # test evaluation function
 class TestOnsetEvaluationFunction(unittest.TestCase):
 
     def test_window_001(self):
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.01)
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.01)
         self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5])
         self.assertEqual(fp, [1.45, 3.030000001])
         self.assertEqual(tn, [])
         self.assertEqual(fn, [1.5, 2.05, 3.0])
 
     def test_window_003(self):
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.03)
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.03)
         self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5])
         self.assertEqual(fp, [1.45, 3.030000001])
         self.assertEqual(tn, [])
         self.assertEqual(fn, [1.5, 2.05, 3.0])
 
     def test_window_004(self):
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, TARGETS, 0.04)
+        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.04)
 
         self.assertEqual(tp, [0.99999999, 1.02999999, 2.01, 2.02, 2.5,
                               3.030000001])
@@ -47,7 +47,7 @@ class TestOnsetEvaluationFunction(unittest.TestCase):
 class TestOnsetEvaluationClass(unittest.TestCase):
 
     def test_types(self):
-        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)
@@ -78,10 +78,10 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertRaises(TypeError, OnsetEvaluation, int(0), int(0))
 
     def test_add(self):
-        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         # adding an Evaluation or OnsetEvaluation object should work
         self.assertIsInstance(e + Evaluation(), Evaluation)
-        self.assertIsInstance(e + OnsetEvaluation(DETECTIONS, TARGETS),
+        self.assertIsInstance(e + OnsetEvaluation(DETECTIONS, ANNOTATIONS),
                               Evaluation)
         # adding others should fail
         with self.assertRaises(TypeError):
@@ -92,12 +92,12 @@ class TestOnsetEvaluationClass(unittest.TestCase):
             e + MeanEvaluation()
 
     def test_iadd(self):
-        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         # adding an Evaluation
         e += Evaluation()
         self.assertIsInstance(e, OnsetEvaluation)
         # or OnsetEvaluation object should work
-        e += OnsetEvaluation(DETECTIONS, TARGETS)
+        e += OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(e, OnsetEvaluation)
         # adding others should fail
         with self.assertRaises(TypeError):
@@ -108,8 +108,8 @@ class TestOnsetEvaluationClass(unittest.TestCase):
             e += MeanEvaluation()
 
     def test_iadd_types(self):
-        e = OnsetEvaluation(DETECTIONS, TARGETS)
-        e += OnsetEvaluation(DETECTIONS, TARGETS)
+        e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
+        e += OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)
@@ -123,7 +123,7 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.std_error, float)
 
     def test_results(self):
-        e = OnsetEvaluation(DETECTIONS, TARGETS)
+        e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         self.assertEqual(e.tp, [0.99999999, 1.02999999, 2.01, 2.02,
                                 2.5])
         self.assertEqual(e.fp, [1.45, 3.030000001])

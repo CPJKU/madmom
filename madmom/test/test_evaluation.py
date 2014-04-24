@@ -12,7 +12,7 @@ from madmom.evaluation import *
 
 
 DETECTIONS = np.asarray([0.99, 1.45, 2.01, 2.015, 3.1, 8.1])
-TARGETS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+ANNOTATIONS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
 
 
 # test functions
@@ -31,12 +31,12 @@ class TestFindClosestMatchesFunction(unittest.TestCase):
         # empty sequences
         matches = find_closest_matches([], [])
         self.assertTrue(np.array_equal(matches, []))
-        # detections relative to targets
-        matches = find_closest_matches(DETECTIONS, TARGETS)
+        # detections relative to annotations
+        matches = find_closest_matches(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([0, 1, 2, 3, 6, 6])
         self.assertTrue(np.array_equal(matches, correct))
-        # targets relative to detections
-        matches = find_closest_matches(TARGETS, DETECTIONS)
+        # annotations relative to detections
+        matches = find_closest_matches(ANNOTATIONS, DETECTIONS)
         correct = np.asarray([0, 1, 2, 3, 3, 3, 4])
         self.assertTrue(np.array_equal(matches, correct))
 
@@ -44,7 +44,7 @@ class TestFindClosestMatchesFunction(unittest.TestCase):
 class TestCalcErrorsFunction(unittest.TestCase):
 
     def test_types(self):
-        errors = calc_errors(DETECTIONS, TARGETS)
+        errors = calc_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
         self.assertEqual(errors.dtype, np.float)
         # lists don't have searchsorted
@@ -55,12 +55,12 @@ class TestCalcErrorsFunction(unittest.TestCase):
         # empty sequences
         matches = calc_errors([], [])
         self.assertTrue(np.array_equal(matches, []))
-        # detections relative to targets
-        errors = calc_errors(DETECTIONS, TARGETS)
+        # detections relative to annotations
+        errors = calc_errors(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([-0.01, -0.05, 0.01, -0.015, 0.1, 5.1])
         self.assertTrue(np.allclose(errors, correct))
-        # targets relative to detections
-        errors = calc_errors(TARGETS, DETECTIONS)
+        # annotations relative to detections
+        errors = calc_errors(ANNOTATIONS, DETECTIONS)
         correct = np.asarray([0.01, 0.05, -0.01, 0.015, 0.035, 0.485, -0.1])
         self.assertTrue(np.allclose(errors, correct))
 
@@ -68,7 +68,7 @@ class TestCalcErrorsFunction(unittest.TestCase):
 class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
 
     def test_types(self):
-        errors = calc_absolute_errors(DETECTIONS, TARGETS)
+        errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
         self.assertEqual(errors.dtype, np.float)
         # lists don't have searchsorted
@@ -79,12 +79,12 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
         # empty sequences
         errors = calc_absolute_errors([], [])
         self.assertTrue(np.allclose(errors, []))
-        # detections relative to targets
-        errors = calc_absolute_errors(DETECTIONS, TARGETS)
+        # detections relative to annotations
+        errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([0.01, 0.05, 0.01, 0.015, 0.1, 5.1])
         self.assertTrue(np.allclose(errors, correct))
-        # targets relative to detections
-        errors = calc_absolute_errors(TARGETS, DETECTIONS)
+        # annotations relative to detections
+        errors = calc_absolute_errors(ANNOTATIONS, DETECTIONS)
         correct = np.asarray([0.01, 0.05, 0.01, 0.015, 0.035, 0.485, 0.1])
         self.assertTrue(np.allclose(errors, correct))
 
@@ -92,7 +92,7 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
 class TestCalcRelativeErrorsFunction(unittest.TestCase):
 
     def test_types(self):
-        errors = calc_relative_errors(DETECTIONS, TARGETS)
+        errors = calc_relative_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
         with self.assertRaises(AttributeError):
             calc_relative_errors([0, 1], [2, 3])
@@ -101,17 +101,17 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
         # empty sequences
         errors = calc_relative_errors([], [])
         self.assertTrue(np.allclose(errors, []))
-        # detections relative to targets
-        errors = calc_relative_errors(DETECTIONS, TARGETS)
-        # np.abs(1 - (errors / targets[matches]))
+        # detections relative to annotations
+        errors = calc_relative_errors(DETECTIONS, ANNOTATIONS)
+        # np.abs(1 - (errors / annotations[matches]))
         # det: [0.99, 1.45, 2.01, 2.015,            3.1,  8.1])
         # tar: [1,    1.5,  2.0,  2.03,  2.05, 2.5, 3])
         correct = np.abs(np.asarray([1 + 0.01 / 1, 1 + 0.05 / 1.5,
                                      1 - 0.01 / 2, 1 + 0.015 / 2.03,
                                      1 - 0.1 / 3, 1 - 5.1 / 3]))
         self.assertTrue(np.allclose(errors, correct))
-        # targets relative to detections
-        errors = calc_relative_errors(TARGETS, DETECTIONS)
+        # annotations relative to detections
+        errors = calc_relative_errors(ANNOTATIONS, DETECTIONS)
         correct = np.abs(np.asarray([1 - 0.01 / 0.99, 1 - 0.05 / 1.45,
                                      1 + 0.01 / 2.01, 1 - 0.015 / 2.015,
                                      1 - 0.035 / 2.015, 1 - 0.485 / 2.015,

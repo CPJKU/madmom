@@ -88,16 +88,20 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     if det == 0 or ann == 0:
         # worst result
         return 0., False, False
+    print det, ann
+    # tolerance must be greater than 0
+    if tolerance <= 0:
+        raise ValueError("tolerance must be greater than 0")
     # if no annotation strengths are given, distribute evenly
     if strengths is None:
         strengths = np.ones_like(annotations)
-    if annotations.size != strengths.size:
-        raise ValueError("Tempo annotations and strengths must match in size.")
+    if len(annotations) != len(strengths):
+        raise ValueError("Annotations and strengths must have same length.")
     # strengths must sum up to 1
     strengths_sum = np.sum(strengths)
     if strengths_sum == 0:
         # create evenly distributed strengths
-        strengths = np.ones_like(annotations) / float(annotations.size)
+        strengths = np.ones_like(annotations) / float(len(annotations))
     elif strengths_sum != 1:
         # normalize strengths
         strengths /= float(strengths_sum)
