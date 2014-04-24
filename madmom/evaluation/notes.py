@@ -152,10 +152,12 @@ def parser():
     # files used for evaluation
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
-    # extensions used for evaluation
-    p.add_argument('-d', dest='det_suffix', action='store', default='.notes.txt',
+    # suffixes used for evaluation
+    p.add_argument('-d', dest='det_suffix', action='store',
+                   default='.notes.txt',
                    help='extension of the detection files')
-    p.add_argument('-t', dest='ann_suffix', action='store', default='.notes',
+    p.add_argument('-t', dest='ann_suffix', action='store',
+                   default='.notes',
                    help='extension of the annotation files')
     # parameters for evaluation
     p.add_argument('-w', dest='window', action='store', type=float,

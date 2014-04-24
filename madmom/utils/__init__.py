@@ -72,7 +72,7 @@ def files(path, ext=None):
         else:
             file_list = []
     else:
-        raise ValueError("only files or folders are supported.")
+        raise IOError("%s does not exist." % path)
     # sort files
     file_list.sort()
     # return list
