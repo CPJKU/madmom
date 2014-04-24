@@ -77,18 +77,14 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
-    # length of detections and annotations
-    det = len(detections)
-    ann = len(annotations)
     # neither detections nor annotations are given
-    if det == 0 and ann == 0:
+    if len(detections) == 0 and len(annotations) == 0:
         # perfect result
         return 1., True, True
     # either detections or annotations are empty
-    if det == 0 or ann == 0:
+    if len(detections) == 0 or len(annotations) == 0:
         # worst result
         return 0., False, False
-    print det, ann
     # tolerance must be greater than 0
     if tolerance <= 0:
         raise ValueError("tolerance must be greater than 0")

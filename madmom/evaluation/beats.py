@@ -169,6 +169,9 @@ def pscore(detections, annotations, tolerance):
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        return 1.
     # at least 1 detection and 2 annotations must be given
     if len(detections) < 1 or len(annotations) < 2:
         return 0.
@@ -201,8 +204,11 @@ def cemgil(detections, annotations, sigma):
     Journal Of New Music Research, vol. 28, no. 4, pp. 259–273, 2001
 
     """
-    # no detections or no annotations
-    if len(detections) == 0 or len(annotations) == 0:
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        return 1.
+    # at least 1 detection and annotation must be given
+    if len(detections) < 1 or len(annotations) < 1:
         return 0.
     # sigma must be greater than 0
     if sigma <= 0:
@@ -241,6 +247,9 @@ def goto(detections, annotations, threshold, mu, sigma):
     Evaluation and Assessment, pp. 9–16, 1997
 
     """
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        return 1.
     # at least 1 detection and 2 annotations must be given
     if len(detections) < 1 or len(annotations) < 2:
         return 0.
@@ -303,7 +312,10 @@ def cml(detections, annotations, tempo_tolerance, phase_tolerance):
     pp. 342–355, 2006.
 
     """
-    # at least 2 detection and annotations must be given
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        return 1.
+    # at least 2 detections and annotations must be given
     if len(detections) < 2 or len(annotations) < 2:
         return 0., 0.
     # tolerances must be greater than 0
@@ -456,7 +468,11 @@ def information_gain(detections, annotations, bins):
         raise ValueError("Number of error histogram bins must be even and "
                          "greater than 0")
 
-    # at least 2 detection and 2 annotations must be given
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        # return a max. information gain and an empty error histogram
+        return np.log2(bins), np.zeros(bins)
+    # at least 2 detections and annotations must be given
     if len(detections) < 2 or len(annotations) < 2:
         # return an information gain of 0 and a uniform beat error histogram
         # Note: Because we want flipped detections and annotations return the
