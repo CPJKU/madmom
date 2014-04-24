@@ -27,6 +27,8 @@ def load_tempo(filename, split_value=1.):
     """
     # read in the tempi
     with open(filename, 'rb') as f:
+        # init values
+        values = np.zeros(0)
         # TODO: what to do if more information is in the file?
         #       right now we only keep the last line...
         for line in f:
@@ -75,12 +77,17 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
 
     """
-    # no detections are given
-    if len(detections) == 0:
-        return 0
-    # no annotations are given
-    if len(annotations) == 0:
-        raise TypeError("Target tempo must be given.")
+    # length of detections and annotations
+    det = len(detections)
+    ann = len(annotations)
+    # neither detections nor annotations are given
+    if det == 0 and ann == 0:
+        # perfect result
+        return 1., True, True
+    # either detections or annotations are empty
+    if det == 0 or ann == 0:
+        # worst result
+        return 0., False, False
     # if no annotation strengths are given, distribute evenly
     if strengths is None:
         strengths = np.ones_like(annotations)
