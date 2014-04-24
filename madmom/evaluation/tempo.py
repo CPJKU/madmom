@@ -226,7 +226,7 @@ def parser():
     # files used for evaluation
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
-    # extensions used for evaluation
+    # suffixes used for evaluation
     p.add_argument('-d', dest='det_suffix', action='store', default='.bpm.txt',
                    help='suffix of the detection files')
     p.add_argument('-t', dest='ann_suffix', action='store', default='.bpm',

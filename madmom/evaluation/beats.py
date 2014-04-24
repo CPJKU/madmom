@@ -817,7 +817,7 @@ def parser():
     """)
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be evaluated')
-    # extensions used for evaluation
+    # suffixes used for evaluation
     p.add_argument('-d', dest='det_suffix', action='store',
                    default='.beats.txt',
                    help='suffix of the detection files '
