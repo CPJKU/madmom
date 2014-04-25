@@ -367,7 +367,7 @@ def cml(detections, annotations, tempo_tolerance, phase_tolerance):
     """
     # neither detections nor annotations
     if len(detections) == 0 and len(annotations) == 0:
-        return 1.
+        return 1., 1.
     # at least 2 detections and annotations must be given
     if len(detections) < 2 or len(annotations) < 2:
         return 0., 0.
@@ -440,6 +440,9 @@ def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
     pp. 342–355, 2006.
 
     """
+    # neither detections nor annotations
+    if len(detections) == 0 and len(annotations) == 0:
+        return 1., 1., 1., 1.
     # at least 2 detection and annotations must be given
     if len(detections) < 2 or len(annotations) < 2:
         return 0., 0., 0., 0.

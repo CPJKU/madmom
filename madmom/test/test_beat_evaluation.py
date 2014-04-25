@@ -188,8 +188,13 @@ class TestPscoreFunction(unittest.TestCase):
             pscore(DETECTIONS, ANNOTATIONS, 0)
         with self.assertRaises(ValueError):
             pscore(DETECTIONS, ANNOTATIONS, None)
-        # empty sequences should return 0
+        # two empty sequences should return 1
         score = pscore([], [], 0.2)
+        self.assertEqual(score, 1)
+        # either empty annotations or detection sequences should return 0
+        score = pscore(DETECTIONS, [], 0.2)
+        self.assertEqual(score, 0)
+        score = pscore([], ANNOTATIONS, 0.2)
         self.assertEqual(score, 0)
         # score relies on intervals, hence at least 2 annotations must be given
         score = pscore(DETECTIONS, [1], 0.2)
@@ -237,13 +242,12 @@ class TestCemgilFunction(unittest.TestCase):
             cemgil(DETECTIONS, ANNOTATIONS, 0)
         with self.assertRaises(ValueError):
             cemgil(DETECTIONS, ANNOTATIONS, None)
-        # empty sequences should return 0
+        # two empty sequences should return 1
         score = cemgil([], [], 0.04)
-        self.assertEqual(score, 0)
-        # no detections should return 0
+        self.assertEqual(score, 1)
+        # either empty annotations or detection sequences should return 0
         score = cemgil([], ANNOTATIONS, 0.04)
         self.assertEqual(score, 0)
-        # no annotations should return 0
         score = cemgil(DETECTIONS, [], 0.04)
         self.assertEqual(score, 0)
         # normal calculation
@@ -283,13 +287,12 @@ class TestGotoFunction(unittest.TestCase):
         self.assertEqual(score, 0)
         score = goto(DETECTIONS, ANNOTATIONS, 0.175, 0.2, None)
         self.assertEqual(score, 0)
-        # empty sequences should return 0
+        # two empty sequences should return 1
         score = goto([], [], 0.175, 0.2, 0.2)
-        self.assertEqual(score, 0)
-        # no detections should return 0
+        self.assertEqual(score, 1)
+        # either empty annotations or detection sequences should return 0
         score = goto([], ANNOTATIONS, 0.175, 0.2, 0.2)
         self.assertEqual(score, 0)
-        # no annotations should return 0
         score = goto(DETECTIONS, [], 0.175, 0.2, 0.2)
         self.assertEqual(score, 0)
         # normal calculation
@@ -332,9 +335,9 @@ class TestCmlFunction(unittest.TestCase):
             cml(DETECTIONS, ANNOTATIONS, 0, None)
         with self.assertRaises(ValueError):
             cml(DETECTIONS, ANNOTATIONS, None, 0)
-        # empty sequences should return 0
+        # two empty sequences should return 1
         scores = cml([], [], 0.175, 0.175)
-        self.assertEqual(scores, (0, 0))
+        self.assertEqual(scores, (1, 1))
         # no detections should return 0
         scores = cml([], ANNOTATIONS, 0.175, 0.175)
         self.assertEqual(scores, (0, 0))
@@ -396,9 +399,9 @@ class TestContinuityFunction(unittest.TestCase):
             continuity(DETECTIONS, ANNOTATIONS, 0, None)
         with self.assertRaises(ValueError):
             continuity(DETECTIONS, ANNOTATIONS, None, 0)
-        # empty sequences should return 0
+        # empty sequences should return 1
         scores = continuity([], [], 0.175, 0.175)
-        self.assertEqual(scores, (0, 0, 0, 0))
+        self.assertEqual(scores, (1, 1, 1, 1))
         # no detections should return 0
         scores = continuity([], ANNOTATIONS, 0.175, 0.175)
         self.assertEqual(scores, (0, 0, 0, 0))
@@ -534,14 +537,13 @@ class TestInformationGainFunction(unittest.TestCase):
             information_gain(DETECTIONS, ANNOTATIONS, 2.1)
         with self.assertRaises(ValueError):
             information_gain(DETECTIONS, ANNOTATIONS, 5)
-        # empty sequences should return 0 and a zero histogram
+        # empty sequences should return max score and a zero histogram
         ig, histogram = information_gain([], [], 4)
-        self.assertEqual(ig, 0)
+        self.assertEqual(ig, np.log2(4))
         self.assertTrue(np.allclose(histogram, np.zeros(4)))
         # less than 2 detections should return 0 and a uniform histogram
         ig, histogram = information_gain([], ANNOTATIONS, 4)
         self.assertEqual(ig, 0)
-        print histogram
         self.assertTrue(np.allclose(histogram,
                                     np.ones(4) * len(ANNOTATIONS) / 4.))
         ig, histogram = information_gain([1.], ANNOTATIONS, 4)
@@ -624,15 +626,15 @@ class TestBeatEvaluationClass(unittest.TestCase):
     def test_results_empty(self):
         e = BeatEvaluation([], [])
         self.assertEqual(e.fmeasure, 1)
-        self.assertEqual(e.pscore, 0)
-        self.assertEqual(e.cemgil, 0)
-        self.assertEqual(e.goto, 0)
-        self.assertEqual(e.cmlc, 0)
-        self.assertEqual(e.cmlt, 0)
-        self.assertEqual(e.amlc, 0)
-        self.assertEqual(e.amlt, 0)
-        self.assertEqual(e.information_gain, 0)
-        self.assertEqual(e.global_information_gain, 0)
+        self.assertEqual(e.pscore, 1)
+        self.assertEqual(e.cemgil, 1)
+        self.assertEqual(e.goto, 1)
+        self.assertEqual(e.cmlc, 1)
+        self.assertEqual(e.cmlt, 1)
+        self.assertEqual(e.amlc, 1)
+        self.assertEqual(e.amlt, 1)
+        self.assertEqual(e.information_gain, np.log2(40))
+        self.assertEqual(e.global_information_gain, np.log2(40))
         self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
 
     def test_results(self):
@@ -725,14 +727,15 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         e = MeanBeatEvaluation()
         e.append(BeatEvaluation([], []))
         self.assertEqual(e.fmeasure, 1)
-        self.assertEqual(e.pscore, 0)
-        self.assertEqual(e.cemgil, 0)
-        self.assertEqual(e.goto, 0)
-        self.assertEqual(e.cmlc, 0)
-        self.assertEqual(e.cmlt, 0)
-        self.assertEqual(e.amlc, 0)
-        self.assertEqual(e.amlt, 0)
-        self.assertEqual(e.information_gain, 0)
+        self.assertEqual(e.pscore, 1)
+        self.assertEqual(e.cemgil, 1)
+        self.assertEqual(e.goto, 1)
+        self.assertEqual(e.cmlc, 1)
+        self.assertEqual(e.cmlt, 1)
+        self.assertEqual(e.amlc, 1)
+        self.assertEqual(e.amlt, 1)
+        self.assertEqual(e.information_gain, np.log2(40))
+        # FIXME: solve this discrepancy in global/normal information gain!
         self.assertTrue(np.allclose(e.global_information_gain, 0))
         self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
 
