@@ -1151,7 +1151,7 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
                 splits[fold] = []
                 for line in split:
                     line = line.strip()
-                    nc_file = match_file(line, nc_files, match_ext='.nc')
+                    nc_file = match_file(line, nc_files, match_suffix='.nc')
                     splits[fold].append(nc_file[0])
     else:
         # use a standard splitting
