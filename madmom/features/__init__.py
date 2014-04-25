@@ -92,3 +92,4 @@ class Event(object):
 
 import onsets
 import beats
+import tempo

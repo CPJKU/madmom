@@ -105,10 +105,11 @@ def dominant_interval(histogram, smooth=None):
 
 
 # default values for tempo estimation
-THRESHOLD = 0
+THRESHOLD = 0.
 SMOOTH = 0.09
 MIN_BPM = 40
 MAX_BPM = 240
+NO_TEMPO = np.nan
 
 
 class Tempo(Event):
@@ -129,7 +130,7 @@ class Tempo(Event):
         super(Tempo, self).__init__(activations, fps, sep)
 
     def detect(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM, mirex=False):
+               max_bpm=MAX_BPM):
         """
         Detect the tempo on basis of the given beat activation function.
 
@@ -137,9 +138,8 @@ class Tempo(Event):
         :param smooth:    smooth the activation function over N seconds
         :param min_bpm:   minimum tempo used for beat tracking
         :param max_bpm:   maximum tempo used for beat tracking
-        :param mirex:     always output the lower tempo first
         :returns:         tuple with the two most dominant tempi and the
-                          relative weight of them
+                          relative strength of them
 
         """
         # convert the arguments to frames
@@ -160,20 +160,21 @@ class Tempo(Event):
         # to get the two dominant tempi, just keep the peaks
         # use 'wrap' mode to also get peaks at the borders
         peaks = argrelmax(bins, mode='wrap')[0]
-        # get the weights of the peaks to sort them in descending order
-        strengths = bins[peaks]
-        sorted_peaks = peaks[np.argsort(strengths)[::-1]]
         # we need more than 1 peak to report multiple tempi
-        if len(sorted_peaks) < 2:
-            # return tempi[sorted_peaks[0]], np.nan, 1.
-            raise AssertionError('this should not happen!')
-        # get the 2 strongest tempi
-        t1, t2 = tempi[sorted_peaks[:2]]
-        # calculate the relative strength
-        strength = bins[sorted_peaks[0]]
-        strength /= np.sum(bins[sorted_peaks[:2]])
-        # return the tempi + the relative strength
-        if mirex and t1 > t2:
-            # for MIREX, the lower tempo must be given first
-            return t2, t1, 1. - strength
-        return t1, t2, strength
+        if len(peaks) == 0:
+            # no peaks, no tempo
+            return NO_TEMPO, NO_TEMPO, 0.
+        elif len(peaks) == 1:
+            # report only the strongest tempo
+            return tempi[peaks[0]], NO_TEMPO, 1.
+        else:
+            # get the weights of the peaks
+            strengths = bins[peaks]
+            # to be able to sort them in descending order
+            sorted_peaks = peaks[np.argsort(strengths)[::-1]]
+            # get the 2 strongest tempi
+            t1, t2 = tempi[sorted_peaks[:2]]
+            # calculate the relative strength
+            strength = bins[sorted_peaks[0]]
+            strength /= np.sum(bins[sorted_peaks[:2]])
+            return t1, t2, strength
