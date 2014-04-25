@@ -735,8 +735,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.amlc, 1)
         self.assertEqual(e.amlt, 1)
         self.assertEqual(e.information_gain, np.log2(40))
-        # FIXME: solve this discrepancy in global/normal information gain!
-        self.assertTrue(np.allclose(e.global_information_gain, 0))
+        self.assertTrue(np.allclose(e.global_information_gain, np.log2(40)))
         self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
 
     def test_results(self):

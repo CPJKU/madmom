@@ -580,6 +580,9 @@ def _information_gain(error_histogram):
     :returns:               information gain
 
     """
+    # return a perfect score in case of an empty histogram
+    if np.sum(error_histogram) == 0:
+        return np.log2(len(error_histogram))
     # copy the error_histogram, because it must not be altered
     histogram = np.copy(error_histogram)
     # if all bins are 0, make a uniform distribution with values != 0
