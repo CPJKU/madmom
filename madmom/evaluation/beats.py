@@ -110,8 +110,8 @@ def find_longest_continuous_segment(sequence_indices):
     Find the longest consecutive segment in the given sequence_indices.
 
     :param sequence_indices: numpy array with the indices of the events [int]
-    :returns:               length and start position of the longest continuous
-                            segment [(int, int)]
+    :returns:                length and start position of the longest
+                             continuous segment [(int, int)]
 
     """
     # continuous segments hve consecutive indices, i.e. diffs =! 1 are
@@ -152,6 +152,59 @@ def calc_relative_errors(detections, annotations, matches=None):
     intervals = find_closest_intervals(detections, annotations, matches)
     # return the relative errors
     return errors / intervals
+
+
+def variations(sequence, offbeat=True, double=True, triple=True):
+    """
+    Create variations of the given beat sequence.
+
+    :param sequence: numpy array with the beat sequence [float, seconds]
+    :param offbeat:  create offbeat sequence
+    :param double:   create double/half tempo sequence
+    :param triple:   create triple/third tempo sequence
+    :returns:        list with sequence variations
+
+    """
+    # create different variants of the annotations
+    sequences = []
+    # inter-/extrapolate double tempo
+    if double or offbeat:
+        # create a sequence with double tempo
+        same = np.arange(0, len(sequence))
+        shifted = np.arange(0, len(sequence), 0.5)
+        double_sequence = np.interp(shifted, same, sequence)
+        # np.interp does not extrapolate, so do this manually
+        double_sequence[-1] += np.diff(double_sequence[:-1])[-1]
+    # same tempo, half tempo off
+    if offbeat:
+        sequences.append(double_sequence[1::2])
+    # double/half tempo variations
+    if double:
+        # double tempo
+        sequences.append(double_sequence)
+        # half tempo odd beats (i.e. 1,3,1,3,..)
+        sequences.append(sequence[::2])
+        # half tempo even beats (i.e. 2,4,2,4,..)
+        sequences.append(sequence[1::2])
+    # triple/third tempo variations
+    if triple:
+        # create a annotation sequence with double tempo
+        same = np.arange(0, len(sequence))
+        shifted = np.arange(0, len(sequence), 1. / 3)
+        triple_sequence = np.interp(shifted, same, sequence)
+        # np.interp does not extrapolate, so do this manually
+        extrapolated = np.diff(triple_sequence[:-2])[-2:] * np.arange(1, 3)
+        triple_sequence[-2:] += extrapolated
+        # triple tempo
+        sequences.append(triple_sequence)
+        # third tempo 1st beat (1,4,3,2,..)
+        sequences.append(sequence[::3])
+        # third tempo 2nd beat (2,1,4,3,..)
+        sequences.append(sequence[1::3])
+        # third tempo 3rd beat (3,2,1,4,..)
+        sequences.append(sequence[2::3])
+    # return
+    return sequences
 
 
 # evaluation functions for beat detection
@@ -356,7 +409,7 @@ def cml(detections, annotations, tempo_tolerance, phase_tolerance):
 
 
 def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
-               double=True, triple=True):
+               offbeat=True, double=True, triple=True):
     """
     Calculate the cmlc, cmlt, amlc and amlt scores for the given detections and
     annotations.
@@ -367,6 +420,7 @@ def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
                             [float, seconds]
     :param tempo_tolerance: tempo tolerance window [float]
     :param phase_tolerance: phase (interval) tolerance window [float]
+    :param offbeat:         include offbeat variation
     :param double:          include 2x and 1/2x tempo variations
     :param triple:          include 3x and 1/3x tempo variations
     :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
@@ -400,44 +454,12 @@ def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
     if cmlc > 0.5:
         return cmlc, cmlt, amlc, amlt
 
-    # create a annotation sequence with double tempo
-    same = np.arange(0, len(annotations))
-    shifted = np.arange(0, len(annotations), 0.5)
-    double_annotations = np.interp(shifted, same, annotations)
-    # np.interp does not extrapolate, so do this manually
-    double_annotations[-1] += np.diff(double_annotations[:-1])[-1]
     # create different variants of the annotations:
-    # same tempo, half a beat off
-    variations = [double_annotations[1::2]]
-    # double/half tempo variations
-    if double:
-        # double tempo
-        variations.append(double_annotations)
-        # half tempo odd beats (i.e. 1,3,1,3,..)
-        variations.append(annotations[::2])
-        # half tempo even beats (i.e. 2,4,2,4,..)
-        variations.append(annotations[1::2])
-    # triple/third tempo variations
-    if triple:
-        # create a annotation sequence with double tempo
-        same = np.arange(0, len(annotations))
-        shifted = np.arange(0, len(annotations), 1. / 3)
-        triple_annotations = np.interp(shifted, same, annotations)
-        # np.interp does not extrapolate, so do this manually
-        extrapolated = np.diff(triple_annotations[:-2])[-2:] * np.arange(1, 3)
-        triple_annotations[-2:] += extrapolated
-        # triple tempo
-        variations.append(triple_annotations)
-        # third tempo 1st beat (1,4,3,2,..)
-        variations.append(annotations[::3])
-        # third tempo 2nd beat (2,1,4,3,..)
-        variations.append(annotations[1::3])
-        # third tempo 3rd beat (3,2,1,4,..)
-        variations.append(annotations[2::3])
+    sequences = variations(annotations, offbeat, double, triple)
     # evaluate these metrical variants
-    for variation in variations:
+    for sequence in sequences:
         # if other metrical levels achieve higher accuracies, take these values
-        c, t = cml(detections, variation, tempo_tolerance, phase_tolerance)
+        c, t = cml(detections, sequence, tempo_tolerance, phase_tolerance)
         amlc = max(amlc, c)
         amlt = max(amlt, t)
 
@@ -582,9 +604,11 @@ GOTO_SIGMA = 0.1
 GOTO_MU = 0.1
 TEMPO_TOLERANCE = 0.175
 PHASE_TOLERANCE = 0.175
+BINS = 40
+# sequence variation defaults
 DOUBLE = True
 TRIPLE = True
-BINS = 40
+OFFBEAT = True
 
 
 # beat evaluation class
@@ -599,8 +623,8 @@ class BeatEvaluation(OnsetEvaluation):
                  tolerance=TOLERANCE, sigma=SIGMA,
                  goto_threshold=GOTO_THRESHOLD, goto_sigma=GOTO_SIGMA,
                  goto_mu=GOTO_MU, tempo_tolerance=TEMPO_TOLERANCE,
-                 phase_tolerance=PHASE_TOLERANCE, double=DOUBLE,
-                 triple=TRIPLE, bins=BINS):
+                 phase_tolerance=PHASE_TOLERANCE, offbeat=OFFBEAT,
+                 double=DOUBLE, triple=TRIPLE, bins=BINS):
         """
         Evaluate the given detections and annotations.
 
@@ -615,8 +639,9 @@ class BeatEvaluation(OnsetEvaluation):
         :param goto_mu:         mu for Goto error
         :param tempo_tolerance: tempo tolerance window for [AC]ML[ct]
         :param phase_tolerance: phase tolerance window for [AC]ML[ct]
+        :param offbeat:         include offbeat variations
         :param double:          include double/half tempo variations
-        :param triple:          include triple/third tempo variations
+-       :param triple:          include triple/third tempo variations
         :param bins:            number of bins for the error histogram
 
         """
@@ -632,7 +657,7 @@ class BeatEvaluation(OnsetEvaluation):
                          goto_mu)
         # continuity scores
         scores = continuity(detections, annotations, tempo_tolerance,
-                            phase_tolerance, double, triple)
+                            phase_tolerance, offbeat, double, triple)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
         scores = information_gain(detections, annotations, bins)
@@ -841,6 +866,20 @@ def parser():
     p.add_argument('-t', dest='ann_suffix', action='store', default='.beats',
                    help='suffix of the annotation files '
                         '[default: %(default)s]')
+    # parameters for sequence variants
+    g = p.add_argument_group('sequence manipulation arguments')
+    g.add_argument('--no_offbeat', dest='offbeat', action='store_false',
+                   default=OFFBEAT,
+                   help='do not include offbeat evaluation')
+    g.add_argument('--no_double', dest='double', action='store_false',
+                   default=DOUBLE,
+                   help='do not include double/half tempo evaluation')
+    g.add_argument('--no_triple', dest='triple', action='store_false',
+                   default=TRIPLE,
+                   help='do not include triple/third tempo evaluation')
+    g.add_argument('--skip', action='store', type=float, default=0,
+                   help='skip first N seconds for evaluation '
+                        '[default=%(default).3f]')
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
     g.add_argument('--window', action='store', type=float, default=WINDOW,
@@ -868,19 +907,9 @@ def parser():
                    default=PHASE_TOLERANCE,
                    help='phase tolerance window for continuity accuracies '
                         '[default=%(default).3f]')
-    g.add_argument('--no_double', dest='double', action='store_false',
-                   default=DOUBLE,
-                   help='do not include double/half tempo variations for AMLx')
-    g.add_argument('--no_triple', dest='triple', action='store_false',
-                   default=TRIPLE,
-                   help='do not include triple/third tempo variations for '
-                        'AMLx')
     g.add_argument('--bins', action='store', type=int, default=BINS,
                    help='number of histogram bins for information gain '
                         '[default=%(default)i]')
-    g.add_argument('--skip', action='store', type=float, default=0,
-                   help='skip first N seconds for evaluation '
-                        '[default=%(default).3f]')
     # output options
     g = p.add_argument_group('formatting arguments')
     g.add_argument('--tex', action='store_true',
@@ -930,7 +959,7 @@ def main():
                              args.det_suffix, args.ann_suffix)
         # quit if any file does not have a matching annotation file
         if len(matches) == 0:
-            print " can't find a annotation file found for %s" % det_file
+            print " can't find an annotation file found for %s" % det_file
             exit()
         # do a mean evaluation with all matched annotation files
         me = MeanBeatEvaluation()
@@ -939,7 +968,7 @@ def main():
             annotations = load_events(ann_file)
             # remove beats and annotations that are within the first N seconds
             if args.skip > 0:
-                # FIXME: this definitely alters the results
+                # skipping the first few seconds alters the results
                 start_idx = np.searchsorted(detections, args.skip, 'right')
                 detections = detections[start_idx:]
                 start_idx = np.searchsorted(annotations, args.skip, 'right')
@@ -954,8 +983,8 @@ def main():
                                      goto_mu=args.goto_mu,
                                      tempo_tolerance=args.tempo_tolerance,
                                      phase_tolerance=args.phase_tolerance,
-                                     double=args.double, triple=args.triple,
-                                     bins=args.bins))
+                                     bins=args.bins, offbeat=args.offbeat,
+                                     double=args.double, triple=args.triple))
             # process the next annotation file
         # print stats for each file
         if args.verbose:
