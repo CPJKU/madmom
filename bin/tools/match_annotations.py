@@ -25,7 +25,7 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     The script matches a file with detections against multiple files or folder
-    with targets.
+    with annotations.
 
     This small tool can help to match annotations to audio files with
     completely unrelated names. Using any automated feature extraction method
@@ -61,21 +61,21 @@ def main():
     detections = np.loadtxt(args.file)
     # dict for storing evaluation scores
     evaluations = {}
-    # evaluate against all target files
+    # evaluate against all annotation files
     for f in args.files:
-        # load the targets (use only the first column if multiple are given)
-        targets = np.loadtxt(f)[:, 0]
+        # load the annotations (use only the first column if multiple are given)
+        annotations = np.loadtxt(f)[:, 0]
         # remove nans
-        targets = targets[~ np.isnan(targets)]
+        annotations = annotations[~ np.isnan(annotations)]
         # use OnsetEvaluation
-        e = OnsetEvaluation(detections, targets)
+        e = OnsetEvaluation(detections, annotations)
         # save the name of the files and the scores in a dict
         evaluations[f] = e.fmeasure
-        # process the next target file
         # print stats for each file
         if args.verbose:
             print f
             e.print_errors()
+        # process the next annotation file
     # sort the evaluations by value
     sorted_scores = sorted(evaluations.iteritems(), key=operator.itemgetter(1))
     sorted_scores.reverse()
