@@ -859,7 +859,8 @@ def parser():
     the detection and annotation files.
 
     To maintain compatibility with the original Matlab implementation, use
-    the arguments '--skip 5 --no_triple'.
+    the arguments '--skip 5 --no_triple'. Please note, that the results can
+    still differ, because ot the different implementation approach.
 
     """)
     p.add_argument('files', nargs='*',
