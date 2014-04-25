@@ -54,14 +54,11 @@ def smooth_histogram(histogram, smooth):
 
 
 # interval detection
-def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
-                       max_tau=None):
+def interval_histogram(activations, smooth=None, min_tau=1, max_tau=None):
     """
     Compute the interval histogram of the given activation function.
 
     :param activations: the activation function
-    :param threshold:   threshold for the activation function before
-                        auto-correlation
     :param smooth:      kernel (size) for smoothing the activation function
                         before auto-correlating it. [array or int]
     :param min_tau:     minimal delta for correlation function [frames]
@@ -72,9 +69,6 @@ def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
     # smooth activations
     if smooth:
         activations = smooth_signal(activations, smooth)
-    # threshold function if needed
-    if threshold > 0:
-        activations[activations < threshold] = 0
     # set the maximum delay
     if max_tau is None:
         max_tau = len(activations) - min_tau
@@ -93,7 +87,7 @@ def dominant_interval(histogram, smooth=None):
     Extract the dominant interval of the given histogram.
 
     :param histogram: histogram with interval distribution
-    :param smooth:    smooth the histogram with the kernel
+    :param smooth:    smooth the histogram with the given kernel (size)
     :returns:         dominant interval
 
     """
@@ -105,10 +99,10 @@ def dominant_interval(histogram, smooth=None):
 
 
 # default values for tempo estimation
-THRESHOLD = 0.
-SMOOTH = 0.09
-MIN_BPM = 40
+ACT_SMOOTH = 0.13
+MIN_BPM = 60
 MAX_BPM = 240
+HIST_SMOOTH = 7
 NO_TEMPO = np.nan
 
 
@@ -119,7 +113,7 @@ class Tempo(Event):
     """
     def __init__(self, activations, fps, sep=''):
         """
-        Creates a new Tempo instance with the given activations.
+        Creates a new Tempo instance with the given beat activations.
         The activations can be read in from file.
 
         :param activations: array with the beat activations or a file (handle)
@@ -129,30 +123,29 @@ class Tempo(Event):
         """
         super(Tempo, self).__init__(activations, fps, sep)
 
-    def detect(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM):
+    def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM):
         """
         Detect the tempo on basis of the given beat activation function.
 
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param min_bpm:   minimum tempo used for beat tracking
-        :param max_bpm:   maximum tempo used for beat tracking
-        :returns:         tuple with the two most dominant tempi and the
-                          relative strength of them
+        :param act_smooth:  smooth the activation function over N seconds
+        :param hist_smooth: smooth the activation function over N bins
+        :param min_bpm:     minimum tempo to detect
+        :param max_bpm:     maximum tempo to detect
+        :returns:           tuple with the two most dominant tempi and the
+                            relative strength of them
 
         """
         # convert the arguments to frames
-        smooth = int(round(self.fps * smooth))
+        act_smooth = int(round(self.fps * act_smooth))
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         # generate a histogram of beat intervals
-        histogram = interval_histogram(self.activations, threshold,
-                                       smooth=smooth, min_tau=min_tau,
-                                       max_tau=max_tau)
+        histogram = interval_histogram(self.activations, smooth=act_smooth,
+                                       min_tau=min_tau, max_tau=max_tau)
         # smooth the histogram again
-        if smooth:
-            histogram = smooth_histogram(histogram, smooth)
+        if hist_smooth:
+            histogram = smooth_histogram(histogram, smooth=hist_smooth)
         # the histogram bins
         bins = histogram[0]
         # convert the histogram bin delays to tempi in beats per minute
@@ -168,10 +161,8 @@ class Tempo(Event):
             # report only the strongest tempo
             return tempi[peaks[0]], NO_TEMPO, 1.
         else:
-            # get the weights of the peaks
-            strengths = bins[peaks]
-            # to be able to sort them in descending order
-            sorted_peaks = peaks[np.argsort(strengths)[::-1]]
+            # sort the peaks in descending order of bin heights
+            sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
             # get the 2 strongest tempi
             t1, t2 = tempi[sorted_peaks[:2]]
             # calculate the relative strength

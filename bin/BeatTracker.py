@@ -54,7 +54,8 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    b = madmom.utils.params.beat(p)
+    madmom.utils.params.tempo(p, smooth=None)
+    b = madmom.utils.params.beat(p, smooth=0.09)
     b.add_argument('--look_ahead', action='store', type=float, default=4,
                    help='look ahead N seconds [default=%(default).2f]')
     madmom.utils.params.save_load(p)
@@ -141,9 +142,8 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # track the beats
-        b.track(args.threshold, smooth=args.smooth,
-                look_ahead=args.look_ahead, look_aside=args.look_aside,
-                min_bpm=args.min_bpm, max_bpm=args.max_bpm)
+        b.track(smooth=args.smooth, min_bpm=args.min_bpm, max_bpm=args.max_bpm,
+                look_ahead=args.look_ahead, look_aside=args.look_aside)
         # write the beats to output
         b.write(args.output)
 

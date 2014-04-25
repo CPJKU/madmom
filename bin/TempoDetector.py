@@ -55,7 +55,8 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p, min_bpm=40, max_bpm=240)
+    madmom.utils.params.beat(p, smooth=0.13, look_aside=None)
+    madmom.utils.params.tempo(p, min_bpm=40, max_bpm=240)
     madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version',
@@ -141,7 +142,8 @@ def main():
         t.save_activations(args.output, sep=args.sep)
     else:
         # detect the tempo
-        t1, t2, strength = t.detect(args.threshold, smooth=args.smooth,
+        t1, t2, strength = t.detect(act_smooth=args.smooth,
+                                    hist_smooth=args.hist_smooth,
                                     min_bpm=args.min_bpm,
                                     max_bpm=args.max_bpm)
         # for MIREX, the lower tempo must be given first

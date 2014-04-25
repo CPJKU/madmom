@@ -16,8 +16,8 @@ from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
-from ..features.beats import (THRESHOLD as BT, SMOOTH as BS, MIN_BPM, MAX_BPM,
-                              LOOK_ASIDE)
+from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
+from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
@@ -247,38 +247,55 @@ def onset(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
     return g
 
 
-def beat(parser, threshold=BT, smooth=BS, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-         look_aside=LOOK_ASIDE):
+def beat(parser, smooth=BEAT_SMOOTH, look_aside=LOOK_ASIDE):
     """
     Add beat tracking related arguments to an existing parser object.
 
     :param parser:     existing argparse parser object
-    :param threshold:  threshold the beat activation function
     :param smooth:     smooth the beat activations over N seconds
-    :param min_bpm:    minimum tempo [bpm]
-    :param max_bpm:    maximum tempo [bpm]
     :param look_aside: fraction of beat interval to look aside for the
                        strongest beat
     :return:           beat argument parser group object
 
     """
-    # add onset detection related options to the existing parser
+    # add beat detection related options to the existing parser
     g = parser.add_argument_group('beat detection arguments')
-    g.add_argument('-t', dest='threshold', action='store', type=float,
-                   default=threshold,
-                   help='detection threshold [default=%(default).2f]')
     g.add_argument('--smooth', action='store', type=float, default=smooth,
                    help='smooth the beat activations over N seconds '
                         '[default=%(default).2f]')
+    # make switchable (useful for including the beat stuff for tempo
+    if look_aside is not None:
+        g.add_argument('--look_aside', action='store', type=float,
+                       default=look_aside,
+                       help='look this fraction of the beat interval around '
+                            'the beat to get the strongest one '
+                            '[default=%(default).2f]')
+    # return the argument group so it can be modified if needed
+    return g
+
+
+def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+    """
+    Add tempo estimation related arguments to an existing parser object.
+
+    :param parser:     existing argparse parser object
+    :param smooth:     smooth the tempo histogram over N bins
+    :param min_bpm:    minimum tempo [bpm]
+    :param max_bpm:    maximum tempo [bpm]
+    :return:           tempo argument parser group object
+
+    """
+    # add tempo estimation related options to the existing parser
+    g = parser.add_argument_group('tempo estimation arguments')
+    if smooth is not None:
+        g.add_argument('--hist_smooth', action='store', type=int,
+                       default=smooth,
+                       help='smooth the tempo histogram over N bins '
+                            '[default=%(default)d]')
     g.add_argument('--min_bpm', action='store', type=float, default=min_bpm,
                    help='minimum tempo [bpm, default=%(default).2f]')
     g.add_argument('--max_bpm', action='store', type=float, default=max_bpm,
                    help='maximum tempo [bpm, default=%(default).2f]')
-    g.add_argument('--look_aside', action='store', type=float,
-                   default=look_aside,
-                   help='look this fraction of the beat interval around the '
-                        'beat to get the strongest one [default=%(default)'
-                        '.2f]')
     # return the argument group so it can be modified if needed
     return g
 

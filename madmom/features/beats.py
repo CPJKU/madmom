@@ -11,27 +11,27 @@ import sys
 import numpy as np
 
 from . import Event
-from .tempo import interval_histogram, dominant_interval
+from .tempo import interval_histogram, dominant_interval, MIN_BPM, MAX_BPM
 
 
 # wrapper function for detecting the dominant interval
-def detect_dominant_interval(activations, threshold=0, smooth=None,
+def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
                              min_tau=1, max_tau=None):
     """
     Compute the dominant interval of the given activation function.
 
     :param activations: the activation function
-    :param threshold:   threshold for the activation function
-    :param smooth:      kernel (size) for smoothing the activation function
+    :param act_smooth:  kernel (size) for smoothing the activation function
+    :param hist_smooth: kernel (size) for smoothing the interval histogram
     :param min_tau:     minimal delay for histogram building [frames]
     :param max_tau:     maximal delay for histogram building [frames]
     :returns:           dominant interval
 
     """
     # create a interval histogram
-    h = interval_histogram(activations, threshold, smooth, min_tau, max_tau)
+    h = interval_histogram(activations, act_smooth, min_tau, max_tau)
     # get the dominant interval and return it
-    return dominant_interval(h, smooth=None)
+    return dominant_interval(h, smooth=hist_smooth)
 
 
 # detect the beats based on the given dominant interval
@@ -109,10 +109,7 @@ def detect_beats(activations, interval, look_aside=0.2):
 
 
 # default values for beat tracking
-THRESHOLD = 0
 SMOOTH = 0.09
-MIN_BPM = 60
-MAX_BPM = 240
 LOOK_ASIDE = 0.2
 LOOK_AHEAD = 4
 DELAY = 0
@@ -140,14 +137,12 @@ class Beat(Event):
         # inherit most stuff from the base class
         super(Beat, self).__init__(activations, fps, sep)
 
-    def detect(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE):
+    def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+               look_aside=LOOK_ASIDE):
         """
         Detect the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking
-        :param delay:      report onsets N seconds delayed
-        :param smooth:     smooth the activation function over N seconds
+        :param smooth: smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
         :param look_aside: look this fraction of a beat interval to the side
@@ -167,28 +162,24 @@ class Beat(Event):
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         # detect the dominant interval
-        interval = detect_dominant_interval(self.activations, threshold,
-                                            smooth, min_tau, max_tau)
+        interval = detect_dominant_interval(self.activations,
+                                            act_smooth=smooth,
+                                            hist_smooth=None,
+                                            min_tau=min_tau, max_tau=max_tau)
         # detect beats based on this interval
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
         detections = detections.astype(np.float) / self.fps
-        # shift if necessary
-        if delay != 0:
-            detections += delay
         # remove beats with negative times
         self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self.detections
 
-    def track(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
-              min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
-              look_ahead=LOOK_AHEAD):
+    def track(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+              look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
         """
         Track the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking
-        :param delay:      report onsets N seconds delayed
         :param smooth:     smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
@@ -231,8 +222,11 @@ class Beat(Event):
             else:
                 act = self.activations[start:end]
             # detect the dominant interval
-            interval = detect_dominant_interval(act, threshold, smooth,
-                                                min_tau, max_tau)
+            interval = detect_dominant_interval(self.activations,
+                                                act_smooth=smooth,
+                                                hist_smooth=None,
+                                                min_tau=min_tau,
+                                                max_tau=max_tau)
             # add the offset (i.e. the new detected start position)
             positions = np.array(detect_beats(act, interval, look_aside))
             # correct the beat positions
@@ -244,9 +238,6 @@ class Beat(Event):
             pos += interval
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
-        # shift if necessary
-        if delay != 0:
-            detections += delay
         # remove beats with negative times
         self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
