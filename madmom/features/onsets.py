@@ -40,15 +40,15 @@ def diff(spec, diff_frames=1, pos=False):
     # init the matrix with 0s, the first N rows are 0 then
     # TODO: under some circumstances it might be helpful to init with the spec
     # or use the frame at "real" index -N to calculate the diff to
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # calculate the diff
-    diff[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
+    diff_spec[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
     # keep only positive values
     if pos:
-        np.maximum(diff, 0, diff)
-    return diff
+        np.maximum(diff_spec, 0, diff_spec)
+    return diff_spec
 
 
 def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
@@ -66,11 +66,11 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
 
     """
     # init diff matrix
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # calculate the diff
-    frames, bins = diff.shape
+    frames, bins = diff_spec.shape
     corr = np.zeros((frames, diff_bins * 2 + 1))
     for f in range(diff_frames, frames):
         # correlate the frame with the previous one
@@ -84,12 +84,12 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
         bin_offset = diff_bins - np.argmax(corr[f])
         bin_start = diff_bins + bin_offset
         bin_stop = bins - 2 * diff_bins + bin_start
-        diff[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] -\
+        diff_spec[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] - \
             spec[f - diff_frames, bin_start:bin_stop]
     # keep only positive values
     if pos:
-        np.maximum(diff, 0, diff)
-    return diff
+        np.maximum(diff_spec, 0, diff_spec)
+    return diff_spec
 
 
 # Onset Detection Functions

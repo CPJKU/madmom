@@ -48,7 +48,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     # number of resulting FFT bins
     num_fft_bins = fft_size >> 1
     # init stft matrix
-    stft = np.zeros([frames, num_fft_bins], np.complex64)
+    y = np.zeros([frames, num_fft_bins], np.complex64)
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal
@@ -61,10 +61,10 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
             fft_signal = np.concatenate(fft_signal[window_size / 2:],
                                         fft_signal[:window_size / 2])
         # perform DFT
-        stft[frame] = fft.fft(fft_signal, fft_size)[:num_fft_bins]
+        y[frame] = fft.fft(fft_signal, fft_size)[:num_fft_bins]
         # next frame
     # return
-    return stft
+    return y
 
 
 def strided_stft(signal, window, hop_size, phase=True):
@@ -660,7 +660,7 @@ class FilteredSpectrogram(Spectrogram):
 
         """
         from filters import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
-                                FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
+                             FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)

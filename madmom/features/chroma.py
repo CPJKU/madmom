@@ -144,7 +144,8 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         """
         # pass all arguments (but the window) the the PitchClassProfile class
         super(HarmonicPitchClassProfile, self).__init__(
-            spectrogram, num_classes, fmin, fmax, fref, filterbank, *args, **kwargs)
+            spectrogram, num_classes, fmin, fmax, fref, filterbank, *args,
+            **kwargs)
         # set hidden parameters for filterbank creation
         self._filterbank_type = HarmonicPitchClassProfileFilterbank
         self._parameters['window'] = window
