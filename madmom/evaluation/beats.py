@@ -849,30 +849,27 @@ def parser():
 
     """
     import argparse
+    from . import evaluation_io
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters the script evaluates pairs of files
-    with the annotations (.beats) and detection (.beats.txt) as simple text
-    files with one beat timestamp per line. Suffixes can be given to filter
-    the detection and annotation files.
+    This script evaluates pairs of files containing the beat annotations and
+    detections. Suffixes can be given to filter them from the list of files.
+
+    Each line represents a beat and must have the following format with values
+    being separated by tabs [brackets indicate optional values]:
+    `beat_time [bar.beat]`
+
+    Lines starting with # are treated as comments and are ignored.
 
     To maintain compatibility with the original Matlab implementation, use
     the arguments '--skip 5 --no_triple'. Please note, that the results can
     still differ, because ot the different implementation approach.
 
     """)
-    p.add_argument('files', nargs='*',
-                   help='files (or folder) to be evaluated')
-    # suffixes used for evaluation
-    p.add_argument('-d', dest='det_suffix', action='store',
-                   default='.beats.txt',
-                   help='suffix of the detection files '
-                        '[default: %(default)s]')
-    p.add_argument('-t', dest='ann_suffix', action='store', default='.beats',
-                   help='suffix of the annotation files '
-                        '[default: %(default)s]')
+    # files used for evaluation
+    evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants
     g = p.add_argument_group('sequence manipulation arguments')
     g.add_argument('--no_offbeat', dest='offbeat', action='store_false',
@@ -917,15 +914,6 @@ def parser():
     g.add_argument('--bins', action='store', type=int, default=BINS,
                    help='number of histogram bins for information gain '
                         '[default=%(default)i]')
-    # output options
-    g = p.add_argument_group('formatting arguments')
-    g.add_argument('--tex', action='store_true',
-                   help='format errors for use in .tex files')
-    # verbose
-    p.add_argument('-v', dest='verbose', action='count',
-                   help='increase verbosity level')
-    p.add_argument('-s', dest='silent', action='store_true',
-                   help='suppress warnings')
     # parse the arguments
     args = p.parse_args()
     # print the args

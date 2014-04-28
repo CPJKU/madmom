@@ -123,40 +123,33 @@ def parser():
 
     """
     import argparse
+    from . import evaluation_io
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    The script evaluates a file or folder with detections against a file or
-    folder with annotations. Suffixes can be given to filter the detection
-    and annotation files.
+    This script evaluates pairs of files containing the onset annotations and
+    detections. Suffixes can be given to filter them from the list of files.
+
+    Each line represents an onset and must have the following format:
+    `onset_time`.
+
+    Lines starting with # are treated as comments and are ignored.
 
     """)
     # files used for evaluation
-    p.add_argument('files', nargs='*',
-                   help='files (or folder) to be evaluated')
-    # suffixes used for evaluation
-    p.add_argument('-d', dest='det_suffix', action='store',
-                   default='.onsets.txt',
-                   help='suffix of the detection files')
-    p.add_argument('-t', dest='ann_suffix', action='store',
-                   default='.onsets',
-                   help='suffix of the annotation files')
+    evaluation_io(p, ann_suffix='.onsets', det_suffix='.onsets.txt')
     # parameters for evaluation
-    p.add_argument('-w', dest='window', action='store', type=float,
+    g = p.add_argument_group('evaluation arguments')
+    g.add_argument('-w', dest='window', action='store', type=float,
                    default=WINDOW,
                    help='evaluation window (+/- the given size) '
                         '[seconds, default=%(default).3f]')
-    p.add_argument('-c', dest='combine', action='store', type=float,
+    g.add_argument('-c', dest='combine', action='store', type=float,
                    default=COMBINE,
                    help='combine annotation events within this range '
                         '[seconds, default=%(default).3f]')
-    p.add_argument('--delay', action='store', type=float, default=0.,
+    g.add_argument('--delay', action='store', type=float, default=0.,
                    help='add given delay to all detections [seconds]')
-    p.add_argument('--tex', action='store_true',
-                   help='format errors for use is .tex files')
-    # verbose
-    p.add_argument('-v', dest='verbose', action='count',
-                   help='increase verbosity level')
     # parse the arguments
     args = p.parse_args()
     # print the args

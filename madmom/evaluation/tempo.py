@@ -222,30 +222,27 @@ def parser():
 
     """
     import argparse
+    from . import evaluation_io
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    The script evaluates a file or folder with detections against a file or
-    folder with annotations. ann
+    This script evaluates pairs of files containing the tempo annotations and
+    detections. Suffixes can be given to filter them from the list of files.
+
+    A single line represents the tempi and their relative strength and must
+    have the following format with values being separated by tabs:
+    `tempo_one tempo_two relative_strength`
+
+    Lines starting with # are treated as comments and are ignored.
 
     """)
     # files used for evaluation
-    # files used for evaluation
-    p.add_argument('files', nargs='*',
-                   help='files (or folder) to be evaluated')
-    # suffixes used for evaluation
-    p.add_argument('-d', dest='det_suffix', action='store', default='.bpm.txt',
-                   help='suffix of the detection files')
-    p.add_argument('-t', dest='ann_suffix', action='store', default='.bpm',
-                   help='suffix of the annotation files')
-    # evaluation parameter
-    p.add_argument('--tolerance', dest='tolerance', action='store',
-                   default=TOLERANCE, help='tolerance for tempo detection')
-    p.add_argument('--tex', action='store_true',
-                   help='format errors for use is .tex files')
-    # verbose
-    p.add_argument('-v', dest='verbose', action='count',
-                   help='increase verbosity level')
+    evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
+    # parameters for evaluation
+    g = p.add_argument_group('evaluation arguments')
+    g.add_argument('--tolerance', dest='tolerance', action='store',
+                   default=TOLERANCE, help='tolerance for tempo detection '
+                                           '[default=%(default).3f]')
     # parse the arguments
     args = p.parse_args()
     # print the args
