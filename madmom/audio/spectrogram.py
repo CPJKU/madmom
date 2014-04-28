@@ -10,7 +10,7 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
-from .filterbank import fft_freqs
+from .filters import fft_freqs, A4
 
 
 def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
@@ -48,7 +48,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     # number of resulting FFT bins
     num_fft_bins = fft_size >> 1
     # init stft matrix
-    stft = np.zeros([frames, num_fft_bins], np.complex64)
+    y = np.zeros([frames, num_fft_bins], np.complex64)
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal
@@ -61,10 +61,10 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
             fft_signal = np.concatenate(fft_signal[window_size / 2:],
                                         fft_signal[:window_size / 2])
         # perform DFT
-        stft[frame] = fft.fft(fft_signal, fft_size)[:num_fft_bins]
+        y[frame] = fft.fft(fft_signal, fft_size)[:num_fft_bins]
         # next frame
     # return
-    return stft
+    return y
 
 
 def strided_stft(signal, window, hop_size, phase=True):
@@ -97,9 +97,36 @@ def strided_stft(signal, window, hop_size, phase=True):
     return fft.fft(fft_signal)[:, :ffts]
 
 
+def tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
+    """
+    Determines the tuning frequency based on the given (peak) magnitude
+    spectrogram.
+
+    :param spec:          (peak) magnitude spectrogram [2D numpy array]
+    :param sample_rate:   sample rate of the audio file [Hz]
+    :param num_hist_bins: number of histogram bins
+    :param fref:          reference tuning frequency [Hz]
+    :return:              tuning frequency
+
+    """
+    # frequencies of the bins
+    bin_freqs = fft_freqs(spec.shape[1], sample_rate)
+    # interval of spectral bins from the reference frequency in semitones
+    semitone_int = 12. * np.log2(bin_freqs / fref)
+    # deviation from the next semitone
+    semitone_dev = semitone_int - np.round(semitone_int)
+    # build a histogram
+    hist = np.histogram(semitone_dev * spec,
+                        bins=num_hist_bins, range=(-0.5, 0.5))
+    # deviation
+    dev = -0.5 + num_hist_bins * np.argmax(hist)
+    # calculate the reference frequency
+    return fref * 2. ** (dev / 12.)
+
+
 # Spectrogram defaults
 FILTERBANK = None
-LOG = False         # default: linear spectrogram
+LOG = False  # default: linear spectrogram
 MUL = 1
 ADD = 1
 NORM_WINDOW = False
@@ -119,7 +146,7 @@ class Spectrogram(object):
                  fft_size=FFT_SIZE, block_size=BLOCK_SIZE, ratio=RATIO,
                  diff_frames=DIFF_FRAMES, *args, **kwargs):
         """
-        Creates a new Spectrogram object instance of the given audio.
+        Creates a new Spectrogram instance of the given audio.
 
         :param frames: a FramedSignal object, or a file name or file handle
         :param window: window function
@@ -219,6 +246,10 @@ class Spectrogram(object):
         if diff_frames < 1:
             diff_frames = 1
         self._diff_frames = diff_frames
+
+        # other stuff
+        self._ssd = None
+        self._tuning_frequency = None
 
     @property
     def frames(self):
@@ -506,6 +537,48 @@ class Spectrogram(object):
         # return the whitened spectrogram
         return self.spec / p
 
+    @property
+    def ssd(self):
+        """
+        Statistical Spectrum Descriptors of the STFT.
+
+        "Evaluation of Feature Extractors and Psycho-acoustic Transformations
+         for Music Genre Classification."
+        T. Lidy and A. Rauber
+        Proceedings of the 6th International Conference on Music Information
+        Retrieval (ISMIR 2005), London, UK, September 2005
+
+        """
+        if self._ssd is None:
+            from scipy.stats import skew, kurtosis
+            self._ssd = {'mean': np.mean(self.spec, axis=0),
+                         'median': np.median(self.spec, axis=0),
+                         'variance': np.var(self.spec, axis=0),
+                         'skewness': skew(self.spec, axis=0),
+                         'kurtosis': kurtosis(self.spec, axis=0),
+                         'min': np.min(self.spec, axis=0),
+                         'max': np.max(self.spec, axis=0)}
+        return self._ssd
+
+    @property
+    def tuning_frequency(self):
+        """
+        Determines the tuning frequency of the spectrogram.
+
+        :return: tuning frequency
+
+        """
+        if self._tuning_frequency is None:
+            # make sure the spec is in the right form to do the calculation
+            if self.filterbank is None:
+                spec = self.spec
+            else:
+                spec = np.abs(self.stft)
+            # calculate the reference frequency
+            fref = tuning_frequency(spec, self.frames.signal.sample_rate)
+            self._tuning_frequency = fref
+        return self._tuning_frequency
+
     def copy(self, window=None, filterbank=None, log=None, mul=None, add=None,
              norm_window=None, fft_size=None, block_size=None, ratio=None,
              diff_frames=None):
@@ -572,7 +645,7 @@ class FilteredSpectrogram(Spectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new FilteredSpectrogram object instance.
+        Creates a new FilteredSpectrogram instance.
 
         :param filterbank: filterbank for dimensionality reduction
 
@@ -586,8 +659,8 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz]
 
         """
-        from filterbank import (LogarithmicFilterBank, BANDS_PER_OCTAVE, FMIN,
-                                FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
+        from filters import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
+                             FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)
@@ -600,7 +673,7 @@ class FilteredSpectrogram(Spectrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.frames.signal.sample_rate
-            fb = LogarithmicFilterBank(num_fft_bins=self.num_fft_bins,
+            fb = LogarithmicFilterbank(num_fft_bins=self.num_fft_bins,
                                        sample_rate=sample_rate,
                                        bands_per_octave=bands_per_octave,
                                        fmin=fmin, fmax=fmax, norm=norm_filters,
@@ -622,7 +695,7 @@ class LogarithmicFilteredSpectrogram(FilteredSpectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new LogarithmicFilteredSpectrogram object instance.
+        Creates a new LogarithmicFilteredSpectrogram instance.
 
         The magnitudes of the filtered spectrogram are then converted to a
         logarithmic scale.
@@ -648,6 +721,7 @@ LFS = LogFiltSpec
 
 # harmonic/percussive separation stuff
 # TODO: move this to an extra module?
+MASKING = 'binary'
 HARMONIC_FILTER = (15, 1)
 PERCUSSIVE_FILTER = (1, 15)
 
@@ -668,29 +742,43 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new HarmonicPercussiveSourceSeparation object instance.
+        Creates a new HarmonicPercussiveSourceSeparation instance.
 
         The magnitude spectrogram are separated with median filters with the
         given sizes into their harmonic and percussive parts.
 
+        :param masking:           masking (see below)
         :param harmonic_filter:   tuple with harmonic filter size
                                   (frames, bins)
         :param percussive_filter: tuple with percussive filter size
                                   (frames, bins)
 
+        Note: `masking` can be either the literal 'binary' or any float
+              coefficient resulting in a soft mask. `None` translates to a
+              binary mask, too.
+
         """
-        # fetch the arguments for separating the magnitude (or set defaults)
+        # fetch the arguments for source separation (or set defaults)
+        masking = kwargs.pop('masking', MASKING)
         harmonic_filter = kwargs.pop('harmonic_filter', HARMONIC_FILTER)
         percussive_filter = kwargs.pop('percussive_filter', PERCUSSIVE_FILTER)
         # create a Spectrogram object
         super(HarmonicPercussiveSourceSeparation, self).__init__(*args,
                                                                  **kwargs)
         # set the parameters, so they get used for computation
-        self._harmonic_filter = harmonic_filter
-        self._percussive_filter = percussive_filter
+        self._masking = masking
+        self._harmonic_filter = int(harmonic_filter)
+        self._percussive_filter = int(percussive_filter)
         # init arrays
         self._harmonic = None
         self._percussive = None
+        self._harmonic_slice = None
+        self._percussive_slice = None
+
+    @property
+    def masking(self):
+        """Masking coefficient."""
+        return self._masking
 
     @property
     def harmonic_filter(self):
@@ -703,22 +791,65 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
         return self._percussive_filter
 
     @property
-    def harmonic(self):
-        """Harmonic part of the magnitude spectrogram."""
-        if self._harmonic is None:
+    def harmonic_slice(self):
+        """Harmonic slice of the magnitude spectrogram."""
+        if self._harmonic_slice is None:
             # calculate the harmonic part
-            self._harmonic = median_filter(self.spec, self._harmonic_filter)
+            self._harmonic_slice = median_filter(self.spec,
+                                                 self._harmonic_filter)
         # return
+        return self._harmonic_slice
+
+    @property
+    def percussive_slice(self):
+        """Percussive slice of the magnitude spectrogram."""
+        if self._percussive_slice is None:
+            # calculate the percussive part
+            self._percussive_slice = median_filter(self.spec,
+                                                   self._percussive_filter)
+        # return
+        return self._percussive_slice
+
+    @property
+    def harmonic_mask(self):
+        """Harmonic mask for the spectrogram."""
+        if self.masking in [None, 'binary']:
+            # return a binary mask
+            return self.harmonic_slice > self.percussive_slice
+        else:
+            # return a soft mask
+            p = float(self.masking)
+            return self.harmonic_slice ** p / (self.harmonic_slice ** p +
+                                               self.percussive_slice ** p)
+
+    @property
+    def percussive_mask(self):
+        """Percussive mask for the spectrogram."""
+        if self.masking in [None, 'binary']:
+            # return a binary mask
+            return self.percussive_slice > self.harmonic_slice
+        else:
+            # return a soft mask
+            p = float(self.masking)
+            return self.percussive_slice ** p / (self.percussive_slice ** p +
+                                                 self.harmonic_slice ** p)
+
+    @property
+    def harmonic(self):
+        """Harmonic spectrogram."""
+        if self._harmonic is None:
+            # multiply the spectrogram with the harmonic mask
+            self._harmonic = self.spec * self.harmonic_mask
+        # return the harmonic spectrogram
         return self._harmonic
 
     @property
     def percussive(self):
-        """Percussive part of the magnitude spectrogram."""
+        """Percussive spectrogram."""
         if self._percussive is None:
-            # calculate the percussive part
-            self._percussive = median_filter(self.spec,
-                                             self._percussive_filter)
-        # return
+            # multiply the spectrogram with the percussive mask
+            self._percussive = self.spec * self.percussive_mask
+        # return the percussive spectrogram
         return self._percussive
 
 

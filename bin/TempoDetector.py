@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
+Copyright (c) Sebastian Böck <sebastian.boeck@jku.at>
 
 Redistribution in any form is not permitted!
 
@@ -15,7 +15,7 @@ import multiprocessing as mp
 
 from madmom.audio.wav import Wav
 from madmom.audio.spectrogram import LogFiltSpec
-from madmom.features.beats import Beat
+from madmom.features.tempo import Tempo
 from madmom.ml.rnn import RecurrentNeuralNetwork
 from madmom.utils import open
 
@@ -55,10 +55,12 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p)
+    madmom.utils.params.beat(p, smooth=0.13, look_aside=None)
+    madmom.utils.params.tempo(p, min_bpm=40, max_bpm=240)
     madmom.utils.params.save_load(p)
     # version
-    p.add_argument('--version', action='version', version='TempoDetector.2013')
+    p.add_argument('--version', action='version',
+                   version='TempoDetector.2013v2')
     # parse arguments
     args = p.parse_args()
     # set some defaults
@@ -92,7 +94,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        b = Beat(args.input, args.fps, args.online, args.sep)
+        t = Tempo(args.input, args.fps, sep=args.sep)
     else:
         # exit if no NN files are given
         if not args.nn_files:
@@ -132,20 +134,25 @@ def main():
             act = activations[0]
 
         # create an Beat object with the activations
-        b = Beat(act.ravel(), args.fps, args.online)
+        t = Tempo(act.ravel(), args.fps, sep=args.sep)
 
     # save activations or detect tempo
     if args.save:
         # save activations
-        b.save_activations(args.output, sep=args.sep)
+        t.save_activations(args.output, sep=args.sep)
     else:
         # detect the tempo
-        t1, t2, weight = b.tempo(args.threshold, smooth=args.smooth,
-                                 min_bpm=args.min_bpm, max_bpm=args.max_bpm,
-                                 mirex=True)
+        t1, t2, strength = t.detect(act_smooth=args.smooth,
+                                    hist_smooth=args.hist_smooth,
+                                    min_bpm=args.min_bpm,
+                                    max_bpm=args.max_bpm,
+                                    grouping_dev=args.dev)
+        # for MIREX, the lower tempo must be given first
+        if t1 > t2:
+            t2, t1, strength = t1, t2, 1. - strength
         # write to output
         with open(args.output, 'rb') as f:
-            f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, weight))
+            f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
 
 if __name__ == '__main__':
     main()

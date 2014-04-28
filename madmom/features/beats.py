@@ -11,216 +11,30 @@ import sys
 import numpy as np
 
 from . import Event
+from .tempo import interval_histogram, dominant_interval, MIN_BPM, MAX_BPM
 
 
-## TODO: implement some simple algorithms
-#class SpectralBeatTracking(object):
-#    """
-#    The SpectralBeatTracking class implements some common beat tracking
-#    algorithms.
-#
-#    """
-#    def __init__(self, spectrogram):
-#        """
-#        Creates a new SpectralBeatTracking object instance.
-#
-#        :param spectrogram: the spectrogram object on which the detections
-#                            functions operate
-#
-#        """
-#        # import
-#        from ..audio.spectrogram import Spectrogram
-#        # check spectrogram type
-#        if isinstance(spectrogram, Spectrogram):
-#            # already the right format
-#            self.s = spectrogram
-#        else:
-#            # assume a file name, try to instantiate a Spectrogram object
-#            self.s = Spectrogram(spectrogram)
-#
-#    # beat tracking algorithms
-#    def acf(self):
-#        """Auto correlation beat tracking."""
-#        # TODO: include code
-#        raise NotImplementedError
-#
-#    def multiple_agents(self):
-#        """Multiple agents based tracker."""
-#        # TODO: include code
-#        raise NotImplementedError
-
-
-# interval (tempo) detection
-def detect_dominant_interval(activations, threshold=0, smooth=None, min_tau=1,
-                             max_tau=None):
+# wrapper function for detecting the dominant interval
+def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
+                             min_tau=1, max_tau=None):
     """
-    Extract the dominant interval of the given activation function.
+    Compute the dominant interval of the given activation function.
 
-    :param activations: the onset activation function
-    :param threshold:   threshold for the activation function before
-                        auto-correlation
-    :param smooth:      smooth the activation function with the kernel
-    :param min_tau:     minimal delta for correlation function [frames]
-    :param max_tau:     maximal delta for correlation function [frames]
+    :param activations: the activation function
+    :param act_smooth:  kernel (size) for smoothing the activation function
+    :param hist_smooth: kernel (size) for smoothing the interval histogram
+    :param min_tau:     minimal delay for histogram building [frames]
+    :param max_tau:     maximal delay for histogram building [frames]
+    :returns:           dominant interval
 
     """
-    # smooth activations
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        activations = np.convolve(activations, kernel, 'same')
-
-    # threshold function if needed
-    if threshold > 0:
-        activations[activations < threshold] = 0
-
-    # set the maximal delta to the length of the signal
-    if not max_tau:
-        max_tau = len(activations)
-    # test all possible intervals
-    taus = range(min_tau, max_tau)
-    sums = []
-    # TODO: make this processing parallel or numpyfy if possible
-    for tau in taus:
-        sums.append(np.sum(np.abs(activations[tau:] * activations[0:-tau])))
-
-    # return dominant interval
-    interval = np.argmax(sums) + min_tau
-    return interval
+    # create a interval histogram
+    h = interval_histogram(activations, act_smooth, min_tau, max_tau)
+    # get the dominant interval and return it
+    return dominant_interval(h, smooth=hist_smooth)
 
 
-def interval_histogram(activations, threshold=0, smooth=None, min_tau=1,
-                       max_tau=None):
-    """
-    Compute the interval histogram of the given activation function.
-
-    :param activations: the onset activation function
-    :param threshold:   threshold for the activation function before
-                        auto-correlation
-    :param smooth:      smooth the activation function with the kernel
-    :param min_tau:     minimal delta for correlation function [frames]
-    :param max_tau:     maximal delta for correlation function [frames]
-    :returns:           histogram
-
-    """
-    # smooth activations
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        activations = np.convolve(activations, kernel, 'same')
-
-    # threshold function if needed
-    if threshold > 0:
-        activations[activations < threshold] = 0
-
-    if max_tau is None:
-        max_tau = len(activations) - min_tau
-
-    # test all possible intervals
-    taus = range(min_tau, max_tau)
-    sums = []
-    # TODO: make this processing parallel or numpyfy if possible
-    for tau in taus:
-        sums.append(np.sum(np.abs(activations[tau:] * activations[0:-tau])))
-
-    # return histogram
-    return np.array(sums), np.array(taus)
-
-
-def dominant_interval(histogram, smooth=None):
-    """
-    Extract the dominant interval of the given histogram.
-
-    :param histogram: histogram with interval distribution
-    :param smooth:    smooth the histogram with the kernel
-    :returns:         dominant interval
-
-    """
-    # smooth histogram
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        values = np.convolve(histogram[0], kernel, 'same')
-    else:
-        values = histogram[0]
-    # return the dominant interval
-    return histogram[1][np.argmax(values)]
-
-
-# TODO: unify with dominant interval
-def detect_tempo(histogram, fps, smooth=None):
-    """
-    Extract the dominant interval of the given histogram.
-
-    :param histogram: histogram with interval distribution
-    :param fps:       frame rate of the original beat activations
-    :param smooth:    smooth the histogram with the kernel
-    :returns:         dominant interval
-
-    """
-    # smooth histogram
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        values = np.convolve(histogram[0], kernel, 'same')
-    else:
-        values = histogram[0]
-    # to get the two dominant tempi, just keep peaks
-    values[:-1] = values[:-1] * ((values[1:] > values[:-1]) is False)
-    # zero out values if predecessor is greater
-    values[1:] = values[1:] * ((values[:-1] > values[1:]) is False)
-    # strongest tempo
-    interval1 = histogram[1][np.argmax(values)]
-    weight1 = values[np.argmax(values)]
-    tempo1 = 60.0 * fps / interval1
-    # set it to 0
-    values[np.argmax(values)] = 0
-    # get the second strongest tempo
-    interval2 = histogram[1][np.argmax(values)]
-    weight2 = values[np.argmax(values)]
-    tempo2 = 60.0 * fps / interval2
-    # determine their relative strength
-    try:
-        weight = weight1 / (weight1 + weight2)
-    except ZeroDivisionError:
-        # just make sure we have some values
-        weight = 1.0
-    # return the 2 dominant tempi and their relative weight
-    return tempo1, tempo2, weight
-
-
+# detect the beats based on the given dominant interval
 def detect_beats(activations, interval, look_aside=0.2):
     """
     Detects the beats in the given activation function.
@@ -230,7 +44,12 @@ def detect_beats(activations, interval, look_aside=0.2):
     :param look_aside:  look this fraction of the interval to the side to
                         detect the beats
 
-    Note: A Hamming window of 2*look_aside*interval is applied for smoothing.
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio
+    Effects (DAFx-11), Paris, France, September 2011
+
+    Note: A Hamming window of 2*look_aside*interval is applied for smoothing
 
     """
     # TODO: make this faster!
@@ -238,21 +57,22 @@ def detect_beats(activations, interval, look_aside=0.2):
     # look for which starting beat the sum gets maximized
     sums = np.zeros(interval)
     positions = []
-    frames_look_aside = int(interval * look_aside)
+    # always look at least 1 frame to each side
+    frames_look_aside = max(1, int(interval * look_aside))
     win = np.hamming(2 * frames_look_aside)
     for i in range(interval):
         # TODO: threads?
-        def recursive(pos):
+        def recursive(position):
             """
             Recursively detect the next beat.
 
-            :param pos: start at this position
+            :param position: start at this position
             :return:    the next beat position
 
             """
             # detect the nearest beat around the actual position
-            start = pos - frames_look_aside
-            end = pos + frames_look_aside
+            start = position - frames_look_aside
+            end = position + frames_look_aside
             if start < 0:
                 # pad with zeros
                 act = np.append(np.zeros(-start), activations[0:end])
@@ -267,32 +87,29 @@ def detect_beats(activations, interval, look_aside=0.2):
             # search max
             if np.argmax(act) > 0:
                 # maximum found, take that position
-                pos = np.argmax(act) + start
+                position = np.argmax(act) + start
             # add the found position
-            positions.append(pos)
+            positions.append(position)
             # add the activation at that position
-            sums[i] += activations[pos]
+            sums[i] += activations[position]
             # go to the next beat, until end is reached
-            if pos + interval < len(activations):
-                recursive(pos + interval)
+            if position + interval < len(activations):
+                recursive(position + interval)
             else:
                 return
         # start at initial position
         recursive(i)
     # take the winning start position
-    pos = np.argmax(sums)
+    start_position = np.argmax(sums)
     # and calc the beats for this start position
     positions = []
-    recursive(pos)
+    recursive(start_position)
     # return indices (as floats, since they get converted to seconds later on)
     return np.array(positions, dtype=np.float)
 
 
 # default values for beat tracking
-THRESHOLD = 0
 SMOOTH = 0.09
-MIN_BPM = 60
-MAX_BPM = 240
 LOOK_ASIDE = 0.2
 LOOK_AHEAD = 4
 DELAY = 0
@@ -305,7 +122,7 @@ class Beat(Event):
     """
     def __init__(self, activations, fps, online=False, sep=''):
         """
-        Creates a new Beat object instance with the given activations.
+        Creates a new Beat instance with the given activations.
         The activations can be read in from file.
 
         :param activations: array with the beat activations or a file (handle)
@@ -320,14 +137,12 @@ class Beat(Event):
         # inherit most stuff from the base class
         super(Beat, self).__init__(activations, fps, sep)
 
-    def detect(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE):
+    def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+               look_aside=LOOK_ASIDE):
         """
         Detect the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking
-        :param delay:      report onsets N seconds delayed
-        :param smooth:     smooth the activation function over N seconds
+        :param smooth: smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
         :param look_aside: look this fraction of a beat interval to the side
@@ -336,7 +151,7 @@ class Beat(Event):
         according to:
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        by Sebastian Böck and Markus Schedl
+        Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
         Effects (DAFx-11), Paris, France, September 2011
 
@@ -347,28 +162,24 @@ class Beat(Event):
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         # detect the dominant interval
-        interval = detect_dominant_interval(self.activations, threshold,
-                                            smooth, min_tau, max_tau)
-        # detect beats based on this interval (function returns int indices)
+        interval = detect_dominant_interval(self.activations,
+                                            act_smooth=smooth,
+                                            hist_smooth=None,
+                                            min_tau=min_tau, max_tau=max_tau)
+        # detect beats based on this interval
         detections = detect_beats(self.activations, interval, look_aside)
         # convert detected beats to a list of timestamps
         detections = detections.astype(np.float) / self.fps
-        # shift if necessary
-        if delay != 0:
-            detections += delay
         # remove beats with negative times
         self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self.detections
 
-    def track(self, threshold=THRESHOLD, delay=DELAY, smooth=SMOOTH,
-              min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
-              look_ahead=LOOK_AHEAD):
+    def track(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+              look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
         """
         Track the beats with a simple auto-correlation method.
 
-        :param threshold:  threshold for peak-picking
-        :param delay:      report onsets N seconds delayed
         :param smooth:     smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
@@ -381,7 +192,7 @@ class Beat(Event):
         Then the same procedure is repeated from this new position.
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        by Sebastian Böck and Markus Schedl
+        Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
         Effects (DAFx-11), Paris, France, September 2011
 
@@ -411,8 +222,11 @@ class Beat(Event):
             else:
                 act = self.activations[start:end]
             # detect the dominant interval
-            interval = detect_dominant_interval(act, threshold, smooth,
-                                                min_tau, max_tau)
+            interval = detect_dominant_interval(self.activations,
+                                                act_smooth=smooth,
+                                                hist_smooth=None,
+                                                min_tau=min_tau,
+                                                max_tau=max_tau)
             # add the offset (i.e. the new detected start position)
             positions = np.array(detect_beats(act, interval, look_aside))
             # correct the beat positions
@@ -424,38 +238,7 @@ class Beat(Event):
             pos += interval
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
-        # shift if necessary
-        if delay != 0:
-            detections += delay
         # remove beats with negative times
         self.detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self.detections
-
-    # TODO: make an extra Tempo class
-    def tempo(self, threshold=THRESHOLD, smooth=SMOOTH, min_bpm=MIN_BPM,
-              max_bpm=MAX_BPM, mirex=False):
-        """
-        Detect the tempo on basis of the beat activation function.
-
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param min_bpm:   minimum tempo used for beat tracking
-        :param max_bpm:   maximum tempo used for beat tracking
-        :param mirex:     always output the lower tempo first
-        :returns:         tuple with the two most dominant tempi and the
-                          relative weight of them
-
-        """
-        # convert the arguments to frames
-        smooth = int(round(self.fps * smooth))
-        min_tau = int(np.floor(60. * self.fps / max_bpm))
-        max_tau = int(np.ceil(60. * self.fps / min_bpm))
-        # generate a histogram of beat intervals
-        hist = interval_histogram(self.activations, threshold, smooth=smooth,
-                                  min_tau=min_tau, max_tau=max_tau)
-        t1, t2, weight = detect_tempo(hist, self.fps, smooth=None)
-        # for MIREX, the lower tempo must be given first
-        if mirex and t1 > t2:
-            return t2, t1, 1 - weight
-        return t1, t2, weight

@@ -195,7 +195,8 @@ def main():
         if args.delay != 0:
             detections += args.delay
         # get the matching annotation files
-        matches = match_file(det_file, ann_files, args.det_suffix, args.ann_suffix)
+        matches = match_file(det_file, ann_files, args.det_suffix,
+                             args.ann_suffix)
         # quit if any file does not have a matching annotation file
         if len(matches) == 0:
             print " can't find an annotation file for %s. exiting." % det_file

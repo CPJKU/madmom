@@ -59,18 +59,25 @@ def files(path, ext=None):
         # use all files in the given path
         if ext is None:
             file_list = glob.glob("%s/*" % path)
+        elif isinstance(ext, list):
+            file_list = []
+            for e in ext:
+                file_list.extend(glob.glob("%s/*%s" % (path, e)))
         else:
             file_list = glob.glob("%s/*%s" % (path, ext))
     elif os.path.isfile(path):
+        file_list = []
         # no matching needed
         if ext is None:
             file_list = [path]
-        # file must have the correct extension
+        # a list of extensions is given
+        elif isinstance(ext, list):
+            for e in ext:
+                if path.endswith(e):
+                    file_list = [path]
+        # a single extension is given
         elif path.endswith(ext):
             file_list = [path]
-        # file does not match any condition
-        else:
-            file_list = []
     else:
         raise IOError("%s does not exist." % path)
     # sort files

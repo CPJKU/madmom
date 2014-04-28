@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains all Cepstrogram related functionality.
+This file contains all cepstrogram related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -19,7 +19,7 @@ class Cepstrogram(object):
     """
     def __init__(self, spectrogram, *args, **kwargs):
         """
-        Creates a new Cepstrogram object instance for the given spectrogram
+        Creates a new Cepstrogram instance for the given spectrogram.
 
         :param spectrogram: spectrogram to operate on
 
@@ -48,7 +48,7 @@ class MFCC(Cepstrogram):
     """
     def __init__(self, *args, **kwargs):
         """
-        Creates a new MFCC object instance.
+        Creates a new MFCC instance.
 
         :param filterbank: filterbank for dimensionality reduction
 
@@ -72,8 +72,8 @@ class MFCC(Cepstrogram):
         # • Take the discrete cosine transform of the list of mel log powers,
         #   as if it were a signal.
         # • The MFCCs are the amplitudes of the resulting spectrum
-        from .filterbank import (MelFilterBank, MEL_BANDS, FMIN, FMAX,
-                                 NORM_FILTERS)
+        from .filters import (MelFilterbank, MEL_BANDS, FMIN, FMAX,
+                              NORM_FILTERS)
         # TODO: set other defaults than those in .filterbank for MFCCs?
         from .spectrogram import MUL, ADD
 
@@ -93,7 +93,7 @@ class MFCC(Cepstrogram):
         # if no filterbank was given, create one
         if fb is None:
             sample_rate = self.spectrogram.frames.signal.sample_rate
-            fb = MelFilterBank(num_fft_bins=self.spectrogram.num_fft_bins,
+            fb = MelFilterbank(num_fft_bins=self.spectrogram.num_fft_bins,
                                sample_rate=sample_rate,
                                bands=mel_bands, fmin=fmin, fmax=fmax,
                                norm=norm_filters)

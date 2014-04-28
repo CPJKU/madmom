@@ -63,7 +63,7 @@ def main():
     evaluations = {}
     # evaluate against all annotation files
     for f in args.files:
-        # load the annotations (use only the first column if multiple are given)
+        # load the annotations (use only the first column if more are present)
         annotations = np.loadtxt(f)[:, 0]
         # remove nans
         annotations = annotations[~ np.isnan(annotations)]

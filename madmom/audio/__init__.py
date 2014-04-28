@@ -8,4 +8,4 @@ The definition of "lower" may vary, but all "higher" level features
 import signal
 import wav
 import spectrogram
-import filterbank
+import filters

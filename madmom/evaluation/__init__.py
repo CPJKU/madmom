@@ -123,7 +123,7 @@ class SimpleEvaluation(object):
     """
     def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
-        Creates a new SimpleEvaluation object instance.
+        Creates a new SimpleEvaluation instance.
 
         :param num_tp: number of true positive detections
         :param num_fp: number of false positive detections
@@ -321,7 +321,7 @@ class MeanEvaluation(SimpleEvaluation):
     """
     def __init__(self):
         """
-        Creates a new MeanEvaluation object instance.
+        Creates a new MeanEvaluation instance.
 
         """
         super(MeanEvaluation, self).__init__()
@@ -448,7 +448,7 @@ class Evaluation(SimpleEvaluation):
 
     def __init__(self, tp=[], fp=[], tn=[], fn=[]):
         """
-        Creates a new Evaluation object instance.
+        Creates a new Evaluation instance.
 
         :param tp: list with true positive detections [seconds]
         :param fp: list with false positive detections [seconds]

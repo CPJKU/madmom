@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains all note transcription related functionality.
+This file contains note transcription related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -13,7 +13,7 @@ from scipy.ndimage.filters import median_filter, uniform_filter, maximum_filter
 
 from . import Event
 from ..utils import open
-from ..audio.filterbank import midi2hz, LogarithmicFilterBank
+from ..audio.filters import midi2hz, LogarithmicFilterbank
 
 
 def load_notes(filename):
@@ -37,7 +37,7 @@ class SpectralNoteTranscription(object):
     def __init__(self, spectrogram, num_harmonics=5, harmonic_frames=11,
                  lgd=True, *args, **kwargs):
         """
-        Creates a new SpectralNoteTranscription object instance.
+        Creates a new SpectralNoteTranscription instance.
 
         :param spectrogram:     the spectrogram object on which the note
                                 transcription operates
@@ -117,7 +117,7 @@ class SpectralNoteTranscription(object):
                 sums[:, f] = f_sum
             # convert to MIDI scale
             fmin = midi2hz(-1)
-            fb = LogarithmicFilterBank(
+            fb = LogarithmicFilterbank(
                 self.spectrogram.num_fft_bins,
                 self.spectrogram.frames.signal.sample_rate, 12, norm=True,
                 duplicates=True, fmin=fmin)
@@ -226,7 +226,7 @@ class NoteTranscription(Event):
 
     def __init__(self, activations, fps):
         """
-            Creates a new NoteTranscription object instance with the given
+            Creates a new NoteTranscription instance with the given
             activations (can be read from a file).
 
             :param activations: array with note activations or a file (handle)
@@ -365,7 +365,7 @@ def main():
     from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterBank
+    from ..audio.filters import LogarithmicFilterbank
 
     # parse arguments
     args = parser()
@@ -400,7 +400,7 @@ def main():
                 # (re-)create filterbank if the sample rate is not the same
                 if fb is None or fb.sample_rate != w.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterBank(args.window / 2, w.sample_rate,
+                    fb = LogarithmicFilterbank(args.window / 2, w.sample_rate,
                                                args.bands, args.fmin,
                                                args.fmax, args.equal)
             # create a Spectrogram object

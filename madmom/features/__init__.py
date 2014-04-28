@@ -16,7 +16,7 @@ class Event(object):
     """
     def __init__(self, activations, fps, sep=''):
         """
-        Creates a new Event object instance with the given activations.
+        Creates a new Event instance with the given activations.
         The activations can be read in from file.
 
         :param activations: array with the beat activations or a file (handle)
@@ -67,7 +67,7 @@ class Event(object):
             np.save(filename, self.activations)
         else:
             # simple text format
-            self.activations.tofile(filename, sep=sep, format='%.5f')
+            np.savetxt(filename, self.activations, fmt='%.5f', delimiter=sep)
 
     def load_activations(self, filename, sep=None):
         """
@@ -83,13 +83,13 @@ class Event(object):
 
         """
         # load the activations
-        if sep in [None, '']:
-            # numpy binary format
+        try:
+            # try to load as numpy binary format
             self.activations = np.load(filename)
-        else:
+        except IOError:
             # simple text format
-            self.activations = np.fromfile(filename, sep=sep)
-
+            self.activations = np.loadtxt(filename, delimiter=sep)
 
 import onsets
 import beats
+import tempo

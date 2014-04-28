@@ -13,7 +13,6 @@ recursive-include bin *
 exclude madmom/audio/ffmpeg.py
 exclude madmom/evaluation/scorefollowing.py
 exclude madmom/evaluation/notes.py
-exclude madmom/ml/rnnlib.py
 exclude madmom/utils/overparams.py
 exclude madmom/utils/stats.py
 # never include tests

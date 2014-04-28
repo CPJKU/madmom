@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) 2012-2013 Sebastian Böck <sebastian.boeck@jku.at>
+Copyright (c) Sebastian Böck <sebastian.boeck@jku.at>
 
 Redistribution in any form is not permitted!
 
@@ -54,7 +54,8 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p)
+    madmom.utils.params.tempo(p, smooth=None)
+    madmom.utils.params.beat(p, smooth=0.09)
     madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')
@@ -139,7 +140,7 @@ def main():
         b.save_activations(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(args.threshold, smooth=args.smooth, min_bpm=args.min_bpm,
+        b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
                  max_bpm=args.max_bpm, look_aside=args.look_aside)
         # write the beats to output
         b.write(args.output)

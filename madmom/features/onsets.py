@@ -40,15 +40,15 @@ def diff(spec, diff_frames=1, pos=False):
     # init the matrix with 0s, the first N rows are 0 then
     # TODO: under some circumstances it might be helpful to init with the spec
     # or use the frame at "real" index -N to calculate the diff to
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # calculate the diff
-    diff[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
+    diff_spec[diff_frames:] = spec[diff_frames:] - spec[:-diff_frames]
     # keep only positive values
     if pos:
-        np.maximum(diff, 0, diff)
-    return diff
+        np.maximum(diff_spec, 0, diff_spec)
+    return diff_spec
 
 
 def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
@@ -66,11 +66,11 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
 
     """
     # init diff matrix
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # calculate the diff
-    frames, bins = diff.shape
+    frames, bins = diff_spec.shape
     corr = np.zeros((frames, diff_bins * 2 + 1))
     for f in range(diff_frames, frames):
         # correlate the frame with the previous one
@@ -84,12 +84,12 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
         bin_offset = diff_bins - np.argmax(corr[f])
         bin_start = diff_bins + bin_offset
         bin_stop = bins - 2 * diff_bins + bin_start
-        diff[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] -\
+        diff_spec[f, diff_bins:-diff_bins] = spec[f, diff_bins:-diff_bins] - \
             spec[f - diff_frames, bin_start:bin_stop]
     # keep only positive values
     if pos:
-        np.maximum(diff, 0, diff)
-    return diff
+        np.maximum(diff_spec, 0, diff_spec)
+    return diff_spec
 
 
 # Onset Detection Functions
@@ -101,7 +101,7 @@ def high_frequency_content(spec):
     :returns:    high frequency content onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
-    Signals"
+     Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
@@ -138,7 +138,7 @@ def spectral_flux(spec, diff_frames=1):
     :returns:           spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
-    Signals"
+     Signals"
     Paul Masri
     PhD thesis, University of Bristol, 1996
 
@@ -165,24 +165,25 @@ def superflux(spec, diff_frames=1, max_bins=3):
     (DAFx-13), 2013.
 
     Note: this method works only properly, if the spectrogram is filtered with
-    a filterbank of the right frequency spacing. Filter banks with 24 bands per
-    octave (i.e. quarter-tone resolution) usually yield good results. With
-    `max_bins=3`, the maximum of the bins k-1, k, k+1 of the frame
-    `diff_frames` to the left is used for the calculation of the difference.
+          a filterbank of the right frequency spacing. Filter banks with 24
+          bands per octave (i.e. quarter-tone resolution) usually yield good
+          results. With `max_bins=3`, the maximum of the bins k-1, k, k+1 of
+          the frame `diff_frames` to the left is used for the calculation of
+          the difference.
 
     """
     # init diff matrix
-    diff = np.zeros_like(spec)
+    diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
     # widen the spectrogram in frequency dimension by `max_bins`
     max_spec = maximum_filter(spec, size=[1, max_bins])
     # calculate the diff
-    diff[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
+    diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
     # keep only positive values
-    np.maximum(diff, 0, diff)
+    np.maximum(diff_spec, 0, diff_spec)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(diff, axis=1)
+    return np.sum(diff_spec, axis=1)
 
 
 def modified_kullback_leibler(spec, diff_frames=1, epsilon=EPSILON):
@@ -240,7 +241,7 @@ def phase_deviation(phase):
     :returns:     phase deviation onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
-    domain"
+     domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 
@@ -333,7 +334,7 @@ def complex_domain(spec, phase):
     :returns:     complex domain onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
-    domain"
+     domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
     IEEE Signal Processing Letters, Volume 11, Number 6, 2004
 
@@ -377,7 +378,7 @@ class SpectralOnsetDetection(object):
     """
     def __init__(self, spectrogram, max_bins=MAX_BINS, *args, **kwargs):
         """
-        Creates a new SpectralOnsetDetection object instance.
+        Creates a new SpectralOnsetDetection instance.
 
         :param spectrogram: the spectrogram object on which the detections
                             functions operate
@@ -529,7 +530,7 @@ class Onset(Event):
     """
     def __init__(self, activations, fps, online=False, sep=''):
         """
-        Creates a new Onset object instance with the given activations of the
+        Creates a new Onset instance with the given activations of the
         ODF (OnsetDetectionFunction). The activations can be read from a file.
 
         :param activations: array with ODF activations or a file (handle)
@@ -661,7 +662,7 @@ def main():
     from ..utils import files
     from ..audio.wav import Wav
     from ..audio.spectrogram import Spectrogram
-    from ..audio.filterbank import LogarithmicFilterBank
+    from ..audio.filters import LogarithmicFilterbank
 
     # parse arguments
     args = parser()
@@ -699,7 +700,7 @@ def main():
                 # (re-)create filterbank if the sample rate is not the same
                 if fb is None or fb.sample_rate != w.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterBank(num_fft_bins=args.window / 2,
+                    fb = LogarithmicFilterbank(num_fft_bins=args.window / 2,
                                                sample_rate=w.sample_rate,
                                                bands_per_octave=args.bands,
                                                fmin=args.fmin, fmax=args.fmax,
@@ -709,9 +710,9 @@ def main():
                             log=args.log, mul=args.mul, add=args.add,
                             ratio=args.ratio, diff_frames=args.diff_frames)
             # create a SpectralOnsetDetection object
-            sodf = SpectralOnsetDetection(s, max_bins=args.max_bins)
+            sod = SpectralOnsetDetection(s, max_bins=args.max_bins)
             # perform detection function on the object
-            act = getattr(sodf, args.odf)()
+            act = getattr(sod, args.odf)()
             # create an Onset object with the activations
             o = Onset(act, args.fps, args.online)
         # save onset activations or detect onsets

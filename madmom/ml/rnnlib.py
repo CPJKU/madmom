@@ -765,7 +765,7 @@ class RnnConfig(object):
 
     def __init__(self, filename=None):
         """
-        Creates a new RNNLIB object instance.
+        Creates a new RNNLIB instance.
 
         :param filename: name of the config file for rnnlib
 
@@ -963,7 +963,7 @@ class RnnConfig(object):
     def save_model(self, filename=None, comment=None):
         """
         Save the model to a .h5 file which can be universally used and
-        converted to .npz to create a madmom.ml.rnn.RNN object instance.
+        converted to .npz to create a madmom.ml.rnn.RNN instance.
 
         :param filename: save the model to this file
         :param comment:  optional comment for the model
