@@ -110,9 +110,9 @@ def log3(x):
 
 # default values for tempo estimation
 ACT_SMOOTH = 0.13
-MIN_BPM = 60
+MIN_BPM = 40
 MAX_BPM = 240
-HIST_SMOOTH = 7
+HIST_SMOOTH = 5
 NO_TEMPO = np.nan
 GROUPING_DEV = 0
 
