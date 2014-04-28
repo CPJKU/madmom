@@ -621,8 +621,10 @@ def evaluation_io(parser, ann_suffix, det_suffix):
     """
     Add evaluation related arguments to an existing parser object.
 
-    :param parser: existing argparse parser object
-    :return:       audio argument parser group object
+    :param parser:     existing argparse parser object
+    :param ann_suffix: suffix for the annotation files
+    :param det_suffix: suffix for the detection files
+    :return:           audio argument parser group object
 
     """
     parser.add_argument('files', nargs='*',
