@@ -49,7 +49,7 @@ def smooth_histogram(histogram, smooth):
     :returns:         smoothed histogram
 
     """
-    # smooth only the the histogram bins, not the
+    # smooth only the the histogram bins, not the corresponding delays
     return smooth_signal(histogram[0], smooth), histogram[1]
 
 
@@ -98,12 +98,23 @@ def dominant_interval(histogram, smooth=None):
     return histogram[1][np.argmax(histogram[0])]
 
 
+def log3(x):
+    """
+    Takes the logarithm to the basis of 3.
+
+    :param x: array like
+    :return:  logarithm to the basis of 3
+    """
+    return np.log(x) / np.log(3)
+
+
 # default values for tempo estimation
 ACT_SMOOTH = 0.13
 MIN_BPM = 60
 MAX_BPM = 240
 HIST_SMOOTH = 7
 NO_TEMPO = np.nan
+GROUPING_DEV = 0
 
 
 class Tempo(Event):
@@ -124,7 +135,7 @@ class Tempo(Event):
         super(Tempo, self).__init__(activations, fps, sep)
 
     def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM, dev=GROUPING_DEV):
         """
         Detect the tempo on basis of the given beat activation function.
 
@@ -132,8 +143,11 @@ class Tempo(Event):
         :param hist_smooth: smooth the activation function over N bins
         :param min_bpm:     minimum tempo to detect
         :param max_bpm:     maximum tempo to detect
+        :param dev:         allowed tempo deviation for grouping tempi
         :returns:           tuple with the two most dominant tempi and the
                             relative strength of them
+
+        Note: A 'dev' value of 0 does not perform grouping of the tempi.
 
         """
         # convert the arguments to frames
@@ -163,7 +177,35 @@ class Tempo(Event):
         else:
             # sort the peaks in descending order of bin heights
             sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
-            # get the 2 strongest tempi
+            # group the corresponding tempi if needed
+            if dev:
+                # get the peak tempi
+                t = tempi[sorted_peaks]
+                # get the whole-numbered divisors from all tempo combinations
+                c = t / t[:, np.newaxis]
+                # group all double tempi
+                # transform the fractions to the log2 space
+                double_c = np.abs(np.log2(c))
+                # and keep only those within a certain deviation
+                double_c = (np.round(double_c / dev) * dev) % 1 == 0
+                # get the corresponding strengths
+                double = bins[sorted_peaks][np.newaxis, :] * double_c
+                # select the winning combination
+                double_tempi = double[np.argmax(np.sum(double_c, axis=1))]
+                # group all triple tempi
+                # transform the fractions to the log3 space
+                triple_c = np.abs(log3(c))
+                # again, keep only those within a certain deviation
+                triple_c = (np.round(triple_c / dev) * dev) % 1 == 0
+                # get the corresponding strengths
+                triple = bins[sorted_peaks][np.newaxis, :] * triple_c
+                # select the winning combination
+                triple_tempi = triple[np.argmax(np.sum(triple_c, axis=1))]
+                # combine the double and triple tempo combinations
+                strengths = np.max((double_tempi, triple_tempi), axis=0)
+                # re-sort the peaks
+                sorted_peaks = sorted_peaks[np.argsort(strengths)[::-1]]
+            # otherwise just return the 2 strongest tempi
             t1, t2 = tempi[sorted_peaks[:2]]
             # calculate the relative strength
             strength = bins[sorted_peaks[0]]

@@ -17,7 +17,7 @@ from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
-from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH
+from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH, GROUPING_DEV
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
@@ -274,7 +274,8 @@ def beat(parser, smooth=BEAT_SMOOTH, look_aside=LOOK_ASIDE):
     return g
 
 
-def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+          dev=GROUPING_DEV):
     """
     Add tempo estimation related arguments to an existing parser object.
 
@@ -282,6 +283,7 @@ def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
     :param smooth:     smooth the tempo histogram over N bins
     :param min_bpm:    minimum tempo [bpm]
     :param max_bpm:    maximum tempo [bpm]
+    :param dev:        allowed deviation of tempi when grouping them
     :return:           tempo argument parser group object
 
     """
@@ -296,6 +298,9 @@ def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM):
                    help='minimum tempo [bpm, default=%(default).2f]')
     g.add_argument('--max_bpm', action='store', type=float, default=max_bpm,
                    help='maximum tempo [bpm, default=%(default).2f]')
+    g.add_argument('--dev', action='store', type=float, default=dev,
+                   help='maximum allowed tempo deviation when grouping tempi '
+                        '[default=%(default).2f]')
     # return the argument group so it can be modified if needed
     return g
 
