@@ -146,7 +146,7 @@ def main():
                                     hist_smooth=args.hist_smooth,
                                     min_bpm=args.min_bpm,
                                     max_bpm=args.max_bpm,
-                                    dev=args.dev)
+                                    grouping_dev=args.dev)
         # for MIREX, the lower tempo must be given first
         if t1 > t2:
             t2, t1, strength = t1, t2, 1. - strength

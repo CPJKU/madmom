@@ -135,19 +135,20 @@ class Tempo(Event):
         super(Tempo, self).__init__(activations, fps, sep)
 
     def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, dev=GROUPING_DEV):
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM, grouping_dev=GROUPING_DEV):
         """
         Detect the tempo on basis of the given beat activation function.
 
-        :param act_smooth:  smooth the activation function over N seconds
-        :param hist_smooth: smooth the activation function over N bins
-        :param min_bpm:     minimum tempo to detect
-        :param max_bpm:     maximum tempo to detect
-        :param dev:         allowed tempo deviation for grouping tempi
-        :returns:           tuple with the two most dominant tempi and the
-                            relative strength of them
+        :param act_smooth:   smooth the activation function over N seconds
+        :param hist_smooth:  smooth the activation function over N bins
+        :param min_bpm:      minimum tempo to detect
+        :param max_bpm:      maximum tempo to detect
+        :param grouping_dev: allowed tempo deviation for grouping tempi
+        :returns:            tuple with the two most dominant tempi and the
+                             relative strength of them
 
-        Note: A 'dev' value of 0 does not perform grouping of the tempi.
+        Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
+              The deviation is allowed delta in the log2 / log3 space.
 
         """
         # convert the arguments to frames
@@ -178,7 +179,7 @@ class Tempo(Event):
             # sort the peaks in descending order of bin heights
             sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
             # group the corresponding tempi if needed
-            if dev:
+            if grouping_dev:
                 # get the peak tempi
                 t = tempi[sorted_peaks]
                 # get the whole-numbered divisors from all tempo combinations
@@ -187,7 +188,8 @@ class Tempo(Event):
                 # transform the fractions to the log2 space
                 double_c = np.abs(np.log2(c))
                 # and keep only those within a certain deviation
-                double_c = (np.round(double_c / dev) * dev) % 1 == 0
+                double_c = np.round(double_c / grouping_dev) * grouping_dev
+                double_c = double_c % 1 == 0
                 # get the corresponding strengths
                 double = bins[sorted_peaks][np.newaxis, :] * double_c
                 # select the winning combination
@@ -196,7 +198,8 @@ class Tempo(Event):
                 # transform the fractions to the log3 space
                 triple_c = np.abs(log3(c))
                 # again, keep only those within a certain deviation
-                triple_c = (np.round(triple_c / dev) * dev) % 1 == 0
+                triple_c = np.round(triple_c / grouping_dev) * grouping_dev
+                triple_c = triple_c % 1 == 0
                 # get the corresponding strengths
                 triple = bins[sorted_peaks][np.newaxis, :] * triple_c
                 # select the winning combination
