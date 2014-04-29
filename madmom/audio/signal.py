@@ -285,6 +285,11 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
         return np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
+    elif (start < 0) and (stop > num_samples):
+        # window surrounds the actual signal, position signal accordingly
+        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
+        frame[-start:num_samples - start] = x
+        return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
         frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
