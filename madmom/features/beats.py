@@ -222,8 +222,7 @@ class Beat(Event):
             else:
                 act = self.activations[start:end]
             # detect the dominant interval
-            interval = detect_dominant_interval(self.activations,
-                                                act_smooth=smooth,
+            interval = detect_dominant_interval(act, act_smooth=smooth,
                                                 hist_smooth=None,
                                                 min_tau=min_tau,
                                                 max_tau=max_tau)
