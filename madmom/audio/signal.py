@@ -403,7 +403,7 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
     length = x.shape[axis]
     if length == 0:
         raise ValueError("Not enough data points to segment array in 'cut' "
-                         "mode; try 'pad' or 'wrap'")
+                         "mode; try end='pad' or end='wrap'")
     assert length >= frame_size
     assert (length - frame_size) % hop_size == 0
     n = 1 + (length - frame_size) // hop_size
