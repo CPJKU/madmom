@@ -9,6 +9,7 @@ Script for creating variations of the given beat sequence.
 
 import argparse
 import os
+import numpy as np
 
 from madmom.utils import load_events, write_events
 from madmom.evaluation.beats import variations
@@ -33,7 +34,6 @@ def main():
                    help='output directory')
     # parse arguments
     args = p.parse_args()
-
     # convert all files
     for f in args.files:
         # read in the annotations
@@ -41,8 +41,14 @@ def main():
         # variation names
         names = ['offbeat', 'double', 'half_odd', 'half_even', 'triple',
                  'third_first', 'third_second', 'third_third']
-        # create the variations
-        for i, var in enumerate(variations(annotations)):
+        # create the sequence variations
+        sequences = variations(annotations)
+        # if no variations are created, create fake ones
+        if len(sequences) == 0:
+            # TODO: this is super hack-ish, do it properly
+            sequences = [np.zeros(0)] * len(names)
+        # write all sequence variations to files
+        for i, sequence in enumerate(sequences):
             # determine the output file name
             if args.output:
                 outfile = "%s/%s.%s" % (args.output, os.path.basename(f),
@@ -50,7 +56,7 @@ def main():
             else:
                 outfile = "%s.%s" % (f, names[i])
             # write the new output file
-            write_events(var, outfile)
+            write_events(sequence, outfile)
 
 if __name__ == '__main__':
     main()
