@@ -689,7 +689,7 @@ class BeatEvaluation(OnsetEvaluation):
             # tex formatting
             ret += 'tex & F-measure & P-score & Cemgil & Goto & CMLc & CMLt &'\
                    ' AMLc & AMLt & D & Dg \\\\\n& %.3f & %.3f & %.3f & %.3f &'\
-                   '%.3f & %.3f & %.3f & %.3f & %.3f & %.3f\\\\' %\
+                   ' %.3f & %.3f & %.3f & %.3f & %.3f & %.3f\\\\' %\
                    (self.fmeasure, self.pscore, self.cemgil, self.goto,
                     self.cmlc, self.cmlt, self.amlc, self.amlt,
                     self.information_gain, self.global_information_gain)
