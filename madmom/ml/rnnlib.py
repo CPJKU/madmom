@@ -678,8 +678,8 @@ class TestThread(Thread):
                 if self.verbose > 1:
                     subprocess.call(args)
                 else:
-                    devnull = open(os.devnull, 'w')
-                    subprocess.call(args, stdout=devnull, stderr=devnull)
+                    with open(os.devnull, 'w') as devnull:
+                        subprocess.call(args, stdout=devnull, stderr=devnull)
             except OSError:
                 # TODO: which exception should be raised?
                 raise SystemExit('rnnlib binary not found')
