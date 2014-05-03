@@ -26,6 +26,8 @@ import tempfile
 
 from Queue import Queue
 from threading import Thread
+import multiprocessing
+import subprocess
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
@@ -647,16 +649,15 @@ class TestThread(Thread):
         """
         # init the thread
         super(TestThread, self).__init__()
-        #Thread.__init__(self)
         # set attributes
         self.work_queue = work_queue
         self.return_queue = return_queue
         self.verbose = verbose
+        self.kill = False
 
     def run(self):
         """Test file against all neural networks in the queue."""
-        import subprocess
-        while True:
+        while not self.kill:
             # grab the first work item from queue
             nc_file, nn_file = self.work_queue.get()
             # create a tmp directory for each thread
@@ -705,29 +706,47 @@ class TestThread(Thread):
                 self.work_queue.task_done()
 
 
-def test_nc_files(nc_files, nn_files, threads=2, verbose=False):
+def create_pool(threads=2, verbose=False):
+    """
+    Create a pool of working threads.
+
+    :param threads:  number of parallel threads
+    :param verbose:  be verbose
+    :returns:        a tuple with working and return queues
+
+    Note: the work queue expects tuples with (nc_file, nn_file),
+          the return contains the same tuples extended by the activations
+          (nc_file, nn_file, activations).
+
+    """
+    # a queue for the work items
+    work_queue = Queue()
+    # a queue for the results
+    return_queue = Queue()
+    # start N threads parallel
+    workers = [TestThread(work_queue, return_queue, verbose)
+               for _ in range(threads)]
+    for w in workers:
+        w.setDaemon(True)
+        w.start()
+    # return the queues
+    return work_queue, return_queue
+
+
+def test_nc_files(nc_files, nn_files, work_queue, return_queue):
     """
     Test a list of .nc files against multiple neural networks.
 
-    :param nc_files: list with .nc files to be tested
-    :param nn_files: list with network files
-    :param threads:  number of parallel threads
-    :param verbose:  be verbose
+    :param nc_files:     list with .nc files to be tested
+    :param nn_files:     list with network files
+    :param work_queue:   a work queue
+    :param return_queue: a return queue
 
     """
     if not nc_files:
         raise ValueError('no .nc files given')
     if not nn_files:
         raise ValueError('no pre-trained neural network files given')
-    # a queue for the work items
-    work_queue = Queue()
-    # a queue for the results
-    return_queue = Queue()
-    # start N threads parallel
-    for _ in range(threads):
-        t = TestThread(work_queue, return_queue, verbose)
-        t.setDaemon(True)
-        t.start()
     # put a combination of .nc files and neural networks in the queue
     for nc_file in nc_files:
         for nn_file in nn_files:
@@ -737,7 +756,7 @@ def test_nc_files(nc_files, nn_files, threads=2, verbose=False):
     # init return list
     activations = [None] * len(nc_files)
     num_activations = [1] * len(nc_files)
-    # get all the activations and process the accordingly
+    # get all the activations and process them accordingly
     while not return_queue.empty():
         # get the tuple
         nc_file, nn_file, act = return_queue.get()
@@ -945,9 +964,11 @@ class RnnConfig(object):
             os.utime(out_dir, None)
         # test all files of the given set
         nc_files = eval("self.%s_files" % file_set)
+        # create a pool of workers
+        work_queue, return_queue = create_pool(threads, verbose)
         # test all files
-        activations = test_nc_files(nc_files, [self.filename], threads,
-                                    verbose)
+        activations = test_nc_files(nc_files, [self.filename], work_queue,
+                                    return_queue)
         # save all activations
         for f in nc_files:
             # name of the activations file
@@ -1087,6 +1108,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
+        # create a pool of workers
+        work_queue, return_queue = create_pool(threads, verbose)
         # test each .nc files against the NN files if it is in the given set
         # Note: do not flip the order of the loops, otherwise files could be
         #       tested even if they were included in the train set!
@@ -1098,8 +1121,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
                 if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
-            activations = test_nc_files([nc_file], nc_nn_files, threads,
-                                        verbose)
+            activations = test_nc_files([nc_file], nc_nn_files, work_queue,
+                                        return_queue)
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
             act_file = "%s/%s" % (out_dir, basename)
@@ -1206,7 +1229,8 @@ def parser():
                    help='increase verbosity level')
     p.add_argument('-o', dest='output', default=None,
                    help='output directory')
-    p.add_argument('--threads', action='store', type=int, default=2,
+    p.add_argument('--threads', action='store', type=int,
+                   default=multiprocessing.cpu_count(),
                    help='number of threads [default=%(default)i]')
     # .save file testing options
     g = p.add_argument_group('arguments for .save file testing')
