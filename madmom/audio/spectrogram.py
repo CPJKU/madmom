@@ -97,7 +97,7 @@ def strided_stft(signal, window, hop_size, phase=True):
     return fft.fft(fft_signal)[:, :ffts]
 
 
-def tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
+def tuning_frequency(spec, sample_rate, num_hist_bins=15, fref=A4):
     """
     Determines the tuning frequency based on the given (peak) magnitude
     spectrogram.
@@ -118,9 +118,11 @@ def tuning_frequency(spec, sample_rate, num_hist_bins=12, fref=A4):
     # build a histogram
     hist = np.histogram(semitone_dev * spec,
                         bins=num_hist_bins, range=(-0.5, 0.5))
-    # deviation
-    dev = -0.5 + num_hist_bins * np.argmax(hist)
-    # calculate the reference frequency
+    # deviation of the bins (calculate the bin centres)
+    dev_bins = (hist[1][:-1] + hist[1][1:]) / 2.
+    # dominant deviation
+    dev = num_hist_bins * dev_bins[np.argmax(hist[0])]
+    # calculate the tuning frequency
     return fref * 2. ** (dev / 12.)
 
 
@@ -767,8 +769,8 @@ class HarmonicPercussiveSourceSeparation(Spectrogram):
                                                                  **kwargs)
         # set the parameters, so they get used for computation
         self._masking = masking
-        self._harmonic_filter = int(harmonic_filter)
-        self._percussive_filter = int(percussive_filter)
+        self._harmonic_filter = np.asarray(harmonic_filter, dtype=int)
+        self._percussive_filter = np.asarray(percussive_filter, dtype=int)
         # init arrays
         self._harmonic = None
         self._percussive = None
