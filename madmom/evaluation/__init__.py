@@ -615,3 +615,35 @@ class MultiClassEvaluation(Evaluation):
 
         # return
         return ret
+
+
+def evaluation_io(parser, ann_suffix, det_suffix):
+    """
+    Add evaluation related arguments to an existing parser object.
+
+    :param parser:     existing argparse parser object
+    :param ann_suffix: suffix for the annotation files
+    :param det_suffix: suffix for the detection files
+    :return:           audio argument parser group object
+
+    """
+    parser.add_argument('files', nargs='*',
+                        help='files (or folders) to be evaluated')
+    # suffixes used for evaluation
+    parser.add_argument('-a', dest='ann_suffix', action='store',
+                        default=ann_suffix,
+                        help='suffix of the annotation files '
+                             '[default: %(default)s]')
+    parser.add_argument('-d', dest='det_suffix', action='store',
+                        default=det_suffix,
+                        help='suffix of the detection files '
+                             '[default: %(default)s]')
+    # output options
+    g = parser.add_argument_group('formatting arguments')
+    g.add_argument('--tex', action='store_true',
+                   help='format output to be used in .tex files')
+    # verbose
+    parser.add_argument('-v', dest='verbose', action='count', default=0,
+                        help='increase verbosity level')
+    # return the parser
+    return parser
