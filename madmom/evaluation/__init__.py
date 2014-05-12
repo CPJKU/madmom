@@ -643,7 +643,7 @@ def evaluation_io(parser, ann_suffix, det_suffix):
     g.add_argument('--tex', action='store_true',
                    help='format output to be used in .tex files')
     # verbose
-    parser.add_argument('-v', dest='verbose', action='count',
+    parser.add_argument('-v', dest='verbose', action='count', default=0,
                         help='increase verbosity level')
     # return the parser
     return parser
