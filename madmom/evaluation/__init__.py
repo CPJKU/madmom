@@ -645,7 +645,5 @@ def evaluation_io(parser, ann_suffix, det_suffix):
     # verbose
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
-    parser.add_argument('-s', dest='silent', action='store_true',
-                        help='suppress warnings')
     # return the parser
     return parser
