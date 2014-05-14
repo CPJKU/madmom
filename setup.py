@@ -8,6 +8,14 @@ This file contains the setup for setuptools to distribute as a package.
 """
 
 from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+
+import numpy as np
+
+extensions = [Extension('madmom.audio.comb_filters',
+                        ['madmom/audio/comb_filters.pyx'],
+                        include_dirs=[np.get_include()])]
 
 setup(name='madmom',
       version='0.01',
@@ -18,5 +26,6 @@ setup(name='madmom',
              'Artificial Intelligence (OFAI), Vienna, Austria',
       author_email='python-sigk@jku.at',
       url='https://jobim.ofai.at/gitlab/madmom/madmom',
-      license='BSD, with some exclusions'
-      )
+      license='BSD, with some exclusions',
+      ext_modules=extensions,
+      cmdclass={'build_ext': build_ext})
