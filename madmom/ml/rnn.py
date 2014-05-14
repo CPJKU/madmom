@@ -221,7 +221,7 @@ class RecurrentLayer(FeedForwardLayer):
         # loop through each time step of the data
         size = data.shape[0]
         out = np.zeros((size, self.bias.size))
-        for i in range(size):
+        for i in xrange(size):
             # weight the data, add the bias
             cell = np.dot(data[i], self.weights) + self.bias
             # add the weighted previous step and
@@ -411,7 +411,7 @@ class LSTMLayer(object):
         out = np.zeros((size, self.cell.bias.size))
         state = np.zeros_like(out)
         # process the input data
-        for i in range(size):
+        for i in xrange(size):
             # input gate:
             # operate on current data, previous state and previous output
             ig = self.input_gate.activate(data[i], out[i - 1], state[i - 1])
