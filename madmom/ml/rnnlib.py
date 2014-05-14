@@ -981,16 +981,17 @@ class RnnConfig(object):
         # return the output directory
         return out_dir
 
-    def save_model(self, filename=None, comment=None):
+    def save_model(self, filename=None, comment=None, npz=False):
         """
         Save the model to a .h5 file which can be universally used and
         converted to .npz to create a madmom.ml.rnn.RNN instance.
 
         :param filename: save the model to this file
         :param comment:  optional comment for the model
+        :param npz:      also convert to .npz format
 
         Note: If no filename is given, the filename of the .save file is used
-              and the extension is set to .npz.
+              and the extension is set to .h5 or .npz repectively.
 
         """
         import h5py
@@ -1069,6 +1070,10 @@ class RnnConfig(object):
                     if bidirectional:
                         grp.attrs['%s_type' % REVERSE] = str(layer_type)
                 # next layer
+        # also convert to .npz
+        if npz:
+            from .io import convert_model
+            convert_model(filename)
 
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
