@@ -167,6 +167,10 @@ def variations(sequence, offbeat=True, double=True, triple=True):
     """
     # create different variants of the annotations
     sequences = []
+    # just return the empty sequences list if input is empty
+    if len(sequence) == 0:
+        # TODO: is this the right thing to do?
+        return sequences
     # inter-/extrapolate double tempo
     if double or offbeat:
         # create a sequence with double tempo
