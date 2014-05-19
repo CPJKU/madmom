@@ -7,6 +7,8 @@ This file contains the speed crucial filter and filterbank functionality.
 
 """
 
+import numpy as np
+
 cimport cython
 cimport numpy as np
 
@@ -49,6 +51,9 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] x,
     cdef unsigned int len_x = len(x)
     # loop over the complete signal
     for n in xrange(tau, len(x)):
+        # Note: saw this formula somewhere, but it seems to produce less
+        #       accurate tempo predictions...
+        #       y[n] = (1. - alpha) * x[n] + alpha * y[n - tau]
         # add a delayed version of the output signal
         y[n] = x[n] + alpha * y[n - tau]
     # return
@@ -78,6 +83,9 @@ def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] x,
     for d in xrange(2):
         # loop over the complete signal
         for n in xrange(tau, len(x)):
+            # Note: saw this formula somewhere, but it seems to produce less
+            #       accurate tempo predictions...
+            #       y[n, d] = (1. - alpha) * x[n, d] + alpha * y[n - tau, d]
             # add a delayed version of the output signal
             y[n, d] = x[n, d] + alpha * y[n - tau, d]
     # return

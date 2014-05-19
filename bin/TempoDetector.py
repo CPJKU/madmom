@@ -55,10 +55,14 @@ def parser():
     madmom.utils.params.nn(p)
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
-    madmom.utils.params.beat(p, smooth=0.13, look_aside=None)
-    madmom.utils.params.tempo(p, min_bpm=40, max_bpm=240)
+    madmom.utils.params.beat(p, smooth=0.14, look_aside=None)
+    madmom.utils.params.tempo(p, min_bpm=39, max_bpm=245)
     madmom.utils.params.save_load(p)
     # version
+    p.add_argument('--mirex', action='store_true', default=False,
+                   help='report the lower tempo first (as required by MIREX)')
+    p.add_argument('--old', action='store_true', default=False,
+                   help='use the old ACF-based method')
     p.add_argument('--version', action='version',
                    version='TempoDetector.2013v2')
     # parse arguments
@@ -142,14 +146,23 @@ def main():
         t.save_activations(args.output, sep=args.sep)
     else:
         # detect the tempo
-        t1, t2, strength = t.detect(act_smooth=args.smooth,
-                                    hist_smooth=args.hist_smooth,
-                                    min_bpm=args.min_bpm,
-                                    max_bpm=args.max_bpm,
-                                    grouping_dev=args.dev)
+        if args.old:
+            t1, t2, strength = t.detect(act_smooth=args.smooth,
+                                        hist_smooth=args.hist_smooth,
+                                        min_bpm=args.min_bpm,
+                                        max_bpm=args.max_bpm,
+                                        grouping_dev=args.dev)
+        else:
+            t1, t2, strength = t.estimate(act_smooth=args.smooth,
+                                          hist_smooth=args.hist_smooth,
+                                          min_bpm=args.min_bpm,
+                                          max_bpm=args.max_bpm,
+                                          alpha=args.alpha,
+                                          grouping_dev=args.dev)
         # for MIREX, the lower tempo must be given first
-        if t1 > t2:
-            t2, t1, strength = t1, t2, 1. - strength
+        if args.mirex:
+            if t1 > t2:
+                t2, t1, strength = t1, t2, 1. - strength
         # write to output
         with open(args.output, 'rb') as f:
             f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))

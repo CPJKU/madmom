@@ -11,7 +11,7 @@ import sys
 import numpy as np
 
 from . import Event
-from .tempo import interval_histogram, dominant_interval, MIN_BPM, MAX_BPM
+from .tempo import interval_histogram_acf, dominant_interval, MIN_BPM, MAX_BPM
 
 
 # wrapper function for detecting the dominant interval
@@ -29,7 +29,7 @@ def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
 
     """
     # create a interval histogram
-    h = interval_histogram(activations, act_smooth, min_tau, max_tau)
+    h = interval_histogram_acf(activations, act_smooth, min_tau, max_tau)
     # get the dominant interval and return it
     return dominant_interval(h, smooth=hist_smooth)
 

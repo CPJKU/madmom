@@ -290,6 +290,9 @@ def main():
         for ann_file in matches:
             # load the annotations
             annotations, strengths = load_tempo(ann_file)
+            # crop the detections to the length of the annotations
+            detections = detections[:len(annotations)]
+            strengths = strengths[:len(annotations)]
             # add the Evaluation to mean evaluation
             me.append(TempoEvaluation(detections, annotations, strengths,
                                       args.tolerance))

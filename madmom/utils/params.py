@@ -17,7 +17,7 @@ from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
 from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
 from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
-from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH, GROUPING_DEV
+from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH, GROUPING_DEV, ALPHA
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
@@ -275,7 +275,7 @@ def beat(parser, smooth=BEAT_SMOOTH, look_aside=LOOK_ASIDE):
 
 
 def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-          dev=GROUPING_DEV):
+          dev=GROUPING_DEV, alpha=ALPHA):
     """
     Add tempo estimation related arguments to an existing parser object.
 
@@ -300,6 +300,9 @@ def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                    help='maximum tempo [bpm, default=%(default).2f]')
     g.add_argument('--dev', action='store', type=float, default=dev,
                    help='maximum allowed tempo deviation when grouping tempi '
+                        '[default=%(default).2f]')
+    g.add_argument('--alpha', action='store', type=float, default=alpha,
+                   help='alpha for comb filter tempo estimation '
                         '[default=%(default).2f]')
     # return the argument group so it can be modified if needed
     return g
