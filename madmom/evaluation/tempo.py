@@ -308,6 +308,5 @@ def main():
     print 'mean for %i files:' % (len(det_files))
     print mean_eval.print_errors('  ', args.tex)
 
-
 if __name__ == '__main__':
     main()
