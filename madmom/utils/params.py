@@ -304,6 +304,9 @@ def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
     g.add_argument('--alpha', action='store', type=float, default=alpha,
                    help='alpha for comb filter tempo estimation '
                         '[default=%(default).2f]')
+    g.add_argument('--all', action='store_true', default=False,
+                   help='evaluate all detections, even if only 1 annotation '
+                        'is given')
     # return the argument group so it can be modified if needed
     return g
 
