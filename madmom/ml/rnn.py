@@ -20,43 +20,17 @@ other stuff.
 
 import numpy as np
 import re
+from scipy.special import expit
 
 # naming infix for bidirectional layer
 REVERSE = 'reverse'
 
-
 # transfer functions
-def linear(data):
-    """
-    Dummy linear function.
+linear = lambda x: x
 
-    :param data: input data
-    :returns:    data
+tanh = np.tanh
 
-    """
-    return data
-
-
-def tanh(data):
-    """
-    Tanh function.
-
-    :param data: input data
-    :returns:    tanh of data
-
-    """
-    return np.tanh(data)
-
-
-def sigmoid(data):
-    """
-    Logistic sigmoid function.
-
-    :param data: input data
-    :returns:    logistic sigmoid of data
-
-    """
-    return 0.5 * (1. + np.tanh(0.5 * data))
+sigmoid = expit
 
 
 # network layer classes
@@ -158,8 +132,8 @@ class FeedForwardLayer(Layer):
 
         """
         self.transfer_fn = transfer_fn
-        self.weights = weights
-        self.bias = bias
+        self.weights = np.copy(weights)
+        self.bias = np.copy(bias)
 
     def activate(self, data):
         """
@@ -205,7 +179,9 @@ class RecurrentLayer(FeedForwardLayer):
 
         """
         super(RecurrentLayer, self).__init__(transfer_fn, weights, bias)
-        self.recurrent_weights = recurrent_weights
+        self.recurrent_weights = None
+        if recurrent_weights is not None:
+            self.recurrent_weights = np.copy(recurrent_weights)
 
     def activate(self, data):
         """
@@ -301,9 +277,9 @@ class Cell(object):
         :param transfer_fn:       transfer function
 
         """
-        self.weights = weights
-        self.bias = bias
-        self.recurrent_weights = recurrent_weights
+        self.weights = np.copy(weights)
+        self.bias = np.copy(bias)
+        self.recurrent_weights = np.copy(recurrent_weights)
         self.transfer_fn = transfer_fn
 
     def activate(self, data, out):
@@ -343,11 +319,13 @@ class Gate(Cell):
 
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
-        self.peephole_weights = peephole_weights
+        self.peephole_weights = None
+        if peephole_weights is not None:
+            self.peephole_weights = np.copy(peephole_weights)
 
     def activate(self, data, out, state):
         """
-        Activate the cell with the given data, state (if peephole connections
+        Activate the gate with the given data, state (if peephole connections
         are used) and the output (if recurrent connections are used).
 
         :param data:  input data for the cell (1D vector or scalar)
@@ -355,7 +333,7 @@ class Gate(Cell):
                       scalar)
         :param state: state data of the {current | previous} time step (1D
                       vector or scalar)
-        :returns:     activations of the cell
+        :returns:     activations of the gate
 
         """
         # weight input and add bias
