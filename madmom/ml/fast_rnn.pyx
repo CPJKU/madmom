@@ -133,7 +133,7 @@ class FeedForwardLayer(Layer):
         """
         self.transfer_fn = transfer_fn
         self.weights = np.copy(weights)
-        self.bias = bias.flatten('A')
+        self.bias = np.copy(bias)
 
     def activate(self, data):
         """
@@ -278,7 +278,7 @@ class Cell(object):
 
         """
         self.weights = np.copy(weights)
-        self.bias = bias.flatten('A')
+        self.bias = np.copy(bias)
         self.recurrent_weights = np.copy(recurrent_weights)
         self.transfer_fn = transfer_fn
 
@@ -321,7 +321,7 @@ class Gate(Cell):
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
         self.peephole_weights = None
         if peephole_weights is not None:
-            self.peephole_weights = peephole_weights.flatten('A')
+            self.peephole_weights = np.copy(peephole_weights)
 
     def activate(self, data, out, state):
         """
