@@ -196,14 +196,18 @@ class RecurrentLayer(FeedForwardLayer):
             return super(RecurrentLayer, self).activate(data)
         # loop through each time step of the data
         size = data.shape[0]
-        out = np.zeros((size, self.bias.size))
+        out = np.zeros((size, self.bias.size), dtype=np.float32)
+        cell = np.zeros(self.bias.size, dtype=np.float32)
+        tmp = np.zeros(self.bias.size, dtype=np.float32)
         for i in xrange(size):
             # weight the data, add the bias
-            cell = np.dot(data[i], self.weights) + self.bias
+            np.dot(data[i], self.weights, out=cell)
+            cell += self.bias
             # add the weighted previous step and
-            cell += np.dot(out[i - 1], self.recurrent_weights)
+            np.dot(out[i - 1], self.recurrent_weights, out=tmp)
+            cell += tmp
             # apply transfer function
-            out[i] = self.transfer_fn(cell)
+            self.transfer_fn(cell, out=out[i])
         # return
         return out
 
@@ -280,26 +284,38 @@ class Cell(object):
         self.weights = np.copy(weights)
         self.bias = bias.flatten('A')
         self.recurrent_weights = np.copy(recurrent_weights)
+        self.peephole_weights = None
         self.transfer_fn = transfer_fn
+        self.cell = np.zeros(self.bias.size, dtype=np.float32)
+        self._tmp = np.zeros(self.bias.size, dtype=np.float32)
 
-    def activate(self, data, out):
+    def activate(self, data, prev, state=None):
         """
-        Activate the cell with the given data and the output (if recurrent
-        connections are used).
+        Activate the cell with the given data, state (if peephole connections
+        are used) and the output (if recurrent connections are used).
 
-        :param data: input data for the cell (1D vector or scalar)
-        :param out:  output data of the previous time step (1D vector or
-                     scalar)
-        :returns:    activations of the cell
+        :param data:  input data for the cell (1D vector or scalar)
+        :param prev:  output data of the previous time step (1D vector or
+                      scalar)
+        :param state: state data of the {current | previous} time step (1D
+                      vector or scalar)
+        :returns:     activations of the gate
 
         """
-        # weight the input and add bias
-        cell = np.dot(data, self.weights) + self.bias
-        # add recurrent connections
+        # weight input and add bias
+        np.dot(data, self.weights, out=self.cell)
+        self.cell += self.bias
+        # add the previous state weighted by the peephole
+        if self.peephole_weights is not None:
+            self.cell += state * self.peephole_weights
+        # add recurrent connection
         if self.recurrent_weights is not None:
-            cell += np.dot(out, self.recurrent_weights)
+            np.dot(prev, self.recurrent_weights, out=self._tmp)
+            self.cell += self._tmp
         # apply transfer function
-        return self.transfer_fn(cell)
+        self.transfer_fn(self.cell, out=self.cell)
+        # also return the cell itself
+        return self.cell
 
 
 class Gate(Cell):
@@ -307,8 +323,7 @@ class Gate(Cell):
     Gate as used by LSTM units.
 
     """
-    def __init__(self, weights, bias, recurrent_weights,
-                 peephole_weights=None):
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights):
         """
         Create a new {input, forget, output} Gate as used by LSTM units.
 
@@ -319,33 +334,7 @@ class Gate(Cell):
 
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
-        self.peephole_weights = None
-        if peephole_weights is not None:
-            self.peephole_weights = peephole_weights.flatten('A')
-
-    def activate(self, data, out, state):
-        """
-        Activate the gate with the given data, state (if peephole connections
-        are used) and the output (if recurrent connections are used).
-
-        :param data:  input data for the cell (1D vector or scalar)
-        :param out:   output data of the previous time step (1D vector or
-                      scalar)
-        :param state: state data of the {current | previous} time step (1D
-                      vector or scalar)
-        :returns:     activations of the gate
-
-        """
-        # weight input and add bias
-        gate = np.dot(data, self.weights) + self.bias
-        # add the previous state weighted by the peephole
-        if self.peephole_weights is not None:
-            gate += state * self.peephole_weights
-        # add recurrent connection
-        if self.recurrent_weights is not None:
-            gate += np.dot(out, self.recurrent_weights)
-        # apply transfer function
-        return self.transfer_fn(gate)
+        self.peephole_weights = peephole_weights.flatten('A')
 
 
 class LSTMLayer(object):
@@ -376,6 +365,7 @@ class LSTMLayer(object):
                                 recurrent_weights[3::4].T,
                                 peephole_weights[2::3].T)
 
+    # @profile
     def activate(self, data):
         """
         Activate the layer.
@@ -386,8 +376,8 @@ class LSTMLayer(object):
         """
         # init arrays
         size = len(data)
-        out = np.zeros((size, self.cell.bias.size))
-        state = np.zeros_like(out)
+        out = np.zeros((size, self.cell.bias.size), dtype=np.float32)
+        state = np.zeros_like(out, dtype=np.float32)
         # process the input data
         for i in xrange(size):
             # input gate:
