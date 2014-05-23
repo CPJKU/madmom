@@ -377,29 +377,36 @@ class LSTMLayer(object):
         """
         # init arrays
         size = len(data)
+        # output (of the previous time step)
         out = np.zeros((size, self.cell.bias.size), dtype=np.float32)
+        out_ = np.zeros(self.cell.bias.size, dtype=np.float32)
+        # state (of the previous/current time step)
         state = np.zeros_like(out, dtype=np.float32)
+        state_ = np.zeros(self.cell.bias.size, dtype=np.float32)
         # process the input data
         for i in xrange(size):
+            data_ = data[i]
             # input gate:
             # operate on current data, previous state and previous output
-            ig = self.input_gate.activate(data[i], out[i - 1], state[i - 1])
+            ig = self.input_gate.activate(data_, out_, state_)
             # forget gate:
             # operate on current data, previous state and previous output
-            fg = self.forget_gate.activate(data[i], out[i - 1], state[i - 1])
+            fg = self.forget_gate.activate(data_, out_, state_)
             # cell:
             # operate on current data and previous output
-            cell = self.cell.activate(data[i], out[i - 1])
+            cell = self.cell.activate(data_, out_)
             # internal state:
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
-            state[i] = cell * ig + state[i - 1] * fg
+            state_ = cell * ig + state_ * fg
+            state[i] = state_
             # output gate:
             # operate on current data, current state and previous output
-            og = self.output_gate.activate(data[i], out[i - 1], state[i])
+            og = self.output_gate.activate(data_, out_, state_)
             # output:
             # apply transfer function to state and weight by output gate
-            out[i] = tanh(state[i]) * og
+            out_ = tanh(state_) * og
+            out[i] = out_
         return out
 
 
