@@ -13,10 +13,7 @@ from Cython.Distutils import build_ext
 
 import numpy as np
 
-extensions = [Extension('madmom.ml.fast_rnn',
-                        ['madmom/ml/fast_rnn.pyx'],
-                        include_dirs=[np.get_include()]),
-              Extension('madmom.ml.rnn',
+extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
                         include_dirs=[np.get_include()])]
 
