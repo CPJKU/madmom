@@ -366,7 +366,6 @@ class LSTMLayer(object):
                                 recurrent_weights[3::4].T,
                                 peephole_weights[2::3].T)
 
-    # @profile
     def activate(self, data):
         """
         Activate the layer.
