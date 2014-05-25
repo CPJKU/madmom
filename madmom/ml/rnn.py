@@ -206,9 +206,9 @@ class RecurrentLayer(FeedForwardLayer):
             # add the weighted previous step and
             if i >= 1:
                 np.dot(out[i - 1], self.recurrent_weights, out=tmp)
-                out[i] += tmp
+                tmp += out[i]
             # apply transfer function
-            self.transfer_fn(out[i], out=out[i])
+            self.transfer_fn(tmp, out=out[i])
         # return
         return out
 
