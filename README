@@ -13,8 +13,14 @@ parameters accordingly.
 To use this package without installing it, make sure this directory is in your
 $PYTHONPATH.
 
-To install the package, simply run: 
+However, better performance can be expected when using cython to compile
+speed critical parts:
 
+python setup.py build_ext --inplace
+
+To install the package, simply run:
+
+python setup.py build
 python setup.py install
 
 You might need higher privileges (use su or sudo) to install the files to a
