@@ -985,7 +985,7 @@ def feed_forward_comb_filter(x, tau, alpha):
     return y
 
 
-def feed_backward_comb_filter(x, tau, alpha):
+def _feed_backward_comb_filter(x, tau, alpha):
     """
     Filter the signal with a feed backward comb filter.
 
@@ -1005,6 +1005,11 @@ def feed_backward_comb_filter(x, tau, alpha):
         y[n] = x[n] + alpha * y[n - tau]
     # return
     return y
+
+try:
+    from .comb_filters import feed_backward_comb_filter
+except ImportError:
+    feed_backward_comb_filter = _feed_backward_comb_filter
 
 
 def comb_filterbank(x, comb_filter, tau, alpha):
