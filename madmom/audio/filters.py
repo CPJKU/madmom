@@ -1009,7 +1009,12 @@ def _feed_backward_comb_filter(x, tau, alpha):
 try:
     from .comb_filters import feed_backward_comb_filter
 except ImportError:
+    import warnings
+    warnings.warn("The feed_backward_comb_filter function will be extremely "
+                  "slow! Please consider installing cython and build the "
+                  "faster comb_filter module.")
     feed_backward_comb_filter = _feed_backward_comb_filter
+
 
 
 def comb_filterbank(x, comb_filter, tau, alpha):
