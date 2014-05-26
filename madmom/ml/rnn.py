@@ -20,7 +20,6 @@ other stuff.
 
 import numpy as np
 import re
-from scipy.special import expit
 
 # naming infix for bidirectional layer
 REVERSE = 'reverse'
@@ -29,8 +28,10 @@ REVERSE = 'reverse'
 # transfer functions
 def linear(x, out=None):
     """
+    Linear function.
+
     :param x:   input data
-    :param out: array to hold the output data
+    :param out: numpy array to hold the output data
     :return:    unaltered input data
 
     """
@@ -39,9 +40,29 @@ def linear(x, out=None):
     out[:] = x
     return out
 
+
 tanh = np.tanh
 
-sigmoid = expit
+
+def _sigmoid(x, out=None):
+    """
+    Sigmoid function.
+
+    :param x:   input data
+    :param out: numpy array to hold the output data
+    :return:    unaltered input data
+
+    """
+    y = 0.5 * (1. + np.tanh(0.5 * x))
+    if out is None:
+        return y
+    out[:] = y
+    return out
+
+try:
+    from scipy.special import expit as sigmoid
+except ImportError:
+    sigmoid = _sigmoid
 
 
 # network layer classes
