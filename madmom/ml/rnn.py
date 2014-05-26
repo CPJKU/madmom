@@ -46,11 +46,11 @@ tanh = np.tanh
 
 def _sigmoid(x, out=None):
     """
-    Sigmoid function.
+    Logistic sigmoid function.
 
     :param x:   input data
     :param out: numpy array to hold the output data
-    :return:    sigmoid of input data
+    :return:    logistic sigmoid of input data
 
     """
     if out is None:
