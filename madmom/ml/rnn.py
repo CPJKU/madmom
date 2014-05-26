@@ -165,6 +165,9 @@ class FeedForwardLayer(Layer):
         :param weights:     weights (2D matrix)
         :param bias:        bias (1D vector or scalar)
 
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
+
         """
         self.transfer_fn = transfer_fn
         self.weights = np.copy(weights)
@@ -211,6 +214,9 @@ class RecurrentLayer(FeedForwardLayer):
         :param weights:           weights (2D matrix)
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
+
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
 
         """
         super(RecurrentLayer, self).__init__(transfer_fn, weights, bias)
@@ -315,6 +321,9 @@ class Cell(object):
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
         :param transfer_fn:       transfer function
+
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
 
         """
         self.weights = np.copy(weights)
