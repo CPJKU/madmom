@@ -50,7 +50,7 @@ def _sigmoid(x, out=None):
 
     :param x:   input data
     :param out: numpy array to hold the output data
-    :return:    unaltered input data
+    :return:    sigmoid of input data
 
     """
     if out is None:
