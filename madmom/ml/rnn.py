@@ -25,8 +25,19 @@ from scipy.special import expit
 # naming infix for bidirectional layer
 REVERSE = 'reverse'
 
+
 # transfer functions
-linear = lambda x: x
+def linear(x, out=None):
+    """
+    :param x:   input data
+    :param out: array to hold the output data
+    :return:    unaltered input data
+
+    """
+    if out is None:
+        return x
+    out[:] = x
+    return out
 
 tanh = np.tanh
 
@@ -203,12 +214,12 @@ class RecurrentLayer(FeedForwardLayer):
         out += self.bias
         # loop through each time step
         for i in xrange(size):
-            # add the weighted previous step and
+            # add the weighted previous step
             if i >= 1:
                 np.dot(out[i - 1], self.recurrent_weights, out=tmp)
-                tmp += out[i]
+                out[i] += tmp
             # apply transfer function
-            self.transfer_fn(tmp, out=out[i])
+            self.transfer_fn(out[i], out=out[i])
         # return
         return out
 
