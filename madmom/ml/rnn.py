@@ -53,13 +53,16 @@ def _sigmoid(x, out=None):
     :return:    unaltered input data
 
     """
-    y = 0.5 * (1. + np.tanh(0.5 * x))
     if out is None:
-        return y
-    out[:] = y
+        out = 0.5 * (1. + np.tanh(0.5 * x))
+    else:
+        np.tanh(0.5 * x, out)
+        out += 1
+        out *= 0.5
     return out
 
 try:
+    # try to use a faster sigmoid function
     from scipy.special import expit as sigmoid
 except ImportError:
     sigmoid = _sigmoid
