@@ -35,7 +35,7 @@ def linear(x, out=None):
     :return:    unaltered input data
 
     """
-    if out is None:
+    if out is None or x is out:
         return x
     out[:] = x
     return out
@@ -53,12 +53,16 @@ def _sigmoid(x, out=None):
     :return:    logistic sigmoid of input data
 
     """
+    # sigmoid = 0.5 * (1. + np.tanh(0.5 * x))
     if out is None:
-        out = 0.5 * (1. + np.tanh(0.5 * x))
+        out = .5 * x
     else:
-        np.tanh(0.5 * x, out)
-        out += 1
-        out *= 0.5
+        if out is not x:
+            out[:] = x
+        out *= .5
+    np.tanh(out, out)
+    out += 1
+    out *= .5
     return out
 
 try:
