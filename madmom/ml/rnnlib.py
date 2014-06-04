@@ -49,7 +49,12 @@ class Activations(np.ndarray):
                 if line.startswith('#'):
                     continue
                 if line.startswith('LABEL'):
-                    labels = [line.split(": ")[1].split()]
+                    labels = line.split(": ")[1].split()
+                    # put the labels in a list if there's only a single label
+                    if not isinstance(labels, list):
+                        labels = [labels]
+                    # convert to ints
+                    labels = map(int, labels)
                     continue
                 if line.startswith('DIMENSION'):
                     dimensions = int(line.split(": ")[1])
