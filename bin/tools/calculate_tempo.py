@@ -37,8 +37,8 @@ def main():
                         'calculation)')
     p.add_argument('--dev', action='store', default=0.2, type=float,
                    help='allowed tempo deviation for the clusters')
-    p.add_argument('--meter', action='store_true', default=False,
-                   help='also write .meter files')
+    # p.add_argument('--meter', action='store_true', default=False,
+    #                help='also write .meter files')
     # verbose
     p.add_argument('-v', dest='verbose', action='count',
                    help='increase verbosity level')
@@ -51,7 +51,9 @@ def main():
     # correct all files
     for in_file in files(args.files, '.beats'):
         # calculate inter beat intervals
-        beats = np.loadtxt(in_file)[:, 0]
+        beats = np.loadtxt(in_file)
+        if beats.ndim > 1:
+            beats = beats[:, 0]
         intervals = calc_intervals(beats)
         # convert to bpm
         bpm = 60. / np.median(intervals)

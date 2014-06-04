@@ -21,7 +21,7 @@ import os
 CONVERTER = {'onsets': '#@format: onset\ttimestamp',
              'beats': '#@format: beat\ttimestamp\tbar.beat',
              'notes': '#@format: note\ttimestamp\tpitch\tduration\tvelocity',
-             'tempo': '#@format: tempo\ttimestamp\tbpm'}
+             'bpm': '#@format: tempo\ttimestamp\tbpm'}
 
 
 def main():
