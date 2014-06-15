@@ -26,37 +26,50 @@ REVERSE = 'reverse'
 
 
 # transfer functions
-def linear(data):
+def linear(x, out=None):
     """
-    Dummy linear function.
+    Linear function.
 
-    :param data: input data
-    :returns:    data
-
-    """
-    return data
-
-
-def tanh(data):
-    """
-    Tanh function.
-
-    :param data: input data
-    :returns:    tanh of data
+    :param x:   input data
+    :param out: numpy array to hold the output data
+    :return:    unaltered input data
 
     """
-    return np.tanh(data)
+    if out is None or x is out:
+        return x
+    out[:] = x
+    return out
 
 
-def sigmoid(data):
+tanh = np.tanh
+
+
+def _sigmoid(x, out=None):
     """
     Logistic sigmoid function.
 
-    :param data: input data
-    :returns:    logistic sigmoid of data
+    :param x:   input data
+    :param out: numpy array to hold the output data
+    :return:    logistic sigmoid of input data
 
     """
-    return 0.5 * (1. + np.tanh(0.5 * data))
+    # sigmoid = 0.5 * (1. + np.tanh(0.5 * x))
+    if out is None:
+        out = .5 * x
+    else:
+        if out is not x:
+            out[:] = x
+        out *= .5
+    np.tanh(out, out)
+    out += 1
+    out *= .5
+    return out
+
+try:
+    # try to use a faster sigmoid function
+    from scipy.special import expit as sigmoid
+except ImportError:
+    sigmoid = _sigmoid
 
 
 # network layer classes
@@ -156,10 +169,13 @@ class FeedForwardLayer(Layer):
         :param weights:     weights (2D matrix)
         :param bias:        bias (1D vector or scalar)
 
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
+
         """
         self.transfer_fn = transfer_fn
-        self.weights = weights
-        self.bias = bias
+        self.weights = np.copy(weights)
+        self.bias = bias.flatten('A')
 
     def activate(self, data):
         """
@@ -203,9 +219,14 @@ class RecurrentLayer(FeedForwardLayer):
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
 
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
+
         """
         super(RecurrentLayer, self).__init__(transfer_fn, weights, bias)
-        self.recurrent_weights = recurrent_weights
+        self.recurrent_weights = None
+        if recurrent_weights is not None:
+            self.recurrent_weights = np.copy(recurrent_weights)
 
     def activate(self, data):
         """
@@ -218,16 +239,21 @@ class RecurrentLayer(FeedForwardLayer):
         # if we don't have recurrent weights, we don't have to loop
         if self.recurrent_weights is None:
             return super(RecurrentLayer, self).activate(data)
-        # loop through each time step of the data
+
         size = data.shape[0]
-        out = np.zeros((size, self.bias.size))
+        out = np.zeros((size, self.bias.size), dtype=np.float32)
+        tmp = np.zeros(self.bias.size, dtype=np.float32)
+        # weight the data, add the bias
+        np.dot(data, self.weights, out=out)
+        out += self.bias
+        # loop through each time step
         for i in xrange(size):
-            # weight the data, add the bias
-            cell = np.dot(data[i], self.weights) + self.bias
-            # add the weighted previous step and
-            cell += np.dot(out[i - 1], self.recurrent_weights)
+            # add the weighted previous step
+            if i >= 1:
+                np.dot(out[i - 1], self.recurrent_weights, out=tmp)
+                out[i] += tmp
             # apply transfer function
-            out[i] = self.transfer_fn(cell)
+            self.transfer_fn(out[i], out=out[i])
         # return
         return out
 
@@ -300,30 +326,45 @@ class Cell(object):
         :param recurrent_weights: recurrent weights (2D matrix)
         :param transfer_fn:       transfer function
 
+        Note: The transfer function needs to support the numpy ufunc out
+              argument.
+
         """
-        self.weights = weights
-        self.bias = bias
-        self.recurrent_weights = recurrent_weights
+        self.weights = np.copy(weights)
+        self.bias = bias.flatten('A')
+        self.recurrent_weights = np.copy(recurrent_weights)
+        self.peephole_weights = None
         self.transfer_fn = transfer_fn
+        self.cell = np.zeros(self.bias.size, dtype=np.float32)
+        self._tmp = np.zeros(self.bias.size, dtype=np.float32)
 
-    def activate(self, data, out):
+    def activate(self, data, prev, state=None):
         """
-        Activate the cell with the given data and the output (if recurrent
-        connections are used).
+        Activate the cell with the given data, state (if peephole connections
+        are used) and the output (if recurrent connections are used).
 
-        :param data: input data for the cell (1D vector or scalar)
-        :param out:  output data of the previous time step (1D vector or
-                     scalar)
-        :returns:    activations of the cell
+        :param data:  input data for the cell (1D vector or scalar)
+        :param prev:  output data of the previous time step (1D vector or
+                      scalar)
+        :param state: state data of the {current | previous} time step (1D
+                      vector or scalar)
+        :returns:     activations of the gate
 
         """
-        # weight the input and add bias
-        cell = np.dot(data, self.weights) + self.bias
-        # add recurrent connections
+        # weight input and add bias
+        np.dot(data, self.weights, out=self.cell)
+        self.cell += self.bias
+        # add the previous state weighted by the peephole
+        if self.peephole_weights is not None:
+            self.cell += state * self.peephole_weights
+        # add recurrent connection
         if self.recurrent_weights is not None:
-            cell += np.dot(out, self.recurrent_weights)
+            np.dot(prev, self.recurrent_weights, out=self._tmp)
+            self.cell += self._tmp
         # apply transfer function
-        return self.transfer_fn(cell)
+        self.transfer_fn(self.cell, out=self.cell)
+        # also return the cell itself
+        return self.cell
 
 
 class Gate(Cell):
@@ -331,8 +372,7 @@ class Gate(Cell):
     Gate as used by LSTM units.
 
     """
-    def __init__(self, weights, bias, recurrent_weights,
-                 peephole_weights=None):
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights):
         """
         Create a new {input, forget, output} Gate as used by LSTM units.
 
@@ -343,31 +383,7 @@ class Gate(Cell):
 
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
-        self.peephole_weights = peephole_weights
-
-    def activate(self, data, out, state):
-        """
-        Activate the cell with the given data, state (if peephole connections
-        are used) and the output (if recurrent connections are used).
-
-        :param data:  input data for the cell (1D vector or scalar)
-        :param out:   output data of the previous time step (1D vector or
-                      scalar)
-        :param state: state data of the {current | previous} time step (1D
-                      vector or scalar)
-        :returns:     activations of the cell
-
-        """
-        # weight input and add bias
-        gate = np.dot(data, self.weights) + self.bias
-        # add the previous state weighted by the peephole
-        if self.peephole_weights is not None:
-            gate += state * self.peephole_weights
-        # add recurrent connection
-        if self.recurrent_weights is not None:
-            gate += np.dot(out, self.recurrent_weights)
-        # apply transfer function
-        return self.transfer_fn(gate)
+        self.peephole_weights = peephole_weights.flatten('A')
 
 
 class LSTMLayer(object):
@@ -408,29 +424,36 @@ class LSTMLayer(object):
         """
         # init arrays
         size = len(data)
-        out = np.zeros((size, self.cell.bias.size))
-        state = np.zeros_like(out)
+        # output (of the previous time step)
+        out = np.zeros((size, self.cell.bias.size), dtype=np.float32)
+        out_ = np.zeros(self.cell.bias.size, dtype=np.float32)
+        # state (of the previous/current time step)
+        state = np.zeros_like(out, dtype=np.float32)
+        state_ = np.zeros(self.cell.bias.size, dtype=np.float32)
         # process the input data
         for i in xrange(size):
+            data_ = data[i]
             # input gate:
             # operate on current data, previous state and previous output
-            ig = self.input_gate.activate(data[i], out[i - 1], state[i - 1])
+            ig = self.input_gate.activate(data_, out_, state_)
             # forget gate:
             # operate on current data, previous state and previous output
-            fg = self.forget_gate.activate(data[i], out[i - 1], state[i - 1])
+            fg = self.forget_gate.activate(data_, out_, state_)
             # cell:
             # operate on current data and previous output
-            cell = self.cell.activate(data[i], out[i - 1])
+            cell = self.cell.activate(data_, out_)
             # internal state:
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
-            state[i] = cell * ig + state[i - 1] * fg
+            state_ = cell * ig + state_ * fg
+            state[i] = state_
             # output gate:
             # operate on current data, current state and previous output
-            og = self.output_gate.activate(data[i], out[i - 1], state[i])
+            og = self.output_gate.activate(data_, out_, state_)
             # output:
             # apply transfer function to state and weight by output gate
-            out[i] = tanh(state[i]) * og
+            out_ = tanh(state_) * og
+            out[i] = out_
         return out
 
 
