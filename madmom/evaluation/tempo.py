@@ -103,10 +103,8 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
         strengths /= float(strengths_sum)
     # test all detected tempi against all annotated tempi
     errors = np.abs(1 - (detections[:, np.newaxis] / annotations))
-    print errors
     # correctly identified annotation tempi
     correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
-    print correct
     # the p-score is the sum of the strengths of the correctly identified tempi
     return np.sum(strengths[correct]), correct.any(), correct.all()
 
