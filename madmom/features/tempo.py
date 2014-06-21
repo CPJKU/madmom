@@ -91,15 +91,7 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
 
     """
     # import comb filter
-    try:
-        import pyximport
-        pyximport.install(setup_args={'include_dirs': np.get_include()})
-        from ..audio.comb_filters import feed_backward_comb_filter
-    except ImportError:
-        import warnings
-        warnings.warn("This function will be extremely slow! "
-                      "Please consider installing cython.")
-        from ..audio.filters import feed_backward_comb_filter
+    from ..audio.comb_filters import feed_backward_comb_filter
     from ..audio.filters import CombFilterbank
     # set the maximum delay
     if max_tau is None:

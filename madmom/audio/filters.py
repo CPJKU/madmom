@@ -1016,7 +1016,6 @@ except ImportError:
     feed_backward_comb_filter = _feed_backward_comb_filter
 
 
-
 def comb_filterbank(x, comb_filter, tau, alpha):
     """
     Filter the signal with a bank of either feed forward or backward comb
