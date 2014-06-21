@@ -240,9 +240,12 @@ def parser():
     evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
-    g.add_argument('--tolerance', dest='tolerance', action='store',
+    g.add_argument('--tolerance', type=float, action='store',
                    default=TOLERANCE, help='tolerance for tempo detection '
                                            '[default=%(default).3f]')
+    g.add_argument('--all', action='store_true', default=False,
+                   help='evaluate all detections, even if only 1 annotation '
+                        'is given')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -290,6 +293,10 @@ def main():
         for ann_file in matches:
             # load the annotations
             annotations, strengths = load_tempo(ann_file)
+            # crop the detections to the length of the annotations
+            if not args.all:
+                detections = detections[:len(annotations)]
+                strengths = strengths[:len(annotations)]
             # add the Evaluation to mean evaluation
             me.append(TempoEvaluation(detections, annotations, strengths,
                                       args.tolerance))
@@ -304,7 +311,6 @@ def main():
     # print summary
     print 'mean for %i files:' % (len(det_files))
     print mean_eval.print_errors('  ', args.tex)
-
 
 if __name__ == '__main__':
     main()

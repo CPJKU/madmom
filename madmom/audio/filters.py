@@ -985,7 +985,7 @@ def feed_forward_comb_filter(x, tau, alpha):
     return y
 
 
-def feed_backward_comb_filter(x, tau, alpha):
+def _feed_backward_comb_filter(x, tau, alpha):
     """
     Filter the signal with a feed backward comb filter.
 
@@ -1005,6 +1005,15 @@ def feed_backward_comb_filter(x, tau, alpha):
         y[n] = x[n] + alpha * y[n - tau]
     # return
     return y
+
+try:
+    from .comb_filters import feed_backward_comb_filter
+except ImportError:
+    import warnings
+    warnings.warn("The feed_backward_comb_filter function will be extremely "
+                  "slow! Please consider installing cython and build the "
+                  "faster comb_filter module.")
+    feed_backward_comb_filter = _feed_backward_comb_filter
 
 
 def comb_filterbank(x, comb_filter, tau, alpha):
@@ -1042,17 +1051,13 @@ def comb_filterbank(x, comb_filter, tau, alpha):
     return y
 
 
-HALF_ENERGY_TIME = None
-
-
 class CombFilterbank(np.ndarray):
     """
     Comb Filterbank class.
 
     """
 
-    def __new__(cls, data, comb_filter, tau, alpha=None,
-                half_energy_time=None):
+    def __new__(cls, data, comb_filter, tau, alpha):
         """
         Creates a new CombFilterbank array, i.e. a comb filtered version of
         the input data with the different tau values aligned along the (new)
@@ -1064,8 +1069,6 @@ class CombFilterbank(np.ndarray):
                                  [samples, list/array of samples]
         :param alpha:            scaling factor(s)
                                  [float, list/array of floats]
-        :param half_energy_time: set the scaling factors such that each band
-                                 has this equivalent half-energy time
 
         """
         # convert tau to a numpy array
@@ -1086,11 +1089,6 @@ class CombFilterbank(np.ndarray):
         else:
             raise ValueError('wrong comb_filter type')
 
-        # set alphas according to the half energy time
-        if half_energy_time:
-            alpha = 0.5 ** (half_energy_time / tau.astype(float))
-        if alpha is None:
-            raise ValueError('either alpha or half_energy_time must be given')
         # convert alpha to a numpy array
         if isinstance(alpha, (float, int)):
             alpha = np.asarray([alpha] * len(tau), dtype=float)
@@ -1111,16 +1109,12 @@ class CombFilterbank(np.ndarray):
         obj._comb_filter = comb_filter
         obj._tau = tau
         obj._alpha = alpha
-        obj._half_energy_time = half_energy_time
         # return the object
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        # set default values here
-        self._half_energy_time = getattr(obj, '_half_energy_time',
-                                         HALF_ENERGY_TIME)
 
     @property
     def data(self):
@@ -1141,8 +1135,3 @@ class CombFilterbank(np.ndarray):
     def alpha(self):
         """Scaling factor(s)."""
         return self._alpha
-
-    @property
-    def half_energy_time(self):
-        """Half energy time in samples."""
-        return self._half_energy_time

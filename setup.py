@@ -15,6 +15,9 @@ import numpy as np
 
 extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
+                        include_dirs=[np.get_include()]),
+              Extension('madmom.audio.comb_filters',
+                        ['madmom/audio/comb_filters.pyx'],
                         include_dirs=[np.get_include()])]
 
 setup(name='madmom',

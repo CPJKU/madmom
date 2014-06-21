@@ -51,7 +51,9 @@ def main():
     # correct all files
     for in_file in files(args.files, '.beats'):
         # calculate inter beat intervals
-        beats = np.loadtxt(in_file)[:, 0]
+        beats = np.loadtxt(in_file)
+        if beats.ndim > 1:
+            beats = beats[:, 0]
         intervals = calc_intervals(beats)
         # convert to bpm
         bpm = 60. / np.median(intervals)
