@@ -37,8 +37,6 @@ def main():
                         'calculation)')
     p.add_argument('--dev', action='store', default=0.2, type=float,
                    help='allowed tempo deviation for the clusters')
-    # p.add_argument('--meter', action='store_true', default=False,
-    #                help='also write .meter files')
     # verbose
     p.add_argument('-v', dest='verbose', action='count',
                    help='increase verbosity level')
