@@ -1082,14 +1082,13 @@ class CombFilterbank(np.ndarray):
         else:
             raise ValueError('tau must be convertible to an int numpy array')
 
-        # TODO: how can we handle bot the cython and pure python comb filter?
-        # # set the filter function
-        # if comb_filter in ['forward', feed_backward_comb_filter]:
-        #     comb_filter = feed_backward_comb_filter
-        # elif comb_filter in ['backward', feed_backward_comb_filter]:
-        #     comb_filter = feed_backward_comb_filter
-        # else:
-        #     raise ValueError('wrong comb_filter type')
+        # set the filter function
+        if comb_filter in ['forward', feed_backward_comb_filter]:
+            comb_filter = feed_backward_comb_filter
+        elif comb_filter in ['backward', feed_backward_comb_filter]:
+            comb_filter = feed_backward_comb_filter
+        else:
+            raise ValueError('wrong comb_filter type')
 
         # convert alpha to a numpy array
         if isinstance(alpha, (float, int)):
