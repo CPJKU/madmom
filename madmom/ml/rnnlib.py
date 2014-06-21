@@ -49,15 +49,12 @@ class Activations(np.ndarray):
                 if line.startswith('#'):
                     continue
                 if line.startswith('LABEL'):
-                    labels = [line.split(": ")[1].split()]
+                    labels = line.split(": ", 1)[1].split()
                     continue
                 if line.startswith('DIMENSION'):
-                    dimensions = int(line.split(": ")[1])
+                    dimensions = int(line.split(": ", 1)[1])
                     # init the matrix
-                    if labels:
-                        activations = np.zeros((dimensions, len(labels)))
-                    else:
-                        activations = np.zeros(dimensions)
+                    activations = np.zeros((dimensions, len(labels)))
                     continue
                 # make sure we have an activations array
                 if activations is None:
