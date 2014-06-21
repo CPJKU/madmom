@@ -5,6 +5,7 @@ This file contains beat evaluation tests.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
+#pylint: skip-file
 
 import unittest
 

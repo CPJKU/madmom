@@ -5,6 +5,7 @@ This file contains test functions for the madmom.utils.helpers module.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
+#pylint: skip-file
 
 import unittest
 import __builtin__
@@ -28,13 +29,13 @@ class TestFileSelection(unittest.TestCase):
                                      DATA_PATH + 'file_txt'])
 
     def test_txt_files(self):
-        txt_files = files(DATA_PATH, ext='txt')
+        txt_files = files(DATA_PATH, suffix='txt')
         self.assertEqual(txt_files, [DATA_PATH + 'commented_file.txt',
                                      DATA_PATH + 'file.onsets.txt',
                                      DATA_PATH + 'file_txt'])
 
     def test_dot_txt_files(self):
-        dot_txt_files = files(DATA_PATH, ext='.txt')
+        dot_txt_files = files(DATA_PATH, suffix='.txt')
         self.assertEqual(dot_txt_files, [DATA_PATH + 'commented_file.txt',
                                          DATA_PATH + 'file.onsets.txt'])
 

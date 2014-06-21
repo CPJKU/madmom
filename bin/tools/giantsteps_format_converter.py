@@ -10,6 +10,7 @@ Version history:
 0.2 added #@format: prefix
 0.3 preserve directory structure
 0.4 added tempo format
+0.5 changed .tempo to .bpm extension
 
 """
 
@@ -21,7 +22,7 @@ import os
 CONVERTER = {'onsets': '#@format: onset\ttimestamp',
              'beats': '#@format: beat\ttimestamp\tbar.beat',
              'notes': '#@format: note\ttimestamp\tpitch\tduration\tvelocity',
-             'tempo': '#@format: tempo\ttimestamp\tbpm'}
+             'bpm': '#@format: tempo\ttimestamp\tbpm'}
 
 
 def main():
@@ -37,7 +38,7 @@ def main():
     - .onsets
     - .beats
     - .notes
-    - .tempo
+    - .bpm
 
     TODO: include a quick overview here when definition is ready.
 
@@ -49,7 +50,7 @@ def main():
                    help='output directory')
     p.add_argument('--ext', dest='extension', default=None,
                    help='append the given file extension')
-    p.add_argument('--version', action='version', version='0.4')
+    p.add_argument('--version', action='version', version='0.5')
     # parse arguments
     args = p.parse_args()
 

@@ -39,12 +39,12 @@ def open(filename, mode='r'):
         fid.close()
 
 
-def files(path, ext=None):
+def files(path, suffix=None):
     """
     Returns a list of files in path matching the given extension.
 
     :param path: path or list of files to be filtered/searched
-    :param ext:  only return files with this extension
+    :param suffix:  only return files with this extension
     :returns:    list of files
 
     """
@@ -54,29 +54,29 @@ def files(path, ext=None):
         file_list = []
         # recursively call the function
         for f in path:
-            file_list.extend(files(f, ext))
+            file_list.extend(files(f, suffix))
     elif os.path.isdir(path):
         # use all files in the given path
-        if ext is None:
+        if suffix is None:
             file_list = glob.glob("%s/*" % path)
-        elif isinstance(ext, list):
+        elif isinstance(suffix, list):
             file_list = []
-            for e in ext:
+            for e in suffix:
                 file_list.extend(glob.glob("%s/*%s" % (path, e)))
         else:
-            file_list = glob.glob("%s/*%s" % (path, ext))
+            file_list = glob.glob("%s/*%s" % (path, suffix))
     elif os.path.isfile(path):
         file_list = []
         # no matching needed
-        if ext is None:
+        if suffix is None:
             file_list = [path]
         # a list of extensions is given
-        elif isinstance(ext, list):
-            for e in ext:
+        elif isinstance(suffix, list):
+            for e in suffix:
                 if path.endswith(e):
                     file_list = [path]
         # a single extension is given
-        elif path.endswith(ext):
+        elif path.endswith(suffix):
             file_list = [path]
     else:
         raise IOError("%s does not exist." % path)

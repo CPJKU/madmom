@@ -10,7 +10,7 @@ Script for correcting ground truth annotations in multiple fashions.
 import numpy as np
 import argparse
 
-from madmom.utils import files, match_file
+from madmom.utils import files, match_file, load_events
 
 
 def main():
@@ -27,8 +27,8 @@ def main():
     # files used for evaluation
     p.add_argument('files', nargs='*',
                    help='files (or folder) to be corrected')
-    p.add_argument('--ext', default=['.onsets', '.beats'],
-                   help='file extension of the ground-truth files')
+    p.add_argument('--suffix', default=None,
+                   help='file suffix of the ground-truth files')
     # output directory
     p.add_argument('-o', dest='output', default=None,
                    help='output directory')
@@ -37,12 +37,12 @@ def main():
     g = p.add_argument_group('timestamp correction methods')
     g.add_argument('--smooth', default=None, type=float,
                    help='smooth the annotations [seconds]')
-    g.add_argument('--quantise', default=None, type=float,
-                   help='quantise the annotations (seconds or extension of '
-                        'the file with quantisation timestamps, e.g. beats or '
-                        'onsets)')
-    g.add_argument('--offset', default='.offset',
-                   help='extension of the offsets files (shift + stretch)')
+    g.add_argument('--quantise', default=None,
+                   help='quantise the annotations to this resolution (given '
+                        'in seconds), or to the time instants given in this '
+                        'file')
+    g.add_argument('--offset', default=None,
+                   help='suffix of the offsets files (shift + stretch)')
     g.add_argument('--shift', default=None, type=float,
                    help='shift the annotations [seconds]')
     g.add_argument('--stretch', default=None, type=float,
@@ -57,7 +57,7 @@ def main():
         print args
 
     # correct all files
-    for infile in files(args.files, args.ext):
+    for infile in files(args.files, args.suffix):
         if args.verbose:
             print infile
 
@@ -65,8 +65,8 @@ def main():
         if args.offset:
             if isinstance(args.offset, basestring):
                 # get the offset from a file
-                correct = match_file(infile, args.files, ext=args.ext,
-                                     match_ext=args.offset)[0]
+                correct = match_file(infile, args.files, suffix=args.suffix,
+                                     match_suffix=args.offset)[0]
                 with open(correct, 'rb') as cf:
                     for l in cf:
                         # sample line: 0.0122817938+0.9999976816*T
@@ -77,24 +77,13 @@ def main():
         if args.smooth:
             raise NotImplementedError
         # quantise
-        quantised = args.quantise
+        quantised = None
         if args.quantise:
-            if isinstance(args.shift, basestring):
-                # get the quantisation timestamps from a file
-                correct = match_file(infile, args.files, ext=args.ext,
-                                     match_ext=args.quantise)[0]
-                # quantised timestamps
-                quantised = []
-                with open(correct, 'rb') as cf:
-                    for l in cf:
-                        # skip comments
-                        if l.startswith('#'):
-                            continue
-                        # get all new timestamps
-                        else:
-                            # first column should be the timestamp
-                            quantised.append(l.split()[0])
-                        quantised = np.asarray(quantised)
+            if isinstance(args.quantise, basestring):
+                # load quantisation timestamps
+                quantised = load_events(args.quantise)
+            else:
+                quantised = float(args.quantise)
 
         # write the corrected file
         with open("%s.corrected" % infile, 'wb') as o:
@@ -126,6 +115,8 @@ def main():
                             timestamp += args.shift
                         # quantise
                         if isinstance(quantised, np.ndarray):
+                            print timestamp, quantised
+
                             # get the closest match
                             timestamp = quantised[np.argmin(np.abs(quantised -
                                                                    timestamp))]
