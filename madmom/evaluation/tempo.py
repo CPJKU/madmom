@@ -138,6 +138,13 @@ class TempoEvaluation(object):
         results = tempo_evaluation(detections, annotations, strengths,
                                    tolerance)
         self.pscore, self.any, self.all = results
+        self.acc1 = self.any
+        # also evaluate with double / half tempo
+        annotations = np.hstack((annotations, annotations * 2.,
+                                 annotations / 2.))
+        strengths = np.hstack((strengths, strengths, strengths))
+        self.acc2 = tempo_evaluation(detections, annotations, strengths,
+                                     tolerance)[1]
 
     def print_errors(self, indent='', tex=False):
         """
@@ -153,8 +160,10 @@ class TempoEvaluation(object):
                   '& %.3f & %.3f\\\\' % (self.pscore, self.any, self.all)
         else:
             # normal formatting
-            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)' % \
-                  (indent, self.pscore, self.any, self.all)
+            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)\n' \
+                  '%saccuracy1=%.3f accuracy2=%.3f' % \
+                  (indent, self.pscore, self.any, self.all,
+                   indent, self.acc1, self.acc2)
         return ret
 
 
@@ -173,6 +182,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         self._pscore = np.zeros(0)
         self._any = np.zeros(0, dtype=bool)
         self._all = np.zeros(0, dtype=bool)
+        self._acc1 = np.zeros(0, dtype=bool)
+        self._acc2 = np.zeros(0, dtype=bool)
 
     # for adding another TempoEvaluation object
     def append(self, other):
@@ -187,6 +198,8 @@ class MeanTempoEvaluation(TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
             self._any = np.append(self._any, other.any)
             self._all = np.append(self._all, other.all)
+            self._acc1 = np.append(self._acc1, other.acc1)
+            self._acc2 = np.append(self._acc2, other.acc2)
         else:
             raise TypeError('Can only append TempoEvaluation to '
                             'MeanTempoEvaluation, not %s' %
@@ -212,6 +225,20 @@ class MeanTempoEvaluation(TempoEvaluation):
         if len(self._all) == 0:
             return 0.
         return np.mean(self._all)
+
+    @property
+    def acc1(self):
+        """Accuracy 1."""
+        if len(self._acc1) == 0:
+            return 0.
+        return np.mean(self._acc1)
+
+    @property
+    def acc2(self):
+        """Accuracy 2."""
+        if len(self._acc2) == 0:
+            return 0.
+        return np.mean(self._acc2)
 
 
 def parser():
@@ -246,6 +273,8 @@ def parser():
     g.add_argument('--all', action='store_true', default=False,
                    help='evaluate all detections, even if only 1 annotation '
                         'is given')
+    g.add_argument('--double', action='store_true', default=False,
+                   help='also evaluate double/half tempo')
     # parse the arguments
     args = p.parse_args()
     # print the args
