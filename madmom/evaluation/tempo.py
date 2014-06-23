@@ -159,7 +159,7 @@ class TempoEvaluation(object):
         if tex:
             # tex formatting
             ret = 'tex & P-Score & one tempo & both tempi & accuracy 1 & ' \
-                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' %\
+                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' % \
                   (self.pscore, self.any, self.all, self.acc1, self.acc2)
         else:
             # normal formatting
@@ -275,8 +275,6 @@ def parser():
     g.add_argument('--all', action='store_true', default=False,
                    help='evaluate all detections, even if only 1 annotation '
                         'is given')
-    g.add_argument('--double', action='store_true', default=False,
-                   help='also evaluate double/half tempo')
     # parse the arguments
     args = p.parse_args()
     # print the args
