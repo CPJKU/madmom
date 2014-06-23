@@ -19,8 +19,8 @@ def load_tempo(filename, split_value=1.):
     :param filename:    name of the file
     :param split_value: values > split_value are interpreted as tempi in bpm,
                         values <= split_value are interpreted as strengths
-    :return:            tuple with arrays containing the tempi and
-                        their relative strengths
+    :return:            tuple with arrays containing the tempi and their
+                        relative strengths (descending order)
 
     Note: All tempi and strength information must be present in a single line.
 
@@ -41,16 +41,18 @@ def load_tempo(filename, split_value=1.):
         # split the values according to their values into tempi and strengths
         tempi = values[values > split_value]
         strengths = values[values <= split_value]
-        # format the relative strengths
-        if len(tempi) - len(strengths) == 1:
-            # one relative strength is missing, add a calculated one
-            strengths = np.append(strengths, 1. - np.sum(strengths))
-        # tempi and strengths must have same length
-        if len(strengths) > 0:
-            if len(tempi) != len(strengths):
-                raise ValueError('tempi and strengths must have same length')
-        # return
-    return tempi, strengths
+    # format the relative strengths
+    if len(tempi) - len(strengths) == 1:
+        # one relative strength is missing, add a calculated one
+        strengths = np.append(strengths, 1. - np.sum(strengths))
+    # tempi and strengths must have same length
+    if len(strengths) > 0:
+        if len(tempi) != len(strengths):
+            raise ValueError('tempi and strengths must have same length')
+    # order the tempi according to their strengths
+    sort_idx = strengths.argsort()[::-1]
+    # return
+    return tempi[sort_idx], strengths[sort_idx]
 
 # def average_tempi(tempi):
 #     # implement the McKinney paper with merging multiple annotations
