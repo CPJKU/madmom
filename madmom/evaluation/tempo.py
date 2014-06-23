@@ -158,14 +158,14 @@ class TempoEvaluation(object):
         """
         if tex:
             # tex formatting
-            ret = 'tex & P-Score & one tempo & both tempi\\\\\n& %.3f ' \
-                  '& %.3f & %.3f\\\\' % (self.pscore, self.any, self.all)
+            ret = 'tex & P-Score & one tempo & both tempi & accuracy 1 & ' \
+                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' %\
+                  (self.pscore, self.any, self.all, self.acc1, self.acc2)
         else:
             # normal formatting
-            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)\n' \
-                  '%saccuracy1=%.3f accuracy2=%.3f' % \
-                  (indent, self.pscore, self.any, self.all,
-                   indent, self.acc1, self.acc2)
+            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
+                  'acc1=%.3f acc2=%.3f' % (indent, self.pscore, self.any,
+                                           self.all, self.acc1, self.acc2)
         return ret
 
 
