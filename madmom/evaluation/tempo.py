@@ -39,6 +39,7 @@ def load_tempo(filename, split_value=1.):
                 # non-empty line
                 values = np.asarray(line.rstrip().split(None), dtype=float)
         # split the values according to their values into tempi and strengths
+        # TODO: this is kind of hack-ish, find a better solution
         tempi = values[values > split_value]
         strengths = values[values <= split_value]
     # format the relative strengths
@@ -68,11 +69,12 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     :param annotations: array with (multiple) tempi [bpm]
     :param strengths:   array with the relative strengths of the tempi
     :param tolerance:   evaluation tolerance
-    :returns:           p-score, at least one tempo correctly identified
-                        (float, bool)
+    :returns:           p-score, at least one tempo correctly identified, all
+                        tempi correctly identified (float, bool, bool)
 
-    Note: If no relative strengths are given, evenly distributed strengths
-          are assumed.
+    Note: All given detections are evaluated against all annotations according
+          to the relative strengths given. If no strengths are given, evenly
+          distributed strengths are assumed.
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. McKinney, D. Moelants, M. Davies and A. Klapuri
@@ -297,6 +299,7 @@ def main():
     # get detection and annotation files
     det_files = files(args.files, args.det_suffix)
     ann_files = files(args.files, args.ann_suffix)
+
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -309,10 +312,11 @@ def main():
         # get the matching annotation files
         matches = match_file(det_file, ann_files, args.det_suffix,
                              args.ann_suffix)
-        # quit if any file does not have a matching annotation file
+        # pass or quit if any file does not have a matching annotation file
         if len(matches) == 0:
             print " can't find a annotation file for %s. exiting." % det_file
-            exit()
+            if args.verbose == 0:
+                exit()
         # get the detections tempi (ignore the strengths)
         detections, _ = load_tempo(det_file)
         # do a mean evaluation with all matched annotation files
@@ -323,6 +327,7 @@ def main():
             # load the annotations
             annotations, strengths = load_tempo(ann_file)
             # crop the detections to the length of the annotations
+            # TODO: should this logic go into the TempoEvaluation class?
             if not args.all:
                 detections = detections[:len(annotations)]
                 strengths = strengths[:len(annotations)]

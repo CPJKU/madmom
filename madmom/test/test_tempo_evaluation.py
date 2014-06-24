@@ -105,6 +105,8 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.any, bool)
         self.assertIsInstance(e.all, bool)
+        self.assertIsInstance(e.acc1, bool)
+        self.assertIsInstance(e.acc2, bool)
 
     def test_conversion(self):
         # conversion from list should work
@@ -112,6 +114,8 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.any, bool)
         self.assertIsInstance(e.all, bool)
+        self.assertIsInstance(e.acc1, bool)
+        self.assertIsInstance(e.acc2, bool)
         # others should fail
         self.assertRaises(TypeError, TempoEvaluation, float(0), float(0),
                           float(0))
@@ -124,12 +128,16 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.pscore, 1)
         self.assertEqual(e.any, True)
         self.assertEqual(e.all, True)
+        self.assertEqual(e.acc1, True)
+        self.assertEqual(e.acc2, True)
 
     def test_results(self):
         e = TempoEvaluation([120, 60], [60, 30], [0.7, 0.3])
         self.assertEqual(e.pscore, 0.7)
         self.assertEqual(e.any, True)
         self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, True)
+        self.assertEqual(e.acc2, True)
 
 
 class TestMeanTempoEvaluationClass(unittest.TestCase):
@@ -139,6 +147,8 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.any, float)
         self.assertIsInstance(e.all, float)
+        self.assertIsInstance(e.acc1, float)
+        self.assertIsInstance(e.acc2, float)
 
     def test_append(self):
         e = MeanTempoEvaluation()
@@ -154,6 +164,8 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.pscore, float)
         self.assertIsInstance(e.any, float)
         self.assertIsInstance(e.all, float)
+        self.assertIsInstance(e.acc1, float)
+        self.assertIsInstance(e.acc2, float)
 
     def test_results_empty(self):
         e = MeanTempoEvaluation()
@@ -161,6 +173,8 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.pscore, 1.)
         self.assertEqual(e.any, 1.)
         self.assertEqual(e.all, 1.)
+        self.assertEqual(e.acc1, 1.)
+        self.assertEqual(e.acc2, 1.)
 
     def test_results(self):
         e = MeanTempoEvaluation()
@@ -170,3 +184,5 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.pscore, (1 + .7) / 2)
         self.assertEqual(e.any, 1)
         self.assertEqual(e.all, 0.5)
+        self.assertEqual(e.acc1, 1.)
+        self.assertEqual(e.acc2, 1.)
