@@ -8,7 +8,9 @@ This file contains all beat tracking related functionality.
 """
 
 import sys
+import multiprocessing as mp
 import numpy as np
+import itertools as it
 
 from . import Event
 from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
@@ -117,6 +119,150 @@ SMOOTH = 0.09
 LOOK_ASIDE = 0.2
 LOOK_AHEAD = 4
 DELAY = 0
+
+def _process_rnn((nn_file, data)):
+    """
+    Loads a RNN model from the given file (first tuple item) and passes the
+    given numpy array of data through it (second tuple item).
+
+    """
+    return RecurrentNeuralNetwork(nn_file).activate(data)
+
+
+class RnnBeatTracker(object):
+    # TODO: this information should be included/extracted in/from the NN files
+    FPS = 100
+    BANDS_PER_OCTAVE = 3
+    MUL = 1
+    ADD = 1
+    NORM_FILTERS = True
+    N_THREADS = mp.cpu_count()
+
+    def __init__(self, signal, nn_files, fps=FPS,
+                 bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
+                 norm_filters=NORM_FILTERS, n_threads=N_THREADS, **kwargs):
+
+        if isinstance(signal, Wav):
+            self.signal = signal
+        else:
+            self.signal = Wav(signal, mono=True, **kwargs)
+
+        self.nn_files = nn_files
+        self.fps = float(fps)
+        self.bands_per_octave = bands_per_octave
+        self.mul = mul
+        self.add = add
+        self.norm_filters = norm_filters
+        self.n_threads = n_threads
+
+        self._activations = None
+        self._detections = None
+
+    @classmethod
+    def from_activations(cls, activations, fps, sep=None):
+        rnnbeat = cls(signal=None, nn_files=None, fps=fps)
+
+        # set / load activations
+        if isinstance(activations, np.ndarray):
+            # activations are given as an array
+            rnnbeat._activations = activations
+        else:
+            try:
+                # try to load as numpy binary format
+                rnnbeat._activations = np.load(activations)
+            except IOError:
+                # simple text format
+                rnnbeat._activations = np.loadtxt(activations, delimiter=sep)
+
+        return rnnbeat
+
+    @property
+    def activations(self):
+        if self._activations is None:
+            self._compute_activations()
+
+        return self._activations
+
+    @property
+    def detections(self):
+        if self._detections is None:
+            self.track()
+
+        return self._detections
+
+    def track(self):
+        detections = self._compute_activations(activations)
+
+        # convert detected beats to a list of timestamps
+        detections = np.array(detections) / float(self.fps)
+        # remove beats with negative times
+        self._detections = detections[np.searchsorted(detections, 0):]
+
+        return self._detections
+
+    def save_detections(self, filename):
+        """
+        Write the detections to a file.
+
+        :param filename: output file name or file handle
+
+        """
+        from ..utils import write_events
+        write_events(self.detections, filename)
+
+    def save_activations(self, filename, sep=None):
+        """
+        Save the activations to a file.
+
+        :param filename: output file name or file handle
+        :param sep:      separator between activation values
+
+        Note: An undefined or empty (“”) separator means that the file should
+              be written as a numpy binary file.
+
+        """
+        # save the activations
+        if sep in [None, '']:
+            # numpy binary format
+            np.save(filename, self.activations)
+        else:
+            # simple text format
+            np.savetxt(filename, self.activations, fmt='%.5f', delimiter=sep)
+
+    def _compute_activations(self):
+        specs = []
+        for fs in [1024, 2048, 4096]:
+            s = LogFiltSpec(self.signal, frame_size=fs, fps=self.fps,
+                            bands_per_octave=self.bands_per_octave,
+                            mul=self.mul, add=self.add,
+                            norm_filters=self.norm_filters)
+
+            specs.append(s.spec)
+            specs.append(s.pos_diff)
+
+        data = np.hstack(specs)
+
+        # init a pool of workers (if needed)
+        map_ = map
+        if self.n_threads != 1:
+            map_ = mp.Pool(self.n_threads).map
+
+        # compute predictions with all saved neural networks (in parallel)
+        activations = map_(_process_rnn,
+                           it.izip(self.nn_files, it.repeat(data)))
+
+        # average activations if needed
+        n_activations = len(self.nn_files)
+        if n_activations > 1:
+            act = sum(activations) / n_activations
+        else:
+            act = activations[0]
+
+        self._activations = act.ravel()
+
+    def _extract_beats(self, activations):
+        # This must be implemented by other classes
+        raise NotImplementedError("Please implement this method")
 
 
 class Beat(Event):
