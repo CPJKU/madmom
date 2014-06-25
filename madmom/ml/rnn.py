@@ -67,6 +67,12 @@ def _sigmoid(x, out=None):
 
 try:
     # try to use a faster sigmoid function
+    from distutils.version import LooseVersion
+    from scipy.version import version as scipy_version
+    # we need a recent version of scipy, older have a bug in expit
+    # https://github.com/scipy/scipy/issues/3385
+    if LooseVersion(scipy_version) < LooseVersion("0.14"):
+        raise ImportError
     from scipy.special import expit as sigmoid
 except ImportError:
     sigmoid = _sigmoid
