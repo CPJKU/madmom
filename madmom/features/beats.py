@@ -12,6 +12,9 @@ import multiprocessing as mp
 import numpy as np
 import itertools as it
 
+from ..audio.wav import Wav
+from ..audio.spectrogram import LogFiltSpec
+from ..ml.rnn import RecurrentNeuralNetwork
 from . import Event
 from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
                     MIN_BPM, MAX_BPM)
@@ -114,11 +117,6 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions, dtype=np.float)
 
 
-# default values for beat tracking
-SMOOTH = 0.09
-LOOK_ASIDE = 0.2
-LOOK_AHEAD = 4
-DELAY = 0
 
 def _process_rnn((nn_file, data)):
     """
@@ -136,9 +134,10 @@ class RnnBeatTracker(object):
     MUL = 1
     ADD = 1
     NORM_FILTERS = True
+    ONLINE = False
     N_THREADS = mp.cpu_count()
 
-    def __init__(self, signal, nn_files, fps=FPS,
+    def __init__(self, signal, nn_files, online=ONLINE, fps=FPS,
                  bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
                  norm_filters=NORM_FILTERS, n_threads=N_THREADS, **kwargs):
 
@@ -146,6 +145,9 @@ class RnnBeatTracker(object):
             self.signal = signal
         else:
             self.signal = Wav(signal, mono=True, **kwargs)
+
+        if online:
+            raise NotImplementedError('online mode not implemented (yet)')
 
         self.nn_files = nn_files
         self.fps = float(fps)
@@ -159,8 +161,8 @@ class RnnBeatTracker(object):
         self._detections = None
 
     @classmethod
-    def from_activations(cls, activations, fps, sep=None):
-        rnnbeat = cls(signal=None, nn_files=None, fps=fps)
+    def from_activations(cls, activations, fps, sep=None, *args, **kwargs):
+        rnnbeat = cls(signal=None, nn_files=None, fps=fps, *args, **kwargs)
 
         # set / load activations
         if isinstance(activations, np.ndarray):
@@ -191,7 +193,7 @@ class RnnBeatTracker(object):
         return self._detections
 
     def track(self):
-        detections = self._compute_activations(activations)
+        detections = self._extract_beats()
 
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
@@ -260,10 +262,144 @@ class RnnBeatTracker(object):
 
         self._activations = act.ravel()
 
-    def _extract_beats(self, activations):
-        # This must be implemented by other classes
+    def _extract_beats(self):
+        # Must be implemented by other classes.
+        # This method returns a list of detections with
+        # frame index as unit
         raise NotImplementedError("Please implement this method")
 
+
+class BeatDetector(RnnBeatTracker):
+
+    # default values for beat detection
+    SMOOTH = 0.09
+    LOOK_ASIDE = 0.2
+
+    def __init__(self, signal, nn_files, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 look_aside=LOOK_ASIDE, **kwargs):
+
+        super(BeatDetector, self).__init__(signal, nn_files, **kwargs)
+
+        self.smooth = int(round(self.fps * smooth))
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        self.look_aside = look_aside
+
+
+    def _extract_beats(self):
+        """
+        Detect the beats with a simple auto-correlation method.
+
+        :param smooth: smooth the activation function over N seconds
+        :param min_bpm:    minimum tempo used for beat tracking
+        :param max_bpm:    maximum tempo used for beat tracking
+        :param look_aside: look this fraction of a beat interval to the side
+
+        First the global tempo is estimated and then the beats are aligned
+        according to:
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx-11), Paris, France, September 2011
+
+        """
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        min_tau = int(np.floor(60. * self.fps / self.max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / self.min_bpm))
+        # detect the dominant interval
+        interval = detect_dominant_interval(self.activations,
+                                            act_smooth=self.smooth,
+                                            hist_smooth=None,
+                                            min_tau=min_tau, max_tau=max_tau)
+        # detect beats based on this interval
+        return detect_beats(self.activations, interval, self.look_aside)
+
+
+class BeatTracker(RnnBeatTracker):
+
+    # default values for beat tracking
+    SMOOTH = 0.09
+    LOOK_ASIDE = 0.2
+    LOOK_AHEAD = 4
+
+    def __init__(self, signal, nn_files, smooth=SMOOTH, min_bpm=MIN_BPM,
+                 max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD,
+                 **kwargs):
+
+        super(BeatTracker, self).__init__(signal, nn_files, **kwargs)
+
+        self.smooth = int(round(self.fps * smooth))
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        self.look_aside = look_aside
+        self.look_ahead = look_ahead
+
+    def _extract_beats(self):
+        """
+        Track the beats with a simple auto-correlation method.
+
+        :param smooth:     smooth the activation function over N seconds
+        :param min_bpm:    minimum tempo used for beat tracking
+        :param max_bpm:    maximum tempo used for beat tracking
+        :param look_aside: look this fraction of a beat interval to the side
+        :param look_ahead: look N seconds ahead (and back) to determine the
+                           tempo
+
+        First local tempo (in a range +- look_ahead seconds around the actual
+        position) is estimated and then the next beat is tracked accordingly.
+        Then the same procedure is repeated from this new position.
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx-11), Paris, France, September 2011
+
+        """
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        min_tau = int(np.floor(60. * self.fps / self.max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / self.min_bpm))
+        look_ahead_frames = int(self.look_ahead * self.fps)
+
+        # detect the beats
+        detections = []
+        pos = 0
+        # TODO: make this _much_ faster!
+        while pos < len(self.activations):
+            # look N frames around the actual position
+            start = pos - look_ahead_frames
+            end = pos + look_ahead_frames
+            if start < 0:
+                # pad with zeros
+                act = np.append(np.zeros(-start), self.activations[0:end])
+            elif end > len(self.activations):
+                # append zeros accordingly
+                zeros = np.zeros(end - len(self.activations))
+                act = np.append(self.activations[start:], zeros)
+            else:
+                act = self.activations[start:end]
+            # detect the dominant interval
+            interval = detect_dominant_interval(act, act_smooth=self.smooth,
+                                                hist_smooth=None,
+                                                min_tau=min_tau,
+                                                max_tau=max_tau)
+            # add the offset (i.e. the new detected start position)
+            positions = np.array(detect_beats(act, interval, self.look_aside))
+            # correct the beat positions
+            positions += start
+            # search the closest beat to the predicted beat position
+            pos = positions[(np.abs(positions - pos)).argmin()]
+            # append to the beats
+            detections.append(pos)
+            pos += interval
+
+        return detections
+
+SMOOTH = 0.09
+LOOK_ASIDE = 0.2
+LOOK_AHEAD = 4
 
 class Beat(Event):
     """
