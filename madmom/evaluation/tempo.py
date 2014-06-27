@@ -20,7 +20,7 @@ def load_tempo(filename, split_value=1.):
     :param split_value: values > split_value are interpreted as tempi in bpm,
                         values <= split_value are interpreted as strengths
     :return:            tuple with arrays containing the tempi and their
-                        relative strengths (descending order)
+                        relative strengths (ordered by descending strength)
 
     Note: All tempi and strength information must be present in a single line.
 
