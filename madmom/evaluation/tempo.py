@@ -19,8 +19,8 @@ def load_tempo(filename, split_value=1.):
     :param filename:    name of the file
     :param split_value: values > split_value are interpreted as tempi in bpm,
                         values <= split_value are interpreted as strengths
-    :return:            tuple with arrays containing the tempi and
-                        their relative strengths
+    :return:            tuple with arrays containing the tempi and their
+                        relative strengths (ordered by descending strength)
 
     Note: All tempi and strength information must be present in a single line.
 
@@ -39,18 +39,21 @@ def load_tempo(filename, split_value=1.):
                 # non-empty line
                 values = np.asarray(line.rstrip().split(None), dtype=float)
         # split the values according to their values into tempi and strengths
+        # TODO: this is kind of hack-ish, find a better solution
         tempi = values[values > split_value]
         strengths = values[values <= split_value]
-        # format the relative strengths
-        if len(tempi) - len(strengths) == 1:
-            # one relative strength is missing, add a calculated one
-            strengths = np.append(strengths, 1. - np.sum(strengths))
-        # tempi and strengths must have same length
-        if len(strengths) > 0:
-            if len(tempi) != len(strengths):
-                raise ValueError('tempi and strengths must have same length')
-        # return
-    return tempi, strengths
+    # format the relative strengths
+    if len(tempi) - len(strengths) == 1:
+        # one relative strength is missing, add a calculated one
+        strengths = np.append(strengths, 1. - np.sum(strengths))
+    # tempi and strengths must have same length
+    if len(strengths) > 0:
+        if len(tempi) != len(strengths):
+            raise ValueError('tempi and strengths must have same length')
+    # order the tempi according to their strengths
+    sort_idx = strengths.argsort()[::-1]
+    # return
+    return tempi[sort_idx], strengths[sort_idx]
 
 # def average_tempi(tempi):
 #     # implement the McKinney paper with merging multiple annotations
@@ -66,11 +69,12 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     :param annotations: array with (multiple) tempi [bpm]
     :param strengths:   array with the relative strengths of the tempi
     :param tolerance:   evaluation tolerance
-    :returns:           p-score, at least one tempo correctly identified
-                        (float, bool)
+    :returns:           p-score, at least one tempo correctly identified, all
+                        tempi correctly identified (float, bool, bool)
 
-    Note: If no relative strengths are given, evenly distributed strengths
-          are assumed.
+    Note: All given detections are evaluated against all annotations according
+          to the relative strengths given. If no strengths are given, evenly
+          distributed strengths are assumed.
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. McKinney, D. Moelants, M. Davies and A. Klapuri
@@ -138,6 +142,13 @@ class TempoEvaluation(object):
         results = tempo_evaluation(detections, annotations, strengths,
                                    tolerance)
         self.pscore, self.any, self.all = results
+        self.acc1 = self.any
+        # also evaluate with double / half tempo
+        annotations = np.hstack((annotations, annotations * 2.,
+                                 annotations / 2.))
+        strengths = np.hstack((strengths, strengths, strengths))
+        self.acc2 = tempo_evaluation(detections, annotations, strengths,
+                                     tolerance)[1]
 
     def print_errors(self, indent='', tex=False):
         """
@@ -149,12 +160,14 @@ class TempoEvaluation(object):
         """
         if tex:
             # tex formatting
-            ret = 'tex & P-Score & one tempo & both tempi\\\\\n& %.3f ' \
-                  '& %.3f & %.3f\\\\' % (self.pscore, self.any, self.all)
+            ret = 'tex & P-Score & one tempo & both tempi & accuracy 1 & ' \
+                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' % \
+                  (self.pscore, self.any, self.all, self.acc1, self.acc2)
         else:
             # normal formatting
-            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f)' % \
-                  (indent, self.pscore, self.any, self.all)
+            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
+                  'acc1=%.3f acc2=%.3f' % (indent, self.pscore, self.any,
+                                           self.all, self.acc1, self.acc2)
         return ret
 
 
@@ -173,6 +186,8 @@ class MeanTempoEvaluation(TempoEvaluation):
         self._pscore = np.zeros(0)
         self._any = np.zeros(0, dtype=bool)
         self._all = np.zeros(0, dtype=bool)
+        self._acc1 = np.zeros(0, dtype=bool)
+        self._acc2 = np.zeros(0, dtype=bool)
 
     # for adding another TempoEvaluation object
     def append(self, other):
@@ -187,6 +202,8 @@ class MeanTempoEvaluation(TempoEvaluation):
             self._pscore = np.append(self._pscore, other.pscore)
             self._any = np.append(self._any, other.any)
             self._all = np.append(self._all, other.all)
+            self._acc1 = np.append(self._acc1, other.acc1)
+            self._acc2 = np.append(self._acc2, other.acc2)
         else:
             raise TypeError('Can only append TempoEvaluation to '
                             'MeanTempoEvaluation, not %s' %
@@ -212,6 +229,20 @@ class MeanTempoEvaluation(TempoEvaluation):
         if len(self._all) == 0:
             return 0.
         return np.mean(self._all)
+
+    @property
+    def acc1(self):
+        """Accuracy 1."""
+        if len(self._acc1) == 0:
+            return 0.
+        return np.mean(self._acc1)
+
+    @property
+    def acc2(self):
+        """Accuracy 2."""
+        if len(self._acc2) == 0:
+            return 0.
+        return np.mean(self._acc2)
 
 
 def parser():
@@ -268,6 +299,7 @@ def main():
     # get detection and annotation files
     det_files = files(args.files, args.det_suffix)
     ann_files = files(args.files, args.ann_suffix)
+
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."
@@ -280,10 +312,11 @@ def main():
         # get the matching annotation files
         matches = match_file(det_file, ann_files, args.det_suffix,
                              args.ann_suffix)
-        # quit if any file does not have a matching annotation file
+        # pass or quit if any file does not have a matching annotation file
         if len(matches) == 0:
             print " can't find a annotation file for %s. exiting." % det_file
-            exit()
+            if args.verbose == 0:
+                exit()
         # get the detections tempi (ignore the strengths)
         detections, _ = load_tempo(det_file)
         # do a mean evaluation with all matched annotation files
@@ -294,6 +327,7 @@ def main():
             # load the annotations
             annotations, strengths = load_tempo(ann_file)
             # crop the detections to the length of the annotations
+            # TODO: should this logic go into the TempoEvaluation class?
             if not args.all:
                 detections = detections[:len(annotations)]
                 strengths = strengths[:len(annotations)]

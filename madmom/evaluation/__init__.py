@@ -612,7 +612,6 @@ class MultiClassEvaluation(Evaluation):
                     self.precision, self.recall, self.fmeasure, indent,
                     tpr * 100., fpr * 100., self.accuracy * 100.,
                     self.mean_error * 1000., self.std_error * 1000.)
-
         # return
         return ret
 

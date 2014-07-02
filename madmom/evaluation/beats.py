@@ -179,17 +179,17 @@ def variations(sequence, offbeat=True, double=True, triple=True):
         double_sequence = np.interp(shifted, same, sequence)
         # np.interp does not extrapolate, so do this manually
         double_sequence[-1] += np.diff(double_sequence[:-1])[-1]
-    # same tempo, half tempo off
-    if offbeat:
-        sequences.append(double_sequence[1::2])
-    # double/half tempo variations
-    if double:
-        # double tempo
-        sequences.append(double_sequence)
-        # half tempo odd beats (i.e. 1,3,1,3,..)
-        sequences.append(sequence[::2])
-        # half tempo even beats (i.e. 2,4,2,4,..)
-        sequences.append(sequence[1::2])
+        # same tempo, half tempo off
+        if offbeat:
+            sequences.append(double_sequence[1::2])
+        # double/half tempo variations
+        if double:
+            # double tempo
+            sequences.append(double_sequence)
+            # half tempo odd beats (i.e. 1,3,1,3,..)
+            sequences.append(sequence[::2])
+            # half tempo even beats (i.e. 2,4,2,4,..)
+            sequences.append(sequence[1::2])
     # triple/third tempo variations
     if triple:
         # create a annotation sequence with double tempo
