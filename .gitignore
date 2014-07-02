@@ -1,9 +1,14 @@
-# Compiled python files
+# Compiled Python files
 *.pyc
 
 # Python distutil files
 /dist/
 /MANIFEST
+
+# Cython build directory and .c/.so files
+/build/
+*.c
+*.so
 
 # ipython notebook files
 .ipynb_checkpoints
