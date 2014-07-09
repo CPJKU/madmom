@@ -14,8 +14,24 @@ from ..ml.rnn import process_rnn
 
 
 class EventDetection(object):
+    """ Base class for anything that detects events in an audio stream."""
 
     def __init__(self, data, fps, sep=None, **kwargs):
+        """ Sets up the object.
+            :param data: signal, activations of file name of the data to be
+                         processed. Activations can be passed as numpy array,
+                         a signal should use the Signal class. If data is a
+                         filename and `sep` is not None, a text file containing
+                         activations is assumed. If no value for `sep` is
+                         provided, the method tries to load activations from
+                         a binary .npy file. If this fails, it tries to load
+                         a signal from the file, with **kwargs passed to the
+                         constructor of Signal.
+
+            :param fps:  Frames per second of the activations
+            :param sep:  Separator of items in text file to be loaded. If it is
+                         None, a binary file is assumed
+        """
         self._detections = None
         self._activations = None
         self.signal = None
@@ -43,21 +59,30 @@ class EventDetection(object):
 
     @property
     def detections(self):
+        """ The detected events. """
         if self._detections is None:
             self._detections = self.detect()
         return self._detections
 
     @property
     def activations(self):
+        """ The activations used for event detection. """
         if self._activations is None:
             self._activations = self.process()
         return self._activations
 
     def process(self):
+        """ This method processes the signal and computes the activations.
+            :return: activations computed from the signal
+        """
         # This function has to be implemented by subclasses
         raise NotImplementedError("Please implement this method")
 
     def detect(self):
+        """ This method extracts the events (beats, onsets, ...) from the
+            activations.
+            :return: detected events.
+        """
         # This function has to be implemented by subclasses
         raise NotImplementedError("Please implement this method")
 
@@ -66,8 +91,6 @@ class EventDetection(object):
         Write the detections to a file.
 
         :param filename: output file name or file handle
-
-        Note: detect() method must be called first.
 
         """
         from ..utils import write_events
@@ -94,10 +117,28 @@ class EventDetection(object):
 
     @classmethod
     def add_arguments(cls, parser, **kwargs):
+        """
+        Add arguments to an argparse.ArgumentParser that specify parameters
+        that can be changed through command line parameters. Note that
+        parameters should be stored in variables named similarly to what the
+        __init__ method expects as parameters. Derived classes should add
+        super(<classname>, cls).add_arguments(parser, **kwargs) as first call,
+        so that parent classes can add their arguments too.
+
+        :param cls:    class for which the method is called.
+        :param parser: argparse.ArgumentParser object to which arguments should
+                       be added.
+        :return:       If applicable, argument group to which arguments were
+                       added
+        """
         pass
 
 
 class RnnEventDetection(EventDetection):
+    """ Base class for event detectors that use RNNs on a set of logarithmic
+        filtered spectrograms for signal processing
+    """
+
     # TODO: this information should be included/extracted in/from the NN files
     FPS = 100
     BANDS_PER_OCTAVE = 3
@@ -112,11 +153,27 @@ class RnnEventDetection(EventDetection):
                  bands_per_octave=BANDS_PER_OCTAVE, window_sizes=WINDOW_SIZES,
                  mul=MUL, add=ADD, norm_filters=NORM_FILTERS,
                  n_threads=N_THREADS, **kwargs):
+        """
+        Sets up the object. Check the docs in the EventDetection class for
+        further parameters.
+
+        :param data:         see EventDetection class
+        :param nn_files:     list of files that define the RNN structure
+        :param fps:          frames per second
+        :param online:       sets if online processing is desired
+        :param window_sizes: list of window sizes for spectrogram computation
+        :param mul:          multiplier for logarithmic spectra
+        :param add:          shift for logarithmic spectra
+        :param norm_filters: sets if the logarithmic filterbank shall be
+                             normalised
+        :param n_threads:    number of threads for rnn processing
+        """
 
         super(RnnEventDetection, self).__init__(data, fps=fps, **kwargs)
 
         if nn_files is None and self._activations is None:
-            raise RuntimeError("Either specify neural network files or load activations from file!")
+            raise RuntimeError('Either specify neural network files or load '
+                               'activations from file!')
 
         self.nn_files = nn_files
         self.bands_per_octave = bands_per_octave
@@ -129,6 +186,7 @@ class RnnEventDetection(EventDetection):
 
 
     def process(self):
+        """ See EventDetection class """
         specs = []
         for fs in self.window_sizes:
             s = LogFiltSpec(self.signal, frame_size=fs, fps=self.fps,
