@@ -11,7 +11,7 @@ import numpy as np
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import median_filter, uniform_filter, maximum_filter
 
-from . import Event
+# from . import Event
 from ..utils import open
 from ..audio.filters import midi2hz, LogarithmicFilterbank
 
@@ -218,99 +218,99 @@ COMBINE = 0.04
 DELAY = 0
 
 
-class NoteTranscription(Event):
-    """
-    NoteTranscription class.
-
-    """
-
-    def __init__(self, activations, fps):
-        """
-            Creates a new NoteTranscription instance with the given
-            activations (can be read from a file).
-
-            :param activations: array with note activations or a file (handle)
-            :param fps:         frame rate of the activations
-
-            """
-        super(NoteTranscription, self).__init__(activations, fps)
-        # reshape the activations
-        if self.activations is not None and self.activations.shape[1] != 88:
-            self.activations = self.activations.reshape(-1, 88)
-
-    def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
-               pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
-               post_max=POST_AVG):
-        """
-        Detect the notes with the given peak-picking parameters.
-
-        :param threshold: array with thresholds for peak-picking
-        :param combine:   only report one note within N seconds
-        :param delay:     report onsets N seconds delayed
-        :param smooth:    smooth the activation function over N seconds
-        :param pre_avg:   use N seconds past information for moving average
-        :param post_avg:  use N seconds future information for moving average
-        :param pre_max:   use N seconds past information for moving maximum
-        :param post_max:  use N seconds future information for moving maximum
-
-        Notes: If no moving average is needed (e.g. the activations are
-               independent of the signal's level as for neural network
-               activations), `pre_avg` and `post_avg` should be set to 0.
-
-        """
-        # convert timing information to frames and set default values
-        # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.fps * smooth))
-        pre_avg = int(round(self.fps * pre_avg))
-        post_avg = int(round(self.fps * post_avg))
-        pre_max = int(round(self.fps * pre_max))
-        post_max = int(round(self.fps * post_max))
-        # detect onsets
-        detections = peak_picking(self.activations, threshold, smooth, pre_avg,
-                                  post_avg, pre_max, post_max)
-        # convert to seconds / MIDI note numbers
-        onsets = detections[0].astype(np.float) / self.fps
-        midi_notes = detections[1] + 21
-        # shift if necessary
-        if delay != 0:
-            onsets += delay
-        # combine multiple notes
-        if combine > 0:
-            detections = []
-            # iterate over each detected note separately
-            for note in np.unique(midi_notes):
-                # get all note detections
-                note_onsets = onsets[midi_notes == note]
-                # always use the first note
-                detections.append((note_onsets[0], note))
-                # filter all notes which occur within `combine` seconds
-                combined_note_onsets = note_onsets[1:][np.diff(note_onsets)
-                                                       > combine]
-                # zip them with the MIDI note number and add them to the list
-                detections.extend(zip(combined_note_onsets,
-                                      [note] * len(combined_note_onsets)))
-        else:
-            # just zip all detected notes
-            detections = zip(onsets, midi_notes)
-        # sort the detections
-        self.detections = sorted(detections)
-        # also return the detections
-        return self.detections
-
-    def write(self, output, sep='\t'):
-        """
-        Write the detected notes to a file.
-
-        :param output: output file name or file handle
-        :param sep:    separator for the fields [default='\t']
-
-        Note: detect() method must be called first.
-
-        """
-        # write the detected notes to the output
-        with open(output, 'wb') as f:
-            for note in self.detections:
-                f.write(sep.join([str(x) for x in note]) + '\n')
+# class NoteTranscription(Event):
+#     """
+#     NoteTranscription class.
+# 
+#     """
+# 
+#     def __init__(self, activations, fps):
+#         """
+#             Creates a new NoteTranscription instance with the given
+#             activations (can be read from a file).
+# 
+#             :param activations: array with note activations or a file (handle)
+#             :param fps:         frame rate of the activations
+# 
+#             """
+#         super(NoteTranscription, self).__init__(activations, fps)
+#         # reshape the activations
+#         if self.activations is not None and self.activations.shape[1] != 88:
+#             self.activations = self.activations.reshape(-1, 88)
+# 
+#     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
+#                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
+#                post_max=POST_AVG):
+#         """
+#         Detect the notes with the given peak-picking parameters.
+# 
+#         :param threshold: array with thresholds for peak-picking
+#         :param combine:   only report one note within N seconds
+#         :param delay:     report onsets N seconds delayed
+#         :param smooth:    smooth the activation function over N seconds
+#         :param pre_avg:   use N seconds past information for moving average
+#         :param post_avg:  use N seconds future information for moving average
+#         :param pre_max:   use N seconds past information for moving maximum
+#         :param post_max:  use N seconds future information for moving maximum
+# 
+#         Notes: If no moving average is needed (e.g. the activations are
+#                independent of the signal's level as for neural network
+#                activations), `pre_avg` and `post_avg` should be set to 0.
+# 
+#         """
+#         # convert timing information to frames and set default values
+#         # TODO: use at least 1 frame if any of these values are > 0?
+#         smooth = int(round(self.fps * smooth))
+#         pre_avg = int(round(self.fps * pre_avg))
+#         post_avg = int(round(self.fps * post_avg))
+#         pre_max = int(round(self.fps * pre_max))
+#         post_max = int(round(self.fps * post_max))
+#         # detect onsets
+#         detections = peak_picking(self.activations, threshold, smooth, pre_avg,
+#                                   post_avg, pre_max, post_max)
+#         # convert to seconds / MIDI note numbers
+#         onsets = detections[0].astype(np.float) / self.fps
+#         midi_notes = detections[1] + 21
+#         # shift if necessary
+#         if delay != 0:
+#             onsets += delay
+#         # combine multiple notes
+#         if combine > 0:
+#             detections = []
+#             # iterate over each detected note separately
+#             for note in np.unique(midi_notes):
+#                 # get all note detections
+#                 note_onsets = onsets[midi_notes == note]
+#                 # always use the first note
+#                 detections.append((note_onsets[0], note))
+#                 # filter all notes which occur within `combine` seconds
+#                 combined_note_onsets = note_onsets[1:][np.diff(note_onsets)
+#                                                        > combine]
+#                 # zip them with the MIDI note number and add them to the list
+#                 detections.extend(zip(combined_note_onsets,
+#                                       [note] * len(combined_note_onsets)))
+#         else:
+#             # just zip all detected notes
+#             detections = zip(onsets, midi_notes)
+#         # sort the detections
+#         self.detections = sorted(detections)
+#         # also return the detections
+#         return self.detections
+# 
+#     def write(self, output, sep='\t'):
+#         """
+#         Write the detected notes to a file.
+# 
+#         :param output: output file name or file handle
+#         :param sep:    separator for the fields [default='\t']
+# 
+#         Note: detect() method must be called first.
+# 
+#         """
+#         # write the detected notes to the output
+#         with open(output, 'wb') as f:
+#             for note in self.detections:
+#                 f.write(sep.join([str(x) for x in note]) + '\n')
 
 
 def parser():

@@ -10,7 +10,7 @@ This file contains tempo related functionality.
 import numpy as np
 from scipy.signal import argrelmax
 
-from . import Event
+# from . import Event
 
 
 # helper functions
@@ -211,90 +211,90 @@ GROUPING_DEV = 0
 ALPHA = 0.79
 
 
-class Tempo(Event):
-    """
-    Tempo Class.
-
-    """
-    def __init__(self, activations, fps, sep=''):
-        """
-        Creates a new Tempo instance with the given beat activations.
-        The activations can be read in from file.
-
-        :param activations: array with the beat activations or a file (handle)
-        :param fps:         frame rate of the activations
-        :param sep:         separator if activations are read from file
-
-        """
-        super(Tempo, self).__init__(activations, fps, sep)
-
-    def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, grouping_dev=GROUPING_DEV):
-        """
-        Detect the tempo on basis of the given beat activation function.
-
-        :param act_smooth:   smooth the activation function over N seconds
-        :param hist_smooth:  smooth the activation function over N bins
-        :param min_bpm:      minimum tempo to detect
-        :param max_bpm:      maximum tempo to detect
-        :param grouping_dev: allowed tempo deviation for grouping tempi
-        :returns:            tuple with the two most dominant tempi and the
-                             relative strength of them
-
-        Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-              The deviation is allowed delta in the log2 / log3 space.
-
-        """
-        # convert the arguments to frames
-        act_smooth = int(round(self.fps * act_smooth))
-        min_tau = int(np.floor(60. * self.fps / max_bpm))
-        max_tau = int(np.ceil(60. * self.fps / min_bpm))
-        # smooth activations
-        if act_smooth > 1:
-            activations = smooth_signal(self.activations, act_smooth)
-        else:
-            activations = self.activations
-        # generate a histogram of beat intervals
-        histogram = interval_histogram_acf(activations, min_tau, max_tau)
-        # smooth the histogram
-        if hist_smooth > 1:
-            histogram = smooth_histogram(histogram, hist_smooth)
-        # detect the tempi
-        return detect_tempo(histogram, self.fps, grouping_dev)
-
-    def estimate(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-                 min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA,
-                 grouping_dev=GROUPING_DEV):
-        """
-        Detect the tempo on basis of the given beat activation function.
-
-        :param act_smooth:   smooth the activation function over N seconds
-        :param hist_smooth:  smooth the activation function over N bins
-        :param min_bpm:      minimum tempo to detect
-        :param max_bpm:      maximum tempo to detect
-        :param alpha:       scaling factor for the comb filter
-        :param grouping_dev: allowed tempo deviation for grouping tempi
-        :returns:            tuple with the two most dominant tempi and the
-                             relative strength of them
-
-        Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-              The deviation is allowed delta in the log2 / log3 space.
-
-        """
-        # convert the arguments to frames
-        act_smooth = int(round(self.fps * act_smooth))
-        min_tau = int(np.floor(60. * self.fps / max_bpm))
-        max_tau = int(np.ceil(60. * self.fps / min_bpm))
-        # smooth activations
-        if act_smooth > 1:
-            activations = smooth_signal(self.activations, act_smooth)
-        else:
-            activations = self.activations
-        # generate a histogram of beat intervals
-        histogram = interval_histogram_comb(activations, alpha, min_tau,
-                                            max_tau)
-        # smooth the histogram
-        if hist_smooth > 1:
-            histogram = smooth_histogram(histogram, hist_smooth)
-        # detect the tempi
-        return detect_tempo(histogram, self.fps, grouping_dev)
+# class Tempo(Event):
+#     """
+#     Tempo Class.
+# 
+#     """
+#     def __init__(self, activations, fps, sep=''):
+#         """
+#         Creates a new Tempo instance with the given beat activations.
+#         The activations can be read in from file.
+# 
+#         :param activations: array with the beat activations or a file (handle)
+#         :param fps:         frame rate of the activations
+#         :param sep:         separator if activations are read from file
+# 
+#         """
+#         super(Tempo, self).__init__(activations, fps, sep)
+# 
+#     def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
+#                min_bpm=MIN_BPM, max_bpm=MAX_BPM, grouping_dev=GROUPING_DEV):
+#         """
+#         Detect the tempo on basis of the given beat activation function.
+# 
+#         :param act_smooth:   smooth the activation function over N seconds
+#         :param hist_smooth:  smooth the activation function over N bins
+#         :param min_bpm:      minimum tempo to detect
+#         :param max_bpm:      maximum tempo to detect
+#         :param grouping_dev: allowed tempo deviation for grouping tempi
+#         :returns:            tuple with the two most dominant tempi and the
+#                              relative strength of them
+# 
+#         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
+#               The deviation is allowed delta in the log2 / log3 space.
+# 
+#         """
+#         # convert the arguments to frames
+#         act_smooth = int(round(self.fps * act_smooth))
+#         min_tau = int(np.floor(60. * self.fps / max_bpm))
+#         max_tau = int(np.ceil(60. * self.fps / min_bpm))
+#         # smooth activations
+#         if act_smooth > 1:
+#             activations = smooth_signal(self.activations, act_smooth)
+#         else:
+#             activations = self.activations
+#         # generate a histogram of beat intervals
+#         histogram = interval_histogram_acf(activations, min_tau, max_tau)
+#         # smooth the histogram
+#         if hist_smooth > 1:
+#             histogram = smooth_histogram(histogram, hist_smooth)
+#         # detect the tempi
+#         return detect_tempo(histogram, self.fps, grouping_dev)
+# 
+#     def estimate(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
+#                  min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA,
+#                  grouping_dev=GROUPING_DEV):
+#         """
+#         Detect the tempo on basis of the given beat activation function.
+# 
+#         :param act_smooth:   smooth the activation function over N seconds
+#         :param hist_smooth:  smooth the activation function over N bins
+#         :param min_bpm:      minimum tempo to detect
+#         :param max_bpm:      maximum tempo to detect
+#         :param alpha:       scaling factor for the comb filter
+#         :param grouping_dev: allowed tempo deviation for grouping tempi
+#         :returns:            tuple with the two most dominant tempi and the
+#                              relative strength of them
+# 
+#         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
+#               The deviation is allowed delta in the log2 / log3 space.
+# 
+#         """
+#         # convert the arguments to frames
+#         act_smooth = int(round(self.fps * act_smooth))
+#         min_tau = int(np.floor(60. * self.fps / max_bpm))
+#         max_tau = int(np.ceil(60. * self.fps / min_bpm))
+#         # smooth activations
+#         if act_smooth > 1:
+#             activations = smooth_signal(self.activations, act_smooth)
+#         else:
+#             activations = self.activations
+#         # generate a histogram of beat intervals
+#         histogram = interval_histogram_comb(activations, alpha, min_tau,
+#                                             max_tau)
+#         # smooth the histogram
+#         if hist_smooth > 1:
+#             histogram = smooth_histogram(histogram, hist_smooth)
+#         # detect the tempi
+#         return detect_tempo(histogram, self.fps, grouping_dev)
