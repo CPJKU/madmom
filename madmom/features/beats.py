@@ -8,15 +8,17 @@ This file contains all beat tracking related functionality.
 """
 
 import sys
-import multiprocessing as mp
+import os
+import glob
 import numpy as np
 import itertools as it
 
 from ..audio.wav import Wav
 from ..audio.spectrogram import LogFiltSpec
-from . import Event, RnnActivationFunction
 from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
                     MIN_BPM, MAX_BPM)
+
+from . import RnnEventDetection
 
 
 # wrapper function for detecting the dominant interval
@@ -116,97 +118,26 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions, dtype=np.float)
 
 
-class RnnBeatTracker(object):
-    # TODO: this information should be included/extracted in/from the NN files
-    FPS = 100
-    BANDS_PER_OCTAVE = 3
-    MUL = 1
-    ADD = 1
-    NORM_FILTERS = True
-    ONLINE = False
-    N_THREADS = mp.cpu_count()
-
-    def __init__(self, signal, nn_files, online=ONLINE, fps=FPS,
-                 bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
-                 norm_filters=NORM_FILTERS, n_threads=N_THREADS,
-                 activation_function=None, **kwargs):
-
-        if activation_function is None:
-            af = RnnActivationFunction(signal=signal, nn_files=nn_files,
-                                       online=online, fps=fps,
-                                       bands_per_octave=bands_per_octave,
-                                       window_sizes=[1024, 2048, 4096],
-                                       mul=mul, add=add,
-                                       norm_filters=norm_filters,
-                                       n_threads=n_threads, **kwargs)
-
-            self.activation_function = af
-        else:
-            self.activation_function = activation_function
-
-        if online:
-            raise NotImplementedError('online mode not implemented (yet)')
-
-        self._fps = float(fps)
-        self._detections = None
-
-    @classmethod
-    def from_activations(cls, activations, fps, sep=None, *args, **kwargs):
-        af = RnnActivationFunction.from_activations(activations, fps, sep)
-        return cls(signal=None, nn_files=None, fps=fps,
-                   activation_function=af, *args, **kwargs)
-
-    @property
-    def detections(self):
-        if self._detections is None:
-            self.track()
-
-        return self._detections
-
-    def track(self):
-        detections = self._extract_beats()
-
-        # convert detected beats to a list of timestamps
-        detections = np.array(detections) / float(self._fps)
-        # remove beats with negative times
-        self._detections = detections[np.searchsorted(detections, 0):]
-
-        return self._detections
-
-    def save_detections(self, filename):
-        """
-        Write the detections to a file.
-
-        :param filename: output file name or file handle
-
-        """
-        from ..utils import write_events
-        write_events(self.detections, filename)
-
-    def _extract_beats(self):
-        # Must be implemented by other classes.
-        # This method returns a list of detections with
-        # frame index as unit
-        raise NotImplementedError("Please implement this method")
-
-
-class BeatDetector(RnnBeatTracker):
+class BeatDetector(RnnEventDetection):
+    # set the path to saved neural networks and generate lists of NN files
+    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
 
     # default values for beat detection
     SMOOTH = 0.09
     LOOK_ASIDE = 0.2
 
-    def __init__(self, signal, nn_files, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 look_aside=LOOK_ASIDE, **kwargs):
+    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH, min_bpm=MIN_BPM,
+                 max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, **kwargs):
 
-        super(BeatDetector, self).__init__(signal, nn_files, **kwargs)
+        super(BeatDetector, self).__init__(data, nn_files=nn_files, **kwargs)
 
-        self.smooth = int(round(self._fps * smooth))
+        self.smooth = int(round(self.fps * smooth))
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
         self.look_aside = look_aside
 
-    def _extract_beats(self):
+    def detect(self):
         """
         Detect the beats with a simple auto-correlation method.
 
@@ -226,37 +157,78 @@ class BeatDetector(RnnBeatTracker):
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        min_tau = int(np.floor(60. * self._fps / self.max_bpm))
-        max_tau = int(np.ceil(60. * self._fps / self.min_bpm))
+        min_tau = int(np.floor(60. * self.fps / self.max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / self.min_bpm))
         # detect the dominant interval
-        acts = self.activation_function.activations
+        acts = self.activations
         interval = detect_dominant_interval(acts, act_smooth=self.smooth,
                                             hist_smooth=None,
                                             min_tau=min_tau, max_tau=max_tau)
         # detect beats based on this interval
-        return detect_beats(acts, interval, self.look_aside)
+        detections = detect_beats(acts, interval, self.look_aside)
+        # convert detected beats to a list of timestamps
+        detections = np.array(detections) / float(self.fps)
+        # remove beats with negative times & return
+        return detections[np.searchsorted(detections, 0):]
+
+    @classmethod
+    def add_arguments(cls, parser, smooth=SMOOTH, look_aside=LOOK_ASIDE,
+                      nn_files=NN_FILES, **kwargs):
+        """
+        Add BeatDetector related arguments to an existing parser object.
+
+        :param parser:     existing argparse parser object
+        :param smooth:     smooth the beat activations over N seconds
+        :param look_aside: fraction of beat interval to look aside for the
+                           strongest beat
+        :return:           beat argument parser group object
+
+        """
+        #TODO: replace this once tempo classes are finished
+        import madmom.utils.params
+        madmom.utils.params.tempo(parser, smooth=None)
+
+        super(BeatDetector, cls).add_arguments(parser, nn_files=nn_files,
+                                               **kwargs)
+
+        # add beat detection related options to the existing parser
+        g = parser.add_argument_group('beat detection arguments')
+        g.add_argument('--smooth', action='store', type=float, default=smooth,
+                       help='smooth the beat activations over N seconds '
+                       '[default=%(default).2f]')
+        # make switchable (useful for including the beat stuff for tempo
+        if look_aside is not None:
+            g.add_argument('--look_aside', action='store', type=float,
+                           default=look_aside, help='look this fraction of '
+                           'the beat interval around the beat to get the '
+                           'strongest one [default=%(default).2f]')
+        # return the argument group so it can be modified if needed
+        return g
 
 
-class BeatTracker(RnnBeatTracker):
+class BeatTracker(RnnEventDetection):
+    # set the path to saved neural networks and generate lists of NN files
+    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
 
     # default values for beat tracking
     SMOOTH = 0.09
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 4
 
-    def __init__(self, signal, nn_files, smooth=SMOOTH, min_bpm=MIN_BPM,
+    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH, min_bpm=MIN_BPM,
                  max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD,
                  **kwargs):
 
-        super(BeatTracker, self).__init__(signal, nn_files, **kwargs)
+        super(BeatTracker, self).__init__(data, nn_files=nn_files, **kwargs)
 
-        self.smooth = int(round(self._fps * smooth))
+        self.smooth = int(round(self.fps * smooth))
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
         self.look_aside = look_aside
         self.look_ahead = look_ahead
 
-    def _extract_beats(self):
+    def detect(self):
         """
         Track the beats with a simple auto-correlation method.
 
@@ -279,11 +251,11 @@ class BeatTracker(RnnBeatTracker):
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        min_tau = int(np.floor(60. * self._fps / self.max_bpm))
-        max_tau = int(np.ceil(60. * self._fps / self.min_bpm))
-        look_ahead_frames = int(self.look_ahead * self._fps)
+        min_tau = int(np.floor(60. * self.fps / self.max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / self.min_bpm))
+        look_ahead_frames = int(self.look_ahead * self.fps)
 
-        activations = self.activation_function.activations
+        activations = self.activations
 
         # detect the beats
         detections = []
@@ -317,4 +289,47 @@ class BeatTracker(RnnBeatTracker):
             detections.append(pos)
             pos += interval
 
-        return detections
+        # convert detected beats to a list of timestamps
+        detections = np.array(detections) / float(self.fps)
+        # remove beats with negative times & return
+        return detections[np.searchsorted(detections, 0):]
+
+    @classmethod
+    def add_arguments(cls, parser, smooth=SMOOTH, look_aside=LOOK_ASIDE,
+                      look_ahead=LOOK_AHEAD, nn_files=NN_FILES, **kwargs):
+        """
+        Add BeatTracker related arguments to an existing parser object.
+
+        :param parser:     existing argparse parser object
+        :param smooth:     smooth the beat activations over N seconds
+        :param look_aside: fraction of beat interval to look aside for the
+                           strongest beat
+        :param look_ahead: seconds to look ahead in order to estimate the local
+                           tempo
+        :return:           beat argument parser group object
+
+        """
+        super(BeatTracker, cls).add_arguments(parser, nn_files=nn_files,
+                                              **kwargs)
+
+        # add beat detection related options to the existing parser
+        g = parser.add_argument_group('beat detection arguments')
+        g.add_argument('--smooth', action='store', type=float, default=smooth,
+                    help='smooth the beat activations over N seconds '
+                         '[default=%(default).2f]')
+
+        # make switchable (useful for including the beat stuff for tempo
+        if look_aside is not None:
+            g.add_argument('--look_aside', action='store', type=float,
+                        default=look_aside,
+                        help='look this fraction of the beat interval around '
+                             'the beat to get the strongest one '
+                             '[default=%(default).2f]')
+
+        if look_ahead is not None:
+            g.add_argument('--look_ahead', action='store', type=float,
+                        default=look_ahead,
+                        help='look this many seconds ahead to estimate the '
+                             'local tempo [default=%(default).2f]')
+        # return the argument group so it can be modified if needed
+        return g

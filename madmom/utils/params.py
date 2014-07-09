@@ -8,15 +8,15 @@ This file contains all parser functionality used by other modules.
 """
 
 import argparse
-import multiprocessing
+import multiprocessing as mp
 
 # get the default values from the corresponding modules
 from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
 from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
-from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
-                               PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
-from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
+# from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
+#                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
+# from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
 from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH, GROUPING_DEV, ALPHA
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
@@ -168,111 +168,36 @@ def log(parser, default=None, mul=MUL, add=ADD):
     return g
 
 
-def spectral_odf(parser, method='superflux', methods=None, max_bins=MAX_BINS):
-    """
-    Add spectral ODF related arguments to an existing parser object.
-
-    :param parser:   existing argparse parser object
-    :param method:   default ODF method
-    :param methods:  list of ODF methods
-    :param max_bins: number of bins for the maximum filter (for SuperFlux)
-    :return:         spectral onset detection argument parser group object
-
-    """
-    # add spec related options to the existing parser
-    # spectrogram options
-    g = parser.add_argument_group('spectral onset detection arguments')
-    superflux = False
-    if methods is not None:
-        g.add_argument('-o', dest='odf', default=method,
-                       help='use one of these onset detection functions (%s) '
-                            '[default=%s]' % (methods, method))
-        if 'superflux' in methods:
-            superflux = True
-    # add SuperFlux arguments
-    if superflux or method == 'superflux':
-        g.add_argument('--max_bins', action='store', type=int,
-                       default=max_bins,
-                       help='bins used for maximum filtering [default='
-                            '%(default)i]')
-    # return the argument group so it can be modified if needed
-    return g
-
-
-def onset(parser, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
-          delay=DELAY, pre_avg=PRE_AVG, post_avg=POST_AVG, pre_max=PRE_MAX,
-          post_max=POST_MAX):
-    """
-    Add onset detection related arguments to an existing parser object.
-
-    :param parser:    existing argparse parser object
-    :param threshold: threshold for peak-picking
-    :param smooth:    smooth the onset activations over N seconds
-    :param combine:   only report one onset within N seconds
-    :param delay:     report onsets N seconds delayed
-    :param pre_avg:   use N seconds past information for moving average
-    :param post_avg:  use N seconds future information for moving average
-    :param pre_max:   use N seconds past information for moving maximum
-    :param post_max:  use N seconds future information for moving maximum
-    :return:          onset detection argument parser group object
-
-    """
-    # add onset detection related options to the existing parser
-    g = parser.add_argument_group('onset detection arguments')
-    g.add_argument('-t', dest='threshold', action='store', type=float,
-                   default=threshold,
-                   help='detection threshold [default=%(default).2f]')
-    g.add_argument('--smooth', action='store', type=float, default=smooth,
-                   help='smooth the onset activations over N seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--combine', action='store', type=float, default=combine,
-                   help='combine onsets within N seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--pre_avg', action='store', type=float, default=pre_avg,
-                   help='build average over N previous seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--post_avg', action='store', type=float, default=post_avg,
-                   help='build average over N following seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--pre_max', action='store', type=float, default=pre_max,
-                   help='search maximum over N previous seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--post_max', action='store', type=float, default=post_max,
-                   help='search maximum over N following seconds '
-                        '[default=%(default).2f]')
-    g.add_argument('--delay', action='store', type=float, default=delay,
-                   help='report the onsets N seconds delayed '
-                        '[default=%(default)i]')
-    # return the argument group so it can be modified if needed
-    return g
-
-
-def beat(parser, smooth=BEAT_SMOOTH, look_aside=LOOK_ASIDE):
-    """
-    Add beat tracking related arguments to an existing parser object.
-
-    :param parser:     existing argparse parser object
-    :param smooth:     smooth the beat activations over N seconds
-    :param look_aside: fraction of beat interval to look aside for the
-                       strongest beat
-    :return:           beat argument parser group object
-
-    """
-    # add beat detection related options to the existing parser
-    g = parser.add_argument_group('beat detection arguments')
-    g.add_argument('--smooth', action='store', type=float, default=smooth,
-                   help='smooth the beat activations over N seconds '
-                        '[default=%(default).2f]')
-    # make switchable (useful for including the beat stuff for tempo
-    if look_aside is not None:
-        g.add_argument('--look_aside', action='store', type=float,
-                       default=look_aside,
-                       help='look this fraction of the beat interval around '
-                            'the beat to get the strongest one '
-                            '[default=%(default).2f]')
-    # return the argument group so it can be modified if needed
-    return g
-
+# def spectral_odf(parser, method='superflux', methods=None, max_bins=MAX_BINS):
+#     """
+#     Add spectral ODF related arguments to an existing parser object.
+# 
+#     :param parser:   existing argparse parser object
+#     :param method:   default ODF method
+#     :param methods:  list of ODF methods
+#     :param max_bins: number of bins for the maximum filter (for SuperFlux)
+#     :return:         spectral onset detection argument parser group object
+# 
+#     """
+#     # add spec related options to the existing parser
+#     # spectrogram options
+#     g = parser.add_argument_group('spectral onset detection arguments')
+#     superflux = False
+#     if methods is not None:
+#         g.add_argument('-o', dest='odf', default=method,
+#                        help='use one of these onset detection functions (%s) '
+#                             '[default=%s]' % (methods, method))
+#         if 'superflux' in methods:
+#             superflux = True
+#     # add SuperFlux arguments
+#     if superflux or method == 'superflux':
+#         g.add_argument('--max_bins', action='store', type=int,
+#                        default=max_bins,
+#                        help='bins used for maximum filtering [default='
+#                             '%(default)i]')
+#     # return the argument group so it can be modified if needed
+#     return g
+# 
 
 def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
           dev=GROUPING_DEV, alpha=ALPHA):
@@ -374,28 +299,6 @@ def save_load(parser):
     g.add_argument('--sep', action='store', default=None,
                    help='separator for saving/loading the activation '
                         'function [default: None, i.e. numpy binary format]')
-    # return the argument group so it can be modified if needed
-    return g
-
-
-def nn(parser, nn_files=None, threads=multiprocessing.cpu_count()):
-    """
-    Add neural network testing options to an existing parser object.
-
-    :param parser:   existing argparse parser object
-    :param nn_files: list of NN files
-    :param threads:  number of threads to run in parallel
-    :return:         neural network argument parser group object
-
-    """
-    # add neural network related options to the existing parser
-    g = parser.add_argument_group('neural network arguments')
-    g.add_argument('--nn_files', action='append', type=str, default=nn_files,
-                   help='average the predictions of these pre-trained neural '
-                        'networks (multiple files can be given, one file per '
-                        'argument)')
-    g.add_argument('--threads', action='store', type=int, default=threads,
-                   help='number of parallel threads [default=%(default)s]')
     # return the argument group so it can be modified if needed
     return g
 
