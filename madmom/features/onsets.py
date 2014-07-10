@@ -450,6 +450,37 @@ class SpectralOnsetDetection(object):
         return rectified_complex_domain(self.spectrogram.spec,
                                         self.spectrogram.phase)
 
+    @classmethod
+    def add_arguments(cls, parser, method='superflux', methods=None,
+                      max_bins=MAX_BINS):
+        """
+        Add spectral ODF related arguments to an existing parser object.
+
+        :param parser:   existing argparse parser object
+        :param method:   default ODF method
+        :param methods:  list of ODF methods
+        :param max_bins: number of bins for the maximum filter (for SuperFlux)
+        :return:         spectral onset detection argument parser group object
+
+        """
+        # add spec related options to the existing parser
+        # spectrogram options
+        g = parser.add_argument_group('spectral onset detection arguments')
+        superflux = False
+        if methods is not None:
+            g.add_argument('-o', dest='odf', default=method,
+                        help='use one of these onset detection functions (%s) '
+                                '[default=%s]' % (methods, method))
+            if 'superflux' in methods:
+                superflux = True
+        # add SuperFlux arguments
+        if superflux or method == 'superflux':
+            g.add_argument('--max_bins', action='store', type=int,
+                        default=max_bins,
+                        help='bins used for maximum filtering [default='
+                                '%(default)i]')
+        # return the argument group so it can be modified if needed
+        return g
 
 # universal peak-picking method
 def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
@@ -531,7 +562,32 @@ class OnsetDetection(EventDetection):
     def __init__(self, data, threshold=THRESHOLD, combine=COMBINE, delay=DELAY,
                  smooth=SMOOTH, pre_avg=PRE_AVG, post_avg=POST_MAX,
                  pre_max=PRE_MAX, post_max=POST_AVG, online=ONLINE, **kwargs):
+        """
+        Creates a new OnsetDetection instance.
 
+        :param data:      Signal, activations or filename.
+                          See EventDetection class for more details.
+        :param threshold: threshold for peak-picking
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
+        :param smooth:    smooth the activation function over N seconds
+        :param pre_avg:   use N seconds past information for moving average
+        :param post_avg:  use N seconds future information for moving average
+        :param pre_max:   use N seconds past information for moving maximum
+        :param post_max:  use N seconds future information for moving maximum
+
+        For more parameters see the parent classes.
+
+        Notes: If no moving average is needed (e.g. the activations are
+               independent of the signal's level as for neural network
+               activations), `pre_avg` and `post_avg` should be set to 0.
+
+               For offline peak picking set `pre_max` >= 1/fps and
+               `post_max` >= 1/fps
+
+               For online peak picking, all `post_` parameters are set to 0.
+
+        """
         super(OnsetDetection, self).__init__(data, **kwargs)
 
         self.online = online
@@ -553,6 +609,7 @@ class OnsetDetection(EventDetection):
             self.post_max = 0
 
     def detect(self):
+        """ See EventDetection class """
         # detect onsets (function returns int indices)
         detections = peak_picking(self.activations, self.threshold,
                                   self.smooth, self.pre_avg, self.post_avg,
@@ -664,6 +721,39 @@ class RnnOnsetDetector(OnsetDetection, RnnEventDetection):
                  combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
                  post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
                  **kwargs):
+        """
+        Use RNNs to compute the activation function and pick the onsets
+
+        :param data:      Signal, activations or file. See EventDetection class
+        :param nn_files:  list of files that define the RNN
+        :param fps:       frames per second
+        :param bands_per_octave: number of filter bands per octave
+        :param mul:          multiplier for logarithmic spectra
+        :param add:          shift for logarithmic spectra
+        :param norm_filters: sets if the logarithmic filterbank shall be
+                             normalised
+        :param online:    sets if online processing is desired
+        :param window_sizes: list of window sizes for spectrogram computation
+        :param threshold: threshold for peak-picking
+        :param combine:   only report one onset within N seconds
+        :param smooth:    smooth the activation function over N seconds
+        :param pre_avg:   use N seconds past information for moving average
+        :param post_avg:  use N seconds future information for moving average
+        :param pre_max:   use N seconds past information for moving maximum
+        :param post_max:  use N seconds future information for moving maximum
+
+        See parent classes for more parameters.
+
+        Notes: If no moving average is needed (e.g. the activations are
+               independent of the signal's level as for neural network
+               activations), `pre_avg` and `post_avg` should be set to 0.
+
+               For offline peak picking set `pre_max` >= 1/fps and
+               `post_max` >= 1/fps
+
+               For online peak picking, all `post_` parameters are set to 0.
+
+        """
 
         spr = super(RnnOnsetDetector, self)
         spr.__init__(data, nn_files=nn_files, fps=fps,
@@ -682,6 +772,11 @@ class RnnOnsetDetector(OnsetDetection, RnnEventDetection):
                       combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
                       post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
                       **kwargs):
+        """
+        Add RnnOnsetDetection options to an existing parser object.
+        This method just sets standard values. For a detailed parameter
+        description, see the parent classes.
+        """
 
         spr = super(RnnOnsetDetector, cls)
         spr.add_arguments(parser, nn_files=nn_files, fps=fps,
@@ -691,137 +786,6 @@ class RnnOnsetDetector(OnsetDetection, RnnEventDetection):
                           combine=combine, smooth=smooth, pre_avg=pre_avg,
                           post_avg=post_avg, pre_max=pre_max,
                           post_max=post_max, **kwargs)
-
-
-
-class RnnOnsetDetectorLL(OnsetDetection, RnnEventDetection):
-    # set the path to saved neural networks and generate lists of NN files
-    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
-    NN_FILES = glob.glob("%s/onsets_rnn*npz" % NN_PATH)
-
-    # TODO: this information should be included/extracted in/from the NN files
-    FPS = 100
-    BANDS_PER_OCTAVE = 6
-    MUL = 5
-    ADD = 1
-    NORM_FILTERS = True
-
-    ## TODO: these do not seem to be used in the original implementation
-    FMIN = 30
-    FMAX = 17000
-    RATIO = 0.5
-
-    ONLINE = True
-    WINDOW_SIZES = [512, 1024, 2048]
-    THRESHOLD = 0.2
-    COMBINE = 0.02
-    SMOOTH = 0.0
-    PRE_AVG = 0
-    POST_AVG = 0
-    PRE_MAX = 1. / FPS
-    POST_MAX = 0
-
-    def __init__(self, data, nn_files=NN_FILES, fps=FPS,
-                 bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
-                 norm_filters=NORM_FILTERS, online=ONLINE,
-                 window_sizes=WINDOW_SIZES, threshold=THRESHOLD,
-                 combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
-                 post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
-                 **kwargs):
-
-        spr = super(RnnOnsetDetectorLL, self)
-        spr.__init__(data, nn_files=nn_files, fps=fps,
-                     bands_per_octave=bands_per_octave, mul=mul, add=add,
-                     norm_filters=norm_filters, online=online,
-                     window_sizes=window_sizes, threshold=threshold,
-                     combine=combine, smooth=smooth, pre_avg=pre_avg,
-                     post_avg=post_avg, pre_max=pre_max, post_max=post_max,
-                     **kwargs)
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, fps=FPS,
-                      bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
-                      norm_filters=NORM_FILTERS, online=ONLINE,
-                      window_sizes=WINDOW_SIZES, threshold=THRESHOLD,
-                      combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
-                      post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
-                      **kwargs):
-
-        spr = super(RnnOnsetDetectorLL, cls)
-        spr.add_arguments(parser, nn_files=nn_files, fps=fps,
-                          bands_per_octave=bands_per_octave, mul=mul, add=add,
-                          norm_filters=norm_filters, online=online,
-                          window_sizes=window_sizes, threshold=threshold,
-                          combine=combine, smooth=smooth, pre_avg=pre_avg,
-                          post_avg=post_avg, pre_max=pre_max,
-                          post_max=post_max, **kwargs)
-
-# class Onset(Event):
-# class Onset(object):
-#     """
-#     Onset Class.
-# 
-#     """
-#     def __init__(self, activations, fps, online=False, sep=''):
-#         """
-#         Creates a new Onset instance with the given activations of the
-#         ODF (OnsetDetectionFunction). The activations can be read from a file.
-# 
-#         :param activations: array with ODF activations or a file (handle)
-#         :param fps:         frame rate of the activations
-#         :param online:      online mode (i.e. use only past information)
-#         :param sep:         separator if activations are read from file
-# 
-#         """
-#         # inherit most stuff from the base class
-#         super(Onset, self).__init__(activations, fps, sep)
-#         # online peak-picking
-#         self.online = online
-# 
-#     def detect(self, threshold, combine=COMBINE, delay=DELAY, smooth=SMOOTH,
-#                pre_avg=PRE_AVG, post_avg=POST_MAX, pre_max=PRE_MAX,
-#                post_max=POST_AVG):
-#         """
-#         Detect the onsets with a given peak-picking method.
-# 
-#         :param threshold: threshold for peak-picking
-#         :param combine:   only report one onset within N seconds
-#         :param delay:     report onsets N seconds delayed
-#         :param smooth:    smooth the activation function over N seconds
-#         :param pre_avg:   use N seconds past information for moving average
-#         :param post_avg:  use N seconds future information for moving average
-#         :param pre_max:   use N seconds past information for moving maximum
-#         :param post_max:  use N seconds future information for moving maximum
-# 
-#         Notes: If no moving average is needed (e.g. the activations are
-#                independent of the signal's level as for neural network
-#                activations), `pre_avg` and `post_avg` should be set to 0.
-# 
-#                For offline peak picking set `pre_max` >= 1/fps and
-#                `post_max` >= 1/fps
-# 
-#                For online peak picking, all `post_` parameters are set to 0.
-# 
-#         """
-#         # detect onsets (function returns int indices)
-#         detections = peak_picking(self.activations, threshold, smooth,
-#                                   pre_avg, post_avg, pre_max, post_max)
-#         # convert detected onsets to a list of timestamps
-#         detections = detections.astype(np.float) / self.fps
-#         # shift if necessary
-#         if delay != 0:
-#             detections += delay
-#         # always use the first detection and all others if none was reported
-#         # within the last `combine` seconds
-#         if detections.size > 1:
-#             # filter all detections which occur within `combine` seconds
-#             combined_detections = detections[1:][np.diff(detections) > combine]
-#             # add them after the first detection
-#             self.detections = np.append(detections[0], combined_detections)
-#         else:
-#             self.detections = detections
-#         # also return the detections
-#         return self.detections
 
 
 def parser():

@@ -158,9 +158,10 @@ class RnnEventDetection(EventDetection):
         further parameters.
 
         :param data:         see EventDetection class
-        :param nn_files:     list of files that define the RNN structure
+        :param nn_files:     list of files that define the RNN
         :param fps:          frames per second
         :param online:       sets if online processing is desired
+        :param bands_per_octave: number of filter bands per octave
         :param window_sizes: list of window sizes for spectrogram computation
         :param mul:          multiplier for logarithmic spectra
         :param add:          shift for logarithmic spectra

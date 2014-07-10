@@ -7,8 +7,37 @@ Redistribution in any form is not permitted!
 
 """
 
+import os
+import glob
 from madmom.audio.signal import Signal
-from madmom.features.onsets import RnnOnsetDetectorLL
+from madmom.features.onsets import RnnOnsetDetector
+
+
+# set the path to saved neural networks and generate lists of NN files
+NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
+NN_FILES = glob.glob("%s/onsets_rnn*npz" % NN_PATH)
+
+# TODO: this information should be included/extracted in/from the NN files
+FPS = 100
+BANDS_PER_OCTAVE = 6
+MUL = 5
+ADD = 1
+NORM_FILTERS = True
+
+## TODO: these do not seem to be used in the original implementation
+FMIN = 30
+FMAX = 17000
+RATIO = 0.5
+
+ONLINE = True
+WINDOW_SIZES = [512, 1024, 2048]
+THRESHOLD = 0.2
+COMBINE = 0.02
+SMOOTH = 0.0
+PRE_AVG = 0
+POST_AVG = 0
+PRE_MAX = 1. / FPS
+POST_MAX = 0
 
 
 def parser():
@@ -49,7 +78,15 @@ def parser():
     # mirex options
     madmom.utils.params.io(p)
     # rnn ll onset detection arguments
-    RnnOnsetDetectorLL.add_arguments(p)
+    RnnOnsetDetector.add_arguments(p, nn_files=NN_FILES, fps=FPS,
+                                   bands_per_octave=BANDS_PER_OCTAVE, mul=MUL,
+                                   add=ADD, norm_filters=NORM_FILTERS,
+                                   online=ONLINE, window_sizes=WINDOW_SIZES,
+                                   threshold=THRESHOLD, combine=COMBINE,
+                                   smooth=SMOOTH, pre_avg=PRE_AVG,
+                                   post_avg=POST_AVG, pre_max=PRE_MAX,
+                                   post_max=POST_MAX)
+
     # add other argument groups
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
@@ -77,14 +114,14 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        o = Onset(args.input, **vars(args))
+        o = RnnOnsetDetector(args.input, **vars(args))
     else:
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN model(s) given')
 
         w = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        o = RnnOnsetDetectorLL(w, **vars(args))
+        o = RnnOnsetDetector(w, window_sizes=WINDOW_SIZES, **vars(args))
 
     # save onset activations or detect onsets
     if args.save:

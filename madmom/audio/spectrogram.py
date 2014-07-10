@@ -638,6 +638,59 @@ class Spectrogram(object):
             txt += "\n %s" % str(self.filterbank)
         return "%s\n %s" % (txt, str(self.frames))
 
+    @classmethod
+    def add_arguments(cls, parser, ratio=RATIO, diff_frames=DIFF_FRAMES,
+                      show_log=True, log=LOG, mul=MUL, add=ADD):
+        """
+        Add spectrogram related arguments to an existing parser object.
+
+        :param parser:      existing argparse parser object
+        :param ratio:       calculate the difference to the frame which window
+                            overlaps to this ratio
+        :param diff_frames: calculate the difference to the N-th previous frame
+        :param show_log:    show log-magnitude options
+        :param log:         set the default (adds a switch to negate).
+        :param mul:         multiply the magnitude spectrogram with given value
+        :param add:         add the given value to the magnitude spectrogram
+        :return:            spectrogram argument parser group object
+
+        """
+        # add spec related options to the existing parser
+        # spectrogram options
+        g = parser.add_argument_group('spectrogram arguments')
+        g.add_argument('--ratio', action='store', type=float, default=ratio,
+                       help='window magnitude ratio to calc number of diff '
+                       'frames [default=%(default).1f]')
+        g.add_argument('--diff_frames', action='store', type=int,
+                       default=diff_frames, help='number of diff frames '
+                       '[default=%(default)s]')
+
+        l = None
+        if show_log:
+            l = parser.add_argument_group('logarithmic magnitude arguments')
+            if log is not None:
+                # add log related options to the existing parser
+                if log:
+                    l.add_argument('--no_log', dest='log',
+                                   action='store_false', default=default,
+                                   help='no logarithmic magnitude '
+                                   '[default=logarithmic]')
+                else:
+                    l.add_argument('--log', action='store_true',
+                                   default=default, help='logarithmic '
+                                   'magnitude [default=linear]')
+
+            if mul is not None:
+                l.add_argument('--mul', action='store', type=float,
+                               default=mul, help='multiplier (before taking '
+                               ' the log) [default=%(default)i]')
+            if add is not None:
+                l.add_argument('--add', action='store', type=float,
+                               default=add, help='value added (before taking '
+                               'the log) [default=%(default)i]')
+
+        return g, l
+
 
 class FilteredSpectrogram(Spectrogram):
     """

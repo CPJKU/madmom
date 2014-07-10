@@ -7,10 +7,12 @@ This file contains tempo related functionality.
 
 """
 
+import os
+import glob
+from functools import partial
 import numpy as np
 from scipy.signal import argrelmax
-
-# from . import Event
+from . import RnnEventDetection
 
 
 # helper functions
@@ -201,100 +203,136 @@ def detect_tempo(histogram, fps, grouping_dev=0):
         return t1, t2, strength
 
 
-# default values for tempo estimation
-ACT_SMOOTH = 0.14
-MIN_BPM = 39
-MAX_BPM = 245
-HIST_SMOOTH = 5
-NO_TEMPO = np.nan
-GROUPING_DEV = 0
-ALPHA = 0.79
+class TempoEstimator(RnnEventDetection):
+    """
+    Tempo Class.
 
+    """
+    # set the path to saved neural networks and generate lists of NN files
+    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
 
-# class Tempo(Event):
-#     """
-#     Tempo Class.
-# 
-#     """
-#     def __init__(self, activations, fps, sep=''):
-#         """
-#         Creates a new Tempo instance with the given beat activations.
-#         The activations can be read in from file.
-# 
-#         :param activations: array with the beat activations or a file (handle)
-#         :param fps:         frame rate of the activations
-#         :param sep:         separator if activations are read from file
-# 
-#         """
-#         super(Tempo, self).__init__(activations, fps, sep)
-# 
-#     def detect(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-#                min_bpm=MIN_BPM, max_bpm=MAX_BPM, grouping_dev=GROUPING_DEV):
-#         """
-#         Detect the tempo on basis of the given beat activation function.
-# 
-#         :param act_smooth:   smooth the activation function over N seconds
-#         :param hist_smooth:  smooth the activation function over N bins
-#         :param min_bpm:      minimum tempo to detect
-#         :param max_bpm:      maximum tempo to detect
-#         :param grouping_dev: allowed tempo deviation for grouping tempi
-#         :returns:            tuple with the two most dominant tempi and the
-#                              relative strength of them
-# 
-#         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-#               The deviation is allowed delta in the log2 / log3 space.
-# 
-#         """
-#         # convert the arguments to frames
-#         act_smooth = int(round(self.fps * act_smooth))
-#         min_tau = int(np.floor(60. * self.fps / max_bpm))
-#         max_tau = int(np.ceil(60. * self.fps / min_bpm))
-#         # smooth activations
-#         if act_smooth > 1:
-#             activations = smooth_signal(self.activations, act_smooth)
-#         else:
-#             activations = self.activations
-#         # generate a histogram of beat intervals
-#         histogram = interval_histogram_acf(activations, min_tau, max_tau)
-#         # smooth the histogram
-#         if hist_smooth > 1:
-#             histogram = smooth_histogram(histogram, hist_smooth)
-#         # detect the tempi
-#         return detect_tempo(histogram, self.fps, grouping_dev)
-# 
-#     def estimate(self, act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-#                  min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA,
-#                  grouping_dev=GROUPING_DEV):
-#         """
-#         Detect the tempo on basis of the given beat activation function.
-# 
-#         :param act_smooth:   smooth the activation function over N seconds
-#         :param hist_smooth:  smooth the activation function over N bins
-#         :param min_bpm:      minimum tempo to detect
-#         :param max_bpm:      maximum tempo to detect
-#         :param alpha:       scaling factor for the comb filter
-#         :param grouping_dev: allowed tempo deviation for grouping tempi
-#         :returns:            tuple with the two most dominant tempi and the
-#                              relative strength of them
-# 
-#         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-#               The deviation is allowed delta in the log2 / log3 space.
-# 
-#         """
-#         # convert the arguments to frames
-#         act_smooth = int(round(self.fps * act_smooth))
-#         min_tau = int(np.floor(60. * self.fps / max_bpm))
-#         max_tau = int(np.ceil(60. * self.fps / min_bpm))
-#         # smooth activations
-#         if act_smooth > 1:
-#             activations = smooth_signal(self.activations, act_smooth)
-#         else:
-#             activations = self.activations
-#         # generate a histogram of beat intervals
-#         histogram = interval_histogram_comb(activations, alpha, min_tau,
-#                                             max_tau)
-#         # smooth the histogram
-#         if hist_smooth > 1:
-#             histogram = smooth_histogram(histogram, hist_smooth)
-#         # detect the tempi
-#         return detect_tempo(histogram, self.fps, grouping_dev)
+    # default values for tempo estimation
+    METHOD = 'comb'
+    ACT_SMOOTH = 0.14
+    MIN_BPM = 39
+    MAX_BPM = 245
+    HIST_SMOOTH = 5
+    NO_TEMPO = np.nan
+    GROUPING_DEV = 0
+    ALPHA = 0.79
+
+    def __init__(self, data, method=METHOD, nn_files=NN_FILES,
+                 act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
+                 min_bpm=MIN_BPM, max_bpm=MAX_BPM, grouping_dev=GROUPING_DEV,
+                 alpha=ALPHA, **kwargs):
+        """
+        Creates a new Tempo instance.
+
+        :param data:         signal, activations or file name.
+                             See EventDetection class for details.
+        :param nn_files:     Files that store the RNNs
+        :param method:       either 'acf' or 'comb'.
+        :param act_smooth:   smooth the activation function over N seconds
+        :param hist_smooth:  smooth the activation function over N bins
+        :param min_bpm:      minimum tempo to detect
+        :param max_bpm:      maximum tempo to detect
+        :param grouping_dev: allowed tempo deviation for grouping tempi
+        :param alpha:        scaling factor for the comb filter
+
+        Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
+              The deviation is allowed delta in the log2 / log3 space.
+
+        For more parameters see the parent classes.
+        """
+        super(TempoEstimator, self).__init__(data, nn_files, **kwargs)
+
+        # convert the arguments to frames
+        self.act_smooth = int(round(self.fps * act_smooth))
+        self.min_tau = int(np.floor(60. * self.fps / max_bpm))
+        self.max_tau = int(np.ceil(60. * self.fps / min_bpm))
+        self.hist_smooth = hist_smooth
+        self.grouping_dev = grouping_dev
+        self.alpha = alpha
+
+        if method == 'acf':
+            self.create_histogram = partial(interval_histogram_acf,
+                                            min_tau=self.min_tau,
+                                            max_tau=self.max_tau)
+        else:
+            self.create_histogram = partial(interval_histogram_comb,
+                                            alpha=self.alpha,
+                                            min_tau=self.min_tau,
+                                            max_tau=self.max_tau)
+
+    def detect(self):
+        """
+        :returns:            tuple with the two most dominant tempi and the
+                             relative strength of them
+        """
+        # smooth activations
+        if self.act_smooth > 1:
+            activations = smooth_signal(self.activations, self.act_smooth)
+        else:
+            activations = self.activations
+        # generate a histogram of beat intervals
+        histogram = self.create_histogram(activations)
+        # smooth the histogram
+        if self.hist_smooth > 1:
+            histogram = smooth_histogram(histogram, self.hist_smooth)
+        # detect the tempi
+        return detect_tempo(histogram, self.fps, self.grouping_dev)
+
+    def save_detections(self, filename):
+        """
+        Write the detections to a file.
+
+        :param filename: output file name or file handle
+
+        """
+        from ..utils import open
+        # write to output
+        with open(filename, 'wb') as f:
+            f.write("%.2f\t%.2f\t%.2f\n" % self.detections)
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES, method=METHOD,
+                      smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      dev=GROUPING_DEV, alpha=ALPHA, **kwargs):
+        """
+        Add tempo estimation related arguments to an existing parser object.
+
+        :param parser:     existing argparse parser object
+        :param nn_files:   Files that store the RNNs
+        :param method:     either 'acf' or 'comb'.
+        :param smooth:     smooth the tempo histogram over N bins
+        :param min_bpm:    minimum tempo [bpm]
+        :param max_bpm:    maximum tempo [bpm]
+        :param dev:        allowed deviation of tempi when grouping them
+        :return:           tempo argument parser group object
+
+        """
+        super(TempoEstimator, cls).add_arguments(parser, nn_files=nn_files,
+                                                 **kwargs)
+        # add tempo estimation related options to the existing parser
+        g = parser.add_argument_group('tempo estimation arguments')
+        if smooth is not None:
+            g.add_argument('--hist_smooth', action='store', type=int,
+                           default=smooth, help='smooth the tempo histogram '
+                           ' over N bins [default=%(default)d]')
+        g.add_argument('--method', action='store', type=str, default=method,
+                       help="which method to use ['acf' or 'comb', default=%(default)s]")
+        g.add_argument('--min_bpm', action='store', type=float,
+                       default=min_bpm, help='minimum tempo [bpm, '
+                       ' default=%(default).2f]')
+        g.add_argument('--max_bpm', action='store', type=float,
+                       default=max_bpm, help='maximum tempo [bpm, '
+                       ' default=%(default).2f]')
+        g.add_argument('--dev', action='store', type=float, default=dev,
+                       help='maximum allowed tempo deviation when grouping '
+                       ' tempi [default=%(default).2f]')
+        g.add_argument('--alpha', action='store', type=float, default=alpha,
+                       help='alpha for comb filter tempo estimation '
+                       '[default=%(default).2f]')
+        # return the argument group so it can be modified if needed
+        return g

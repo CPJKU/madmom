@@ -14,10 +14,6 @@ import multiprocessing as mp
 from ..audio.signal import NORM, ATT, FPS, FRAME_SIZE
 from ..audio.spectrogram import RATIO, DIFF_FRAMES, MUL, ADD
 from ..audio.filters import FMIN, FMAX, BANDS_PER_OCTAVE, NORM_FILTERS
-# from ..features.onsets import (THRESHOLD, SMOOTH, COMBINE, DELAY, MAX_BINS,
-#                                PRE_AVG, POST_AVG, PRE_MAX, POST_MAX)
-# from ..features.beats import SMOOTH as BEAT_SMOOTH, LOOK_ASIDE
-from ..features.tempo import MIN_BPM, MAX_BPM, HIST_SMOOTH, GROUPING_DEV, ALPHA
 from ..features.notes import (THRESHOLD as N_THRESHOLD, SMOOTH as N_SMOOTH,
                               COMBINE as N_COMBINE, DELAY as N_DELAY,
                               PRE_AVG as N_PRE_AVG, POST_AVG as N_POST_AVG,
@@ -63,28 +59,6 @@ def audio(parser, online=None, norm=NORM, att=ATT, fps=FPS, window=FRAME_SIZE):
     return g
 
 
-def spec(parser, ratio=RATIO, diff_frames=DIFF_FRAMES):
-    """
-    Add spectrogram related arguments to an existing parser object.
-
-    :param parser:      existing argparse parser object
-    :param ratio:       calculate the difference to the frame which window
-                        overlaps to this ratio
-    :param diff_frames: calculate the difference to the N-th previous frame
-    :return:            spectrogram argument parser group object
-
-    """
-    # add spec related options to the existing parser
-    # spectrogram options
-    g = parser.add_argument_group('spectrogram arguments')
-    g.add_argument('--ratio', action='store', type=float, default=ratio,
-                   help='window magnitude ratio to calc number of diff '
-                        'frames [default=%(default).1f]')
-    g.add_argument('--diff_frames', action='store', type=int,
-                   default=diff_frames,
-                   help='number of diff frames [default=%(default)s]')
-    # return the argument group so it can be modified if needed
-    return g
 
 
 def filtering(parser, default=None, fmin=FMIN, fmax=FMAX,
@@ -136,101 +110,37 @@ def filtering(parser, default=None, fmin=FMIN, fmax=FMAX,
     return g
 
 
-def log(parser, default=None, mul=MUL, add=ADD):
-    """
-    Add logarithmic magnitude related arguments to an existing parser object.
-
-    :param parser:  existing argparse parser object
-    :param default: set the default (adds a switch to negate)
-    :param mul:     multiply the magnitude spectrogram with given value
-    :param add:     add the given value to the magnitude spectrogram
-    :return:        logarithmic argument parser group object
-
-    """
-    # add log related options to the existing parser
-    g = parser.add_argument_group('logarithmic magnitude arguments')
-    if default is False:
-        g.add_argument('--log', action='store_true', default=default,
-                       help='logarithmic magnitude [default=linear]')
-    elif default is True:
-        g.add_argument('--no_log', dest='log', action='store_false',
-                       default=default,
-                       help='no logarithmic magnitude [default=logarithmic]')
-    if mul is not None:
-        g.add_argument('--mul', action='store', type=float, default=mul,
-                       help='multiplier (before taking the log) '
-                            '[default=%(default)i]')
-    if add is not None:
-        g.add_argument('--add', action='store', type=float, default=add,
-                       help='value added (before taking the log) '
-                            '[default=%(default)i]')
-    # return the argument group so it can be modified if needed
-    return g
-
-
-# def spectral_odf(parser, method='superflux', methods=None, max_bins=MAX_BINS):
+# def log(parser, default=None, mul=MUL, add=ADD):
 #     """
-#     Add spectral ODF related arguments to an existing parser object.
+#     Add logarithmic magnitude related arguments to an existing parser object.
 # 
-#     :param parser:   existing argparse parser object
-#     :param method:   default ODF method
-#     :param methods:  list of ODF methods
-#     :param max_bins: number of bins for the maximum filter (for SuperFlux)
-#     :return:         spectral onset detection argument parser group object
+#     :param parser:  existing argparse parser object
+#     :param default: set the default (adds a switch to negate)
+#     :param mul:     multiply the magnitude spectrogram with given value
+#     :param add:     add the given value to the magnitude spectrogram
+#     :return:        logarithmic argument parser group object
 # 
 #     """
-#     # add spec related options to the existing parser
-#     # spectrogram options
-#     g = parser.add_argument_group('spectral onset detection arguments')
-#     superflux = False
-#     if methods is not None:
-#         g.add_argument('-o', dest='odf', default=method,
-#                        help='use one of these onset detection functions (%s) '
-#                             '[default=%s]' % (methods, method))
-#         if 'superflux' in methods:
-#             superflux = True
-#     # add SuperFlux arguments
-#     if superflux or method == 'superflux':
-#         g.add_argument('--max_bins', action='store', type=int,
-#                        default=max_bins,
-#                        help='bins used for maximum filtering [default='
-#                             '%(default)i]')
+#     # add log related options to the existing parser
+#     g = parser.add_argument_group('logarithmic magnitude arguments')
+#     if default is False:
+#         g.add_argument('--log', action='store_true', default=default,
+#                        help='logarithmic magnitude [default=linear]')
+#     elif default is True:
+#         g.add_argument('--no_log', dest='log', action='store_false',
+#                        default=default,
+#                        help='no logarithmic magnitude [default=logarithmic]')
+#     if mul is not None:
+#         g.add_argument('--mul', action='store', type=float, default=mul,
+#                        help='multiplier (before taking the log) '
+#                             '[default=%(default)i]')
+#     if add is not None:
+#         g.add_argument('--add', action='store', type=float, default=add,
+#                        help='value added (before taking the log) '
+#                             '[default=%(default)i]')
 #     # return the argument group so it can be modified if needed
 #     return g
-# 
 
-def tempo(parser, smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-          dev=GROUPING_DEV, alpha=ALPHA):
-    """
-    Add tempo estimation related arguments to an existing parser object.
-
-    :param parser:     existing argparse parser object
-    :param smooth:     smooth the tempo histogram over N bins
-    :param min_bpm:    minimum tempo [bpm]
-    :param max_bpm:    maximum tempo [bpm]
-    :param dev:        allowed deviation of tempi when grouping them
-    :return:           tempo argument parser group object
-
-    """
-    # add tempo estimation related options to the existing parser
-    g = parser.add_argument_group('tempo estimation arguments')
-    if smooth is not None:
-        g.add_argument('--hist_smooth', action='store', type=int,
-                       default=smooth,
-                       help='smooth the tempo histogram over N bins '
-                            '[default=%(default)d]')
-    g.add_argument('--min_bpm', action='store', type=float, default=min_bpm,
-                   help='minimum tempo [bpm, default=%(default).2f]')
-    g.add_argument('--max_bpm', action='store', type=float, default=max_bpm,
-                   help='maximum tempo [bpm, default=%(default).2f]')
-    g.add_argument('--dev', action='store', type=float, default=dev,
-                   help='maximum allowed tempo deviation when grouping tempi '
-                        '[default=%(default).2f]')
-    g.add_argument('--alpha', action='store', type=float, default=alpha,
-                   help='alpha for comb filter tempo estimation '
-                        '[default=%(default).2f]')
-    # return the argument group so it can be modified if needed
-    return g
 
 
 def note(parser, threshold=N_THRESHOLD, smooth=N_SMOOTH, combine=N_COMBINE,

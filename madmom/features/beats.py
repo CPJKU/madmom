@@ -16,7 +16,7 @@ import itertools as it
 from ..audio.wav import Wav
 from ..audio.spectrogram import LogFiltSpec
 from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
-                    MIN_BPM, MAX_BPM)
+                    TempoEstimator)
 
 from . import RnnEventDetection
 
@@ -127,24 +127,22 @@ class BeatDetector(RnnEventDetection):
     SMOOTH = 0.09
     LOOK_ASIDE = 0.2
 
-    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH, min_bpm=MIN_BPM,
-                 max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, **kwargs):
-
-        super(BeatDetector, self).__init__(data, nn_files=nn_files, **kwargs)
-
-        self.smooth = int(round(self.fps * smooth))
-        self.min_bpm = min_bpm
-        self.max_bpm = max_bpm
-        self.look_aside = look_aside
-
-    def detect(self):
+    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH,
+                 min_bpm=TempoEstimator.MIN_BPM,
+                 max_bpm=TempoEstimator.MAX_BPM, look_aside=LOOK_ASIDE,
+                 **kwargs):
         """
         Detect the beats with a simple auto-correlation method.
 
-        :param smooth: smooth the activation function over N seconds
+        :param data:       Signal, activations or filename.
+                           See EventDetection class for more details.
+        :param nn_files:   list of files that define the RNN
+        :param smooth:     smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
         :param look_aside: look this fraction of a beat interval to the side
+
+        For more parameters see the parent classes.
 
         First the global tempo is estimated and then the beats are aligned
         according to:
@@ -155,6 +153,16 @@ class BeatDetector(RnnEventDetection):
         Effects (DAFx-11), Paris, France, September 2011
 
         """
+
+        super(BeatDetector, self).__init__(data, nn_files=nn_files, **kwargs)
+
+        self.smooth = int(round(self.fps * smooth))
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        self.look_aside = look_aside
+
+    def detect(self):
+        """ See EventDetection class """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         min_tau = int(np.floor(60. * self.fps / self.max_bpm))
@@ -181,6 +189,7 @@ class BeatDetector(RnnEventDetection):
         :param smooth:     smooth the beat activations over N seconds
         :param look_aside: fraction of beat interval to look aside for the
                            strongest beat
+        :param nn_files: list of NN files
         :return:           beat argument parser group object
 
         """
@@ -216,22 +225,16 @@ class BeatTracker(RnnEventDetection):
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 4
 
-    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH, min_bpm=MIN_BPM,
-                 max_bpm=MAX_BPM, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD,
-                 **kwargs):
-
-        super(BeatTracker, self).__init__(data, nn_files=nn_files, **kwargs)
-
-        self.smooth = int(round(self.fps * smooth))
-        self.min_bpm = min_bpm
-        self.max_bpm = max_bpm
-        self.look_aside = look_aside
-        self.look_ahead = look_ahead
-
-    def detect(self):
+    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH,
+                 min_bpm=TempoEstimator.MIN_BPM,
+                 max_bpm=TempoEstimator.MAX_BPM, look_aside=LOOK_ASIDE,
+                 look_ahead=LOOK_AHEAD, **kwargs):
         """
         Track the beats with a simple auto-correlation method.
 
+        :param data:       Signal, activations or filename.
+                           See EventDetection class for more details.
+        :param nn_files:   list of files that define the RNN
         :param smooth:     smooth the activation function over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
@@ -249,6 +252,17 @@ class BeatTracker(RnnEventDetection):
         Effects (DAFx-11), Paris, France, September 2011
 
         """
+
+        super(BeatTracker, self).__init__(data, nn_files=nn_files, **kwargs)
+
+        self.smooth = int(round(self.fps * smooth))
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        self.look_aside = look_aside
+        self.look_ahead = look_ahead
+
+    def detect(self):
+        """ See EventDetection class """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         min_tau = int(np.floor(60. * self.fps / self.max_bpm))
@@ -306,6 +320,7 @@ class BeatTracker(RnnEventDetection):
                            strongest beat
         :param look_ahead: seconds to look ahead in order to estimate the local
                            tempo
+        :param nn_files:   list of files that define the RNN
         :return:           beat argument parser group object
 
         """
