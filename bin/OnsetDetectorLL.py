@@ -58,8 +58,7 @@ def parser():
     Signal.add_arguments(p, norm=None)
     # rnn onset detection arguments
     RNNOnsetDetection.add_arguments(p, nn_files=NN_FILES, threshold=0.2,
-                                    combine=0.02, smooth=None, post_avg=None,
-                                    post_max=None)
+                                    combine=0.02, smooth=None)
     # version
     p.add_argument('--version', action='version',
                    version='OnsetDetectorLL.2013')

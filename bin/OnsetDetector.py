@@ -72,9 +72,7 @@ def main():
     else:
         # detect onsets
         o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=args.smooth, pre_avg=args.pre_avg,
-                 post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max)
+                 smooth=args.smooth)
         # save detections
         o.write(args.output)
 

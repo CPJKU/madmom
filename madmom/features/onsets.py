@@ -397,7 +397,7 @@ class OnsetDetection(EventDetection):
                post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
                combine=COMBINE, delay=DELAY, online=False):
         """
-        Perform thresholding and peak-picking on the given activation function.
+        Perform thresholding and peak-picking on the activations.
 
         :param threshold: threshold for peak-picking
         :param smooth:    smooth the activation function over N seconds
@@ -484,32 +484,39 @@ class OnsetDetection(EventDetection):
         # add onset detection related options to the existing parser
         g = parser.add_argument_group('onset detection arguments')
         g.add_argument('-t', dest='threshold', action='store', type=float,
-                       default=threshold, help='detection threshold '
-                       '[default=%(default).2f]')
+                       default=threshold,
+                       help='detection threshold [default=%(default).2f]')
         if smooth is not None:
             g.add_argument('--smooth', action='store', type=float,
-                           default=smooth, help='smooth the onset activations '
-                           'over N seconds [default=%(default).2f]')
-        g.add_argument('--combine', action='store', type=float,
-                       default=combine, help='combine onsets within N seconds '
-                       '[default=%(default).2f]')
-        g.add_argument('--pre_avg', action='store', type=float,
-                       default=pre_avg, help='build average over N previous '
-                       'seconds [default=%(default).2f]')
+                           default=smooth,
+                           help='smooth the onset activations over N seconds '
+                                '[default=%(default).2f]')
+        if pre_avg is not None:
+            g.add_argument('--pre_avg', action='store', type=float,
+                           default=pre_avg,
+                           help='build average over N previous seconds '
+                                '[default=%(default).2f]')
         if post_avg is not None:
             g.add_argument('--post_avg', action='store', type=float,
                            default=post_avg, help='build average over N '
                            'following seconds [default=%(default).2f]')
-        g.add_argument('--pre_max', action='store', type=float,
-                       default=pre_max, help='search maximum over N previous '
-                       'seconds [default=%(default).2f]')
+        if pre_max is not None:
+            g.add_argument('--pre_max', action='store', type=float,
+                           default=pre_max,
+                           help='search maximum over N previous seconds '
+                                '[default=%(default).2f]')
         if post_max is not None:
             g.add_argument('--post_max', action='store', type=float,
-                           default=post_max, help='search maximum over N '
-                           'following seconds [default=%(default).2f]')
+                           default=post_max,
+                           help='search maximum over N following seconds '
+                                '[default=%(default).2f]')
+        g.add_argument('--combine', action='store', type=float,
+                       default=combine,
+                       help='combine onsets within N seconds '
+                            '[default=%(default).2f]')
         g.add_argument('--delay', action='store', type=float, default=delay,
                        help='report the onsets N seconds delayed '
-                       '[default=%(default)i]')
+                            '[default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
 # universal peak-picking method
@@ -584,7 +591,7 @@ class SpectralOnsetDetection(OnsetDetection):
 
     """
     FRAME_SIZE = 2048
-    FPS = 100
+    FPS = 200
     ONLINE = False
     MAX_BINS = 3
 
@@ -768,18 +775,17 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/onsets_brnn*npz" % NN_PATH)
-    FPS = 100
     # peak-picking defaults
     THRESHOLD = 0.35
     COMBINE = 0.03
     SMOOTH = 0.07
     PRE_AVG = 0
     POST_AVG = 0
-    PRE_MAX = 1. / FPS
-    POST_MAX = 1. / FPS
+    PRE_MAX = 0.01  # 1. / fps
+    POST_MAX = 0.01  # 1. / fps
     DELAY = 0
 
-    def __init__(self, data, nn_files, fps=FPS, **kwargs):
+    def __init__(self, data, nn_files, **kwargs):
         """
         Use RNNs to compute the activation function and pick the onsets.
 
@@ -791,7 +797,8 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
         super(RNNOnsetDetection, self).__init__(data, nn_files=nn_files,
                                                 **kwargs)
-        self._fps = fps
+        # FIXME: remove this hack
+        self._fps = 100
 
     def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
         """
@@ -817,10 +824,26 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         self._data = np.hstack(data)
         return self._data
 
+    def detect(self, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
+               delay=DELAY, online=False):
+        """
+        Perform thresholding and peak-picking on the activations.
+
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
+        :param online:    use online peak-picking
+
+        """
+        spr = super(RNNOnsetDetection, self)
+        spr.detect(threshold=threshold, smooth=smooth, pre_avg=0,
+                   post_avg=0, pre_max=1. / self.fps, post_max=1. / self.fps,
+                   combine=combine, delay=delay, online=online)
+
     @classmethod
     def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
-                      combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
-                      post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX):
+                      combine=COMBINE, smooth=SMOOTH):
         """
         Add RNNOnsetDetection options to an existing parser object.
         This method just sets standard values. For a detailed parameter
@@ -832,8 +855,8 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         # infer the group from OnsetDetection
         OnsetDetection.add_arguments(parser, threshold=threshold,
                                      combine=combine, smooth=smooth,
-                                     pre_avg=pre_avg, post_avg=post_avg,
-                                     pre_max=pre_max, post_max=post_max)
+                                     pre_avg=None, post_avg=None,
+                                     pre_max=None, post_max=None)
 
 
 def parser():
