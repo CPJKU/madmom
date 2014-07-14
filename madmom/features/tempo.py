@@ -276,7 +276,6 @@ class TempoEstimation(RNNBeatTracking):
         with open(filename, 'wb') as f:
             f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
 
-
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
                       method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,

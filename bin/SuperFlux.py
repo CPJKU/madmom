@@ -10,7 +10,6 @@ import argparse
 
 import madmom.utils
 
-from madmom.audio.wav import Wav
 from madmom.audio.signal import Signal, FramedSignal
 from madmom.audio.filters import Filterbank
 from madmom.audio.spectrogram import LogFiltSpec
@@ -23,8 +22,6 @@ def parser():
 
     :return: the parsed arguments
     """
-
-
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
@@ -82,14 +79,14 @@ def main():
     else:
         # create a Signal object
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create a Onset detection object
+        # create a SpectralOnsetDetection detection object
         o = SpectralOnsetDetection(s, max_bins=args.max_bins)
+        # do signal processing
         o.pre_process(frame_size=args.frame_size, origin=args.origin,
                       fps=args.fps, bands_per_octave=args.bands,
                       mul=args.mul, add=args.add,
                       norm_filters=args.norm_filters)
-        # create an SpectralOnsetDetection object
-        # and perform detection function on the object
+        # process with the detection function
         o.superflux()
 
     # save onset activations or detect onsets

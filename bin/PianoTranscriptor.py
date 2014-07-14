@@ -49,29 +49,6 @@ def parser():
     return args
 
 
-    # input/output options
-    madmom.utils.params.io(p)
-    # add note transcription parameters
-    NoteTranscription.add_arguments(p)
-
-    # add other argument groups
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
-
-    madmom.utils.params.save_load(p)
-    # version
-
-    # parse arguments
-    args = p.parse_args()
-    # set some defaults
-    args.threads = min(len(args.nn_files), max(1, args.threads))
-    # print arguments
-    if args.verbose:
-        print args
-    # return
-    return args
-
-
 def main():
     """PianoTranscriptor.2014"""
 

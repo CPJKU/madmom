@@ -797,8 +797,6 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
         super(RNNOnsetDetection, self).__init__(data, nn_files=nn_files,
                                                 **kwargs)
-        # FIXME: remove this hack
-        self._fps = 100
 
     def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
         """
@@ -968,8 +966,8 @@ def main():
                 # (re-)create filterbank if the sample rate is not the same
                 if fb is None or fb.sample_rate != s.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterbank(num_fft_bins=args.frame_size /
-                                                            2,
+                    num_fft_bins = args.frame_size / 2
+                    fb = LogarithmicFilterbank(num_fft_bins=num_fft_bins,
                                                sample_rate=s.sample_rate,
                                                bands_per_octave=args.bands,
                                                fmin=args.fmin, fmax=args.fmax,

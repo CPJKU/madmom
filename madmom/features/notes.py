@@ -11,7 +11,7 @@ import os
 import glob
 import numpy as np
 from scipy.signal import convolve2d
-from scipy.ndimage.filters import median_filter, uniform_filter, maximum_filter
+from scipy.ndimage.filters import uniform_filter, maximum_filter
 
 from ..utils import open
 # from ..audio.filters import midi2hz, LogarithmicFilterbank
@@ -207,7 +207,6 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         detections *= (detections == mov_max)
     # return indices
     return np.nonzero(detections)
-
 
 
 class NoteTranscription(RNNEventDetection):
