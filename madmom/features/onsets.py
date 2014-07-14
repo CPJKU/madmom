@@ -772,20 +772,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/onsets_brnn*npz" % NN_PATH)
-    # default values for signal pre-processing
-    # TODO: this information should be included/extracted in/from the NN files
-    FRAME_SIZES = [1024, 2048, 4096]
     FPS = 100
-    ONLINE = False
-    ORIGIN = 'offline'
-    BANDS_PER_OCTAVE = 6
-    MUL = 5
-    ADD = 1
-    NORM_FILTERS = True
-    ## TODO: these do not seem to be used in the original implementation
-    FMIN = 27.5
-    FMAX = 18000
-    RATIO = 0.25
     # peak-picking defaults
     THRESHOLD = 0.35
     COMBINE = 0.03
@@ -810,20 +797,23 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
                                                 **kwargs)
         self._fps = fps
 
-    def pre_process(self, frame_sizes=FRAME_SIZES, fps=FPS, origin=ORIGIN,
-                    bands_per_octave=BANDS_PER_OCTAVE, mul=MUL, add=ADD,
-                    norm_filters=NORM_FILTERS):
+    def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
         """
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
 
+        :param frame_sizes: frame sizes for the spectrograms
+        :param origin:      origin of the frames
         """
         from ..audio.spectrogram import LogFiltSpec
         data = []
         for frame_size in frame_sizes:
-            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=fps,
-                            origin=origin, bands_per_octave=bands_per_octave,
-                            mul=mul, add=add, norm_filters=norm_filters)
+            # TODO: the signal processing parameters should be included in and
+            #       extracted from the NN model files
+            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
+                            origin=origin, bands_per_octave=6, mul=5, add=1,
+                            norm_filters=True, fmin=30, fmax=17000,
+                            ratio=0.25)
             # append the spec and the positive first order diff to the data
             data.append(s.spec)
             data.append(s.pos_diff)
