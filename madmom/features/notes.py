@@ -241,71 +241,18 @@ class NoteTranscription(RNNEventDetection):
     COMBINE = 0.05
     DELAY = 0
 
-    # def __init__(self, data, nn_files=NN_FILES, threshold=THRESHOLD,
-    #              combine=COMBINE, delay=DELAY, smooth=SMOOTH, pre_avg=PRE_AVG,
-    #              post_avg=POST_MAX, pre_max=PRE_MAX, post_max=POST_AVG,
-    #              **kwargs):
-    #     """
-    #     Creates a new NoteTranscription instance with the given
-    #     activations (can be read from a file).
-    #
-    #     :param data:       Signal, activations or filename.
-    #                        See EventDetection class for more details.
-    #     :param nn_files:   list of files that define the RNN
-    #     :param threshold: array with thresholds for peak-picking
-    #     :param combine:   only report one note within N seconds
-    #     :param delay:     report onsets N seconds delayed
-    #     :param smooth:    smooth the activation function over N seconds
-    #     :param pre_avg:   use N seconds past information for moving average
-    #     :param post_avg:  use N seconds future information for moving average
-    #     :param pre_max:   use N seconds past information for moving maximum
-    #     :param post_max:  use N seconds future information for moving maximum
-    #
-    #     Notes: If no moving average is needed (e.g. the activations are
-    #            independent of the signal's level as for neural network
-    #            activations), `pre_avg` and `post_avg` should be set to 0.
-    #     """
-    #     spr = super(NoteTranscription, self)
-    #     spr.__init__(data, nn_files, fps=NoteTranscription.FPS,
-    #                  bands_per_octave=NoteTranscription.BANDS_PER_OCTAVE,
-    #                  window_sizes=NoteTranscription.WINDOW_SIZES,
-    #                  mul=NoteTranscription.MUL, add=NoteTranscription.ADD,
-    #                  norm_filters=NoteTranscription.NORM_FILTERS, **kwargs)
-    #
-    #     self.threshold = threshold
-    #     self.combine = combine
-    #     self.delay = delay
-    #
-    #     # convert timing information to frames and set default values
-    #     # TODO: use at least 1 frame if any of these values are > 0?
-    #     self.smooth = int(round(self.fps * smooth))
-    #     self.pre_avg = int(round(self.fps * pre_avg))
-    #     self.post_avg = int(round(self.fps * post_avg))
-    #     self.pre_max = int(round(self.fps * pre_max))
-    #     self.post_max = int(round(self.fps * post_max))
-
-    def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
+    def pre_process(self):
         """
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
 
-        :param frame_sizes: frame sizes for the spectrograms
-        :param origin:      origin of the frames
+        :return: pre-processed data
+
         """
-        from ..audio.spectrogram import LogFiltSpec
-        data = []
-        for frame_size in frame_sizes:
-            # TODO: the signal processing parameters should be included in and
-            #       extracted from the NN model files
-            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
-                            origin=origin, bands_per_octave=12, mul=5, add=1,
-                            norm_filters=True, fmin=30, fmax=17000,
-                            ratio=0.5)
-            # append the spec and the positive first order diff to the data
-            data.append(s.spec)
-            data.append(s.pos_diff)
-        # stack the data and return it
-        self._data = np.hstack(data)
+        spr = super(NoteTranscription, self)
+        spr.pre_process(frame_sizes=[1024, 2048, 4096], bands_per_octave=12,
+                        mul=5, ratio=0.5)
+        # return data
         return self._data
 
     def process(self):
@@ -326,6 +273,12 @@ class NoteTranscription(RNNEventDetection):
                delay=DELAY):
         """
         Detect the notes with the given peak-picking parameters.
+
+        :param threshold: threshold for note detection
+        :param smooth:    smooth activations over N seconds
+        :param combine:   combine note onsets within N seconds
+        :param delay:     report note onsets N seconds delayed
+        :return:          detected notes
 
         """
         # detect onsets

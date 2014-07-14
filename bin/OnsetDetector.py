@@ -61,7 +61,7 @@ def main():
             raise SystemExit('no NN model(s) given')
 
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create an Onset object with the activations
+        # create an RNNOnsetDetection object
         o = RNNOnsetDetection(s, nn_files=args.nn_files,
                               num_threads=args.num_threads)
 

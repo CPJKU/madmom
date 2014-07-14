@@ -802,24 +802,15 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         """
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
+        :param frame_sizes: frame sizes for STFTs
+        :param origin:      'online' or 'offline'
+        :return:            pre-processed data
 
-        :param frame_sizes: frame sizes for the spectrograms
-        :param origin:      origin of the frames
         """
-        from ..audio.spectrogram import LogFiltSpec
-        data = []
-        for frame_size in frame_sizes:
-            # TODO: the signal processing parameters should be included in and
-            #       extracted from the NN model files
-            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
-                            origin=origin, bands_per_octave=6, mul=5, add=1,
-                            norm_filters=True, fmin=30, fmax=17000,
-                            ratio=0.25)
-            # append the spec and the positive first order diff to the data
-            data.append(s.spec)
-            data.append(s.pos_diff)
-        # stack the data and return it
-        self._data = np.hstack(data)
+        spr = super(RNNOnsetDetection, self)
+        spr.pre_process(frame_sizes, bands_per_octave=6, origin=origin, mul=5,
+                        ratio=0.25)
+        # return data
         return self._data
 
     def detect(self, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
@@ -832,6 +823,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         :param combine:   only report one onset within N seconds
         :param delay:     report onsets N seconds delayed
         :param online:    use online peak-picking
+        :return:          detected onset positions
 
         """
         spr = super(RNNOnsetDetection, self)

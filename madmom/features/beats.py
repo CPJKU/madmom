@@ -138,6 +138,20 @@ class RNNBeatTracking(RNNEventDetection):
         """
         super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
 
+    def pre_process(self):
+        """
+        Pre-process the signal to obtain a data representation suitable for RNN
+        processing.
+
+        :return:            pre-processed data
+
+        """
+        spr = super(RNNBeatTracking, self)
+        spr.pre_process(frame_sizes=[1024, 2048, 4096], bands_per_octave=3,
+                        mul=1, ratio=0.25)
+        # return data
+        return self._data
+
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
         """
@@ -149,6 +163,7 @@ class RNNBeatTracking(RNNEventDetection):
         :param look_aside: look this fraction of a beat interval to the side
         :param look_ahead: look N seconds ahead (and back) to determine the
                            tempo
+        :return:           detected beat positions
 
         Note: If `look_ahead` is undefined, a constant tempo throughout the
               whole piece is assumed.
@@ -220,25 +235,6 @@ class RNNBeatTracking(RNNEventDetection):
         self._detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
         return self._detections
-
-    def pre_process(self, frame_sizes=[1024, 2048, 4096]):
-        """
-        Pre-process the signal to obtain a data representation suitable for RNN
-        processing.
-
-        """
-        from ..audio.spectrogram import LogFiltSpec
-        data = []
-        for frame_size in frame_sizes:
-            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
-                            origin=0, bands_per_octave=3, mul=1, add=1,
-                            norm_filters=True, fmin=30, fmax=17000, ratio=0.5)
-            # append the spec and the positive first order diff to the data
-            data.append(s.spec)
-            data.append(s.pos_diff)
-        # stack the data and return it
-        self._data = np.hstack(data)
-        return self._data
 
     @classmethod
     def add_arguments(cls, parser, nn_files=NN_FILES, smooth=SMOOTH,

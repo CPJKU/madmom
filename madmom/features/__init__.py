@@ -308,6 +308,36 @@ class RNNEventDetection(EventDetection):
         # TODO: remove this hack
         self._fps = 100
 
+    def pre_process(self, frame_sizes, bands_per_octave, origin='offline',
+                    mul=5, ratio=0.25):
+        """
+        Pre-process the signal to obtain a data representation suitable for RNN
+        processing.
+
+        :param frame_sizes:      frame sizes for the spectrograms
+        :param bands_per_octave: bands per octave for the filterbank
+        :param origin:           origin of the frames
+        :param mul:              multiplication factor for logarithm
+        :param ratio:            frame overlap ratio for diff
+        :return:                 pre-processed data
+
+        """
+        from ..audio.spectrogram import LogFiltSpec
+        data = []
+        for frame_size in frame_sizes:
+            # TODO: the signal processing parameters should be included in and
+            #       extracted from the NN model files
+            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
+                            origin=origin, bands_per_octave=bands_per_octave,
+                            mul=mul, add=1, norm_filters=True, fmin=30,
+                            fmax=17000, ratio=ratio)
+            # append the spec and the positive first order diff to the data
+            data.append(s.spec)
+            data.append(s.pos_diff)
+        # stack the data and return it
+        self._data = np.hstack(data)
+        return self._data
+
     def process(self, fps=None):
         """
         Computes the predictions on the data with the RNN models defined/given.

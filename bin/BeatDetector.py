@@ -63,7 +63,7 @@ def main():
 
         # create a Signal object
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create a RNNBeatDetection object from the signal and given NN files
+        # create an RNNBeatTracking object
         b = RNNBeatTracking(s, nn_files=args.nn_files,
                             num_threads=args.num_threads)
 
