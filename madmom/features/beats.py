@@ -137,8 +137,6 @@ class RNNBeatTracking(RNNEventDetection):
 
         """
         super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
-        # TODO: remove this hack
-        self._fps = 100
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):

@@ -302,11 +302,11 @@ class RNNEventDetection(EventDetection):
         """
 
         super(RNNEventDetection, self).__init__(signal, **kwargs)
-
         self.nn_files = nn_files
-        # self.fps = fps
         self.num_threads = num_threads
         self._data = None
+        # TODO: remove this hack
+        self._fps = 100
 
     def process(self, fps=None):
         """
@@ -324,7 +324,7 @@ class RNNEventDetection(EventDetection):
         # TODO: the ravel() stuff should be removed here and
         self._activations = Activations(activations.ravel(), self.fps)
         # and return them
-        return self.activations
+        return self._activations
 
     # TODO: move this to the ml.rnn module?
     @staticmethod

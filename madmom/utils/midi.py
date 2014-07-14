@@ -1335,8 +1335,8 @@ class MIDIFile(object):
         # return the track
         return track
 
-    @classmethod
-    def add_arguments(cls, parser, length=None, velocity=None):
+    @staticmethod
+    def add_arguments(parser, length=None, velocity=None):
         """
         Add MIDI related arguments to an existing parser object.
 

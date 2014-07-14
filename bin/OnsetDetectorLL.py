@@ -58,7 +58,7 @@ def parser():
     Signal.add_arguments(p, norm=None)
     # rnn onset detection arguments
     RNNOnsetDetection.add_arguments(p, nn_files=NN_FILES, threshold=0.2,
-                                    combine=0.02, smooth=None)
+                                    combine=0.03, smooth=None)
     # version
     p.add_argument('--version', action='version',
                    version='OnsetDetectorLL.2013')
@@ -101,9 +101,7 @@ def main():
     else:
         # detect onsets
         o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=0, pre_avg=args.pre_avg,
-                 post_avg=0, pre_max=args.pre_max,
-                 post_max=0)
+                 smooth=0, online=True)
         # save detections
         o.write(args.output)
 
