@@ -11,14 +11,11 @@ import sys
 import os
 import glob
 import numpy as np
-import itertools as it
 
-from ..audio.wav import Wav
-from ..audio.spectrogram import LogFiltSpec
 from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
                     TempoEstimator)
 
-from . import RnnEventDetection
+from . import EventDetection, RNNEventDetection
 
 
 # wrapper function for detecting the dominant interval
@@ -118,7 +115,7 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions, dtype=np.float)
 
 
-class BeatDetector(RnnEventDetection):
+class BeatDetector(RNNEventDetection):
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
@@ -193,12 +190,10 @@ class BeatDetector(RnnEventDetection):
         :return:           beat argument parser group object
 
         """
-        #TODO: replace this once tempo classes are finished
-        import madmom.utils.params
-        madmom.utils.params.tempo(parser, smooth=None)
-
-        super(BeatDetector, cls).add_arguments(parser, nn_files=nn_files,
-                                               **kwargs)
+        # add EventDetection parser
+        EventDetection.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
 
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
@@ -215,7 +210,7 @@ class BeatDetector(RnnEventDetection):
         return g
 
 
-class BeatTracker(RnnEventDetection):
+class BeatTracker(RNNEventDetection):
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
@@ -225,10 +220,11 @@ class BeatTracker(RnnEventDetection):
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 4
 
-    def __init__(self, data, nn_files=NN_FILES, smooth=SMOOTH,
-                 min_bpm=TempoEstimator.MIN_BPM,
-                 max_bpm=TempoEstimator.MAX_BPM, look_aside=LOOK_ASIDE,
-                 look_ahead=LOOK_AHEAD, **kwargs):
+    def __init__(self, data, nn_files=NN_FILES):
+                 # , smooth=SMOOTH,
+                 # min_bpm=TempoEstimator.MIN_BPM,
+                 # max_bpm=TempoEstimator.MAX_BPM, look_aside=LOOK_ASIDE,
+                 # look_ahead=LOOK_AHEAD, **kwargs):
         """
         Track the beats with a simple auto-correlation method.
 
@@ -324,8 +320,10 @@ class BeatTracker(RnnEventDetection):
         :return:           beat argument parser group object
 
         """
-        super(BeatTracker, cls).add_arguments(parser, nn_files=nn_files,
-                                              **kwargs)
+        # add EventDetection parser
+        EventDetection.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
 
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')

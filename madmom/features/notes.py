@@ -17,7 +17,7 @@ from scipy.ndimage.filters import median_filter, uniform_filter, maximum_filter
 from ..utils import open
 from ..audio.filters import midi2hz, LogarithmicFilterbank
 
-from . import RnnEventDetection
+from . import RNNEventDetection
 
 
 def load_notes(filename):
@@ -212,7 +212,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
 
 
-class NoteTranscription(RnnEventDetection):
+class NoteTranscription(RNNEventDetection):
     """
     NoteTranscription class.
 

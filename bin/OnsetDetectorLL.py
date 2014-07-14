@@ -10,34 +10,12 @@ Redistribution in any form is not permitted!
 import os
 import glob
 from madmom.audio.signal import Signal
-from madmom.features.onsets import RnnOnsetDetector
+from madmom.features.onsets import RNNOnsetDetection
 
 
 # set the path to saved neural networks and generate lists of NN files
 NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
 NN_FILES = glob.glob("%s/onsets_rnn*npz" % NN_PATH)
-
-# TODO: this information should be included/extracted in/from the NN files
-FPS = 100
-BANDS_PER_OCTAVE = 6
-MUL = 5
-ADD = 1
-NORM_FILTERS = True
-
-## TODO: these do not seem to be used in the original implementation
-FMIN = 30
-FMAX = 17000
-RATIO = 0.5
-
-ONLINE = True
-WINDOW_SIZES = [512, 1024, 2048]
-THRESHOLD = 0.2
-COMBINE = 0.02
-SMOOTH = 0.0
-PRE_AVG = 0
-POST_AVG = 0
-PRE_MAX = 1. / FPS
-POST_MAX = 0
 
 
 def parser():
@@ -47,7 +25,7 @@ def parser():
     :return: the parsed arguments
     """
     import argparse
-    import madmom.utils.params
+    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -75,29 +53,21 @@ def parser():
     - post processing reports the onset instantaneously instead of delayed.
 
     ''')
-    # mirex options
-    madmom.utils.params.io(p)
-    # rnn ll onset detection arguments
-    RnnOnsetDetector.add_arguments(p, nn_files=NN_FILES, fps=FPS,
-                                   bands_per_octave=BANDS_PER_OCTAVE, mul=MUL,
-                                   add=ADD, norm_filters=NORM_FILTERS,
-                                   online=ONLINE, window_sizes=WINDOW_SIZES,
-                                   threshold=THRESHOLD, combine=COMBINE,
-                                   smooth=SMOOTH, pre_avg=PRE_AVG,
-                                   post_avg=POST_AVG, pre_max=PRE_MAX,
-                                   post_max=POST_MAX)
-
-    # add other argument groups
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
-    madmom.utils.params.save_load(p)
+    # input/output options
+    madmom.utils.io_arguments(p)
+    # signal arguments
+    Signal.add_arguments(p, norm=None)
+    # rnn onset detection arguments
+    RNNOnsetDetection.add_arguments(p, nn_files=NN_FILES, threshold=0.2,
+                                    combine=0.02, smooth=None, post_avg=None,
+                                    post_max=None)
     # version
     p.add_argument('--version', action='version',
                    version='OnsetDetectorLL.2013')
     # parse arguments
     args = p.parse_args()
     # set some defaults
-    args.threads = min(len(args.nn_files), max(1, args.threads))
+    args.num_threads = min(len(args.nn_files), max(1, args.num_threads))
     # print arguments
     if args.verbose:
         print args
@@ -114,22 +84,30 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        o = RnnOnsetDetector(args.input, **vars(args))
+        o = RNNOnsetDetection.from_activations(args.input, fps=100)
     else:
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN model(s) given')
 
-        w = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        o = RnnOnsetDetector(w, window_sizes=WINDOW_SIZES, **vars(args))
+        s = Signal(args.input, mono=True, att=args.att)
+        # create an Onset object with the activations
+        o = RNNOnsetDetection(s, nn_files=args.nn_files,
+                              num_threads=args.num_threads)
+        o.pre_process(frame_sizes=[512, 1024, 2048], origin='online')
 
     # save onset activations or detect onsets
     if args.save:
         # save activations
-        o.save_activations(args.output, sep=args.sep)
+        o.activations.save(args.output, sep=args.sep)
     else:
+        # detect onsets
+        o.detect(args.threshold, combine=args.combine, delay=args.delay,
+                 smooth=0, pre_avg=args.pre_avg,
+                 post_avg=0, pre_max=args.pre_max,
+                 post_max=0)
         # save detections
-        o.save_detections(args.output)
+        o.write(args.output)
 
 if __name__ == '__main__':
     main()

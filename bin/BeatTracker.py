@@ -26,20 +26,19 @@ def parser():
     If invoked without any parameters, the software detects all beats in the
     given input (file) and writes them to the output (file).
     ''')
+
     # input/output options
-    madmom.utils.params.io(p)
+    madmom.utils.io_arguments(p)
+    # signal arguments
+    Signal.add_arguments(p, norm=False)
     # beat tracking arguments
     BeatTracker.add_arguments(p)
-    # add other argument groups
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
-    madmom.utils.params.save_load(p)
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2013')
     # parse arguments
     args = p.parse_args()
     # set some defaults
-    args.threads = min(len(args.nn_files), max(1, args.threads))
+    args.num_threads = min(len(args.nn_files), max(1, args.num_threads))
     # print arguments
     if args.verbose:
         print args

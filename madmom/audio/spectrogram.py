@@ -638,9 +638,9 @@ class Spectrogram(object):
             txt += "\n %s" % str(self.filterbank)
         return "%s\n %s" % (txt, str(self.frames))
 
-    @classmethod
-    def add_arguments(cls, parser, ratio=RATIO, diff_frames=DIFF_FRAMES,
-                      show_log=True, log=LOG, mul=MUL, add=ADD):
+    @staticmethod
+    def add_arguments(parser, ratio=RATIO, diff_frames=DIFF_FRAMES, log=LOG,
+                      mul=MUL, add=ADD):
         """
         Add spectrogram related arguments to an existing parser object.
 
@@ -648,15 +648,13 @@ class Spectrogram(object):
         :param ratio:       calculate the difference to the frame which window
                             overlaps to this ratio
         :param diff_frames: calculate the difference to the N-th previous frame
-        :param show_log:    show log-magnitude options
-        :param log:         set the default (adds a switch to negate).
+        :param log:         include logarithm options (adds a switch to negate)
         :param mul:         multiply the magnitude spectrogram with given value
         :param add:         add the given value to the magnitude spectrogram
         :return:            spectrogram argument parser group object
 
         """
         # add spec related options to the existing parser
-        # spectrogram options
         g = parser.add_argument_group('spectrogram arguments')
         g.add_argument('--ratio', action='store', type=float, default=ratio,
                        help='window magnitude ratio to calc number of diff '
@@ -664,22 +662,19 @@ class Spectrogram(object):
         g.add_argument('--diff_frames', action='store', type=int,
                        default=diff_frames, help='number of diff frames '
                        '[default=%(default)s]')
-
+        # add log related options to the existing parser if needed
         l = None
-        if show_log:
+        if log is not None:
             l = parser.add_argument_group('logarithmic magnitude arguments')
-            if log is not None:
-                # add log related options to the existing parser
-                if log:
-                    l.add_argument('--no_log', dest='log',
-                                   action='store_false', default=default,
-                                   help='no logarithmic magnitude '
-                                   '[default=logarithmic]')
-                else:
-                    l.add_argument('--log', action='store_true',
-                                   default=default, help='logarithmic '
-                                   'magnitude [default=linear]')
-
+            if log:
+                l.add_argument('--no_log', dest='log',
+                               action='store_false', default=log,
+                               help='no logarithmic magnitude '
+                               '[default=logarithmic]')
+            else:
+                l.add_argument('--log', action='store_true',
+                               default=-log, help='logarithmic '
+                               'magnitude [default=linear]')
             if mul is not None:
                 l.add_argument('--mul', action='store', type=float,
                                default=mul, help='multiplier (before taking '
@@ -688,7 +683,7 @@ class Spectrogram(object):
                 l.add_argument('--add', action='store', type=float,
                                default=add, help='value added (before taking '
                                'the log) [default=%(default)i]')
-
+        # return the groups
         return g, l
 
 

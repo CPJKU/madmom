@@ -34,12 +34,14 @@ RNNLIB = 'rnnlib'
 
 
 # Activations
+# TODO: inherit from features.Activations
+#       add another @classmethod constructor or overwrite __init__()?
 class Activations(np.ndarray):
     """
     Class for reading in activations as written by RNNLIB.
 
     """
-    def __new__(cls, filename, labels=None, fps=None):
+    def __new__(cls, filename, fps=None, labels=None):
         # read in the file
         label = 0
         with open(filename, 'r') as f:

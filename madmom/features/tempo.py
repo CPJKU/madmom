@@ -12,7 +12,7 @@ import glob
 from functools import partial
 import numpy as np
 from scipy.signal import argrelmax
-from . import RnnEventDetection
+from . import RNNEventDetection
 
 
 # helper functions
@@ -203,7 +203,7 @@ def detect_tempo(histogram, fps, grouping_dev=0):
         return t1, t2, strength
 
 
-class TempoEstimator(RnnEventDetection):
+class TempoEstimator(RNNEventDetection):
     """
     Tempo Class.
 
