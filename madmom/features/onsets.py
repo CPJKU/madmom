@@ -772,7 +772,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/onsets_brnn*npz" % NN_PATH)
-    # pre-processing defaults
+    # default values for signal pre-processing
     # TODO: this information should be included/extracted in/from the NN files
     FRAME_SIZES = [1024, 2048, 4096]
     FPS = 100
@@ -796,9 +796,9 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     POST_MAX = 1. / FPS
     DELAY = 0
 
-    def __init__(self, data, nn_files=NN_FILES, fps=FPS, **kwargs):
+    def __init__(self, data, nn_files, fps=FPS, **kwargs):
         """
-        Use RNNs to compute the activation function and pick the onsets
+        Use RNNs to compute the activation function and pick the onsets.
 
         :param data:      Signal, activations or file. See EventDetection class
         :param nn_files:  list of files that define the RNN
@@ -831,8 +831,8 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         self._data = np.hstack(data)
         return self._data
 
-    @staticmethod
-    def add_arguments(parser, nn_files=NN_FILES, threshold=THRESHOLD,
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
                       combine=COMBINE, smooth=SMOOTH, pre_avg=PRE_AVG,
                       post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX):
         """
@@ -841,7 +841,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         description, see the parent classes.
 
         """
-        # add arguments from RNNEventDetection
+        # add RNNEventDetection arguments
         RNNEventDetection.add_arguments(parser, nn_files=nn_files)
         # infer the group from OnsetDetection
         OnsetDetection.add_arguments(parser, threshold=threshold,

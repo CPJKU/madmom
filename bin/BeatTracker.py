@@ -6,9 +6,8 @@ Copyright (c) Sebastian Böck <sebastian.boeck@jku.at>
 Redistribution in any form is not permitted!
 
 """
-
 from madmom.audio.signal import Signal
-from madmom.features.beats import BeatTracker
+from madmom.features.beats import RNNBeatTracking
 
 
 def parser():
@@ -18,7 +17,7 @@ def parser():
     :return: the parsed arguments
     """
     import argparse
-    import madmom.utils.params
+    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -32,7 +31,7 @@ def parser():
     # signal arguments
     Signal.add_arguments(p, norm=False)
     # beat tracking arguments
-    BeatTracker.add_arguments(p)
+    RNNBeatTracking.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2013')
     # parse arguments
@@ -55,23 +54,28 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        b = BeatTracker(args.input, **vars(args))
+        b = RNNBeatTracking.from_activations(args.input, fps=100)
     else:
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN model(s) given')
 
         # create a Signal object
-        w = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        b = BeatTracker(w, **vars(args))
+        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
+        b = RNNBeatTracking(s, nn_files=args.nn_files,
+                            num_threads=args.num_threads)
 
     # save beat activations or detect beats
     if args.save:
         # save activations
-        b.save_activations(args.output, sep=args.sep)
+        b.activations.save(args.output, sep=args.sep)
     else:
+        # detect the beats
+        b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
+                 max_bpm=args.max_bpm, look_aside=args.look_aside,
+                 look_ahead=args.look_ahead)
         # save detections
-        b.save_detections(args.output)
+        b.write(args.output)
 
 if __name__ == '__main__':
     main()

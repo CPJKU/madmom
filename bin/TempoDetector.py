@@ -8,7 +8,7 @@ Redistribution in any form is not permitted!
 """
 
 from madmom.audio.signal import Signal
-from madmom.features.tempo import TempoEstimator
+from madmom.features.tempo import TempoEstimation
 
 
 def parser():
@@ -29,7 +29,7 @@ def parser():
     # input/output options
     madmom.utils.params.io(p)
     # add tempo estimation arguments
-    TempoEstimator.add_arguments(p)
+    TempoEstimation.add_arguments(p)
     # add other argument groups
     madmom.utils.params.audio(p, fps=None, norm=False, online=None,
                               window=None)
@@ -59,7 +59,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        t = TempoEstimator(args.input, args.fps, sep=args.sep)
+        t = TempoEstimation(args.input, args.fps, sep=args.sep)
     else:
         # exit if no NN files are given
         if not args.nn_files:
@@ -68,7 +68,7 @@ def main():
         # create a Wav object
         w = Signal(args.input, mono=True, norm=args.norm, att=args.att)
         # create an Beat object with the activations
-        t = TempoEstimator(w, **vars(args))
+        t = TempoEstimation(w, **vars(args))
 
     # save activations or detect tempo
     if args.save:

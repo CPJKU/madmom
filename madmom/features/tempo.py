@@ -203,7 +203,7 @@ def detect_tempo(histogram, fps, grouping_dev=0):
         return t1, t2, strength
 
 
-class TempoEstimator(RNNEventDetection):
+class TempoEstimation(RNNEventDetection):
     """
     Tempo Class.
 
@@ -245,7 +245,7 @@ class TempoEstimator(RNNEventDetection):
 
         For more parameters see the parent classes.
         """
-        super(TempoEstimator, self).__init__(data, nn_files, **kwargs)
+        super(TempoEstimation, self).__init__(data, nn_files, **kwargs)
 
         # convert the arguments to frames
         self.act_smooth = int(round(self.fps * act_smooth))
@@ -296,14 +296,13 @@ class TempoEstimator(RNNEventDetection):
             f.write("%.2f\t%.2f\t%.2f\n" % self.detections)
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, method=METHOD,
-                      smooth=HIST_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      dev=GROUPING_DEV, alpha=ALPHA, **kwargs):
+    def add_arguments(cls, parser, method=METHOD, smooth=HIST_SMOOTH,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM, dev=GROUPING_DEV,
+                      alpha=ALPHA):
         """
         Add tempo estimation related arguments to an existing parser object.
 
         :param parser:     existing argparse parser object
-        :param nn_files:   Files that store the RNNs
         :param method:     either 'acf' or 'comb'.
         :param smooth:     smooth the tempo histogram over N bins
         :param min_bpm:    minimum tempo [bpm]
@@ -312,8 +311,6 @@ class TempoEstimator(RNNEventDetection):
         :return:           tempo argument parser group object
 
         """
-        super(TempoEstimator, cls).add_arguments(parser, nn_files=nn_files,
-                                                 **kwargs)
         # add tempo estimation related options to the existing parser
         g = parser.add_argument_group('tempo estimation arguments')
         if smooth is not None:
@@ -321,7 +318,8 @@ class TempoEstimator(RNNEventDetection):
                            default=smooth, help='smooth the tempo histogram '
                            ' over N bins [default=%(default)d]')
         g.add_argument('--method', action='store', type=str, default=method,
-                       help="which method to use ['acf' or 'comb', default=%(default)s]")
+                       help="which method to use ['acf' or 'comb', "
+                            "default=%(default)s]")
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm, help='minimum tempo [bpm, '
                        ' default=%(default).2f]')
