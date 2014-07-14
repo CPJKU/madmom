@@ -48,46 +48,61 @@ class Activations(np.ndarray):
         self.fps = getattr(obj, 'fps', None)
 
     @classmethod
-    def load(cls, filename, sep=None):
+    def load(cls, infile, sep=None):
         """
         Load the activations from a file.
 
-        :param filename: input file name or file handle
-        :param sep:      separator between activation values
-        :return:         Activations instance
+        :param infile: input file name or file handle
+        :param sep:    separator between activation values
+        :return:       Activations instance
 
         Note: An undefined or empty (“”) separator means that the file should
               be treated as a numpy binary file.
+              Only binary files can store the frame rate of the activations.
+              Text files should not be used for anything else but manual
+              inspection or I/O with other programs.
 
         """
+        # init fps
+        fps = None
         # load the activations
         if sep in [None, '']:
             # numpy binary format
-            data = np.load(filename)
+            data = np.load(infile)
+            if isinstance(data, np.lib.npyio.NpzFile):
+                # .npz file, set the frame rate and overwrite the activations
+                fps = data['fps']
+                data = data['activations']
         else:
             # simple text format
-            data = np.loadtxt(filename, delimiter=sep)
+            data = np.loadtxt(infile, delimiter=sep)
         # instantiate a new object
-        return cls(data)
+        return cls(data, fps)
 
-    def save(self, filename, sep=None):
+    def save(self, outfile, sep=None):
         """
         Save the activations to a file.
 
-        :param filename: output file name or file handle
-        :param sep:      separator between activation values
+        :param outfile: output file name or file handle
+        :param sep:     separator between activation values
 
         Note: An undefined or empty (“”) separator means that the file should
               be written as a numpy binary file.
+              Only binary files can store the frame rate of the activations.
+              Text files should not be used for anything else but manual
+              inspection or I/O with other programs.
 
         """
         # save the activations
         if sep in [None, '']:
             # numpy binary format
-            np.save(filename, self)
+            npz = {'activations': self,
+                   'fps': self.fps}
+            np.savez(outfile, **npz)
         else:
             # simple text format
-            np.savetxt(filename, self, fmt='%.5f', delimiter=sep)
+            np.savetxt(outfile, self, fmt='%.5f', delimiter=sep)
+
 
     @staticmethod
     def add_arguments(parser):
