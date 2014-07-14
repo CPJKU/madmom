@@ -18,7 +18,7 @@ def parser():
     :return: the parsed arguments
     """
     import argparse
-    import madmom.utils.params
+    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -27,22 +27,20 @@ def parser():
     in the given input (file) and writes them to the output (file).
     ''')
     # input/output options
-    madmom.utils.params.io(p)
-    # add tempo estimation arguments
+    madmom.utils.io_arguments(p)
+    # signal arguments
+    Signal.add_arguments(p, norm=False)
+    # rnn onset detection arguments
     TempoEstimation.add_arguments(p)
-    # add other argument groups
-    madmom.utils.params.audio(p, fps=None, norm=False, online=None,
-                              window=None)
-    madmom.utils.params.save_load(p)
-    # version
+    # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
                    help='report the lower tempo first (as required by MIREX)')
-    p.add_argument('--version', action='version',
-                   version='TempoDetector.2013v2')
+    # version
+    p.add_argument('--version', action='version', version='TempoDetector.2014')
     # parse arguments
     args = p.parse_args()
     # set some defaults
-    args.threads = min(len(args.nn_files), max(1, args.threads))
+    args.num_threads = min(len(args.nn_files), max(1, args.num_threads))
     # print arguments
     if args.verbose:
         print args
@@ -51,7 +49,7 @@ def parser():
 
 
 def main():
-    """TempoDetector.2013"""
+    """TempoDetector.2014"""
 
     # parse arguments
     args = parser()
@@ -59,30 +57,25 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        t = TempoEstimation(args.input, args.fps, sep=args.sep)
+        t = TempoEstimation.from_activations(args.input, sep=args.sep)
     else:
         # exit if no NN files are given
         if not args.nn_files:
             raise SystemExit('no NN model(s) given')
 
-        # create a Wav object
-        w = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create an Beat object with the activations
-        t = TempoEstimation(w, **vars(args))
+        # create a Signal object
+        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
+        # create a RNNBeatDetection object from the signal and given NN files
+        t = TempoEstimation(s, nn_files=args.nn_files,
+                            num_threads=args.num_threads)
 
     # save activations or detect tempo
     if args.save:
         # save activations
-        t.save_activations(args.output, sep=args.sep)
+        t.activations.save(args.output, sep=args.sep)
     else:
-        # for MIREX, the lower tempo must be given first
-        if args.mirex:
-            t1, t2, strength = t.detections
-            if t1 > t2:
-                t.detections = t1, t2, 1. - strength
-
         # save detections
-        t.save_detections(args.output)
+        t.write(args.output, args.mirex)
 
 if __name__ == '__main__':
     main()

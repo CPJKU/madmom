@@ -11,8 +11,6 @@ import glob
 import sys
 import numpy as np
 
-from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval)
-
 from . import Activations, RNNEventDetection
 
 
@@ -30,6 +28,10 @@ def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
     :returns:           dominant interval
 
     """
+    import warnings
+    warnings.warn('This function will be removed soon! Please update your '
+                  'code to work without this function.')
+    from .tempo import smooth_signal, interval_histogram_acf, dominant_interval
     # smooth activations
     if act_smooth > 1:
         activations = smooth_signal(activations, act_smooth)
@@ -239,7 +241,6 @@ class RNNBeatTracking(RNNEventDetection):
         # stack the data and return it
         self._data = np.hstack(data)
         return self._data
-
 
     @classmethod
     def add_arguments(cls, parser, nn_files=NN_FILES, smooth=SMOOTH,
