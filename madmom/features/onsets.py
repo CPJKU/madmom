@@ -426,11 +426,11 @@ class OnsetDetection(EventDetection):
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.activations.fps * smooth))
-        pre_avg = int(round(self.activations.fps * pre_avg))
-        post_avg = int(round(self.activations.fps * post_avg))
-        pre_max = int(round(self.activations.fps * pre_max))
-        post_max = int(round(self.activations.fps * post_max))
+        smooth = int(round(self.fps * smooth))
+        pre_avg = int(round(self.fps * pre_avg))
+        post_avg = int(round(self.fps * post_avg))
+        pre_max = int(round(self.fps * pre_max))
+        post_max = int(round(self.fps * post_max))
         # adjust some params for online mode
         # TODO: check if access to FramedSignal.origin is possible/applicable
         if online:
@@ -441,7 +441,7 @@ class OnsetDetection(EventDetection):
         detections = peak_picking(self.activations, threshold, smooth,
                                   pre_avg, post_avg, pre_max, post_max)
         # convert detected onsets to a list of timestamps
-        detections = detections.astype(np.float) / self.activations.fps
+        detections = detections.astype(np.float) / self.fps
         # shift if necessary
         if delay != 0:
             detections += delay
@@ -599,16 +599,13 @@ class SpectralOnsetDetection(OnsetDetection):
 
         """
         super(OnsetDetection, self).__init__(signal, **kwargs)
-        # import
-        # from ..audio.spectrogram import Spectrogram
-        # # check spectrogram type
-        # if isinstance(spectrogram, Spectrogram):
-        #     # already the right format
-        #     self.spectrogram = spectrogram
-        # else:
-        #     # assume a file name, try to instantiate a Spectrogram object
-        #     self.spectrogram = Spectrogram(spectrogram, *args, **kwargs)
         self.max_bins = max_bins
+
+    @property
+    def fps(self):
+        """Frames rate."""
+        # get the frame rate from the spectrogram
+        return self._data.frames.fps
 
     def pre_process(self, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE,
                     filterbank=None, **kwargs):
@@ -621,9 +618,9 @@ class SpectralOnsetDetection(OnsetDetection):
         :param fps:        frames per second
         :param online:     online processing [bool]
 
-        The following arguments are passed to SPectrogram()
+        The following arguments are passed to Spectrogram()
 
-        :param filterbank: Filterbank for spectral complression
+        :param filterbank: Filterbank for spectral compression
         :param kwargs:     additional arguments passed to Spectrogram()
         :return:           pre-processed data
 
@@ -678,8 +675,7 @@ class SpectralOnsetDetection(OnsetDetection):
     def sf(self):
         """Spectral Flux."""
         # compute and return the activations
-        self._activations = spectral_flux(self.data.spec,
-                                          self.data.num_diff_frames)
+        act = spectral_flux(self.data.spec, self.data.num_diff_frames)
         self._activations = Activations(act, self._fps)
         return self._activations
 
@@ -846,6 +842,9 @@ def parser():
 
     """
     import argparse
+    from ..audio.signal import Signal, FramedSignal
+    from ..audio.spectrogram import Spectrogram
+    from ..audio.filters import Filterbank
 
     # define parser
     p = argparse.ArgumentParser(
@@ -867,17 +866,30 @@ def parser():
     p.add_argument('--ext', action='store', type=str, default='txt',
                    help='extension for detections [default=txt]')
     # add other argument groups
-    audio(p, online=False)
-    filtering(p, default=True)
-    o = onset(p)
+    Signal.add_arguments(p)
+    FramedSignal.add_arguments(p, online=False, fps=200)
+    Spectrogram.add_arguments(p, log=True)
+    Filterbank.add_arguments(p, default=True, norm_filters=False, bands=24)
+    OnsetDetection.add_arguments(p)
     # list of offered ODFs
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
                'cd', 'rcd']
-    o.add_argument('-o', dest='odf', default='superflux',
-                   help='use this onset detection function %s' % methods)
-    save_load(p)
+    # TODO: add 'OnsetDetector', 'OnsetDetectorLL' and 'MML13' to the methods
+    SpectralOnsetDetection.add_arguments(p, methods=methods)
+    # o.add_argument('-o', dest='odf', default='superflux',
+    #                help='use this onset detection function %s' % methods)
     # parse arguments
     args = p.parse_args()
+    # switch to offline mode
+    if args.norm:
+        args.online = False
+        args.post_avg = 0
+        args.post_max = 0
+    # translate online/offline mode
+    if args.online:
+        args.origin = 'online'
+    else:
+        args.origin = 'offline'
     # print arguments
     if args.verbose:
         print args
@@ -893,7 +905,7 @@ def main():
     import os.path
 
     from ..utils import files
-    from ..audio.wav import Wav
+    from ..audio.signal import Signal
     from ..audio.spectrogram import Spectrogram
     from ..audio.filters import LogarithmicFilterbank
 
@@ -925,33 +937,35 @@ def main():
         if args.load:
             # load the activations from file
             # FIXME: fps must be encoded in the file
-            o = Onset(f, args.fps, args.online)
+            o = OnsetDetection.from_activations(f, args.fps)
         else:
-            # create a Wav object
-            w = Wav(f, mono=True, norm=args.norm, att=args.att)
+            # create a Signal object
+            s = Signal(f, mono=True, norm=args.norm, att=args.att)
             if args.filter:
                 # (re-)create filterbank if the sample rate is not the same
-                if fb is None or fb.sample_rate != w.sample_rate:
+                if fb is None or fb.sample_rate != s.sample_rate:
                     # create filterbank if needed
-                    fb = LogarithmicFilterbank(num_fft_bins=args.window / 2,
-                                               sample_rate=w.sample_rate,
+                    fb = LogarithmicFilterbank(num_fft_bins=args.frame_size /
+                                                            2,
+                                               sample_rate=s.sample_rate,
                                                bands_per_octave=args.bands,
                                                fmin=args.fmin, fmax=args.fmax,
-                                               norm=args.equal)
-            # create a Spectrogram object
-            s = Spectrogram(w, frame_size=args.window, filterbank=fb,
-                            log=args.log, mul=args.mul, add=args.add,
-                            ratio=args.ratio, diff_frames=args.diff_frames)
+                                               norm=args.norm_filters)
+            # create a Spectrogram object to overwrite the data attribute
+            spec = Spectrogram(s, frame_size=args.frame_size, fps=args.fps,
+                               origin=args.origin, filterbank=fb,
+                               log=args.log, mul=args.mul, add=args.add,
+                               ratio=args.ratio, diff_frames=args.diff_frames)
             # create a SpectralOnsetDetection object
-            sod = SpectralOnsetDetection(s, max_bins=args.max_bins)
-            # perform detection function on the object
-            act = getattr(sod, args.odf)()
-            # create an Onset object with the activations
-            o = Onset(act, args.fps, args.online)
+            o = SpectralOnsetDetection(None,
+                                       max_bins=args.max_bins).from_data(spec)
+            # process the data
+            o.process(args.odf)
+            print len(o.activations)
         # save onset activations or detect onsets
         if args.save:
             # save the raw ODF activations
-            o.save_activations("%s.%s" % (filename, args.odf))
+            o.activations.save("%s.%s" % (filename, args.odf))
         else:
             # detect the onsets
             o.detect(args.threshold, combine=args.combine, delay=args.delay,

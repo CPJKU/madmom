@@ -180,22 +180,17 @@ class EventDetection(object):
         """
         Instantiate an EventDetection object from the given pre-processed data.
 
-        :param data: numpy array or input file name or file handle
-        :param fps:  frames per second
+        :param data: data to be used for further processing
         :return:     EventDetection instance
 
         """
-        # instantiate an RNNEventDetection object (without a signal attribute)
+        # instantiate an EventDetection object (without a signal attribute)
         obj = cls(None)
-        # load the Activations
-        if isinstance(data, np.ndarray):
-            # already an Activations instance
-            obj._data = data
-        else:
-            # try to instantiate an Activations object
-            obj._data = np.load(data)
+        # load the data
+        obj._data = data
         # set the frame rate
-        obj._fps = fps
+        if fps:
+            obj._fps = fps
         # return the newly created object
         return obj
 
