@@ -31,13 +31,15 @@ class Activations(np.ndarray):
         if isinstance(data, np.ndarray):
             # cast to Activations
             obj = np.asarray(data).view(cls)
+            obj.fps = fps
         elif isinstance(data, (basestring, file)):
             # read from file or file handle
-            obj = cls.load(data, sep)
+            obj = cls.load(data, fps, sep)
         else:
             raise TypeError("wrong input data for Activations")
-        # set frame rate
-        obj.fps = fps
+        # frame rate must be set
+        if obj.fps is None:
+            raise TypeError("frame rate for Activations must be set")
         # return the object
         return obj
 
@@ -48,11 +50,13 @@ class Activations(np.ndarray):
         self.fps = getattr(obj, 'fps', None)
 
     @classmethod
-    def load(cls, infile, sep=None):
+    def load(cls, infile, fps=None, sep=None):
         """
         Load the activations from a file.
 
         :param infile: input file name or file handle
+        :param fps:    frame rate of the activations
+                       if set, it overwrites the saved frame rate
         :param sep:    separator between activation values
         :return:       Activations instance
 
@@ -63,15 +67,15 @@ class Activations(np.ndarray):
               inspection or I/O with other programs.
 
         """
-        # init fps
-        fps = None
         # load the activations
         if sep in [None, '']:
             # numpy binary format
             data = np.load(infile)
             if isinstance(data, np.lib.npyio.NpzFile):
-                # .npz file, set the frame rate and overwrite the activations
-                fps = data['fps']
+                # .npz file, set the frame rate if none is given
+                if fps is None:
+                    fps = float(data['fps'])
+                # and overwrite the data
                 data = data['activations']
         else:
             # simple text format
