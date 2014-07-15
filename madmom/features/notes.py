@@ -327,7 +327,7 @@ class NoteTranscription(RNNEventDetection):
                 f.write(sep.join([str(x) for x in note]) + '\n')
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
+    def add_arguments(cls, parser, threshold=THRESHOLD,
                       smooth=SMOOTH, combine=COMBINE, delay=DELAY,
                       pre_avg=PRE_AVG, post_avg=POST_AVG,
                       pre_max=PRE_MAX, post_max=POST_MAX, **kwargs):
@@ -350,7 +350,7 @@ class NoteTranscription(RNNEventDetection):
         # add Activations parser
         Activations.add_arguments(parser)
         # add RNNEventDetection arguments
-        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        RNNEventDetection.add_arguments(parser)
         # add note transcription related options to the existing parser
         g = parser.add_argument_group('note transcription arguments')
         g.add_argument('-t', dest='threshold', action='store', type=float,

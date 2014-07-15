@@ -41,8 +41,6 @@ def parser():
                    version='PianoTranscriptor.2014')
     # parse arguments
     args = p.parse_args()
-    # set some defaults
-    args.num_threads = min(len(args.nn_files), max(1, args.num_threads))
     # print arguments
     if args.verbose:
         print args

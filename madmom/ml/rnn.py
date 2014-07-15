@@ -561,7 +561,7 @@ def _process(process_tuple):
     given numpy array of data through it (second tuple item).
 
     :param process_tuple: tuple (nn_file, data)
-    :returns: RNN output (predictions for the given data)
+    :returns:             RNN output (predictions for the given data)
 
     Note: this must be a top-level function to be pickle-able.
 
@@ -574,15 +574,15 @@ def process_rnn(data, nn_files, threads=mp.cpu_count()):
     The data is processed by the given NN files and the averaged prediction is
     returned.
 
-    :param data: data to be processed by the NNs
+    :param data:     data to be processed by the NNs
     :param nn_files: list with NN files
-    :param threads: number of parallel working threads
-    :returns: averaged prediction
+    :param threads:  number of parallel working threads
+    :returns:        averaged prediction
 
     """
     # init a pool of workers (if needed)
     map_ = map
-    if threads != 1:
+    if min(len(nn_files), max(1, threads)) != 1:
         map_ = mp.Pool(threads).map
 
     # compute predictions with all saved neural networks (in parallel)
