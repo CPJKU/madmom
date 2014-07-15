@@ -776,7 +776,7 @@ def test_nc_files(nc_files, nn_files, work_queue, return_queue):
     return activations
 
 
-class RnnConfig(object):
+class RnnlibConfigFile(object):
     """Rnnlib config file class."""
 
     def __init__(self, filename=None):
@@ -812,7 +812,6 @@ class RnnConfig(object):
         :param filename: name of the configuration file
 
         """
-        # TODO: use madmom.utils.open
         # open the config file
         f = open(filename, 'r')
         # read in every line
@@ -1093,7 +1092,7 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
     if out_dir is None:
         # test all NN files individually
         for nn_file in nn_files:
-            nn = RnnConfig(nn_file)
+            nn = RnnlibConfigFile(nn_file)
             nn.test(file_set=file_set, threads=threads)
     else:
         # average all activations and output them in the given directory
@@ -1188,7 +1187,7 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
     # create the config files
     assert folds >= 3, 'cannot create split with less than 3 folds.'
     for i in range(folds):
-        config = RnnConfig()
+        config = RnnlibConfigFile()
         test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
         val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
         train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
