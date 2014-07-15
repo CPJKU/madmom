@@ -832,16 +832,22 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
                    combine=combine, delay=delay, online=online)
 
     @classmethod
-    def add_arguments(cls, parser, threshold=THRESHOLD,
-                      combine=COMBINE, smooth=SMOOTH):
+    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
+                      smooth=SMOOTH, combine=COMBINE):
         """
         Add RNNOnsetDetection options to an existing parser object.
         This method just sets standard values. For a detailed parameter
         description, see the parent classes.
 
+        :param parser:    existing argparse parser object
+        :param nn_files:  list with files of NN models
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one onset within N seconds
+
         """
         # add RNNEventDetection arguments
-        RNNEventDetection.add_arguments(parser)
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
         # infer the group from OnsetDetection
         OnsetDetection.add_arguments(parser, threshold=threshold,
                                      combine=combine, smooth=smooth,

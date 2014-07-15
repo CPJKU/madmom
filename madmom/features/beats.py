@@ -237,13 +237,14 @@ class RNNBeatTracking(RNNEventDetection):
         return self._detections
 
     @classmethod
-    def add_arguments(cls, parser, smooth=SMOOTH, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
+    def add_arguments(cls, parser, nn_files=NN_FILES, smooth=SMOOTH,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
                       look_ahead=LOOK_AHEAD):
         """
         Add BeatDetector related arguments to an existing parser object.
 
         :param parser:     existing argparse parser object
+        :param nn_files:   list with files of NN models
         :param smooth:     smooth the beat activations over N seconds
         :param min_bpm:    minimum tempo used for beat tracking
         :param max_bpm:    maximum tempo used for beat tracking
@@ -257,7 +258,7 @@ class RNNBeatTracking(RNNEventDetection):
         # add Activations parser
         Activations.add_arguments(parser)
         # add arguments from RNNEventDetection
-        RNNEventDetection.add_arguments(parser)
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
         g.add_argument('--smooth', action='store', type=float, default=smooth,

@@ -374,11 +374,12 @@ class RNNEventDetection(EventDetection):
 
     # TODO: move this to the ml.rnn module?
     @classmethod
-    def add_arguments(cls, parser, num_threads=NUM_THREADS):
+    def add_arguments(cls, parser, nn_files, num_threads=NUM_THREADS):
         """
         Add neural network testing options to an existing parser object.
 
         :param parser:      existing argparse parser object
+        :param nn_files:    list with files of NN models
         :param num_threads: number of threads to run in parallel
         :return:            neural network argument parser group object
 
@@ -386,6 +387,7 @@ class RNNEventDetection(EventDetection):
         # add neural network related options to the existing parser
         g = parser.add_argument_group('neural network arguments')
         g.add_argument('--nn_files', action='append', type=str,
+                       default=nn_files,
                        help='average the predictions of these pre-trained '
                             'neural networks (multiple files can be given, '
                             'one file per argument)')

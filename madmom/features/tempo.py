@@ -285,6 +285,7 @@ class TempoEstimation(RNNBeatTracking):
         Add tempo estimation related arguments to an existing parser object.
 
         :param parser:      existing argparse parser object
+        :param nn_files:    list with files of NN models
         :param method:      either 'acf' or 'comb'.
         :param min_bpm:     minimum tempo [bpm]
         :param max_bpm:     maximum tempo [bpm]
@@ -317,9 +318,10 @@ class TempoEstimation(RNNBeatTracking):
                        default=hist_smooth,
                        help='smooth the tempo histogram over N bins '
                             '[default=%(default)d]')
-        g.add_argument('--dev', action='store', type=float, default=dev,
+        g.add_argument('--dev', dest='grouping_dev', action='store',
+                       type=float, default=dev,
                        help='maximum allowed tempo deviation when grouping '
-                       ' tempi [default=%(default).2f]')
+                            'tempi [default=%(default).2f]')
         g.add_argument('--alpha', action='store', type=float, default=alpha,
                        help='alpha for comb filter tempo estimation '
                        '[default=%(default).2f]')
