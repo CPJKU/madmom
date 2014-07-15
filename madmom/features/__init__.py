@@ -16,8 +16,6 @@ class Activations(np.ndarray):
     Activations class.
 
     """
-    SAVE = True
-
     def __new__(cls, data, fps=None, sep=None):
         """
         Instantiate a new Activations object.
@@ -302,10 +300,9 @@ class RNNEventDetection(EventDetection):
     Base class for anything that use RNNs to detects events in an audio signal.
 
     """
-    NN_FILES = None
     NUM_THREADS = mp.cpu_count()
 
-    def __init__(self, signal, nn_files=NN_FILES, num_threads=NUM_THREADS,
+    def __init__(self, signal, nn_files, num_threads=NUM_THREADS,
                  **kwargs):
         """
         Sets up the object. Check the docs in the EventDetection class for
@@ -376,13 +373,12 @@ class RNNEventDetection(EventDetection):
         return self._activations
 
     # TODO: move this to the ml.rnn module?
-    @staticmethod
-    def add_arguments(parser, nn_files=None, num_threads=NUM_THREADS):
+    @classmethod
+    def add_arguments(cls, parser, num_threads=NUM_THREADS):
         """
         Add neural network testing options to an existing parser object.
 
         :param parser:      existing argparse parser object
-        :param nn_files:    list of NN files
         :param num_threads: number of threads to run in parallel
         :return:            neural network argument parser group object
 
@@ -390,9 +386,9 @@ class RNNEventDetection(EventDetection):
         # add neural network related options to the existing parser
         g = parser.add_argument_group('neural network arguments')
         g.add_argument('--nn_files', action='append', type=str,
-                       default=nn_files, help='average the predictions of '
-                       'these pre-trained neural networks (multiple files '
-                       'can be given, one file per argument)')
+                       help='average the predictions of these pre-trained '
+                            'neural networks (multiple files can be given, '
+                            'one file per argument)')
         g.add_argument('--threads', dest='num_threads', action='store',
                        type=int, default=num_threads,
                        help='number of parallel threads [default=%(default)s]')

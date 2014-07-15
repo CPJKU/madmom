@@ -460,8 +460,8 @@ class OnsetDetection(EventDetection):
         # also return the detections
         return detections
 
-    @staticmethod
-    def add_arguments(parser, threshold=THRESHOLD, smooth=SMOOTH,
+    @classmethod
+    def add_arguments(cls, parser, threshold=THRESHOLD, smooth=SMOOTH,
                       pre_avg=PRE_AVG, post_avg=POST_AVG, pre_max=PRE_MAX,
                       post_max=POST_MAX, combine=COMBINE, delay=DELAY):
         """
@@ -738,8 +738,8 @@ class SpectralOnsetDetection(OnsetDetection):
         self._activations = Activations(act, self._fps)
         return self._activations
 
-    @staticmethod
-    def add_arguments(parser, method='superflux', methods=None,
+    @classmethod
+    def add_arguments(cls, parser, method='superflux', methods=None,
                       max_bins=MAX_BINS):
         """
         Add spectral ODF related arguments to an existing parser object.
@@ -785,7 +785,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     POST_MAX = 0.01  # 1. / fps
     DELAY = 0
 
-    def __init__(self, data, nn_files, **kwargs):
+    def __init__(self, data, nn_files=NN_FILES, **kwargs):
         """
         Use RNNs to compute the activation function and pick the onsets.
 
@@ -832,7 +832,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
                    combine=combine, delay=delay, online=online)
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
+    def add_arguments(cls, parser, threshold=THRESHOLD,
                       combine=COMBINE, smooth=SMOOTH):
         """
         Add RNNOnsetDetection options to an existing parser object.
@@ -841,7 +841,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
         """
         # add RNNEventDetection arguments
-        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        RNNEventDetection.add_arguments(parser)
         # infer the group from OnsetDetection
         OnsetDetection.add_arguments(parser, threshold=threshold,
                                      combine=combine, smooth=smooth,
