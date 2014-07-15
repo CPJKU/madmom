@@ -54,8 +54,6 @@ def parser():
     # switch to offline mode
     if args.norm:
         args.online = False
-        args.post_avg = 0
-        args.post_max = 0
     # translate online/offline mode
     if args.online:
         args.origin = 'online'
@@ -100,7 +98,7 @@ def main():
         o.detect(args.threshold, combine=args.combine, delay=args.delay,
                  smooth=args.smooth, pre_avg=args.pre_avg,
                  post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max)
+                 post_max=args.post_max, online=args.online)
         # write the onsets to output
         o.write(args.output)
 
