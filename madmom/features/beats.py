@@ -285,3 +285,116 @@ class RNNBeatTracking(RNNEventDetection):
                                 'local tempo [default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g
+
+
+class CRFBeatDetection(RNNBeatTracking):
+    MIN_BPM = 20
+    MAX_BPM = 240
+    SMOOTH = 0.09
+    TEMPO_SIGMA = 0.18
+
+    try:
+        from crf_viterbi import viterbi
+    except ImportError:
+        import warnings
+        warnings.warn("CRFBeatDetection only works if you build the viterbi "
+                      "code with cython!")
+
+    def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
+        super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
+
+    def clone(self):
+        import copy
+        return copy.copy(self)
+
+    @staticmethod
+    def initial_distribution(n_states, init_interval):
+        init_dist = np.ones(n_states) / init_interval
+        init_dist[init_interval:] = 0
+        return init_dist
+
+    @staticmethod
+    def transition_distribution(dominant_interval, tempo_sigma):
+        import scipy.stats.norm.pdf as norm_pdf
+
+        move_range = np.arange(dominant_interval * 2)
+        # to avoid floating point hell due to np.log2(0)
+        move_range[0] = 0.1
+
+        trans_dist = norm_pdf(np.log2(move_range),
+                              loc=np.log2(dominant_interval),
+                              scale=tempo_sigma)
+        trans_dist /= trans_dist.sum()
+
+    @staticmethod
+    def normalisation_factors(activations, transition_distribution):
+        from scipy.ndimage.filters import correlate1d
+        return correlate1d(activations, transition, mode='constant', cval=0,
+                           origin=-int(transition.shape[0] / 2))
+
+    def best_sequence(self, smooth, min_interval, max_interval, tempo_sigma,
+                      dominant_interval=None):
+        # shortcut!
+        crb = CRFBeatDetection
+
+        if dominant_interval is None:
+            dominant_interval = detect_interval(self.activations,
+                                                act_smooth=smooth,
+                                                min_tau=min_interval,
+                                                max_tau=max_interval)
+
+        init = crb.initial_distribution(self.activations.shape[0],
+                                        dominant_interval)
+        trans = crb.transition_distribution(dominant_interval, tempo_sigma)
+        norm_fact = crb.normalisation_factors(self.activations, trans)
+
+
+        beat_frames, p = crb.viterbi(init, trans, norm_fact, self.activations,
+                                     dominant_interval)
+
+        return beat_frames.astype(np.float) / self.fps, p
+
+    def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+               tempo_sigma=TEMPO_SIGMA):
+
+        min_interval = int(np.floor(60. * self.fps / max_bpm))
+        max_interval = int(np.ceil(60. * self.fps / min_bpm))
+
+        seq, _ = self.best_sequence(smooth, min_interval, max_interval,
+                                    tempo_sigma)
+
+        return seq
+
+
+class MetaCRFBeatDetection(CRFBeatDetection):
+
+    FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
+
+    spr = CRFBeatDetection
+
+    def __init__(self, data, nn_files=spr.NN_FILES, **kwargs):
+        super(MetaCRFBeatDetection, self).__init__(data, nn_files, **kwargs)
+
+    def detect(self, factors, smooth=spr.SMOOTH, min_bpm=spr.MIN_BPM,
+               max_bpm=spr.MAX_BPM, tempo_sigma=spr.TEMPO_SIGMA):
+
+        min_interval = int(np.floor(60. * self.fps / max_bpm))
+        max_interval = int(np.ceil(60. * self.fps / min_bpm))
+
+        dominant_interval = detect_interval(self.activations,
+                                            act_smooth=smooth,
+                                            min_tau=min_interval,
+                                            max_tau=max_interval)
+
+        possible_intervals = (int(d_int * f) for f in factors)
+        checked_intervals = (f for f in possible_factors
+                             if f <= max_tau and f >= min_tau)
+
+        results = [self.best_sequence(smooth, min_interval, max_interval,
+                                      tempo_sigma, interval)
+                   for interval in checked_intervals]
+
+        normalised_probabilities = np.array([r[1] / r[0].shape[0]
+                                             for r in results])
+        best_seq_idx = normalised_probabilities.argmax()
+        return results[best_seq_idx][0]

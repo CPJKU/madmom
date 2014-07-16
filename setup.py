@@ -18,6 +18,9 @@ extensions = [Extension('madmom.ml.rnn',
                         include_dirs=[np.get_include()]),
               Extension('madmom.audio.comb_filters',
                         ['madmom/audio/comb_filters.pyx'],
+                        include_dirs=[np.get_include()]),
+              Extension('madmom.features.crf_viterbi',
+                        ['madmom/features/crf_viterbi.pyx'],
                         include_dirs=[np.get_include()])]
 
 setup(name='madmom',
