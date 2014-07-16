@@ -220,3 +220,22 @@ def quantise_events(events, fps, length=None, shift=None):
         quantized[idx] = 1
     # return the quantized array
     return quantized
+
+
+def io_arguments(parser):
+    """
+    Add input / output related arguments to an existing parser object.
+
+    :param parser: existing argparse parser object
+
+    """
+    import sys
+    import argparse
+    # general options
+    parser.add_argument('input', type=argparse.FileType('r'),
+                        help='input file (.wav or saved activation function)')
+    parser.add_argument('output', nargs='?', type=argparse.FileType('w'),
+                        default=sys.stdout,
+                        help='output file [default: STDOUT]')
+    parser.add_argument('-v', dest='verbose', action='count',
+                        help='increase verbosity level')

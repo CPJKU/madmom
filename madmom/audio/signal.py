@@ -193,7 +193,7 @@ class Signal(object):
         if norm:
             # normalize signal
             self._data = normalize(self._data)
-        if att != 0:
+        if att is not None and att != 0:
             # attenuate signal
             self._data = attenuate(self._data, att)
 
@@ -253,6 +253,28 @@ class Signal(object):
         return "Signal: %d samples (%.2f sec); %d channel(s); %d Hz sample " \
                "rate" % (self.num_samples, self.length, self.num_channels,
                          self.sample_rate)
+
+    @staticmethod
+    def add_arguments(parser, norm=NORM, att=ATT):
+        """
+        Add audio signal related arguments to an existing parser object.
+
+        :param parser: existing argparse parser object
+        :param norm:   normalize the signal
+        :param att:    attenuate the signal [dB]
+        :return:       audio signal argument parser group object
+
+        """
+        # add wav options to the existing parser
+        g = parser.add_argument_group('audio signal arguments')
+        if norm is not None:
+            g.add_argument('--norm', action='store_true', default=norm,
+                           help='normalize the audio signal')
+        if att is not None:
+            g.add_argument('--att', action='store', type=float, default=att,
+                           help='attenuate the audio signal [dB]')
+        # return the argument group so it can be modified if needed
+        return g
 
 
 # function for splitting a signal into frames
@@ -663,3 +685,31 @@ class FramedSignal(object):
         return "FramedSignal: %d frame(s); %d frame size; %.1f hop size\n %s"\
                % (self.num_frames, self.frame_size, self.hop_size,
                   str(self.signal))
+
+    @staticmethod
+    def add_arguments(parser, online=None, fps=FPS, frame_size=FRAME_SIZE):
+        """
+        Add audio frames related arguments to an existing parser object.
+
+        :param parser:     existing argparse parser object
+        :param online:     online mode
+        :param fps:        frames per second
+        :param frame_size: size of one frame in samples
+        :return:           audio frames argument parser group object
+
+        """
+        # add wav options to the existing parser
+        g = parser.add_argument_group('audio frame arguments')
+        if online is not None:
+            g.add_argument('--online', dest='online', action='store_true',
+                           default=online,
+                           help='operate in online mode [default=%(default)s]')
+        if fps is not None:
+            g.add_argument('--fps', action='store', type=int, default=fps,
+                           help='frames per second [default=%(default)i]')
+        if frame_size is not None:
+            g.add_argument('--frame_size', action='store', type=int,
+                           default=frame_size,
+                           help='frame size [samples, default=%(default)i]')
+        # return the argument group so it can be modified if needed
+        return g

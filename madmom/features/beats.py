@@ -6,13 +6,12 @@ This file contains all beat tracking related functionality.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
-
+import os
+import glob
 import sys
 import numpy as np
 
-from . import Event
-from .tempo import (smooth_signal, interval_histogram_acf, dominant_interval,
-                    MIN_BPM, MAX_BPM)
+from . import Activations, RNNEventDetection
 
 
 # wrapper function for detecting the dominant interval
@@ -29,6 +28,10 @@ def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
     :returns:           dominant interval
 
     """
+    import warnings
+    warnings.warn('This function will be removed soon! Please update your '
+                  'code to work without this function.')
+    from .tempo import smooth_signal, interval_histogram_acf, dominant_interval
     # smooth activations
     if act_smooth > 1:
         activations = smooth_signal(activations, act_smooth)
@@ -112,75 +115,45 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions, dtype=np.float)
 
 
-# default values for beat tracking
-SMOOTH = 0.09
-LOOK_ASIDE = 0.2
-LOOK_AHEAD = 4
-DELAY = 0
+class RNNBeatTracking(RNNEventDetection):
+    # set the path to saved neural networks and generate lists of NN files
+    # TODO: where should the NN_FILES get defined?
+    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
+    # default values for beat detection
+    SMOOTH = 0.09
+    LOOK_ASIDE = 0.2
+    LOOK_AHEAD = 4
+    MIN_BPM = 40
+    MAX_BPM = 240
 
-
-class Beat(Event):
-    """
-    Beat Class.
-
-    """
-    def __init__(self, activations, fps, online=False, sep=''):
+    def __init__(self, data, nn_files=NN_FILES, **kwargs):
         """
-        Creates a new Beat instance with the given activations.
-        The activations can be read in from file.
+        Use RNNs to compute the beat activation function and then align the
+        beats according to the previously determined global tempo.
 
-        :param activations: array with the beat activations or a file (handle)
-        :param fps:         frame rate of the activations
-        :param online:      work in online mode (i.e. use only past
-                            information)
-        :param sep:         separator if activations are read from file
+        :param data:      Signal, activations or file. See EventDetection class
+        :param nn_files:  list of files that define the RNN
 
         """
-        if online:
-            raise NotImplementedError('online mode not implemented (yet)')
-        # inherit most stuff from the base class
-        super(Beat, self).__init__(activations, fps, sep)
+        super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
+
+    def pre_process(self):
+        """
+        Pre-process the signal to obtain a data representation suitable for RNN
+        processing.
+
+        :return:            pre-processed data
+
+        """
+        spr = super(RNNBeatTracking, self)
+        spr.pre_process(frame_sizes=[1024, 2048, 4096], bands_per_octave=3,
+                        mul=1, ratio=0.25)
+        # return data
+        return self._data
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-               look_aside=LOOK_ASIDE):
-        """
-        Detect the beats with a simple auto-correlation method.
-
-        :param smooth: smooth the activation function over N seconds
-        :param min_bpm:    minimum tempo used for beat tracking
-        :param max_bpm:    maximum tempo used for beat tracking
-        :param look_aside: look this fraction of a beat interval to the side
-
-        First the global tempo is estimated and then the beats are aligned
-        according to:
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx-11), Paris, France, September 2011
-
-        """
-        # convert timing information to frames and set default values
-        # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.fps * smooth))
-        min_tau = int(np.floor(60. * self.fps / max_bpm))
-        max_tau = int(np.ceil(60. * self.fps / min_bpm))
-        # detect the dominant interval
-        interval = detect_dominant_interval(self.activations,
-                                            act_smooth=smooth,
-                                            hist_smooth=None,
-                                            min_tau=min_tau, max_tau=max_tau)
-        # detect beats based on this interval
-        detections = detect_beats(self.activations, interval, look_aside)
-        # convert detected beats to a list of timestamps
-        detections = detections.astype(np.float) / self.fps
-        # remove beats with negative times
-        self.detections = detections[np.searchsorted(detections, 0):]
-        # also return the detections
-        return self.detections
-
-    def track(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-              look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
+               look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
         """
         Track the beats with a simple auto-correlation method.
 
@@ -190,10 +163,14 @@ class Beat(Event):
         :param look_aside: look this fraction of a beat interval to the side
         :param look_ahead: look N seconds ahead (and back) to determine the
                            tempo
+        :return:           detected beat positions
 
-        First local tempo (in a range +- look_ahead seconds around the actual
-        position) is estimated and then the next beat is tracked accordingly.
-        Then the same procedure is repeated from this new position.
+        Note: If `look_ahead` is undefined, a constant tempo throughout the
+              whole piece is assumed.
+              If `look_ahead` is set, the local tempo (in a range +/-
+              look_ahead seconds around the actual position) is estimated and
+              then the next beat is tracked accordingly. This procedure is
+              repeated from the new position to the end of the piece.
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         Sebastian Böck and Markus Schedl
@@ -203,45 +180,108 @@ class Beat(Event):
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.fps * smooth))
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
-        look_ahead_frames = int(look_ahead * self.fps)
 
-        # detect the beats
-        detections = []
-        pos = 0
-        # TODO: make this _much_ faster!
-        while pos < len(self.activations):
-            # look N frames around the actual position
-            start = pos - look_ahead_frames
-            end = pos + look_ahead_frames
-            if start < 0:
-                # pad with zeros
-                act = np.append(np.zeros(-start), self.activations[0:end])
-            elif end > len(self.activations):
-                # append zeros accordingly
-                zeros = np.zeros(end - len(self.activations))
-                act = np.append(self.activations[start:], zeros)
-            else:
-                act = self.activations[start:end]
-            # detect the dominant interval
-            interval = detect_dominant_interval(act, act_smooth=smooth,
+        # if look_ahead is not defined, assume a global tempo
+        if look_ahead is None:
+            # detect the dominant interval (i.e. global tempo)
+            interval = detect_dominant_interval(self.activations,
+                                                act_smooth=smooth,
                                                 hist_smooth=None,
                                                 min_tau=min_tau,
                                                 max_tau=max_tau)
-            # add the offset (i.e. the new detected start position)
-            positions = np.array(detect_beats(act, interval, look_aside))
-            # correct the beat positions
-            positions += start
-            # search the closest beat to the predicted beat position
-            pos = positions[(np.abs(positions - pos)).argmin()]
-            # append to the beats
-            detections.append(pos)
-            pos += interval
+            # detect beats based on this interval
+            detections = detect_beats(self.activations, interval, look_aside)
+
+        else:
+            # allow varying tempo
+            look_ahead_frames = int(look_ahead * self.fps)
+            # detect the beats
+            detections = []
+            pos = 0
+            # TODO: make this _much_ faster!
+            while pos < len(self.activations):
+                # look N frames around the actual position
+                start = pos - look_ahead_frames
+                end = pos + look_ahead_frames
+                if start < 0:
+                    # pad with zeros
+                    act = np.append(np.zeros(-start), self.activations[0:end])
+                elif end > len(self.activations):
+                    # append zeros accordingly
+                    zeros = np.zeros(end - len(self.activations))
+                    act = np.append(self.activations[start:], zeros)
+                else:
+                    act = self.activations[start:end]
+                # detect the dominant interval
+                interval = detect_dominant_interval(act, act_smooth=smooth,
+                                                    hist_smooth=None,
+                                                    min_tau=min_tau,
+                                                    max_tau=max_tau)
+                # add the offset (i.e. the new detected start position)
+                positions = np.array(detect_beats(act, interval, look_aside))
+                # correct the beat positions
+                positions += start
+                # search the closest beat to the predicted beat position
+                pos = positions[(np.abs(positions - pos)).argmin()]
+                # append to the beats
+                detections.append(pos)
+                pos += interval
+
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
-        # remove beats with negative times
-        self.detections = detections[np.searchsorted(detections, 0):]
+        # remove beats with negative times and save them to detections
+        self._detections = detections[np.searchsorted(detections, 0):]
         # also return the detections
-        return self.detections
+        return self._detections
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES, smooth=SMOOTH,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
+                      look_ahead=LOOK_AHEAD):
+        """
+        Add BeatDetector related arguments to an existing parser object.
+
+        :param parser:     existing argparse parser object
+        :param nn_files:   list with files of NN models
+        :param smooth:     smooth the beat activations over N seconds
+        :param min_bpm:    minimum tempo used for beat tracking
+        :param max_bpm:    maximum tempo used for beat tracking
+        :param look_aside: fraction of beat interval to look aside for the
+                           strongest beat
+        :param look_ahead: seconds to look ahead in order to estimate the local
+                           tempo and align the next beat
+        :return:           beat argument parser group object
+
+        """
+        # add Activations parser
+        Activations.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        # add beat detection related options to the existing parser
+        g = parser.add_argument_group('beat detection arguments')
+        g.add_argument('--smooth', action='store', type=float, default=smooth,
+                       help='smooth the beat activations over N seconds '
+                       '[default=%(default).2f]')
+        # TODO: refactor this stuff to use the TempoEstimation functionality
+        g.add_argument('--min_bpm', action='store', type=float,
+                       default=min_bpm, help='minimum tempo [bpm, '
+                       ' default=%(default).2f]')
+        g.add_argument('--max_bpm', action='store', type=float,
+                       default=max_bpm, help='maximum tempo [bpm, '
+                       ' default=%(default).2f]')
+        # make switchable (useful for including the beat stuff for tempo
+        if look_aside is not None:
+            g.add_argument('--look_aside', action='store', type=float,
+                           default=look_aside,
+                           help='look this fraction of the beat interval '
+                                'around the beat to get the strongest one '
+                                '[default=%(default).2f]')
+        if look_ahead is not None:
+            g.add_argument('--look_ahead', action='store', type=float,
+                           default=look_ahead,
+                           help='look this many seconds ahead to estimate the '
+                                'local tempo [default=%(default).2f]')
+        # return the argument group so it can be modified if needed
+        return g

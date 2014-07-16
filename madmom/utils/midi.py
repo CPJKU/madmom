@@ -1334,3 +1334,28 @@ class MIDIFile(object):
         track.make_ticks_rel()
         # return the track
         return track
+
+    @staticmethod
+    def add_arguments(parser, length=None, velocity=None):
+        """
+        Add MIDI related arguments to an existing parser object.
+
+        :param parser:   existing argparse parser object
+        :param length:   default length of the notes
+        :param velocity: default velocity of the notes
+        :return:         MIDI argument parser group object
+
+        """
+        # add MIDI related options to the existing parser
+        g = parser.add_argument_group('MIDI arguments')
+        g.add_argument('--midi', action='store_true', help='save as MIDI')
+        if length is not None:
+            g.add_argument('--note_length', action='store', type=float,
+                           default=length,
+                           help='set the note length [default=%(default).2f]')
+        if velocity is not None:
+            g.add_argument('--note_velocity', action='store', type=int,
+                           default=velocity,
+                           help='set the note velocity [default=%(default)i]')
+        # return the argument group so it can be modified if needed
+        return g

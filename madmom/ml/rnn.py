@@ -18,6 +18,8 @@ other stuff.
 
 """
 
+import multiprocessing as mp
+import itertools as it
 import numpy as np
 import re
 
@@ -557,3 +559,43 @@ class RecurrentNeuralNetwork(object):
 
 # alias
 RNN = RecurrentNeuralNetwork
+
+
+def _process(process_tuple):
+    """
+    Loads a RNN model from the given file (first tuple item) and passes the
+    given numpy array of data through it (second tuple item).
+
+    :param process_tuple: tuple (nn_file, data)
+    :returns:             RNN output (predictions for the given data)
+
+    Note: this must be a top-level function to be pickle-able.
+
+    """
+    return RecurrentNeuralNetwork(process_tuple[0]).activate(process_tuple[1])
+
+
+def process_rnn(data, nn_files, threads=mp.cpu_count()):
+    """
+    The data is processed by the given NN files and the averaged prediction is
+    returned.
+
+    :param data:     data to be processed by the NNs
+    :param nn_files: list with NN files
+    :param threads:  number of parallel working threads
+    :returns:        averaged prediction
+
+    """
+    # init a pool of workers (if needed)
+    map_ = map
+    if min(len(nn_files), max(1, threads)) != 1:
+        map_ = mp.Pool(threads).map
+
+    # compute predictions with all saved neural networks (in parallel)
+    activations = map_(_process, it.izip(nn_files, it.repeat(data)))
+
+    # average activations if needed
+    if len(nn_files) > 1:
+        return sum(activations) / len(nn_files)
+    else:
+        return activations[0]
