@@ -344,7 +344,7 @@ class CRFBeatDetection(RNNBeatTracking):
 
         move_range = np.arange(dominant_interval * 2, dtype=np.float)
         # to avoid floating point hell due to np.log2(0)
-        move_range[0] = 0.1
+        move_range[0] = 0.000001
 
         trans_dist = norm.pdf(np.log2(move_range),
                               loc=np.log2(dominant_interval),
