@@ -330,27 +330,25 @@ class CRFBeatDetection(RNNBeatTracking):
                            mode='constant', cval=0,
                            origin=-int(transition_distribution.shape[0] / 2))
 
-    def best_sequence(self, smooth, min_interval, max_interval, tempo_sigma,
-                      dominant_interval=None):
+    @staticmethod
+    def best_sequence(activations, smooth, min_interval, max_interval,
+                      tempo_sigma, dominant_interval=None):
         # shortcut!
         crb = CRFBeatDetection
 
         if dominant_interval is None:
-            dominant_interval = detect_dominant_interval(self.activations,
+            dominant_interval = detect_dominant_interval(activations,
                                                          act_smooth=smooth,
                                                          min_tau=min_interval,
                                                          max_tau=max_interval)
 
-        init = crb.initial_distribution(self.activations.shape[0],
+        init = crb.initial_distribution(activations.shape[0],
                                         dominant_interval)
         trans = crb.transition_distribution(dominant_interval, tempo_sigma)
-        norm_fact = crb.normalisation_factors(self.activations, trans)
+        norm_fact = crb.normalisation_factors(activations, trans)
 
-
-        beat_frames, p = crb.viterbi(init, trans, norm_fact, self.activations,
-                                     dominant_interval)
-
-        return beat_frames.astype(np.float) / self.fps, p
+        return crb.viterbi(init, trans, norm_fact, activations,
+                           dominant_interval)
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                tempo_sigma=TEMPO_SIGMA):
@@ -358,11 +356,11 @@ class CRFBeatDetection(RNNBeatTracking):
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
 
-        seq, _ = self.best_sequence(smooth, min_interval, max_interval,
-                                    tempo_sigma)
+        seq, _ = self.best_sequence(self.activations, smooth, min_interval,
+                                    max_interval, tempo_sigma)
 
-        self._detections = seq
-        return seq
+        self._detections = seq.astype(np.float) / self.fps
+        return self._detections
 
     @classmethod
     def add_arguments(self, parser, tempo_sigma=TEMPO_SIGMA, smooth=SMOOTH,
@@ -403,14 +401,16 @@ class MetaCRFBeatDetection(CRFBeatDetection):
         checked_intervals = (i for i in possible_intervals
                              if i <= max_interval and i >= min_interval)
 
-        results = [self.best_sequence(smooth, min_interval, max_interval,
-                                      tempo_sigma, interval)
+        results = [CRFBeatDetection.best_sequence(self.activations, smooth,
+                                                  min_interval, max_interval,
+                                                  tempo_sigma, interval)
                    for interval in checked_intervals]
 
-        normalised_probabilities = np.array([r[1] / r[0].shape[0]
-                                             for r in results])
-        best_seq_idx = normalised_probabilities.argmax()
-        self._detections = results[best_seq_idx][0]
+        normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
+                                                 for r in results])
+        best_seq_idx = normalised_seq_probabilities.argmax()
+        best_seq = results[best_seq_idx][0]
+        self._detections = best_seq.astype(np.float) / self.fps
         return self._detections
 
     @classmethod
