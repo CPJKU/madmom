@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
+"""
+Copyright (c) Filip Korzeniowski <filip.korzeniowski@jku.at>
+
+Redistribution in any form is not permitted!
+
+"""
 
 from madmom.audio.signal import Signal
 from madmom.features.beats import CRFBeatDetection

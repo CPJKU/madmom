@@ -330,16 +330,16 @@ class CRFBeatDetection(RNNBeatTracking):
         super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
 
     @staticmethod
-    def initial_distribution(n_states, dominant_interval):
+    def initial_distribution(num_states, dominant_interval):
         """
         Compute the initial distribution.
 
-        :param n_states:          number of states in the model
+        :param num_states:        number of states in the model
         :param dominant_interval: dominant interval of the piece [frames]
         :return:                  initial distribution of the model
 
         """
-        init_dist = np.ones(n_states, dtype=np.float32) / dominant_interval
+        init_dist = np.ones(num_states, dtype=np.float32) / dominant_interval
         init_dist[dominant_interval:] = 0
         return init_dist
 
@@ -381,8 +381,8 @@ class CRFBeatDetection(RNNBeatTracking):
                            mode='constant', cval=0,
                            origin=-int(transition_distribution.shape[0] / 2))
 
-    @staticmethod
-    def best_sequence(activations, smooth, dominant_interval, interval_sigma):
+    @classmethod
+    def best_sequence(cls, activations, dominant_interval, interval_sigma):
         """
         Extract the best beat sequence for a piece.
 
@@ -393,15 +393,12 @@ class CRFBeatDetection(RNNBeatTracking):
         :return:                  tuple with extracted beat positions [frames]
                                   and log probability of beat sequence
         """
-        # shortcut!
-        crb = CRFBeatDetection
-
-        init = crb.initial_distribution(activations.shape[0],
+        init = cls.initial_distribution(activations.shape[0],
                                         dominant_interval)
-        trans = crb.transition_distribution(dominant_interval, interval_sigma)
-        norm_fact = crb.normalisation_factors(activations, trans)
+        trans = cls.transition_distribution(dominant_interval, interval_sigma)
+        norm_fact = cls.normalisation_factors(activations, trans)
 
-        return crb.viterbi(init, trans, norm_fact, activations,
+        return cls.viterbi(init, trans, norm_fact, activations,
                            dominant_interval)
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
@@ -436,8 +433,8 @@ class CRFBeatDetection(RNNBeatTracking):
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
         # get the best beat sequences for all intervals
-        results = [CRFBeatDetection.best_sequence(self.activations, smooth,
-                                                  interval, interval_sigma)
+        results = [CRFBeatDetection.best_sequence(self.activations, interval,
+                                                  interval_sigma)
                    for interval in possible_intervals]
         # normalise their probabilities
         normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
@@ -493,10 +490,8 @@ class MMBeatTracking(RNNBeatTracking):
 
     """
     # set the path to saved neural networks and generate lists of NN files
-    # TODO: where should the NN_FILES get defined?
-    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
-    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
-    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % NN_PATH)
+    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
+                             RNNBeatTracking.NN_PATH)
     # default values for beat detection
     NUM_BEAT_CELLS = 640
     NUM_TEMPO_STATES = 23
@@ -506,8 +501,8 @@ class MMBeatTracking(RNNBeatTracking):
     MIN_BPM = 56
     MAX_BPM = 215
 
-    def __init__(self, data, nn_files=NN_FILES, nn_ref_files=NN_REF_FILES,
-                 **kwargs):
+    def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
+                 nn_ref_files=NN_REF_FILES, **kwargs):
         """
         Use RNNs to compute the beat activation function and then align the
         beats according to the previously determined global tempo.
@@ -600,7 +595,7 @@ class MMBeatTracking(RNNBeatTracking):
         return self._detections
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES,
+    def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
                       nn_ref_files=NN_REF_FILES,
                       num_beat_cells=NUM_BEAT_CELLS,
                       num_tempo_states=NUM_TEMPO_STATES,

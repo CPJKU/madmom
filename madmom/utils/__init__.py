@@ -245,7 +245,7 @@ class OverrideDefaultListAction(argparse.Action):
     """
     OverrideDefaultListAction
 
-    An argparser action that works similarly to the regular 'append' action.
+    An argparse action that works similarly to the regular 'append' action.
     The default value is deleted when a new value is specified. The 'append'
     action would append the new value to the default.
 
