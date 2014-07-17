@@ -327,6 +327,7 @@ class CRFBeatDetection(RNNBeatTracking):
         init_dist[dominant_interval:] = 0
         return init_dist
 
+
     @staticmethod
     def transition_distribution(dominant_interval, interval_sigma):
         """Compute the transition distribution between beats
@@ -334,6 +335,7 @@ class CRFBeatDetection(RNNBeatTracking):
         :param dominant_interval: dominant interval of the piece [frames]
         :param interval_sigma:    allowed deviation from the dominant interval
                                   per beat
+        :return: transition distribution between beats
         """
         from scipy.stats import norm
 
@@ -349,10 +351,11 @@ class CRFBeatDetection(RNNBeatTracking):
 
     @staticmethod
     def normalisation_factors(activations, transition_distribution):
-        """Compute normalisation factor for model
+        """Compute normalisation factors for model
 
         :param activations:             activations of the piece
         :param transition_distribution: transition distribution of the model
+        :return: normalisation factors for model
         """
         from scipy.ndimage.filters import correlate1d
         return correlate1d(activations, transition_distribution,
@@ -369,6 +372,8 @@ class CRFBeatDetection(RNNBeatTracking):
                                   none, the dominant interval will be estimated
         :param interval_sigma:    allowed deviation from the dominant interval
                                   per beat
+        :return: tuple of extracted beat positions [frames] and log probability
+                 of beat sequence
         """
         # shortcut!
         crb = CRFBeatDetection
@@ -394,6 +399,7 @@ class CRFBeatDetection(RNNBeatTracking):
         :param interval_sigma: allowed deviation from the dominant interval per
                                beat
         :param factors:        factors of the dominant interval to try
+        :return:               detected beat positions
         """
 
         min_interval = int(np.floor(60. * self.fps / max_bpm))
@@ -434,8 +440,8 @@ class CRFBeatDetection(RNNBeatTracking):
         :param smooth:         smooth the beat activations over N seconds
         :param min_bpm:        minimum tempo used for beat tracking
         :param max_bpm:        maximum tempo used for beat tracking
-
-        :return:
+        :param factors:        factors of the dominant interval to try
+        :return:               beat argument parser group object
         """
 
         g = RNNBeatTracking.add_arguments(parser, nn_files=nn_files,
