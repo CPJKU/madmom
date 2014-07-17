@@ -370,12 +370,10 @@ class CRFBeatDetection(RNNBeatTracking):
     @staticmethod
     def best_sequence(activations, smooth, dominant_interval, interval_sigma):
         """
-        Extract the best beat sequence from given activations.
+        Extract the best beat sequence for a piece.
 
         :param activations:       activations
-        :param smooth:            smooth the activation function over N seconds
-        :param dominant_interval: dominant interval of the piece, if `None`,
-                                  the dominant interval will be estimated
+        :param dominant_interval: dominant interval of the piece.
         :param interval_sigma:    allowed deviation from the dominant interval
                                   per beat
         :return:                  tuple with extracted beat positions [frames]
