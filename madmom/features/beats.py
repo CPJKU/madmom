@@ -380,7 +380,7 @@ class MetaCRFBeatDetection(CRFBeatDetection):
 
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
-    # helper alias
+    # shortcut alias
     spr = CRFBeatDetection
 
     def __init__(self, data, nn_files=spr.NN_FILES, **kwargs):

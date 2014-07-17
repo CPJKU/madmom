@@ -16,11 +16,10 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     cdef int num_st = activations.shape[0]
     cdef int num_x = num_st / tau
 
-    cdef list vs = []
     cdef list bps = []
     cdef np.ndarray[np.float32_t, ndim=1] v_c = np.zeros(num_st, dtype=np.float32)
+    cdef np.ndarray[np.float32_t, ndim=1] v_p = np.zeros(num_st, dtype=np.float32)
     cdef np.ndarray[np.int_t, ndim=1] bp_c = np.ones_like(v_c, dtype=int)
-    cdef np.ndarray[np.float32_t, ndim=1] v_p
     cdef list path = []
 
     cdef int k, i, j
@@ -28,10 +27,8 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
 
     bp_c[:] = -1
 
-    v_c = pi * activations
-    v_c /= v_c.sum()
-    v_p = v_c.copy()
-    vs.append(v_p)
+    v_p = pi * activations
+    v_p /= v_p.sum()
 
     for k in range(num_x - 1):
         for i in range(num_st):
@@ -58,14 +55,13 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
 
         log_sum += log(sum_k)
 
-        v_p = v_c.copy()
-        vs.append(v_p)
+        v_p, v_c = v_c, v_p
         bps.append(bp_c.copy())
 
-    next_state = vs[num_x - 1].argmax()
+    next_state = v_p.argmax()
     path.append(next_state)
     for i in range(num_x - 2, -1, -1):
         next_state = bps[i][next_state]
         path.append(next_state)
 
-    return np.array(path[::-1]), log(vs[num_x - 1].max()) + log_sum
+    return np.array(path[::-1]), log(v_p.max()) + log_sum
