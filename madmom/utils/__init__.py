@@ -4,6 +4,7 @@ Utility package.
 
 """
 
+import argparse
 import os
 import glob
 import fnmatch
@@ -230,7 +231,6 @@ def io_arguments(parser):
 
     """
     import sys
-    import argparse
     # general options
     parser.add_argument('input', type=argparse.FileType('r'),
                         help='input file (.wav or saved activation function)')
@@ -239,3 +239,25 @@ def io_arguments(parser):
                         help='output file [default: STDOUT]')
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
+
+
+class DefaultListAction(argparse.Action):
+    """
+    DefaultListAction
+
+    An argparser action that works similarly to the regular 'append' action.
+    The default value is deleted when a new value is specified. The 'append'
+    action would append the new value to the default.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(DefaultListAction, self).__init__(*args, **kwargs)
+        self.set_to_default = True
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if self.set_to_default:
+            setattr(namespace, self.dest, [])
+            self.set_to_default = False
+
+        cur_values = getattr(namespace, self.dest)
+        cur_values.append(value)
