@@ -29,7 +29,7 @@ def parser():
     # rnn onset detection arguments
     CRFBeatDetection.add_arguments(p)
     # version
-    p.add_argument('--version', action='version', version='crf_beat_1.0')
+    p.add_argument('--version', action='version', version='CRFBeatDetector')
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -40,7 +40,7 @@ def parser():
 
 
 def main():
-    """CRF Beat 1.0"""
+    """CRFBeatDetector"""
 
     # parse arguments
     args = parser()
