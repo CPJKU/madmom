@@ -575,15 +575,16 @@ def _process(process_tuple):
     return RecurrentNeuralNetwork(process_tuple[0]).activate(process_tuple[1])
 
 
-def process_rnn(data, nn_files, threads=mp.cpu_count()):
+def process_rnn(data, nn_files, threads=mp.cpu_count(), average=True):
     """
-    The data is processed by the given NN files and the averaged prediction is
-    returned.
+    The data is processed by the given NN files and all predictions or the
+    averaged prediction is returned.
 
     :param data:     data to be processed by the NNs
     :param nn_files: list with NN files
     :param threads:  number of parallel working threads
-    :returns:        averaged prediction
+    :param average:  average predictions
+    :returns:        averaged prediction or a list with all predictions
 
     """
     # init a pool of workers (if needed)
@@ -592,10 +593,15 @@ def process_rnn(data, nn_files, threads=mp.cpu_count()):
         map_ = mp.Pool(threads).map
 
     # compute predictions with all saved neural networks (in parallel)
-    activations = map_(_process, it.izip(nn_files, it.repeat(data)))
+    predictions = map_(_process, it.izip(nn_files, it.repeat(data)))
 
-    # average activations if needed
-    if len(nn_files) > 1:
-        return sum(activations) / len(nn_files)
+    # average predictions if needed
+    if average and len(nn_files) > 1:
+        # average the predictions
+        return sum(predictions) / len(nn_files)
+    elif average:
+        # nothing to average since we only have one prediction
+        return predictions[0]
     else:
-        return activations[0]
+        # return all predictions as a list
+        return predictions

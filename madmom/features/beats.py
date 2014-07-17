@@ -56,7 +56,9 @@ def detect_beats(activations, interval, look_aside=0.2):
     Proceedings of the 14th International Conference on Digital Audio
     Effects (DAFx-11), Paris, France, September 2011
 
-    Note: A Hamming window of 2*look_aside*interval is applied for smoothing
+    Note: A Hamming window of 2*look_aside*interval is applied around the
+          position where the beat is expected to prefer beats closer to the
+          centre.
 
     """
     # TODO: make this faster!
@@ -74,7 +76,7 @@ def detect_beats(activations, interval, look_aside=0.2):
             Recursively detect the next beat.
 
             :param position: start at this position
-            :return:    the next beat position
+            :return:         the next beat position
 
             """
             # detect the nearest beat around the actual position
@@ -116,6 +118,10 @@ def detect_beats(activations, interval, look_aside=0.2):
 
 
 class RNNBeatTracking(RNNEventDetection):
+    """
+    Class for tracking beats with a recurrent neural network (RNN).
+
+    """
     # set the path to saved neural networks and generate lists of NN files
     # TODO: where should the NN_FILES get defined?
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
@@ -288,8 +294,10 @@ class RNNBeatTracking(RNNEventDetection):
 
 
 class CRFBeatDetection(RNNBeatTracking):
-    """Conditional Random Field Beat Detection."""
+    """
+    Conditional Random Field Beat Detection.
 
+    """
     MIN_BPM = 20
     MAX_BPM = 240
     SMOOTH = 0.09
@@ -474,4 +482,183 @@ class CRFBeatDetection(RNNBeatTracking):
                        help='factors of dominant interval to try. '
                             'multiple factors can be given, one factor per '
                             'argument. [default=%(default)s]')
+        return g
+
+
+class MMBeatTracking(RNNBeatTracking):
+    """
+    Class for tracking beats with a recurrent neural network (RNN) while
+    choosing the most appropriate model automatically and infer the beats with
+    a dynamic Bayesian network.
+
+    """
+    # set the path to saved neural networks and generate lists of NN files
+    # TODO: where should the NN_FILES get defined?
+    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
+    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % NN_PATH)
+    # default values for beat detection
+    NUM_BEAT_CELLS = 640
+    NUM_TEMPO_STATES = 23
+    TEMPO_CHANGE_PROBABILITY = 0.002
+    # TODO: this must be renamed to a more sane name!
+    BEAT_PROPORTION = 16
+    MIN_BPM = 56
+    MAX_BPM = 215
+
+    def __init__(self, data, nn_files=NN_FILES, nn_ref_files=NN_REF_FILES,
+                 **kwargs):
+        """
+        Use RNNs to compute the beat activation function and then align the
+        beats according to the previously determined global tempo.
+
+        :param data:        Signal, activations or file.
+        :param nn_files:    list of files that define the RNN
+        :param ref_nn_file: list of files that define the reference NN model
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+
+        """
+        super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
+        self.nn_ref_files = nn_ref_files
+
+    def process(self):
+        """
+        Computes the predictions on the data with the RNN models defined/given
+        and save the predictions of the most suitable model as activations.
+
+        :return: most suitable RNN activation (prediction)
+
+        """
+        from ..ml.rnn import process_rnn
+        # append the nn_files to the list of reference model(s)
+        nn_files = self.nn_ref_files + self.nn_files
+        # compute the predictions with RNNs, do not average them
+        predictions = process_rnn(self.data, nn_files, self.num_threads,
+                                  average=False)
+        # get the reference predictions
+        num_ref_files = len(self.nn_ref_files)
+        if num_ref_files > 1:
+            # if we have multiple reference networks, average their predictions
+            reference_prediction = (sum(predictions[:num_ref_files]) /
+                                    num_ref_files)
+        elif num_ref_files == 1:
+            # if only 1 reference network was given, use the first prediction
+            reference_prediction = predictions[0]
+        else:
+            # just average all predictions to simulate a reference network
+            reference_prediction = sum(predictions) / len(nn_files)
+        # init the error with the max. possible value (i.e. prediction length)
+        best_error = len(reference_prediction)
+        # compare the (remaining) predictions with the reference prediction
+        for prediction in predictions[num_ref_files:]:
+            # calculate the squared error w.r.t. the reference prediction
+            error = np.sum((prediction - reference_prediction) ** 2.)
+            # chose the best activation
+            if error < best_error:
+                best_prediction = prediction
+                best_error = error
+        # save the best prediction as activations
+        self._activations = Activations(best_prediction.ravel(), self.fps)
+        # and return them
+        return self._activations
+
+    def detect(self, num_beat_cells=NUM_BEAT_CELLS,
+               num_tempo_states=NUM_TEMPO_STATES,
+               tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+               beat_proportion=BEAT_PROPORTION, min_bpm=MIN_BPM,
+               max_bpm=MAX_BPM):
+        """
+        Track the beats with a dynamic Bayesian network.
+
+        :param num_beat_cells:           number of cells for one beat period
+        :param num_tempo_states:         number of tempo states
+        :param tempo_change_probability: probability of a tempo change from
+                                         one observation to the next one
+        :param beat_proportion:          proportion of beat to no-beat length
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+        :return:                         detected beat positions
+
+        """
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        min_tau = int(np.floor(60. * self.fps / max_bpm))
+        max_tau = int(np.ceil(60. * self.fps / min_bpm))
+
+        # TODO: add DBN stuff here!
+
+        # convert detected beats to a list of timestamps
+        detections = np.array(detections) / float(self.fps)
+        # remove beats with negative times and save them to detections
+        self._detections = detections[np.searchsorted(detections, 0):]
+        # also return the detections
+        return self._detections
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES,
+                      nn_ref_files=NN_REF_FILES,
+                      num_beat_cells=NUM_BEAT_CELLS,
+                      num_tempo_states=NUM_TEMPO_STATES,
+                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                      beat_proportion=BEAT_PROPORTION, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM):
+        """
+        Add BeatDetector related arguments to an existing parser object.
+
+        :param parser:                   existing argparse parser object
+        :param nn_files:                 list with files of NN models
+        :param nn_ref_files:             reference NN model
+        :param num_beat_cells:           number of cells for one beat period
+        :param num_tempo_states:         number of tempo states
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+        # TODO: this must be renamed to a more sane name!
+        :param beat_proportion:          proportion of beat to no-beat length
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+        :return:                         beat argument parser group object
+
+        """
+        # add Activations parser
+        Activations.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        g = RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        g.add_argument('--nn_ref_files', action='append', type=str,
+                       default=nn_ref_files,
+                       help='compare the predictions to these pre-trained '
+                            'neural networks (multiple files can be given, '
+                            'one file per argument) and choose the most '
+                            'suitable one accordingly (i.e. the one with the '
+                            'least deviation form these reference models).')
+        # add beat detection related options to the existing parser
+        g = parser.add_argument_group('beat detection arguments')
+        g.add_argument('--num_beat_cells', action='store', type=int,
+                       default=num_beat_cells,
+                       help='number of cells for one beat period '
+                            '[default=%(default)i]')
+        g.add_argument('--num_tempo_states', action='store', type=int,
+                       default=num_tempo_states,
+                       help='number of tempo states[default=%(default)i]')
+        g.add_argument('--tempo_change_probability', action='store',
+                       type=float, default=tempo_change_probability,
+                       help='probability of a tempo between two adjacent '
+                            'observations [default=%(default).4f]')
+        # TODO: this must be renamed to a more sane name!
+        g.add_argument('--beat_proportion', action='store', type=int,
+                       default=beat_proportion,
+                       help='proportion of beat to no-beat length '
+                            '[default=%(default)i]')
+        g.add_argument('--min_bpm', action='store', type=float,
+                       default=min_bpm, help='minimum tempo [bpm, '
+                       ' default=%(default).2f]')
+        g.add_argument('--max_bpm', action='store', type=float,
+                       default=max_bpm, help='maximum tempo [bpm, '
+                       ' default=%(default).2f]')
+        # TODO: add DBN related arguments here!
+        # return the argument group so it can be modified if needed
         return g

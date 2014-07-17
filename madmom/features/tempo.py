@@ -220,7 +220,7 @@ class TempoEstimation(RNNBeatTracking):
 
     def detect(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-               grouping_dev=GROUPING_DEV, alpha=ALPHA, **kwargs):
+               grouping_dev=GROUPING_DEV, alpha=ALPHA):
         """
         Estimates the tempo of the signal.
 
@@ -265,6 +265,7 @@ class TempoEstimation(RNNBeatTracking):
         Write the detections to a file.
 
         :param filename: output file name or file handle
+        :param mirex:    report the lower tempo first (as required by MIREX)
 
         """
         from ..utils import open
@@ -292,6 +293,7 @@ class TempoEstimation(RNNBeatTracking):
         :param act_smooth:  smooth the activations over N seconds
         :param hist_smooth: smooth the tempo histogram over N bins
         :param dev:         allowed deviation of tempi when grouping them
+        :param alpha:       scaling factor of the comb filter
         :return:            tempo argument parser group object
 
         """

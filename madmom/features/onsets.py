@@ -772,6 +772,10 @@ class SpectralOnsetDetection(OnsetDetection):
 
 
 class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
+    """
+    Class for detecting onsets with a recurrent neural network (RNN).
+
+    """
     # set the path to saved neural networks and generate lists of NN files
     NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
     NN_FILES = glob.glob("%s/onsets_brnn*npz" % NN_PATH)

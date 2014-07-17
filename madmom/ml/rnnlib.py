@@ -945,6 +945,7 @@ class RnnlibConfigFile(object):
         :param out_dir:  output directory for activations
         :param file_set: which set should be tested {train, val, test}
         :param threads:  number of working threads
+        :param verbose:  verbose output
         :returns:        the output directory
 
         Note: If given, out_dir must exist. If none is given, an output
@@ -1218,7 +1219,6 @@ def parser():
 
     """
     import argparse
-    from ..utils.params import audio, spec, filtering, log
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""

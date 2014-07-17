@@ -22,7 +22,15 @@ class Activations(np.ndarray):
 
         :param data: either a numpy array or filename or file handle
         :param fps:  frames per second
+        :param sep:  separator between activation values
         :return:     Activations instance
+
+        Note: If a filename or file handle is given, an undefined or empty (“”)
+              separator means that the file should be treated as a numpy binary
+              file.
+              Only binary files can store the frame rate of the activations.
+              Text files should not be used for anything else but manual
+              inspection or I/O with other programs.
 
         """
         # check the type of the given data
@@ -105,7 +113,6 @@ class Activations(np.ndarray):
             # simple text format
             np.savetxt(outfile, self, fmt='%.5f', delimiter=sep)
 
-
     @staticmethod
     def add_arguments(parser):
         """
@@ -123,8 +130,8 @@ class Activations(np.ndarray):
         g.add_argument('-l', dest='load', action='store_true', default=False,
                        help='load the activations from file')
         g.add_argument('--sep', action='store', default=None,
-                       help='separator for saving/loading the activation '
-                            'function [default: None, i.e. numpy binary format]')
+                       help='separator for saving/loading the activations '
+                            '[default: None, i.e. numpy binary format]')
         # return the argument group so it can be modified if needed
         return g
 
@@ -198,6 +205,7 @@ class EventDetection(object):
         Instantiate an EventDetection object from the given pre-processed data.
 
         :param data: data to be used for further processing
+        :param fps:  frame rate of the data
         :return:     EventDetection instance
 
         """
@@ -242,7 +250,11 @@ class EventDetection(object):
         :param activations: Activations instance or input file name or file
                             handle
         :param fps:         frames per second
+        :param sep:         separator between activation values
         :return:            EventDetection instance
+
+        Note: An undefined or empty (“”) separator means that the file should
+              be treated as a numpy binary file.
 
         """
         # instantiate an EventDetection object (without a signal attribute)
@@ -320,9 +332,6 @@ class RNNEventDetection(EventDetection):
         super(RNNEventDetection, self).__init__(signal, **kwargs)
         self.nn_files = nn_files
         self.num_threads = num_threads
-        self._data = None
-        # TODO: remove this hack
-        self._fps = 100
 
     def pre_process(self, frame_sizes, bands_per_octave, origin='offline',
                     mul=5, ratio=0.25):
@@ -338,12 +347,18 @@ class RNNEventDetection(EventDetection):
         :return:                 pre-processed data
 
         """
+
         from ..audio.spectrogram import LogFiltSpec
         data = []
+        # FIXME: remove this hack!
+        fps = 100
+        # set the frame rate
+        self._fps = fps
+        # pre-process the signal
         for frame_size in frame_sizes:
             # TODO: the signal processing parameters should be included in and
             #       extracted from the NN model files
-            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=100,
+            s = LogFiltSpec(self.signal, frame_size=frame_size, fps=fps,
                             origin=origin, bands_per_octave=bands_per_octave,
                             mul=mul, add=1, norm_filters=True, fmin=30,
                             fmax=17000, ratio=ratio)
@@ -354,25 +369,21 @@ class RNNEventDetection(EventDetection):
         self._data = np.hstack(data)
         return self._data
 
-    def process(self, fps=None):
+    def process(self):
         """
-        Computes the predictions on the data with the RNN models defined/given.
+        Computes the predictions on the data with the RNN models defined/given
+        and save them as activations.
 
-        :param fps: frames per second of the activations
-        :return:    activations
+        :return: averaged RNN predictions
 
         """
-        # compute the activations with RNNs
-        activations = process_rnn(self.data, self.nn_files, self.num_threads)
-        # save the activations
-        if fps:
-            self._fps = fps
-        # TODO: the ravel() stuff should be removed here and
-        self._activations = Activations(activations.ravel(), self.fps)
+        # compute the predictions with RNNs
+        predictions = process_rnn(self.data, self.nn_files, self.num_threads)
+        # save the predictions as activations
+        self._activations = Activations(predictions.ravel(), self.fps)
         # and return them
         return self._activations
 
-    # TODO: move this to the ml.rnn module?
     @classmethod
     def add_arguments(cls, parser, nn_files, num_threads=NUM_THREADS):
         """

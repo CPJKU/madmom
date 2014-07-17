@@ -626,7 +626,8 @@ class Filterbank(np.ndarray):
                                 'a filterbank (ignore values below)')
         if bands is not None:
             g.add_argument('--bands', action='store', type=int, default=bands,
-                           help='filter bands per octave [default=%(default)i]')
+                           help='filter bands per octave '
+                                '[default=%(default)i]')
         if fmin is not None:
             g.add_argument('--fmin', action='store', type=float, default=fmin,
                            help='minimum frequency of filter in Hz [default='
