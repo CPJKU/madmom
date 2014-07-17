@@ -303,34 +303,32 @@ class CRFBeatDetection(RNNBeatTracking):
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
         super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
 
-    def clone(self):
-        import copy
-        return copy.copy(self)
-
     @staticmethod
     def initial_distribution(n_states, init_interval):
-        init_dist = np.ones(n_states) / init_interval
+        init_dist = np.ones(n_states, dtype=np.float32) / init_interval
         init_dist[init_interval:] = 0
         return init_dist
 
     @staticmethod
     def transition_distribution(dominant_interval, tempo_sigma):
-        import scipy.stats.norm.pdf as norm_pdf
+        from scipy.stats import norm
 
-        move_range = np.arange(dominant_interval * 2)
+        move_range = np.arange(dominant_interval * 2, dtype=np.float)
         # to avoid floating point hell due to np.log2(0)
         move_range[0] = 0.1
 
-        trans_dist = norm_pdf(np.log2(move_range),
+        trans_dist = norm.pdf(np.log2(move_range),
                               loc=np.log2(dominant_interval),
                               scale=tempo_sigma)
         trans_dist /= trans_dist.sum()
+        return trans_dist.astype(np.float32)
 
     @staticmethod
     def normalisation_factors(activations, transition_distribution):
         from scipy.ndimage.filters import correlate1d
-        return correlate1d(activations, transition, mode='constant', cval=0,
-                           origin=-int(transition.shape[0] / 2))
+        return correlate1d(activations, transition_distribution,
+                           mode='constant', cval=0,
+                           origin=-int(transition_distribution.shape[0] / 2))
 
     def best_sequence(self, smooth, min_interval, max_interval, tempo_sigma,
                       dominant_interval=None):
@@ -338,10 +336,10 @@ class CRFBeatDetection(RNNBeatTracking):
         crb = CRFBeatDetection
 
         if dominant_interval is None:
-            dominant_interval = detect_interval(self.activations,
-                                                act_smooth=smooth,
-                                                min_tau=min_interval,
-                                                max_tau=max_interval)
+            dominant_interval = detect_dominant_interval(self.activations,
+                                                         act_smooth=smooth,
+                                                         min_tau=min_interval,
+                                                         max_tau=max_interval)
 
         init = crb.initial_distribution(self.activations.shape[0],
                                         dominant_interval)
@@ -363,32 +361,47 @@ class CRFBeatDetection(RNNBeatTracking):
         seq, _ = self.best_sequence(smooth, min_interval, max_interval,
                                     tempo_sigma)
 
+        self._detections = seq
         return seq
+
+    @classmethod
+    def add_arguments(self, parser, tempo_sigma=TEMPO_SIGMA, smooth=SMOOTH,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+
+        g = RNNBeatTracking.add_arguments(parser, smooth=smooth,
+                                          min_bpm=min_bpm, max_bpm=max_bpm,
+                                          look_ahead=None, look_aside=None)
+        g.add_argument('--tempo_sigma', action='store', type=float,
+                       default=tempo_sigma,
+                       help='allowed deviation from the dominant interval '
+                            '[default=%(default).2f]')
+        return g
 
 
 class MetaCRFBeatDetection(CRFBeatDetection):
 
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
+    # helper alias
     spr = CRFBeatDetection
 
     def __init__(self, data, nn_files=spr.NN_FILES, **kwargs):
         super(MetaCRFBeatDetection, self).__init__(data, nn_files, **kwargs)
 
-    def detect(self, factors, smooth=spr.SMOOTH, min_bpm=spr.MIN_BPM,
+    def detect(self, factors=FACTORS, smooth=spr.SMOOTH, min_bpm=spr.MIN_BPM,
                max_bpm=spr.MAX_BPM, tempo_sigma=spr.TEMPO_SIGMA):
 
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
 
-        dominant_interval = detect_interval(self.activations,
-                                            act_smooth=smooth,
-                                            min_tau=min_interval,
-                                            max_tau=max_interval)
+        dominant_interval = detect_dominant_interval(self.activations,
+                                                     act_smooth=smooth,
+                                                     min_tau=min_interval,
+                                                     max_tau=max_interval)
 
-        possible_intervals = (int(d_int * f) for f in factors)
-        checked_intervals = (f for f in possible_factors
-                             if f <= max_tau and f >= min_tau)
+        possible_intervals = (int(dominant_interval * f) for f in factors)
+        checked_intervals = (i for i in possible_intervals
+                             if i <= max_interval and i >= min_interval)
 
         results = [self.best_sequence(smooth, min_interval, max_interval,
                                       tempo_sigma, interval)
@@ -397,4 +410,34 @@ class MetaCRFBeatDetection(CRFBeatDetection):
         normalised_probabilities = np.array([r[1] / r[0].shape[0]
                                              for r in results])
         best_seq_idx = normalised_probabilities.argmax()
-        return results[best_seq_idx][0]
+        self._detections = results[best_seq_idx][0]
+        return self._detections
+
+    @classmethod
+    def add_arguments(self, parser, factors=FACTORS,
+                      tempo_sigma=spr.TEMPO_SIGMA, smooth=spr.SMOOTH,
+                      min_bpm=spr.MIN_BPM, max_bpm=spr.MAX_BPM):
+
+        g = CRFBeatDetection.add_arguments(parser, tempo_sigma=tempo_sigma,
+                                           smooth=smooth, min_bpm=min_bpm,
+                                           max_bpm=max_bpm)
+        import argparse
+        class FactorAction(argparse.Action):
+            def __init__(self, *args, **kwargs):
+                super(FactorAction, self).__init__(*args, **kwargs)
+                self.set_to_default = True
+
+            def __call__(self, parser, namespace, values, option_string=None):
+                if self.set_to_default:
+                    setattr(namespace, self.dest, [])
+                    self.set_to_default = False
+                cur_factors = getattr(namespace, self.dest)
+                cur_factors.append(values)
+
+        g.add_argument('--factor', '-f', action=FactorAction, type=float,
+                       default=factors, dest='factors',
+                       help='set factors of dominant intervals to try. '
+                            'multiple factors can be given, one factor per '
+                            'argument. [default=%(default)s]')
+
+        return g

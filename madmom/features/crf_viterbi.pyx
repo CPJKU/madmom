@@ -7,10 +7,10 @@ from libc.math cimport log
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def viterbi(np.ndarray[np.float64_t, ndim=1] pi,
-            np.ndarray[np.float64_t, ndim=1] transition,
-            np.ndarray[np.float64_t, ndim=1] norm_factor,
-            np.ndarray[np.float64_t, ndim=1] activations,
+def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
+            np.ndarray[np.float32_t, ndim=1] transition,
+            np.ndarray[np.float32_t, ndim=1] norm_factor,
+            np.ndarray[np.float32_t, ndim=1] activations,
             int tau):
 
     cdef int num_st = activations.shape[0]
@@ -18,9 +18,9 @@ def viterbi(np.ndarray[np.float64_t, ndim=1] pi,
 
     cdef list vs = []
     cdef list bps = []
-    cdef np.ndarray[np.float64_t, ndim=1] v_c = np.zeros(num_st)
+    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.zeros(num_st, dtype=np.float32)
     cdef np.ndarray[np.int_t, ndim=1] bp_c = np.ones_like(v_c, dtype=int)
-    cdef np.ndarray[np.float64_t, ndim=1] v_p
+    cdef np.ndarray[np.float32_t, ndim=1] v_p
     cdef list path = []
 
     cdef int k, i, j
@@ -43,8 +43,7 @@ def viterbi(np.ndarray[np.float64_t, ndim=1] pi,
                     break
 
                 cur = v_c[i + j]
-                new = v_p[i] * transition[j] * activations[i + j] *
-                      norm_factor[i]
+                new = v_p[i] * transition[j] * activations[i + j] * norm_factor[i]
 
                 if new > cur:
                     v_c[i + j] = new
