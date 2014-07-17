@@ -130,10 +130,15 @@ class RNNBeatTracking(RNNEventDetection):
     def __init__(self, data, nn_files=NN_FILES, **kwargs):
         """
         Use RNNs to compute the beat activation function and then align the
-        beats according to the previously determined global tempo.
+        beats according to the previously determined tempo.
 
         :param data:      Signal, activations or file. See EventDetection class
         :param nn_files:  list of files that define the RNN
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx-11), Paris, France, September 2011
 
         """
         super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
@@ -171,11 +176,6 @@ class RNNBeatTracking(RNNEventDetection):
               look_ahead seconds around the actual position) is estimated and
               then the next beat is tracked accordingly. This procedure is
               repeated from the new position to the end of the piece.
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx-11), Paris, France, September 2011
 
         """
         # convert timing information to frames and set default values
@@ -288,7 +288,7 @@ class RNNBeatTracking(RNNEventDetection):
 
 
 class CRFBeatDetection(RNNBeatTracking):
-    """Conditional Random Field Beat Detection"""
+    """Conditional Random Field Beat Detection."""
 
     MIN_BPM = 20
     MAX_BPM = 240
@@ -311,6 +311,12 @@ class CRFBeatDetection(RNNBeatTracking):
 
         :param data:      Signal, activations or file. See EventDetection class
         :param nn_files:  list of files that define the RNN
+
+        "Probabilistic extraction of beat positions from a beat activation
+         function"
+        Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
+        In Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014.
 
         """
         super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
