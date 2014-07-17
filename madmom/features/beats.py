@@ -288,10 +288,13 @@ class RNNBeatTracking(RNNEventDetection):
 
 
 class CRFBeatDetection(RNNBeatTracking):
+    """Conditional Random Field Beat Detection"""
+
     MIN_BPM = 20
     MAX_BPM = 240
     SMOOTH = 0.09
-    TEMPO_SIGMA = 0.18
+    INTERVAL_SIGMA = 0.18
+    FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
     try:
         from crf_viterbi import viterbi
@@ -301,16 +304,37 @@ class CRFBeatDetection(RNNBeatTracking):
                       "code with cython!")
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
+        """
+        Use RNNs to compute the beat activation function and then align the
+        beats according to the previously determined global tempo using
+        a conditional random field model.
+
+        :param data:      Signal, activations or file. See EventDetection class
+        :param nn_files:  list of files that define the RNN
+
+        """
         super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
 
     @staticmethod
-    def initial_distribution(n_states, init_interval):
-        init_dist = np.ones(n_states, dtype=np.float32) / init_interval
-        init_dist[init_interval:] = 0
+    def initial_distribution(n_states, dominant_interval):
+        """Compute the initial distribution
+
+        :param n_states:          number of states in the model
+        :param dominant_interval: dominant interval of the piece [frames]
+        :return:                  initial distribution of the model
+        """
+        init_dist = np.ones(n_states, dtype=np.float32) / dominant_interval
+        init_dist[dominant_interval:] = 0
         return init_dist
 
     @staticmethod
-    def transition_distribution(dominant_interval, tempo_sigma):
+    def transition_distribution(dominant_interval, interval_sigma):
+        """Compute the transition distribution between beats
+
+        :param dominant_interval: dominant interval of the piece [frames]
+        :param interval_sigma:    allowed deviation from the dominant interval
+                                  per beat
+        """
         from scipy.stats import norm
 
         move_range = np.arange(dominant_interval * 2, dtype=np.float)
@@ -319,75 +343,58 @@ class CRFBeatDetection(RNNBeatTracking):
 
         trans_dist = norm.pdf(np.log2(move_range),
                               loc=np.log2(dominant_interval),
-                              scale=tempo_sigma)
+                              scale=interval_sigma)
         trans_dist /= trans_dist.sum()
         return trans_dist.astype(np.float32)
 
     @staticmethod
     def normalisation_factors(activations, transition_distribution):
+        """Compute normalisation factor for model
+
+        :param activations:             activations of the piece
+        :param transition_distribution: transition distribution of the model
+        """
         from scipy.ndimage.filters import correlate1d
         return correlate1d(activations, transition_distribution,
                            mode='constant', cval=0,
                            origin=-int(transition_distribution.shape[0] / 2))
 
     @staticmethod
-    def best_sequence(activations, smooth, min_interval, max_interval,
-                      tempo_sigma, dominant_interval=None):
+    def best_sequence(activations, smooth, dominant_interval, interval_sigma):
+        """Extract the best beat sequence for a piece
+
+        :param activations:       activations of the piece
+        :param smooth:            smooth the activation function over N sec.
+        :param dominant_interval: preset dominant interval of the piece. if
+                                  none, the dominant interval will be estimated
+        :param interval_sigma:    allowed deviation from the dominant interval
+                                  per beat
+        """
         # shortcut!
         crb = CRFBeatDetection
 
-        if dominant_interval is None:
-            dominant_interval = detect_dominant_interval(activations,
-                                                         act_smooth=smooth,
-                                                         min_tau=min_interval,
-                                                         max_tau=max_interval)
-
         init = crb.initial_distribution(activations.shape[0],
                                         dominant_interval)
-        trans = crb.transition_distribution(dominant_interval, tempo_sigma)
+        trans = crb.transition_distribution(dominant_interval, interval_sigma)
         norm_fact = crb.normalisation_factors(activations, trans)
 
         return crb.viterbi(init, trans, norm_fact, activations,
                            dominant_interval)
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-               tempo_sigma=TEMPO_SIGMA):
+               interval_sigma=INTERVAL_SIGMA, factors=FACTORS):
+        """
+        Detect the beats with a conditional random field method based on
+        neural network activations and a tempo estimation using
+        auto-correlation.
 
-        min_interval = int(np.floor(60. * self.fps / max_bpm))
-        max_interval = int(np.ceil(60. * self.fps / min_bpm))
-
-        seq, _ = self.best_sequence(self.activations, smooth, min_interval,
-                                    max_interval, tempo_sigma)
-
-        self._detections = seq.astype(np.float) / self.fps
-        return self._detections
-
-    @classmethod
-    def add_arguments(self, parser, tempo_sigma=TEMPO_SIGMA, smooth=SMOOTH,
-                      min_bpm=MIN_BPM, max_bpm=MAX_BPM):
-
-        g = RNNBeatTracking.add_arguments(parser, smooth=smooth,
-                                          min_bpm=min_bpm, max_bpm=max_bpm,
-                                          look_ahead=None, look_aside=None)
-        g.add_argument('--tempo_sigma', action='store', type=float,
-                       default=tempo_sigma,
-                       help='allowed deviation from the dominant interval '
-                            '[default=%(default).2f]')
-        return g
-
-
-class MetaCRFBeatDetection(CRFBeatDetection):
-
-    FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
-
-    # shortcut alias
-    spr = CRFBeatDetection
-
-    def __init__(self, data, nn_files=spr.NN_FILES, **kwargs):
-        super(MetaCRFBeatDetection, self).__init__(data, nn_files, **kwargs)
-
-    def detect(self, factors=FACTORS, smooth=spr.SMOOTH, min_bpm=spr.MIN_BPM,
-               max_bpm=spr.MAX_BPM, tempo_sigma=spr.TEMPO_SIGMA):
+        :param smooth:         smooth the activations over N seconds
+        :param min_bpm:        minimum tempo used for beat tracking
+        :param max_bpm:        maximum tempo used for beat tracking
+        :param interval_sigma: allowed deviation from the dominant interval per
+                               beat
+        :param factors:        factors of the dominant interval to try
+        """
 
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
@@ -402,8 +409,7 @@ class MetaCRFBeatDetection(CRFBeatDetection):
                              if i <= max_interval and i >= min_interval)
 
         results = [CRFBeatDetection.best_sequence(self.activations, smooth,
-                                                  min_interval, max_interval,
-                                                  tempo_sigma, interval)
+                                                  interval, interval_sigma)
                    for interval in checked_intervals]
 
         normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
@@ -411,33 +417,41 @@ class MetaCRFBeatDetection(CRFBeatDetection):
         best_seq_idx = normalised_seq_probabilities.argmax()
         best_seq = results[best_seq_idx][0]
         self._detections = best_seq.astype(np.float) / self.fps
+
         return self._detections
 
     @classmethod
-    def add_arguments(self, parser, factors=FACTORS,
-                      tempo_sigma=spr.TEMPO_SIGMA, smooth=spr.SMOOTH,
-                      min_bpm=spr.MIN_BPM, max_bpm=spr.MAX_BPM):
+    def add_arguments(self, parser, nn_files=RNNBeatTracking.NN_FILES,
+                      interval_sigma=INTERVAL_SIGMA, smooth=SMOOTH, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM, factors=FACTORS):
+        """
+        Add CRFBeatDetection related arguments to an existing parser object.
 
-        g = CRFBeatDetection.add_arguments(parser, tempo_sigma=tempo_sigma,
-                                           smooth=smooth, min_bpm=min_bpm,
-                                           max_bpm=max_bpm)
-        import argparse
-        class FactorAction(argparse.Action):
-            def __init__(self, *args, **kwargs):
-                super(FactorAction, self).__init__(*args, **kwargs)
-                self.set_to_default = True
+        :param parser:         existing argparse parser object
+        :param nn_files:       list with files of NN models
+        :param interval_sigma: allowed deviation from the dominant interval per
+                               beat
+        :param smooth:         smooth the beat activations over N seconds
+        :param min_bpm:        minimum tempo used for beat tracking
+        :param max_bpm:        maximum tempo used for beat tracking
 
-            def __call__(self, parser, namespace, values, option_string=None):
-                if self.set_to_default:
-                    setattr(namespace, self.dest, [])
-                    self.set_to_default = False
-                cur_factors = getattr(namespace, self.dest)
-                cur_factors.append(values)
+        :return:
+        """
 
-        g.add_argument('--factor', '-f', action=FactorAction, type=float,
-                       default=factors, dest='factors',
-                       help='set factors of dominant intervals to try. '
+        g = RNNBeatTracking.add_arguments(parser, nn_files=nn_files,
+                                          smooth=smooth, min_bpm=min_bpm,
+                                          max_bpm=max_bpm, look_ahead=None,
+                                          look_aside=None)
+
+        g.add_argument('--interval_sigma', action='store', type=float,
+                       default=interval_sigma,
+                       help='allowed deviation from the dominant interval '
+                            '[default=%(default).2f]')
+
+        from ..utils import OverrideDefaultListAction
+        g.add_argument('--factor', '-f', action=OverrideDefaultListAction,
+                       type=float, default=factors, dest='factors',
+                       help='factors of dominant interval to try. '
                             'multiple factors can be given, one factor per '
                             'argument. [default=%(default)s]')
-
         return g

@@ -2,7 +2,7 @@
 # encoding: utf-8
 
 from madmom.audio.signal import Signal
-from madmom.features.beats import MetaCRFBeatDetection
+from madmom.features.beats import CRFBeatDetection
 
 def parser():
     """
@@ -26,7 +26,7 @@ def parser():
     # signal arguments
     Signal.add_arguments(p, norm=False)
     # rnn onset detection arguments
-    MetaCRFBeatDetection.add_arguments(p)
+    CRFBeatDetection.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='crf_beat_1.0')
     # parse arguments
@@ -47,7 +47,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        b = MetaCRFBeatDetection.from_activations(args.input, fps=100)
+        b = CRFBeatDetection.from_activations(args.input, fps=100)
 
     else:
         # exit if no NN files are given
@@ -57,8 +57,8 @@ def main():
         # create a Signal object
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
         # create an RNNBeatTracking object
-        b = MetaCRFBeatDetection(s, nn_files=args.nn_files,
-                                 num_threads=args.num_threads)
+        b = CRFBeatDetection(s, nn_files=args.nn_files,
+                             num_threads=args.num_threads)
 
     # save beat activations or detect beats
     if args.save:
@@ -66,9 +66,9 @@ def main():
         b.activations.save(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(factors=args.factors, smooth=args.smooth,
-                 min_bpm=args.min_bpm, max_bpm=args.max_bpm,
-                 tempo_sigma=args.tempo_sigma)
+        b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
+                 max_bpm=args.max_bpm, interval_sigma=args.interval_sigma,
+                 factors=args.factors)
         # save detections
         b.write(args.output)
 

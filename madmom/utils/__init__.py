@@ -241,9 +241,9 @@ def io_arguments(parser):
                         help='increase verbosity level')
 
 
-class DefaultListAction(argparse.Action):
+class OverrideDefaultListAction(argparse.Action):
     """
-    DefaultListAction
+    OverrideDefaultListAction
 
     An argparser action that works similarly to the regular 'append' action.
     The default value is deleted when a new value is specified. The 'append'
@@ -251,7 +251,7 @@ class DefaultListAction(argparse.Action):
     """
 
     def __init__(self, *args, **kwargs):
-        super(DefaultListAction, self).__init__(*args, **kwargs)
+        super(OverrideDefaultListAction, self).__init__(*args, **kwargs)
         self.set_to_default = True
 
     def __call__(self, parser, namespace, value, option_string=None):
