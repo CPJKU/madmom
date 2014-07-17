@@ -386,8 +386,9 @@ class RNNEventDetection(EventDetection):
         """
         # add neural network related options to the existing parser
         g = parser.add_argument_group('neural network arguments')
-        g.add_argument('--nn_files', action='append', type=str,
-                       default=nn_files,
+        from ..utils import OverrideDefaultListAction
+        g.add_argument('--nn_files', action=OverrideDefaultListAction,
+                       type=str, default=nn_files,
                        help='average the predictions of these pre-trained '
                             'neural networks (multiple files can be given, '
                             'one file per argument)')

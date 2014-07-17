@@ -6,6 +6,7 @@ Copyright (c) Sebastian Böck <sebastian.boeck@jku.at>
 Redistribution in any form is not permitted!
 
 """
+
 from madmom.audio.signal import Signal
 from madmom.features.beats import RNNBeatTracking
 
