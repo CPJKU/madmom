@@ -248,8 +248,8 @@ class OverrideDefaultListAction(argparse.Action):
     An argparser action that works similarly to the regular 'append' action.
     The default value is deleted when a new value is specified. The 'append'
     action would append the new value to the default.
-    """
 
+    """
     def __init__(self, *args, **kwargs):
         super(OverrideDefaultListAction, self).__init__(*args, **kwargs)
         self.set_to_default = True
@@ -258,6 +258,5 @@ class OverrideDefaultListAction(argparse.Action):
         if self.set_to_default:
             setattr(namespace, self.dest, [])
             self.set_to_default = False
-
         cur_values = getattr(namespace, self.dest)
         cur_values.append(value)

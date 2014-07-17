@@ -4,6 +4,7 @@
 from madmom.audio.signal import Signal
 from madmom.features.beats import CRFBeatDetection
 
+
 def parser():
     """
     Create a parser and parse the arguments.
