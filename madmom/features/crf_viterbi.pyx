@@ -21,8 +21,21 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
             np.ndarray[np.float32_t, ndim=1] norm_factor,
             np.ndarray[np.float32_t, ndim=1] activations,
             int tau):
+    """
+    Viterbi algorithm to compute the most likely beat sequence from the
+    given activations and the dominant interval.
 
+    :param pi:          initial distribution
+    :param transition:  transition distribution
+    :param norm_factor: normalisation factors
+    :param activations: beat activations
+    :param tau:         dominant interval [frames]
+    :return:            tuple with extracted beat positions [frame indices]
+                        and log probability of beat sequence
+
+    """
     cdef int num_st = activations.shape[0]
+    cdef int num_tr = transition.shape[0]
     cdef int num_x = num_st / tau
 
     cdef list bps = []
@@ -44,7 +57,7 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
             v_c[i] = 0.0
 
         for i in range(num_st):
-            for j in range(transition.shape[0]):
+            for j in range(num_tr):
                 if (i + j) >= num_st:
                     break
 
