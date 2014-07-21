@@ -1,3 +1,12 @@
+# encoding: utf-8
+"""
+This file contains the speed crucial conditional random field related
+functionality.
+
+@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
+
+"""
+
 import numpy as np
 cimport numpy as np
 cimport cython
