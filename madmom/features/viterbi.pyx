@@ -102,48 +102,56 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
 
 
 def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
-               int num_beat_cells=640,
-               float tempo_change_probability=0.002,
-               int beat_lambda=16,
-               int min_bpm=40,
-               int max_bpm=240):
+               int num_beat_states=640,
+               double tempo_change_probability=0.002,
+               int observation_lambda=16,
+               int min_tau=5,
+               int max_tau=23):
     """
     Track the beats with a dynamic Bayesian network.
 
-    :param num_beat_cells:           number of cells for one beat period
-    :param num_tempo_states:         number of tempo states
+    :param activations:              beat activations
+    :param num_beat_states:           number of cells for one beat period
     :param tempo_change_probability: probability of a tempo change from
                                      one observation to the next one
-    :param beat_proportion:          proportion of beat to no-beat length
-    :param min_bpm:                  minimum tempo used for beat tracking
-    :param max_bpm:                  maximum tempo used for beat tracking
-    :return:                         detected beat positions
+    :param observation_lambda:       TODO: find better name + description
+    :param min_tau:                  minimum number of beat cells to progress
+                                     from one observation to the next one
+    :param max_tau:                  maximum number of beat cells to progress
+                                     from one observation to the next one
+    :return:                         location of the detected beats
 
     """
-    # variables
-    cdef int psi = 640  # number of beat states
-    cdef int l = 16
-    cdef double p = 0.002
-    cdef int min_tempo = 5
-    cdef int max_tempo = 23
-    cdef int num_states = psi * max_tempo
-
-    # back-tracking pointer sequence
-    cdef list bps = []
+    # given variables
+    cdef int nbs = num_beat_states
+    cdef double p = tempo_change_probability
+    cdef int l = observation_lambda
+    cdef int min_tempo = min_tau
+    cdef int max_tempo = max_tau
+    # TODO: why is it so much faster if we declare the variables in here?
+    # cdef int nbs = 640
+    # cdef double p = 0.002
+    # cdef int l = 16
+    # cdef int min_tempo = 5
+    # cdef int max_tempo = 23
+    # number of states
+    cdef int num_states = nbs * max_tempo
     # current viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] current_viterbi = \
-        np.zeros(num_states, dtype=np.float32)
+    cdef np.ndarray[np.float_t, ndim=1] current_viterbi = \
+        np.zeros(num_states, dtype=np.float)
     # previous viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] prev_viterbi = \
-        np.ones(num_states, dtype=np.float32)
+    cdef np.ndarray[np.float_t, ndim=1] prev_viterbi = \
+        np.ones(num_states, dtype=np.float)
     # current back-tracking pointers; init them with -1
     cdef np.ndarray[np.int_t, ndim=1] current_pointers = \
         np.ones_like(current_viterbi, dtype=int) * -1
+    # back-tracking pointer sequence
+    cdef list back_tracking_pointers = []
     # back tracked path, a.k.a. path sequence
     cdef list path = []
 
     # counters etc.
-    cdef int state, pib, tempo, prev, next_state
+    cdef int state, beat_state, tempo_state, prev, frame
     cdef double act, obs, cur
 
     # iterate over all observations
@@ -153,49 +161,51 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
         # search for best transitions
         for state in range(num_states):
             # position inside beat & tempo
-            pib = state % psi
-            tempo = state / psi
+            beat_state = state % nbs
+            tempo_state = state / nbs
             # get the observation
-            if pib < psi / l:
+            if beat_state < nbs / l:
                 obs = act
             else:
                 obs = (1. - act) / (l - 1)
             # for each state check the 3 possible transitions
             # transition from same tempo
-            prev = (pib - tempo) % psi + (tempo * psi)
+            prev = (beat_state - tempo_state) % nbs + \
+                   (tempo_state * nbs)
             cur = prev_viterbi[prev] * (1. - p) * obs
             if cur > current_viterbi[state]:
                 current_viterbi[state] = cur
                 current_pointers[state] = prev
             # transition from slower tempo
-            if tempo > min_tempo:
-                prev = (pib - (tempo - 1)) % psi + ((tempo - 1) * psi)
+            if tempo_state > min_tempo:
+                prev = (beat_state - (tempo_state - 1)) % nbs + \
+                       ((tempo_state - 1) * nbs)
                 cur = prev_viterbi[prev] * 0.5 * p * obs
                 # print prev, slower,
                 if cur > current_viterbi[state]:
                     current_viterbi[state] = cur
                     current_pointers[state] = prev
             # transition from faster tempo
-            if tempo < max_tempo - 1:
-                prev = (pib - (tempo + 1)) % psi + ((tempo + 1) * psi)
+            if tempo_state < max_tempo - 1:
+                prev = (beat_state - (tempo_state + 1)) % nbs + \
+                       ((tempo_state + 1) * nbs)
                 cur = prev_viterbi[prev] * 0.5 * p * obs
                 # print prev, faster
                 if cur > current_viterbi[state]:
                     current_viterbi[state] = cur
                     current_pointers[state] = prev
         # append current pointers to the back-tracking pointer sequence list
-        bps.append(current_pointers.copy())
+        back_tracking_pointers.append(current_pointers.copy())
         # overwrite the old states with the normalised current ones
         prev_viterbi = current_viterbi / current_viterbi.max()
 
     # add the final best state to the path
-    next_state = current_viterbi.argmax()
-    path.append(next_state)
+    state = current_viterbi.argmax()
+    path.append(state)
 
-    # track the path backwards
-    for i in range(1, len(bps)):
-        next_state = bps[-i][next_state]
-        path.append(next_state)
+    for frame in range(1, len(back_tracking_pointers)):
+        state = back_tracking_pointers[-frame][state]
+        path.append(state)
 
     # return
     return np.array(path[::-1])
