@@ -580,19 +580,97 @@ class MMBeatTracking(RNNBeatTracking):
         :return:                         detected beat positions
 
         """
+        from scipy.signal import argrelmin
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
 
-        # TODO: add DBN stuff here!
+        # variables
+        psi = 640  # number of beat states
+        l = 16
+        p = 0.002
+        min_tempo = 5
+        max_tempo = 28
+        num_states = psi * max_tempo
 
-        # convert detected beats to a list of timestamps
-        detections = np.array(detections) / float(self.fps)
-        # remove beats with negative times and save them to detections
-        self._detections = detections[np.searchsorted(detections, 0):]
-        # also return the detections
-        return self._detections
+        # # bloat the observations
+        # observations = np.repeat((1. - self.activations) / (l - 1), l)
+        # observations[0::l] = self.activations
+
+        # previous states
+        prev_viterbi = np.ones(num_states, np.float32)
+        current_viterbi = np.zeros_like(prev_viterbi, np.float)
+        current_pointer = np.zeros_like(prev_viterbi, np.int)
+
+        # path
+        path = []
+        # back-tracking pointer sequence
+        bps = []
+
+        # iterate over all observations
+        for i, act in np.ndenumerate(self.activations):
+            print i, act
+            # reset all current viterbi variables
+            current_viterbi[:] = 0
+            # search for best transitions
+            for s in range(min_tempo * psi, max_tempo * psi):
+                # position inside beat & tempo
+                pib = s % psi
+                tempo = s / psi
+                # get the observation
+                if pib < psi / l:
+                    obs = act
+                else:
+                    obs = (1. - act) / (l - 1)
+                # for each state check the 3 possible transitions
+                # transition from same tempo
+                prev = (pib - tempo) % psi + (tempo * psi)
+                same = prev_viterbi[prev] * (1. - p) * obs
+                if same > current_viterbi[s]:
+                    current_viterbi[s] = same
+                    current_pointer[s] = prev
+                # transition from slower tempo
+                if tempo > min_tempo:
+                    prev = (pib - (tempo - 1)) % psi + ((tempo - 1) * psi)
+                    slower = prev_viterbi[prev] * 0.5 * p * obs
+                    if slower > current_viterbi[s]:
+                        current_viterbi[s] = slower
+                        current_pointer[s] = prev
+                # transition from faster tempo
+                if tempo < max_tempo - 1:
+                    prev = (pib - (tempo + 1)) % psi + ((tempo + 1) * psi)
+                    faster = prev_viterbi[prev] * 0.5 * p * obs
+                    if faster > current_viterbi[s]:
+                        current_viterbi[s] = faster
+                        current_pointer[s] = prev
+            # append to current pointers to the list
+            bps.append(current_pointer)
+
+            # overwrite the old states
+            prev_viterbi = current_viterbi / np.max(current_viterbi)
+
+        # add the final best state to the path
+        next_state = np.argmax(current_viterbi)
+        path.append(next_state)
+
+        # track the path backwards
+        for i in range(len(bps) - 1, -1, -1):
+            next_state = bps[i][next_state]
+            path.append(next_state)
+
+        # return
+        return np.array(path[::-1])
+
+        # # get the local minima as these are the first positions inside a beat
+        # detections = argrelmin(np.array(path[::-1]) % psi, mode='wrap')[0]
+        #
+        # # convert detected beats to a list of timestamps
+        # detections = detections / float(self.fps)
+        # # remove beats with negative times and save them to detections
+        # self._detections = detections[np.searchsorted(detections, 0):]
+        # # also return the detections
+        # return self._detections
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,

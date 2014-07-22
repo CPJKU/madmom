@@ -47,7 +47,7 @@ def viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     cdef np.ndarray[np.float32_t, ndim=1] v_c = np.zeros(num_st, dtype=np.float32)
     # previous viterbi variables
     cdef np.ndarray[np.float32_t, ndim=1] v_p = np.zeros(num_st, dtype=np.float32)
-    # current back-tracking pointers; init them with -1s
+    # current back-tracking pointers; init them with -1
     cdef np.ndarray[np.int_t, ndim=1] bp_c = np.ones_like(v_c, dtype=int) * -1
     # back tracked path, a.k.a. path sequence
     cdef list path = []
