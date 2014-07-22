@@ -305,7 +305,7 @@ class CRFBeatDetection(RNNBeatTracking):
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
     try:
-        from crf_viterbi import viterbi
+        from viterbi import crf_viterbi
     except ImportError:
         import warnings
         warnings.warn("CRFBeatDetection only works if you build the viterbi "
@@ -591,7 +591,7 @@ class MMBeatTracking(RNNBeatTracking):
         l = 16
         p = 0.002
         min_tempo = 5
-        max_tempo = 28
+        max_tempo = 23
         num_states = psi * max_tempo
 
         # # bloat the observations
@@ -613,6 +613,7 @@ class MMBeatTracking(RNNBeatTracking):
             print i, act
             # reset all current viterbi variables
             current_viterbi[:] = 0
+            # for _ in range(l):
             # search for best transitions
             for s in range(min_tempo * psi, max_tempo * psi):
                 # position inside beat & tempo
@@ -645,18 +646,18 @@ class MMBeatTracking(RNNBeatTracking):
                         current_viterbi[s] = faster
                         current_pointer[s] = prev
             # append to current pointers to the list
-            bps.append(current_pointer)
+            bps.append(current_pointer.copy())
 
             # overwrite the old states
-            prev_viterbi = current_viterbi / np.max(current_viterbi)
+            prev_viterbi[:] = current_viterbi / np.max(current_viterbi)
 
         # add the final best state to the path
         next_state = np.argmax(current_viterbi)
         path.append(next_state)
 
         # track the path backwards
-        for i in range(len(bps) - 1, -1, -1):
-            next_state = bps[i][next_state]
+        for i in range(1, len(bps)):
+            next_state = bps[-i][next_state]
             path.append(next_state)
 
         # return
