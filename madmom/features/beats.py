@@ -494,12 +494,11 @@ class MMBeatTracking(RNNBeatTracking):
                              RNNBeatTracking.NN_PATH)
     # default values for beat detection
     NUM_BEAT_STATES = 640
-    NUM_TEMPO_STATES = 23
     TEMPO_CHANGE_PROBABILITY = 0.002
-    # TODO: this must be renamed to a more sane name!
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
+    CORRECT = True
 
     try:
         from viterbi import mm_viterbi
@@ -572,7 +571,7 @@ class MMBeatTracking(RNNBeatTracking):
     def detect(self, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM):
+               max_bpm=MAX_BPM, correct=CORRECT):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -582,6 +581,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda:       TODO: fix docstring or naming
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
+        :param correct:                  correct the beat positions
         :return:                         detected beat positions
 
         """
@@ -597,9 +597,16 @@ class MMBeatTracking(RNNBeatTracking):
                                min_tau=min_tau, max_tau=max_tau,
                                observation_lambda=observation_lambda)
         # determine the frame indices with the smallest beat states
-        # TODO: a more sophisticated solution (e.g. interpolation) should give
-        #       better / more accurate results
-        detections = argrelmin(path % num_beat_states, mode='wrap')[0]
+        states = path % num_beat_states
+        detections = argrelmin(states, mode='wrap')[0]
+        # correct the beat positions
+        if correct:
+            # for each detection compute the tempo (i.e. diff) at this state
+            # and correct the detection by subtracting the the relative
+            # difference to the actual state (position inside beat)
+            # Note: to not use -=, since we need type conversion!
+            detections = detections - (states.astype(np.float)[detections] /
+                                       np.diff(states)[detections])
         # convert them to a list of timestamps
         self._detections = detections / float(self.fps)
         # also return the detections
@@ -611,7 +618,7 @@ class MMBeatTracking(RNNBeatTracking):
                       num_beat_states=NUM_BEAT_STATES,
                       tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                       observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM):
+                      max_bpm=MAX_BPM, correct=CORRECT):
         """
         Add BeatDetector related arguments to an existing parser object.
 
@@ -624,6 +631,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda:       # TODO: add docstring or rename!
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
+        :param correct:                  correct the beat positions
         :return:                         beat argument parser group object
 
         """
@@ -659,6 +667,14 @@ class MMBeatTracking(RNNBeatTracking):
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm, help='maximum tempo [bpm, '
                        ' default=%(default).2f]')
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions')
         # TODO: add DBN related arguments here!
         # return the argument group so it can be modified if needed
         return g

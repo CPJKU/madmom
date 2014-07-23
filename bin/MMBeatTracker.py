@@ -83,7 +83,8 @@ def main():
         b.detect(num_beat_states=args.num_beat_states,
                  tempo_change_probability=args.tempo_change_probability,
                  observation_lambda=args.observation_lambda,
-                 min_bpm=args.min_bpm, max_bpm=args.max_bpm)
+                 min_bpm=args.min_bpm, max_bpm=args.max_bpm,
+                 correct=args.correct)
         # save detections
         b.write(args.output)
 
