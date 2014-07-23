@@ -36,7 +36,7 @@ class Activations(np.ndarray):
         # check the type of the given data
         if isinstance(data, np.ndarray):
             # cast to Activations
-            obj = np.asarray(data).view(cls)
+            obj = np.asarray(data, dtype=np.float32).view(cls)
             obj.fps = fps
         elif isinstance(data, (basestring, file)):
             # read from file or file handle

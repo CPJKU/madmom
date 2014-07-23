@@ -498,7 +498,7 @@ class MMBeatTracking(RNNBeatTracking):
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
-    CORRECT = True
+    CORRECT = False
 
     try:
         from viterbi import mm_viterbi
@@ -606,7 +606,7 @@ class MMBeatTracking(RNNBeatTracking):
             # difference to the actual state (position inside beat)
             # Note: to not use -=, since we need type conversion!
             detections = detections - (states.astype(np.float)[detections] /
-                                       np.diff(states)[detections])
+                                       np.diff(states)[detections - 1])
         # convert them to a list of timestamps
         self._detections = detections / float(self.fps)
         # also return the detections
