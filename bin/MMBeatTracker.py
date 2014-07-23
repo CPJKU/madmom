@@ -80,10 +80,9 @@ def main():
         b.activations.save(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(num_beat_cells=args.num_beat_cells,
-                 num_tempo_states=args.num_tempo_states,
+        b.detect(num_beat_states=args.num_beat_states,
                  tempo_change_probability=args.tempo_change_probability,
-                 beat_proportion=args.beat_proportion,
+                 observation_lambda=args.observation_lambda,
                  min_bpm=args.min_bpm, max_bpm=args.max_bpm)
         # save detections
         b.write(args.output)

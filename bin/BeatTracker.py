@@ -47,7 +47,6 @@ def parser():
 
 def main():
     """BeatTracker.2013"""
-
     # parse arguments
     args = parser()
 

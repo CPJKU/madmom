@@ -308,8 +308,8 @@ class CRFBeatDetection(RNNBeatTracking):
         from viterbi import crf_viterbi
     except ImportError:
         import warnings
-        warnings.warn("CRFBeatDetection only works if you build the viterbi "
-                      "code with cython!")
+        warnings.warn('CRFBeatDetection only works if you build the viterbi '
+                      'code with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
         """
@@ -398,8 +398,8 @@ class CRFBeatDetection(RNNBeatTracking):
         trans = cls.transition_distribution(dominant_interval, interval_sigma)
         norm_fact = cls.normalisation_factors(activations, trans)
 
-        return cls.viterbi(init, trans, norm_fact, activations,
-                           dominant_interval)
+        return cls.crf_viterbi(init, trans, norm_fact, activations,
+                               dominant_interval)
 
     def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                interval_sigma=INTERVAL_SIGMA, factors=FACTORS):
@@ -429,7 +429,7 @@ class CRFBeatDetection(RNNBeatTracking):
                                                      max_tau=max_interval)
         # create variations of the dominant interval to check
         possible_intervals = [int(dominant_interval * f) for f in factors]
-        # remove all intervals ouside the allowed range
+        # remove all intervals outside the allowed range
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
         # get the best beat sequences for all intervals
@@ -493,13 +493,20 @@ class MMBeatTracking(RNNBeatTracking):
     NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
                              RNNBeatTracking.NN_PATH)
     # default values for beat detection
-    NUM_BEAT_CELLS = 640
+    NUM_BEAT_STATES = 640
     NUM_TEMPO_STATES = 23
     TEMPO_CHANGE_PROBABILITY = 0.002
     # TODO: this must be renamed to a more sane name!
-    BEAT_PROPORTION = 16
+    OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
+
+    try:
+        from viterbi import mm_viterbi
+    except ImportError:
+        import warnings
+        warnings.warn('MMBeatTracking only works if you build the viterbi '
+                      'code with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
                  nn_ref_files=NN_REF_FILES, **kwargs):
@@ -562,124 +569,48 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, num_beat_cells=NUM_BEAT_CELLS,
-               num_tempo_states=NUM_TEMPO_STATES,
+    def detect(self, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-               beat_proportion=BEAT_PROPORTION, min_bpm=MIN_BPM,
+               observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
                max_bpm=MAX_BPM):
         """
         Track the beats with a dynamic Bayesian network.
 
-        :param num_beat_cells:           number of cells for one beat period
-        :param num_tempo_states:         number of tempo states
+        :param num_beat_states:          number of cells for one beat period
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
-        :param beat_proportion:          proportion of beat to no-beat length
+        :param observation_lambda:       TODO: fix docstring or naming
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :return:                         detected beat positions
 
         """
         from scipy.signal import argrelmin
-        # convert timing information to frames and set default values
-        # TODO: use at least 1 frame if any of these values are > 0?
-        min_tau = int(np.floor(60. * self.fps / max_bpm))
-        max_tau = int(np.ceil(60. * self.fps / min_bpm))
-
-        # variables
-        psi = 640  # number of beat states
-        l = 16
-        p = 0.002
-        min_tempo = 5
-        max_tempo = 23
-        num_states = psi * max_tempo
-
-        # # bloat the observations
-        # observations = np.repeat((1. - self.activations) / (l - 1), l)
-        # observations[0::l] = self.activations
-
-        # previous states
-        prev_viterbi = np.ones(num_states, np.float32)
-        current_viterbi = np.zeros_like(prev_viterbi, np.float)
-        current_pointer = np.zeros_like(prev_viterbi, np.int)
-
-        # path
-        path = []
-        # back-tracking pointer sequence
-        bps = []
-
-        # iterate over all observations
-        for i, act in np.ndenumerate(self.activations):
-            print i, act
-            # reset all current viterbi variables
-            current_viterbi[:] = 0
-            # for _ in range(l):
-            # search for best transitions
-            for s in range(min_tempo * psi, max_tempo * psi):
-                # position inside beat & tempo
-                pib = s % psi
-                tempo = s / psi
-                # get the observation
-                if pib < psi / l:
-                    obs = act
-                else:
-                    obs = (1. - act) / (l - 1)
-                # for each state check the 3 possible transitions
-                # transition from same tempo
-                prev = (pib - tempo) % psi + (tempo * psi)
-                same = prev_viterbi[prev] * (1. - p) * obs
-                if same > current_viterbi[s]:
-                    current_viterbi[s] = same
-                    current_pointer[s] = prev
-                # transition from slower tempo
-                if tempo > min_tempo:
-                    prev = (pib - (tempo - 1)) % psi + ((tempo - 1) * psi)
-                    slower = prev_viterbi[prev] * 0.5 * p * obs
-                    if slower > current_viterbi[s]:
-                        current_viterbi[s] = slower
-                        current_pointer[s] = prev
-                # transition from faster tempo
-                if tempo < max_tempo - 1:
-                    prev = (pib - (tempo + 1)) % psi + ((tempo + 1) * psi)
-                    faster = prev_viterbi[prev] * 0.5 * p * obs
-                    if faster > current_viterbi[s]:
-                        current_viterbi[s] = faster
-                        current_pointer[s] = prev
-            # append to current pointers to the list
-            bps.append(current_pointer.copy())
-
-            # overwrite the old states
-            prev_viterbi[:] = current_viterbi / np.max(current_viterbi)
-
-        # add the final best state to the path
-        next_state = np.argmax(current_viterbi)
-        path.append(next_state)
-
-        # track the path backwards
-        for i in range(1, len(bps)):
-            next_state = bps[-i][next_state]
-            path.append(next_state)
-
-        # return
-        return np.array(path[::-1])
-
-        # # get the local minima as these are the first positions inside a beat
-        # detections = argrelmin(np.array(path[::-1]) % psi, mode='wrap')[0]
-        #
-        # # convert detected beats to a list of timestamps
-        # detections = detections / float(self.fps)
-        # # remove beats with negative times and save them to detections
-        # self._detections = detections[np.searchsorted(detections, 0):]
-        # # also return the detections
-        # return self._detections
+        # convert timing information to the tempo space
+        max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
+        min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
+        # infer the state space sequence
+        path = self.mm_viterbi(self.activations,
+                               num_beat_states=num_beat_states,
+                               tempo_change_probability=
+                               tempo_change_probability,
+                               min_tau=min_tau, max_tau=max_tau,
+                               observation_lambda=observation_lambda)
+        # determine the frame indices with the smallest beat states
+        # TODO: a more sophisticated solution (e.g. interpolation) should give
+        #       better / more accurate results
+        detections = argrelmin(path % num_beat_states, mode='wrap')[0]
+        # convert them to a list of timestamps
+        self._detections = detections / float(self.fps)
+        # also return the detections
+        return self._detections
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
                       nn_ref_files=NN_REF_FILES,
-                      num_beat_cells=NUM_BEAT_CELLS,
-                      num_tempo_states=NUM_TEMPO_STATES,
+                      num_beat_states=NUM_BEAT_STATES,
                       tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                      beat_proportion=BEAT_PROPORTION, min_bpm=MIN_BPM,
+                      observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
                       max_bpm=MAX_BPM):
         """
         Add BeatDetector related arguments to an existing parser object.
@@ -687,12 +618,10 @@ class MMBeatTracking(RNNBeatTracking):
         :param parser:                   existing argparse parser object
         :param nn_files:                 list with files of NN models
         :param nn_ref_files:             reference NN model
-        :param num_beat_cells:           number of cells for one beat period
-        :param num_tempo_states:         number of tempo states
+        :param num_beat_states:          number of cells for one beat period
         :param tempo_change_probability: probability of a tempo change between
                                          two adjacent observations
-        # TODO: this must be renamed to a more sane name!
-        :param beat_proportion:          proportion of beat to no-beat length
+        :param observation_lambda:       # TODO: add docstring or rename!
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :return:                         beat argument parser group object
@@ -711,21 +640,18 @@ class MMBeatTracking(RNNBeatTracking):
                             'least deviation form these reference models).')
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
-        g.add_argument('--num_beat_cells', action='store', type=int,
-                       default=num_beat_cells,
-                       help='number of cells for one beat period '
+        g.add_argument('--num_beat_states', action='store', type=int,
+                       default=num_beat_states,
+                       help='number of beat states for one beat period '
                             '[default=%(default)i]')
-        g.add_argument('--num_tempo_states', action='store', type=int,
-                       default=num_tempo_states,
-                       help='number of tempo states[default=%(default)i]')
         g.add_argument('--tempo_change_probability', action='store',
                        type=float, default=tempo_change_probability,
                        help='probability of a tempo between two adjacent '
                             'observations [default=%(default).4f]')
         # TODO: this must be renamed to a more sane name!
-        g.add_argument('--beat_proportion', action='store', type=int,
-                       default=beat_proportion,
-                       help='proportion of beat to no-beat length '
+        g.add_argument('--observation_lambda', action='store', type=int,
+                       default=observation_lambda,
+                       help='TODO: proportion of beat to no-beat length '
                             '[default=%(default)i]')
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm, help='minimum tempo [bpm, '

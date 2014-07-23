@@ -111,7 +111,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     Track the beats with a dynamic Bayesian network.
 
     :param activations:              beat activations
-    :param num_beat_states:           number of cells for one beat period
+    :param num_beat_states:          number of beat states for one beat period
     :param tempo_change_probability: probability of a tempo change from
                                      one observation to the next one
     :param observation_lambda:       TODO: find better name + description
@@ -119,7 +119,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                                      from one observation to the next one
     :param max_tau:                  maximum number of beat cells to progress
                                      from one observation to the next one
-    :return:                         location of the detected beats
+    :return:                         state-space sequence for the activations
 
     """
 # # TODO: why is it so much faster if we declare the variables in here?
@@ -204,4 +204,6 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
         state = back_tracking_pointers[-frame][state]
         path.append(state)
     # return the tracked path
+    # FIXME: right now we return the state-space for further post-processing,
+    #        this changes somewhat soon!
     return np.array(path[::-1])
