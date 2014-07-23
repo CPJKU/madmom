@@ -1277,10 +1277,13 @@ def parser():
     g.add_argument('--optimizer', default='steepest', type=str,
                    help='optimizer [default=%(default)s]')
     # add other options to the existing parser
-    audio(p, online=False, fps=100, norm=False, window=None)
-    spec(p)
-    filtering(p, bands=12)
-    log(p, default=True, mul=5, add=1)
+    from ..audio.signal import Signal, FramedSignal
+    from ..audio.filters import Filterbank
+    from ..audio.spectrogram import Spectrogram
+    Signal.add_arguments(p)
+    FramedSignal.add_arguments(p, online=False)
+    Filterbank.add_arguments(p)
+    Spectrogram.add_arguments(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
     # add defaults
