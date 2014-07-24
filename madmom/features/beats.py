@@ -498,7 +498,7 @@ class MMBeatTracking(RNNBeatTracking):
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
-    CORRECT = False
+    CORRECT = 'activation'
 
     try:
         from viterbi import mm_viterbi
@@ -526,6 +526,7 @@ class MMBeatTracking(RNNBeatTracking):
         """
         super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
         self.nn_ref_files = nn_ref_files
+        self._states = None
 
     def process(self):
         """
@@ -581,11 +582,23 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda:       TODO: fix docstring or naming
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
-        :param correct:                  correct the beat positions
+        :param correct:                  correct the beat positions, allowed
+                                         values: [None, 'pib', 'activation']
         :return:                         detected beat positions
 
+        Note: The `correct` parameter determines how the beat positions from
+              the states are corrected. Possible values are:
+              - None:          perform no correction
+              - 'pib':         correct the beats to the position where the
+                               state space makes the transition from the end
+                               of a beat to a new beat
+              - 'activation' : align the beats the the frame with the highest
+                               activation values inside the range which is
+                               given by: 0 <= beat state <= num_beat_states /
+                               observation_lambda
+
         """
-        from scipy.signal import argrelmin
+        from scipy.signal import argrelmin, argrelmax
         # convert timing information to the tempo space
         max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
@@ -598,9 +611,19 @@ class MMBeatTracking(RNNBeatTracking):
                                observation_lambda=observation_lambda)
         # determine the frame indices with the smallest beat states
         states = path % num_beat_states
-        detections = argrelmin(states, mode='wrap')[0]
+        self._states = states
         # correct the beat positions
-        if correct:
+        if correct == 'activation':
+            # for each detection determine the "beat range", i.e. states <=
+            # num_beat_states / observation_lambda and choose the frame with
+            # the highest activations value
+            detections = argrelmax(self.activations * (states < 640 / 16),
+                                   mode='wrap')[0]
+            pass
+        else:
+            # just take the frames with the smallest beat state values
+            detections = argrelmin(states, mode='wrap')[0]
+        if correct == 'pib':
             # for each detection compute the tempo (i.e. diff) at this state
             # and correct the detection by subtracting the the relative
             # difference to the actual state (position inside beat)
@@ -612,6 +635,13 @@ class MMBeatTracking(RNNBeatTracking):
         # also return the detections
         return self._detections
 
+    @property
+    def states(self):
+        """States of the dynamic Bayesian network."""
+        if self._states is None:
+            self.detect()
+        return self._states
+
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
                       nn_ref_files=NN_REF_FILES,
@@ -620,7 +650,7 @@ class MMBeatTracking(RNNBeatTracking):
                       observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
                       max_bpm=MAX_BPM, correct=CORRECT):
         """
-        Add BeatDetector related arguments to an existing parser object.
+        Add MMBeatTracking related arguments to an existing parser object.
 
         :param parser:                   existing argparse parser object
         :param nn_files:                 list with files of NN models
