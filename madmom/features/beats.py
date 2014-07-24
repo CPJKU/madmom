@@ -25,7 +25,7 @@ def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
     :param hist_smooth: kernel (size) for smoothing the interval histogram
     :param min_tau:     minimal delay for histogram building [frames]
     :param max_tau:     maximal delay for histogram building [frames]
-    :returns:           dominant interval
+    :return:            dominant interval
 
     """
     import warnings

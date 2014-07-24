@@ -20,7 +20,7 @@ def find_closest_matches(detections, annotations):
 
     :param detections:  numpy array with the detected events [float, seconds]
     :param annotations: numpy array with the annotated events [float, seconds]
-    :returns:           numpy array with indices of the closest matches [int]
+    :return:            numpy array with indices of the closest matches [int]
 
     Note: The sequences must be ordered!
 
@@ -50,7 +50,7 @@ def calc_errors(detections, annotations, matches=None):
     :param detections:  numpy array with the detected events [float, seconds]
     :param annotations: numpy array with the annotated events [float, seconds]
     :param matches:     numpy array with indices of the closest events [int]
-    :returns:           numpy array with the errors [seconds]
+    :return:            numpy array with the errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
@@ -76,7 +76,7 @@ def calc_absolute_errors(detections, annotations, matches=None):
     :param detections:  numpy array with the detected events [float, seconds]
     :param annotations: numpy array with the annotated events [float, seconds]
     :param matches:     numpy array with indices of the closest events [int]
-    :returns:           numpy array with the absolute errors [seconds]
+    :return:            numpy array with the absolute errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list
           of pre-computed indices of the closest matches can be used.
@@ -93,7 +93,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     :param detections:  numpy array with the detected events [float, seconds]
     :param annotations: numpy array with the annotated events [float, seconds]
     :param matches:     numpy array with indices of the closest events [int]
-    :returns:           numpy array with the relative errors [seconds]
+    :return:            numpy array with the relative errors [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.

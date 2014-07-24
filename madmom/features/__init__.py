@@ -32,6 +32,8 @@ class Activations(np.ndarray):
               Text files should not be used for anything else but manual
               inspection or I/O with other programs.
 
+              The activations are stored/saved/kept as np.float32.
+
         """
         # check the type of the given data
         if isinstance(data, np.ndarray):
@@ -188,7 +190,7 @@ class EventDetection(object):
         Pre-process the signal and return data suitable for further processing.
         This method should be implemented by subclasses.
 
-        :returns: data suitable for further processing.
+        :return:  data suitable for further processing.
 
         Note: The method is expected to pre-process the signal into data
               suitable for further processing and save it to self._data.
@@ -231,7 +233,7 @@ class EventDetection(object):
         Process the data and compute the activations.
         This method should be implemented by subclasses.
 
-        :returns: activations computed from the signal
+        :return:  activations computed from the signal
 
         Note: The method is expected to compute the activations from the
               data and save the activations to self._activations.
@@ -284,7 +286,7 @@ class EventDetection(object):
         Extracts the events (beats, onsets, ...) from the activations.
         This method should be implemented by subclasses.
 
-        :returns: the detected events
+        :return:  the detected events
 
         Note: The method is expected to compute the detections from the
               activations and save the detections to self._detections.

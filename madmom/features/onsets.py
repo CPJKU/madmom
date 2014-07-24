@@ -23,7 +23,7 @@ def wrap_to_pi(phase):
     Wrap the phase information to the range -π...π.
 
     :param phase: phase spectrogram
-    :returns:     wrapped phase spectrogram
+    :return:      wrapped phase spectrogram
 
     """
     return np.mod(phase + np.pi, 2.0 * np.pi) - np.pi
@@ -36,7 +36,7 @@ def diff(spec, diff_frames=1, pos=False):
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
     :param pos:         keep only positive values
-    :returns:           (positive) magnitude spectrogram differences
+    :return:            (positive) magnitude spectrogram differences
 
     """
     # init the matrix with 0s, the first N rows are 0 then
@@ -64,7 +64,7 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     :param pos:         keep only positive values
     :param diff_bins:   maximum number of bins shifted for correlation
                         calculation
-    :returns:           (positive) magnitude spectrogram differences
+    :return:            (positive) magnitude spectrogram differences
 
     """
     # init diff matrix
@@ -100,7 +100,7 @@ def high_frequency_content(spec):
     High Frequency Content.
 
     :param spec: the magnitude spectrogram
-    :returns:    high frequency content onset detection function
+    :return:     high frequency content onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
      Signals"
@@ -119,7 +119,7 @@ def spectral_diff(spec, diff_frames=1):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-    :returns:           spectral diff onset detection function
+    :return:            spectral diff onset detection function
 
     "A hybrid approach to musical note onset detection"
     Chris Duxbury, Mark Sandler and Matthew Davis
@@ -137,7 +137,7 @@ def spectral_flux(spec, diff_frames=1):
 
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
-    :returns:           spectral flux onset detection function
+    :return:            spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
      Signals"
@@ -159,7 +159,7 @@ def superflux(spec, diff_frames=1, max_bins=3):
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
     :param max_bins:    number of neighboring bins used for maximum filtering
-    :returns:           SuperFlux onset detection function
+    :return:            SuperFlux onset detection function
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
@@ -195,7 +195,7 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=EPSILON):
     :param spec:        the magnitude spectrogram
     :param diff_frames: calculate the difference to the N-th previous frame
     :param epsilon:     add epsilon to avoid division by 0
-    :returns:           MKL onset detection function
+    :return:            MKL onset detection function
 
     Note: the implementation presented in:
     "Automatic Annotation of Musical Audio for Interactive Applications"
@@ -222,7 +222,7 @@ def _phase_deviation(phase):
     Helper method used by phase_deviation() & weighted_phase_deviation().
 
     :param phase: the phase spectrogram
-    :returns:     phase deviation
+    :return:      phase deviation
 
     """
     pd = np.zeros_like(phase)
@@ -240,7 +240,7 @@ def phase_deviation(phase):
     Phase Deviation.
 
     :param phase: the phase spectrogram
-    :returns:     phase deviation onset detection function
+    :return:      phase deviation onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
      domain"
@@ -258,7 +258,7 @@ def weighted_phase_deviation(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     weighted phase deviation onset detection function
+    :return:      weighted phase deviation onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon
@@ -280,7 +280,7 @@ def normalized_weighted_phase_deviation(spec, phase, epsilon=EPSILON):
     :param spec:    the magnitude spectrogram
     :param phase:   the phase spectrogram
     :param epsilon: add epsilon to avoid division by 0
-    :returns:       normalized weighted phase deviation onset detection
+    :return:        normalized weighted phase deviation onset detection
                     function
 
     "Onset Detection Revisited"
@@ -303,7 +303,7 @@ def _complex_domain(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     complex domain
+    :return:      complex domain
 
     Note: we use the simple implementation presented in:
     "Onset Detection Revisited"
@@ -333,7 +333,7 @@ def complex_domain(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     complex domain onset detection function
+    :return:      complex domain onset detection function
 
     "On the use of phase and energy for musical onset detection in the complex
      domain"
@@ -351,7 +351,7 @@ def rectified_complex_domain(spec, phase):
 
     :param spec:  the magnitude spectrogram
     :param phase: the phase spectrogram
-    :returns:     rectified complex domain onset detection function
+    :return:      rectified complex domain onset detection function
 
     "Onset Detection Revisited"
     Simon Dixon

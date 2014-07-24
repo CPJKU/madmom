@@ -17,7 +17,7 @@ def attenuate(x, attenuation):
 
     :param x:           signal (numpy array)
     :param attenuation: attenuation level [dB]
-    :returns:           attenuated signal
+    :return:            attenuated signal
 
     """
     # FIXME: attenuating the signal and keeping the original dtype makes the
@@ -34,7 +34,7 @@ def normalize(x):
     Normalize the signal to the range -1..+1
 
     :param x: signal (numpy array)
-    :returns: normalized signal
+    :return:  normalized signal
 
     """
     return x.astype(np.float) / np.max(x)
@@ -45,7 +45,7 @@ def downmix(x):
     Down-mix the signal to mono.
 
     :param x: signal (numpy array)
-    :returns: mono signal
+    :return:  mono signal
 
     """
     if x.ndim > 1:
@@ -65,7 +65,7 @@ def downsample(x, factor=2):
 
     :param x:      signal (numpy array)
     :param factor: down-sampling factor
-    :returns:      down-sampled signal
+    :return:       down-sampled signal
 
     """
     # signal must be mono
@@ -87,7 +87,7 @@ def trim(x):
     Trim leading and trailing zeros of the signal.
 
     :param x: signal (numpy array)
-    :returns: trimmed signal
+    :return:  trimmed signal
 
     """
     # signal must be mono
@@ -104,7 +104,7 @@ def root_mean_square(x):
     measurement of power.
 
     :param x: signal (numpy array)
-    :returns: root mean square of the signal
+    :return:  root mean square of the signal
 
     """
     # make sure the signal is a numpy array
@@ -127,7 +127,7 @@ def sound_pressure_level(x, p_ref=1.0):
 
     :param x:     signal (numpy array)
     :param p_ref: reference sound pressure level
-    :returns:     sound pressure level of the signal
+    :return:      sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
@@ -287,7 +287,7 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
     :param frame_size: size of each frame in samples
     :param hop_size:   the hop size in samples between adjacent frames
     :param offset:     position of the first sample inside the signal
-    :returns:          the requested frame of the signal
+    :return:           the requested frame of the signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
     each following frame is placed `hop_size` samples after the previous one.
@@ -334,7 +334,7 @@ def strided_frames(x, frame_size, hop_size):
     :param x:          the signal (numpy array)
     :param frame_size: size of each frame in samples
     :param hop_size:   the hop size in samples between adjacent frames
-    :returns:          2D array with overlapping frames
+    :return:           2D array with overlapping frames
 
     Note: This function is here only for completeness. It is faster only in
           rare circumstances. Also, seeking to the right position is only
@@ -367,7 +367,7 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
                        'wrap' copy values from the beginning of the array
                        'pad'  pad with a constant value
     :param end_value:  value to use for end='pad'
-    :returns:          2D array with overlapping frames
+    :return:           2D array with overlapping frames
 
     The array is not copied unless necessary (either because it is unevenly
     strided and being flattened or because end is set to 'pad' or 'wrap').

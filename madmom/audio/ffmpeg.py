@@ -33,7 +33,7 @@ def decode_to_disk(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
         if no outfile was given.
     :param tmpsuffix: The file extension for the temporary file if
         no outfile was given. Example: ".pcm" (include the dot!)
-    :returns: The output file name.
+    :return:  The output file name.
 
     """
     # create temp file if no outfile is given
@@ -72,7 +72,7 @@ def decode_to_memory(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
     :param num_channels: The number of channels to reduce to.
     :param skip: Number of seconds to skip at beginning of file.
     :param maxlen: Maximum number of seconds to decode.
-    :returns: A binary string of samples.
+    :return:  A binary string of samples.
 
     """
     call = _assemble_ffmpeg_call(soundfile, "pipe:1", fmt, sample_rate,
@@ -108,7 +108,7 @@ def decode_to_pipe(soundfile, fmt='f32le', sample_rate=None, num_channels=1,
     :param bufsize: Size of buffer for the file-like object.
         -1 means OS default, 0 means unbuffered, 1 means line-buffered, any
         other value is the buffer size in bytes.
-    :returns: A file-like object for reading the decoded samples, and a process
+    :return:  A file-like object for reading the decoded samples, and a process
         object for the decoding process.
 
     """

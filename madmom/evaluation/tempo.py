@@ -69,7 +69,7 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     :param annotations: array with (multiple) tempi [bpm]
     :param strengths:   array with the relative strengths of the tempi
     :param tolerance:   evaluation tolerance
-    :returns:           p-score, at least one tempo correctly identified, all
+    :return:            p-score, at least one tempo correctly identified, all
                         tempi correctly identified (float, bool, bool)
 
     Note: All given detections are evaluated against all annotations according
