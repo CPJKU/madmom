@@ -74,7 +74,8 @@ def main():
     else:
         # detect the beats
         b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
-                 max_bpm=args.max_bpm, look_aside=args.look_aside)
+                 max_bpm=args.max_bpm, look_aside=args.look_aside,
+                 look_ahead=None)
         # save detections
         b.write(args.output)
 

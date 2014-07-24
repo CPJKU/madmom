@@ -498,7 +498,7 @@ class MMBeatTracking(RNNBeatTracking):
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
-    CORRECT = 'activation'
+    CORRECT = None
 
     try:
         from viterbi import mm_viterbi
@@ -619,10 +619,12 @@ class MMBeatTracking(RNNBeatTracking):
             # the highest activations value
             detections = argrelmax(self.activations * (states < 640 / 16),
                                    mode='wrap')[0]
-            pass
         else:
             # just take the frames with the smallest beat state values
             detections = argrelmin(states, mode='wrap')[0]
+            # recheck if they are within the "beat range"
+            detections = detections[states[detections] <
+                                    num_beat_states / observation_lambda]
         if correct == 'pib':
             # for each detection compute the tempo (i.e. diff) at this state
             # and correct the detection by subtracting the the relative
@@ -697,14 +699,8 @@ class MMBeatTracking(RNNBeatTracking):
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm, help='maximum tempo [bpm, '
                        ' default=%(default).2f]')
-        if correct:
-            g.add_argument('--no_correct', dest='correct',
-                           action='store_false', default=correct,
-                           help='do not correct the beat positions')
-        else:
-            g.add_argument('--correct', dest='correct',
-                           action='store_true', default=correct,
-                           help='correct the beat positions')
+        g.add_argument('--correct', action='store', type=str, default=correct,
+                       help='correct the beat positions')
         # TODO: add DBN related arguments here!
         # return the argument group so it can be modified if needed
         return g
