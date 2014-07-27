@@ -617,14 +617,28 @@ class MMBeatTracking(RNNBeatTracking):
         # determine the frame indices with the smallest beat states
         states = path % num_beat_states
         self._states = states
+
         # correct the beat positions
-        if correct in ['act', 'activation','activations']:
+        if correct in ['act', 'activation', 'activations']:
+            detections = []
             # for each detection determine the "beat range", i.e. states <=
             # num_beat_states / observation_lambda and choose the frame with
             # the highest activations value
-            detections = argrelmax(self.activations *
-                                   (states < num_beat_states /
-                                    observation_lambda), mode='wrap')[0]
+            beat_range = states < num_beat_states / observation_lambda
+            # get all change points between True and False
+            idx = np.nonzero(np.diff(beat_range))[0] + 1
+            # if the first frame is in the beat range, prepend a 0
+            if beat_range[0]:
+                idx = np.r_[0, idx]
+            # if the last frame is in the beat range, append the length of the
+            # array
+            if beat_range[-1]:
+                idx = np.r_[idx, beat_range.size]
+            # iterate over all regions
+            for left, right in idx.reshape((-1, 2)):
+                detections.append(np.argmax(self.activations[left:right]) +
+                                  left)
+            detections = np.asarray(detections, np.float)
         else:
             # just take the frames with the smallest beat state values
             detections = argrelmin(states, mode='wrap')[0]

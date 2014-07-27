@@ -114,7 +114,7 @@ def find_longest_continuous_segment(sequence_indices):
                              continuous segment [(int, int)]
 
     """
-    # continuous segments hve consecutive indices, i.e. diffs =! 1 are
+    # continuous segments have consecutive indices, i.e. diffs =! 1 are
     # boundaries between continuous segments; add 1 to get the correct index
     boundaries = np.nonzero(np.diff(sequence_indices) != 1)[0] + 1
     # add a start (index 0) and stop (length of correct detections) to the
