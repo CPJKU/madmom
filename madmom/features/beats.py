@@ -159,7 +159,7 @@ class RNNBeatTracking(RNNEventDetection):
         """
         spr = super(RNNBeatTracking, self)
         spr.pre_process(frame_sizes=[1024, 2048, 4096], bands_per_octave=3,
-                        mul=1, ratio=0.25)
+                        mul=1, ratio=0.5)
         # return data
         return self._data
 
@@ -239,6 +239,11 @@ class RNNBeatTracking(RNNEventDetection):
         detections = np.array(detections) / float(self.fps)
         # remove beats with negative times and save them to detections
         self._detections = detections[np.searchsorted(detections, 0):]
+        # only keep beats with a bigger inter beat interval than that of the
+        # maximum allowed tempo
+        # self._detections = np.append(detections[0],
+        #                              detections[1:][np.diff(detections)
+        #                                             > (60. / max_bpm)])
         # also return the detections
         return self._detections
 
@@ -613,16 +618,18 @@ class MMBeatTracking(RNNBeatTracking):
         states = path % num_beat_states
         self._states = states
         # correct the beat positions
-        if correct == 'activation':
+        if correct in ['act', 'activation','activations']:
             # for each detection determine the "beat range", i.e. states <=
             # num_beat_states / observation_lambda and choose the frame with
             # the highest activations value
-            detections = argrelmax(self.activations * (states < 640 / 16),
-                                   mode='wrap')[0]
+            detections = argrelmax(self.activations *
+                                   (states < num_beat_states /
+                                    observation_lambda), mode='wrap')[0]
         else:
             # just take the frames with the smallest beat state values
             detections = argrelmin(states, mode='wrap')[0]
-            # recheck if they are within the "beat range"
+            # recheck if they are within the "beat range", i.e. the
+            # beat states < number of beat states / observation lambda
             detections = detections[states[detections] <
                                     num_beat_states / observation_lambda]
         if correct == 'pib':

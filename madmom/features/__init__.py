@@ -334,7 +334,7 @@ class RNNEventDetection(EventDetection):
         self.num_threads = num_threads
 
     def pre_process(self, frame_sizes, bands_per_octave, origin='offline',
-                    mul=5, ratio=0.25):
+                    mul=1, ratio=0.5):
         """
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
@@ -347,7 +347,6 @@ class RNNEventDetection(EventDetection):
         :return:                 pre-processed data
 
         """
-
         from ..audio.spectrogram import LogFiltSpec
         data = []
         # FIXME: remove this hack!
