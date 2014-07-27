@@ -24,7 +24,7 @@ def load_notes(filename):
     Load the target notes from a file.
 
     :param filename: input file name or file handle
-    :returns:        numpy array with notes
+    :return:         numpy array with notes
 
     """
     with open(filename, 'rb') as f:

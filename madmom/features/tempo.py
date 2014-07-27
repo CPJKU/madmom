@@ -23,7 +23,7 @@ def smooth_signal(signal, smooth):
 
     :param signal: signal
     :param smooth: smoothing kernel [array or int]
-    :returns:      smoothed signal
+    :return:       smoothed signal
 
     """
     # init smoothing kernel
@@ -49,7 +49,7 @@ def smooth_histogram(histogram, smooth):
 
     :param histogram: histogram
     :param smooth:    smoothing kernel [array or int]
-    :returns:         smoothed histogram
+    :return:          smoothed histogram
 
     """
     # smooth only the the histogram bins, not the corresponding delays
@@ -65,7 +65,7 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     :param activations: the activation function
     :param min_tau:     minimal delta for correlation function [frames]
     :param max_tau:     maximal delta for correlation function [frames]
-    :returns:           histogram
+    :return:            histogram
 
     """
     # set the maximum delay
@@ -90,7 +90,7 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
     :param alpha:       scaling factor for the comb filter
     :param min_tau:     minimal delta for correlation function [frames]
     :param max_tau:     maximal delta for correlation function [frames]
-    :returns:           histogram
+    :return:            histogram
 
     """
     # import comb filter
@@ -117,7 +117,7 @@ def dominant_interval(histogram, smooth=None):
 
     :param histogram: histogram with interval distribution
     :param smooth:    smooth the histogram with the given kernel (size)
-    :returns:         dominant interval
+    :return:          dominant interval
 
     """
     # smooth the histogram bins

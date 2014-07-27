@@ -42,7 +42,7 @@ def hz2mel(f):
     Convert Hz frequencies to Mel.
 
     :param f: input frequencies [Hz]
-    :returns: frequencies in Mel
+    :return:  frequencies in Mel
 
     """
     return 1127.01048 * np.log(f / 700. + 1.)
@@ -53,7 +53,7 @@ def mel2hz(m):
     Convert Mel frequencies to Hz.
 
     :param m: input frequencies [Mel]
-    :returns: frequencies in Hz
+    :return:  frequencies in Hz
 
     """
     return 700. * (np.exp(m / 1127.01048) - 1.)
@@ -66,7 +66,7 @@ def mel_frequencies(num_bands, fmin, fmax):
     :param num_bands: number of bands
     :param fmin:      the minimum frequency [Hz]
     :param fmax:      the maximum frequency [Hz]
-    :returns:         a list of frequencies
+    :return:          a list of frequencies
 
     """
     # convert fmin and fmax to the Mel scale and return a list of frequencies
@@ -79,7 +79,7 @@ def hz2bark(f):
     Convert Hz frequencies to Bark.
 
     :param f: input frequencies [Hz]
-    :returns: frequencies in Bark.
+    :return:  frequencies in Bark.
 
     """
     # TODO: use Zwicker's formula?
@@ -92,7 +92,7 @@ def bark2hz(z):
     Convert Bark frequencies to Hz.
 
     :param z: input frequencies [Bark]
-    :returns: frequencies in Hz.
+    :return:  frequencies in Hz.
 
     """
     # TODO: use Zwicker's formula?
@@ -106,7 +106,7 @@ def bark_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :returns:    a list of frequencies
+    :return:     a list of frequencies
 
     """
     # frequencies aligned to the Bark-scale
@@ -127,7 +127,7 @@ def bark_double_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :returns:    a list of frequencies
+    :return:     a list of frequencies
 
     """
     # frequencies aligned to the Bark-scale, also includes center frequencies
@@ -153,7 +153,7 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
     :param fmin:             the minimum frequency [Hz]
     :param fmax:             the maximum frequency [Hz]
     :param a4:               tuning frequency of A4 [Hz]
-    :returns:                a list of frequencies
+    :return:                 a list of frequencies
 
     Note: if 12 bands per octave and a4=440 are used, the frequencies are
           equivalent to MIDI notes.
@@ -179,7 +179,7 @@ def semitone_frequencies(fmin, fmax, a4=A4):
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
     :param a4:   tuning frequency of A4 [Hz]
-    :returns:    a list of frequencies of semitones
+    :return:     a list of frequencies of semitones
 
     """
     # return MIDI frequencies
@@ -193,7 +193,7 @@ def midi2hz(m, a4=A4):
 
     :param m:  input MIDI notes
     :param a4: tuning frequency of A4 [Hz]
-    :returns:  frequencies in Hz
+    :return:   frequencies in Hz
 
     For details see: http://www.phys.unsw.edu.au/jw/notes.html
 
@@ -207,7 +207,7 @@ def hz2midi(f, a4=A4):
 
     :param f:  input frequencies [Hz]
     :param a4: tuning frequency of A4 [Hz]
-    :returns:  MIDI notes
+    :return:   MIDI notes
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
 
@@ -228,7 +228,7 @@ def hz2erb(f):
     Convert Hz to ERB.
 
     :param f: input frequencies [Hz]
-    :returns: frequencies in ERB
+    :return:  frequencies in ERB
 
     Information about the ERB scale can be found at:
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
@@ -242,7 +242,7 @@ def erb2hz(e):
     Convert ERB scaled frequencies to Hz.
 
     :param e: input frequencies [ERB]
-    :returns: frequencies in Hz
+    :return:  frequencies in Hz
 
     Information about the ERB scale can be found at:
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
@@ -273,7 +273,7 @@ def triangular_filter(width, center, norm):
     :param width:  filter width in bins
     :param center: center bin (of height 1, unless norm is True).
     :param norm:   normalize the area of the filter to 1
-    :returns:      a triangular shaped filter with height 1 (unless normalized)
+    :return:       a triangular shaped filter with height 1 (unless normalized)
 
     """
     # center must be within the given width
@@ -301,7 +301,7 @@ def rectangular_filter(width, norm, **unused):
 
     :param width:  filter width in bins
     :param norm:   normalize the area of the filter to 1
-    :returns:      a rectangular shaped filter with height 1
+    :return:       a rectangular shaped filter with height 1
                    (unless normalized)
 
     """
@@ -351,7 +351,7 @@ def assemble_filterbank(filters, num_fft_bins, norm):
                          "Filter"
     :param num_fft_bins: number of FFT bins (= half the FFT size)
     :param norm:         normalise the area of each filter band to 1 [bool]
-    :returns:            filterbank with respective filter elements
+    :return:             filterbank with respective filter elements
 
     """
     # create filterbank
@@ -380,7 +380,7 @@ def band_bins(center_bins, duplicates, overlap):
     :param duplicates:  keep duplicate filters resulting from insufficient
                         resolution of low frequencies [bool]
     :param overlap:     filters should overlap [bool]
-    :returns:           start, center and stop frequencies for filters
+    :return:            start, center and stop frequencies for filters
 
     """
     # only keep unique bins if requested
@@ -427,7 +427,7 @@ def filterbank(filter_type, frequencies, num_fft_bins, sample_rate,
     :param duplicates:   keep duplicate filters resulting from insufficient
                          resolution of low frequencies [bool]
     :param overlap:      filters should overlap [bool]
-    :returns:            filterbank
+    :return:             filterbank
 
     """
     # map the frequencies to the spectrogram bins
@@ -478,7 +478,7 @@ def harmonic_filterbank(filter_type, fundamentals, num_harmonics, num_fft_bins,
     :param inharmonicity_coeff: coefficient for calculating the drift of
                                 harmonics for not perfectly harmonic
                                 instruments
-    :returns:                   harmonic filterbank
+    :return:                    harmonic filterbank
 
     Note: harmonic_envelope and harmonic_width must accept a numpy array of
           the harmonic ids, where the fundamental's id is 1, the second

@@ -42,7 +42,7 @@ class TanhProb(object):
         Compute the PDF.
 
         :param x: values for which the pdf shall be computed
-        :returns: PDF at the positions passed in `x`
+        :return:  PDF at the positions passed in `x`
         """
         return self.a * (np.tanh(self.k * x + self.d) + 1 + self.lmbda)
 
@@ -57,7 +57,7 @@ class TanhProb(object):
         :param phi:   phi-parameter of the tanh distribution
         :param lmbda: lambda parameter of the tanh distribution
         :param x:     values for which the PDF shall be computed
-        :returns:     PDF at the positions given in `x`
+        :return:      PDF at the positions given in `x`
 
         """
         k = 1.0 / phi

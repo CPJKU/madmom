@@ -37,7 +37,7 @@ def calc_intervals(events, fwd=False):
 
     :param events: numpy array with the detected events [float, seconds]
     :param fwd:    calculate the intervals towards the next event [bool]
-    :returns:      the intervals [seconds]
+    :return:       the intervals [seconds]
 
     Note: The sequences must be ordered!
 
@@ -65,7 +65,7 @@ def find_closest_intervals(detections, annotations, matches=None):
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
     :param matches:     numpy array with indices of the closest beats [int]
-    :returns:           numpy array with closest annotated intervals [seconds]
+    :return:            numpy array with closest annotated intervals [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
           pre-computed indices of the closest matches can be used.
@@ -110,7 +110,7 @@ def find_longest_continuous_segment(sequence_indices):
     Find the longest consecutive segment in the given sequence_indices.
 
     :param sequence_indices: numpy array with the indices of the events [int]
-    :returns:                length and start position of the longest
+    :return:                 length and start position of the longest
                              continuous segment [(int, int)]
 
     """
@@ -133,7 +133,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
     :param matches:     numpy array with indices of the closest beats [int]
-    :returns:           numpy array with errors relative to surrounding
+    :return:            numpy array with errors relative to surrounding
                         annotated interval [seconds]
 
     Note: The sequences must be ordered! To speed up the calculation, a list of
@@ -162,7 +162,7 @@ def variations(sequence, offbeat=True, double=True, triple=True):
     :param offbeat:  create offbeat sequence
     :param double:   create double/half tempo sequence
     :param triple:   create triple/third tempo sequence
-    :returns:        list with sequence variations
+    :return:         list with sequence variations
 
     """
     # create different variants of the annotations
@@ -219,7 +219,7 @@ def pscore(detections, annotations, tolerance):
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
     :param tolerance:   tolerance window (fraction of the median beat interval)
-    :returns:           p-score
+    :return:            p-score
 
     "Evaluation of audio beat tracking and music tempo extraction algorithms"
     M. McKinney, D. Moelants, M. Davies and A. Klapuri
@@ -254,7 +254,7 @@ def cemgil(detections, annotations, sigma):
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
     :param sigma:       sigma for Gaussian error function [float]
-    :returns:           beat tracking accuracy
+    :return:            beat tracking accuracy
 
     "On tempo tracking: Tempogram representation and Kalman filtering"
     A.T. Cemgil, B. Kappen, P. Desain, and H. Honing
@@ -296,7 +296,7 @@ def goto(detections, annotations, threshold, mu, sigma):
     :param threshold:  threshold [float]
     :param mu:         mu [float]
     :param sigma:      sigma for Gaussian error function [float]
-    :returns:          beat tracking accuracy
+    :return:           beat tracking accuracy
 
     "Issues in evaluating beat tracking systems"
     M. Goto and Y. Muraoka
@@ -357,7 +357,7 @@ def cml(detections, annotations, tempo_tolerance, phase_tolerance):
                             [float, seconds]
     :param tempo_tolerance: tempo tolerance window [float]
     :param phase_tolerance: phase (interval) tolerance window [float]
-    :returns:               cmlc, cmlt
+    :return:                cmlc, cmlt
 
     "Techniques for the automated analysis of musical audio"
     S. Hainsworth
@@ -427,7 +427,7 @@ def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
     :param offbeat:         include offbeat variation
     :param double:          include 2x and 1/2x tempo variations
     :param triple:          include 3x and 1/3x tempo variations
-    :returns:               cmlc, cmlt, amlc, amlt beat tracking accuracies
+    :return:                cmlc, cmlt, amlc, amlt beat tracking accuracies
 
     cmlc: tracking accuracy, continuity at the correct metrical level required
     cmlt: tracking accuracy, continuity at the correct metrical level not req.
@@ -481,7 +481,7 @@ def information_gain(detections, annotations, bins):
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
     :param bins:        number of bins for the error histogram [int, even]
-    :returns:           information gain, beat error histogram
+    :return:            information gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a
     beat error histogram"
@@ -554,7 +554,7 @@ def _error_histogram(detections, annotations, histogram_bins):
     :param annotations:    numpy array with the annotated beats
                            [float, seconds]
     :param histogram_bins: sequence of histogram bin edges for mapping
-    :returns:              error histogram
+    :return:               error histogram
 
     Note: The returned error histogram is circular, i.e. it contains 1 bin less
           than indicated with the values of the last and first bin added and
@@ -581,7 +581,7 @@ def _information_gain(error_histogram):
     histogram.
 
     :param error_histogram: error histogram
-    :returns:               information gain
+    :return:                information gain
 
     """
     # return a perfect score in case of an empty histogram

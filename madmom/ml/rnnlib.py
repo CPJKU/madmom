@@ -29,14 +29,15 @@ from threading import Thread
 import multiprocessing
 import subprocess
 
+from ..features import Activations
+
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
 
 
-# Activations
 # TODO: inherit from features.Activations
-#       add another @classmethod constructor or overwrite __init__()?
-class Activations(np.ndarray):
+#       add another @classmethod constructor or overwrite __new__()?
+class RnnlibActivations(np.ndarray):
     """
     Class for reading in activations as written by RNNLIB.
 
@@ -70,8 +71,8 @@ class Activations(np.ndarray):
                     activations = np.fromstring(line, sep=' ')
         # close the file
         f.close()
-        # cast to Activations
-        obj = np.asarray(activations).view(cls)
+        # cast to RnnlibActivations
+        obj = np.asarray(activations.astype(np.float32)).view(cls)
         # set attributes
         obj._labels = labels
         obj._fps = fps
@@ -101,7 +102,7 @@ def max_len(strings):
     """
     Determine the maximum length of an array of the given strings.
     :param strings: list with strings
-    :returns:       maximum length of these strings
+    :return:        maximum length of these strings
 
     """
     return len(max(strings, key=len))
@@ -686,8 +687,8 @@ class TestThread(Thread):
             act = None
             try:
                 # classification output
-                act = Activations('%s/output_outputActivations' %
-                                  tmp_work_path)
+                act = RnnlibActivations('%s/output_outputActivations' %
+                                        tmp_work_path)
             except IOError:
                 # could not read in the activations, try regression
                 # TODO: make regression task work as well
@@ -711,10 +712,10 @@ def create_pool(threads=2, verbose=False):
 
     :param threads:  number of parallel threads
     :param verbose:  be verbose
-    :returns:        a tuple with working and return queues
+    :return:         a tuple with working and return queues
 
-    Note: the work queue expects tuples with (nc_file, nn_file),
-          the return contains the same tuples extended by the activations
+    Note: the work queue must contain tuples with (nc_file, nn_file),
+          the return queue contains the same tuples extended by the activations
           (nc_file, nn_file, activations).
 
     """
@@ -740,6 +741,8 @@ def test_nc_files(nc_files, nn_files, work_queue, return_queue):
     :param nn_files:     list with network files
     :param work_queue:   a work queue
     :param return_queue: a return queue
+    :return:             list with activations
+                         (a numpy array for each .nc file)
 
     """
     if not nc_files:
@@ -946,7 +949,7 @@ class RnnlibConfigFile(object):
         :param file_set: which set should be tested {train, val, test}
         :param threads:  number of working threads
         :param verbose:  verbose output
-        :returns:        the output directory
+        :return:         the output directory
 
         Note: If given, out_dir must exist. If none is given, an output
               directory is created.
@@ -1076,7 +1079,7 @@ class RnnlibConfigFile(object):
 
 
 def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
-                    verbose=False):
+                    verbose=False, fps=100):
     """
     Test the given set of files.
 
@@ -1086,9 +1089,13 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
                      file_set can be any of {train, val, test}
     :param threads:  number of working threads
     :param verbose:  be verbose
+    :param fps:      frame rate of the Activations to be saved
 
     Note: If 'out_dir' is set and multiple network files contain the same
           files, the activations get averaged and saved to 'out_dir'.
+
+          The activations are saved as Activations instances, i.e. .npz files
+          which include a frame rate in fps (frames per second).
 
     """
     # FIXME: function only works if called in the directory of the NN file
@@ -1130,11 +1137,11 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             # name of the activations file
             basename = os.path.basename(os.path.splitext(nc_file)[0])
             act_file = "%s/%s" % (out_dir, basename)
-            # save the activations (we only passed one .nc file, so it's the
-            # first activation in the returned list)
+            # cast the activations to an Activations instance (we only passed
+            # one .nc file, so it's the first activation in the returned list)
             if verbose:
                 print act_file
-            np.save(act_file, activations[0])
+            Activations(activations[0], fps=fps).save(act_file)
 
 
 def cross_validation(nc_files, filename, folds=8, randomize=True,
