@@ -101,12 +101,15 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     return np.array(path[::-1]), log(v_p.max()) + log_sum
 
 
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
-               int num_beat_states=640,
+               unsigned int num_beat_states=640,
                double tempo_change_probability=0.002,
-               int observation_lambda=16,
-               int min_tau=5,
-               int max_tau=23):
+               unsigned int observation_lambda=16,
+               unsigned int min_tau=5,
+               unsigned int max_tau=23):
     """
     Track the beats with a dynamic Bayesian network.
 
@@ -122,16 +125,9 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     :return:                         state-space sequence for the activations
 
     """
-# # TODO: why is it so much faster if we declare the variables in here?
-# def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations):
-#     cdef int num_beat_states = 640
-#     cdef double tempo_change_probability = 0.002
-#     cdef int observation_lambda = 16
-#     cdef int min_tau = 5
-#     cdef int max_tau = 23
     # number of states
-    cdef int num_tempo_states = max_tau - min_tau
-    cdef int num_states = num_beat_states * num_tempo_states
+    cdef unsigned int num_tempo_states = max_tau - min_tau
+    cdef unsigned int num_states = num_beat_states * num_tempo_states
     # current viterbi variables
     cdef np.ndarray[np.float_t, ndim=1] current_viterbi = \
         np.zeros(num_states, dtype=np.float)
@@ -147,13 +143,14 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     cdef list path = []
 
     # counters etc.
-    cdef int state, beat_state, tempo_state, tempo, prev, frame
+    cdef unsigned int state, beat_state, tempo_state, tempo, prev
     cdef double act, obs, cur
 
     # iterate over all observations
     for act in activations:
         # reset all current viterbi variables
-        current_viterbi[:] = 0.0
+        for state in range(num_states):
+            current_viterbi[state] = 0.0
         # search for best transitions
         for state in range(num_states):
             # position inside beat & tempo
@@ -167,7 +164,9 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                 obs = (1. - act) / (observation_lambda - 1)
             # for each state check the 3 possible transitions
             # transition from same tempo
-            prev = (beat_state - tempo) % num_beat_states + \
+            # Note: we add num_beat_states before the modulo operation so
+            #       that it can be computed in C (which is faster)
+            prev = (beat_state + num_beat_states - tempo) % num_beat_states + \
                    (tempo_state * num_beat_states)
             cur = prev_viterbi[prev] * (1. - tempo_change_probability) * obs
             if cur > current_viterbi[state]:
@@ -175,8 +174,10 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                 current_pointers[state] = prev
             # transition from slower tempo
             if tempo_state > 0:
-                prev = (beat_state - (tempo - 1)) % num_beat_states + \
-                       ((tempo_state - 1) * num_beat_states)
+                # Note: we add num_beat_states before the modulo operation so
+                #       that it can be computed in C (which is faster)
+                prev = (beat_state + num_beat_states - (tempo - 1)) % \
+                       num_beat_states + ((tempo_state - 1) * num_beat_states)
                 cur = prev_viterbi[prev] * 0.5 * tempo_change_probability * obs
                 # print prev, slower,
                 if cur > current_viterbi[state]:
@@ -184,8 +185,10 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                     current_pointers[state] = prev
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
-                prev = (beat_state - (tempo + 1)) % num_beat_states + \
-                       ((tempo_state + 1) * num_beat_states)
+                # Note: we add num_beat_states before the modulo operation so
+                #       that it can be computed in C (which is faster)
+                prev = (beat_state + num_beat_states - (tempo + 1)) % \
+                       num_beat_states + ((tempo_state + 1) * num_beat_states)
                 cur = prev_viterbi[prev] * 0.5 * tempo_change_probability * obs
                 # print prev, faster
                 if cur > current_viterbi[state]:
@@ -200,9 +203,14 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     state = current_viterbi.argmax()
     path.append(state)
     # track the path backwards
-    for frame in range(1, len(back_tracking_pointers)):
-        state = back_tracking_pointers[-frame][state]
+    cdef int frame
+    for frame in range(len(back_tracking_pointers) - 2, -1, -1):
+        state = back_tracking_pointers[frame][state]
         path.append(state)
+    # # track the path backwards
+    # for frame in range(1, len(back_tracking_pointers)):
+    #     state = back_tracking_pointers[-frame][state]
+    #     path.append(state)
     # return the tracked path
     # FIXME: right now we return the state-space for further post-processing,
     #        this changes somewhat soon!
