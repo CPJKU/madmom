@@ -6,12 +6,15 @@ functionality.
 @author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
 """
-
 import numpy as np
 cimport numpy as np
 cimport cython
 from libc.math cimport log
 
+# parallel processing stuff
+from cython.parallel cimport prange
+import multiprocessing as mp
+NUM_THREADS = mp.cpu_count()
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
@@ -109,7 +112,8 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                double tempo_change_probability=0.002,
                unsigned int observation_lambda=16,
                unsigned int min_tau=5,
-               unsigned int max_tau=23):
+               unsigned int max_tau=23,
+               unsigned int num_threads=NUM_THREADS):
     """
     Track the beats with a dynamic Bayesian network.
 
@@ -151,6 +155,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     # back tracked path, a.k.a. path sequence
     cdef np.ndarray[np.uint16_t, ndim=1] path = \
         np.empty(num_frames, dtype=np.uint16)
+
     # counters etc.
     cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
     cdef double act, obs, transition_prob
@@ -158,7 +163,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     # iterate over all observations
     for frame in range(num_frames):
         # search for best transitions
-        for state in range(num_states):
+        for state in prange(num_states, nogil=True, num_threads=num_threads):
             # reset the current viterbi variable
             current_viterbi[state] = 0.0
             # position inside beat & tempo

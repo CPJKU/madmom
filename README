@@ -14,7 +14,11 @@ To use this package without installing it, make sure this directory is in your
 $PYTHONPATH.
 
 However, better performance can be expected when using cython to compile
-speed critical parts:
+speed critical parts.
+
+You need a recent 'gcc' to compile the extensions with multi-thread support.
+On systems with other standard compilers, set your $CC variable accordingly,
+e.g. "export CC=gcc".
 
 python setup.py build_ext --inplace
 

@@ -11,6 +11,7 @@ import glob
 import sys
 import numpy as np
 
+
 from . import Activations, RNNEventDetection
 
 
@@ -577,7 +578,8 @@ class MMBeatTracking(RNNBeatTracking):
     def detect(self, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM, correct=CORRECT):
+               max_bpm=MAX_BPM, correct=CORRECT,
+               num_threads=RNNEventDetection.NUM_THREADS):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -588,10 +590,10 @@ class MMBeatTracking(RNNBeatTracking):
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
+        :param num_threads:              number of parallel threads
         :return:                         detected beat positions
 
         """
-        from scipy.signal import argrelmin, argrelmax
         # convert timing information to the tempo space
         max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
@@ -601,7 +603,8 @@ class MMBeatTracking(RNNBeatTracking):
                                tempo_change_probability=
                                tempo_change_probability,
                                min_tau=min_tau, max_tau=max_tau,
-                               observation_lambda=observation_lambda)
+                               observation_lambda=observation_lambda,
+                               num_threads=num_threads)
         # determine the frame indices with the smallest beat states
         states = path % num_beat_states
         self._states = states
@@ -629,6 +632,7 @@ class MMBeatTracking(RNNBeatTracking):
             detections = np.asarray(detections, np.float)
         else:
             # just take the frames with the smallest beat state values
+            from scipy.signal import argrelmin
             detections = argrelmin(states, mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the
             # beat states < number of beat states / observation lambda
