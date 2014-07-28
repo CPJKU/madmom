@@ -216,12 +216,12 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     # add the final best state to the path
     state = current_viterbi.argmax()
     path.append(state)
-    # track the path backwards
+    # track the path backwards, start with the last frame and do not include
+    # the back_tracking_pointers for frame 0, since it includes the transitions
+    # to the prior distribution states
     cdef unsigned int frame
     for frame in range(len(back_tracking_pointers) - 1, 0, -1):
         state = back_tracking_pointers[frame][state]
         path.append(state)
     # return the tracked path
-    # FIXME: right now we return the state-space for further post-processing,
-    #        this changes somewhat soon!
     return np.array(path[::-1])
