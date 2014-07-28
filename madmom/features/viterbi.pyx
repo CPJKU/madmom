@@ -143,8 +143,8 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     cdef list path = []
 
     # counters etc.
-    cdef unsigned int state, beat_state, tempo_state, tempo, prev
-    cdef double act, obs, cur
+    cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
+    cdef double act, obs, cur_prob
 
     # iterate over all observations
     for act in activations:
@@ -166,34 +166,39 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
             # transition from same tempo
             # Note: we add num_beat_states before the modulo operation so
             #       that it can be computed in C (which is faster)
-            prev = (beat_state + num_beat_states - tempo) % num_beat_states + \
-                   (tempo_state * num_beat_states)
-            cur = prev_viterbi[prev] * (1. - tempo_change_probability) * obs
-            if cur > current_viterbi[state]:
-                current_viterbi[state] = cur
-                current_pointers[state] = prev
+            prev_state = ((beat_state + num_beat_states - tempo) %
+                          num_beat_states + (tempo_state * num_beat_states))
+            cur_prob = (prev_viterbi[prev_state] *
+                        (1. - tempo_change_probability) * obs)
+            if cur_prob > current_viterbi[state]:
+                current_viterbi[state] = cur_prob
+                current_pointers[state] = prev_state
             # transition from slower tempo
             if tempo_state > 0:
                 # Note: we add num_beat_states before the modulo operation so
                 #       that it can be computed in C (which is faster)
-                prev = (beat_state + num_beat_states - (tempo - 1)) % \
-                       num_beat_states + ((tempo_state - 1) * num_beat_states)
-                cur = prev_viterbi[prev] * 0.5 * tempo_change_probability * obs
+                prev_state = ((beat_state + num_beat_states - (tempo - 1)) %
+                               num_beat_states +
+                              ((tempo_state - 1) * num_beat_states))
+                cur_prob = (prev_viterbi[prev_state] *
+                            0.5 * tempo_change_probability * obs)
                 # print prev, slower,
-                if cur > current_viterbi[state]:
-                    current_viterbi[state] = cur
-                    current_pointers[state] = prev
+                if cur_prob > current_viterbi[state]:
+                    current_viterbi[state] = cur_prob
+                    current_pointers[state] = prev_state
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
                 # Note: we add num_beat_states before the modulo operation so
                 #       that it can be computed in C (which is faster)
-                prev = (beat_state + num_beat_states - (tempo + 1)) % \
-                       num_beat_states + ((tempo_state + 1) * num_beat_states)
-                cur = prev_viterbi[prev] * 0.5 * tempo_change_probability * obs
+                prev_state = ((beat_state + num_beat_states - (tempo + 1)) %
+                              num_beat_states +
+                              ((tempo_state + 1) * num_beat_states))
+                cur_prob = (prev_viterbi[prev_state] *
+                            0.5 * tempo_change_probability * obs)
                 # print prev, faster
-                if cur > current_viterbi[state]:
-                    current_viterbi[state] = cur
-                    current_pointers[state] = prev
+                if cur_prob > current_viterbi[state]:
+                    current_viterbi[state] = cur_prob
+                    current_pointers[state] = prev_state
         # append current pointers to the back-tracking pointer sequence list
         back_tracking_pointers.append(current_pointers.copy())
         # overwrite the old states with the normalised current ones
