@@ -503,7 +503,7 @@ class MMBeatTracking(RNNBeatTracking):
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
-    CORRECT = None
+    CORRECT = True
 
     try:
         from viterbi import mm_viterbi
@@ -587,20 +587,8 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda:       TODO: fix docstring or naming
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
-        :param correct:                  correct the beat positions, allowed
-                                         values: [None, 'pib', 'activation']
+        :param correct:                  correct the beat positions
         :return:                         detected beat positions
-
-        Note: The `correct` parameter determines how the beat positions from
-              the states are corrected. Possible values are:
-              - None:          perform no correction
-              - 'pib':         correct the beats to the position where the
-                               state space makes the transition from the end
-                               of a beat to a new beat
-              - 'activation' : align the beats the the frame with the highest
-                               activation values inside the range which is
-                               given by: 0 <= beat state <= num_beat_states /
-                               observation_lambda
 
         """
         from scipy.signal import argrelmin, argrelmax
@@ -619,7 +607,7 @@ class MMBeatTracking(RNNBeatTracking):
         self._states = states
 
         # correct the beat positions
-        if correct in ['act', 'activation', 'activations']:
+        if correct:
             detections = []
             # for each detection determine the "beat range", i.e. states <=
             # num_beat_states / observation_lambda and choose the frame with
@@ -646,13 +634,8 @@ class MMBeatTracking(RNNBeatTracking):
             # beat states < number of beat states / observation lambda
             detections = detections[states[detections] <
                                     num_beat_states / observation_lambda]
-        if correct == 'pib':
-            # for each detection compute the tempo (i.e. diff) at this state
-            # and correct the detection by subtracting the the relative
-            # difference to the actual state (position inside beat)
-            # Note: to not use -=, since we need type conversion!
-            detections = detections - (states.astype(np.float)[detections] /
-                                       np.diff(states)[detections - 1])
+            # Note: interpolation and alignment of the beats to be at state 0
+            #       does not improve results over this simple method
         # convert them to a list of timestamps
         self._detections = detections / float(self.fps)
         # also return the detections
@@ -720,8 +703,14 @@ class MMBeatTracking(RNNBeatTracking):
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm, help='maximum tempo [bpm, '
                        ' default=%(default).2f]')
-        g.add_argument('--correct', action='store', type=str, default=correct,
-                       help='correct the beat positions')
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions')
         # TODO: add DBN related arguments here!
         # return the argument group so it can be modified if needed
         return g
