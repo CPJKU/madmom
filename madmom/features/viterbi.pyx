@@ -129,26 +129,32 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     # number of states
     cdef unsigned int num_tempo_states = max_tau - min_tau
     cdef unsigned int num_states = num_beat_states * num_tempo_states
+    # check that the number of states fit into unsigned int16
+    if num_states > np.iinfo(np.uint16).max:
+        raise AssertionError('current implementation can handle only %i '
+                             'states , not %i' % (np.iinfo(np.uint16).max,
+                                                  num_states))
+    cdef unsigned int num_frames = len(activations)
     # current viterbi variables
     cdef np.ndarray[np.float_t, ndim=1] current_viterbi = \
         np.zeros(num_states, dtype=np.float)
     # previous viterbi variables
     cdef np.ndarray[np.float_t, ndim=1] prev_viterbi = \
         np.ones(num_states, dtype=np.float)
-    # current back-tracking pointers; init them with -1
-    cdef np.ndarray[np.int_t, ndim=1] current_pointers = \
-        np.ones_like(current_viterbi, dtype=int) * -1
-    # back-tracking pointer sequence
-    cdef list back_tracking_pointers = []
+    # back-tracking pointers
+    cdef np.ndarray[np.uint16_t, ndim=2] back_tracking_pointers = \
+        np.zeros((num_frames, num_states), dtype=np.uint16)
     # back tracked path, a.k.a. path sequence
-    cdef list path = []
+    cdef np.ndarray[np.uint16_t, ndim=1] path = \
+        np.zeros(num_frames, dtype=np.uint16)
 
     # counters etc.
     cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
     cdef double act, obs, transition_prob
+    cdef int frame
 
     # iterate over all observations
-    for act in activations:
+    for frame in range(num_frames):
         # reset all current viterbi variables
         for state in range(num_states):
             current_viterbi[state] = 0.0
@@ -160,9 +166,9 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
             tempo = tempo_state + min_tau
             # get the observation
             if beat_state < num_beat_states / observation_lambda:
-                obs = act
+                obs = activations[frame]
             else:
-                obs = (1. - act) / (observation_lambda - 1)
+                obs = (1. - activations[frame]) / (observation_lambda - 1)
 
             # for each state check the 3 possible transitions
 
@@ -178,7 +184,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
             # overwrite it and save the previous state in the current pointers
             if transition_prob > current_viterbi[state]:
                 current_viterbi[state] = transition_prob
-                current_pointers[state] = prev_state
+                back_tracking_pointers[frame, state] = prev_state
             # transition from slower tempo
             if tempo_state > 0:
                 # previous state with slower tempo
@@ -192,7 +198,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                                    0.5 * tempo_change_probability * obs)
                 if transition_prob > current_viterbi[state]:
                     current_viterbi[state] = transition_prob
-                    current_pointers[state] = prev_state
+                    back_tracking_pointers[frame, state] = prev_state
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
                 # previous state with faster tempo
@@ -206,22 +212,20 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                                    0.5 * tempo_change_probability * obs)
                 if transition_prob > current_viterbi[state]:
                     current_viterbi[state] = transition_prob
-                    current_pointers[state] = prev_state
+                    back_tracking_pointers[frame, state] = prev_state
 
-        # append current pointers to the back-tracking pointer sequence list
-        back_tracking_pointers.append(current_pointers.copy())
         # overwrite the old states with the normalised current ones
         prev_viterbi = current_viterbi / current_viterbi.max()
 
-    # add the final best state to the path
+    # fetch the final best state
     state = current_viterbi.argmax()
-    path.append(state)
     # track the path backwards, start with the last frame and do not include
     # the back_tracking_pointers for frame 0, since it includes the transitions
     # to the prior distribution states
-    cdef unsigned int frame
-    for frame in range(len(back_tracking_pointers) - 1, 0, -1):
-        state = back_tracking_pointers[frame][state]
-        path.append(state)
+    for frame in range(num_frames -1, -1, -1):
+        # save the state in the path
+        path[frame] = state
+        # fetch the next previous one
+        state = back_tracking_pointers[frame, state]
     # return the tracked path
-    return np.array(path[::-1])
+    return path
