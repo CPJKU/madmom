@@ -126,6 +126,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
                                      from one observation to the next one
     :param max_tau:                  maximum number of beat cells to progress
                                      from one observation to the next one
+    :param num_threads:              number of parallel threads
     :return:                         most probable state-space path sequence
                                      for the given activations
 

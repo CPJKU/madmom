@@ -586,7 +586,9 @@ class MMBeatTracking(RNNBeatTracking):
         :param num_beat_states:          number of cells for one beat period
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
-        :param observation_lambda:       TODO: fix docstring or naming
+        :param observation_lambda:       split one beat period into N parts,
+                                         the first representing beat states
+                                         and the remaining non-beat states
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
@@ -668,7 +670,9 @@ class MMBeatTracking(RNNBeatTracking):
         :param num_beat_states:          number of cells for one beat period
         :param tempo_change_probability: probability of a tempo change between
                                          two adjacent observations
-        :param observation_lambda:       # TODO: add docstring or rename!
+        :param observation_lambda:       split one beat period into N parts,
+                                         the first representing beat states
+                                         and the remaining non-beat states
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
@@ -696,11 +700,11 @@ class MMBeatTracking(RNNBeatTracking):
                        type=float, default=tempo_change_probability,
                        help='probability of a tempo between two adjacent '
                             'observations [default=%(default).4f]')
-        # TODO: this must be renamed to a more sane name!
         g.add_argument('--observation_lambda', action='store', type=int,
                        default=observation_lambda,
-                       help='TODO: proportion of beat to no-beat length '
-                            '[default=%(default)i]')
+                       help='split one beat period into N parts, the first '
+                            'representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm, help='minimum tempo [bpm, '
                        ' default=%(default).2f]')
@@ -715,6 +719,5 @@ class MMBeatTracking(RNNBeatTracking):
             g.add_argument('--correct', dest='correct',
                            action='store_true', default=correct,
                            help='correct the beat positions')
-        # TODO: add DBN related arguments here!
         # return the argument group so it can be modified if needed
         return g
