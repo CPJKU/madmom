@@ -299,6 +299,11 @@ class RNNBeatTracking(RNNEventDetection):
         return g
 
 
+def _process_crf(data):
+    act, tau, tau_sig = data
+    return CRFBeatDetection.best_sequence(act, tau, tau_sig)
+
+
 class CRFBeatDetection(RNNBeatTracking):
     """
     Conditional Random Field Beat Detection.
@@ -438,10 +443,23 @@ class CRFBeatDetection(RNNBeatTracking):
         # remove all intervals outside the allowed range
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
+
         # get the best beat sequences for all intervals
-        results = [CRFBeatDetection.best_sequence(self.activations, interval,
-                                                  interval_sigma)
-                   for interval in possible_intervals]
+        if self.num_threads > 1:
+            # parallel processing
+            import itertools as it
+            import multiprocessing as mp
+            map_ = mp.Pool(4).map
+            results = map_(_process_crf, it.izip(it.repeat(self.activations),
+                                                 possible_intervals,
+                                                 it.repeat(interval_sigma)))
+        else:
+            # sequential processing
+            results = [CRFBeatDetection.best_sequence(self.activations,
+                                                      interval, interval_sigma)
+                       for interval in possible_intervals]
+
+
         # normalise their probabilities
         normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
                                                  for r in results])

@@ -63,6 +63,7 @@ def main():
     if args.load:
         # load activations
         b = CRFBeatDetection.from_activations(args.input, fps=100)
+        b.num_threads = args.num_threads
 
     else:
         # exit if no NN files are given

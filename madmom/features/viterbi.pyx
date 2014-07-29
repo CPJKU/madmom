@@ -44,20 +44,18 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     # number of beat variables
     cdef int num_x = num_st / tau
 
-    # back-tracking pointer sequence
-    cdef list bps = []
     # current viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.zeros(num_st, dtype=np.float32)
-    # previous viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] v_p = np.zeros(num_st, dtype=np.float32)
-    # current back-tracking pointers; init them with -1
-    cdef np.ndarray[np.int_t, ndim=1] bp_c = np.ones_like(v_c, dtype=int) * -1
+    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.empty(num_st, dtype=np.float32)
+    # previous viterbi variables. will be initialised with prior (first beat)
+    cdef np.ndarray[np.float32_t, ndim=1] v_p
+    # back-tracking pointers;
+    cdef np.ndarray[np.int_t, ndim=2] bps = np.empty((num_x - 1, num_st), dtype=np.int)
     # back tracked path, a.k.a. path sequence
     cdef list path = []
 
     # counters etc.
     cdef int k, i, j, next_state
-    cdef double cur, new, sum_k, log_sum = 0.0
+    cdef double new_prob, sum_k, log_sum = 0.0
 
     # init first beat
     v_p = pi * activations
@@ -68,18 +66,18 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
         # reset all current viterbi variables
         for i in range(num_st):
             v_c[i] = 0.0
-        # search the best transition
+
+        # find the best transition for each state
         for i in range(num_st):
             for j in range(num_tr):
-                if (i + j) >= num_st:
+                if (i - j) < 0:
                     break
 
-                cur = v_c[i + j]
-                new = v_p[i] * transition[j] * activations[i + j] * norm_factor[i]
+                new_prob = v_p[i - j] * transition[j] * activations[i] * norm_factor[i - j]
 
-                if new > cur:
-                    v_c[i + j] = new
-                    bp_c[i + j] = i
+                if new_prob > v_c[i]:
+                    v_c[i] = new_prob
+                    bps[k, i] = i - j
 
         sum_k = 0.0
         for i in range(num_st):
@@ -91,7 +89,6 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
         log_sum += log(sum_k)
 
         v_p, v_c = v_c, v_p
-        bps.append(bp_c.copy())
 
     # add the final best state to the path
     next_state = v_p.argmax()
