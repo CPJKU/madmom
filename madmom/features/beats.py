@@ -299,9 +299,21 @@ class RNNBeatTracking(RNNEventDetection):
         return g
 
 
+# TODO: refactor the whole CRF Viterbi stuff as a .pyx class including the
+#       initial_distribution and all other functionality, but omit the factors
 def _process_crf(data):
-    act, tau, tau_sig = data
-    return CRFBeatDetection.best_sequence(act, tau, tau_sig)
+    """
+    Extract the best beat sequence for a piece.
+
+    :param data: tuple with (activations, dominant_interval, allowed
+                             deviation from the dominant interval per beat)
+    :return:     tuple with extracted beat positions [frames]
+                 and log probability of beat sequence
+
+    """
+    activations, dominant_interval, interval_sigma = data
+    return CRFBeatDetection.best_sequence(activations, dominant_interval,
+                                          interval_sigma)
 
 
 class CRFBeatDetection(RNNBeatTracking):
@@ -455,7 +467,7 @@ class CRFBeatDetection(RNNBeatTracking):
             import multiprocessing as mp
             map_ = mp.Pool(self.num_threads).map
 
-        # compute predictions with all saved neural networks (in parallel)
+        # compute the beat sequences (in parallel)
         results = map_(_process_crf, it.izip(it.repeat(self.activations),
                                              possible_intervals,
                                              it.repeat(interval_sigma)))
