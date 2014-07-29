@@ -165,6 +165,10 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     for frame in range(num_frames):
         # search for best transitions
         # FIXME: prange() is slower for only for 1 thread
+        #        refactor the whole stuff as cdef class MMViterbi():
+        #        and add a cdef compute_state() method which can be called
+        #        via range() or prange() whichever is called depending on
+        #        the number of threads used
         for state in prange(num_states, nogil=True, num_threads=num_threads,
                             schedule='static'):
             # reset the current viterbi variable
