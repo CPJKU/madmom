@@ -4,7 +4,8 @@ Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 (http://www.ofai.at).
 
 Unless indicated otherwise, all files are published under the license which can
-be found in the LICENSE file.
+be found in the LICENSE file of the same directory or - if none is there - of
+the next higher directory.
 
 All features can change without prior notice. Do NOT expect these to stay the
 same forever! If you need stable features, create a branch and set the needed
@@ -31,6 +32,14 @@ You might need higher privileges (use su or sudo) to install the files to a
 common place like '/usr/local' or similar.
 
 The package is designed to have as few as possible external requirements,
-usually only numpy and scipy is required. If you get segfaults on Mac OS X
-systems, please check if numpy and scipy use ATLAS instead of Apple's own
-Accelerate framework or use the '--threads 1' switch where appropriate.
+usually only numpy and scipy is required. Cython is only needed for certain
+modules or speed critical functionality but is generally a good idea to have
+it :)
+
+Please make sure that all modules are up to date, especially those mentioned
+in requirements.txt must be the specific version (or newer), otherwise it can
+result in unexpected errors or false computations!
+
+If you get segfaults on Mac OS X systems, please check if numpy and scipy use
+ATLAS instead of Apple's own Accelerate framework or use the '--threads 1'
+switch where appropriate.

@@ -615,8 +615,9 @@ class MMBeatTracking(RNNBeatTracking):
         # convert timing information to the tempo space
         max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
-        # since only real CPU cores seem to improve speed, reduce the number of
+        # only real CPU cores seem to improve speed, thus reduce the number of
         # concurrent threads if needed
+        # FIXME: /2 assumes hyper-threading, fix this properly
         num_threads = min(self.num_threads, RNNEventDetection.NUM_THREADS / 2)
         # infer the state space sequence
         path = self.mm_viterbi(self.activations,
