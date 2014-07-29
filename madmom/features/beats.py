@@ -689,7 +689,9 @@ class MMBeatTracking(RNNBeatTracking):
                             'neural networks (multiple files can be given, '
                             'one file per argument) and choose the most '
                             'suitable one accordingly (i.e. the one with the '
-                            'least deviation form these reference models).')
+                            'least deviation form these reference models). '
+                            'If multiple files are given, the predictions of '
+                            'the networks are averaged first.')
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
         g.add_argument('--num_beat_states', action='store', type=int,
