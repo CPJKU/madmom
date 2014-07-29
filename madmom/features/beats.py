@@ -428,6 +428,7 @@ class CRFBeatDetection(RNNBeatTracking):
         :return:               detected beat positions
 
         """
+        import itertools as it
         # convert timing information to frames and set default values
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
@@ -443,22 +444,21 @@ class CRFBeatDetection(RNNBeatTracking):
         # remove all intervals outside the allowed range
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
+        # sort the intervals
+        possible_intervals.sort()
+        # put the greatest first so that it get processed first
+        possible_intervals.reverse()
 
-        # get the best beat sequences for all intervals
-        if self.num_threads > 1:
-            # parallel processing
-            import itertools as it
+        # init a pool of workers (if needed)
+        map_ = map
+        if min(len(factors), max(1, self.num_threads)) != 1:
             import multiprocessing as mp
-            map_ = mp.Pool(4).map
-            results = map_(_process_crf, it.izip(it.repeat(self.activations),
-                                                 possible_intervals,
-                                                 it.repeat(interval_sigma)))
-        else:
-            # sequential processing
-            results = [CRFBeatDetection.best_sequence(self.activations,
-                                                      interval, interval_sigma)
-                       for interval in possible_intervals]
+            map_ = mp.Pool(self.num_threads).map
 
+        # compute predictions with all saved neural networks (in parallel)
+        results = map_(_process_crf, it.izip(it.repeat(self.activations),
+                                             possible_intervals,
+                                             it.repeat(interval_sigma)))
 
         # normalise their probabilities
         normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
@@ -596,8 +596,7 @@ class MMBeatTracking(RNNBeatTracking):
     def detect(self, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM, correct=CORRECT,
-               num_threads=RNNEventDetection.NUM_THREADS):
+               max_bpm=MAX_BPM, correct=CORRECT):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -610,13 +609,15 @@ class MMBeatTracking(RNNBeatTracking):
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
-        :param num_threads:              number of parallel threads
         :return:                         detected beat positions
 
         """
         # convert timing information to the tempo space
         max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
+        # since only real CPU cores seem to improve speed, reduce the number of
+        # concurrent threads if needed
+        num_threads = min(self.num_threads, RNNEventDetection.NUM_THREADS / 2)
         # infer the state space sequence
         path = self.mm_viterbi(self.activations,
                                num_beat_states=num_beat_states,

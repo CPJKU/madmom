@@ -1,9 +1,9 @@
 # encoding: utf-8
 """
-This file contains the speed crucial conditional random field related
-functionality.
+This file contains the speed crucial Viterbi functionality.
 
 @author: Filip Korzeniowski <filip.korzeniowski@jku.at>
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
 import numpy as np
@@ -161,6 +161,7 @@ def mm_viterbi(np.ndarray[np.float32_t, ndim=1] activations,
     # iterate over all observations
     for frame in range(num_frames):
         # search for best transitions
+        # FIXME: prange() is slower for only for 1 thread
         for state in prange(num_states, nogil=True, num_threads=num_threads,
                             schedule='static'):
             # reset the current viterbi variable

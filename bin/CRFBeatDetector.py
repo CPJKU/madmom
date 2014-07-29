@@ -63,8 +63,8 @@ def main():
     if args.load:
         # load activations
         b = CRFBeatDetection.from_activations(args.input, fps=100)
+        # set the number of threads, since the detection works multi-threaded
         b.num_threads = args.num_threads
-
     else:
         # exit if no NN files are given
         if not args.nn_files:
