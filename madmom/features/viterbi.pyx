@@ -45,11 +45,13 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     cdef int num_x = num_st / tau
 
     # current viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.empty(num_st, dtype=np.float32)
+    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.empty(num_st,
+                                                         dtype=np.float32)
     # previous viterbi variables. will be initialised with prior (first beat)
     cdef np.ndarray[np.float32_t, ndim=1] v_p
     # back-tracking pointers;
-    cdef np.ndarray[np.int_t, ndim=2] bps = np.empty((num_x - 1, num_st), dtype=np.int)
+    cdef np.ndarray[np.int_t, ndim=2] bps = np.empty((num_x - 1, num_st),
+                                                     dtype=np.int)
     # back tracked path, a.k.a. path sequence
     cdef list path = []
 
@@ -73,7 +75,8 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
                 if (i - j) < 0:
                     break
 
-                new_prob = v_p[i - j] * transition[j] * activations[i] * norm_factor[i - j]
+                new_prob = v_p[i - j] * transition[j] * activations[i] * \
+                           norm_factor[i - j]
 
                 if new_prob > v_c[i]:
                     v_c[i] = new_prob
