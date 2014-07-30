@@ -529,8 +529,8 @@ class MMBeatTracking(RNNBeatTracking):
     NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
                              RNNBeatTracking.NN_PATH)
     # default values for beat detection
-    NUM_BEAT_STATES = 640
-    TEMPO_CHANGE_PROBABILITY = 0.002
+    NUM_BEAT_STATES = 1280
+    TEMPO_CHANGE_PROBABILITY = 0.008
     OBSERVATION_LAMBDA = 16
     MIN_BPM = 56
     MAX_BPM = 215
