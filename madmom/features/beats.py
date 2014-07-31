@@ -536,7 +536,7 @@ class MMBeatTracking(RNNBeatTracking):
     NORM_ACT = False
 
     try:
-        from viterbi import mm_viterbi
+        from viterbi import MultiModelDBN
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the viterbi '
@@ -626,25 +626,21 @@ class MMBeatTracking(RNNBeatTracking):
 
         """
         # convert timing information to the tempo space
-        max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
-        min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
-        # only real CPU cores seem to improve speed, thus reduce the number of
-        # concurrent threads if needed
-        # FIXME: /2 assumes hyper-threading, fix this properly
-        num_threads = min(self.num_threads, RNNEventDetection.NUM_THREADS / 2)
-        # infer the state space sequence
+        max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
+        min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
+        # normalise the activations for the DBN
         if norm_act:
             self._activations = self.activations / np.max(self.activations)
-        path = self.mm_viterbi(self.activations,
-                               num_beat_states=num_beat_states,
-                               tempo_change_probability=
-                               tempo_change_probability,
-                               min_tau=min_tau, max_tau=max_tau,
-                               observation_lambda=observation_lambda,
-                               num_threads=num_threads)
-        # determine the frame indices with the smallest beat states
-        states = path % num_beat_states
-        self._states = states
+        # init the DBN
+        dbn = self.MultiModelDBN(num_beat_states=num_beat_states,
+                                 tempo_change_probability=
+                                 tempo_change_probability,
+                                 min_tempo=min_tempo, max_tempo=max_tempo,
+                                 observation_lambda=observation_lambda,
+                                 num_threads=self.num_threads)
+        # determine the beat states for the activations
+        dbn.viterbi(self.activations)
+        states = dbn.beat_states
 
         # correct the beat positions
         if correct:
