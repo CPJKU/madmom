@@ -532,7 +532,7 @@ class MMBeatTracking(RNNBeatTracking):
     NUM_BEAT_STATES = 1280
     TEMPO_CHANGE_PROBABILITY = 0.008
     OBSERVATION_LAMBDA = 16
-    MIN_BPM = 50
+    MIN_BPM = 55
     MAX_BPM = 220
     CORRECT = True
     NORM_ACT = False
