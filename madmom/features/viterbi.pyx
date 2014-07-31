@@ -156,7 +156,7 @@ cdef class MultiModelDBN(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def viterbi(self, np.ndarray[np.float32_t, ndim=1] observations):
+    def viterbi(self, float [::1] observations):
         """
         Determine the best path given the observations.
 
@@ -168,7 +168,7 @@ cdef class MultiModelDBN(object):
 
         """
         # save the given observations
-        self.observations = observations
+        self.observations = np.asarray(observations)
         # cache class/instance variables needed in the loops
         cdef unsigned int num_beat_states = self.num_beat_states
         cdef double tempo_change_probability = self.tempo_change_probability
@@ -224,6 +224,7 @@ cdef class MultiModelDBN(object):
             for state in prange(num_states, nogil=True,
                                 num_threads=num_threads,
                                 schedule='static'):
+            # for state in range (num_states):
                 # reset the current viterbi variable
                 current_viterbi_[state] = 0.0
                 # position inside beat & tempo
@@ -262,7 +263,7 @@ cdef class MultiModelDBN(object):
                                   ((tempo_state - 1) * num_beat_states))
                     # probability for transition from slower tempo
                     transition_prob = (prev_viterbi_[prev_state] *
-                                       same_tempo_prob * obs)
+                                       change_tempo_prob * obs)
                     if transition_prob > current_viterbi_[state]:
                         current_viterbi_[state] = transition_prob
                         back_tracking_pointers_[frame, state] = prev_state
@@ -276,7 +277,7 @@ cdef class MultiModelDBN(object):
                                   ((tempo_state + 1) * num_beat_states))
                     # probability for transition from faster tempo
                     transition_prob = (prev_viterbi_[prev_state] *
-                                       same_tempo_prob * obs)
+                                       change_tempo_prob * obs)
                     if transition_prob > current_viterbi_[state]:
                         current_viterbi_[state] = transition_prob
                         back_tracking_pointers_[frame, state] = prev_state
