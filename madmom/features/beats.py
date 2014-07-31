@@ -520,9 +520,7 @@ class CRFBeatDetection(RNNBeatTracking):
 
 class MMBeatTracking(RNNBeatTracking):
     """
-    Class for tracking beats with a recurrent neural network (RNN) while
-    choosing the most appropriate model automatically and infer the beats with
-    a dynamic Bayesian network.
+    Multi-model beat tracking with RNNs and a DBN.
 
     """
     # set the path to saved neural networks and generate lists of NN files
@@ -547,8 +545,9 @@ class MMBeatTracking(RNNBeatTracking):
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
                  nn_ref_files=NN_REF_FILES, **kwargs):
         """
-        Use RNNs to compute the beat activation function and then align the
-        beats according to the previously determined global tempo.
+        Use multiple RNNs to compute beat activation functions and then choose
+        the most appropriate one automatically by comparing them to a reference
+        model and finally infer the beats with a dynamic Bayesian network.
 
         :param data:        Signal, activations or file.
         :param nn_files:    list of files that define the RNN
@@ -570,7 +569,7 @@ class MMBeatTracking(RNNBeatTracking):
         Computes the predictions on the data with the RNN models defined/given
         and save the predictions of the most suitable model as activations.
 
-        :return: most suitable RNN activation (prediction)
+        :return: most suitable RNN activation function (prediction)
 
         """
         from ..ml.rnn import process_rnn
