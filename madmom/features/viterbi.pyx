@@ -176,7 +176,6 @@ cdef class MultiModelDBN(object):
         cdef unsigned int min_tempo = self.min_tempo
         cdef unsigned int max_tempo = self.max_tempo
         cdef unsigned int num_threads = self.num_threads
-        print num_threads
         # number of tempo states
         cdef unsigned int num_tempo_states = max_tempo - min_tempo
         # number of states
@@ -188,22 +187,31 @@ cdef class MultiModelDBN(object):
         # number of frames
         cdef unsigned int num_frames = len(observations)
         # current viterbi variables
-        cdef np.ndarray[np.float_t, ndim=1] current_viterbi = \
-            np.empty(num_states, dtype=np.float)
+        current_viterbi = np.empty(num_states, dtype=np.float)
+        # typed memoryview thereof
+        # Note: the ::1 notation indicates that is memory continuous
+        cdef double [::1] current_viterbi_ = current_viterbi
         # previous viterbi variables, init them with 1s as prior distribution
         # TODO: allow other priors
-        cdef np.ndarray[np.float_t, ndim=1] prev_viterbi = \
-            np.ones(num_states, dtype=np.float)
+        prev_viterbi = np.ones(num_states, dtype=np.float)
+        # typed memoryview thereof
+        cdef double [::1] prev_viterbi_ = prev_viterbi
         # back-tracking pointers
-        cdef np.ndarray[np.uint16_t, ndim=2] back_tracking_pointers = \
-            np.empty((num_frames, num_states), dtype=np.uint16)
+        back_tracking_pointers = np.empty((num_frames, num_states),
+                                           dtype=np.uint16)
+        # typed memoryview thereof
+        cdef unsigned short [:, ::1] back_tracking_pointers_ = \
+            back_tracking_pointers
         # back tracked path, a.k.a. path sequence
-        cdef np.ndarray[np.uint16_t, ndim=1] path = \
-            np.empty(num_frames, dtype=np.uint16)
+        path = np.empty(num_frames, dtype=np.uint16)
+        # cdef unsigned short [::1] path_ = path
 
         # define counters etc.
         cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
         cdef double act, obs, transition_prob
+        cdef double same_tempo_prob = 1. - tempo_change_probability
+        cdef double change_tempo_prob = 0.5 * tempo_change_probability
+        cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
         cdef int frame
         # iterate over all observations
         for frame in range(num_frames):
@@ -217,13 +225,13 @@ cdef class MultiModelDBN(object):
                                 num_threads=num_threads,
                                 schedule='static'):
                 # reset the current viterbi variable
-                current_viterbi[state] = 0.0
+                current_viterbi_[state] = 0.0
                 # position inside beat & tempo
                 beat_state = state % num_beat_states
                 tempo_state = state / num_beat_states
                 tempo = tempo_state + min_tempo
                 # get the observation
-                if beat_state < num_beat_states / observation_lambda:
+                if beat_state < beat_no_beat:
                     obs = observations[frame]
                 else:
                     obs = (1. - observations[frame]) / \
@@ -236,14 +244,14 @@ cdef class MultiModelDBN(object):
                               num_beat_states +
                               (tempo_state * num_beat_states))
                 # probability for transition from same tempo
-                transition_prob = (prev_viterbi[prev_state] *
-                                   (1. - tempo_change_probability) * obs)
+                transition_prob = (prev_viterbi_[prev_state] *
+                                   same_tempo_prob * obs)
                 # if this transition probability is greater than the current
                 # one, overwrite it and save the previous state in the current
                 # pointers
-                if transition_prob > current_viterbi[state]:
-                    current_viterbi[state] = transition_prob
-                    back_tracking_pointers[frame, state] = prev_state
+                if transition_prob > current_viterbi_[state]:
+                    current_viterbi_[state] = transition_prob
+                    back_tracking_pointers_[frame, state] = prev_state
                 # transition from slower tempo
                 if tempo_state > 0:
                     # previous state with slower tempo
@@ -253,12 +261,11 @@ cdef class MultiModelDBN(object):
                                    (tempo - 1)) % num_beat_states +
                                   ((tempo_state - 1) * num_beat_states))
                     # probability for transition from slower tempo
-                    transition_prob = (prev_viterbi[prev_state] *
-                                       0.5 * tempo_change_probability *
-                                       obs)
-                    if transition_prob > current_viterbi[state]:
-                        current_viterbi[state] = transition_prob
-                        back_tracking_pointers[frame, state] = prev_state
+                    transition_prob = (prev_viterbi_[prev_state] *
+                                       same_tempo_prob * obs)
+                    if transition_prob > current_viterbi_[state]:
+                        current_viterbi_[state] = transition_prob
+                        back_tracking_pointers_[frame, state] = prev_state
                 # transition from faster tempo
                 if tempo_state < num_tempo_states - 1:
                     # previous state with faster tempo
@@ -268,15 +275,17 @@ cdef class MultiModelDBN(object):
                                    (tempo + 1)) % num_beat_states +
                                   ((tempo_state + 1) * num_beat_states))
                     # probability for transition from faster tempo
-                    transition_prob = (prev_viterbi[prev_state] *
-                                       0.5 * tempo_change_probability *
-                                       obs)
-                    if transition_prob > current_viterbi[state]:
-                        current_viterbi[state] = transition_prob
-                        back_tracking_pointers[frame, state] = prev_state
+                    transition_prob = (prev_viterbi_[prev_state] *
+                                       same_tempo_prob * obs)
+                    if transition_prob > current_viterbi_[state]:
+                        current_viterbi_[state] = transition_prob
+                        back_tracking_pointers_[frame, state] = prev_state
             # overwrite the old states with the normalised current ones
-            # Note: this is faster than unrolling the loop
-            prev_viterbi = current_viterbi / current_viterbi.max()
+            # Note: this is faster than unrolling the loop! But it is a bit
+            #       tricky: we need to call max() on the numpy array but do
+            #       the normalisation and assignment on the memoryview
+            prev_viterbi_ = current_viterbi_ / current_viterbi.max()
+
         # fetch the final best state
         state = current_viterbi.argmax()
         # track the path backwards, start with the last frame and do not
@@ -289,6 +298,7 @@ cdef class MultiModelDBN(object):
             state = back_tracking_pointers[frame, state]
         # save the tracked path and return it
         self.path = path
+        print path % num_beat_states
         return path
 
     @property
