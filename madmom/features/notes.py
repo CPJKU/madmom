@@ -24,7 +24,7 @@ def load_notes(filename):
     Load the target notes from a file.
 
     :param filename: input file name or file handle
-    :returns:        numpy array with notes
+    :return:         numpy array with notes
 
     """
     with open(filename, 'rb') as f:
@@ -330,7 +330,7 @@ class NoteTranscription(RNNEventDetection):
     def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
                       smooth=SMOOTH, combine=COMBINE, delay=DELAY,
                       pre_avg=PRE_AVG, post_avg=POST_AVG,
-                      pre_max=PRE_MAX, post_max=POST_MAX, **kwargs):
+                      pre_max=PRE_MAX, post_max=POST_MAX):
         """
         Add note transcription related arguments to an existing parser object.
 

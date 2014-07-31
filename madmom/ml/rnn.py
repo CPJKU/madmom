@@ -92,7 +92,7 @@ class Layer(object):
         Activate the layer.
 
         :param data: activate with this data
-        :returns:    activations for this data
+        :return:     activations for this data
 
         """
         raise NotImplementedError("To be implemented by subclass")
@@ -135,7 +135,7 @@ class BidirectionalLayer(Layer):
         Activate the layer.
 
         :param data: activate with this data
-        :returns:    activations for this data
+        :return:     activations for this data
 
         """
         # activate in forward direction
@@ -190,7 +190,7 @@ class FeedForwardLayer(Layer):
         Activate the layer.
 
         :param data: activate with this data
-        :returns:    activations for this data
+        :return:     activations for this data
 
         """
         # weight the data, add bias and apply transfer function
@@ -241,7 +241,7 @@ class RecurrentLayer(FeedForwardLayer):
         Activate the layer.
 
         :param data: activate with this data
-        :returns:    activations for this data
+        :return:     activations for this data
 
         """
         # if we don't have recurrent weights, we don't have to loop
@@ -356,7 +356,7 @@ class Cell(object):
                       scalar)
         :param state: state data of the {current | previous} time step (1D
                       vector or scalar)
-        :returns:     activations of the gate
+        :return:      activations of the gate
 
         """
         # weight input and add bias
@@ -427,7 +427,7 @@ class LSTMLayer(object):
         Activate the layer.
 
         :param data: activate with this data
-        :returns:    activations for this data
+        :return:     activations for this data
 
         """
         # init arrays
@@ -502,7 +502,7 @@ class RecurrentNeuralNetwork(object):
             Create a new network layer according to the given parameters.
 
             :param params: parameters for layer creation
-            :returns:      a network layer
+            :return:       a network layer
 
             """
             # first check if we need to create a bidirectional layer
@@ -547,7 +547,7 @@ class RecurrentNeuralNetwork(object):
         Activate the RNN.
 
         :param data: activate with this data
-        :returns:    network activations for this data
+        :return:     network activations for this data
 
         """
         # loop over all layers
@@ -567,7 +567,7 @@ def _process(process_tuple):
     given numpy array of data through it (second tuple item).
 
     :param process_tuple: tuple (nn_file, data)
-    :returns:             RNN output (predictions for the given data)
+    :return:              RNN output (predictions for the given data)
 
     Note: this must be a top-level function to be pickle-able.
 
@@ -575,15 +575,16 @@ def _process(process_tuple):
     return RecurrentNeuralNetwork(process_tuple[0]).activate(process_tuple[1])
 
 
-def process_rnn(data, nn_files, threads=mp.cpu_count()):
+def process_rnn(data, nn_files, threads=mp.cpu_count(), average=True):
     """
-    The data is processed by the given NN files and the averaged prediction is
-    returned.
+    The data is processed by the given NN files and all predictions or the
+    averaged prediction is returned.
 
     :param data:     data to be processed by the NNs
     :param nn_files: list with NN files
     :param threads:  number of parallel working threads
-    :returns:        averaged prediction
+    :param average:  average predictions
+    :return:         averaged prediction or a list with all predictions
 
     """
     # init a pool of workers (if needed)
@@ -592,10 +593,15 @@ def process_rnn(data, nn_files, threads=mp.cpu_count()):
         map_ = mp.Pool(threads).map
 
     # compute predictions with all saved neural networks (in parallel)
-    activations = map_(_process, it.izip(nn_files, it.repeat(data)))
+    predictions = map_(_process, it.izip(nn_files, it.repeat(data)))
 
-    # average activations if needed
-    if len(nn_files) > 1:
-        return sum(activations) / len(nn_files)
+    # average predictions if needed
+    if average and len(nn_files) > 1:
+        # average the predictions
+        return sum(predictions) / len(nn_files)
+    elif average:
+        # nothing to average since we only have one prediction
+        return predictions[0]
     else:
-        return activations[0]
+        # return all predictions as a list
+        return predictions

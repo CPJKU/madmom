@@ -23,7 +23,7 @@ def open(filename, mode='r'):
 
     :param filename: file name or open file handle
     :param mode:     mode in which to open the file
-    :returns:        an open file handle
+    :return:         an open file handle
 
     """
     # check if we need to open the file
@@ -46,7 +46,7 @@ def files(path, suffix=None):
 
     :param path: path or list of files to be filtered/searched
     :param suffix:  only return files with this extension
-    :returns:    list of files
+    :return:     list of files
 
     """
     # determine the detection files
@@ -93,7 +93,7 @@ def strip_suffix(filename, suffix=None):
 
     :param filename: filename or string to process
     :param suffix:   suffix to be stripped off
-    :returns:        filename or string without suffix
+    :return:         filename or string without suffix
 
     """
     if suffix is not None and filename.endswith(suffix):
@@ -109,7 +109,7 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     :param match_list:   match to this list of filenames or strings
     :param suffix:       ignore this suffix of the filename when matching
     :param match_suffix: only match files with this suffix
-    :returns:            list of matched files
+    :return:             list of matched files
 
     """
     # get the base name without the path
@@ -199,7 +199,7 @@ def quantise_events(events, fps, length=None, shift=None):
     :param fps:    quantize with N frames per second
     :param length: length of the returned array [frames]
     :param shift:  shift the events by N seconds before quantisation
-    :returns:      a quantized numpy array
+    :return:       a quantized numpy array
 
     """
     # shift all events if needed
@@ -245,7 +245,7 @@ class OverrideDefaultListAction(argparse.Action):
     """
     OverrideDefaultListAction
 
-    An argparser action that works similarly to the regular 'append' action.
+    An argparse action that works similarly to the regular 'append' action.
     The default value is deleted when a new value is specified. The 'append'
     action would append the new value to the default.
 

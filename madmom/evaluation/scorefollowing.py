@@ -55,7 +55,7 @@ def compute_event_alignment(alignment, ground_truth):
 
     # do not allow to move backwards
     for i in range(1, al_pos.shape[0]):
-        al_pos[i] = max(al_pos[i-1], al_pos[i])
+        al_pos[i] = max(al_pos[i - 1], al_pos[i])
 
     # find corresponding indices
     al_idxs = np.searchsorted(al_pos, gt_pos)

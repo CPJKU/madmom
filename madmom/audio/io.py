@@ -15,7 +15,7 @@ def load_audio_file(filename, sample_rate=None):
 
     :param filename:    name of the file or file handle
     :param sample_rate: sample rate of the signal [Hz]
-    :returns:           tuple (signal, sample_rate)
+    :return:            tuple (signal, sample_rate)
 
     """
     # determine the name of the file

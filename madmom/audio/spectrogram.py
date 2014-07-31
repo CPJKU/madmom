@@ -23,7 +23,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     :param offset:   position of the first sample inside the signal [int]
     :param phase:    circular shift for correct phase [bool]
     :param fft_size: use given size for FFT [int, should be a power of 2]
-    :returns:        the complex STFT of the signal
+    :return:         the complex STFT of the signal
 
     The size of the window determines the frame size used for splitting the
     signal into frames.
@@ -75,7 +75,7 @@ def strided_stft(signal, window, hop_size, phase=True):
     :param window:   window function
     :param hop_size: the hop size in samples between adjacent frames [int]
     :param phase:    circular shift for correct phase [bool]
-    :returns:        the complex STFT of the signal
+    :return:         the complex STFT of the signal
 
     Note: This function is here only for completeness. It is faster only in
           rare circumstances. Also, seeking to the right position is only
@@ -521,7 +521,7 @@ class Spectrogram(object):
 
         :param floor:      floor coefficient [float]
         :param relaxation: relaxation time [frames]
-        :returns:          the whitened magnitude spectrogram
+        :return:           the whitened magnitude spectrogram
 
         "Adaptive Whitening For Improved Real-time Audio Onset Detection"
         Dan Stowell and Mark Plumbley
