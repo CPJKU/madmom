@@ -532,9 +532,10 @@ class MMBeatTracking(RNNBeatTracking):
     NUM_BEAT_STATES = 1280
     TEMPO_CHANGE_PROBABILITY = 0.008
     OBSERVATION_LAMBDA = 16
-    MIN_BPM = 56
-    MAX_BPM = 215
+    MIN_BPM = 50
+    MAX_BPM = 220
     CORRECT = True
+    NORM_ACT = False
 
     try:
         from viterbi import mm_viterbi
@@ -608,7 +609,7 @@ class MMBeatTracking(RNNBeatTracking):
     def detect(self, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM, correct=CORRECT):
+               max_bpm=MAX_BPM, correct=CORRECT, norm_act=NORM_ACT):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -621,6 +622,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
+        :param norm_act:                 normalise the activations for the DBN
         :return:                         detected beat positions
 
         """
@@ -632,6 +634,8 @@ class MMBeatTracking(RNNBeatTracking):
         # FIXME: /2 assumes hyper-threading, fix this properly
         num_threads = min(self.num_threads, RNNEventDetection.NUM_THREADS / 2)
         # infer the state space sequence
+        if norm_act:
+            self._activations = self.activations / np.max(self.activations)
         path = self.mm_viterbi(self.activations,
                                num_beat_states=num_beat_states,
                                tempo_change_probability=
@@ -692,7 +696,7 @@ class MMBeatTracking(RNNBeatTracking):
                       num_beat_states=NUM_BEAT_STATES,
                       tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                       observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM, correct=CORRECT):
+                      max_bpm=MAX_BPM, correct=CORRECT, norm_act=NORM_ACT):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
@@ -708,6 +712,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
+        :param norm_act:                 normalise the activations for the DBN
         :return:                         beat argument parser group object
 
         """
@@ -721,9 +726,9 @@ class MMBeatTracking(RNNBeatTracking):
                             'neural networks (multiple files can be given, '
                             'one file per argument) and choose the most '
                             'suitable one accordingly (i.e. the one with the '
-                            'least deviation form these reference models). '
-                            'If multiple files are given, the predictions of '
-                            'the networks are averaged first.')
+                            'least deviation form the reference model). '
+                            'If multiple reference files are given, the '
+                            'predictions of the networks are averaged first.')
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
         g.add_argument('--num_beat_states', action='store', type=int,
@@ -753,5 +758,13 @@ class MMBeatTracking(RNNBeatTracking):
             g.add_argument('--correct', dest='correct',
                            action='store_true', default=correct,
                            help='correct the beat positions')
+        if norm_act:
+            g.add_argument('--no_norm_act', dest='norm_act',
+                           action='store_false', default=norm_act,
+                           help='do not normalise the activations for the DBN')
+        else:
+            g.add_argument('--norm_act', dest='norm_act',
+                           action='store_true', default=norm_act,
+                           help='normalise the activations for the DBN')
         # return the argument group so it can be modified if needed
         return g
