@@ -560,7 +560,7 @@ class MMBeatTracking(RNNBeatTracking):
         Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
 
         """
-        super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
+        super(MMBeatTracking, self).__init__(data, nn_files, **kwargs)
         self.nn_ref_files = nn_ref_files
         self._states = None
 
