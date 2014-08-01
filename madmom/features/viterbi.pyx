@@ -315,7 +315,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             path[frame] = state
             # fetch the next previous one
             state = back_tracking_pointers[frame, state]
-        # save the tracked path and return it
+        # save the tracked path and log sum and return them
         self._path = path
         self.log_sum = log_sum
         return path, log_sum
