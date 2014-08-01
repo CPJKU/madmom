@@ -421,11 +421,11 @@ cdef class BeatTrackingDBN(object):
                            action='store_true', default=correct,
                            help='correct the beat positions')
         if norm_observations:
-            g.add_argument('--no_norm_obs', dest='norm_act',
+            g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
                            help='do not normalise the observations of the DBN')
         else:
-            g.add_argument('--norm_obs', dest='norm_act',
+            g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalise the observations of the DBN')
         # return the argument group so it can be modified if needed

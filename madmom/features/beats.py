@@ -668,7 +668,7 @@ class MMBeatTracking(RNNBeatTracking):
                             'predictions of the networks are averaged first.')
         # add DBN parser group (skip the tempo state options)
         g = cls.BeatTrackingDBN.add_arguments(parser, min_tempo=None,
-                                            max_tempo=None)
+                                              max_tempo=None)
         # add options for tempo (in beat per minute)
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
