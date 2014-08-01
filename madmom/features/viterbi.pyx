@@ -227,7 +227,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
 
         # define counters etc.
         cdef unsigned int prev_state, beat_state, tempo_state, tempo
-        cdef double act, obs, transition_prob
+        cdef double obs, transition_prob
         cdef double same_tempo_prob = 1. - tempo_change_probability
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
@@ -338,7 +338,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             beats = []
             # for each detection determine the "beat range", i.e. states <=
             # num_beat_states / observation_lambda and choose the frame with
-            # the highest activations value
+            # the highest observation value
             beat_range = self.beat_states < (self.num_beat_states /
                                              self.observation_lambda)
             # get all change points between True and False
