@@ -642,12 +642,12 @@ class MMBeatTracking(RNNBeatTracking):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
-        :param parser:                   existing argparse parser object
-        :param nn_files:                 list with files of NN models
-        :param nn_ref_files:             reference NN model
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :return:                         beat argument parser group object
+        :param parser:       existing argparse parser object
+        :param nn_files:     list with files of NN models
+        :param nn_ref_files: list with files of reference NN model(s)
+        :param min_bpm:      minimum tempo used for beat tracking
+        :param max_bpm:      maximum tempo used for beat tracking
+        :return:             beat argument parser group object
 
         """
         # add Activations parser
