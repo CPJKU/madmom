@@ -104,7 +104,7 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     return np.array(path[::-1]), log(v_p.max()) + log_sum
 
 
-cdef class BeatTrackingDBN(object):
+cdef class BeatTrackingDynamicBayesianNetwork(object):
     """
     Dynamic Bayesian network for beat tracking.
 
@@ -373,7 +373,8 @@ cdef class BeatTrackingDBN(object):
                       min_tempo=MIN_TEMPO, max_tempo=MAX_TEMPO,
                       correct=CORRECT, norm_observations=NORM_OBSERVATIONS):
         """
-        Add MMBeatTracking related arguments to an existing parser object.
+        Add dynamic Bayesian network related arguments to an existing parser
+        object.
 
         :param parser:                   existing argparse parser object
         :param num_beat_states:          number of cells for one beat period

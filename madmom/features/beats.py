@@ -332,7 +332,7 @@ class CRFBeatDetection(RNNBeatTracking):
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
-                      'code with cython!')
+                      'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
         """
@@ -530,11 +530,11 @@ class MMBeatTracking(RNNBeatTracking):
     MAX_BPM = 220
 
     try:
-        from viterbi import BeatTrackingDBN
+        from viterbi import BeatTrackingDynamicBayesianNetwork as DBN
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the viterbi '
-                      'code with cython!')
+                      'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
                  nn_ref_files=NN_REF_FILES, **kwargs):
@@ -599,11 +599,11 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, num_beat_states=BeatTrackingDBN.NUM_BEAT_STATES,
-               tempo_change_probability=BeatTrackingDBN.TEMPO_CHANGE_PROBABILITY,
-               observation_lambda=BeatTrackingDBN.OBSERVATION_LAMBDA,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, correct=BeatTrackingDBN.CORRECT,
-               norm_observations=BeatTrackingDBN.NORM_OBSERVATIONS):
+    def detect(self, num_beat_states=DBN.NUM_BEAT_STATES,
+               tempo_change_probability=DBN.TEMPO_CHANGE_PROBABILITY,
+               observation_lambda=DBN.OBSERVATION_LAMBDA,
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM, correct=DBN.CORRECT,
+               norm_observations=DBN.NORM_OBSERVATIONS):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -624,15 +624,12 @@ class MMBeatTracking(RNNBeatTracking):
         max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
         # init the DBN
-        dbn = self.BeatTrackingDBN(self.activations,
-                                   num_beat_states=num_beat_states,
-                                   tempo_change_probability=
-                                   tempo_change_probability,
-                                   min_tempo=min_tempo, max_tempo=max_tempo,
-                                   observation_lambda=observation_lambda,
-                                   correct=correct,
-                                   norm_observations=norm_observations,
-                                   num_threads=self.num_threads)
+        dbn = self.DBN(self.activations, num_beat_states=num_beat_states,
+                       tempo_change_probability=tempo_change_probability,
+                       min_tempo=min_tempo, max_tempo=max_tempo,
+                       observation_lambda=observation_lambda, correct=correct,
+                       norm_observations=norm_observations,
+                       num_threads=self.num_threads)
         # convert the detected beats to a list of timestamps
         self._detections = dbn.beats / float(self.fps)
         # also return the detections
@@ -667,8 +664,7 @@ class MMBeatTracking(RNNBeatTracking):
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
         # add DBN parser group (skip the tempo state options)
-        g = cls.BeatTrackingDBN.add_arguments(parser, min_tempo=None,
-                                              max_tempo=None)
+        g = cls.DBN.add_arguments(parser, min_tempo=None, max_tempo=None)
         # add options for tempo (in beat per minute)
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
