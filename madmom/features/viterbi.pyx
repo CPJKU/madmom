@@ -335,6 +335,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     @property
     def tempo_states(self):
         """Tempo states."""
+        # TODO: should we add the min_tempo here?
         return self.path / self.num_beat_states
 
     @property
