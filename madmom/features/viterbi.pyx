@@ -104,30 +104,43 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     return np.array(path[::-1]), log(v_p.max()) + log_sum
 
 
-cdef class MultiModelDBN(object):
+cdef class BeatTrackingDBN(object):
     """
     Dynamic Bayesian network for beat tracking.
 
     """
-    # define some class variables
+    # define some class variables which are also exported as Python attributes
     cdef readonly unsigned int num_beat_states
     cdef readonly unsigned int observation_lambda
     cdef readonly unsigned int min_tempo
     cdef readonly unsigned int max_tempo
     cdef readonly double tempo_change_probability
-
     cdef readonly unsigned int num_threads
-    cdef readonly np.ndarray path
     cdef readonly np.ndarray observations
+    cdef readonly bint correct
+    cdef readonly bint norm_observations
+    # internal variable
+    cdef np.ndarray _path
 
-    def __init__(self, num_beat_states=1280,
-                 tempo_change_probability=0.008,
-                 observation_lambda=16, min_tempo=11, max_tempo=47,
-                 num_threads=NUM_THREADS):
+    # default values for beat tracking
+    NUM_BEAT_STATES = 1280
+    TEMPO_CHANGE_PROBABILITY = 0.008
+    OBSERVATION_LAMBDA = 16
+    MIN_TEMPO = 11
+    MAX_TEMPO = 47
+    CORRECT = True
+    NORM_OBSERVATIONS = False
+
+    def __init__(self, observations=None, num_beat_states=NUM_BEAT_STATES,
+                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                 observation_lambda=OBSERVATION_LAMBDA, min_tempo=MIN_TEMPO,
+                 max_tempo=MAX_TEMPO, norm_observations=NORM_OBSERVATIONS,
+                 correct=CORRECT, num_threads=NUM_THREADS):
         """
         Construct a new dynamic Bayesian network suitable for multi-model beat
         tracking.
 
+        :param observations:             observations
         :param num_beat_states:          number of beat states for one beat
                                          period
         :param tempo_change_probability: probability of a tempo change from
@@ -139,19 +152,22 @@ cdef class MultiModelDBN(object):
                                          from one observation to the next one
         :param max_tempo:                maximum number of cells to progress
                                          from one observation to the next one
+        :param norm_observations:        normalise the observations
+        :param correct:                  correct the detected beat positions
         :param num_threads:              number of parallel threads
 
         """
         # save given variables
+        if observations is not None:
+            self.observations = np.asarray(observations, dtype=np.float32)
         self.num_beat_states = num_beat_states
         self.tempo_change_probability = tempo_change_probability
         self.observation_lambda = observation_lambda
         self.min_tempo = min_tempo
         self.max_tempo = max_tempo
         self.num_threads = num_threads
-        # init observations and path (aka the best sequence)
-        self.path = np.empty(0)
-        self.observations = np.empty(0)
+        self.correct = correct
+        self.norm_observations = norm_observations
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -169,6 +185,10 @@ cdef class MultiModelDBN(object):
         """
         # save the given observations
         self.observations = np.asarray(observations)
+        # normalise the observations
+        if self.norm_observations:
+            # overwrite the hidden variable but get the normal attribute
+            self.observations = self.observations / np.max(self.observations)
         # cache class/instance variables needed in the loops
         cdef unsigned int num_beat_states = self.num_beat_states
         cdef double tempo_change_probability = self.tempo_change_probability
@@ -204,27 +224,19 @@ cdef class MultiModelDBN(object):
             back_tracking_pointers
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_frames, dtype=np.uint16)
-        # cdef unsigned short [::1] path_ = path
 
         # define counters etc.
-        cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
+        cdef unsigned int prev_state, beat_state, tempo_state, tempo
         cdef double act, obs, transition_prob
         cdef double same_tempo_prob = 1. - tempo_change_probability
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
-        cdef int frame
+        cdef int state, frame
         # iterate over all observations
         for frame in range(num_frames):
             # search for best transitions
-            # FIXME: prange() is slower for only for 1 thread
-            #        refactor the whole stuff as cdef class MMViterbi():
-            #        and add a cdef compute_state() method which can be called
-            #        via range() or prange() whichever is called depending on
-            #        the number of threads used
-            for state in prange(num_states, nogil=True,
-                                num_threads=num_threads,
-                                schedule='static'):
-            # for state in range (num_states):
+            for state in prange(num_states, nogil=True, schedule='static',
+                                num_threads=num_threads):
                 # reset the current viterbi variable
                 current_viterbi_[state] = 0.0
                 # position inside beat & tempo
@@ -290,17 +302,23 @@ cdef class MultiModelDBN(object):
         # fetch the final best state
         state = current_viterbi.argmax()
         # track the path backwards, start with the last frame and do not
-        # include the back_tracking_pointers for frame 0, since it includes the
-        # transitions to the prior distribution states
+        # include the back_tracking_pointers for frame 0, since it includes
+        # the transitions to the prior distribution states
         for frame in range(num_frames -1, -1, -1):
             # save the state in the path
             path[frame] = state
             # fetch the next previous one
             state = back_tracking_pointers[frame, state]
         # save the tracked path and return it
-        self.path = path
-        print path % num_beat_states
+        self._path = path
         return path
+
+    @property
+    def path(self):
+        """Best path sequence."""
+        if self._path is None:
+            self.viterbi(self.observations)
+        return self._path
 
     @property
     def beat_states(self):
@@ -312,3 +330,103 @@ cdef class MultiModelDBN(object):
         """Tempo states."""
         return self.path / self.num_beat_states
 
+    @property
+    def beats(self):
+        # correct the beat positions
+        """The detected beats."""
+        if self.correct:
+            beats = []
+            # for each detection determine the "beat range", i.e. states <=
+            # num_beat_states / observation_lambda and choose the frame with
+            # the highest activations value
+            beat_range = self.beat_states < (self.num_beat_states /
+                                             self.observation_lambda)
+            # get all change points between True and False
+            idx = np.nonzero(np.diff(beat_range))[0] + 1
+            # if the first frame is in the beat range, prepend a 0
+            if beat_range[0]:
+                idx = np.r_[0, idx]
+            # if the last frame is in the beat range, append the length of the
+            # array
+            if beat_range[-1]:
+                idx = np.r_[idx, beat_range.size]
+            # iterate over all regions
+            for left, right in idx.reshape((-1, 2)):
+                beats.append(np.argmax(self.observations[left:right]) + left)
+            beats = np.asarray(beats, np.float)
+        else:
+            # just take the frames with the smallest beat state values
+            from scipy.signal import argrelmin
+            beats = argrelmin(self.beat_states, mode='wrap')[0]
+            # recheck if they are within the "beat range", i.e. the
+            # beat states < number of beat states / observation lambda
+            # Note: interpolation and alignment of the beats to be at state 0
+            #       does not improve results over this simple method
+            beats = beats[self.beat_states[beats] < (self.num_beat_states /
+                                                     self.observation_lambda)]
+        return beats
+
+    @classmethod
+    def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
+                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                      observation_lambda=OBSERVATION_LAMBDA,
+                      min_tempo=MIN_TEMPO, max_tempo=MAX_TEMPO,
+                      correct=CORRECT, norm_observations=NORM_OBSERVATIONS):
+        """
+        Add MMBeatTracking related arguments to an existing parser object.
+
+        :param parser:                   existing argparse parser object
+        :param num_beat_states:          number of cells for one beat period
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+        :param observation_lambda:       split one beat period into N parts,
+                                         the first representing beat states
+                                         and the remaining non-beat states
+        :param min_tempo:                minimum tempo used for beat tracking
+        :param max_tempo:                maximum tempo used for beat tracking
+        :param correct:                  correct the beat positions
+        :param norm_observations:        normalise the observations of the DBN
+        :return:                         beat argument parser group object
+
+        """
+        # add a group for DBN parameters
+        g = parser.add_argument_group('dynamic Bayesian Network arguments')
+        g.add_argument('--num_beat_states', action='store', type=int,
+                       default=num_beat_states,
+                       help='number of beat states for one beat period '
+                            '[default=%(default)i]')
+        g.add_argument('--tempo_change_probability', action='store',
+                       type=float, default=tempo_change_probability,
+                       help='probability of a tempo between two adjacent '
+                            'observations [default=%(default).4f]')
+        g.add_argument('--observation_lambda', action='store', type=int,
+                       default=observation_lambda,
+                       help='split one beat period into N parts, the first '
+                            'representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
+        if min_tempo is not None:
+            g.add_argument('--min_tempo', action='store', type=int,
+                           default=min_tempo,
+                           help='minimum tempo state [default=%(default)i]')
+        if max_tempo is not None:
+            g.add_argument('--max_tempo', action='store', type=int,
+                           default=max_tempo,
+                           help='maximum tempo state [default=%(default)i]')
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions')
+        if norm_observations:
+            g.add_argument('--no_norm_obs', dest='norm_act',
+                           action='store_false', default=norm_observations,
+                           help='do not normalise the observations of the DBN')
+        else:
+            g.add_argument('--norm_obs', dest='norm_act',
+                           action='store_true', default=norm_observations,
+                           help='normalise the observations of the DBN')
+        # return the argument group so it can be modified if needed
+        return g
