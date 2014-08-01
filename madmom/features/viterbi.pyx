@@ -115,6 +115,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     cdef readonly unsigned int min_tempo
     cdef readonly unsigned int max_tempo
     cdef readonly double tempo_change_probability
+    cdef readonly double log_sum
     cdef readonly unsigned int num_threads
     cdef readonly np.ndarray observations
     cdef readonly bint correct
@@ -232,6 +233,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
         cdef int state, frame
+        cdef double log_sum = 0.0
         # iterate over all observations
         for frame in range(num_frames):
             # search for best transitions
@@ -298,9 +300,13 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             #       tricky: we need to call max() on the numpy array but do
             #       the normalisation and assignment on the memoryview
             prev_viterbi_ = current_viterbi_ / current_viterbi.max()
+            # add the log sum of all viterbi variables to the overall sum
+            log_sum += log(current_viterbi.sum())
 
         # fetch the final best state
         state = current_viterbi.argmax()
+        # add its log probability to the sum
+        log_sum += log(current_viterbi.max())
         # track the path backwards, start with the last frame and do not
         # include the back_tracking_pointers for frame 0, since it includes
         # the transitions to the prior distribution states
@@ -311,7 +317,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             state = back_tracking_pointers[frame, state]
         # save the tracked path and return it
         self._path = path
-        return path
+        self.log_sum = log_sum
+        return path, log_sum
 
     @property
     def path(self):
