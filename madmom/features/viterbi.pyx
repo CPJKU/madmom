@@ -188,7 +188,7 @@ cdef class BeatTrackingDBN(object):
         # normalise the observations
         if self.norm_observations:
             # overwrite the hidden variable but get the normal attribute
-            self.observations = self.observations / np.max(self.observations)
+            observations = observations / np.max(self.observations)
         # cache class/instance variables needed in the loops
         cdef unsigned int num_beat_states = self.num_beat_states
         cdef double tempo_change_probability = self.tempo_change_probability
