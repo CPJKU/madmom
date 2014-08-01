@@ -84,32 +84,37 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
     :return: A dictionary containing (some) of the metrics described in the
         paper mentioned above.
     """
-
     abs_error = np.abs(event_alignment[:, _TIME] - ground_truth[:, _TIME])
     missed = np.isnan(abs_error)
     aligned_error = np.ma.array(abs_error, mask=missed)
-    misaligned = abs_error > window
+    # for some numpy versions, the following prints a invalid value warning,
+    # although NaNs are masked - code still works.
+    misaligned = aligned_error > window
     correctly_aligned_error = np.ma.array(aligned_error, mask=misaligned)
 
-    # consider the unlikely case that EVERYTHING was missed or misaligned
+    pc_idx = float(correctly_aligned_error.mask[::-1].argmin())
+    results = {'miss_rate': float(missed.sum()) / len(ground_truth),
+               'misalign_rate': float(misaligned.sum()) / len(ground_truth),
+               'avg_imprecision': correctly_aligned_error.mean(),
+               'stddev_imprecision': correctly_aligned_error.std(),
+               'avg_error': aligned_error.mean(),
+               'stddev_error': aligned_error.std(),
+               'piece_completion': (1.0 - pc_idx /
+                                    correctly_aligned_error.mask.shape[0])
+              }
+
+    # convert possibly masked values to NaN. A masked value can occur when
+    # computing the mean or stddev of values that are all masked
+    for k, v in results.iteritems():
+        if v is np.ma.masked_singleton:
+            results[k] = np.NaN
+
+    # consider the case where EVERYTHING was missed or misaligned. the standard
+    # computation fails then.
     if correctly_aligned_error.mask.all():
         piece_completion = 0.0
-    else:
-        # to find the first index of a non-masked element from the back, I
-        # apply argmin to the reversed array, and compute "1.0 -" to "turn
-        # it around" again
-        # argmin should be replaced with something that does NOT go through
-        # the complete array, but numpy does not yet offer such a function
-        idx = float(correctly_aligned_error.mask[::-1].argmin())
-        piece_completion = 1.0 - idx / correctly_aligned_error.mask.shape[0]
 
-    return {'miss_rate': float(missed.sum()) / len(ground_truth),
-            'misalign_rate': float(misaligned.sum()) / len(ground_truth),
-            'avg_imprecision': correctly_aligned_error.mean(),
-            'stddev_imprecision': correctly_aligned_error.std(),
-            'avg_error': aligned_error.mean(),
-            'stddev_error': aligned_error.std(),
-            'piece_completion': piece_completion}
+    return results
 
 
 class ScoreFollowingEvaluation(object):
