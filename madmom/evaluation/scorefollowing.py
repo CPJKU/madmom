@@ -116,7 +116,7 @@ class ScoreFollowingEvaluation(object):
     """
     Score following evaluation class for beat-level score followers.
     Beat-level score followers output beat positions for points in time,
-    rather than computing a timestep for each individual note in the
+    rather than computing a time step for each individual note in the
     score.
     """
     _FIELDS_SORTED = ['misalign_rate', 'miss_rate', 'piece_completion',
@@ -251,6 +251,7 @@ class ScoreFollowingEvaluation(object):
                 self.cont_metrics['stddev_error'])
 
     def as_csv_row(self):
+        """Format the metrics as comma separated values."""
         return ','.join(map(str, self.cont_metrics_sorted))
 
 
