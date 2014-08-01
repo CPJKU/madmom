@@ -605,7 +605,7 @@ class SpectralOnsetDetection(OnsetDetection):
                             (for SuperFlux) [default=3]
 
         """
-        super(OnsetDetection, self).__init__(signal, **kwargs)
+        super(SpectralOnsetDetection, self).__init__(signal, **kwargs)
         self.max_bins = max_bins
 
     @property
