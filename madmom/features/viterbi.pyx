@@ -228,12 +228,11 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
 
         # define counters etc.
         cdef unsigned int prev_state, beat_state, tempo_state, tempo
-        cdef double obs, transition_prob
+        cdef double obs, transition_prob, viterbi_sum, log_sum = 0.0
         cdef double same_tempo_prob = 1. - tempo_change_probability
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
         cdef int state, frame
-        cdef double log_sum = 0.0
         # iterate over all observations
         for frame in range(num_frames):
             # search for best transitions
@@ -297,11 +296,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                         back_tracking_pointers_[frame, state] = prev_state
             # overwrite the old states with the normalised current ones
             # Note: this is faster than unrolling the loop! But it is a bit
-            #       tricky: we need to call max() on the numpy array but do
-            #       the normalisation and assignment on the memoryview
-            prev_viterbi_ = current_viterbi_ / current_viterbi.max()
+            #       tricky: we need to do the normalisation on the numpy
+            #       array but do the assignment on the memoryview
+            viterbi_sum = current_viterbi.sum()
+            prev_viterbi_ = current_viterbi / viterbi_sum
             # add the log sum of all viterbi variables to the overall sum
-            log_sum += log(current_viterbi.sum())
+            log_sum += log(viterbi_sum)
 
         # fetch the final best state
         state = current_viterbi.argmax()
