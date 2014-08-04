@@ -332,7 +332,7 @@ class CRFBeatDetection(RNNBeatTracking):
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
-                      'code with cython!')
+                      'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
         """
@@ -526,21 +526,15 @@ class MMBeatTracking(RNNBeatTracking):
     # set the path to saved neural networks and generate lists of NN files
     NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
                              RNNBeatTracking.NN_PATH)
-    # default values for beat detection
-    NUM_BEAT_STATES = 1280
-    TEMPO_CHANGE_PROBABILITY = 0.008
-    OBSERVATION_LAMBDA = 16
     MIN_BPM = 55
     MAX_BPM = 220
-    CORRECT = True
-    NORM_ACT = False
 
     try:
-        from viterbi import mm_viterbi
+        from viterbi import BeatTrackingDynamicBayesianNetwork as DBN
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the viterbi '
-                      'code with cython!')
+                      'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
                  nn_ref_files=NN_REF_FILES, **kwargs):
@@ -605,10 +599,11 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, num_beat_states=NUM_BEAT_STATES,
-               tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-               observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-               max_bpm=MAX_BPM, correct=CORRECT, norm_act=NORM_ACT):
+    def detect(self, num_beat_states=DBN.NUM_BEAT_STATES,
+               tempo_change_probability=DBN.TEMPO_CHANGE_PROBABILITY,
+               observation_lambda=DBN.OBSERVATION_LAMBDA,
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM, correct=DBN.CORRECT,
+               norm_observations=DBN.NORM_OBSERVATIONS):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -621,98 +616,38 @@ class MMBeatTracking(RNNBeatTracking):
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param correct:                  correct the beat positions
-        :param norm_act:                 normalise the activations for the DBN
+        :param norm_observations:        normalise the observations of the DBN
         :return:                         detected beat positions
 
         """
         # convert timing information to the tempo space
-        max_tau = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
-        min_tau = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
-        # only real CPU cores seem to improve speed, thus reduce the number of
-        # concurrent threads if needed
-        # FIXME: /2 assumes hyper-threading, fix this properly
-        num_threads = min(self.num_threads, RNNEventDetection.NUM_THREADS / 2)
-        # infer the state space sequence
-        if norm_act:
-            self._activations = self.activations / np.max(self.activations)
-        path = self.mm_viterbi(self.activations,
-                               num_beat_states=num_beat_states,
-                               tempo_change_probability=
-                               tempo_change_probability,
-                               min_tau=min_tau, max_tau=max_tau,
-                               observation_lambda=observation_lambda,
-                               num_threads=num_threads)
-        # determine the frame indices with the smallest beat states
-        states = path % num_beat_states
-        self._states = states
-
-        # correct the beat positions
-        if correct:
-            detections = []
-            # for each detection determine the "beat range", i.e. states <=
-            # num_beat_states / observation_lambda and choose the frame with
-            # the highest activations value
-            beat_range = states < num_beat_states / observation_lambda
-            # get all change points between True and False
-            idx = np.nonzero(np.diff(beat_range))[0] + 1
-            # if the first frame is in the beat range, prepend a 0
-            if beat_range[0]:
-                idx = np.r_[0, idx]
-            # if the last frame is in the beat range, append the length of the
-            # array
-            if beat_range[-1]:
-                idx = np.r_[idx, beat_range.size]
-            # iterate over all regions
-            for left, right in idx.reshape((-1, 2)):
-                detections.append(np.argmax(self.activations[left:right]) +
-                                  left)
-            detections = np.asarray(detections, np.float)
-        else:
-            # just take the frames with the smallest beat state values
-            from scipy.signal import argrelmin
-            detections = argrelmin(states, mode='wrap')[0]
-            # recheck if they are within the "beat range", i.e. the
-            # beat states < number of beat states / observation lambda
-            detections = detections[states[detections] <
-                                    num_beat_states / observation_lambda]
-            # Note: interpolation and alignment of the beats to be at state 0
-            #       does not improve results over this simple method
-        # convert them to a list of timestamps
-        self._detections = detections / float(self.fps)
+        max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
+        min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
+        # init the DBN
+        dbn = self.DBN(self.activations, num_beat_states=num_beat_states,
+                       tempo_change_probability=tempo_change_probability,
+                       min_tempo=min_tempo, max_tempo=max_tempo,
+                       observation_lambda=observation_lambda, correct=correct,
+                       norm_observations=norm_observations,
+                       num_threads=self.num_threads)
+        # convert the detected beats to a list of timestamps
+        self._detections = dbn.beats / float(self.fps)
         # also return the detections
         return self._detections
 
-    @property
-    def states(self):
-        """States of the dynamic Bayesian network."""
-        if self._states is None:
-            self.detect()
-        return self._states
-
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      nn_ref_files=NN_REF_FILES,
-                      num_beat_states=NUM_BEAT_STATES,
-                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                      observation_lambda=OBSERVATION_LAMBDA, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM, correct=CORRECT, norm_act=NORM_ACT):
+                      nn_ref_files=NN_REF_FILES, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
-        :param parser:                   existing argparse parser object
-        :param nn_files:                 list with files of NN models
-        :param nn_ref_files:             reference NN model
-        :param num_beat_states:          number of cells for one beat period
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :param correct:                  correct the beat positions
-        :param norm_act:                 normalise the activations for the DBN
-        :return:                         beat argument parser group object
+        :param parser:       existing argparse parser object
+        :param nn_files:     list with files of NN models
+        :param nn_ref_files: list with files of reference NN model(s)
+        :param min_bpm:      minimum tempo used for beat tracking
+        :param max_bpm:      maximum tempo used for beat tracking
+        :return:             beat argument parser group object
 
         """
         # add Activations parser
@@ -728,42 +663,14 @@ class MMBeatTracking(RNNBeatTracking):
                             'least deviation form the reference model). '
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
-        # add beat detection related options to the existing parser
-        g = parser.add_argument_group('beat detection arguments')
-        g.add_argument('--num_beat_states', action='store', type=int,
-                       default=num_beat_states,
-                       help='number of beat states for one beat period '
-                            '[default=%(default)i]')
-        g.add_argument('--tempo_change_probability', action='store',
-                       type=float, default=tempo_change_probability,
-                       help='probability of a tempo between two adjacent '
-                            'observations [default=%(default).4f]')
-        g.add_argument('--observation_lambda', action='store', type=int,
-                       default=observation_lambda,
-                       help='split one beat period into N parts, the first '
-                            'representing beat states and the remaining '
-                            'non-beat states [default=%(default)i]')
+        # add DBN parser group (skip the tempo state options)
+        g = cls.DBN.add_arguments(parser, min_tempo=None, max_tempo=None)
+        # add options for tempo (in beat per minute)
         g.add_argument('--min_bpm', action='store', type=float,
-                       default=min_bpm, help='minimum tempo [bpm, '
-                       ' default=%(default).2f]')
+                       default=min_bpm,
+                       help='minimum tempo [bpm, default=%(default).2f]')
         g.add_argument('--max_bpm', action='store', type=float,
-                       default=max_bpm, help='maximum tempo [bpm, '
-                       ' default=%(default).2f]')
-        if correct:
-            g.add_argument('--no_correct', dest='correct',
-                           action='store_false', default=correct,
-                           help='do not correct the beat positions')
-        else:
-            g.add_argument('--correct', dest='correct',
-                           action='store_true', default=correct,
-                           help='correct the beat positions')
-        if norm_act:
-            g.add_argument('--no_norm_act', dest='norm_act',
-                           action='store_false', default=norm_act,
-                           help='do not normalise the activations for the DBN')
-        else:
-            g.add_argument('--norm_act', dest='norm_act',
-                           action='store_true', default=norm_act,
-                           help='normalise the activations for the DBN')
+                       default=max_bpm,
+                       help='maximum tempo [bpm,  default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g

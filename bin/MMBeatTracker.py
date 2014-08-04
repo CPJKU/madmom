@@ -86,7 +86,8 @@ def main():
                  tempo_change_probability=args.tempo_change_probability,
                  observation_lambda=args.observation_lambda,
                  min_bpm=args.min_bpm, max_bpm=args.max_bpm,
-                 correct=args.correct, norm_act=args.norm_act)
+                 correct=args.correct,
+                 norm_observations=args.norm_observations)
         # save detections
         b.write(args.output)
 
