@@ -115,7 +115,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     cdef readonly unsigned int min_tempo
     cdef readonly unsigned int max_tempo
     cdef readonly double tempo_change_probability
-    cdef readonly double log_sum
+    cdef readonly double path_probability
     cdef readonly unsigned int num_threads
     cdef readonly np.ndarray observations
     cdef readonly bint correct
@@ -230,7 +230,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
 
         # define counters etc.
         cdef unsigned int prev_state, beat_state, tempo_state, tempo
-        cdef double obs, transition_prob, viterbi_sum, log_sum = 0.0
+        cdef double obs, transition_prob, viterbi_sum, path_probability = 0.0
         cdef double same_tempo_prob = 1. - tempo_change_probability
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
@@ -303,12 +303,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             viterbi_sum = current_viterbi.sum()
             prev_viterbi_ = current_viterbi / viterbi_sum
             # add the log sum of all viterbi variables to the overall sum
-            log_sum += log(viterbi_sum)
+            path_probability += log(viterbi_sum)
 
         # fetch the final best state
         state = current_viterbi.argmax()
         # add its log probability to the sum
-        log_sum += log(current_viterbi.max())
+        path_probability += log(current_viterbi.max())
         # track the path backwards, start with the last frame and do not
         # include the back_tracking_pointers for frame 0, since it includes
         # the transitions to the prior distribution states
@@ -319,8 +319,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             state = back_tracking_pointers[frame, state]
         # save the tracked path and log sum and return them
         self._path = path
-        self.log_sum = log_sum
-        return path, log_sum
+        self.path_probability = path_probability
+        return path, path_probability
 
     @property
     def path(self):
