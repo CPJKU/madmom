@@ -363,7 +363,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             # iterate over all regions
             for left, right in idx.reshape((-1, 2)):
                 beats.append(np.argmax(self.observations[left:right]) + left)
-            beats = np.asarray(beats, np.float)
+            beats = np.asarray(beats)
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
