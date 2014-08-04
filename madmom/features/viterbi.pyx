@@ -16,14 +16,12 @@ from cython.parallel cimport prange
 import multiprocessing as mp
 NUM_THREADS = mp.cpu_count()
 
+
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
-                np.ndarray[np.float32_t, ndim=1] transition,
-                np.ndarray[np.float32_t, ndim=1] norm_factor,
-                np.ndarray[np.float32_t, ndim=1] activations,
-                int tau):
+def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
+                float [::1] activations, int tau):
     """
     Viterbi algorithm to compute the most likely beat sequence from the
     given activations and the dominant interval.
@@ -45,23 +43,26 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
     cdef int num_x = num_st / tau
 
     # current viterbi variables
-    cdef np.ndarray[np.float32_t, ndim=1] v_c = np.empty(num_st,
-                                                         dtype=np.float32)
+    cdef float [::1] v_c = np.empty(num_st, dtype=np.float32)
     # previous viterbi variables. will be initialised with prior (first beat)
-    cdef np.ndarray[np.float32_t, ndim=1] v_p
+    cdef float [::1] v_p = np.empty(num_st, dtype=np.float32)
     # back-tracking pointers;
-    cdef np.ndarray[np.int_t, ndim=2] bps = np.empty((num_x - 1, num_st),
-                                                     dtype=np.int)
+    cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=np.int)
     # back tracked path, a.k.a. path sequence
-    cdef list path = []
+    cdef long [::1] path = np.empty(num_x, dtype=np.int)
 
     # counters etc.
     cdef int k, i, j, next_state
-    cdef double new_prob, sum_k, log_sum = 0.0
+    cdef double new_prob, sum_k, path_prob, log_sum = 0.0
 
     # init first beat
-    v_p = pi * activations
-    v_p /= v_p.sum()
+    for i in range(num_st):
+        v_p[i] = pi[i] * activations[i]
+        sum_k += v_p[i]
+    for i in range(num_st):
+        v_p[i] = v_p[i] / sum_k
+
+    sum_k = 0
 
     # iterate over all beats; the 1st beat is given by prior
     for k in range(num_x - 1):
@@ -85,7 +86,6 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
         sum_k = 0.0
         for i in range(num_st):
             sum_k += v_c[i]
-
         for i in range(num_st):
             v_c[i] /= sum_k
 
@@ -94,14 +94,20 @@ def crf_viterbi(np.ndarray[np.float32_t, ndim=1] pi,
         v_p, v_c = v_c, v_p
 
     # add the final best state to the path
-    next_state = v_p.argmax()
-    path.append(next_state)
+    path_prob = 0.0
+    for i in range(num_st):
+        if v_p[i] > path_prob:
+            next_state = i
+            path_prob = v_p[i]
+    path[num_x - 1] = next_state
+
     # track the path backwards
     for i in range(num_x - 2, -1, -1):
-        next_state = bps[i][next_state]
-        path.append(next_state)
+        next_state = bps[i, next_state]
+        path[i] = next_state
+
     # return the best sequence and its log probability
-    return np.array(path[::-1]), log(v_p.max()) + log_sum
+    return np.asarray(path), log(path_prob) + log_sum
 
 
 @cython.cdivision(True)
