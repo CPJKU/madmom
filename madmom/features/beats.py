@@ -467,8 +467,12 @@ class CRFBeatDetection(RNNBeatTracking):
             import multiprocessing as mp
             map_ = mp.Pool(self.num_threads).map
 
+
         # compute the beat sequences (in parallel)
-        results = map_(_process_crf, it.izip(it.repeat(self.activations),
+        # since the cython code uses memory views, we need to make sure that
+        # the activations are c-contiguous
+        c_contiguous_act = np.ascontiguousarray(self.activations)
+        results = map_(_process_crf, it.izip(it.repeat(c_contiguous_act),
                                              possible_intervals,
                                              it.repeat(interval_sigma)))
 
