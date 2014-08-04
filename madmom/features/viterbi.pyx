@@ -173,23 +173,26 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def viterbi(self, float [::1] observations):
+    def viterbi(self, observations):
         """
         Determine the best path given the observations.
 
-        :param observations: the observations
+        :param observations: the observations (anything that can be casted to
+                             a numpy array)
         :return:             most probable state-space path sequence for the
                              given observations
 
         Note: a uniform prior distribution is assumed.
 
         """
-        # save the given observations
-        self.observations = np.asarray(observations)
-        # normalise the observations
+        # save the given observations as an contiguous array
+        self.observations = np.ascontiguousarray(observations)
+        # typed memoryview thereof
+        # Note: the ::1 notation indicates that is memory contiguous
+        cdef float [::1] observations_ = self.observations
+        # normalise the observations memoryview, not the observations itself
         if self.norm_observations:
-            # overwrite the hidden variable but get the normal attribute
-            observations = observations / np.max(self.observations)
+            observations_ = self.observations / np.max(self.observations)
         # cache class/instance variables needed in the loops
         cdef unsigned int num_beat_states = self.num_beat_states
         cdef double tempo_change_probability = self.tempo_change_probability
@@ -210,7 +213,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
         # current viterbi variables
         current_viterbi = np.empty(num_states, dtype=np.float)
         # typed memoryview thereof
-        # Note: the ::1 notation indicates that is memory continuous
         cdef double [::1] current_viterbi_ = current_viterbi
         # previous viterbi variables, init them with 1s as prior distribution
         # TODO: allow other priors
@@ -246,9 +248,9 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                 tempo = tempo_state + min_tempo
                 # get the observation
                 if beat_state < beat_no_beat:
-                    obs = observations[frame]
+                    obs = observations_[frame]
                 else:
-                    obs = (1. - observations[frame]) / \
+                    obs = (1. - observations_[frame]) / \
                           (observation_lambda - 1)
                 # for each state check the 3 possible transitions
                 # previous state with same tempo
