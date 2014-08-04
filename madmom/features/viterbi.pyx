@@ -115,6 +115,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     cdef readonly unsigned int min_tempo
     cdef readonly unsigned int max_tempo
     cdef readonly double tempo_change_probability
+    cdef readonly double path_probability
     cdef readonly unsigned int num_threads
     cdef readonly np.ndarray observations
     cdef readonly bint correct
@@ -172,23 +173,26 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def viterbi(self, float [::1] observations):
+    def viterbi(self, observations):
         """
         Determine the best path given the observations.
 
-        :param observations: the observations
+        :param observations: the observations (anything that can be casted to
+                             a numpy array)
         :return:             most probable state-space path sequence for the
                              given observations
 
         Note: a uniform prior distribution is assumed.
 
         """
-        # save the given observations
-        self.observations = np.asarray(observations)
-        # normalise the observations
+        # save the given observations as an contiguous array
+        self.observations = np.ascontiguousarray(observations)
+        # typed memoryview thereof
+        # Note: the ::1 notation indicates that is memory contiguous
+        cdef float [::1] observations_ = self.observations
+        # normalise the observations memoryview, not the observations itself
         if self.norm_observations:
-            # overwrite the hidden variable but get the normal attribute
-            observations = observations / np.max(self.observations)
+            observations_ = self.observations / np.max(self.observations)
         # cache class/instance variables needed in the loops
         cdef unsigned int num_beat_states = self.num_beat_states
         cdef double tempo_change_probability = self.tempo_change_probability
@@ -209,7 +213,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
         # current viterbi variables
         current_viterbi = np.empty(num_states, dtype=np.float)
         # typed memoryview thereof
-        # Note: the ::1 notation indicates that is memory continuous
         cdef double [::1] current_viterbi_ = current_viterbi
         # previous viterbi variables, init them with 1s as prior distribution
         # TODO: allow other priors
@@ -227,7 +230,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
 
         # define counters etc.
         cdef unsigned int prev_state, beat_state, tempo_state, tempo
-        cdef double obs, transition_prob
+        cdef double obs, transition_prob, viterbi_sum, path_probability = 0.0
         cdef double same_tempo_prob = 1. - tempo_change_probability
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
@@ -245,9 +248,9 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                 tempo = tempo_state + min_tempo
                 # get the observation
                 if beat_state < beat_no_beat:
-                    obs = observations[frame]
+                    obs = observations_[frame]
                 else:
-                    obs = (1. - observations[frame]) / \
+                    obs = (1. - observations_[frame]) / \
                           (observation_lambda - 1)
                 # for each state check the 3 possible transitions
                 # previous state with same tempo
@@ -295,12 +298,17 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                         back_tracking_pointers_[frame, state] = prev_state
             # overwrite the old states with the normalised current ones
             # Note: this is faster than unrolling the loop! But it is a bit
-            #       tricky: we need to call max() on the numpy array but do
-            #       the normalisation and assignment on the memoryview
-            prev_viterbi_ = current_viterbi_ / current_viterbi.max()
+            #       tricky: we need to do the normalisation on the numpy
+            #       array but do the assignment on the memoryview
+            viterbi_sum = current_viterbi.sum()
+            prev_viterbi_ = current_viterbi / viterbi_sum
+            # add the log sum of all viterbi variables to the overall sum
+            path_probability += log(viterbi_sum)
 
         # fetch the final best state
         state = current_viterbi.argmax()
+        # add its log probability to the sum
+        path_probability += log(current_viterbi.max())
         # track the path backwards, start with the last frame and do not
         # include the back_tracking_pointers for frame 0, since it includes
         # the transitions to the prior distribution states
@@ -309,9 +317,10 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             path[frame] = state
             # fetch the next previous one
             state = back_tracking_pointers[frame, state]
-        # save the tracked path and return it
+        # save the tracked path and log sum and return them
         self._path = path
-        return path
+        self.path_probability = path_probability
+        return path, path_probability
 
     @property
     def path(self):
@@ -328,6 +337,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     @property
     def tempo_states(self):
         """Tempo states."""
+        # TODO: should we add the min_tempo here?
         return self.path / self.num_beat_states
 
     @property
