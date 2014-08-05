@@ -603,37 +603,24 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, num_beat_states=DBN.NUM_BEAT_STATES,
-               tempo_change_probability=DBN.TEMPO_CHANGE_PROBABILITY,
-               observation_lambda=DBN.OBSERVATION_LAMBDA,
-               min_bpm=MIN_BPM, max_bpm=MAX_BPM, correct=DBN.CORRECT,
-               norm_observations=DBN.NORM_OBSERVATIONS):
+    def detect(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, **dbnargs):
         """
         Track the beats with a dynamic Bayesian network.
 
-        :param num_beat_states:          number of cells for one beat period
-        :param tempo_change_probability: probability of a tempo change from
-                                         one observation to the next one
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :param correct:                  correct the beat positions
-        :param norm_observations:        normalise the observations of the DBN
-        :return:                         detected beat positions
+        :param min_bpm: minimum tempo used for beat tracking
+        :param max_bpm: maximum tempo used for beat tracking
+        :param dbnargs: parameters passed to the dynamic Bayesian network (DBN)
+        :return:        detected beat positions
 
         """
-        # convert timing information to the tempo space
+        # convert timing information to tempo spaces
+        num_beat_states = dbnargs['num_beat_states']
         max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
+        # add to the passed argument dictionary
+        # dbnargs['tempo_states'] = np.arange(min_tempo, max_tempo)
         # init the DBN
-        dbn = self.DBN(self.activations, num_beat_states=num_beat_states,
-                       tempo_change_probability=tempo_change_probability,
-                       min_tempo=min_tempo, max_tempo=max_tempo,
-                       observation_lambda=observation_lambda, correct=correct,
-                       norm_observations=norm_observations,
-                       num_threads=self.num_threads)
+        dbn = self.DBN(self.activations, **dbnargs)
         # convert the detected beats to a list of timestamps
         self._detections = dbn.beats / float(self.fps)
         # also return the detections
@@ -667,8 +654,8 @@ class MMBeatTracking(RNNBeatTracking):
                             'least deviation form the reference model). '
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
-        # add DBN parser group (skip the tempo state options)
-        g = cls.DBN.add_arguments(parser, min_tempo=None, max_tempo=None)
+        # add DBN parser group (skip the tempo state option)
+        g = cls.DBN.add_arguments(parser, tempo_states=None)
         # add options for tempo (in beat per minute)
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
