@@ -44,11 +44,11 @@ def parser():
     FramedSignal.add_arguments(p, fps=100, online=False)
     Filterbank.add_arguments(p, bands=12, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
-    SpectralOnsetDetection.add_arguments(p)
-    OnsetDetection.add_arguments(p, threshold=2.75)
+    OnsetDetection.add_arguments(p, threshold=1.6, post_max=0.05, post_avg=0,
+                                 pre_avg=0.15, pre_max=0.01)
     # version
     p.add_argument('--version', action='version',
-                   version='LogFiltSpecFlux.2013')
+                   version='LogFiltSpecFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -69,7 +69,7 @@ def parser():
 
 
 def main():
-    """LogFiltSpecFlux.2013"""
+    """LogFiltSpecFlux.2014"""
 
     # parse arguments
     args = parser()
