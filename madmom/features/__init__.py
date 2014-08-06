@@ -303,7 +303,6 @@ class EventDetection(object):
         :param filename: output file name or file handle
 
         """
-        # TODO: refactor the write_events() function into this module?
         from ..utils import write_events
         write_events(self.detections, filename)
 
@@ -322,8 +321,7 @@ class RNNEventDetection(EventDetection):
         Sets up the object. Check the docs in the EventDetection class for
         further parameters.
 
-        :param signal:      see EventDetection class
-
+        :param signal:      Signal instance or input file name or file handle
         :param nn_files:    list of files that define the RNN
         :param num_threads: number of threads for rnn processing
 

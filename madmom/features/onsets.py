@@ -389,8 +389,8 @@ class OnsetDetection(EventDetection):
 
         :param signal: Signal instance or file name or file handle
 
-        :param args:     additional arguments passed to EventDetection()
-        :param kwargs:   additional arguments passed to EventDetection()
+        :param args:   additional arguments passed to EventDetection()
+        :param kwargs: additional arguments passed to EventDetection()
 
         """
         super(OnsetDetection, self).__init__(signal, *args, **kwargs)
@@ -791,18 +791,22 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     POST_MAX = 0.01  # 1. / fps
     DELAY = 0
 
-    def __init__(self, data, nn_files=NN_FILES, **kwargs):
+    def __init__(self, signal, nn_files=NN_FILES, *args, **kwargs):
         """
         Use RNNs to compute the activation function and pick the onsets.
 
-        :param data:      Signal, activations or file. See EventDetection class
-        :param nn_files:  list of files that define the RNN
-        :param fps:       frames per second
+        :param signal:   Signal instance or input file name or file handle
+        :param nn_files: list of RNN model files
+
+        :param args:     additional arguments passed to OnsetDetection() and
+                         RNNEventDetection()
+        :param kwargs:   additional arguments passed to OnsetDetection() and
+                         RNNEventDetection()
 
         """
 
-        super(RNNOnsetDetection, self).__init__(data, nn_files=nn_files,
-                                                **kwargs)
+        super(RNNOnsetDetection, self).__init__(signal, nn_files=nn_files,
+                                                *args, **kwargs)
 
     def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
         """

@@ -4,12 +4,13 @@ Utility package.
 
 """
 
-import argparse
 import os
+import sys
 import glob
 import fnmatch
 import contextlib
 import __builtin__
+import argparse
 
 import numpy as np
 
@@ -230,7 +231,6 @@ def io_arguments(parser):
     :param parser: existing argparse parser object
 
     """
-    import sys
     # general options
     parser.add_argument('input', type=argparse.FileType('r'),
                         help='input file (.wav or saved activation function)')
