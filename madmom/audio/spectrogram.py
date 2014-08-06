@@ -178,6 +178,9 @@ class Spectrogram(object):
                             [int] (if set, this overrides the value calculated
                             from the ratio)
 
+        :param args:        arguments passed to FramedSignal()
+        :param kwargs:      keyword arguments passed to FramedSignal()
+
         Note: including phase and/or local group delay information slows down
               calculation considerably (phase: *2; lgd: *3)!
 
@@ -661,7 +664,8 @@ class Spectrogram(object):
                        'frames [default=%(default).1f]')
         g.add_argument('--diff_frames', action='store', type=int,
                        default=diff_frames, help='number of diff frames '
-                       '[default=%(default)s]')
+                       '(if set, this overrides the value calculated from '
+                       'the ratio)')
         # add log related options to the existing parser if needed
         l = None
         if log is not None:

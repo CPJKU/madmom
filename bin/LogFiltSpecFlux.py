@@ -79,15 +79,14 @@ def main():
         # load activations
         o = OnsetDetection.from_activations(args.input, args.fps, args.sep)
     else:
-        # create a Signal object
-        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
+        # create a logarithmically filtered Spectrogram object
+        s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
+                        frame_size=args.frame_size, origin=args.origin,
+                        fps=args.fps,  bands_per_octave=args.bands,
+                        fmin=args.fmin, fmax=args.fmax, mul=args.mul,
+                        add=args.add, norm_filters=args.norm_filters)
         # create a SpectralOnsetDetection detection object
-        o = SpectralOnsetDetection(s, max_bins=args.max_bins)
-        # do signal processing
-        o.pre_process(frame_size=args.frame_size, origin=args.origin,
-                      fps=args.fps, bands_per_octave=args.bands,
-                      mul=args.mul, add=args.add,
-                      norm_filters=args.norm_filters)
+        o = SpectralOnsetDetection.from_data(s, fps=args.fps)
         # process with the detection function
         o.sf()
 
