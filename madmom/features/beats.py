@@ -618,7 +618,9 @@ class MMBeatTracking(RNNBeatTracking):
         max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
         # add to the passed argument dictionary
-        # dbnargs['tempo_states'] = np.arange(min_tempo, max_tempo)
+        dbnargs['tempo_states'] = np.arange(min_tempo, max_tempo)
+        # and the number of threads
+        dbnargs['num_threads'] = self.num_threads
         # init the DBN
         dbn = self.DBN(self.activations, **dbnargs)
         # convert the detected beats to a list of timestamps
