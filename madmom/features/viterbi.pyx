@@ -110,43 +110,95 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     return np.asarray(path), log(path_prob) + log_sum
 
 
-cdef class BeatTrackingDynamicBayesianNetwork(object):
+cdef class Transitions(object):
     """
-    Dynamic Bayesian network for beat tracking.
+    Transitions suitable for a DBN.
+
+    """
+    # define some variables which are also exported as Python attributes
+    cdef public np.ndarray probabilities
+    cdef public np.ndarray states
+    cdef public np.ndarray pointers
+    cdef list attributes
+
+    def __init__(self, model=None):
+        """
+        Construct a transition probability object suitable for DBNs.
+
+        :param model:  load the transitions model from the given file
+
+        """
+        # set the attributes
+        self.attributes = ['probabilities', 'states', 'pointers']
+        # load the transitions
+        if model is not None:
+            self.load(model)
+
+    def _transitions(self, **kwargs):
+        """Method to compute the transitions."""
+        # The method must populate the following variables:
+        # self.states, self.pointers, self.probabilities
+        raise NotImplementedError('needs to be implemented by sub-classes')
+
+    def save(self, outfile, compressed=True):
+        """
+        Save the transitions to a file.
+
+        :param outfile:    file name or file handle to save the transitions to
+        :param compressed: save in compressed format
+
+        """
+        # idea taken from: http://stackoverflow.com/questions/8955448
+        npz = {}
+        for attr in self.attributes:
+            npz[attr] = self.__getattribute__(attr)
+        # save in compressed or normal format?
+        save_ = np.savez
+        if compressed:
+            save_ = np.savez_compressed
+        # write everything to a file
+        save_(outfile, **npz)
+
+    def load(self, infile):
+        """
+        Load the transitions from a file.
+
+        :param infile: file name or file handle with the transitions
+
+        """
+        # idea taken from: http://stackoverflow.com/questions/8955448
+        data = np.load(infile)
+        for key in data.keys():
+            self.__setattr__(key, data[key])
+
+
+cdef class BeatTrackingTransitions(Transitions):
+    """
+    Transitions suitable for a DBN.
 
     """
     # define some class variables which are also exported as Python attributes
-    cdef readonly unsigned int num_beat_states
-    cdef readonly np.ndarray tempo_states
-    cdef readonly double tempo_change_probability
-    cdef readonly unsigned int observation_lambda
-    cdef readonly double path_probability
-    cdef readonly unsigned int num_threads
-    cdef readonly np.ndarray observations
-    cdef readonly bint correct
-    cdef readonly bint norm_observations
-    # internal variable
-    cdef np.ndarray _path
+    cdef public unsigned int num_beat_states
+    cdef public np.ndarray tempo_states
+    cdef public double tempo_change_probability
 
     # default values for beat tracking
     NUM_BEAT_STATES = 1280
     TEMPO_CHANGE_PROBABILITY = 0.008
-    OBSERVATION_LAMBDA = 16
     TEMPO_STATES = np.arange(11, 47)
-    CORRECT = True
-    NORM_OBSERVATIONS = False
 
-    def __init__(self, observations=None, num_beat_states=NUM_BEAT_STATES,
+    def __init__(self, model=None,
+                 num_beat_states=NUM_BEAT_STATES,
                  tempo_states=TEMPO_STATES,
-                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                 observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS,
-                 correct=CORRECT, num_threads=NUM_THREADS):
+                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY):
         """
-        Construct a new dynamic Bayesian network suitable for multi-model beat
-        tracking.
+        Construct a transition probability object suitable for beat tracking.
 
-        :param observations:             observations
+        :param model: load the transitions model from the given file
+
+        If no model was given, the object is constructed with the following
+        parameters:
+
         :param num_beat_states:          number of beat states for one beat
                                          period
         :param tempo_states:             array with tempo states (number of
@@ -154,21 +206,159 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                                          observation value to the next one)
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param norm_observations:        normalise the observations
-        :param correct:                  correct the detected beat positions
-        :param num_threads:              number of parallel threads
 
         """
-        # save given variables
+        # load or instantiate a Transitions object
+        super(BeatTrackingTransitions, self).__init__(None)
+        # save the additional attributes
+        self.attributes.extend(['num_beat_states', 'tempo_states',
+                                'tempo_change_probability'])
+        # load a model or compute transitions if needed
+        if model is not None:
+            self.load(model)
+        else:
+            self._transitions(num_beat_states,
+                              np.ascontiguousarray(tempo_states,
+                                                   dtype=np.int32),
+                              tempo_change_probability)
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def _transitions(self,
+                     unsigned int num_beat_states,
+                     int [::1] tempo_states,
+                     double tempo_change_probability):
+        """
+        Compute beat tracking transitions.
+
+        :param num_beat_states:          number of beat states for one beat
+                                         period
+        :param tempo_states:             array with tempo states (number of
+                                         beat states to progress from one
+                                         observation value to the next one)
+        :param tempo_change_probability: probability of a tempo change from
+                                         one observation to the next one
+        """
+        from scipy.sparse import csr_matrix
+        # save the given parameters
+        self.num_beat_states = num_beat_states
+        self.tempo_states = np.asarray(tempo_states)
+        self.tempo_change_probability = tempo_change_probability
+        # number of tempo & total states
+        cdef unsigned int num_tempo_states = len(tempo_states)
+        cdef unsigned int num_states = num_beat_states * num_tempo_states
+        # transition probabilities
+        cdef double same_tempo_prob = 1. - tempo_change_probability
+        cdef double change_tempo_prob = 0.5 * tempo_change_probability
+        # counters etc.
+        cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
+        # lists for transitions matrix creation
+        # TODO: use c++ containers? http://stackoverflow.com/questions/7403966
+        cdef list states = []
+        cdef list prev_states = []
+        cdef list probabilities = []
+        # loop over all states
+        for state in range(num_states):
+            # position inside beat & tempo
+            beat_state = state % num_beat_states
+            tempo_state = state / num_beat_states
+            tempo = tempo_states[tempo_state]
+            # for each state check the 3 possible transitions
+            # previous state with same tempo
+            # Note: we add num_beat_states before the modulo operation so
+            #       that it can be computed in C (which is faster)
+            prev_state = ((beat_state + num_beat_states - tempo) %
+                          num_beat_states +
+                          (tempo_state * num_beat_states))
+            # probability for transition from same tempo
+            states.append(state)
+            prev_states.append(prev_state)
+            probabilities.append(same_tempo_prob)
+            # transition from slower tempo
+            if tempo_state > 0:
+                # previous state with slower tempo
+                prev_state = ((beat_state + num_beat_states -
+                               (tempo - 1)) % num_beat_states +
+                              ((tempo_state - 1) * num_beat_states))
+                # probability for transition from slower tempo
+                states.append(state)
+                prev_states.append(prev_state)
+                probabilities.append(change_tempo_prob)
+            # transition from faster tempo
+            if tempo_state < num_tempo_states - 1:
+                # previous state with faster tempo
+                # Note: we add num_beat_states before the modulo operation
+                #       so that it can be computed in C (which is faster)
+                prev_state = ((beat_state + num_beat_states -
+                               (tempo + 1)) % num_beat_states +
+                              ((tempo_state + 1) * num_beat_states))
+                # probability for transition from faster tempo
+                states.append(state)
+                prev_states.append(prev_state)
+                probabilities.append(change_tempo_prob)
+        # save everything in a sparse transitions matrix
+        transitions = csr_matrix((probabilities, (states, prev_states)))
+        # save the sparse array as 3 linear arrays
+        # Note: saving in the format also used by scipy.sparse.csr_matrix
+        #       allows us to parallelise the viterbi of the DBN, since we
+        #       remove all duplicates from the states
+        self.states = transitions.indices.astype(np.uint32)
+        self.pointers = transitions.indptr.astype(np.uint32)
+        self.probabilities = transitions.data.astype(dtype=np.float)
+
+
+cdef class BeatTrackingDynamicBayesianNetwork(object):
+    """
+    Dynamic Bayesian network for beat tracking.
+
+    """
+    # define some class variables which are also exported as Python attributes
+    cdef readonly Transitions transitions
+    cdef readonly np.ndarray observations
+    cdef readonly unsigned int observation_lambda
+    cdef readonly bint norm_observations
+    cdef readonly bint correct
+    cdef readonly unsigned int num_threads
+    cdef readonly double path_probability
+    # hidden variable
+    cdef np.ndarray _path
+
+    # default values
+    OBSERVATION_LAMBDA = 16
+    CORRECT = True
+    NORM_OBSERVATIONS = False
+
+    def __init__(self, transitions=None, observations=None,
+                 observation_lambda=OBSERVATION_LAMBDA,
+                 norm_observations=NORM_OBSERVATIONS,
+                 correct=CORRECT, num_threads=NUM_THREADS, **kwargs):
+        """
+        Construct a new dynamic Bayesian network suitable for beat tracking.
+
+        :param transitions:        BeatTrackingTransitions instance or file
+        :param observations:       observations
+        :param observation_lambda: split one beat period into N parts,
+                                   the first representing beat states
+                                   and the remaining non-beat states
+        :param norm_observations:  normalise the observations
+        :param correct:            correct the detected beat positions
+        :param num_threads:        number of parallel threads
+
+        :param kwargs:             additional parameters for transition model
+                                   creation if no 'transitions' are given
+
+        """
+        # save/init the transitions
+        if isinstance(transitions, Transitions):
+            self.transitions = transitions
+        else:
+            self.transitions = BeatTrackingTransitions(transitions, **kwargs)
+        # save the observations as a contiguous numpy array
         if observations is not None:
             self.observations = np.ascontiguousarray(observations,
                                                      dtype=np.float32)
-        self.num_beat_states = num_beat_states
-        self.tempo_states = np.ascontiguousarray(tempo_states, dtype=np.int32)
-        self.tempo_change_probability = tempo_change_probability
+        # save other parameters
         self.observation_lambda = observation_lambda
         self.num_threads = num_threads
         self.correct = correct
@@ -198,21 +388,15 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
         if self.norm_observations:
             observations_ = self.observations / np.max(self.observations)
         # number of observations
-        cdef unsigned int num_observations = len(observations)
-        # cache class/instance variables needed in the loops
-        cdef double tempo_change_probability = self.tempo_change_probability
+        cdef unsigned int num_observations = len(observations_)
+        # cache variables needed in the loops
         cdef unsigned int observation_lambda = self.observation_lambda
         cdef unsigned int num_threads = self.num_threads
-        cdef unsigned int num_beat_states = self.num_beat_states
-        # typed memoryview of tempo states
-        cdef int [::1] tempo_states_ = self.tempo_states
-        cdef unsigned int num_tempo_states = len(self.tempo_states)
-        # number of states
-        cdef unsigned int num_states = num_beat_states * len(self.tempo_states)
-        # check that the number of states fit into unsigned int16
-        if num_states > np.iinfo(np.uint16).max:
-            raise AssertionError('DBN can handle only %i states, not %i' %
-                                 (np.iinfo(np.uint16).max, num_states))
+        # number of beat/tempo/total states
+        cdef unsigned int num_beat_states = self.transitions.num_beat_states
+        cdef unsigned int num_tempo_states = len(self.transitions.tempo_states)
+        cdef unsigned int num_states = num_beat_states * num_tempo_states
+
         # current viterbi variables
         current_viterbi = np.empty(num_states, dtype=np.float)
         # typed memoryview thereof
@@ -224,18 +408,21 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
         cdef double [::1] prev_viterbi_ = prev_viterbi
         # back-tracking pointers
         back_tracking_pointers = np.empty((num_observations, num_states),
-                                           dtype=np.uint16)
+                                           dtype=np.uint32)
         # typed memoryview thereof
-        cdef unsigned short [:, ::1] back_tracking_pointers_ = \
+        cdef unsigned int [:, ::1] back_tracking_pointers_ = \
             back_tracking_pointers
         # back tracked path, a.k.a. path sequence
-        path = np.empty(num_observations, dtype=np.uint16)
+        path = np.empty(num_observations, dtype=np.uint32)
+
+        # transition stuff
+        cdef unsigned int [::1] states_ = self.transitions.states
+        cdef unsigned int [::1] pointers_ = self.transitions.pointers
+        cdef double [::1] probabilities_ = self.transitions.probabilities
 
         # define counters etc.
-        cdef unsigned int prev_state, beat_state, tempo_state, tempo
+        cdef unsigned int prev_state, beat_state, pointer
         cdef double obs, transition_prob, viterbi_sum, path_probability = 0.0
-        cdef double same_tempo_prob = 1. - tempo_change_probability
-        cdef double change_tempo_prob = 0.5 * tempo_change_probability
         cdef unsigned int beat_no_beat = num_beat_states / observation_lambda
         cdef int state, frame
         # iterate over all observations
@@ -247,55 +434,22 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
                 current_viterbi_[state] = 0.0
                 # position inside beat & tempo
                 beat_state = state % num_beat_states
-                tempo_state = state / num_beat_states
-                tempo = tempo_states_[tempo_state]
                 # get the observation
                 if beat_state < beat_no_beat:
                     obs = observations_[frame]
                 else:
-                    obs = (1. - observations_[frame]) / \
-                          (observation_lambda - 1)
-                # for each state check the 3 possible transitions
-                # previous state with same tempo
-                # Note: we add num_beat_states before the modulo operation so
-                #       that it can be computed in C (which is faster)
-                prev_state = ((beat_state + num_beat_states - tempo) %
-                              num_beat_states +
-                              (tempo_state * num_beat_states))
-                # probability for transition from same tempo
-                transition_prob = (prev_viterbi_[prev_state] *
-                                   same_tempo_prob * obs)
-                # if this transition probability is greater than the current
-                # one, overwrite it and save the previous state in the current
-                # pointers
-                if transition_prob > current_viterbi_[state]:
-                    current_viterbi_[state] = transition_prob
-                    back_tracking_pointers_[frame, state] = prev_state
-                # transition from slower tempo
-                if tempo_state > 0:
-                    # previous state with slower tempo
-                    # Note: we add num_beat_states before the modulo operation
-                    #       so that it can be computed in C (which is faster)
-                    prev_state = ((beat_state + num_beat_states -
-                                   (tempo - 1)) % num_beat_states +
-                                  ((tempo_state - 1) * num_beat_states))
-                    # probability for transition from slower tempo
-                    transition_prob = (prev_viterbi_[prev_state] *
-                                       change_tempo_prob * obs)
-                    if transition_prob > current_viterbi_[state]:
-                        current_viterbi_[state] = transition_prob
-                        back_tracking_pointers_[frame, state] = prev_state
-                # transition from faster tempo
-                if tempo_state < num_tempo_states - 1:
-                    # previous state with faster tempo
-                    # Note: we add num_beat_states before the modulo operation
-                    #       so that it can be computed in C (which is faster)
-                    prev_state = ((beat_state + num_beat_states -
-                                   (tempo + 1)) % num_beat_states +
-                                  ((tempo_state + 1) * num_beat_states))
-                    # probability for transition from faster tempo
-                    transition_prob = (prev_viterbi_[prev_state] *
-                                       change_tempo_prob * obs)
+                    obs = ((1. - observations_[frame]) /
+                           (observation_lambda - 1))
+                # iterate over all possible previous states
+                for pointer in range(pointers_[state], pointers_[state + 1]):
+                    prev_state = states_[pointer]
+                    # weight the previous state with the transition
+                    # probability and the current observation
+                    transition_prob = prev_viterbi_[prev_state] * \
+                                      probabilities_[pointer] * obs
+                    # if this transition probability is greater than the
+                    # current, overwrite it and save the previous state
+                    # in the current pointers
                     if transition_prob > current_viterbi_[state]:
                         current_viterbi_[state] = transition_prob
                         back_tracking_pointers_[frame, state] = prev_state
@@ -335,12 +489,13 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
     @property
     def beat_states_path(self):
         """Beat states path."""
-        return self.path % self.num_beat_states
+        return self.path % self.transitions.num_beat_states
 
     @property
     def tempo_states_path(self):
         """Tempo states path."""
-        return self.tempo_states[self.path / self.num_beat_states]
+        return self.transitions.tempo_states[self.path /
+                                             self.transitions.num_beat_states]
 
     @property
     def beats(self):
@@ -351,8 +506,9 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             # for each detection determine the "beat range", i.e. states <=
             # num_beat_states / observation_lambda and choose the frame with
             # the highest observation value
-            beat_range = self.beat_states_path < (self.num_beat_states /
-                                                  self.observation_lambda)
+            beat_range = self.beat_states_path < \
+                         (self.transitions.num_beat_states /
+                          self.observation_lambda)
             # get all change points between True and False
             idx = np.nonzero(np.diff(beat_range))[0] + 1
             # if the first frame is in the beat range, prepend a 0
@@ -375,53 +531,42 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             # Note: interpolation and alignment of the beats to be at state 0
             #       does not improve results over this simple method
             beats = beats[self.beat_states_path[beats] <
-                          (self.num_beat_states / self.observation_lambda)]
+                          (self.transitions.num_beat_states /
+                           self.observation_lambda)]
         return beats
 
     @classmethod
-    def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
-                      tempo_states=TEMPO_STATES,
-                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                      observation_lambda=OBSERVATION_LAMBDA,
-                      correct=CORRECT, norm_observations=NORM_OBSERVATIONS):
+    def add_arguments(cls, parser, observation_lambda=OBSERVATION_LAMBDA,
+                      correct=CORRECT, norm_observations=NORM_OBSERVATIONS,
+                      num_beat_states=BeatTrackingTransitions.NUM_BEAT_STATES,
+                      tempo_states=BeatTrackingTransitions.TEMPO_STATES,
+                      tempo_change_probability=
+                      BeatTrackingTransitions.TEMPO_CHANGE_PROBABILITY):
         """
         Add dynamic Bayesian network related arguments to an existing parser
         object.
 
         :param parser:                   existing argparse parser object
-        :param num_beat_states:          number of cells for one beat period
-        :param tempo_states:             list with tempo states
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
+
+        Parameters for the observation model:
+
         :param observation_lambda:       split one beat period into N parts,
                                          the first representing beat states
                                          and the remaining non-beat states
         :param correct:                  correct the beat positions
         :param norm_observations:        normalise the observations of the DBN
+
+        Parameters for the transition model:
+
+        :param num_beat_states:          number of cells for one beat period
+        :param tempo_states:             list with tempo states
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
         :return:                         beat argument parser group object
 
         """
         # add a group for DBN parameters
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        g.add_argument('--num_beat_states', action='store', type=int,
-                       default=num_beat_states,
-                       help='number of beat states for one beat period '
-                            '[default=%(default)i]')
-        g.add_argument('--tempo_change_probability', action='store',
-                       type=float, default=tempo_change_probability,
-                       help='probability of a tempo between two adjacent '
-                            'observations [default=%(default).4f]')
-        g.add_argument('--observation_lambda', action='store', type=int,
-                       default=observation_lambda,
-                       help='split one beat period into N parts, the first '
-                            'representing beat states and the remaining '
-                            'non-beat states [default=%(default)i]')
-        if tempo_states is not None:
-            from ..utils import OverrideDefaultListAction
-            g.add_argument('--tempo_states', action=OverrideDefaultListAction,
-                           type=int, default=tempo_states,
-                           help='possible tempo states (multiple values can '
-                                'be given)')
         if correct:
             g.add_argument('--no_correct', dest='correct',
                            action='store_false', default=correct,
@@ -430,6 +575,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             g.add_argument('--correct', dest='correct',
                            action='store_true', default=correct,
                            help='correct the beat positions')
+        # observation model stuff
+        g.add_argument('--observation_lambda', action='store', type=int,
+                       default=observation_lambda,
+                       help='split one beat period into N parts, the first '
+                            'representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
@@ -438,5 +589,20 @@ cdef class BeatTrackingDynamicBayesianNetwork(object):
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalise the observations of the DBN')
+        # add a transition parameters
+        g.add_argument('--num_beat_states', action='store', type=int,
+                       default=num_beat_states,
+                       help='number of beat states for one beat period '
+                            '[default=%(default)i]')
+        g.add_argument('--tempo_change_probability', action='store',
+                       type=float, default=tempo_change_probability,
+                       help='probability of a tempo between two adjacent '
+                            'observations [default=%(default).4f]')
+        if tempo_states is not None:
+            from ..utils import OverrideDefaultListAction
+            g.add_argument('--tempo_states', action=OverrideDefaultListAction,
+                           type=int, default=tempo_states,
+                           help='possible tempo states (multiple values can '
+                                'be given)')
         # return the argument group so it can be modified if needed
         return g

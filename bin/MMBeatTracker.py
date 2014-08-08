@@ -46,6 +46,8 @@ def parser():
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # parse arguments
     args = p.parse_args()
+    if args.dbn_file in ['None', '']:
+        args.dbn_file = None
     # print arguments
     if args.verbose:
         print args
@@ -63,6 +65,7 @@ def main():
     if args.load:
         # load activations
         b = MMBeatTracking.from_activations(args.input, fps=100)
+        b.dbn_file = args.dbn_file
         # set the number of threads, since the detection works multi-threaded
         b.num_threads = args.num_threads
     else:
@@ -74,6 +77,8 @@ def main():
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
         # create an RNNBeatTracking object
         b = MMBeatTracking(s, nn_files=args.nn_files,
+                           nn_ref_files=args.nn_ref_files,
+                           dbn_file=args.dbn_file,
                            num_threads=args.num_threads)
 
     # save beat activations or detect beats

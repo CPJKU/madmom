@@ -11,7 +11,6 @@ import glob
 import sys
 import numpy as np
 
-
 from . import Activations, RNNEventDetection
 
 
@@ -530,6 +529,7 @@ class MMBeatTracking(RNNBeatTracking):
     # set the path to saved neural networks and generate lists of NN files
     NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
                              RNNBeatTracking.NN_PATH)
+    DBN_FILE = "%s/beat_tracking_dbn.npz" % RNNBeatTracking.NN_PATH
     MIN_BPM = 55
     MAX_BPM = 220
 
@@ -541,7 +541,7 @@ class MMBeatTracking(RNNBeatTracking):
                       'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
-                 nn_ref_files=NN_REF_FILES, **kwargs):
+                 nn_ref_files=NN_REF_FILES, dbn_file=DBN_FILE, **kwargs):
         """
         Use multiple RNNs to compute beat activation functions and then choose
         the most appropriate one automatically by comparing them to a reference
@@ -560,7 +560,7 @@ class MMBeatTracking(RNNBeatTracking):
         """
         super(MMBeatTracking, self).__init__(data, nn_files, **kwargs)
         self.nn_ref_files = nn_ref_files
-        self._states = None
+        self.dbn_file = dbn_file
 
     def process(self):
         """
@@ -621,8 +621,9 @@ class MMBeatTracking(RNNBeatTracking):
         dbnargs['tempo_states'] = np.arange(min_tempo, max_tempo)
         # and the number of threads
         dbnargs['num_threads'] = self.num_threads
+
         # init the DBN
-        dbn = self.DBN(self.activations, **dbnargs)
+        dbn = self.DBN(self.dbn_file, self.activations, **dbnargs)
         # convert the detected beats to a list of timestamps
         self._detections = dbn.beats / float(self.fps)
         # also return the detections
@@ -630,14 +631,15 @@ class MMBeatTracking(RNNBeatTracking):
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      nn_ref_files=NN_REF_FILES, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM):
+                      nn_ref_files=NN_REF_FILES, dbn_file=DBN_FILE,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
         :param parser:       existing argparse parser object
         :param nn_files:     list with files of NN models
         :param nn_ref_files: list with files of reference NN model(s)
+        :param dbn_file:     file with the DBN model
         :param min_bpm:      minimum tempo used for beat tracking
         :param max_bpm:      maximum tempo used for beat tracking
         :return:             beat argument parser group object
@@ -649,13 +651,18 @@ class MMBeatTracking(RNNBeatTracking):
         g = RNNEventDetection.add_arguments(parser, nn_files=nn_files)
         g.add_argument('--nn_ref_files', action='append', type=str,
                        default=nn_ref_files,
-                       help='compare the predictions to these pre-trained '
+                       help='Compare the predictions to these pre-trained '
                             'neural networks (multiple files can be given, '
                             'one file per argument) and choose the most '
                             'suitable one accordingly (i.e. the one with the '
                             'least deviation form the reference model). '
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
+        g.add_argument('--dbn_file', action='store', type=str,
+                       default=dbn_file,
+                       help='Load the DBN model from this file. If none is '
+                            'given, a DBN will be created on the fly with the '
+                            'following parameters:')
         # add DBN parser group (skip the tempo state option)
         g = cls.DBN.add_arguments(parser, tempo_states=None)
         # add options for tempo (in beat per minute)
