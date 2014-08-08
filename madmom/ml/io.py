@@ -64,4 +64,5 @@ def convert_model(infile, outfile=None, compressed=False):
         outfile = os.path.splitext(infile)[0]
     if compressed:
         np.savez_compressed(outfile, **npz)
-    np.savez(outfile, **npz)
+    else:
+        np.savez(outfile, **npz)
