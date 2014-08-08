@@ -7,12 +7,12 @@ This file contains note transcription related functionality.
 
 """
 
-import os
 import glob
 import numpy as np
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import uniform_filter, maximum_filter
 
+from .. import MODELS_PATH
 from ..utils import open
 # from ..audio.filters import midi2hz, LogarithmicFilterbank
 
@@ -214,9 +214,8 @@ class NoteTranscription(RNNEventDetection):
     NoteTranscription class.
 
     """
-    # set the path to saved neural networks and generate lists of NN files
-    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
-    NN_FILES = glob.glob("%s/notes_brnn*npz" % NN_PATH)
+    # define NN files
+    NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
 
     # TODO: this information should be included/extracted in/from the NN files
     FPS = 100

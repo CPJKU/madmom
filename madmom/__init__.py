@@ -13,8 +13,6 @@ You might need higher privileges (use su or sudo) to install the files to a
 common place like /usr/local or similar.
 
 """
-import audio
-import features
-import evaluation
-import ml
-import utils
+
+import os
+MODELS_PATH = '%s/models' % (os.path.dirname(__file__))

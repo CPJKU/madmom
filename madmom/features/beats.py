@@ -6,11 +6,11 @@ This file contains all beat tracking related functionality.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
-import os
 import glob
 import sys
 import numpy as np
 
+from madmom import MODELS_PATH
 from . import Activations, RNNEventDetection
 
 
@@ -122,10 +122,8 @@ class RNNBeatTracking(RNNEventDetection):
     Class for tracking beats with a recurrent neural network (RNN).
 
     """
-    # set the path to saved neural networks and generate lists of NN files
-    # TODO: where should the NN_FILES get defined?
-    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
-    NN_FILES = glob.glob("%s/beats_blstm*npz" % NN_PATH)
+    # define the NN files
+    NN_FILES = glob.glob("%s/beats_blstm*npz" % MODELS_PATH)
     # default values for beat detection
     SMOOTH = 0.09
     LOOK_ASIDE = 0.2
@@ -526,10 +524,10 @@ class MMBeatTracking(RNNBeatTracking):
     Multi-model beat tracking with RNNs and a DBN.
 
     """
-    # set the path to saved neural networks and generate lists of NN files
-    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" %
-                             RNNBeatTracking.NN_PATH)
-    DBN_FILE = "%s/beat_tracking_dbn.npz" % RNNBeatTracking.NN_PATH
+    # define the model files
+    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % MODELS_PATH)
+    DBN_FILE = "%s/beat_tracking_dbn.npz" % MODELS_PATH
+    # some default values
     MIN_BPM = 55
     MAX_BPM = 220
 
