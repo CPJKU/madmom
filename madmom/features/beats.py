@@ -532,7 +532,7 @@ class MMBeatTracking(RNNBeatTracking):
     MAX_BPM = 220
 
     try:
-        from viterbi import BeatTrackingDynamicBayesianNetwork as DBN
+        from dbn import BeatTrackingDynamicBayesianNetwork as DBN
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the viterbi '
@@ -621,7 +621,8 @@ class MMBeatTracking(RNNBeatTracking):
         dbnargs['num_threads'] = self.num_threads
 
         # init the DBN
-        dbn = self.DBN(self.dbn_file, self.activations, **dbnargs)
+        dbn = self.DBN(transition_model=self.dbn_file,
+                       observation_model=self.activations.astype(np.float))
         # convert the detected beats to a list of timestamps
         self._detections = dbn.beats / float(self.fps)
         # also return the detections
