@@ -237,20 +237,6 @@ class Event(AbstractEvent):
             kwargs['channel'] = 0
         super(Event, self).__init__(**kwargs)
 
-    # def copy(self, **kwargs):
-    #     """
-    #     Copy an event.
-    #
-    #     :param kwargs: dictionary with all attributes to copy.
-    #
-    #     """
-    #     raise ValueError('please remove the TODO as it seems to be needed')
-    #     # TODO: can this method be removed?
-    #     _kwargs = {'channel': self.channel, 'tick': self.tick,
-    #                'data': self.data}
-    #     _kwargs.update(kwargs)
-    #     return self.__class__(**_kwargs)
-
     def __cmp__(self, other):
         if self.tick < other.tick:
             return -1

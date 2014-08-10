@@ -18,10 +18,7 @@ other stuff.
 
 """
 
-import multiprocessing as mp
-import itertools as it
 import numpy as np
-import re
 
 # naming infix for bidirectional layer
 REVERSE = 'reverse'
@@ -490,6 +487,7 @@ class RecurrentNeuralNetwork(object):
         :param filename: name of the .npz file with the RNN model
 
         """
+        import re
         # native numpy .npz format or pickled dictionary
         data = np.load(filename)
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
@@ -575,7 +573,7 @@ def _process(process_tuple):
     return RecurrentNeuralNetwork(process_tuple[0]).activate(process_tuple[1])
 
 
-def process_rnn(data, nn_files, threads=mp.cpu_count(), average=True):
+def process_rnn(data, nn_files, threads=None, average=True):
     """
     The data is processed by the given NN files and all predictions or the
     averaged prediction is returned.
@@ -587,6 +585,11 @@ def process_rnn(data, nn_files, threads=mp.cpu_count(), average=True):
     :return:         averaged prediction or a list with all predictions
 
     """
+    import multiprocessing as mp
+    import itertools as it
+    # number of threads
+    if threads is None:
+        threads = mp.cpu_count()
     # init a pool of workers (if needed)
     map_ = map
     if min(len(nn_files), max(1, threads)) != 1:

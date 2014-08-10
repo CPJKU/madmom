@@ -6,9 +6,6 @@ vary, but all "lower" level features can be found the `audio` package.
 """
 
 import numpy as np
-import multiprocessing as mp
-from ..audio.signal import Signal
-from ..ml.rnn import process_rnn
 
 
 class Activations(np.ndarray):
@@ -144,26 +141,28 @@ class EventDetection(object):
 
     """
 
-    def __init__(self, signal, **kwargs):
+    def __init__(self, signal, *args, **kwargs):
         """
         Instantiate an EventDetection object from a Signal instance.
 
         :param signal: Signal instance or input file name or file handle
-        :param kwargs: dictionary with additional arguments passed to Signal()
-                       if a filename or file handle is given
+
+        :param args:   additional arguments passed to Signal()
+        :param kwargs: additional arguments passed to Signal()
 
         Note: the method calls the pre_process() method with the Signal to
               obtain data suitable to be further processed by the process()
               method to compute the activations.
 
         """
+        from ..audio.signal import Signal
         # load the Signal
         if isinstance(Signal, Signal) or signal is None:
             # already a Signal instance
             self.signal = signal
         else:
             # try to instantiate a Signal object
-            self.signal = Signal(signal, **kwargs)
+            self.signal = Signal(signal, *args, **kwargs)
         # init fps, data, activations and detections
         self._fps = None
         self._data = None
@@ -304,7 +303,6 @@ class EventDetection(object):
         :param filename: output file name or file handle
 
         """
-        # TODO: refactor the write_events() function into this module?
         from ..utils import write_events
         write_events(self.detections, filename)
 
@@ -314,24 +312,25 @@ class RNNEventDetection(EventDetection):
     Base class for anything that use RNNs to detects events in an audio signal.
 
     """
+    import multiprocessing as mp
     NUM_THREADS = mp.cpu_count()
 
     def __init__(self, signal, nn_files, num_threads=NUM_THREADS,
-                 **kwargs):
+                 *args, **kwargs):
         """
         Sets up the object. Check the docs in the EventDetection class for
         further parameters.
 
-        :param signal:      see EventDetection class
-
+        :param signal:      Signal instance or input file name or file handle
         :param nn_files:    list of files that define the RNN
         :param num_threads: number of threads for rnn processing
 
+        :param args:        additional arguments passed to EventDetection()
         :param kwargs:      additional arguments passed to EventDetection()
 
         """
 
-        super(RNNEventDetection, self).__init__(signal, **kwargs)
+        super(RNNEventDetection, self).__init__(signal, *args, **kwargs)
         self.nn_files = nn_files
         self.num_threads = num_threads
 
@@ -378,6 +377,7 @@ class RNNEventDetection(EventDetection):
         :return: averaged RNN predictions
 
         """
+        from ..ml.rnn import process_rnn
         # compute the predictions with RNNs
         predictions = process_rnn(self.data, self.nn_files, self.num_threads)
         # save the predictions as activations
@@ -409,7 +409,3 @@ class RNNEventDetection(EventDetection):
                        help='number of parallel threads [default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
-
-import onsets
-import beats
-import tempo

@@ -134,13 +134,16 @@ class RNNBeatTracking(RNNEventDetection):
     MIN_BPM = 40
     MAX_BPM = 240
 
-    def __init__(self, data, nn_files=NN_FILES, **kwargs):
+    def __init__(self, signal, nn_files=NN_FILES, *args, **kwargs):
         """
         Use RNNs to compute the beat activation function and then align the
         beats according to the previously determined tempo.
 
-        :param data:      Signal, activations or file. See EventDetection class
-        :param nn_files:  list of files that define the RNN
+        :param signal:   Signal instance or file name or file handle
+        :param nn_files: list of files that define the RNN
+
+        :param args:     additional arguments passed to RNNEventDetection()
+        :param kwargs:   additional arguments passed to RNNEventDetection()
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         Sebastian Böck and Markus Schedl
@@ -148,7 +151,8 @@ class RNNBeatTracking(RNNEventDetection):
         Effects (DAFx-11), Paris, France, September 2011
 
         """
-        super(RNNBeatTracking, self).__init__(data, nn_files, **kwargs)
+        super(RNNBeatTracking, self).__init__(signal, nn_files, *args,
+                                              **kwargs)
 
     def pre_process(self):
         """
@@ -334,14 +338,18 @@ class CRFBeatDetection(RNNBeatTracking):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, **kwargs):
+    def __init__(self, signal, nn_files=RNNBeatTracking.NN_FILES, *args,
+                 **kwargs):
         """
         Use RNNs to compute the beat activation function and then align the
         beats according to the previously determined global tempo using
         a conditional random field model.
 
-        :param data:      Signal, activations or file. See EventDetection class
-        :param nn_files:  list of files that define the RNN
+        :param signal:   Signal instance or file name or file handle
+        :param nn_files: list of files that define the RNN
+
+        :param args:     additional arguments passed to RNNBeatTracking()
+        :param kwargs:   additional arguments passed to RNNBeatTracking()
 
         "Probabilistic extraction of beat positions from a beat activation
          function"
@@ -350,7 +358,8 @@ class CRFBeatDetection(RNNBeatTracking):
         Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014.
 
         """
-        super(CRFBeatDetection, self).__init__(data, nn_files, **kwargs)
+        super(CRFBeatDetection, self).__init__(signal, nn_files, *args,
+                                               **kwargs)
 
     @staticmethod
     def initial_distribution(num_states, dominant_interval):
@@ -467,7 +476,6 @@ class CRFBeatDetection(RNNBeatTracking):
             import multiprocessing as mp
             map_ = mp.Pool(self.num_threads).map
 
-
         # compute the beat sequences (in parallel)
         # since the cython code uses memory views, we need to make sure that
         # the activations are c-contiguous
@@ -541,15 +549,18 @@ class MMBeatTracking(RNNBeatTracking):
                       'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
-                 nn_ref_files=NN_REF_FILES, **kwargs):
+                 nn_ref_files=NN_REF_FILES, *args, **kwargs):
         """
         Use multiple RNNs to compute beat activation functions and then choose
         the most appropriate one automatically by comparing them to a reference
         model and finally infer the beats with a dynamic Bayesian network.
 
-        :param data:        Signal, activations or file.
+        :param signal:      Signal instance or file name or file handle
         :param nn_files:    list of files that define the RNN
         :param ref_nn_file: list of files that define the reference NN model
+
+        :param args:        additional arguments passed to RNNBeatTracking()
+        :param kwargs:      additional arguments passed to RNNBeatTracking()
 
         "A multi-model approach to beat tracking considering heterogeneous
          music styles"
@@ -558,7 +569,7 @@ class MMBeatTracking(RNNBeatTracking):
         Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
 
         """
-        super(MMBeatTracking, self).__init__(data, nn_files, **kwargs)
+        super(MMBeatTracking, self).__init__(data, nn_files, *args, **kwargs)
         self.nn_ref_files = nn_ref_files
         self._states = None
 

@@ -44,9 +44,10 @@ def parser():
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
     SpectralOnsetDetection.add_arguments(p)
-    OnsetDetection.add_arguments(p)
+    OnsetDetection.add_arguments(p, threshold=1.1, post_max=0.05, post_avg=0,
+                                 pre_avg=0.15, pre_max=0.01)
     # version
-    p.add_argument('--version', action='version', version='SuperFlux.2013')
+    p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -67,7 +68,7 @@ def parser():
 
 
 def main():
-    """SuperFlux.2013"""
+    """SuperFlux.2014"""
 
     # parse arguments
     args = parser()
@@ -78,15 +79,15 @@ def main():
         o = OnsetDetection.from_activations(args.input, fps=args.fps,
                                             sep=args.sep)
     else:
-        # create a Signal object
-        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
+        # create a logarithmically filtered Spectrogram object
+        s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
+                        frame_size=args.frame_size, origin=args.origin,
+                        fps=args.fps,  bands_per_octave=args.bands,
+                        fmin=args.fmin, fmax=args.fmax, mul=args.mul,
+                        add=args.add, norm_filters=args.norm_filters)
         # create a SpectralOnsetDetection detection object
-        o = SpectralOnsetDetection(s, max_bins=args.max_bins)
-        # do signal processing
-        o.pre_process(frame_size=args.frame_size, origin=args.origin,
-                      fps=args.fps, bands_per_octave=args.bands,
-                      mul=args.mul, add=args.add,
-                      norm_filters=args.norm_filters)
+        o = SpectralOnsetDetection.from_data(s, fps=args.fps)
+        o.max_bins = args.max_bins
         # process with the detection function
         o.superflux()
 

@@ -383,15 +383,17 @@ class OnsetDetection(EventDetection):
     COMBINE = 0.03
     DELAY = 0
 
-    def __init__(self, signal, **kwargs):
+    def __init__(self, signal, *args, **kwargs):
         """
         Creates a new OnsetDetection instance.
 
         :param signal: Signal instance or file name or file handle
-        :param kwargs: additional arguments passed to Signal()
+
+        :param args:   additional arguments passed to EventDetection()
+        :param kwargs: additional arguments passed to EventDetection()
 
         """
-        super(OnsetDetection, self).__init__(signal, **kwargs)
+        super(OnsetDetection, self).__init__(signal, *args, **kwargs)
 
     def detect(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
                post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
@@ -595,17 +597,18 @@ class SpectralOnsetDetection(OnsetDetection):
     ONLINE = False
     MAX_BINS = 3
 
-    def __init__(self, signal, max_bins=MAX_BINS, **kwargs):
+    def __init__(self, signal, max_bins=MAX_BINS, *args, **kwargs):
         """
         Creates a new SpectralOnsetDetection instance.
 
-        :param spectrogram: the spectrogram object on which the detections
-                            functions operate
-        :param max_bins:    number of bins for the maximum filter
-                            (for SuperFlux) [default=3]
+        :param signal:   Signal instance or file name or file handle
+        :param max_bins: number of bins for the maximum filter (for SuperFlux)
+
+        :param args:     additional arguments passed to OnsetDetection()
+        :param kwargs:   additional arguments passed to OnsetDetection()
 
         """
-        super(SpectralOnsetDetection, self).__init__(signal, **kwargs)
+        super(SpectralOnsetDetection, self).__init__(signal, *args, **kwargs)
         self.max_bins = max_bins
 
     @property
@@ -615,7 +618,7 @@ class SpectralOnsetDetection(OnsetDetection):
         return self._data.frames.fps
 
     def pre_process(self, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE,
-                    filterbank=None, **kwargs):
+                    *args, **kwargs):
         """
         Pre-process the signal, i.e. perform a STFT on it.
 
@@ -625,10 +628,9 @@ class SpectralOnsetDetection(OnsetDetection):
         :param fps:        frames per second
         :param online:     online processing [bool]
 
-        The following arguments are passed to Spectrogram()
+        :param args:       additional arguments passed to Spectrogram()
+        :param kwargs:     additional keyword arguments passed to Spectrogram()
 
-        :param filterbank: Filterbank for spectral compression
-        :param kwargs:     additional arguments passed to Spectrogram()
         :return:           pre-processed data
 
         """
@@ -644,7 +646,7 @@ class SpectralOnsetDetection(OnsetDetection):
         # set the frame rate
         self._fps = fps
         # instantiate a Spectrogram and save to data
-        self._data = Spectrogram(frames, **kwargs)
+        self._data = Spectrogram(frames, *args, **kwargs)
         # also return the data
         return self._data
 
@@ -789,18 +791,22 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     POST_MAX = 0.01  # 1. / fps
     DELAY = 0
 
-    def __init__(self, data, nn_files=NN_FILES, **kwargs):
+    def __init__(self, signal, nn_files=NN_FILES, *args, **kwargs):
         """
         Use RNNs to compute the activation function and pick the onsets.
 
-        :param data:      Signal, activations or file. See EventDetection class
-        :param nn_files:  list of files that define the RNN
-        :param fps:       frames per second
+        :param signal:   Signal instance or input file name or file handle
+        :param nn_files: list of RNN model files
+
+        :param args:     additional arguments passed to OnsetDetection() and
+                         RNNEventDetection()
+        :param kwargs:   additional arguments passed to OnsetDetection() and
+                         RNNEventDetection()
 
         """
 
-        super(RNNOnsetDetection, self).__init__(data, nn_files=nn_files,
-                                                **kwargs)
+        super(RNNOnsetDetection, self).__init__(signal, nn_files=nn_files,
+                                                *args, **kwargs)
 
     def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
         """
