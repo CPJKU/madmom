@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-This file contains dynamic Bayesian network (DBN)functionality.
+This file contains dynamic Bayesian network (DBN) functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -43,12 +43,12 @@ cdef class TransitionModel(object):
 
     def __init__(self, model=None):
         """
-        Construct a transition model object for DBNs.
+        Construct a TransitionModel instance for DBNs.
 
-        :param model: load the transitions model from the given file
+        :param model: load the transition model from the given file
 
         """
-        # set the attributes
+        # set the attributes which should be saved or loaded
         self.attributes = ['probabilities', 'states', 'pointers']
         # load the transitions
         if model is not None:
@@ -57,7 +57,11 @@ cdef class TransitionModel(object):
     def make_sparse(self, probabilities, states, prev_states):
         """
         Method to convert the given transitions to a sparse format.
-        Three arrays of same length must be given.
+
+        Three 1D numpy arrays of same length must be given. The indices
+        correspond with each other, i.e. the first entry of all three arrays
+        define the transition from the state defined prev_states[0] to the
+        state states[0] with the probability defined in probabilities[0].
 
         :param probabilities: transition probabilities
         :param states:        corresponding states
@@ -107,9 +111,9 @@ cdef class TransitionModel(object):
         else:
             # load the .npz file
             data = np.load(infile)
-        # take the attributes we are interested in
-        for key in data.keys():
-            self.__setattr__(key, data[key])
+        # load the needed attributes
+        for attr in self.attributes:
+            self.__setattr__(attr, data[attr])
 
     @property
     def num_states(self):
@@ -121,21 +125,57 @@ cdef class ObservationModel(object):
     """
     Observation model for a DBN.
 
-    An observation model is defined as two simple numpy arrays, observations
+    An observation model is defined as two plain numpy arrays, observations
     and pointers.
 
-    The 'observations' array is of size [length, num probabilities] with length
-    being the actual length of the observations and the probabilities the
-    number of different observation probabilities.
+    The 'observations' is a 2D numpy array with the number of rows being equal
+    to the length of the observations and the columns representing different
+    observation probabilities. The type must be np.float.
 
-    The 'pointers' array has a length equal to the number of states of the DBN
-    and points for each state to the corresponding column of the 'observations'
-    array.
+    The 'pointers' is a 1D numpy array and has a length equal to the number of
+    states of the DBN and points from each state to the corresponding column
+    of the 'observations' array. The type must be np.uint32.
 
     """
     # define some variables which are also exported as Python attributes
     cdef public np.ndarray observations
     cdef public np.ndarray pointers
+
+    def __init__(self, observations=None, pointers=None):
+        """
+        Construct a ObservationModel instance for a DBN.
+
+        :param observations: numpy array with the observations
+        :param pointers:     numpy array with pointers from states to the
+                             correct observations column or the number of
+                             DBN states
+
+        If observations are 1D, they are converted to a 2D representation with
+        only 1 column. If pointers is an integer number, a pointers vector of
+        that length is created, pointing always to the first column.
+
+        """
+        # observations
+        if observations is None:
+            pass
+        elif isinstance(observations, (list, np.ndarray)):
+            # convert to a 2d numpy array if needed
+            if observations.ndim == 1:
+                observations = np.atleast_2d(observations).T
+            self.observations = np.asarray(observations, dtype=np.float)
+        else:
+            raise TypeError('wrong type for observations')
+        # pointers
+        if pointers is None:
+            pass
+        elif isinstance(pointers, int):
+            # construct a pointers vector, always pointing to the first column
+            self.pointers = np.zeros(pointers, dtype=np.uint32)
+        elif isinstance(pointers, np.ndarray):
+            # convert to correct type
+            self.pointers = pointers.astype(np.uint32)
+        else:
+            raise TypeError('wrong type for pointers')
 
 
 cdef class DynamicBayesianNetwork(object):
@@ -143,7 +183,7 @@ cdef class DynamicBayesianNetwork(object):
     Dynamic Bayesian network.
 
     """
-    # define some class variables which are also exported as Python attributes
+    # define some variables which are also exported as Python attributes
     cdef public TransitionModel transition_model
     cdef public ObservationModel observation_model
     cdef public unsigned int num_threads
@@ -157,7 +197,7 @@ cdef class DynamicBayesianNetwork(object):
         Construct a new dynamic Bayesian network.
 
         :param transition_model:   TransitionModel instance or file
-        :param observation_model:  ObservationModel instance of file
+        :param observation_model:  ObservationModel instance or observations
         :param num_threads:        number of parallel threads
 
         """
@@ -175,8 +215,9 @@ cdef class DynamicBayesianNetwork(object):
             self.observation_model = observation_model
         else:
             # instantiate a new ObservationModel
-            self.observation_model = ObservationModel(observation_model)
-
+            num_states = self.transition_model.num_states
+            self.observation_model = ObservationModel(observation_model,
+                                                      num_states)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -209,19 +250,14 @@ cdef class DynamicBayesianNetwork(object):
 
         # current viterbi variables
         current_viterbi = np.empty(num_states, dtype=np.float)
-        # typed memoryview thereof
         cdef double [::1] current_viterbi_ = current_viterbi
         # previous viterbi variables, init them with 1s as prior distribution
         # TODO: allow other priors
         prev_viterbi = np.ones(num_states, dtype=np.float)
-        # typed memoryview thereof
         cdef double [::1] prev_viterbi_ = prev_viterbi
         # back-tracking pointers
-        back_tracking_pointers = np.empty((num_observations, num_states),
-                                           dtype=np.uint32)
-        # typed memoryview thereof
-        cdef unsigned int [:, ::1] back_tracking_pointers_ = \
-            back_tracking_pointers
+        pointers = np.empty((num_observations, num_states),dtype=np.uint32)
+        cdef unsigned int [:, ::1] pointers_ = pointers
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_observations, dtype=np.uint32)
 
@@ -229,7 +265,6 @@ cdef class DynamicBayesianNetwork(object):
         cdef int state, frame
         cdef unsigned int prev_state, pointer, num_threads = self.num_threads
         cdef double obs, transition_prob, viterbi_sum, path_probability = 0.0
-
 
         # iterate over all observations
         for frame in range(num_observations):
@@ -260,7 +295,7 @@ cdef class DynamicBayesianNetwork(object):
                     # in the current pointers
                     if transition_prob > current_viterbi_[state]:
                         current_viterbi_[state] = transition_prob
-                        back_tracking_pointers_[frame, state] = prev_state
+                        pointers_[frame, state] = prev_state
             # overwrite the old states with the normalised current ones
             # Note: this is faster than unrolling the loop! But it is a bit
             #       tricky: we need to do the normalisation on the numpy
@@ -275,13 +310,13 @@ cdef class DynamicBayesianNetwork(object):
         # add its log probability to the sum
         path_probability += log(current_viterbi.max())
         # track the path backwards, start with the last frame and do not
-        # include the back_tracking_pointers for frame 0, since it includes
-        # the transitions to the prior distribution states
+        # include the pointer for frame 0, since it includes the transitions
+        # to the prior distribution states
         for frame in range(num_observations -1, -1, -1):
             # save the state in the path
             path[frame] = state
             # fetch the next previous one
-            state = back_tracking_pointers[frame, state]
+            state = pointers[frame, state]
         # save the tracked path and log sum and return them
         self._path = path
         self.path_probability = path_probability
@@ -298,7 +333,7 @@ cdef class DynamicBayesianNetwork(object):
 # sub-class the previously defined classes for beat tracking
 cdef class BeatTrackingTransitionModel(TransitionModel):
     """
-    Transition model for beat tracking.
+    Transition model for beat tracking with a DBN.
 
     """
     # define some variables which are also exported as Python attributes
@@ -433,7 +468,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
 
 cdef class NNBeatTrackingObservationModel(ObservationModel):
     """
-    Observation model for NN based beat tracking.
+    Observation model for NN based beat tracking with a DBN.
 
     """
     # define some variables which are also exported as Python attributes
@@ -451,24 +486,31 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         """
         Construct a observation model instance.
 
+        :param activations:        neural network activations
+        :param num_states:         number of DBN states
+        :param num_beat_states:    number of DBN beat states
         :param observation_lambda: split one beat period into N parts,
                                    the first representing beat states
                                    and the remaining non-beat states
         :param norm_observations:  normalise the observations
 
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+
         """
-        # instantiate ObservationModel
-        super(NNBeatTrackingObservationModel, self).__init__()
+        # instantiate an empty ObservationModel
+        super(NNBeatTrackingObservationModel, self).__init__(None, None)
         # convert the given activations to an contiguous array
         self.activations = np.ascontiguousarray(activations, dtype=np.float)
         # normalise the activations
         if norm_observations:
             self.activations /= np.max(self.activations)
-
         # save the given parameters
         self.observation_lambda = observation_lambda
         self.norm_observations = norm_observations
-
         # generate the observation model
         self._observation_model(self.activations, num_states, num_beat_states)
 
@@ -490,27 +532,25 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         cdef unsigned int i
         cdef unsigned int num_observations = len(activations)
         cdef unsigned int observation_lambda = self.observation_lambda
-        # observations
+        # init observations
         observations = np.empty((num_observations, 2), dtype=np.float)
         cdef double [:, ::1] observations_ = observations
-
+        # define the observation states
         for i in range(num_observations):
             observations_[i, 0] = activations[i]
             observations_[i, 1] = ((1. - activations[i]) /
                                    (observation_lambda - 1))
-
-        # observation pointers
+        # init observation pointers
         pointers = np.zeros(num_states, dtype=np.uint32)
         cdef unsigned int [:] pointers_ = pointers
         cdef unsigned int observation_border = (num_beat_states /
                                                 observation_lambda)
-
+        # define the observation pointers
         for i in range(num_states):
             if (i + num_beat_states) % num_beat_states < observation_border:
                 pointers_[i] = 0
             else:
                 pointers_[i] = 1
-
         # save everything
         self.observations = observations
         self.pointers = pointers
@@ -521,7 +561,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     Dynamic Bayesian network for beat tracking.
 
     """
-    # define some class variables which are also exported as Python attributes
+    # define some variables which are also exported as Python attributes
     cdef public bint correct
 
     # default values
@@ -538,6 +578,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
         :param observation_model:  ObservationModel or activations
         :param correct:            correct the detected beat positions
         :param num_threads:        number of parallel threads
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
 
         """
         # init the transition model
@@ -565,8 +611,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     @property
     def tempo_states_path(self):
         """Tempo states path."""
-        tempo_indices = self.path / self.transition_model.num_beat_states
-        return self.transition_model.tempo_states[tempo_indices]
+        states = self.path / self.transition_model.num_beat_states
+        return self.transition_model.tempo_states[states]
 
     @property
     def beats(self):
