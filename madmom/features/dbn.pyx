@@ -201,6 +201,8 @@ cdef class DynamicBayesianNetwork(object):
         :param num_threads:        number of parallel threads
 
         """
+        # save number of threads
+        self.num_threads = num_threads
         # transition model
         if isinstance(transition_model, TransitionModel):
             # already a TransitionModel
@@ -611,7 +613,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
         # instantiate DBN
         spr = super(BeatTrackingDynamicBayesianNetwork, self)
         spr.__init__(transition_model, observation_model, num_threads)
-
         # save other parameters
         self.correct = correct
 
@@ -694,7 +695,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                                          and the remaining non-beat states
         :param norm_observations:        normalise the observations
 
-
         :return:                         beat argument parser group object
 
         """
@@ -708,20 +708,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
             g.add_argument('--correct', dest='correct',
                            action='store_true', default=correct,
                            help='correct the beat positions')
-        # observation model stuff
-        g.add_argument('--observation_lambda', action='store', type=int,
-                       default=observation_lambda,
-                       help='split one beat period into N parts, the first '
-                            'representing beat states and the remaining '
-                            'non-beat states [default=%(default)i]')
-        if norm_observations:
-            g.add_argument('--no_norm_obs', dest='norm_observations',
-                           action='store_false', default=norm_observations,
-                           help='do not normalise the observations of the DBN')
-        else:
-            g.add_argument('--norm_obs', dest='norm_observations',
-                           action='store_true', default=norm_observations,
-                           help='normalise the observations of the DBN')
         # add a transition parameters
         g.add_argument('--num_beat_states', action='store', type=int,
                        default=num_beat_states,
@@ -737,5 +723,19 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                            type=int, default=tempo_states,
                            help='possible tempo states (multiple values can '
                                 'be given)')
+        # observation model stuff
+        g.add_argument('--observation_lambda', action='store', type=int,
+                       default=observation_lambda,
+                       help='split one beat period into N parts, the first '
+                            'representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
+        if norm_observations:
+            g.add_argument('--no_norm_obs', dest='norm_observations',
+                           action='store_false', default=norm_observations,
+                           help='do not normalise the observations of the DBN')
+        else:
+            g.add_argument('--norm_obs', dest='norm_observations',
+                           action='store_true', default=norm_observations,
+                           help='normalise the observations of the DBN')
         # return the argument group so it can be modified if needed
         return g

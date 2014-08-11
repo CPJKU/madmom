@@ -46,8 +46,6 @@ def parser():
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # parse arguments
     args = p.parse_args()
-    if args.dbn_file in ['None', '']:
-        args.dbn_file = None
     # print arguments
     if args.verbose:
         print args
@@ -65,7 +63,6 @@ def main():
     if args.load:
         # load activations
         b = MMBeatTracking.from_activations(args.input, fps=100)
-        b.dbn_file = args.dbn_file
         # set the number of threads, since the detection works multi-threaded
         b.num_threads = args.num_threads
     else:

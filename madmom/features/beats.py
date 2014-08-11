@@ -533,7 +533,9 @@ class MMBeatTracking(RNNBeatTracking):
     MAX_BPM = 220
 
     try:
-        from dbn import BeatTrackingDynamicBayesianNetwork as DBN
+        from dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
+                         BeatTrackingTransitionModel as TM,
+                         NNBeatTrackingObservationModel as OM)
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the viterbi '
@@ -602,28 +604,51 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, **dbnargs):
+    def detect(self, correct=DBN.CORRECT, num_beat_states=TM.NUM_BEAT_STATES,
+               min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+               tempo_change_probability=TM.TEMPO_CHANGE_PROBABILITY,
+               observation_lambda=OM.OBSERVATION_LAMBDA,
+               norm_observations=OM.NORM_OBSERVATIONS):
         """
         Track the beats with a dynamic Bayesian network.
 
-        :param min_bpm: minimum tempo used for beat tracking
-        :param max_bpm: maximum tempo used for beat tracking
-        :param dbnargs: parameters passed to the dynamic Bayesian network (DBN)
-        :return:        detected beat positions
+        :param correct:                  correct the beats
+
+        Parameters for the transition model:
+
+        :param num_beat_states:          number of cells for one beat period
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+
+        Parameters for the observation model:
+
+        :param observation_lambda:       split one beat period into N parts,
+                                         the first representing beat states
+                                         and the remaining non-beat states
+        :param norm_observations:        normalise the observations
+
+        :return:                         detected beat positions
 
         """
         # convert timing information to tempo spaces
-        num_beat_states = dbnargs['num_beat_states']
         max_tempo = int(np.ceil(max_bpm * num_beat_states / (60. * self.fps)))
         min_tempo = int(np.floor(min_bpm * num_beat_states / (60. * self.fps)))
-        # add to the passed argument dictionary
-        dbnargs['tempo_states'] = np.arange(min_tempo, max_tempo)
-        # and the number of threads
-        dbnargs['num_threads'] = self.num_threads
-
+        tempo_states = np.arange(min_tempo, max_tempo)
+        # transition model
+        tm = self.TM(num_beat_states=num_beat_states,
+                     tempo_states=tempo_states,
+                     tempo_change_probability=tempo_change_probability)
+        # observation model
+        om = self.OM(self.activations.astype(np.float),
+                     num_states=tm.num_states,
+                     num_beat_states=tm.num_beat_states,
+                     observation_lambda=observation_lambda,
+                     norm_observations=norm_observations)
         # init the DBN
-        dbn = self.DBN(transition_model=self.dbn_file,
-                       observation_model=self.activations.astype(np.float))
+        dbn = self.DBN(transition_model=tm, observation_model=om,
+                       num_threads=self.num_threads, correct=correct)
         # convert the detected beats to a list of timestamps
         self._detections = dbn.beats / float(self.fps)
         # also return the detections
@@ -631,15 +656,14 @@ class MMBeatTracking(RNNBeatTracking):
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      nn_ref_files=NN_REF_FILES, dbn_file=DBN_FILE,
-                      min_bpm=MIN_BPM, max_bpm=MAX_BPM):
+                      nn_ref_files=NN_REF_FILES, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
         :param parser:       existing argparse parser object
         :param nn_files:     list with files of NN models
         :param nn_ref_files: list with files of reference NN model(s)
-        :param dbn_file:     file with the DBN model
         :param min_bpm:      minimum tempo used for beat tracking
         :param max_bpm:      maximum tempo used for beat tracking
         :return:             beat argument parser group object
@@ -658,11 +682,6 @@ class MMBeatTracking(RNNBeatTracking):
                             'least deviation form the reference model). '
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
-        g.add_argument('--dbn_file', action='store', type=str,
-                       default=dbn_file,
-                       help='Load the DBN model from this file. If none is '
-                            'given, a DBN will be created on the fly with the '
-                            'following parameters:')
         # add DBN parser group (skip the tempo state option)
         g = cls.DBN.add_arguments(parser, tempo_states=None)
         # add options for tempo (in beat per minute)
