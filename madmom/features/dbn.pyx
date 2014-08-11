@@ -232,6 +232,60 @@ cdef class DynamicBayesianNetwork(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
+    cdef inline void _best_prev_state(self, int state, int frame,
+                                      double [::1] current_viterbi,
+                                      double [::1] prev_viterbi,
+                                      double [:, ::1] om_observations,
+                                      unsigned int [::1] om_pointers,
+                                      unsigned int [::1] tm_states,
+                                      unsigned int [::1] tm_pointers,
+                                      double [::1] tm_probabilities,
+                                      unsigned int [:, ::1] pointers) nogil:
+        """
+        Inline function to determine the best previous state.
+
+        :param state:            current state
+        :param frame:            current frame
+        :param current_viterbi:  current viterbi variables
+        :param prev_viterbi:     previous viterbi variables
+        :param om_observations:  observation model probabilities
+        :param om_pointers:      observation model pointers
+        :param tm_states:        transition model states
+        :param tm_pointers:      transition model pointers
+        :param tm_probabilities: transition model probabilities
+        :param pointers:         back tracking pointers
+
+        """
+        # define variables
+        cdef unsigned int prev_state, pointer
+        cdef double obs, transition_prob
+        # reset the current viterbi variable
+        current_viterbi[state] = 0.0
+        # get the observations
+        # the om_pointers array holds pointers to the correct
+        # observation value for the actual state (i.e. column in the
+        # om_observations array)
+        # Note: defining obs here gives a 5% speed-up!?
+        obs = om_observations[frame, om_pointers[state]]
+        # iterate over all possible previous states
+        # the tm_pointers array holds pointers to the states which are
+        # stored in the tm_states array
+        for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
+            prev_state = tm_states[pointer]
+            # weight the previous state with the transition
+            # probability and the current observation
+            transition_prob = prev_viterbi[prev_state] * \
+                              tm_probabilities[pointer] * obs
+            # if this transition probability is greater than the
+            # current, overwrite it and save the previous state
+            # in the current pointers
+            if transition_prob > current_viterbi[state]:
+                current_viterbi[state] = transition_prob
+                pointers[frame, state] = prev_state
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def viterbi(self):
         """
         Determine the best path with the Viterbi algorithm
@@ -242,34 +296,29 @@ cdef class DynamicBayesianNetwork(object):
 
         """
         # transition model stuff
-        cdef unsigned int [::1] tm_states = \
-            self.transition_model.states
-        cdef unsigned int [::1] tm_pointers = \
-            self.transition_model.pointers
-        cdef double [::1] tm_probabilities = \
-            self.transition_model.probabilities
-        cdef unsigned int num_states = self.transition_model.num_states
+        cdef TransitionModel tm = self.transition_model
+        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef double [::1] tm_probabilities = tm.probabilities
+        cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
-        cdef double [:, ::1] om_observations = \
-            self.observation_model.observations
-        cdef unsigned int [::1] om_pointers = \
-            self.observation_model.pointers
-        cdef unsigned int num_observations = \
-            len(self.observation_model.observations)
+        cdef ObservationModel om = self.observation_model
+        cdef double [:, ::1] om_observations = om.observations
+        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef unsigned int num_observations = len(om.observations)
 
         # current viterbi variables
-        current_viterbi = np.empty(num_states, dtype=np.float)
-        cdef double [::1] current_viterbi_ = current_viterbi
+        current_viterbi_np = np.empty(num_states, dtype=np.float)
+        cdef double [::1] current_viterbi = current_viterbi_np
 
         # previous viterbi variables, init with the initial state distribution
-        prev_viterbi = self.initial_states
-        cdef double [::1] prev_viterbi_ = prev_viterbi
+        cdef double [::1] previous_viterbi = self.initial_states
 
         # back-tracking pointers
-        pointers = np.empty((num_observations, num_states),dtype=np.uint32)
-        cdef unsigned int [:, ::1] pointers_ = pointers
-
+        cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
+                                                           num_states),
+                                                          dtype=np.uint32)
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_observations, dtype=np.uint32)
 
@@ -280,47 +329,36 @@ cdef class DynamicBayesianNetwork(object):
 
         # iterate over all observations
         for frame in range(num_observations):
-            # search for best transitions
-            for state in prange(num_states, nogil=True, schedule='static',
-                                num_threads=num_threads):
-                # reset the current viterbi variable
-                current_viterbi_[state] = 0.0
+            # range() is faster than prange() for 1 thread
+            if num_threads == 1:
+                # search for best transitions sequentially
+                for state in range(num_states):
+                    self._best_prev_state(state, frame, current_viterbi,
+                                          previous_viterbi, om_observations,
+                                          om_pointers, tm_states, tm_pointers,
+                                          tm_probabilities, bt_pointers)
+            else:
+                # search for best transitions in parallel
+                for state in prange(num_states, nogil=True, schedule='static',
+                                    num_threads=num_threads):
+                    self._best_prev_state(state, frame, current_viterbi,
+                                          previous_viterbi, om_observations,
+                                          om_pointers, tm_states, tm_pointers,
+                                          tm_probabilities, bt_pointers)
 
-                # get the observations
-                # the om_pointers array holds pointers to the correct
-                # observation value for the actual state (i.e. column in the
-                # om_observations array)
-                obs = om_observations[frame, om_pointers[state]]
-
-                # iterate over all possible previous states
-                # the tm_pointers array holds pointers to the states which are
-                # stored in the tm_states array
-                for pointer in range(tm_pointers[state],
-                                     tm_pointers[state + 1]):
-                    prev_state = tm_states[pointer]
-                    # weight the previous state with the transition
-                    # probability and the current observation
-                    transition_prob = prev_viterbi_[prev_state] * \
-                                      tm_probabilities[pointer] * obs
-                    # if this transition probability is greater than the
-                    # current, overwrite it and save the previous state
-                    # in the current pointers
-                    if transition_prob > current_viterbi_[state]:
-                        current_viterbi_[state] = transition_prob
-                        pointers_[frame, state] = prev_state
             # overwrite the old states with the normalised current ones
             # Note: this is faster than unrolling the loop! But it is a bit
-            #       tricky: we need to do the normalisation on the numpy
-            #       array but do the assignment on the memoryview
-            viterbi_sum = current_viterbi.sum()
-            prev_viterbi_ = current_viterbi / viterbi_sum
+            #       tricky: we need to do the summing and normalisation on the
+            #       numpy array but do the assignment on the memoryview
+            viterbi_sum = current_viterbi_np.sum()
+            previous_viterbi = current_viterbi_np / viterbi_sum
             # add the log sum of all viterbi variables to the overall sum
             path_probability += log(viterbi_sum)
 
         # fetch the final best state
-        state = current_viterbi.argmax()
+        state = current_viterbi_np.argmax()
         # add its log probability to the sum
-        path_probability += log(current_viterbi.max())
+        path_probability += log(current_viterbi_np.max())
         # track the path backwards, start with the last frame and do not
         # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
@@ -328,7 +366,7 @@ cdef class DynamicBayesianNetwork(object):
             # save the state in the path
             path[frame] = state
             # fetch the next previous one
-            state = pointers[frame, state]
+            state = bt_pointers[frame, state]
         # save the tracked path and log sum and return them
         self._path = path
         self.path_probability = path_probability
