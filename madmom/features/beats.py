@@ -526,7 +526,8 @@ class MMBeatTracking(RNNBeatTracking):
     """
     # define the model files
     NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % MODELS_PATH)
-    DBN_FILE = "%s/beat_tracking_dbn.npz" % MODELS_PATH
+    # DBN_FILE = "%s/beat_tracking_dbn.npz" % MODELS_PATH
+    DBN_FILE = None
     # some default values
     MIN_BPM = 55
     MAX_BPM = 220

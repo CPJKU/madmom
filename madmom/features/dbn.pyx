@@ -409,7 +409,6 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
         """
-
         # number of tempo & total states
         cdef unsigned int num_tempo_states = len(tempo_states)
         cdef unsigned int num_states = num_beat_states * num_tempo_states
@@ -418,11 +417,21 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         cdef double change_tempo_prob = 0.5 * tempo_change_probability
         # counters etc.
         cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
-        # lists for transitions matrix creation
-        # TODO: use c++ containers? http://stackoverflow.com/questions/7403966
-        cdef list states = []
-        cdef list prev_states = []
-        cdef list probabilities = []
+        # number of transition states
+        # num_tempo_states * 3 because every state has a transition from the
+        # same tempo and from the slower and faster one, -2 because the slowest
+        # and the fastest tempi can't have transitions from outside the tempo
+        # range
+        cdef int num_transition_states = (num_beat_states *
+                                          (num_tempo_states * 3 - 2))
+        # arrays for transitions matrix creation
+        states = np.empty(num_transition_states, np.uint32)
+        prev_states = np.empty(num_transition_states, np.uint32)
+        probabilities = np.empty(num_transition_states, np.float)
+        cdef unsigned int [::1] states_ = states
+        cdef unsigned int [::1] prev_states_ = prev_states
+        cdef double [::1] probabilities_ = probabilities
+        cdef int i = 0
         # loop over all states
         for state in range(num_states):
             # position inside beat & tempo
@@ -437,9 +446,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                           num_beat_states +
                           (tempo_state * num_beat_states))
             # probability for transition from same tempo
-            states.append(state)
-            prev_states.append(prev_state)
-            probabilities.append(same_tempo_prob)
+            states_[i] = state
+            prev_states_[i] = prev_state
+            probabilities_[i] = same_tempo_prob
+            i += 1
             # transition from slower tempo
             if tempo_state > 0:
                 # previous state with slower tempo
@@ -447,9 +457,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                (tempo - 1)) % num_beat_states +
                               ((tempo_state - 1) * num_beat_states))
                 # probability for transition from slower tempo
-                states.append(state)
-                prev_states.append(prev_state)
-                probabilities.append(change_tempo_prob)
+                states_[i] = state
+                prev_states_[i] = prev_state
+                probabilities_[i] = change_tempo_prob
+                i += 1
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
                 # previous state with faster tempo
@@ -459,9 +470,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                (tempo + 1)) % num_beat_states +
                               ((tempo_state + 1) * num_beat_states))
                 # probability for transition from faster tempo
-                states.append(state)
-                prev_states.append(prev_state)
-                probabilities.append(change_tempo_prob)
+                states_[i] = state
+                prev_states_[i] = prev_state
+                probabilities_[i] = change_tempo_prob
+                i += 1
         # make it sparse
         self.make_sparse(probabilities, states, prev_states)
 

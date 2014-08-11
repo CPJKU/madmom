@@ -34,9 +34,6 @@ def parser():
     Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
 
-    If the DBN transition model parameters only come into effect if 'dbn_file'
-    is empty, i.e. ''.
-
     ''')
 
     # input/output options
