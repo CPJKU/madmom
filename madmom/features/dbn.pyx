@@ -186,19 +186,22 @@ cdef class DynamicBayesianNetwork(object):
     # define some variables which are also exported as Python attributes
     cdef public TransitionModel transition_model
     cdef public ObservationModel observation_model
+    cdef public np.ndarray initial_states
     cdef public unsigned int num_threads
     cdef public double path_probability
     # hidden variable
     cdef np.ndarray _path
 
     def __init__(self, transition_model=None, observation_model=None,
-                 num_threads=NUM_THREADS):
+                 initial_states=None, num_threads=NUM_THREADS):
         """
         Construct a new dynamic Bayesian network.
 
-        :param transition_model:   TransitionModel instance or file
-        :param observation_model:  ObservationModel instance or observations
-        :param num_threads:        number of parallel threads
+        :param transition_model:  TransitionModel instance or file
+        :param observation_model: ObservationModel instance or observations
+        :param initial_states:    initial state distribution; a uniform
+                                  distribution is assumed if None is given
+        :param num_threads:       number of parallel threads
 
         """
         # save number of threads
@@ -210,16 +213,21 @@ cdef class DynamicBayesianNetwork(object):
         else:
             # instantiate a new or load an existing TransitionModel
             self.transition_model = TransitionModel(transition_model)
-
+        num_states = self.transition_model.num_states
         # observation model
         if isinstance(observation_model, ObservationModel):
             # already a ObservationModel
             self.observation_model = observation_model
         else:
             # instantiate a new ObservationModel
-            num_states = self.transition_model.num_states
             self.observation_model = ObservationModel(observation_model,
                                                       num_states)
+        # initial state distribution
+        if initial_states is None:
+            self.initial_states = np.ones(num_states, dtype=np.float)
+        else:
+            self.initial_states = np.ascontiguousarray(initial_states,
+                                                       dtype=np.float)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -253,13 +261,15 @@ cdef class DynamicBayesianNetwork(object):
         # current viterbi variables
         current_viterbi = np.empty(num_states, dtype=np.float)
         cdef double [::1] current_viterbi_ = current_viterbi
-        # previous viterbi variables, init them with 1s as prior distribution
-        # TODO: allow other priors
-        prev_viterbi = np.ones(num_states, dtype=np.float)
+
+        # previous viterbi variables, init with the initial state distribution
+        prev_viterbi = self.initial_states
         cdef double [::1] prev_viterbi_ = prev_viterbi
+
         # back-tracking pointers
         pointers = np.empty((num_observations, num_states),dtype=np.uint32)
         cdef unsigned int [:, ::1] pointers_ = pointers
+
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_observations, dtype=np.uint32)
 
@@ -584,14 +594,17 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     OM = NNBeatTrackingObservationModel
 
     def __init__(self, transition_model=None, observation_model=None,
-                 correct=CORRECT, num_threads=NUM_THREADS):
+                 initial_states=None, correct=CORRECT,
+                 num_threads=NUM_THREADS):
         """
         Construct a new dynamic Bayesian network suitable for beat tracking.
 
-        :param transition_model:   TransitionModel or file
-        :param observation_model:  ObservationModel or activations
-        :param correct:            correct the detected beat positions
-        :param num_threads:        number of parallel threads
+        :param transition_model:  TransitionModel or file
+        :param observation_model: ObservationModel or activations
+        :param initial_states:    initial state distribution; a uniform
+                                  distribution is assumed if None is given
+        :param correct:           correct the detected beat positions
+        :param num_threads:       number of parallel threads
 
         "A multi-model approach to beat tracking considering heterogeneous
          music styles"
@@ -611,8 +624,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                 transition_model.num_beat_states)
 
         # instantiate DBN
-        spr = super(BeatTrackingDynamicBayesianNetwork, self)
-        spr.__init__(transition_model, observation_model, num_threads)
+        spr = super(BeatTrackingDynamicBayesianNetwork, self).__init__
+        spr(transition_model, observation_model, initial_states, num_threads)
         # save other parameters
         self.correct = correct
 
