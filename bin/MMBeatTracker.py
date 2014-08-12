@@ -75,7 +75,6 @@ def main():
         # create an RNNBeatTracking object
         b = MMBeatTracking(s, nn_files=args.nn_files,
                            nn_ref_files=args.nn_ref_files,
-                           dbn_file=args.dbn_file,
                            num_threads=args.num_threads)
 
     # save beat activations or detect beats
