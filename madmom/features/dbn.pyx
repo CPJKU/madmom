@@ -125,46 +125,45 @@ cdef class ObservationModel(object):
     """
     Observation model for a DBN.
 
-    An observation model is defined as two plain numpy arrays, observations
+    An observation model is defined as two plain numpy arrays, densities
     and pointers.
 
-    The 'observations' is a 2D numpy array with the number of rows being equal
-    to the length of the observations and the columns representing different
-    observation probabilities. The type must be np.float.
+    The 'densities' is a 2D numpy array with the number of rows being equal
+    to the length of the observations and the columns representing the
+    different observation probability densities. The type must be np.float.
 
     The 'pointers' is a 1D numpy array and has a length equal to the number of
     states of the DBN and points from each state to the corresponding column
-    of the 'observations' array. The type must be np.uint32.
+    of the 'densities' array. The type must be np.uint32.
 
     """
     # define some variables which are also exported as Python attributes
-    cdef public np.ndarray observations
+    cdef public np.ndarray densities
     cdef public np.ndarray pointers
 
-    def __init__(self, observations=None, pointers=None):
+    def __init__(self, densities=None, pointers=None):
         """
         Construct a ObservationModel instance for a DBN.
 
-        :param observations: numpy array with the observations
-        :param pointers:     numpy array with pointers from states to the
-                             correct observations column or the number of
-                             DBN states
+        :param densities: numpy array with observation probability densities
+        :param pointers:  numpy array with pointers from DBN states to the
+                          correct densities column or the number of DBN states
 
-        If observations are 1D, they are converted to a 2D representation with
+        If densities are 1D, they are converted to a 2D representation with
         only 1 column. If pointers is an integer number, a pointers vector of
         that length is created, pointing always to the first column.
 
         """
-        # observations
-        if observations is None:
+        # densities
+        if densities is None:
             pass
-        elif isinstance(observations, (list, np.ndarray)):
+        elif isinstance(densities, (list, np.ndarray)):
             # convert to a 2d numpy array if needed
-            if observations.ndim == 1:
-                observations = np.atleast_2d(observations).T
-            self.observations = np.asarray(observations, dtype=np.float)
+            if densities.ndim == 1:
+                densities = np.atleast_2d(densities).T
+            self.densities = np.asarray(densities, dtype=np.float)
         else:
-            raise TypeError('wrong type for observations')
+            raise TypeError('wrong type for densities')
         # pointers
         if pointers is None:
             pass
@@ -235,7 +234,7 @@ cdef class DynamicBayesianNetwork(object):
     cdef inline void _best_prev_state(self, int state, int frame,
                                       double [::1] current_viterbi,
                                       double [::1] prev_viterbi,
-                                      double [:, ::1] om_observations,
+                                      double [:, ::1] om_densities,
                                       unsigned int [::1] om_pointers,
                                       unsigned int [::1] tm_states,
                                       unsigned int [::1] tm_pointers,
@@ -248,7 +247,7 @@ cdef class DynamicBayesianNetwork(object):
         :param frame:            current frame
         :param current_viterbi:  current viterbi variables
         :param prev_viterbi:     previous viterbi variables
-        :param om_observations:  observation model probabilities
+        :param om_densities:     observation model densities
         :param om_pointers:      observation model pointers
         :param tm_states:        transition model states
         :param tm_pointers:      transition model pointers
@@ -258,24 +257,24 @@ cdef class DynamicBayesianNetwork(object):
         """
         # define variables
         cdef unsigned int prev_state, pointer
-        cdef double obs, transition_prob
+        cdef double density, transition_prob
         # reset the current viterbi variable
         current_viterbi[state] = 0.0
-        # get the observations
-        # the om_pointers array holds pointers to the correct
-        # observation value for the actual state (i.e. column in the
-        # om_observations array)
-        # Note: defining obs here gives a 5% speed-up!?
-        obs = om_observations[frame, om_pointers[state]]
+        # get the observation model probability density value
+        # the om_pointers array holds pointers to the correct observation
+        # probability density value for the actual state (i.e. column in the
+        # om_densities array)
+        # Note: defining density here gives a 5% speed-up!?
+        density = om_densities[frame, om_pointers[state]]
         # iterate over all possible previous states
         # the tm_pointers array holds pointers to the states which are
         # stored in the tm_states array
         for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
             prev_state = tm_states[pointer]
             # weight the previous state with the transition
-            # probability and the current observation
+            # probability and the observation probability density
             transition_prob = prev_viterbi[prev_state] * \
-                              tm_probabilities[pointer] * obs
+                              tm_probabilities[pointer] * density
             # if this transition probability is greater than the
             # current, overwrite it and save the previous state
             # in the current pointers
@@ -304,9 +303,9 @@ cdef class DynamicBayesianNetwork(object):
 
         # observation model stuff
         cdef ObservationModel om = self.observation_model
-        cdef double [:, ::1] om_observations = om.observations
+        cdef double [:, ::1] om_densities = om.densities
         cdef unsigned int [::1] om_pointers = om.pointers
-        cdef unsigned int num_observations = len(om.observations)
+        cdef unsigned int num_observations = len(om.densities)
 
         # current viterbi variables
         current_viterbi_np = np.empty(num_states, dtype=np.float)
@@ -334,7 +333,7 @@ cdef class DynamicBayesianNetwork(object):
                 # search for best transitions sequentially
                 for state in range(num_states):
                     self._best_prev_state(state, frame, current_viterbi,
-                                          previous_viterbi, om_observations,
+                                          previous_viterbi, om_densities,
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
             else:
@@ -342,7 +341,7 @@ cdef class DynamicBayesianNetwork(object):
                 for state in prange(num_states, nogil=True, schedule='static',
                                     num_threads=num_threads):
                     self._best_prev_state(state, frame, current_viterbi,
-                                          previous_viterbi, om_observations,
+                                          previous_viterbi, om_densities,
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
 
@@ -475,12 +474,12 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         cdef int num_transition_states = (num_beat_states *
                                           (num_tempo_states * 3 - 2))
         # arrays for transitions matrix creation
-        states = np.empty(num_transition_states, np.uint32)
-        prev_states = np.empty(num_transition_states, np.uint32)
-        probabilities = np.empty(num_transition_states, np.float)
-        cdef unsigned int [::1] states_ = states
-        cdef unsigned int [::1] prev_states_ = prev_states
-        cdef double [::1] probabilities_ = probabilities
+        cdef unsigned int [::1] states = \
+            np.empty(num_transition_states, np.uint32)
+        cdef unsigned int [::1] prev_states = \
+            np.empty(num_transition_states, np.uint32)
+        cdef double [::1] probabilities = \
+            np.empty(num_transition_states, np.float)
         cdef int i = 0
         # loop over all states
         for state in range(num_states):
@@ -496,9 +495,9 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                           num_beat_states +
                           (tempo_state * num_beat_states))
             # probability for transition from same tempo
-            states_[i] = state
-            prev_states_[i] = prev_state
-            probabilities_[i] = same_tempo_prob
+            states[i] = state
+            prev_states[i] = prev_state
+            probabilities[i] = same_tempo_prob
             i += 1
             # transition from slower tempo
             if tempo_state > 0:
@@ -507,9 +506,9 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                (tempo - 1)) % num_beat_states +
                               ((tempo_state - 1) * num_beat_states))
                 # probability for transition from slower tempo
-                states_[i] = state
-                prev_states_[i] = prev_state
-                probabilities_[i] = change_tempo_prob
+                states[i] = state
+                prev_states[i] = prev_state
+                probabilities[i] = change_tempo_prob
                 i += 1
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
@@ -520,9 +519,9 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                (tempo + 1)) % num_beat_states +
                               ((tempo_state + 1) * num_beat_states))
                 # probability for transition from faster tempo
-                states_[i] = state
-                prev_states_[i] = prev_state
-                probabilities_[i] = change_tempo_prob
+                states[i] = state
+                prev_states[i] = prev_state
+                probabilities[i] = change_tempo_prob
                 i += 1
         # make it sparse
         self.make_sparse(probabilities, states, prev_states)
@@ -536,19 +535,19 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
     # define some variables which are also exported as Python attributes
     cdef public unsigned int observation_lambda
     cdef public bint norm_observations
-    cdef public np.ndarray activations
+    cdef public np.ndarray observations
 
     # default values for beat tracking
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
 
-    def __init__(self, activations, num_states, num_beat_states,
+    def __init__(self, observations, num_states, num_beat_states,
                  observation_lambda=OBSERVATION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS):
         """
         Construct a observation model instance.
 
-        :param activations:        neural network activations
+        :param observations:       observations (i.e. activations of the NN)
         :param num_states:         number of DBN states
         :param num_beat_states:    number of DBN beat states
         :param observation_lambda: split one beat period into N parts,
@@ -566,56 +565,55 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         # instantiate an empty ObservationModel
         super(NNBeatTrackingObservationModel, self).__init__(None, None)
         # convert the given activations to an contiguous array
-        self.activations = np.ascontiguousarray(activations, dtype=np.float)
+        self.observations = np.ascontiguousarray(observations, dtype=np.float)
         # normalise the activations
         if norm_observations:
-            self.activations /= np.max(self.activations)
+            self.observations /= np.max(self.observations)
         # save the given parameters
         self.observation_lambda = observation_lambda
         self.norm_observations = norm_observations
         # generate the observation model
-        self._observation_model(self.activations, num_states, num_beat_states)
+        self._observation_model(self.observations, num_states, num_beat_states)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def _observation_model(self, double [::1] activations,
+    def _observation_model(self, double [::1] observations,
                            unsigned int num_states,
                            unsigned int num_beat_states):
         """
         Compute the observation model.
 
-        :param activations:     neural network activations
+        :param observations:    observations (i.e. activations of the NN)
         :param num_states:      number of states
         :param num_beat_states: number of beat states
 
         """
         # counter, etc.
         cdef unsigned int i
-        cdef unsigned int num_observations = len(activations)
+        cdef unsigned int num_observations = len(observations)
         cdef unsigned int observation_lambda = self.observation_lambda
-        # init observations
-        observations = np.empty((num_observations, 2), dtype=np.float)
-        cdef double [:, ::1] observations_ = observations
+        # init densities
+        cdef double [:, ::1] densities = np.empty((num_observations, 2),
+                                                  dtype=np.float)
         # define the observation states
         for i in range(num_observations):
-            observations_[i, 0] = activations[i]
-            observations_[i, 1] = ((1. - activations[i]) /
-                                   (observation_lambda - 1))
+            densities[i, 0] = observations[i]
+            densities[i, 1] = ((1. - observations[i]) /
+                               (observation_lambda - 1))
         # init observation pointers
-        pointers = np.zeros(num_states, dtype=np.uint32)
-        cdef unsigned int [:] pointers_ = pointers
+        cdef unsigned int [:] pointers = np.zeros(num_states, dtype=np.uint32)
         cdef unsigned int observation_border = (num_beat_states /
                                                 observation_lambda)
         # define the observation pointers
         for i in range(num_states):
             if (i + num_beat_states) % num_beat_states < observation_border:
-                pointers_[i] = 0
+                pointers[i] = 0
             else:
-                pointers_[i] = 1
+                pointers[i] = 1
         # save everything
-        self.observations = observations
-        self.pointers = pointers
+        self.densities = np.asarray(densities)
+        self.pointers = np.asarray(pointers)
 
 
 cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
@@ -638,7 +636,7 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
         Construct a new dynamic Bayesian network suitable for beat tracking.
 
         :param transition_model:  TransitionModel or file
-        :param observation_model: ObservationModel or activations
+        :param observation_model: ObservationModel or observations
         :param initial_states:    initial state distribution; a uniform
                                   distribution is assumed if None is given
         :param correct:           correct the detected beat positions
@@ -701,8 +699,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                 idx = np.r_[idx, beat_range.size]
             # iterate over all regions
             for left, right in idx.reshape((-1, 2)):
-                # pick the frame with the highest activations value
-                act = self.observation_model.activations[left:right]
+                # pick the frame with the highest observations value
+                act = self.observation_model.observations[left:right]
                 beats.append(np.argmax(act) + left)
             beats = np.asarray(beats)
         else:
