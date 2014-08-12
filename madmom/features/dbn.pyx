@@ -287,11 +287,9 @@ cdef class DynamicBayesianNetwork(object):
     @cython.wraparound(False)
     def viterbi(self):
         """
-        Determine the best path with the Viterbi algorithm
+        Determine the best path with the Viterbi algorithm.
 
         :return: best state-space path sequence and its log probability
-
-        Note: a uniform prior distribution is assumed.
 
         """
         # transition model stuff
