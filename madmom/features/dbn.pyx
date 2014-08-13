@@ -122,6 +122,157 @@ cdef class TransitionModel(object):
         return len(self.pointers) - 1
 
 
+cdef class BeatTrackingTransitionModel(TransitionModel):
+    """
+    Transition model for beat tracking with a DBN.
+
+    """
+    # define some variables which are also exported as Python attributes
+    cdef public unsigned int num_beat_states
+    cdef public np.ndarray tempo_states
+    cdef public double tempo_change_probability
+
+    # default values for beat tracking
+    NUM_BEAT_STATES = 1280
+    TEMPO_CHANGE_PROBABILITY = 0.008
+    TEMPO_STATES = np.arange(11, 47)
+
+    def __init__(self, model=None,
+                 num_beat_states=NUM_BEAT_STATES,
+                 tempo_states=TEMPO_STATES,
+                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY):
+        """
+        Construct a transition model instance suitable for beat tracking.
+
+        :param model: load the transition model from the given file
+
+        If no model was given, the object is constructed with the following
+        parameters:
+
+        :param num_beat_states:          number of beat states for one beat
+                                         period
+        :param tempo_states:             array with tempo states (number of
+                                         beat states to progress from one
+                                         observation value to the next one)
+        :param tempo_change_probability: probability of a tempo change from
+                                         one observation to the next one
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+
+        """
+        # instantiate an empty TransitionModel object
+        super(BeatTrackingTransitionModel, self).__init__(None)
+        # define additional attributes to be saved or loaded
+        self.attributes.extend(['num_beat_states', 'tempo_states',
+                                'tempo_change_probability'])
+        # load a model or compute transitions
+        if model:
+            self.load(model)
+        else:
+            # save the given parameters
+            self.num_beat_states = num_beat_states
+            self.tempo_states = np.ascontiguousarray(tempo_states,
+                                                     dtype=np.int32)
+            self.tempo_change_probability = tempo_change_probability
+            # compute the transitions
+            transitions = self._transition_model(self.num_beat_states,
+                                                 self.tempo_states,
+                                                 self.tempo_change_probability)
+            # save them in sparse format
+            self.make_sparse(*transitions)
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def _transition_model(self, unsigned int num_beat_states,
+                          int [::1] tempo_states,
+                          double tempo_change_probability):
+        """
+        Compute the transition probabilities and return them in a format
+        understood by make_sparse().
+
+        :param num_beat_states:          number of states for one beat period
+        :param tempo_states:             array with tempo states (number of
+                                         beat states to progress from one
+                                         observation value to the next one)
+        :param tempo_change_probability: probability of a tempo change from
+                                         one observation to the next one
+        :return:                         (probabilities, states, prev_states)
+
+        """
+        # number of tempo & total states
+        cdef unsigned int num_tempo_states = len(tempo_states)
+        cdef unsigned int num_states = num_beat_states * num_tempo_states
+        # transition probabilities
+        cdef double same_tempo_prob = 1. - tempo_change_probability
+        cdef double change_tempo_prob = 0.5 * tempo_change_probability
+        # counters etc.
+        cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
+        # number of transition states
+        # num_tempo_states * 3 because every state has a transition from the
+        # same tempo and from the slower and faster one, -2 because the slowest
+        # and the fastest tempi can't have transitions from outside the tempo
+        # range
+        cdef int num_transition_states = (num_beat_states *
+                                          (num_tempo_states * 3 - 2))
+        # arrays for transitions matrix creation
+        cdef unsigned int [::1] states = \
+            np.empty(num_transition_states, np.uint32)
+        cdef unsigned int [::1] prev_states = \
+            np.empty(num_transition_states, np.uint32)
+        cdef double [::1] probabilities = \
+            np.empty(num_transition_states, np.float)
+        cdef int i = 0
+        # loop over all states
+        for state in range(num_states):
+            # position inside beat & tempo
+            beat_state = state % num_beat_states
+            tempo_state = state / num_beat_states
+            tempo = tempo_states[tempo_state]
+            # for each state check the 3 possible transitions
+            # previous state with same tempo
+            # Note: we add num_beat_states before the modulo operation so
+            #       that it can be computed in C (which is faster)
+            prev_state = ((beat_state + num_beat_states - tempo) %
+                          num_beat_states +
+                          (tempo_state * num_beat_states))
+            # probability for transition from same tempo
+            states[i] = state
+            prev_states[i] = prev_state
+            probabilities[i] = same_tempo_prob
+            i += 1
+            # transition from slower tempo
+            if tempo_state > 0:
+                # previous state with slower tempo
+                prev_state = ((beat_state + num_beat_states -
+                               (tempo - 1)) % num_beat_states +
+                              ((tempo_state - 1) * num_beat_states))
+                # probability for transition from slower tempo
+                states[i] = state
+                prev_states[i] = prev_state
+                probabilities[i] = change_tempo_prob
+                i += 1
+            # transition from faster tempo
+            if tempo_state < num_tempo_states - 1:
+                # previous state with faster tempo
+                # Note: we add num_beat_states before the modulo operation
+                #       so that it can be computed in C (which is faster)
+                prev_state = ((beat_state + num_beat_states -
+                               (tempo + 1)) % num_beat_states +
+                              ((tempo_state + 1) * num_beat_states))
+                # probability for transition from faster tempo
+                states[i] = state
+                prev_states[i] = prev_state
+                probabilities[i] = change_tempo_prob
+                i += 1
+        # return the arrays
+        return probabilities, states, prev_states
+
+
 # observation model stuff
 cdef class ObservationModel(object):
     """
@@ -177,6 +328,95 @@ cdef class ObservationModel(object):
             self.pointers = pointers.astype(np.uint32)
         else:
             raise TypeError('wrong type for pointers')
+
+
+cdef class NNBeatTrackingObservationModel(ObservationModel):
+    """
+    Observation model for NN based beat tracking with a DBN.
+
+    """
+    # define some variables which are also exported as Python attributes
+    cdef public unsigned int observation_lambda
+    cdef public bint norm_observations
+    cdef public np.ndarray observations
+
+    # default values for beat tracking
+    OBSERVATION_LAMBDA = 16
+    NORM_OBSERVATIONS = False
+
+    def __init__(self, observations, num_states, num_beat_states,
+                 observation_lambda=OBSERVATION_LAMBDA,
+                 norm_observations=NORM_OBSERVATIONS):
+        """
+        Construct a observation model instance.
+
+        :param observations:       observations (i.e. activations of the NN)
+        :param num_states:         number of DBN states
+        :param num_beat_states:    number of DBN beat states
+        :param observation_lambda: split one beat period into N parts,
+                                   the first representing beat states
+                                   and the remaining non-beat states
+        :param norm_observations:  normalise the observations
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+
+        """
+        # instantiate an empty ObservationModel
+        super(NNBeatTrackingObservationModel, self).__init__(None, None)
+        # convert the given activations to an contiguous array
+        self.observations = np.ascontiguousarray(observations, dtype=np.float)
+        # normalise the activations
+        if norm_observations:
+            self.observations /= np.max(self.observations)
+        # save the given parameters
+        self.observation_lambda = observation_lambda
+        self.norm_observations = norm_observations
+        # generate the observation model
+        self._observation_model(self.observations, num_states, num_beat_states)
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def _observation_model(self, double [::1] observations,
+                           unsigned int num_states,
+                           unsigned int num_beat_states):
+        """
+        Compute the observation model.
+
+        :param observations:    observations (i.e. activations of the NN)
+        :param num_states:      number of states
+        :param num_beat_states: number of beat states
+
+        """
+        # counter, etc.
+        cdef unsigned int i
+        cdef unsigned int num_observations = len(observations)
+        cdef unsigned int observation_lambda = self.observation_lambda
+        # init densities
+        cdef double [:, ::1] densities = np.empty((num_observations, 2),
+                                                  dtype=np.float)
+        # define the observation states
+        for i in range(num_observations):
+            densities[i, 0] = observations[i]
+            densities[i, 1] = ((1. - observations[i]) /
+                               (observation_lambda - 1))
+        # init observation pointers
+        cdef unsigned int [:] pointers = np.zeros(num_states, dtype=np.uint32)
+        cdef unsigned int observation_border = (num_beat_states /
+                                                observation_lambda)
+        # define the observation pointers
+        for i in range(num_states):
+            if (i + num_beat_states) % num_beat_states < observation_border:
+                pointers[i] = 0
+            else:
+                pointers[i] = 1
+        # save everything
+        self.densities = np.asarray(densities)
+        self.pointers = np.asarray(pointers)
 
 
 # DBN stuff
@@ -378,247 +618,6 @@ cdef class DynamicBayesianNetwork(object):
         if self._path is None:
             self.viterbi()
         return self._path
-
-
-# sub-class the previously defined classes for beat tracking
-cdef class BeatTrackingTransitionModel(TransitionModel):
-    """
-    Transition model for beat tracking with a DBN.
-
-    """
-    # define some variables which are also exported as Python attributes
-    cdef public unsigned int num_beat_states
-    cdef public np.ndarray tempo_states
-    cdef public double tempo_change_probability
-
-    # default values for beat tracking
-    NUM_BEAT_STATES = 1280
-    TEMPO_CHANGE_PROBABILITY = 0.008
-    TEMPO_STATES = np.arange(11, 47)
-
-    def __init__(self, model=None,
-                 num_beat_states=NUM_BEAT_STATES,
-                 tempo_states=TEMPO_STATES,
-                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY):
-        """
-        Construct a transition model instance suitable for beat tracking.
-
-        :param model: load the transition model from the given file
-
-        If no model was given, the object is constructed with the following
-        parameters:
-
-        :param num_beat_states:          number of beat states for one beat
-                                         period
-        :param tempo_states:             array with tempo states (number of
-                                         beat states to progress from one
-                                         observation value to the next one)
-        :param tempo_change_probability: probability of a tempo change from
-                                         one observation to the next one
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
-
-        """
-        # instantiate an empty TransitionModel object
-        super(BeatTrackingTransitionModel, self).__init__(None)
-        # define additional attributes to be saved or loaded
-        self.attributes.extend(['num_beat_states', 'tempo_states',
-                                'tempo_change_probability'])
-        # load a model or compute transitions
-        if model:
-            self.load(model)
-        else:
-            # save the given parameters
-            self.num_beat_states = num_beat_states
-            self.tempo_states = np.ascontiguousarray(tempo_states,
-                                                     dtype=np.int32)
-            self.tempo_change_probability = tempo_change_probability
-            # compute the transitions
-            transitions = self._transition_model(self.num_beat_states,
-                                                 self.tempo_states,
-                                                 self.tempo_change_probability)
-            # save them in sparse format
-            self.make_sparse(*transitions)
-
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def _transition_model(self, unsigned int num_beat_states,
-                          int [::1] tempo_states,
-                          double tempo_change_probability):
-        """
-        Compute the transition probabilities and return them in a format
-        understood by make_sparse().
-
-        :param num_beat_states:          number of states for one beat period
-        :param tempo_states:             array with tempo states (number of
-                                         beat states to progress from one
-                                         observation value to the next one)
-        :param tempo_change_probability: probability of a tempo change from
-                                         one observation to the next one
-        :return:                         (probabilities, states, prev_states)
-
-        """
-        # number of tempo & total states
-        cdef unsigned int num_tempo_states = len(tempo_states)
-        cdef unsigned int num_states = num_beat_states * num_tempo_states
-        # transition probabilities
-        cdef double same_tempo_prob = 1. - tempo_change_probability
-        cdef double change_tempo_prob = 0.5 * tempo_change_probability
-        # counters etc.
-        cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
-        # number of transition states
-        # num_tempo_states * 3 because every state has a transition from the
-        # same tempo and from the slower and faster one, -2 because the slowest
-        # and the fastest tempi can't have transitions from outside the tempo
-        # range
-        cdef int num_transition_states = (num_beat_states *
-                                          (num_tempo_states * 3 - 2))
-        # arrays for transitions matrix creation
-        cdef unsigned int [::1] states = \
-            np.empty(num_transition_states, np.uint32)
-        cdef unsigned int [::1] prev_states = \
-            np.empty(num_transition_states, np.uint32)
-        cdef double [::1] probabilities = \
-            np.empty(num_transition_states, np.float)
-        cdef int i = 0
-        # loop over all states
-        for state in range(num_states):
-            # position inside beat & tempo
-            beat_state = state % num_beat_states
-            tempo_state = state / num_beat_states
-            tempo = tempo_states[tempo_state]
-            # for each state check the 3 possible transitions
-            # previous state with same tempo
-            # Note: we add num_beat_states before the modulo operation so
-            #       that it can be computed in C (which is faster)
-            prev_state = ((beat_state + num_beat_states - tempo) %
-                          num_beat_states +
-                          (tempo_state * num_beat_states))
-            # probability for transition from same tempo
-            states[i] = state
-            prev_states[i] = prev_state
-            probabilities[i] = same_tempo_prob
-            i += 1
-            # transition from slower tempo
-            if tempo_state > 0:
-                # previous state with slower tempo
-                prev_state = ((beat_state + num_beat_states -
-                               (tempo - 1)) % num_beat_states +
-                              ((tempo_state - 1) * num_beat_states))
-                # probability for transition from slower tempo
-                states[i] = state
-                prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
-                i += 1
-            # transition from faster tempo
-            if tempo_state < num_tempo_states - 1:
-                # previous state with faster tempo
-                # Note: we add num_beat_states before the modulo operation
-                #       so that it can be computed in C (which is faster)
-                prev_state = ((beat_state + num_beat_states -
-                               (tempo + 1)) % num_beat_states +
-                              ((tempo_state + 1) * num_beat_states))
-                # probability for transition from faster tempo
-                states[i] = state
-                prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
-                i += 1
-        # return the arrays
-        return probabilities, states, prev_states
-
-
-cdef class NNBeatTrackingObservationModel(ObservationModel):
-    """
-    Observation model for NN based beat tracking with a DBN.
-
-    """
-    # define some variables which are also exported as Python attributes
-    cdef public unsigned int observation_lambda
-    cdef public bint norm_observations
-    cdef public np.ndarray observations
-
-    # default values for beat tracking
-    OBSERVATION_LAMBDA = 16
-    NORM_OBSERVATIONS = False
-
-    def __init__(self, observations, num_states, num_beat_states,
-                 observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS):
-        """
-        Construct a observation model instance.
-
-        :param observations:       observations (i.e. activations of the NN)
-        :param num_states:         number of DBN states
-        :param num_beat_states:    number of DBN beat states
-        :param observation_lambda: split one beat period into N parts,
-                                   the first representing beat states
-                                   and the remaining non-beat states
-        :param norm_observations:  normalise the observations
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
-
-        """
-        # instantiate an empty ObservationModel
-        super(NNBeatTrackingObservationModel, self).__init__(None, None)
-        # convert the given activations to an contiguous array
-        self.observations = np.ascontiguousarray(observations, dtype=np.float)
-        # normalise the activations
-        if norm_observations:
-            self.observations /= np.max(self.observations)
-        # save the given parameters
-        self.observation_lambda = observation_lambda
-        self.norm_observations = norm_observations
-        # generate the observation model
-        self._observation_model(self.observations, num_states, num_beat_states)
-
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def _observation_model(self, double [::1] observations,
-                           unsigned int num_states,
-                           unsigned int num_beat_states):
-        """
-        Compute the observation model.
-
-        :param observations:    observations (i.e. activations of the NN)
-        :param num_states:      number of states
-        :param num_beat_states: number of beat states
-
-        """
-        # counter, etc.
-        cdef unsigned int i
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int observation_lambda = self.observation_lambda
-        # init densities
-        cdef double [:, ::1] densities = np.empty((num_observations, 2),
-                                                  dtype=np.float)
-        # define the observation states
-        for i in range(num_observations):
-            densities[i, 0] = observations[i]
-            densities[i, 1] = ((1. - observations[i]) /
-                               (observation_lambda - 1))
-        # init observation pointers
-        cdef unsigned int [:] pointers = np.zeros(num_states, dtype=np.uint32)
-        cdef unsigned int observation_border = (num_beat_states /
-                                                observation_lambda)
-        # define the observation pointers
-        for i in range(num_states):
-            if (i + num_beat_states) % num_beat_states < observation_border:
-                pointers[i] = 0
-            else:
-                pointers[i] = 1
-        # save everything
-        self.densities = np.asarray(densities)
-        self.pointers = np.asarray(pointers)
 
 
 cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
