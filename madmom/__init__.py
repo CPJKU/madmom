@@ -8,8 +8,6 @@ Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 Please see the README for further details.
 
 """
-import audio
-import features
-import evaluation
-import ml
-import utils
+
+import os
+MODELS_PATH = '%s/models' % (os.path.dirname(__file__))

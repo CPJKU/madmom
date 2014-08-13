@@ -12,6 +12,7 @@ import glob
 import numpy as np
 from scipy.ndimage.filters import uniform_filter, maximum_filter
 
+from .. import MODELS_PATH
 from . import Activations, EventDetection, RNNEventDetection
 
 EPSILON = 1e-6
@@ -778,9 +779,8 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
     Class for detecting onsets with a recurrent neural network (RNN).
 
     """
-    # set the path to saved neural networks and generate lists of NN files
-    NN_PATH = '%s/../ml/data' % (os.path.dirname(__file__))
-    NN_FILES = glob.glob("%s/onsets_brnn*npz" % NN_PATH)
+    # define NN files
+    NN_FILES = glob.glob("%s/onsets_brnn*npz" % MODELS_PATH)
     # peak-picking defaults
     THRESHOLD = 0.35
     COMBINE = 0.03

@@ -7,14 +7,14 @@ Redistribution in any form is not permitted!
 
 """
 
-import os
 import glob
+
+from madmom import MODELS_PATH
 from madmom.audio.signal import Signal
 from madmom.features.onsets import RNNOnsetDetection
 
 # set the path to saved neural networks and generate lists of NN files
-NN_PATH = '%s/../madmom/ml/data' % (os.path.dirname(__file__))
-NN_FILES = glob.glob("%s/onsets_rnn*npz" % NN_PATH)
+NN_FILES = glob.glob("%s/onsets_rnn*npz" % MODELS_PATH)
 
 
 def parser():
