@@ -16,6 +16,7 @@ import multiprocessing as mp
 NUM_THREADS = mp.cpu_count()
 
 
+# transition model stuff
 cdef class TransitionModel(object):
     """
     Transition model for a DBN.
@@ -121,12 +122,13 @@ cdef class TransitionModel(object):
         return len(self.pointers) - 1
 
 
+# observation model stuff
 cdef class ObservationModel(object):
     """
     Observation model for a DBN.
 
-    An observation model is defined as two plain numpy arrays, densities
-    and pointers.
+    An observation model is defined as two plain numpy arrays, densities and
+    pointers.
 
     The 'densities' is a 2D numpy array with the number of rows being equal
     to the length of the observations and the columns representing the
@@ -177,6 +179,7 @@ cdef class ObservationModel(object):
             raise TypeError('wrong type for pointers')
 
 
+# DBN stuff
 cdef class DynamicBayesianNetwork(object):
     """
     Dynamic Bayesian network.
@@ -434,9 +437,12 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             self.tempo_states = np.ascontiguousarray(tempo_states,
                                                      dtype=np.int32)
             self.tempo_change_probability = tempo_change_probability
-            # compute the transition probabilities
-            self._transition_model(self.num_beat_states, self.tempo_states,
-                             self.tempo_change_probability)
+            # compute the transitions
+            transitions = self._transition_model(self.num_beat_states,
+                                                 self.tempo_states,
+                                                 self.tempo_change_probability)
+            # save them in sparse format
+            self.make_sparse(*transitions)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -445,16 +451,17 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                           int [::1] tempo_states,
                           double tempo_change_probability):
         """
-        Compute the transition probabilities and save them in the correct
-        format.
+        Compute the transition probabilities and return them in a format
+        understood by make_sparse().
 
-        :param num_beat_states:          number of beat states for one beat
-                                         period
+        :param num_beat_states:          number of states for one beat period
         :param tempo_states:             array with tempo states (number of
                                          beat states to progress from one
                                          observation value to the next one)
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
+        :return:                         (probabilities, states, prev_states)
+
         """
         # number of tempo & total states
         cdef unsigned int num_tempo_states = len(tempo_states)
@@ -521,8 +528,8 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                 prev_states[i] = prev_state
                 probabilities[i] = change_tempo_prob
                 i += 1
-        # make it sparse
-        self.make_sparse(probabilities, states, prev_states)
+        # return the arrays
+        return probabilities, states, prev_states
 
 
 cdef class NNBeatTrackingObservationModel(ObservationModel):
