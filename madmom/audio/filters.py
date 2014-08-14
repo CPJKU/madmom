@@ -265,7 +265,7 @@ def fft_freqs(num_fft_bins, sample_rate):
     return np.linspace(0, sample_rate / 2., num_fft_bins + 1)[:-1]
 
 
-def frequencies2bins(frequencies, num_fft_bins, sample_rate, include_cc=True):
+def frequencies2bins(frequencies, num_fft_bins, sample_rate):
     """
     Convert frequencies to the corresponding bins.
 
@@ -273,17 +273,14 @@ def frequencies2bins(frequencies, num_fft_bins, sample_rate, include_cc=True):
     :param frequencies:  a list of frequencies [Hz]
     :param num_fft_bins: number of FFT bins (= half the FFT size)
     :param sample_rate:  sample rate of the audio signal [Hz]
-    :param include_cc:   include the constant component, i.e. the first bin
     :return:             corresponding bins
 
     """
     # map the frequencies to spectrogram bins
     factor = (sample_rate / 2.0) / num_fft_bins
     bins = np.round(np.asarray(frequencies) / factor).astype(int)
-    # include the first bin?
-    start = 0 if include_cc else 1.
     # return all bins within the valid range
-    return bins[start:np.searchsorted(bins, num_fft_bins)]
+    return bins[:np.searchsorted(bins, num_fft_bins)]
 
 
 def bins2frequencies(bins, num_fft_bins, sample_rate):
