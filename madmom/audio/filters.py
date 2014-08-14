@@ -821,12 +821,12 @@ class Filterbank(np.ndarray):
         return self._sample_rate
 
     @property
-    def bin_freqs(self):
+    def bin_frequencies(self):
         """Frequencies of FFT bins."""
         return fft_freqs(self.num_fft_bins, self.sample_rate)
 
     @property
-    def band_corner_freqs(self):
+    def band_corner_frequencies(self):
         """Corner frequencies of the filterbank bands."""
         freqs = []
         for band in range(self.num_bands):
@@ -837,7 +837,7 @@ class Filterbank(np.ndarray):
         return freqs
 
     @property
-    def band_centre_freqs(self):
+    def band_centre_frequencies(self):
         """Centre frequencies of the filterbank bands."""
         freqs = []
         for band in range(self.num_bands):
@@ -848,12 +848,12 @@ class Filterbank(np.ndarray):
     @property
     def fmin(self):
         """Minimum frequency of the filterbank."""
-        return self.bin_freqs[np.nonzero(self)[0][0]]
+        return self.bin_frequencies[np.nonzero(self)[0][0]]
 
     @property
     def fmax(self):
         """Maximum frequency of the filterbank."""
-        return self.bin_freqs[np.nonzero(self)[0][-1]]
+        return self.bin_frequencies[np.nonzero(self)[0][-1]]
 
     @property
     def norm(self):
