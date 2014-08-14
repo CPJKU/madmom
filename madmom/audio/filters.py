@@ -502,8 +502,8 @@ class RectangularFilter(FilterType):
         return rectangular_filter
 
 
-# # TODO: if someone needs this code, please adapt the harmonic_filterbank stuff
-# # as a new FilterType and then delete all the commented stuff below.
+# TODO: if someone needs this code, please adapt the harmonic_filterbank stuff
+#       as a new FilterType and then delete all the commented stuff below.
 #
 # # actual filter
 # Filter = namedtuple('Filter', ['filter', 'start_pos'])
@@ -770,7 +770,7 @@ class Filterbank(np.ndarray):
         np.maximum(filt, band[:len(filt)], out=band[:len(filt)])
 
     @classmethod
-    def from_filters(cls, filters, num_fft_bins, sample_rate, norm):
+    def from_filters(cls, filters, num_fft_bins, sample_rate):
         """
         Creates a filterbank with possibly multiple filters per band.
 
@@ -780,7 +780,6 @@ class Filterbank(np.ndarray):
                              of filters.
         :param num_fft_bins: number of FFT bins (= half the FFT size)
         :param sample_rate:  sample rate of the audio signal
-        :param norm:         normalise the area of each filter band to 1 [bool]
         :return:             filterbank with respective filter elements
 
         """
@@ -798,11 +797,7 @@ class Filterbank(np.ndarray):
             # otherwise put this filter into that band
             else:
                 cls._put_filter(band_filter, band)
-        # normalise filterbank
-        if norm:
-            fb /= fb.sum(axis=0)
-        # instantiate a Filterbank casted as the actual class where this method
-        # was called from
+        # cast as the Filterbank class where this method was called from
         return Filterbank.__new__(cls, fb, sample_rate)
 
     @property
