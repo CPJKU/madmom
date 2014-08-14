@@ -286,6 +286,22 @@ def frequencies2bins(frequencies, num_fft_bins, sample_rate, include_cc=True):
     return bins[start:np.searchsorted(bins, num_fft_bins)]
 
 
+def bins2frequencies(bins, num_fft_bins, sample_rate):
+    """
+    Convert bins to the corresponding frequencies.
+
+
+    :param bins:         a list of bins
+    :param num_fft_bins: number of FFT bins (= half the FFT size)
+    :param sample_rate:  sample rate of the audio signal [Hz]
+    :return:             corresponding frequencies [Hz]
+
+    """
+    # map the frequencies to spectrogram bins
+    factor = (sample_rate / 2.0) / num_fft_bins
+    return np.asarray(bins) * factor
+
+
 # filter classes
 class FilterType(object):
     """
@@ -734,6 +750,8 @@ class Filterbank(np.ndarray):
     def __array_finalize__(self, obj):
         if obj is None:
             return
+        # set default values here
+        self._norm = getattr(obj, '_norm', None)
 
     @classmethod
     def _put_filter(cls, filt, band):
@@ -748,7 +766,7 @@ class Filterbank(np.ndarray):
         if len(filt) > len(band):
             filt = filt[:len(band)]
         # put the filter in place
-        # TODO: if needed, allow other handling (like adding values)
+        # TODO: if needed, allow other handling (like summing values)
         np.maximum(filt, band[:len(filt)], out=band[:len(filt)])
 
     @classmethod
@@ -783,8 +801,9 @@ class Filterbank(np.ndarray):
         # normalise filterbank
         if norm:
             fb /= fb.sum(axis=0)
-        # return filterbank
-        return cls(fb, sample_rate)
+        # instantiate a Filterbank casted as the actual class where this method
+        # was called from
+        return Filterbank.__new__(cls, fb, sample_rate)
 
     @property
     def num_fft_bins(self):
@@ -807,6 +826,26 @@ class Filterbank(np.ndarray):
         return fft_freqs(self.num_fft_bins, self.sample_rate)
 
     @property
+    def band_corner_freqs(self):
+        """Corner frequencies of the filterbank bands."""
+        freqs = []
+        for band in range(self.num_bands):
+            bins = np.nonzero(self[:, band])[0]
+            fmin, fmax = bins2frequencies((np.min(bins) - 1, np.max(bins)),
+                                          self.num_fft_bins, self.sample_rate)
+            freqs.append((fmin, fmax))
+        return freqs
+
+    @property
+    def band_centre_freqs(self):
+        """Centre frequencies of the filterbank bands."""
+        freqs = []
+        for band in range(self.num_bands):
+            freqs.append(bins2frequencies(np.argmax(self[:, band]),
+                                          self.num_fft_bins, self.sample_rate))
+        return freqs
+
+    @property
     def fmin(self):
         """Minimum frequency of the filterbank."""
         return self.bin_freqs[np.nonzero(self)[0][0]]
@@ -815,6 +854,11 @@ class Filterbank(np.ndarray):
     def fmax(self):
         """Maximum frequency of the filterbank."""
         return self.bin_freqs[np.nonzero(self)[0][-1]]
+
+    @property
+    def norm(self):
+        """Filters are normalised."""
+        return self._norm
 
     def __str__(self):
         return "Filterbank: %d FFT bins; %d bands; fmin: %.1f; fmax: %.1f" %\
@@ -900,10 +944,9 @@ class MelFilterbank(Filterbank):
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
         # use overlapping triangular filters
         filters = TriangularFilter(duplicates, norm).filters(bins)
-        # create a Filterbank
-        obj = Filterbank.from_filters(filters, num_fft_bins, sample_rate, norm)
-        # cast to MelFilterbank
-        obj = obj.view(cls)
+        # create a MelFilterbank from the filters
+        obj = MelFilterbank.from_filters(filters, num_fft_bins, sample_rate,
+                                         norm)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -914,11 +957,6 @@ class MelFilterbank(Filterbank):
             return
         # set default values here
         self._norm = getattr(obj, '_norm', NORM_FILTERS)
-
-    @property
-    def norm(self):
-        """Filters are normalised."""
-        return self._norm
 
 
 class BarkFilterbank(Filterbank):
@@ -951,10 +989,9 @@ class BarkFilterbank(Filterbank):
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
         # use non-overlapping rectangular filters
         filters = RectangularFilter(duplicates, norm).filters(bins)
-        # create a Filterbank
-        obj = Filterbank.from_filters(filters, num_fft_bins, sample_rate, norm)
-        # cast to BarkFilterbank
-        obj = obj.view(cls)
+        # create a BarkFilterbank
+        obj = BarkFilterbank.from_filters(filters, num_fft_bins, sample_rate,
+                                          norm)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -965,11 +1002,6 @@ class BarkFilterbank(Filterbank):
             return
         # set default values here
         self._norm = getattr(obj, '_norm', NORM_FILTERS)
-
-    @property
-    def norm(self):
-        """Filters are normalised."""
-        return self._norm
 
 
 class LogarithmicFilterbank(Filterbank):
@@ -1000,10 +1032,9 @@ class LogarithmicFilterbank(Filterbank):
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
         # use overlapping triangular filters
         filters = TriangularFilter(duplicates, norm).filters(bins)
-        # create a Filterbank
-        obj = Filterbank.from_filters(filters, num_fft_bins, sample_rate, norm)
-        # cast to LogarithmicFilterbank
-        obj = obj.view(cls)
+        # create a LogarithmicFilterbank
+        obj = LogarithmicFilterbank.from_filters(filters, num_fft_bins,
+                                                 sample_rate, norm)
         # set additional attributes
         obj._bands_per_octave = bands_per_octave
         obj._norm = norm
@@ -1024,11 +1055,6 @@ class LogarithmicFilterbank(Filterbank):
     def bands_per_octave(self):
         """Number of bands per octave."""
         return self._bands_per_octave
-
-    @property
-    def norm(self):
-        """Filters are normalised."""
-        return self._norm
 
     @property
     def a4(self):
