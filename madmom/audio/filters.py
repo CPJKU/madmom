@@ -8,32 +8,17 @@ This file contains filter and filterbank related functionality.
 """
 
 import numpy as np
-from collections import namedtuple
 
 from .signal import segment_axis
-
 
 # default values for filters
 FMIN = 30
 FMAX = 17000
-MEL_BANDS = 40
-BARK_DOUBLE = False
 BANDS_PER_OCTAVE = 12
 NORM_FILTERS = True
 DUPLICATE_FILTERS = False
 OVERLAP_FILTERS = True
 A4 = 440
-
-HARMONIC_ENVELOPE = lambda x: np.sqrt(1. / x)
-HARMONIC_WIDTH = lambda x: 50 * 1.1 ** x
-INHARMONICITY_COEFF = 0.0
-
-# pitch class profile
-PCP_CLASSES = 12
-HPCP_FMIN = 100
-HPCP_FMAX = 5000
-HPCP_CLASSES = 36
-HPCP_WINDOW = 4
 
 
 # Mel frequency scale
@@ -468,8 +453,9 @@ class RectangularFilter(FilterType):
 
         """
         # only keep unique bins if requested
-        # Note: this can be important to do so, otherwise the lower frequency bins
-        # are given too much weight if simply summed up (as in the spectral flux)
+        # Note: this can be important to do so, otherwise the lower frequency
+        #       bins can be given too much weight if simply summed up (as in
+        #       the spectral flux)
         if not self.duplicates:
             crossover_bins = np.unique(crossover_bins)
         # make sure enough frequencies are given
@@ -501,6 +487,10 @@ class RectangularFilter(FilterType):
 
 # TODO: if someone needs this code, please adapt the harmonic_filterbank stuff
 #       as a new FilterType and then delete all the commented stuff below.
+#
+# HARMONIC_ENVELOPE = lambda x: np.sqrt(1. / x)
+# HARMONIC_WIDTH = lambda x: 50 * 1.1 ** x
+# INHARMONICITY_COEFF = 0.0
 #
 # # actual filter
 # Filter = namedtuple('Filter', ['filter', 'start_pos'])
@@ -913,6 +903,8 @@ class MelFilterbank(Filterbank):
     Mel filterbank class.
 
     """
+    MEL_BANDS = 40
+
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
                 bands=MEL_BANDS, norm=NORM_FILTERS,
                 duplicates=DUPLICATE_FILTERS):
@@ -956,7 +948,11 @@ class BarkFilterbank(Filterbank):
     Bark filterbank Class.
 
     """
-    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
+    BARK_FMIN = 20
+    BARK_FMAX = 15500
+    BARK_DOUBLE = False
+
+    def __new__(cls, num_fft_bins, sample_rate, fmin=BARK_FMIN, fmax=BARK_FMAX,
                 double=BARK_DOUBLE, norm=NORM_FILTERS,
                 duplicates=DUPLICATE_FILTERS):
         """
@@ -1155,6 +1151,9 @@ class PitchClassProfileFilterbank(Filterbank):
     Beijing, China
 
     """
+    # default values
+    PCP_CLASSES = 12
+
     def __new__(cls, num_fft_bins, sample_rate, num_classes=PCP_CLASSES,
                 fmin=FMIN, fmax=FMAX, fref=A4):
         """
@@ -1210,6 +1209,12 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
+    # default values
+    HPCP_FMIN = 100
+    HPCP_FMAX = 5000
+    HPCP_CLASSES = 36
+    HPCP_WINDOW = 4
+
     def __new__(cls, num_fft_bins, sample_rate, num_classes=HPCP_CLASSES,
                 fmin=HPCP_FMIN, fmax=HPCP_FMAX, fref=A4, window=HPCP_WINDOW):
         """
