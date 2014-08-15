@@ -285,12 +285,38 @@ def bins2frequencies(bins, num_fft_bins, sample_rate):
 
 
 # filter classes
-class FilterType(object):
+class Filter(np.ndarray):
     """
-    Generic filter type.
+    Generic Filter class.
 
     """
-    filter_shape = 'generic'
+    def __new__(cls, data, start=0):
+        """
+        Creates a new Filer array.
+
+        :param data:  1D numpy array
+        :param start: start position
+
+        The start position is mandatory if this Filter should be used for the
+        creation of a Filterbank. If not set, a start position of o is assumed.
+
+
+        """
+        # input is an numpy ndarray instance
+        if isinstance(data, np.ndarray):
+            # cast as Filterbank
+            obj = np.asarray(data).view(cls)
+        else:
+            raise TypeError('wrong input data for Filter, must be np.ndarray')
+        # right now, allow only 1D
+        if data.ndim != 1:
+            raise NotImplementedError('please add multi-dimension support')
+        # set attributes
+        obj.start = start
+        obj.stop = start + len(data)
+        # return the object
+        return obj
+
 
     @classmethod
     def filter(cls, *bins, **kwargs):
@@ -338,12 +364,11 @@ class FilterType(object):
         return filters
 
 
-class TriangularFilter(FilterType):
+class TriangularFilter(Filter):
     """
     Triangular Filter.
 
     """
-    filter_shape = 'triangular'
     DUPLICATES = False
     NORM = True
     OVERLAP = True
@@ -351,7 +376,7 @@ class TriangularFilter(FilterType):
     @classmethod
     def filter(cls, start, centre, stop, norm=NORM):
         """
-        Calculate a triangular window of the given size.
+        Create a triangular filter.
 
         :param start:  start bin
         :param centre: centre bin (of height 1, unless filter is normalised).
@@ -362,35 +387,37 @@ class TriangularFilter(FilterType):
 
         """
         # center must be within start & stop
-        if not start <= centre <= stop:
+        if start >= centre >= stop:
             raise ValueError('center must be within start and stop')
-        # Set the height of the filter, normalised if necessary.
+        # make centre and stop relative
+        centre -= start
+        stop -= start
+        # set the height of the filter, normalised if necessary.
         # A standard filter is at least 3 bins wide, and stop - start = 2
         # thus the filter has an area of 1 if normalised this way
-        height = 2. / (stop - start) if norm else 1.
+        height = 2. / stop if norm else 1.
         # create filter
-        triang_filter = np.zeros(stop)
-        # rising edge (without the center)
-        triang_filter[start:centre] = np.linspace(0, height, centre - start,
-                                                  endpoint=False)
-        # falling edge (including the center, but without the last bin)
-        triang_filter[centre:] = np.linspace(height, 0, stop - centre,
-                                             endpoint=False)
+        data = np.zeros(stop)
+        # rising edge (without the centre)
+        data[:centre] = np.linspace(0, height, centre, endpoint=False)
+        # falling edge (including the centre, but without the last bin)
+        data[centre:] = np.linspace(height, 0, stop - centre, endpoint=False)
         # return filter
-        return triang_filter
+        return cls.__new__(cls, data, start)
 
     @classmethod
     def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
                   overlap=OVERLAP):
         """
-        Yields start, centre and stop bins for filters.
+        Yields start, centre and stop bins and normalisation info for creation
+        of triangular filters.
 
         :param bins:       centre bins of filters [list or numpy array]
         :param norm:       normalise the area of the filter(s) to 1 [bool]
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies [bool]
         :param overlap:    filters should overlap [bool]
-        :return:           start, centre and stop bins & norm info for filters
+        :return:           start, centre and stop bins & normalisation info
 
         """
         # only keep unique bins if requested
@@ -401,7 +428,7 @@ class TriangularFilter(FilterType):
             bins = np.unique(bins)
         # make sure enough frequencies are given
         if len(bins) < 3:
-            raise ValueError("Cannot create filterbank with less than 1 band")
+            raise ValueError('Cannot create filterbank with less than 1 band')
         # return the frequencies
         for start, center, stop in segment_axis(bins, 3, 1):
             # create non-overlapping filters
@@ -417,28 +444,52 @@ class TriangularFilter(FilterType):
             yield start, center, stop, norm
 
 
-class RectangularFilter(FilterType):
+class RectangularFilter(Filter):
     """
-    Triangular Filter.
+    Rectangular Filter.
 
     """
-    filter_shape = 'rectangular'
     DUPLICATES = False
     NORM = True
     OVERLAP = False
 
     @classmethod
+    def filter(cls, start, stop, norm=NORM):
+        """
+        Create a rectangular filter.
+
+        :param start: start bin of the filter
+        :param stop:  stop bin of the filter
+        :param norm:  normalise the area of the filter(s) to 1 [bool]
+        :return:      a rectangular shaped filter with length 'stop', height 1
+                      (unless normalised) with indices <= 'start' set to 0
+
+        """
+        # center must be within start & stop
+        if start >= stop:
+            raise ValueError('start must be smaller than stop')
+        # make stop relative
+        stop -= start
+        # set the height of the filter, normalised if necessary
+        height = 1. / stop if norm else 1.
+        # create filter
+        data = np.ones(stop) * height
+        # cast to RectangularFilter return it
+        return cls.__new__(cls, data, start=start)
+
+    @classmethod
     def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
                   overlap=OVERLAP):
         """
-        Yields start and stop frequencies for filters.
+        Yields start and stop bins and normalisation info for creation of
+        rectangular filters.
 
         :param bins:       crossover bins of filters [numpy array]
         :param norm:       normalise the area of the filter(s) to 1 [bool]
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies [bool]
         :param overlap:    filters should overlap [bool]
-        :return:           start and stop bins & norm info for filters
+        :return:           start and stop bins & normalisation info
 
         """
         # only keep unique bins if requested
@@ -449,7 +500,7 @@ class RectangularFilter(FilterType):
             bins = np.unique(bins)
         # make sure enough frequencies are given
         if len(bins) < 2:
-            raise ValueError("Cannot create filterbank with less than 1 band")
+            raise ValueError('Cannot create filterbank with less than 1 band')
         # overlapping filters?
         if overlap:
             raise NotImplementedError('please implement if needed!')
@@ -457,26 +508,6 @@ class RectangularFilter(FilterType):
         for start, stop in segment_axis(bins, 2, 1):
             # yield the frequencies and continue
             yield start, stop, norm
-
-    @classmethod
-    def filter(cls, start, stop, norm):
-        """
-        Calculate a rectangular window of the given size.
-
-        :param start: start bin of the filter
-        :param stop:  stop bin of the filter
-        :param norm:  normalise the area of the filter(s) to 1 [bool]
-        :return:      a rectangular shaped filter with length 'stop', height 1
-                      (unless normalised) with indices <= 'start' set to 0
-
-        """
-        # Set the height of the filter, normalised if necessary
-        height = 1. / (stop - start) if norm else 1.
-        # create filter
-        rectangular_filter = np.zeros(stop)
-        rectangular_filter[start:stop] = height
-        # return it
-        return rectangular_filter
 
 
 # TODO: if someone needs this code, please adapt the harmonic_filterbank stuff
@@ -565,7 +596,7 @@ class RectangularFilter(FilterType):
 #         center_bins = np.unique(center_bins)
 #     # make sure enough frequencies are given
 #     if len(center_bins) < 3:
-#         raise ValueError("Cannot create filterbank with less than 1 band")
+#         raise ValueError('Cannot create filterbank with less than 1 band')
 #     # return the frequencies
 #     for start, center, stop in segment_axis(center_bins, 3, 1):
 #         # create non-overlapping filters
@@ -722,7 +753,8 @@ class Filterbank(np.ndarray):
             # cast as Filterbank
             obj = np.asarray(data).view(cls)
         else:
-            raise TypeError("wrong input data for Filterbank")
+            raise TypeError('wrong input data for Filterbank, must be '
+                            'np.ndarray')
         # set attributes
         obj._sample_rate = sample_rate
         # return the object
@@ -743,12 +775,23 @@ class Filterbank(np.ndarray):
         :param band: band in which the filter should be put (numpy array)
 
         """
-        # truncate the filter if it is larger than the band
-        if len(filt) > len(band):
-            filt = filt[:len(band)]
+        if not isinstance(filt, Filter):
+            raise ValueError('unable to determine start position of Filter')
+        # determine start and stop positions
+        start = filt.start
+        stop = start + len(filt)
+        # truncate the filter if it starts before the 0th band bin
+        if start < 0:
+            filt = filt[-start:]
+            start = 0
+        # truncate the filter if it ends after the last band bin
+        if stop > len(band):
+            filt = filt[:stop - len(band)]
+            stop = len(band)
         # put the filter in place
+        filter_position = band[start:stop]
         # TODO: if needed, allow other handling (like summing values)
-        np.maximum(filt, band[:len(filt)], out=band[:len(filt)])
+        np.maximum(filt, filter_position, out=filter_position)
 
     @classmethod
     def from_filters(cls, filters, num_fft_bins, sample_rate):
@@ -779,6 +822,8 @@ class Filterbank(np.ndarray):
             else:
                 cls._put_filter(band_filter, band)
         # cast as the Filterbank class where this method was called from
+        # TODO: I'm not completely sure if this is the right way to do this,
+        #       but it seems to work...
         return Filterbank.__new__(cls, fb, sample_rate)
 
     @property
@@ -802,24 +847,24 @@ class Filterbank(np.ndarray):
         return fft_freqs(self.num_fft_bins, self.sample_rate)
 
     @property
-    def band_corner_frequencies(self):
-        """Corner frequencies of the filterbank bands."""
+    def filter_corner_frequencies(self):
+        """Corner frequencies of the filters."""
         freqs = []
         for band in range(self.num_bands):
             bins = np.nonzero(self[:, band])[0]
             fmin, fmax = bins2frequencies((np.min(bins) - 1, np.max(bins)),
                                           self.num_fft_bins, self.sample_rate)
-            freqs.append((fmin, fmax))
-        return freqs
+            freqs.append([fmin, fmax])
+        return np.asarray(freqs)
 
     @property
-    def band_centre_frequencies(self):
-        """Centre frequencies of the filterbank bands."""
+    def filter_centre_frequencies(self):
+        """Centre frequencies of the filters."""
         freqs = []
         for band in range(self.num_bands):
             freqs.append(bins2frequencies(np.argmax(self[:, band]),
                                           self.num_fft_bins, self.sample_rate))
-        return freqs
+        return np.asarray(freqs)
 
     @property
     def fmin(self):
@@ -1311,9 +1356,9 @@ try:
     from .comb_filters import feed_backward_comb_filter
 except ImportError:
     import warnings
-    warnings.warn("The feed_backward_comb_filter function will be extremely "
-                  "slow! Please consider installing cython and build the "
-                  "faster comb_filter module.")
+    warnings.warn('The feed_backward_comb_filter function will be extremely '
+                  'slow! Please consider installing cython and build the '
+                  'faster comb_filter module.')
     feed_backward_comb_filter = _feed_backward_comb_filter
 
 
@@ -1398,8 +1443,7 @@ class CombFilterbank(np.ndarray):
         elif isinstance(alpha, np.ndarray):
             alpha = np.asarray(alpha, dtype=float)
         else:
-            raise ValueError('alpha must be convertible to a float numpy '
-                             'array')
+            raise ValueError('alpha must be cast-able as float numpy array')
 
         # comb filter the signal
         cfb = comb_filterbank(data, comb_filter, tau, alpha)
