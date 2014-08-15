@@ -290,15 +290,16 @@ class Filter(np.ndarray):
     Generic Filter class.
 
     """
+
     def __new__(cls, data, start=0):
         """
-        Creates a new Filter.
+        Create a new Filter.
 
         :param data:  1D numpy array
         :param start: start position
 
         The start position is mandatory if this Filter should be used for the
-        creation of a Filterbank. If not set, a start position of o is assumed.
+        creation of a Filterbank. If not set, a start position of 0 is assumed.
 
         """
         # input is an numpy ndarray instance
@@ -319,7 +320,7 @@ class Filter(np.ndarray):
     @classmethod
     def band_bins(cls, bins, **kwargs):
         """
-        Must yields the centre/crossover bins needed for filter creation.
+        Must yield the centre/crossover bins needed for filter creation.
 
         :param bins:   centre/crossover bins of filters [list or numpy array]
         :param kwargs: additional parameters
@@ -331,7 +332,7 @@ class Filter(np.ndarray):
     @classmethod
     def filters(cls, bins, **kwargs):
         """
-        Creates a list with filters for the the given bins.
+        Create a list with filters for the the given bins.
 
         :param bins:   (centre/crossover) bins of filters [list or numpy array]
         :param kwargs: additional parameters passed to band_bins()
@@ -352,18 +353,15 @@ class TriangularFilter(Filter):
     Triangular Filter.
 
     """
-    DUPLICATES = False
-    NORM = True
-    OVERLAP = True
 
-    def __new__(cls, start, centre, stop, norm=NORM):
+    def __new__(cls, start, centre, stop, norm=False):
         """
         Create a triangular filter.
 
         :param start:  start bin
         :param centre: centre bin (of height 1, unless filter is normalised).
         :param stop:   stop bin
-        :param norm:   normalise the area of the filter(s) to 1 [bool]
+        :param norm:   normalise the area of the filter(s) to 1
         :return:       a triangular shaped filter with length 'stop', height 1
                        (unless normalised) with indices <= 'start' set to 0
 
@@ -392,17 +390,16 @@ class TriangularFilter(Filter):
         return obj
 
     @classmethod
-    def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
-                  overlap=OVERLAP):
+    def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
         """
         Yields start, centre and stop bins and normalisation info for creation
         of triangular filters.
 
         :param bins:       centre bins of filters [list or numpy array]
-        :param norm:       normalise the area of the filter(s) to 1 [bool]
+        :param norm:       normalise the area of the filter(s) to 1
         :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param overlap:    filters should overlap [bool]
+                           resolution of low frequencies
+        :param overlap:    filters should overlap
         :return:           start, centre and stop bins & normalisation info
 
         """
@@ -435,17 +432,14 @@ class RectangularFilter(Filter):
     Rectangular Filter.
 
     """
-    DUPLICATES = False
-    NORM = True
-    OVERLAP = False
 
-    def __new__(cls, start, stop, norm=NORM):
+    def __new__(cls, start, stop, norm=False):
         """
         Create a rectangular filter.
 
         :param start: start bin of the filter
         :param stop:  stop bin of the filter
-        :param norm:  normalise the area of the filter(s) to 1 [bool]
+        :param norm:  normalise the area of the filter(s) to 1
         :return:      a rectangular shaped filter with length 'stop', height 1
                       (unless normalised) with indices <= 'start' set to 0
 
@@ -463,17 +457,16 @@ class RectangularFilter(Filter):
         return Filter.__new__(cls, data, start)
 
     @classmethod
-    def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
-                  overlap=OVERLAP):
+    def band_bins(cls, bins, norm=True, duplicates=False, overlap=False):
         """
         Yields start and stop bins and normalisation info for creation of
         rectangular filters.
 
         :param bins:       crossover bins of filters [numpy array]
-        :param norm:       normalise the area of the filter(s) to 1 [bool]
+        :param norm:       normalise the area of the filter(s) to 1
         :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param overlap:    filters should overlap [bool]
+                           resolution of low frequencies
+        :param overlap:    filters should overlap
         :return:           start and stop bins & normalisation info
 
         """
