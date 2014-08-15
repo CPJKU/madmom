@@ -287,13 +287,13 @@ def bins2frequencies(bins, num_fft_bins, sample_rate):
 # filter classes
 class Filter(np.ndarray):
     """
-    Generic Filter class.
+    Generic filter class.
 
     """
 
     def __new__(cls, data, start=0):
         """
-        Create a new Filter.
+        Creates a new Filter instance.
 
         :param data:  1D numpy array
         :param start: start position
@@ -332,7 +332,7 @@ class Filter(np.ndarray):
     @classmethod
     def filters(cls, bins, **kwargs):
         """
-        Create a list with filters for the the given bins.
+        Creates a list with filters for the the given bins.
 
         :param bins:   (centre/crossover) bins of filters [list or numpy array]
         :param kwargs: additional parameters passed to band_bins()
@@ -347,36 +347,16 @@ class Filter(np.ndarray):
         # return the filters
         return filters
 
-    @classmethod
-    def harmonic_filters(cls, fundamentals, num_harmonics, **kwargs):
-        """
-        Create a list of lists with harmonic filters for the the given bins.
-
-        :param fundamentals:  centre bins of the fundamentals [list or numpy
-                              array]
-        :param num_harmonics: number of harmonics
-        :param kwargs:        additional parameters passed to band_bins()
-        :return:              list of lists with filters
-
-        """
-        # Note: the last commit with the old harmonic behaviour is
-        #   8a73a0c8eec455928f241d3199309e075afe91c1
-        #   https://jobim.ofai.at/gitlab/madmom/madmom/blob/
-        #   8a73a0c8eec455928f241d3199309e075afe91c1/madmom/audio/filters.py
-        #   This is just a placeholder here, the discretisation to bins might
-        #   not work!
-        raise NotImplementedError('please implement if needed!')
-
 
 class TriangularFilter(Filter):
     """
-    Triangular Filter.
+    Triangular filter class.
 
     """
 
     def __new__(cls, start, centre, stop, norm=False):
         """
-        Create a triangular filter.
+        Creates a new TriangularFilter instance.
 
         :param start:  start bin
         :param centre: centre bin (of height 1, unless filter is normalised).
@@ -449,13 +429,13 @@ class TriangularFilter(Filter):
 
 class RectangularFilter(Filter):
     """
-    Rectangular Filter.
+    Rectangular filter class.
 
     """
 
     def __new__(cls, start, stop, norm=False):
         """
-        Create a rectangular filter.
+        Creates a new RectangularFilter instance.
 
         :param start: start bin of the filter
         :param stop:  stop bin of the filter
@@ -510,13 +490,13 @@ class RectangularFilter(Filter):
 
 class Filterbank(np.ndarray):
     """
-    Generic Filterbank class.
+    Generic filterbank class.
 
     """
 
     def __new__(cls, data, sample_rate):
         """
-        Creates a new Filterbank array.
+        Creates a new Filterbank instance.
 
         :param data:        2-d numpy array
         :param sample_rate: sample rate of the audio signal [Hz]
@@ -757,7 +737,7 @@ class MelFilterbank(Filterbank):
 
 class BarkFilterbank(Filterbank):
     """
-    Bark filterbank Class.
+    Bark filterbank class.
 
     """
     BARK_FMIN = 20
@@ -894,7 +874,7 @@ class SemitoneFilterbank(LogarithmicFilterbank):
 
 class SimpleChromaFilterbank(Filterbank):
     """
-    A simple chroma filterbank based on the semitone filter.
+    A simple chroma filterbank based on a semitone filterbank.
 
     """
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
@@ -951,6 +931,18 @@ class SimpleChromaFilterbank(Filterbank):
     def a4(self):
         """Tuning frequency of A4."""
         return self._a4
+
+
+class HarmonicFilterbank(Filterbank):
+    """
+    Harmonic filterbank class.
+
+    """
+    # Note: the last commit with the old harmonic filterbank stuff is
+    #       8a73a0c8eec455928f241d3199309e075afe91c1
+    #       https://jobim.ofai.at/gitlab/madmom/madmom/blob/
+    #       8a73a0c8eec455928f241d3199309e075afe91c1/madmom/audio/filters.py
+    raise NotImplementedError('please implement if needed!')
 
 
 class PitchClassProfileFilterbank(Filterbank):
