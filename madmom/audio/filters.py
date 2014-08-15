@@ -292,25 +292,14 @@ class FilterType(object):
     """
     filter_shape = 'generic'
 
-    def __init__(self, duplicates, norm, overlap):
-        """
-
-        :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param norm:       normalise the area of the filter(s) to 1 [bool]
-        :param overlap:    filters should overlap [bool]
-
-        """
-        self.norm = norm
-        self.duplicates = duplicates
-        self.overlap = overlap
-
-    def filter(self, *centre_crossover_bins):
+    @classmethod
+    def filter(cls, *bins, **kwargs):
         """
         Create a filter from the given centre/crossover bins.
 
-        :param centre_crossover_bins: centre/crossover bins.
-        :return:                      a filter with the given shape/size
+        :param bins:   centre/crossover bins.
+        :param kwargs: additional parameters
+        :return:       a filter with the given shape/size
 
         The returned filter must be of length 'stop' - 1 and must have 0's for
         all indices before the 'start' of the filter.
@@ -318,29 +307,33 @@ class FilterType(object):
         """
         raise NotImplementedError('needs to be implemented by sub-classes')
 
-    def band_bins(self, bins):
+    @classmethod
+    def band_bins(cls, bins, **kwargs):
         """
         Must yields the centre/crossover bins needed for filter creation.
 
-        :param bins: centre/crossover bins of filters [list or numpy array]
-        :return:     corresponding centre/crossover bins for filter creation
+        :param bins:   centre/crossover bins of filters [list or numpy array]
+        :param kwargs: additional parameters
+        :return:       bins and normalisation information for filter creation
 
         """
         raise NotImplementedError('needs to be implemented by sub-classes')
 
-    def filters(self, bins):
+    @classmethod
+    def filters(cls, bins, **kwargs):
         """
         Creates a list with filters for the the given centre bins.
 
-        :param bins: (centre/crossover) bins of filters [list or numpy array]
-        :return:     list with filters
+        :param bins:   (centre/crossover) bins of filters [list or numpy array]
+        :param kwargs: additional parameters passed to band_bins()
+        :return:       list with filters
 
         """
         # generate a list of filters for the given centre/crossover bins
         filters = []
-        for centre_crossover_bins in self.band_bins(bins):
+        for filter_args in cls.band_bins(bins, **kwargs):
             # create a filter and append it to the list
-            filters.append(self.filter(*centre_crossover_bins))
+            filters.append(cls.filter(*filter_args))
         # return the filters
         return filters
 
@@ -350,27 +343,20 @@ class TriangularFilter(FilterType):
     Triangular Filter.
 
     """
-
     filter_shape = 'triangular'
+    DUPLICATES = False
+    NORM = True
+    OVERLAP = True
 
-    def __init__(self, duplicates=False, norm=True, overlap=True):
-        """
-
-        :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param norm:       normalise the area of the filter(s) to 1 [bool]
-        :param overlap:    filters should overlap [bool]
-
-        """
-        super(TriangularFilter, self).__init__(duplicates, norm, overlap)
-
-    def filter(self, start, centre, stop):
+    @classmethod
+    def filter(cls, start, centre, stop, norm=NORM):
         """
         Calculate a triangular window of the given size.
 
         :param start:  start bin
         :param centre: centre bin (of height 1, unless filter is normalised).
         :param stop:   stop bin
+        :param norm:   normalise the area of the filter(s) to 1 [bool]
         :return:       a triangular shaped filter with length 'stop', height 1
                        (unless normalised) with indices <= 'start' set to 0
 
@@ -381,7 +367,7 @@ class TriangularFilter(FilterType):
         # Set the height of the filter, normalised if necessary.
         # A standard filter is at least 3 bins wide, and stop - start = 2
         # thus the filter has an area of 1 if normalised this way
-        height = 2. / (stop - start) if self.norm else 1.
+        height = 2. / (stop - start) if norm else 1.
         # create filter
         triang_filter = np.zeros(stop)
         # rising edge (without the center)
@@ -393,36 +379,42 @@ class TriangularFilter(FilterType):
         # return filter
         return triang_filter
 
-    def band_bins(self, centre_bins):
+    @classmethod
+    def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
+                  overlap=OVERLAP):
         """
         Yields start, centre and stop bins for filters.
 
-        :param centre_bins: centre bins of filters [list or numpy array]
-        :return:            start, centre and stop bins for filters
+        :param bins:       centre bins of filters [list or numpy array]
+        :param norm:       normalise the area of the filter(s) to 1 [bool]
+        :param duplicates: keep duplicate filters resulting from insufficient
+                           resolution of low frequencies [bool]
+        :param overlap:    filters should overlap [bool]
+        :return:           start, centre and stop bins & norm info for filters
 
         """
         # only keep unique bins if requested
         # Note: this can be important to do so, otherwise the lower frequency
         #       bins can be given too much weight if simply summed up (as in
         #       the spectral flux)
-        if not self.duplicates:
-            centre_bins = np.unique(centre_bins)
+        if not duplicates:
+            bins = np.unique(bins)
         # make sure enough frequencies are given
-        if len(centre_bins) < 3:
+        if len(bins) < 3:
             raise ValueError("Cannot create filterbank with less than 1 band")
         # return the frequencies
-        for start, center, stop in segment_axis(centre_bins, 3, 1):
+        for start, center, stop in segment_axis(bins, 3, 1):
             # create non-overlapping filters
-            if not self.overlap:
+            if not overlap:
                 # re-arrange the start and stop positions
                 start = np.round(float(center + start) / 2)
                 stop = np.round(float(center + stop) / 2)
             # consistently handle too-small filters
-            if self.duplicates and (stop - start < 2):
+            if duplicates and (stop - start < 2):
                 center = start
                 stop = start + 1
             # yield the frequencies and continue
-            yield start, center, stop
+            yield start, center, stop, norm
 
 
 class RectangularFilter(FilterType):
@@ -430,54 +422,56 @@ class RectangularFilter(FilterType):
     Triangular Filter.
 
     """
-
     filter_shape = 'rectangular'
+    DUPLICATES = False
+    NORM = True
+    OVERLAP = False
 
-    def __init__(self, duplicates=False, norm=True, overlap=False):
-        """
-
-        :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param norm:       normalise the area of the filter(s) to 1 [bool]
-        :param overlap:    filters should overlap [bool]
-
-        """
-        super(RectangularFilter, self).__init__(duplicates, norm, overlap)
-
-    def band_bins(self, crossover_bins):
+    @classmethod
+    def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
+                  overlap=OVERLAP):
         """
         Yields start and stop frequencies for filters.
 
-        :param crossover_bins: crossover bins of filters [numpy array]
-        :return:               start and stop frequencies for filters
+        :param bins:       crossover bins of filters [numpy array]
+        :param norm:       normalise the area of the filter(s) to 1 [bool]
+        :param duplicates: keep duplicate filters resulting from insufficient
+                           resolution of low frequencies [bool]
+        :param overlap:    filters should overlap [bool]
+        :return:           start and stop bins & norm info for filters
 
         """
         # only keep unique bins if requested
         # Note: this can be important to do so, otherwise the lower frequency
         #       bins can be given too much weight if simply summed up (as in
         #       the spectral flux)
-        if not self.duplicates:
-            crossover_bins = np.unique(crossover_bins)
+        if not duplicates:
+            bins = np.unique(bins)
         # make sure enough frequencies are given
-        if len(crossover_bins) < 2:
+        if len(bins) < 2:
             raise ValueError("Cannot create filterbank with less than 1 band")
+        # overlapping filters?
+        if overlap:
+            raise NotImplementedError('please implement if needed!')
         # return the frequencies
-        for start, stop in segment_axis(crossover_bins, 2, 1):
+        for start, stop in segment_axis(bins, 2, 1):
             # yield the frequencies and continue
-            yield start, stop
+            yield start, stop, norm
 
-    def filter(self, start, stop):
+    @classmethod
+    def filter(cls, start, stop, norm):
         """
         Calculate a rectangular window of the given size.
 
         :param start: start bin of the filter
         :param stop:  stop bin of the filter
+        :param norm:  normalise the area of the filter(s) to 1 [bool]
         :return:      a rectangular shaped filter with length 'stop', height 1
                       (unless normalised) with indices <= 'start' set to 0
 
         """
         # Set the height of the filter, normalised if necessary
-        height = 1. / (stop - start) if self.norm else 1.
+        height = 1. / (stop - start) if norm else 1.
         # create filter
         rectangular_filter = np.zeros(stop)
         rectangular_filter[start:stop] = height
@@ -843,7 +837,7 @@ class Filterbank(np.ndarray):
         return self._norm
 
     def __str__(self):
-        return "Filterbank: %d FFT bins; %d bands; fmin: %.1f; fmax: %.1f" %\
+        return "Filterbank: %d FFT bins; %d bands; fmin: %.1f; fmax: %.1f" % \
                (self.num_fft_bins, self.num_bands, self.fmin, self.fmax)
 
     @staticmethod
@@ -926,11 +920,11 @@ class MelFilterbank(Filterbank):
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # convert to bins
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
-        # use overlapping triangular filters
-        filters = TriangularFilter(duplicates, norm).filters(bins)
+        # get overlapping triangular filters
+        filters = TriangularFilter.filters(bins, norm=norm,
+                                           duplicates=duplicates, overlap=True)
         # create a MelFilterbank from the filters
-        obj = MelFilterbank.from_filters(filters, num_fft_bins, sample_rate,
-                                         norm)
+        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -975,11 +969,12 @@ class BarkFilterbank(Filterbank):
             frequencies = bark_frequencies(fmin, fmax)
         # convert to bins
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
-        # use non-overlapping rectangular filters
-        filters = RectangularFilter(duplicates, norm).filters(bins)
-        # create a BarkFilterbank
-        obj = BarkFilterbank.from_filters(filters, num_fft_bins, sample_rate,
-                                          norm)
+        # get non-overlapping rectangular filters
+        filters = RectangularFilter.filters(bins, norm=norm,
+                                            duplicates=duplicates,
+                                            overlap=False)
+        # create a BarkFilterbank from the filters
+        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
         # set additional attributes
         obj._norm = norm
         # return the object
@@ -1018,11 +1013,11 @@ class LogarithmicFilterbank(Filterbank):
         frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
         # convert to bins
         bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
-        # use overlapping triangular filters
-        filters = TriangularFilter(duplicates, norm).filters(bins)
-        # create a LogarithmicFilterbank
-        obj = LogarithmicFilterbank.from_filters(filters, num_fft_bins,
-                                                 sample_rate, norm)
+        # get overlapping triangular filters
+        filters = TriangularFilter.filters(bins, norm=norm,
+                                           duplicates=duplicates, overlap=True)
+        # create a LogarithmicFilterbank from the filters
+        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
         # set additional attributes
         obj._bands_per_octave = bands_per_octave
         obj._norm = norm
