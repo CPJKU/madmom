@@ -654,8 +654,9 @@ class Filterbank(np.ndarray):
         return self._norm
 
     def __str__(self):
-        return "Filterbank: %d FFT bins; %d bands; fmin: %.1f; fmax: %.1f" % \
-               (self.num_fft_bins, self.num_bands, self.fmin, self.fmax)
+        return "Filterbank: %d FFT bins; %d bands; sample rate: %d, fmin: " \
+               "%.1f; fmax: %.1f" % (self.num_fft_bins, self.num_bands,
+                                     self.sample_rate, self.fmin, self.fmax)
 
     @staticmethod
     def add_arguments(parser, default=None, fmin=FMIN, fmax=FMAX,
