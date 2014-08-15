@@ -292,14 +292,13 @@ class Filter(np.ndarray):
     """
     def __new__(cls, data, start=0):
         """
-        Creates a new Filer array.
+        Creates a new Filter.
 
         :param data:  1D numpy array
         :param start: start position
 
         The start position is mandatory if this Filter should be used for the
         creation of a Filterbank. If not set, a start position of o is assumed.
-
 
         """
         # input is an numpy ndarray instance
@@ -317,22 +316,6 @@ class Filter(np.ndarray):
         # return the object
         return obj
 
-
-    @classmethod
-    def filter(cls, *bins, **kwargs):
-        """
-        Create a filter from the given centre/crossover bins.
-
-        :param bins:   centre/crossover bins.
-        :param kwargs: additional parameters
-        :return:       a filter with the given shape/size
-
-        The returned filter must be of length 'stop' - 1 and must have 0's for
-        all indices before the 'start' of the filter.
-
-        """
-        raise NotImplementedError('needs to be implemented by sub-classes')
-
     @classmethod
     def band_bins(cls, bins, **kwargs):
         """
@@ -348,7 +331,7 @@ class Filter(np.ndarray):
     @classmethod
     def filters(cls, bins, **kwargs):
         """
-        Creates a list with filters for the the given centre bins.
+        Creates a list with filters for the the given bins.
 
         :param bins:   (centre/crossover) bins of filters [list or numpy array]
         :param kwargs: additional parameters passed to band_bins()
@@ -359,7 +342,7 @@ class Filter(np.ndarray):
         filters = []
         for filter_args in cls.band_bins(bins, **kwargs):
             # create a filter and append it to the list
-            filters.append(cls.filter(*filter_args))
+            filters.append(cls(*filter_args))
         # return the filters
         return filters
 
@@ -373,8 +356,7 @@ class TriangularFilter(Filter):
     NORM = True
     OVERLAP = True
 
-    @classmethod
-    def filter(cls, start, centre, stop, norm=NORM):
+    def __new__(cls, start, centre, stop, norm=NORM):
         """
         Create a triangular filter.
 
@@ -402,8 +384,12 @@ class TriangularFilter(Filter):
         data[:centre] = np.linspace(0, height, centre, endpoint=False)
         # falling edge (including the centre, but without the last bin)
         data[centre:] = np.linspace(height, 0, stop - centre, endpoint=False)
-        # return filter
-        return cls.__new__(cls, data, start)
+        # cast to TriangularFilter
+        obj = Filter.__new__(cls, data, start)
+        # set the centre bin
+        obj.centre = start + centre
+        # return the filter
+        return obj
 
     @classmethod
     def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
@@ -453,8 +439,7 @@ class RectangularFilter(Filter):
     NORM = True
     OVERLAP = False
 
-    @classmethod
-    def filter(cls, start, stop, norm=NORM):
+    def __new__(cls, start, stop, norm=NORM):
         """
         Create a rectangular filter.
 
@@ -474,8 +459,8 @@ class RectangularFilter(Filter):
         height = 1. / stop if norm else 1.
         # create filter
         data = np.ones(stop) * height
-        # cast to RectangularFilter return it
-        return cls.__new__(cls, data, start=start)
+        # cast to RectangularFilter and return it
+        return Filter.__new__(cls, data, start)
 
     @classmethod
     def band_bins(cls, bins, norm=NORM, duplicates=DUPLICATES,
@@ -821,9 +806,7 @@ class Filterbank(np.ndarray):
             # otherwise put this filter into that band
             else:
                 cls._put_filter(band_filter, band)
-        # cast as the Filterbank class where this method was called from
-        # TODO: I'm not completely sure if this is the right way to do this,
-        #       but it seems to work...
+        # create Filterbank and cast as class where this method was called from
         return Filterbank.__new__(cls, fb, sample_rate)
 
     @property
