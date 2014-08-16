@@ -942,7 +942,12 @@ class HarmonicFilterbank(Filterbank):
     #       8a73a0c8eec455928f241d3199309e075afe91c1
     #       https://jobim.ofai.at/gitlab/madmom/madmom/blob/
     #       8a73a0c8eec455928f241d3199309e075afe91c1/madmom/audio/filters.py
-    raise NotImplementedError('please implement if needed!')
+
+    def __new__(cls):
+        """
+        Creates a new HarmonicFilterbank instance.
+        """
+        raise NotImplementedError('please implement if needed!')
 
 
 class PitchClassProfileFilterbank(Filterbank):
