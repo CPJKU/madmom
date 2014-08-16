@@ -965,7 +965,7 @@ class RnnlibConfigFile(object):
             # directory exists already, update modification date
             os.utime(out_dir, None)
         # test all files of the given set
-        nc_files = eval("self.%s_files" % file_set)
+        nc_files = getattr(self, "%s_files" % file_set)
         # create a pool of workers
         work_queue, return_queue = create_pool(threads, verbose)
         # test all files
@@ -1115,8 +1115,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
         # get a list of all .nc files
         nc_files = []
         for nn_file in nn_files:
-            # FIXME: use globals() instead of eval()
-            nc_files.extend(eval("RnnConfig(nn_file).%s_files" % file_set))
+            nn = RnnlibConfigFile(nn_file)
+            nc_files.extend(getattr(nn, "%s_files" % file_set))
         # remove duplicates
         nc_files = list(set(nc_files))
         # create a pool of workers
@@ -1128,8 +1128,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
             # check in which NN files the .nc file is included
             nc_nn_files = []
             for nn_file in nn_files:
-                # FIXME: use globals() instead of eval()
-                if nc_file in eval("RnnConfig(nn_file).%s_files" % file_set):
+                nn = RnnlibConfigFile(nn_file)
+                if nc_file in getattr(nn, "%s_files" % file_set):
                     nc_nn_files.append(nn_file)
             # test the .nc file against these networks
             activations = test_nc_files([nc_file], nc_nn_files, work_queue,
