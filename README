@@ -14,27 +14,23 @@ parameters accordingly.
 To use this package without installing it, make sure this directory is in your
 $PYTHONPATH.
 
-However, better performance can be expected when using cython to compile
-speed critical parts.
-
-You need a recent 'gcc' to compile the extensions with multi-thread support.
-On systems with other standard compilers, set your $CC variable accordingly,
-e.g. "export CC=gcc".
+Most modules work in Python-only mode, but some require to be compiled with
+cython. To do so, please run:
 
 python setup.py build_ext --inplace
 
-To install the package, simply run:
+To enable multi-threading support, you need a compiler which supports the
+'OpenMP' specifications. Most recent versions of 'gcc' do so. On systems with
+other compilers, set your $CC variable accordingly, e.g."export CC=gcc".
+
+
+You can also install this package by running:
 
 python setup.py build
 python setup.py install
 
 You might need higher privileges (use su or sudo) to install the files to a
 common place like '/usr/local' or similar.
-
-The package is designed to have as few as possible external requirements,
-usually only numpy and scipy is required. Cython is only needed for certain
-modules or speed critical functionality but is generally a good idea to have
-it :)
 
 Please make sure that all modules are up to date, especially those mentioned
 in requirements.txt must be the specific version (or newer), otherwise it can
