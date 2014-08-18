@@ -132,22 +132,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
     cdef public np.ndarray tempo_states
     cdef public double tempo_change_probability
 
-    # default values for beat tracking
-    NUM_BEAT_STATES = 1280
-    TEMPO_CHANGE_PROBABILITY = 0.008
-    TEMPO_STATES = np.arange(11, 47)
-
-    def __init__(self, model=None,
-                 num_beat_states=NUM_BEAT_STATES,
-                 tempo_states=TEMPO_STATES,
-                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY):
+    def __init__(self, num_beat_states, tempo_states,
+                 tempo_change_probability):
         """
         Construct a transition model instance suitable for beat tracking.
-
-        :param model: load the transition model from the given file
-
-        If no model was given, the object is constructed with the following
-        parameters:
 
         :param num_beat_states:          number of beat states for one beat
                                          period
@@ -169,21 +157,16 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         # define additional attributes to be saved or loaded
         self.attributes.extend(['num_beat_states', 'tempo_states',
                                 'tempo_change_probability'])
-        # load a model or compute transitions
-        if model:
-            self.load(model)
-        else:
-            # save the given parameters
-            self.num_beat_states = num_beat_states
-            self.tempo_states = np.ascontiguousarray(tempo_states,
-                                                     dtype=np.int32)
-            self.tempo_change_probability = tempo_change_probability
-            # compute the transitions
-            transitions = self._transition_model(self.num_beat_states,
-                                                 self.tempo_states,
-                                                 self.tempo_change_probability)
-            # save them in sparse format
-            self.make_sparse(*transitions)
+        # compute transitions
+        self.num_beat_states = num_beat_states
+        self.tempo_states = np.ascontiguousarray(tempo_states, dtype=np.int32)
+        self.tempo_change_probability = tempo_change_probability
+        # compute the transitions
+        transitions = self._transition_model(self.num_beat_states,
+                                             self.tempo_states,
+                                             self.tempo_change_probability)
+        # save them in sparse format
+        self.make_sparse(*transitions)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -340,13 +323,8 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
     cdef public bint norm_observations
     cdef public np.ndarray observations
 
-    # default values for beat tracking
-    OBSERVATION_LAMBDA = 16
-    NORM_OBSERVATIONS = False
-
     def __init__(self, observations, num_states, num_beat_states,
-                 observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS):
+                 observation_lambda, norm_observations=False):
         """
         Construct a observation model instance.
 
@@ -628,14 +606,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     # define some variables which are also exported as Python attributes
     cdef public bint correct
 
-    # default values
-    CORRECT = True
+    # shortcuts
     TM = BeatTrackingTransitionModel
     OM = NNBeatTrackingObservationModel
 
     def __init__(self, transition_model=None, observation_model=None,
-                 initial_states=None, correct=CORRECT,
-                 num_threads=NUM_THREADS):
+                 initial_states=None, correct=True, num_threads=NUM_THREADS):
         """
         Construct a new dynamic Bayesian network suitable for beat tracking.
 
@@ -719,76 +695,3 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                           (self.transition_model.num_beat_states /
                            self.observation_model.observation_lambda)]
         return beats
-
-    @classmethod
-    def add_arguments(cls, parser, correct=CORRECT,
-                      num_beat_states=TM.NUM_BEAT_STATES,
-                      tempo_states=TM.TEMPO_STATES,
-                      tempo_change_probability=TM.TEMPO_CHANGE_PROBABILITY,
-                      observation_lambda=OM.OBSERVATION_LAMBDA,
-                      norm_observations=OM.NORM_OBSERVATIONS):
-        """
-        Add dynamic Bayesian network related arguments to an existing parser
-        object.
-
-        :param parser:                   existing argparse parser object
-        :param correct:                  correct the beat positions
-
-        Parameters for the transition model:
-
-        :param num_beat_states:          number of cells for one beat period
-        :param tempo_states:             list with tempo states
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
-
-        Parameters for the observation model:
-
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param norm_observations:        normalise the observations
-
-        :return:                         beat argument parser group object
-
-        """
-        # add a group for DBN parameters
-        g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        if correct:
-            g.add_argument('--no_correct', dest='correct',
-                           action='store_false', default=correct,
-                           help='do not correct the beat positions')
-        else:
-            g.add_argument('--correct', dest='correct',
-                           action='store_true', default=correct,
-                           help='correct the beat positions')
-        # add a transition parameters
-        g.add_argument('--num_beat_states', action='store', type=int,
-                       default=num_beat_states,
-                       help='number of beat states for one beat period '
-                            '[default=%(default)i]')
-        g.add_argument('--tempo_change_probability', action='store',
-                       type=float, default=tempo_change_probability,
-                       help='probability of a tempo between two adjacent '
-                            'observations [default=%(default).4f]')
-        if tempo_states is not None:
-            from ..utils import OverrideDefaultListAction
-            g.add_argument('--tempo_states', action=OverrideDefaultListAction,
-                           type=int, default=tempo_states,
-                           help='possible tempo states (multiple values can '
-                                'be given)')
-        # observation model stuff
-        g.add_argument('--observation_lambda', action='store', type=int,
-                       default=observation_lambda,
-                       help='split one beat period into N parts, the first '
-                            'representing beat states and the remaining '
-                            'non-beat states [default=%(default)i]')
-        if norm_observations:
-            g.add_argument('--no_norm_obs', dest='norm_observations',
-                           action='store_false', default=norm_observations,
-                           help='do not normalise the observations of the DBN')
-        else:
-            g.add_argument('--norm_obs', dest='norm_observations',
-                           action='store_true', default=norm_observations,
-                           help='normalise the observations of the DBN')
-        # return the argument group so it can be modified if needed
-        return g

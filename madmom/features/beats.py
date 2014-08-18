@@ -537,6 +537,11 @@ class MMBeatTracking(RNNBeatTracking):
     # DBN_FILE = "%s/beat_tracking_dbn.npz" % MODELS_PATH
     DBN_FILE = None
     # some default values
+    CORRECT = True
+    NUM_BEAT_STATES = 1280
+    TEMPO_CHANGE_PROBABILITY = 0.008
+    OBSERVATION_LAMBDA = 16
+    NORM_OBSERVATIONS = False
     MIN_BPM = 55
     MAX_BPM = 220
 
@@ -546,7 +551,7 @@ class MMBeatTracking(RNNBeatTracking):
                          NNBeatTrackingObservationModel as OM)
     except ImportError:
         import warnings
-        warnings.warn('MMBeatTracking only works if you build the viterbi '
+        warnings.warn('MMBeatTracking only works if you build the dbn '
                       'module with cython!')
 
     def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
@@ -616,11 +621,11 @@ class MMBeatTracking(RNNBeatTracking):
         # and return them
         return self._activations
 
-    def detect(self, correct=DBN.CORRECT, num_beat_states=TM.NUM_BEAT_STATES,
+    def detect(self, correct=CORRECT, num_beat_states=NUM_BEAT_STATES,
+               tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-               tempo_change_probability=TM.TEMPO_CHANGE_PROBABILITY,
-               observation_lambda=OM.OBSERVATION_LAMBDA,
-               norm_observations=OM.NORM_OBSERVATIONS):
+               observation_lambda=OBSERVATION_LAMBDA,
+               norm_observations=NORM_OBSERVATIONS):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -668,16 +673,38 @@ class MMBeatTracking(RNNBeatTracking):
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      nn_ref_files=NN_REF_FILES, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM):
+                      nn_ref_files=NN_REF_FILES, correct=CORRECT,
+                      num_beat_states=NUM_BEAT_STATES, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM,
+                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                      observation_lambda=OBSERVATION_LAMBDA,
+                      norm_observations=NORM_OBSERVATIONS):
         """
         Add MMBeatTracking related arguments to an existing parser object.
 
         :param parser:       existing argparse parser object
         :param nn_files:     list with files of NN models
         :param nn_ref_files: list with files of reference NN model(s)
-        :param min_bpm:      minimum tempo used for beat tracking
-        :param max_bpm:      maximum tempo used for beat tracking
+
+        Parameters for the dynamic Bayesian network:
+
+        :param correct: correct the beat positions
+
+        Parameters for the transition model:
+
+        :param num_beat_states:          number of states for one beat period
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+
+        Parameters for the observation model:
+
+        :param observation_lambda: split one beat period into N parts, the
+                                   first representing beat states and the
+                                   remaining non-beat states
+        :param norm_observations:  normalise the observations
+
         :return:             beat argument parser group object
 
         """
@@ -695,13 +722,43 @@ class MMBeatTracking(RNNBeatTracking):
                             'If multiple reference files are given, the '
                             'predictions of the networks are averaged first.')
         # add DBN parser group (skip the tempo state option)
-        g = cls.DBN.add_arguments(parser, tempo_states=None)
-        # add options for tempo (in beat per minute)
+        g = parser.add_argument_group('dynamic Bayesian Network arguments')
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions')
+        # add a transition parameters
+        g.add_argument('--num_beat_states', action='store', type=int,
+                       default=num_beat_states,
+                       help='number of beat states for one beat period '
+                            '[default=%(default)i]')
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
                        help='minimum tempo [bpm, default=%(default).2f]')
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm,
                        help='maximum tempo [bpm,  default=%(default).2f]')
+        g.add_argument('--tempo_change_probability', action='store',
+                       type=float, default=tempo_change_probability,
+                       help='probability of a tempo between two adjacent '
+                            'observations [default=%(default).4f]')
+        # observation model stuff
+        g.add_argument('--observation_lambda', action='store', type=int,
+                       default=observation_lambda,
+                       help='split one beat period into N parts, the first '
+                            'representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
+        if norm_observations:
+            g.add_argument('--no_norm_obs', dest='norm_observations',
+                           action='store_false', default=norm_observations,
+                           help='do not normalise the observations of the DBN')
+        else:
+            g.add_argument('--norm_obs', dest='norm_observations',
+                           action='store_true', default=norm_observations,
+                           help='normalise the observations of the DBN')
         # return the argument group so it can be modified if needed
         return g
