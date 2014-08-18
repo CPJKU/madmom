@@ -250,9 +250,11 @@ class TempoEstimation(RNNBeatTracking):
         # generate a histogram of beat intervals
         if method == 'acf':
             histogram = interval_histogram_acf(activations, min_tau, max_tau)
-        else:
+        elif method == 'comb':
             histogram = interval_histogram_comb(activations, alpha, min_tau,
                                                 max_tau)
+        else:
+            raise ValueError('tempo estimation method unknown')
         # smooth the histogram
         if hist_smooth > 1:
             histogram = smooth_histogram(histogram, hist_smooth)

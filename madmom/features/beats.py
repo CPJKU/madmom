@@ -447,6 +447,9 @@ class CRFBeatDetection(RNNBeatTracking):
 
         """
         import itertools as it
+        # suppress warning of dominant_interval()
+        import warnings
+        warnings.filterwarnings("ignore")
         # convert timing information to frames and set default values
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
