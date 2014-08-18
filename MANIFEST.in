@@ -1,4 +1,4 @@
-# always include those files
+# always include these files
 include README
 include LICENSE
 include requirements.txt
@@ -29,6 +29,12 @@ include madmom/ml/rnn.pxd
 
 include madmom/utils/__init__.py
 include madmom/utils/midi.py
+
+include madmom/evaluation/__init__.py
+include madmom/evaluation/onsets.py
+include madmom/evaluation/beats.py
+include madmom/evaluation/notes.py
+include madmom/evaluation/tempo.py
 
 # include models
 include madmom/models/*
