@@ -206,14 +206,14 @@ def detect_tempo(histogram, fps, grouping_dev=0):
 
 class TempoEstimation(RNNBeatTracking):
     """
-    Tempo Class.
+    Tempo Estimation class.
 
     """
     # default values for tempo estimation
     METHOD = 'comb'
-    MIN_BPM = 39
-    MAX_BPM = 245
-    HIST_SMOOTH = 5
+    MIN_BPM = 40
+    MAX_BPM = 250
+    HIST_SMOOTH = 7
     ACT_SMOOTH = 0.14
     GROUPING_DEV = 0
     ALPHA = 0.79
@@ -235,7 +235,7 @@ class TempoEstimation(RNNBeatTracking):
                              relative strength of them
 
         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-              The deviation is allowed delta in the log2 / log3 space.
+              The deviation is the allowed delta in the log2 / log3 space.
 
         """
         # convert the arguments to frames
