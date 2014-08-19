@@ -44,8 +44,11 @@ def parser():
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
     SpectralOnsetDetection.add_arguments(p)
-    OnsetDetection.add_arguments(p, threshold=1.1, post_max=0.05, post_avg=0,
-                                 pre_avg=0.15, pre_max=0.01)
+    g = OnsetDetection.add_arguments(p, threshold=1.1, post_max=0.05,
+                                     post_avg=0, pre_avg=0.15, pre_max=0.01)
+    # NN peak picking
+    g.add_argument('--nn_peak_picking', action='store_true', default=False,
+                   help='perform neural network based peak picking')
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments
@@ -60,6 +63,17 @@ def parser():
         args.post_avg = 0
     else:
         args.origin = 'offline'
+    # NN peak picking
+    if args.nn_peak_picking:
+        args.peak_picking_method = 'nn'
+        args.fps = 100
+        args.threshold = 0.25
+        args.pre_max = 0.01
+        args.post_max = 0.01
+        args.pre_avg = 0
+        args.post_avg = 0
+    else:
+        args.peak_picking_method = None
     # print arguments
     if args.verbose:
         print args
@@ -84,7 +98,8 @@ def main():
                         frame_size=args.frame_size, origin=args.origin,
                         fps=args.fps,  bands_per_octave=args.bands,
                         fmin=args.fmin, fmax=args.fmax, mul=args.mul,
-                        add=args.add, norm_filters=args.norm_filters)
+                        add=args.add, norm_filters=args.norm_filters,
+                        ratio=args.ratio, diff_frames=args.diff_frames)
         # create a SpectralOnsetDetection detection object
         o = SpectralOnsetDetection.from_data(s, fps=args.fps)
         o.max_bins = args.max_bins
@@ -100,7 +115,8 @@ def main():
         o.detect(args.threshold, combine=args.combine, delay=args.delay,
                  smooth=args.smooth, pre_avg=args.pre_avg,
                  post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max, online=args.online)
+                 post_max=args.post_max, online=args.online,
+                 peak_picking_method=args.peak_picking_method)
         # write the onsets to output
         o.write(args.output)
 

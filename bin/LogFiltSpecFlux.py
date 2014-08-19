@@ -84,7 +84,8 @@ def main():
                         frame_size=args.frame_size, origin=args.origin,
                         fps=args.fps,  bands_per_octave=args.bands,
                         fmin=args.fmin, fmax=args.fmax, mul=args.mul,
-                        add=args.add, norm_filters=args.norm_filters)
+                        add=args.add, norm_filters=args.norm_filters,
+                        ratio=args.ratio, diff_frames=args.diff_frames)
         # create a SpectralOnsetDetection detection object
         o = SpectralOnsetDetection.from_data(s, fps=args.fps)
         # process with the detection function

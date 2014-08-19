@@ -411,6 +411,7 @@ class OnsetDetection(EventDetection):
         :param combine:   only report one onset within N seconds
         :param delay:     report onsets N seconds delayed
         :param online:    use online peak-picking
+        :return:          the detected onsets
 
         Notes: If no moving average is needed (e.g. the activations are
                independent of the signal's level as for neural network
@@ -582,7 +583,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
 
 def nn_peak_picking(activations, nn_files, threshold, smooth=None,
-                    num_threads=None):
+                    num_threads=1):
     """
     Incorporate neural networks to perform peak-picking on the given
     activation function.
@@ -762,6 +763,39 @@ class SpectralOnsetDetection(OnsetDetection):
         self._activations = Activations(act, self._fps)
         return self._activations
 
+    def detect(self, *args, **kwargs):
+        """
+        Perform peak-picking on the onset detection function.
+
+        :param kwargs: parameters passed to peak_picking()
+        :return:       the detected onsets
+
+        If 'peak_picking_method' is set to 'nn', neural network based peak
+        picking is performed, following the method described in:
+
+        "Enhanced peak picking for onset detection with recurrent neural
+         networks"
+        Sebastian Böck, Jan Schlüter and Gerhard Widmer
+        Proceedings of the 6th International Workshop on Machine Learning and
+        Music (MML), 2013.
+
+        """
+        # perform NN peak picking?
+        if kwargs.pop('peak_picking_method', None) == 'nn':
+            # define NN files
+            nn_files = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" %
+                                 MODELS_PATH)
+            if kwargs['online']:
+                nn_files = glob.glob("%s/onsets_rnn_peak_picking_[1-8].npz" %
+                                     MODELS_PATH)
+            # perform NN peak picking and overwrite the activations with the re
+            from ..ml.rnn import process_rnn
+            # compute the RNN predictions
+            self._activations = process_rnn(self.activations, nn_files,
+                                            threads=None)
+        # continue with normal peak picking, pass all parameters as is
+        super(SpectralOnsetDetection, self).detect(*args, **kwargs)
+
     @classmethod
     def add_arguments(cls, parser, method='superflux', methods=None,
                       max_bins=MAX_BINS):
@@ -801,7 +835,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
     """
     # define NN files
-    NN_FILES = glob.glob("%s/onsets_brnn*npz" % MODELS_PATH)
+    NN_FILES = glob.glob("%s/onsets_brnn_[1-8]*npz" % MODELS_PATH)
     # peak-picking defaults
     THRESHOLD = 0.35
     COMBINE = 0.03

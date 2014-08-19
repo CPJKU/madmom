@@ -304,7 +304,7 @@ class Filter(np.ndarray):
         """
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
-            # cast as Filterbank
+            # cast as Filter
             obj = np.asarray(data).view(cls)
         else:
             raise TypeError('wrong input data for Filter, must be np.ndarray')
