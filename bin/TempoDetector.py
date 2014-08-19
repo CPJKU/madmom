@@ -30,6 +30,15 @@ def parser():
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects the dominant tempi
     in the given input (file) and writes them to the output (file).
+
+    The tempo is inferred with comb filters from the beat activations produced
+    by the algorithm described in:
+
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio Effects
+    (DAFx-11), 2011.
+
     ''')
     # input/output options
     madmom.utils.io_arguments(p)
