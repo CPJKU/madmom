@@ -6,9 +6,9 @@ This file contains onset evaluation functionality.
 It is described in:
 
 "Evaluating the Online Capabilities of Onset Detection Methods"
-by Sebastian Böck, Florian Krebs and Markus Schedl
-in Proceedings of the 13th International Society for Music Information
-Retrieval Conference (ISMIR), 2012
+Sebastian Böck, Florian Krebs and Markus Schedl
+Proceedings of the 13th International Society for Music Information Retrieval
+Conference (ISMIR), 2012.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 

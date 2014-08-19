@@ -902,7 +902,7 @@ def parser():
     the given files according to the method proposed in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
-    by Sebastian Böck and Gerhard Widmer
+    Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx-13), 2013.
 
