@@ -13,7 +13,7 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter, maximum_filter
 
 from .. import MODELS_PATH
-from . import Activations, EventDetection, RNNEventDetection
+from . import Activations, EventDetection, RNNEventDetection, smooth_signal
 
 EPSILON = 1e-6
 
@@ -106,7 +106,7 @@ def high_frequency_content(spec):
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
      Signals"
     Paul Masri
-    PhD thesis, University of Bristol, 1996
+    PhD thesis, University of Bristol, 1996.
 
     """
     # HFC weights the magnitude spectrogram by the bin number,
@@ -143,7 +143,7 @@ def spectral_flux(spec, diff_frames=1):
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
      Signals"
     Paul Masri
-    PhD thesis, University of Bristol, 1996
+    PhD thesis, University of Bristol, 1996.
 
     """
     # Spectral flux is the sum of all positive 1st order differences
@@ -206,7 +206,7 @@ def modified_kullback_leibler(spec, diff_frames=1, epsilon=EPSILON):
     is used instead of the original work:
     "Onset Detection in Musical Audio Signals"
     Stephen Hainsworth and Malcolm Macleod
-    Proceedings of the International Computer Music Conference (ICMC), 2003
+    Proceedings of the International Computer Music Conference (ICMC), 2003.
 
     """
     if epsilon <= 0:
@@ -246,7 +246,7 @@ def phase_deviation(phase):
     "On the use of phase and energy for musical onset detection in the complex
      domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
-    IEEE Signal Processing Letters, Volume 11, Number 6, 2004
+    IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
 
     """
     # take the mean of the absolute changes in instantaneous frequency
@@ -264,7 +264,7 @@ def weighted_phase_deviation(spec, phase):
     "Onset Detection Revisited"
     Simon Dixon
     Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006
+    (DAFx), 2006.
 
     """
     # make sure the spectrogram is not filtered before
@@ -287,7 +287,7 @@ def normalized_weighted_phase_deviation(spec, phase, epsilon=EPSILON):
     "Onset Detection Revisited"
     Simon Dixon
     Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006
+    (DAFx), 2006.
 
     """
     if epsilon <= 0:
@@ -310,7 +310,7 @@ def _complex_domain(spec, phase):
     "Onset Detection Revisited"
     Simon Dixon
     Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006
+    (DAFx), 2006.
 
     """
     if np.shape(phase) != np.shape(spec):
@@ -339,7 +339,7 @@ def complex_domain(spec, phase):
     "On the use of phase and energy for musical onset detection in the complex
      domain"
     Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
-    IEEE Signal Processing Letters, Volume 11, Number 6, 2004
+    IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
 
     """
     # take the sum of the absolute changes
@@ -357,7 +357,7 @@ def rectified_complex_domain(spec, phase):
     "Onset Detection Revisited"
     Simon Dixon
     Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006
+    (DAFx), 2006.
 
     """
     # rectified complex domain
@@ -423,8 +423,8 @@ class OnsetDetection(EventDetection):
 
         "Evaluating the Online Capabilities of Onset Detection Methods"
         Sebastian Böck, Florian Krebs and Markus Schedl
-        in Proceedings of the 13th International Society for
-        Music Information Retrieval Conference (ISMIR), 2012
+        Proceedings of the 13th International Society for Music Information
+        Retrieval Conference (ISMIR), 2012.
 
         """
         # convert timing information to frames and set default values
@@ -522,9 +522,9 @@ class OnsetDetection(EventDetection):
                             '[default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
+
+
 # universal peak-picking method
-
-
 def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
                  pre_max=1, post_max=1):
     """
@@ -537,6 +537,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     :param post_avg:    use N frames future information for moving average
     :param pre_max:     use N frames past information for moving maximum
     :param post_max:    use N frames future information for moving maximum
+    :return:            indices of the detected peaks
 
     Notes: If no moving average is needed (e.g. the activations are independent
            of the signal's level as for neural network activations), set
@@ -546,26 +547,20 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
            For online peak picking, set all `post_` parameters to 0.
 
+    "Evaluating the Online Capabilities of Onset Detection Methods"
+    Sebastian Böck, Florian Krebs and Markus Schedl
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2012.
+
     """
     # smooth activations
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        activations = np.convolve(activations, kernel, 'same')
-    # threshold activations
+    if smooth is not None:
+        activations = smooth_signal(activations, smooth)
+    # compute a moving average
     avg_length = pre_avg + post_avg + 1
     if avg_length > 1:
-        # compute a moving average
-        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
         # TODO: make the averaging function exchangeable (mean/median/etc.)
+        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
         mov_avg = uniform_filter(activations, avg_length, mode='constant',
                                  origin=avg_origin)
     else:
@@ -586,6 +581,35 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     return np.nonzero(detections)[0]
 
 
+def nn_peak_picking(activations, nn_files, threshold, smooth=None,
+                    num_threads=None):
+    """
+    Incorporate neural networks to perform peak-picking on the given
+    activation function.
+
+    :param activations: the onset activation function
+    :param nn_files:    neural network models
+    :param threshold:   threshold for peak-picking
+    :param smooth:      smooth the activation function with the kernel
+    :param num_threads: number of working threads
+    :return:            indices of the detected peaks
+
+    "Enhanced peak picking for onset detection with recurrent neural networks"
+    Sebastian Böck, Jan Schlüter and Gerhard Widmer
+    Proceedings of the 6th International Workshop on Machine Learning and
+    Music (MML), 2013.
+
+    """
+    from ..ml.rnn import process_rnn
+    # smooth activations
+    if smooth is not None:
+        activations = smooth_signal(activations, smooth)
+    # compute the RNN predictions
+    predictions = process_rnn(activations, nn_files, num_threads)
+    # detections are the local maxima
+    return peak_picking(predictions, threshold)
+
+
 class SpectralOnsetDetection(OnsetDetection):
     """
     The SpectralOnsetDetection class implements most of the common onset
@@ -604,7 +628,6 @@ class SpectralOnsetDetection(OnsetDetection):
 
         :param signal:   Signal instance or file name or file handle
         :param max_bins: number of bins for the maximum filter (for SuperFlux)
-
         :param args:     additional arguments passed to OnsetDetection()
         :param kwargs:   additional arguments passed to OnsetDetection()
 
@@ -628,10 +651,8 @@ class SpectralOnsetDetection(OnsetDetection):
         :param frame_size: frame size of the STFT [int]
         :param fps:        frames per second
         :param online:     online processing [bool]
-
         :param args:       additional arguments passed to Spectrogram()
         :param kwargs:     additional keyword arguments passed to Spectrogram()
-
         :return:           pre-processed data
 
         """
@@ -797,7 +818,6 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
         :param signal:   Signal instance or input file name or file handle
         :param nn_files: list of RNN model files
-
         :param args:     additional arguments passed to OnsetDetection() and
                          RNNEventDetection()
         :param kwargs:   additional arguments passed to OnsetDetection() and
@@ -884,7 +904,7 @@ def parser():
     "Maximum Filter Vibrato Suppression for Onset Detection"
     by Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx-13), Maynooth, Ireland, September 2013
+    (DAFx-13), 2013.
 
     """)
     # general options

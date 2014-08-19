@@ -25,7 +25,14 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all beats in the
-    given input (file) and writes them to the output (file).
+    given input (file) and writes them to the output (file). The algorithm
+    does can follow tempo changes.
+
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio Effects
+    (DAFx-11), 2011.
+
     ''')
 
     # input/output options

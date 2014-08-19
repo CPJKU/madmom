@@ -23,7 +23,6 @@ To enable multi-threading support, you need a compiler which supports the
 'OpenMP' specifications. Most recent versions of 'gcc' do so. On systems with
 other compilers, set your $CC variable accordingly, e.g."export CC=gcc".
 
-
 You can also install this package by running:
 
 python setup.py build

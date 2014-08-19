@@ -15,6 +15,9 @@ from . import Activations, RNNEventDetection
 
 
 # wrapper function for detecting the dominant interval
+from madmom.features import smooth_signal
+
+
 def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
                              min_tau=1, max_tau=None):
     """
@@ -31,7 +34,7 @@ def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
     import warnings
     warnings.warn('This function will be removed soon! Please update your '
                   'code to work without this function.')
-    from .tempo import smooth_signal, interval_histogram_acf, dominant_interval
+    from .tempo import interval_histogram_acf, dominant_interval
     # smooth activations
     if act_smooth > 1:
         activations = smooth_signal(activations, act_smooth)
@@ -54,7 +57,7 @@ def detect_beats(activations, interval, look_aside=0.2):
     "Enhanced Beat Tracking with Context-Aware Neural Networks"
     Sebastian Böck and Markus Schedl
     Proceedings of the 14th International Conference on Digital Audio
-    Effects (DAFx-11), Paris, France, September 2011
+    Effects (DAFx-11), 2011
 
     Note: A Hamming window of 2*look_aside*interval is applied around the
           position where the beat is expected to prefer beats closer to the
@@ -145,7 +148,7 @@ class RNNBeatTracking(RNNEventDetection):
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx-11), Paris, France, September 2011
+        Effects (DAFx-11), 2011
 
         """
         super(RNNBeatTracking, self).__init__(signal, nn_files, *args,
@@ -352,7 +355,7 @@ class CRFBeatDetection(RNNBeatTracking):
          function"
         Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
         In Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014.
+        Retrieval Conference (ISMIR), 2014.
 
         """
         super(CRFBeatDetection, self).__init__(signal, nn_files, *args,
@@ -576,7 +579,7 @@ class MMBeatTracking(RNNBeatTracking):
          music styles"
         Sebastian Böck, Florian Krebs and Gerhard Widmer
         Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+        Retrieval Conference (ISMIR), 2014
 
         """
         super(MMBeatTracking, self).__init__(data, nn_files, *args, **kwargs)

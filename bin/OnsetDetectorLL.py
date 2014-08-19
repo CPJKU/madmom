@@ -37,7 +37,7 @@ def parser():
     "Online Real-time Onset Detection with Recurrent Neural Networks"
     Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl
     Proceedings of the 15th International Conference on Digital Audio Effects
-    (DAFx-12), York, UK, September 2012
+    (DAFx-12), 2012
 
     The paper includes an error in Section 2.2.1, 2nd paragraph:
     The targets of the training examples have been annotated 1 frame shifted to

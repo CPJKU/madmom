@@ -9,7 +9,8 @@ This file contains tempo related functionality.
 
 import numpy as np
 from scipy.signal import argrelmax
-from . import Activations, RNNEventDetection
+
+from . import Activations, RNNEventDetection, smooth_signal
 from .beats import RNNBeatTracking
 
 
@@ -17,32 +18,6 @@ NO_TEMPO = np.nan
 
 
 # helper functions
-def smooth_signal(signal, smooth):
-    """
-    Smooth the given signal.
-
-    :param signal: signal
-    :param smooth: smoothing kernel [array or int]
-    :return:       smoothed signal
-
-    """
-    # init smoothing kernel
-    kernel = None
-    # size for the smoothing kernel is given
-    if isinstance(smooth, int):
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    # otherwise use the given smoothing kernel directly
-    elif isinstance(smooth, np.ndarray):
-        if len(smooth) > 1:
-            kernel = smooth
-    # check if a kernel is given
-    if kernel is None:
-        raise ValueError('can not smooth signal with %s' % smooth)
-    # convolve with the kernel and return
-    return np.convolve(signal, kernel, 'same')
-
-
 def smooth_histogram(histogram, smooth):
     """
     Smooth the given histogram.

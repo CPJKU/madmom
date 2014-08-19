@@ -8,6 +8,40 @@ vary, but all "lower" level features can be found the `audio` package.
 import numpy as np
 
 
+# helper functions
+def smooth_signal(signal, smooth):
+    """
+    Smooth the given signal.
+
+    :param signal: signal
+    :param smooth: smoothing kernel [numpy array or int]
+    :return:       smoothed signal
+
+    Note: If 'smooth' is an integer, a Hamming window of that length will be
+          used as a smoothing kernel.
+
+    """
+    # return signal if no smoothing is required
+    if not smooth:
+        return signal
+    # init smoothing kernel
+    kernel = None
+    # size for the smoothing kernel is given
+    if isinstance(smooth, int):
+        if smooth > 1:
+            # use a Hamming window of given length
+            kernel = np.hamming(smooth)
+    # otherwise use the given smoothing kernel directly
+    elif isinstance(smooth, np.ndarray):
+        if len(smooth) > 1:
+            kernel = smooth
+    # check if a kernel is given
+    if kernel is None:
+        raise ValueError('can not smooth signal with %s' % smooth)
+    # convolve with the kernel and return
+    return np.convolve(signal, kernel, 'same')
+
+
 class Activations(np.ndarray):
     """
     Activations class.

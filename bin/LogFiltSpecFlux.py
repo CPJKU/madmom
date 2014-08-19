@@ -32,9 +32,9 @@ def parser():
     LogFiltSpecFlux algorithm introduced in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
-    by Sebastian Böck, Florian Krebs and Markus Schedl
-    in Proceedings of the 13th International Society for
-    Music Information Retrieval Conference (ISMIR), 2012
+    Sebastian Böck, Florian Krebs and Markus Schedl
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2012
 
     ''')
     # input/output options
