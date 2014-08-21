@@ -44,8 +44,8 @@ def parser():
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
     SpectralOnsetDetection.add_arguments(p)
-    OnsetDetection.add_arguments(p, threshold=1.1, post_max=0.05,
-                                 post_avg=0, pre_avg=0.15, pre_max=0.01)
+    OnsetDetection.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
+                                 pre_avg=0.15, post_avg=0)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments

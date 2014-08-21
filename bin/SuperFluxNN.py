@@ -36,7 +36,7 @@ def parser():
     Music (MML), 2013.
 
     Please note that this implementation uses 100 frames per second (instead
-    of 200) and uses thus an adapted threshold.
+    of 200), because it is faster and produces highly comparable results.
 
     ''')
     # input/output options
