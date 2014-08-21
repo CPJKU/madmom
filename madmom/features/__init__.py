@@ -119,6 +119,10 @@ class Activations(np.ndarray):
         else:
             # simple text format
             data = np.loadtxt(infile, delimiter=sep)
+        if data.ndim > 1:
+            # flatten the array if it has only 1 real dimension
+            if data.shape[1] == 1:
+                data = data.flatten()
         # instantiate a new object
         return cls(data, fps)
 

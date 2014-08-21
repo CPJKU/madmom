@@ -43,8 +43,10 @@ class RnnlibActivations(np.ndarray):
 
     """
     def __new__(cls, filename, fps=None, labels=None):
-        # read in the file
+        # default is only one label
+        labels = [1]
         label = 0
+        # read in the file
         with open(filename, 'r') as f:
             activations = None
             for line in f:
@@ -638,7 +640,7 @@ class TestThread(Thread):
     work to multiple threads.
 
     """
-    def __init__(self, work_queue, return_queue, verbose=False):
+    def __init__(self, work_queue, return_queue, verbose=2):
         """
         Test a file against multiple neural networks.
 
@@ -983,7 +985,7 @@ class RnnlibConfigFile(object):
         # return the output directory
         return out_dir
 
-    def save_model(self, filename=None, comment=None, npz=False):
+    def save_model(self, filename=None, comment=None, npz=True):
         """
         Save the model to a .h5 file which can be universally used and
         converted to .npz to create a madmom.ml.rnn.RNN instance.

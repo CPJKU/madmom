@@ -636,12 +636,6 @@ class SpectralOnsetDetection(OnsetDetection):
         super(SpectralOnsetDetection, self).__init__(signal, *args, **kwargs)
         self.max_bins = max_bins
 
-    @property
-    def fps(self):
-        """Frames rate."""
-        # get the frame rate from the spectrogram
-        return self._data.frames.fps
-
     def pre_process(self, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE,
                     *args, **kwargs):
         """
@@ -763,39 +757,6 @@ class SpectralOnsetDetection(OnsetDetection):
         self._activations = Activations(act, self._fps)
         return self._activations
 
-    def detect(self, *args, **kwargs):
-        """
-        Perform peak-picking on the onset detection function.
-
-        :param kwargs: parameters passed to peak_picking()
-        :return:       the detected onsets
-
-        If 'peak_picking_method' is set to 'nn', neural network based peak
-        picking is performed, following the method described in:
-
-        "Enhanced peak picking for onset detection with recurrent neural
-         networks"
-        Sebastian Böck, Jan Schlüter and Gerhard Widmer
-        Proceedings of the 6th International Workshop on Machine Learning and
-        Music (MML), 2013.
-
-        """
-        # perform NN peak picking?
-        if kwargs.pop('peak_picking_method', None) == 'nn':
-            # define NN files
-            nn_files = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" %
-                                 MODELS_PATH)
-            if kwargs['online']:
-                nn_files = glob.glob("%s/onsets_rnn_peak_picking_[1-8].npz" %
-                                     MODELS_PATH)
-            # perform NN peak picking and overwrite the activations with the re
-            from ..ml.rnn import process_rnn
-            # compute the RNN predictions
-            self._activations = process_rnn(self.activations, nn_files,
-                                            threads=None)
-        # continue with normal peak picking, pass all parameters as is
-        super(SpectralOnsetDetection, self).detect(*args, **kwargs)
-
     @classmethod
     def add_arguments(cls, parser, method='superflux', methods=None,
                       max_bins=MAX_BINS):
@@ -827,6 +788,89 @@ class SpectralOnsetDetection(OnsetDetection):
                                 '[default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
+
+
+class NNSpectralOnsetDetection(SpectralOnsetDetection):
+    """
+    The NN SpectralOnsetDetection adds a neural network based peak-picking
+    stage to SpectralOnsetDetection.
+
+    """
+    # define NN files
+    NN_FILES = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" % MODELS_PATH)
+    # peak-picking default values
+    THRESHOLD = 0.4
+    SMOOTH = 0.07
+    COMBINE = OnsetDetection.COMBINE
+    DELAY = OnsetDetection.DELAY
+
+    def __init__(self, signal, nn_files=NN_FILES, *args, **kwargs):
+        """
+        Creates a new NNSpectralOnsetDetection instance.
+
+        :param signal:   Signal instance or file name or file handle
+        :param nn_files: neural network files with models for peak-picking
+        :param args:     additional arguments passed to OnsetDetection()
+        :param kwargs:   additional arguments passed to OnsetDetection()
+
+        """
+        super(NNSpectralOnsetDetection, self).__init__(signal, *args, **kwargs)
+        self.nn_files = nn_files
+
+    def detect(self, threshold=THRESHOLD, smooth=SMOOTH, combine=COMBINE,
+               delay=DELAY, online=False):
+        """
+        Perform neural network peak-picking on the onset detection function.
+
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
+        :param online:    use online peak-picking
+        :return:          the detected onsets
+
+        :return:         the detected onsets
+
+        "Enhanced peak picking for onset detection with recurrent neural
+         networks"
+        Sebastian Böck, Jan Schlüter and Gerhard Widmer
+        Proceedings of the 6th International Workshop on Machine Learning and
+        Music (MML), 2013.
+
+        """
+        # perform NN peak picking and overwrite the activations with the
+        # predictions of the NN
+        from ..ml.rnn import process_rnn
+        act = process_rnn(self.activations, self.nn_files, threads=None)
+        self._activations = Activations(act.ravel(), self.fps)
+        # continue with normal peak picking, adjust parameters accordingly
+        spr = super(NNSpectralOnsetDetection, self)
+        spr.detect(threshold, smooth=smooth, pre_avg=0, post_avg=0,
+                   pre_max=1. / self.fps, post_max=1. / self.fps,
+                   combine=combine, delay=delay, online=online)
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
+                      smooth=SMOOTH, combine=COMBINE):
+        """
+        Add RNNOnsetDetection options to an existing parser object.
+        This method just sets standard values. For a detailed parameter
+        description, see the parent classes.
+
+        :param parser:    existing argparse parser object
+        :param nn_files:  list with files of NN models
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one onset within N seconds
+
+        """
+        # add RNNEventDetection arguments
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        # infer the group from OnsetDetection
+        OnsetDetection.add_arguments(parser, threshold=threshold,
+                                     combine=combine, smooth=smooth,
+                                     pre_avg=None, post_avg=None,
+                                     pre_max=None, post_max=None)
 
 
 class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
