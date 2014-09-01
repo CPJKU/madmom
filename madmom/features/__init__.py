@@ -39,7 +39,13 @@ def smooth_signal(signal, smooth):
     if kernel is None:
         raise ValueError('can not smooth signal with %s' % smooth)
     # convolve with the kernel and return
-    return np.convolve(signal, kernel, 'same')
+    if signal.ndim == 1:
+        return np.convolve(signal, kernel, 'same')
+    elif signal.ndim == 2:
+        from scipy.signal import convolve2d
+        return convolve2d(signal, kernel[:, np.newaxis], 'same')
+    else:
+        raise ValueError('signal must be either 1D or 2D')
 
 
 class Activations(np.ndarray):

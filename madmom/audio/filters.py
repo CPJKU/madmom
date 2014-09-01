@@ -1227,10 +1227,6 @@ class CombFilterbank(np.ndarray):
         # return the object
         return obj
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-
     @property
     def data(self):
         """Original non-comb filtered data."""

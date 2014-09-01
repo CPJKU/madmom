@@ -562,7 +562,13 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     if avg_length > 1:
         # TODO: make the averaging function exchangeable (mean/median/etc.)
         avg_origin = int(np.floor((pre_avg - post_avg) / 2))
-        mov_avg = uniform_filter(activations, avg_length, mode='constant',
+        if activations.ndim == 1:
+            filter_size = avg_length
+        elif activations.ndim == 2:
+            filter_size = [avg_length, 1]
+        else:
+            raise ValueError('activations must be either 1D or 2D')
+        mov_avg = uniform_filter(activations, filter_size, mode='constant',
                                  origin=avg_origin)
     else:
         # do not use a moving average
@@ -574,12 +580,23 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     if max_length > 1:
         # compute a moving maximum
         max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = maximum_filter(detections, max_length, mode='constant',
+        if activations.ndim == 1:
+            filter_size = max_length
+        elif activations.ndim == 2:
+            filter_size = [max_length, 1]
+        else:
+            raise ValueError('activations must be either 1D or 2D')
+        mov_max = maximum_filter(detections, filter_size, mode='constant',
                                  origin=max_origin)
         # detections are peak positions
         detections *= (detections == mov_max)
     # return indices
-    return np.nonzero(detections)[0]
+    if activations.ndim == 1:
+        return np.nonzero(detections)[0]
+    elif activations.ndim == 2:
+        return np.nonzero(detections)
+    else:
+        raise ValueError('activations must be either 1D or 2D')
 
 
 def nn_peak_picking(activations, nn_files, threshold, smooth=None,

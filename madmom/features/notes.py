@@ -9,14 +9,11 @@ This file contains note transcription related functionality.
 
 import glob
 import numpy as np
-from scipy.signal import convolve2d
-from scipy.ndimage.filters import uniform_filter, maximum_filter
 
 from .. import MODELS_PATH
 from ..utils import open
-# from ..audio.filters import midi2hz, LogarithmicFilterbank
-
 from . import Activations, RNNEventDetection
+from .onsets import peak_picking
 
 
 def load_notes(filename):
@@ -140,75 +137,6 @@ def load_notes(filename):
 #         return self._onsets
 
 
-# universal peak-picking method
-def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
-                 pre_max=1, post_max=1):
-    """
-    Perform thresholding and peak-picking on the given activation function.
-
-    :param activations: note activations (2D numpy array)
-    :param threshold:   threshold for peak-picking (1D numpy array)
-    :param smooth:      smooth the activation function with the kernel
-                        [default=None]
-    :param pre_avg:     use N frames past information for moving average
-                        [default=0]
-    :param post_avg:    use N frames future information for moving average
-                        [default=0]
-    :param pre_max:     use N frames past information for moving maximum
-                        [default=1]
-    :param post_max:    use N frames future information for moving maximum
-                        [default=1]
-
-    Notes: If no moving average is needed (e.g. the activations are independent
-           of the signal's level as for neural network activations), set
-           `pre_avg` and `post_avg` to 0.
-
-           For offline peak picking set `pre_max` and `post_max` to 1.
-
-           For online peak picking set all `post_` parameters to 0.
-
-    """
-    # TODO: this code is very similar to features.onsets.peak_picking();
-    #       unify these 2 functions!
-    # smooth activations
-    kernel = None
-    if isinstance(smooth, int):
-        # size for the smoothing kernel is given
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    elif isinstance(smooth, np.ndarray):
-        # otherwise use the given smooth kernel directly
-        if smooth.size > 1:
-            kernel = smooth
-    if kernel is not None:
-        # convolve with the kernel
-        activations = convolve2d(activations, kernel[:, np.newaxis], 'same')
-    # threshold activations
-    avg_length = pre_avg + post_avg + 1
-    if avg_length > 1:
-        # compute a moving average
-        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
-        # TODO: make the averaging function exchangeable (mean/median/etc.)
-        mov_avg = uniform_filter(activations, [avg_length, 1], mode='constant',
-                                 origin=avg_origin)
-    else:
-        # do not use a moving average
-        mov_avg = 0
-    # detections are those activations above the moving average + the threshold
-    detections = activations * (activations >= mov_avg + threshold)
-    # peak-picking
-    max_length = pre_max + post_max + 1
-    if max_length > 1:
-        # compute a moving maximum
-        max_origin = int(np.floor((pre_max - post_max) / 2))
-        mov_max = maximum_filter(detections, [max_length, 1], mode='constant',
-                                 origin=max_origin)
-        # detections are peak positions
-        detections *= (detections == mov_max)
-    # return indices
-    return np.nonzero(detections)
-
-
 class NoteTranscription(RNNEventDetection):
     """
     NoteTranscription class.
@@ -280,7 +208,9 @@ class NoteTranscription(RNNEventDetection):
         :return:          detected notes
 
         """
-        # detect onsets
+        # convert timing information to frames
+        smooth = int(round(self.fps * smooth))
+        # detect notes
         detections = peak_picking(self.activations, threshold, smooth)
         # convert to seconds / MIDI note numbers
         onsets = detections[0].astype(np.float) / self.fps
