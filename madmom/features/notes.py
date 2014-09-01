@@ -137,9 +137,9 @@ def load_notes(filename):
 #         return self._onsets
 
 
-class NoteTranscription(RNNEventDetection):
+class RNNNoteTranscription(RNNEventDetection):
     """
-    NoteTranscription class.
+    Note transcription with RNNs.
 
     """
     # define NN files
@@ -176,7 +176,7 @@ class NoteTranscription(RNNEventDetection):
         :return: pre-processed data
 
         """
-        spr = super(NoteTranscription, self)
+        spr = super(RNNNoteTranscription, self)
         spr.pre_process(frame_sizes=[1024, 2048, 4096], bands_per_octave=12,
                         mul=5, ratio=0.5)
         # return data
@@ -186,11 +186,11 @@ class NoteTranscription(RNNEventDetection):
         """
         Test the data with the defined RNNs.
 
-        :return: activations
+        :return: note activations
 
         """
         # process the data
-        super(NoteTranscription, self).process()
+        super(RNNNoteTranscription, self).process()
         # reshape the activations
         self._activations = self._activations.reshape(-1, 88)
         # and return them
@@ -309,7 +309,7 @@ class NoteTranscription(RNNEventDetection):
         # return the argument group so it can be modified if needed
         return g
 
-#
+
 # def parser():
 #     """
 #     Command line argument parser for note transcription.
