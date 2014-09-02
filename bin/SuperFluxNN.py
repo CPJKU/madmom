@@ -13,7 +13,8 @@ import madmom.utils
 from madmom.audio.signal import Signal, FramedSignal
 from madmom.audio.filters import Filterbank
 from madmom.audio.spectrogram import LogFiltSpec
-from madmom.features.onsets import NNSpectralOnsetDetection
+from madmom.features.onsets import (NNSpectralOnsetDetection,
+                                    SpectralOnsetDetection)
 
 
 def parser():
@@ -46,6 +47,7 @@ def parser():
     FramedSignal.add_arguments(p, fps=100, online=False)
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
+    SpectralOnsetDetection.add_arguments(p)
     NNSpectralOnsetDetection.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFluxNN')
