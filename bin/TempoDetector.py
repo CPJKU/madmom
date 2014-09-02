@@ -7,8 +7,12 @@ Redistribution in any form is not permitted!
 
 """
 
-from madmom.audio.signal import Signal
-from madmom.features.tempo import TempoEstimation
+import warnings
+with warnings.catch_warnings():
+    # import in this block to avoid warnings about missing compiled modules
+    warnings.filterwarnings("ignore")
+    from madmom.audio.signal import Signal
+    from madmom.features.tempo import TempoEstimation
 
 
 def parser():
@@ -26,6 +30,15 @@ def parser():
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects the dominant tempi
     in the given input (file) and writes them to the output (file).
+
+    The tempo is inferred with comb filters from the beat activations produced
+    by the algorithm described in:
+
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio Effects
+    (DAFx-11), 2011.
+
     ''')
     # input/output options
     madmom.utils.io_arguments(p)
@@ -56,7 +69,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        t = TempoEstimation.from_activations(args.input, sep=args.sep)
+        t = TempoEstimation.from_activations(args.input, fps=100, sep=args.sep)
     else:
         # exit if no NN files are given
         if not args.nn_files:

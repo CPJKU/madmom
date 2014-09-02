@@ -25,14 +25,21 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all beats in the
-    given input (file) and writes them to the output (file).
+    given input (file) and writes them to the output (file). The algorithm
+    assumes a constant tempo throughout the whole piece.
+
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio Effects
+    (DAFx-11), 2011.
+
     ''')
 
     # input/output options
     madmom.utils.io_arguments(p)
     # signal arguments
     Signal.add_arguments(p, norm=False)
-    # rnn onset detection arguments
+    # beat tracking arguments
     RNNBeatTracking.add_arguments(p, look_ahead=None)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2013')

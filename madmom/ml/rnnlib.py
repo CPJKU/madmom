@@ -43,8 +43,10 @@ class RnnlibActivations(np.ndarray):
 
     """
     def __new__(cls, filename, fps=None, labels=None):
-        # read in the file
+        # default is only one label
+        labels = [1]
         label = 0
+        # read in the file
         with open(filename, 'r') as f:
             activations = None
             for line in f:
@@ -638,7 +640,7 @@ class TestThread(Thread):
     work to multiple threads.
 
     """
-    def __init__(self, work_queue, return_queue, verbose=False):
+    def __init__(self, work_queue, return_queue, verbose=2):
         """
         Test a file against multiple neural networks.
 
@@ -983,7 +985,7 @@ class RnnlibConfigFile(object):
         # return the output directory
         return out_dir
 
-    def save_model(self, filename=None, comment=None, npz=False):
+    def save_model(self, filename=None, comment=None, npz=True):
         """
         Save the model to a .h5 file which can be universally used and
         converted to .npz to create a madmom.ml.rnn.RNN instance.
@@ -1226,6 +1228,7 @@ def parser():
 
     """
     import argparse
+    from ..utils import OverrideDefaultListAction
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -1249,11 +1252,12 @@ def parser():
                         '%(default)s]')
     # .nc file creation options
     g = p.add_argument_group('arguments for .nc file creation')
-    g.add_argument('-a', dest='annotations',
+    g.add_argument('-a', dest='annotations', action=OverrideDefaultListAction,
                    default=['.onsets', '.beats', '.notes'],
                    help='annotations to use [default=%(default)s]')
-    g.add_argument('--spec', dest='specs', default=None, type=int,
-                   action='append', help='spectrogram size(s) to use')
+    g.add_argument('--spec', dest='specs', default=[1024, 2048, 4096],
+                   type=int, action=OverrideDefaultListAction,
+                   help='spectrogram size(s) to use')
     g.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
     g.add_argument('--shift', default=None, type=float,
@@ -1293,9 +1297,6 @@ def parser():
     Spectrogram.add_arguments(p, log=True, mul=5, add=1)
     # parse arguments
     args = p.parse_args()
-    # add defaults
-    if args.specs is None:
-        args.specs = [1024, 2048, 4096]
     # translate online/offline mode
     if args.online:
         args.origin = 'online'
@@ -1368,6 +1369,11 @@ def main():
                 nc_data = np.hstack((s.spec, s.pos_diff))
             else:
                 nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
+            # for creation of SuperFlux .nc files:
+            # from ..features.onsets import SpectralOnsetDetection as sodf
+            # nc_data = sodf.from_data(s, fps=args.fps).superflux()
+            # nc_data = np.atleast_2d(nc_data).T
+
         # targets
         if f.endswith('.notes'):
             # load notes

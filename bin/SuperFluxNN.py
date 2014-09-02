@@ -13,7 +13,8 @@ import madmom.utils
 from madmom.audio.signal import Signal, FramedSignal
 from madmom.audio.filters import Filterbank
 from madmom.audio.spectrogram import LogFiltSpec
-from madmom.features.onsets import SpectralOnsetDetection, OnsetDetection
+from madmom.features.onsets import (NNSpectralOnsetDetection,
+                                    SpectralOnsetDetection)
 
 
 def parser():
@@ -27,27 +28,29 @@ def parser():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all onsets in the
-    given input file and writes them to the output file with the SuperFlux
-    algorithm introduced in:
+    given input file and writes them to the output file with the algorithm
+    introduced in:
 
-    "Maximum Filter Vibrato Suppression for Onset Detection"
-    Sebastian Böck and Gerhard Widmer
-    Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx-13), 2013.
+    "Enhanced peak picking for onset detection with recurrent neural networks"
+    Sebastian Böck, Jan Schlüter and Gerhard Widmer
+    Proceedings of the 6th International Workshop on Machine Learning and
+    Music (MML), 2013.
+
+    Please note that this implementation uses 100 frames per second (instead
+    of 200), because it is faster and produces highly comparable results.
 
     ''')
     # input/output options
     madmom.utils.io_arguments(p)
     # add other argument groups
     Signal.add_arguments(p)
-    FramedSignal.add_arguments(p, fps=200, online=False)
+    FramedSignal.add_arguments(p, fps=100, online=False)
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
     SpectralOnsetDetection.add_arguments(p)
-    OnsetDetection.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
-                                 pre_avg=0.15, post_avg=0)
+    NNSpectralOnsetDetection.add_arguments(p)
     # version
-    p.add_argument('--version', action='version', version='SuperFlux.2014')
+    p.add_argument('--version', action='version', version='SuperFluxNN')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -56,8 +59,7 @@ def parser():
     # translate online/offline mode
     if args.online:
         args.origin = 'online'
-        args.post_max = 0
-        args.post_avg = 0
+        args.smooth = 0
     else:
         args.origin = 'offline'
     # print arguments
@@ -68,7 +70,7 @@ def parser():
 
 
 def main():
-    """SuperFlux.2014"""
+    """SuperFluxNN"""
 
     # parse arguments
     args = parser()
@@ -76,8 +78,7 @@ def main():
     # load or create onset activations
     if args.load:
         # instantiate OnsetDetection object from activations
-        o = SpectralOnsetDetection.from_activations(args.input, fps=args.fps,
-                                                    sep=args.sep)
+        o = NNSpectralOnsetDetection.from_activations(args.input, sep=args.sep)
     else:
         # create a logarithmically filtered Spectrogram object
         s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
@@ -87,7 +88,7 @@ def main():
                         add=args.add, norm_filters=args.norm_filters,
                         ratio=args.ratio, diff_frames=args.diff_frames)
         # create a SpectralOnsetDetection detection object
-        o = SpectralOnsetDetection.from_data(s, fps=args.fps)
+        o = NNSpectralOnsetDetection.from_data(s, fps=args.fps)
         o.max_bins = args.max_bins
         # process with the detection function
         o.superflux()
@@ -99,9 +100,7 @@ def main():
     else:
         # detect the onsets
         o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=args.smooth, pre_avg=args.pre_avg,
-                 post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max, online=args.online)
+                 smooth=args.smooth, online=args.online)
         # write the onsets to output
         o.write(args.output)
 

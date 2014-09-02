@@ -32,7 +32,7 @@ def parser():
      styles"
     Sebastian Böck, Florian Krebs and Gerhard Widmer
     Proceedings of the 15th International Society for Music Information
-    Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+    Retrieval Conference (ISMIR 2014), 2014.
 
     ''')
 

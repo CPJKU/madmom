@@ -32,9 +32,9 @@ def parser():
     LogFiltSpecFlux algorithm introduced in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
-    by Sebastian Böck, Florian Krebs and Markus Schedl
-    in Proceedings of the 13th International Society for
-    Music Information Retrieval Conference (ISMIR), 2012
+    Sebastian Böck, Florian Krebs and Markus Schedl
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2012.
 
     ''')
     # input/output options
@@ -84,7 +84,8 @@ def main():
                         frame_size=args.frame_size, origin=args.origin,
                         fps=args.fps,  bands_per_octave=args.bands,
                         fmin=args.fmin, fmax=args.fmax, mul=args.mul,
-                        add=args.add, norm_filters=args.norm_filters)
+                        add=args.add, norm_filters=args.norm_filters,
+                        ratio=args.ratio, diff_frames=args.diff_frames)
         # create a SpectralOnsetDetection detection object
         o = SpectralOnsetDetection.from_data(s, fps=args.fps)
         # process with the detection function

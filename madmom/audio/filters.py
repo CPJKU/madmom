@@ -304,7 +304,7 @@ class Filter(np.ndarray):
         """
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
-            # cast as Filterbank
+            # cast as Filter
             obj = np.asarray(data).view(cls)
         else:
             raise TypeError('wrong input data for Filter, must be np.ndarray')
@@ -1226,10 +1226,6 @@ class CombFilterbank(np.ndarray):
         obj._alpha = alpha
         # return the object
         return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
 
     @property
     def data(self):

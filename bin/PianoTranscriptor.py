@@ -8,7 +8,7 @@ Redistribution in any form is not permitted!
 """
 
 from madmom.audio.signal import Signal
-from madmom.features.notes import NoteTranscription
+from madmom.features.notes import RNNNoteTranscription
 import madmom.utils.midi as midi
 
 
@@ -33,7 +33,7 @@ def parser():
     # signal arguments
     Signal.add_arguments(p, norm=False)
     # rnn note transcription arguments
-    NoteTranscription.add_arguments(p)
+    RNNNoteTranscription.add_arguments(p)
     # midi arguments
     midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
     # version
@@ -57,7 +57,7 @@ def main():
     # load or create onset activations
     if args.load:
         # load activations
-        n = NoteTranscription.from_activations(args.input, fps=100)
+        n = RNNNoteTranscription.from_activations(args.input, fps=100)
     else:
         # exit if no NN files are given
         if not args.nn_files:
@@ -66,8 +66,8 @@ def main():
         # create a Signal object
         s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
         # create a RNNBeatDetection object from the signal and given NN files
-        n = NoteTranscription(s, nn_files=args.nn_files,
-                              num_threads=args.num_threads)
+        n = RNNNoteTranscription(s, nn_files=args.nn_files,
+                                 num_threads=args.num_threads)
 
     # save note activations or detect the notes
     if args.save:

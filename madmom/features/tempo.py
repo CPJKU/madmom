@@ -9,7 +9,8 @@ This file contains tempo related functionality.
 
 import numpy as np
 from scipy.signal import argrelmax
-from . import Activations, RNNEventDetection
+
+from . import Activations, RNNEventDetection, smooth_signal
 from .beats import RNNBeatTracking
 
 
@@ -17,32 +18,6 @@ NO_TEMPO = np.nan
 
 
 # helper functions
-def smooth_signal(signal, smooth):
-    """
-    Smooth the given signal.
-
-    :param signal: signal
-    :param smooth: smoothing kernel [array or int]
-    :return:       smoothed signal
-
-    """
-    # init smoothing kernel
-    kernel = None
-    # size for the smoothing kernel is given
-    if isinstance(smooth, int):
-        if smooth > 1:
-            kernel = np.hamming(smooth)
-    # otherwise use the given smoothing kernel directly
-    elif isinstance(smooth, np.ndarray):
-        if len(smooth) > 1:
-            kernel = smooth
-    # check if a kernel is given
-    if kernel is None:
-        raise ValueError('can not smooth signal with %s' % smooth)
-    # convolve with the kernel and return
-    return np.convolve(signal, kernel, 'same')
-
-
 def smooth_histogram(histogram, smooth):
     """
     Smooth the given histogram.
@@ -206,14 +181,14 @@ def detect_tempo(histogram, fps, grouping_dev=0):
 
 class TempoEstimation(RNNBeatTracking):
     """
-    Tempo Class.
+    Tempo Estimation class.
 
     """
     # default values for tempo estimation
     METHOD = 'comb'
-    MIN_BPM = 39
-    MAX_BPM = 245
-    HIST_SMOOTH = 5
+    MIN_BPM = 40
+    MAX_BPM = 250
+    HIST_SMOOTH = 7
     ACT_SMOOTH = 0.14
     GROUPING_DEV = 0
     ALPHA = 0.79
@@ -235,7 +210,7 @@ class TempoEstimation(RNNBeatTracking):
                              relative strength of them
 
         Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-              The deviation is allowed delta in the log2 / log3 space.
+              The deviation is the allowed delta in the log2 / log3 space.
 
         """
         # convert the arguments to frames
@@ -250,9 +225,11 @@ class TempoEstimation(RNNBeatTracking):
         # generate a histogram of beat intervals
         if method == 'acf':
             histogram = interval_histogram_acf(activations, min_tau, max_tau)
-        else:
+        elif method == 'comb':
             histogram = interval_histogram_comb(activations, alpha, min_tau,
                                                 max_tau)
+        else:
+            raise ValueError('tempo estimation method unknown')
         # smooth the histogram
         if hist_smooth > 1:
             histogram = smooth_histogram(histogram, hist_smooth)

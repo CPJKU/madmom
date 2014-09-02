@@ -1,19 +1,51 @@
-# always include those files
+# always include these files
 include README
 include LICENSE
 include requirements.txt
+
+# include these modules
+include madmom/__init__.py
+
+include madmom/audio/__init__.py
+include madmom/audio/io.py
+include madmom/audio/wav.py
+include madmom/audio/signal.py
+include madmom/audio/filters.py
+include madmom/audio/spectrogram.py
+include madmom/audio/comb_filters.pyx
+
+include madmom/features/__init__.py
+include madmom/features/onsets.py
+include madmom/features/onsets.py
+include madmom/features/beats.py
+include madmom/features/notes.py
+include madmom/features/tempo.py
+include madmom/features/dbn.pyx
+include madmom/features/viterbi.pyx
+
+include madmom/ml/__init__.py
+include madmom/ml/rnn.py
+include madmom/ml/rnn.pxd
+
+include madmom/utils/__init__.py
+include madmom/utils/midi.py
+
+include madmom/evaluation/__init__.py
+include madmom/evaluation/onsets.py
+include madmom/evaluation/beats.py
+include madmom/evaluation/notes.py
+include madmom/evaluation/tempo.py
+
+# include models
+include madmom/models/*
+
+# include scripts
+include bin/*
+
 # never include these files
 global-exclude *.pyc
 global-exclude .DS_Store
 global-exclude .ipynb
-# add the main package
-recursive-include madmom *
-recursive-include bin *
-# exclude stuff not ready or thoroughly tested
-exclude madmom/audio/ffmpeg.py
-exclude madmom/evaluation/scorefollowing.py
-exclude madmom/evaluation/notes.py
-exclude madmom/utils/overparams.py
-exclude madmom/utils/stats.py
+
 # never include tests
 prune madmom/test

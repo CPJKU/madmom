@@ -244,19 +244,21 @@ class RecurrentLayer(FeedForwardLayer):
         # if we don't have recurrent weights, we don't have to loop
         if self.recurrent_weights is None:
             return super(RecurrentLayer, self).activate(data)
-
         size = data.shape[0]
-        out = np.zeros((size, self.bias.size), dtype=np.float32)
-        tmp = np.zeros(self.bias.size, dtype=np.float32)
-        # weight the data, add the bias
-        np.dot(data, self.weights, out=out)
+        # FIXME: although everything seems to be ok, np.dot doesn't accept the
+        #        format of the output array. Speed is almost the same, though.
+        # out = np.zeros((size, len(self.bias)), dtype=np.float32)
+        # tmp = np.zeros(len(self.bias), dtype=np.float32)
+        # np.dot(data, self.weights, out=out)
+        out = np.dot(data, self.weights)
         out += self.bias
         # loop through each time step
         for i in xrange(size):
             # add the weighted previous step
             if i >= 1:
-                np.dot(out[i - 1], self.recurrent_weights, out=tmp)
-                out[i] += tmp
+                # np.dot(out[i - 1], self.recurrent_weights, out=tmp)
+                # out[i] += tmp
+                out[i] += np.dot(out[i - 1], self.recurrent_weights)
             # apply transfer function
             self.transfer_fn(out[i], out=out[i])
         # return
@@ -548,6 +550,9 @@ class RecurrentNeuralNetwork(object):
         :return:     network activations for this data
 
         """
+        # check the dimensions of the data
+        if data.ndim == 1:
+            data = np.atleast_2d(data).T
         # loop over all layers
         # feed the output of one layer as input to the next one
         for layer in self.layers:
