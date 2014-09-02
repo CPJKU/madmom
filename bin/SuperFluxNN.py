@@ -57,8 +57,7 @@ def parser():
     # translate online/offline mode
     if args.online:
         args.origin = 'online'
-        args.post_max = 0
-        args.post_avg = 0
+        args.smooth = 0
     else:
         args.origin = 'offline'
     # print arguments
