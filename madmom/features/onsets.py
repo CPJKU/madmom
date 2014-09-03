@@ -42,7 +42,7 @@ def diff(spec, diff_frames=1, pos=False):
     """
     # init the matrix with 0s, the first N rows are 0 then
     # TODO: under some circumstances it might be helpful to init with the spec
-    # or use the frame at "real" index -N to calculate the diff to
+    #       or use the frame at "real" index -N to calculate the diff to
     diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
         raise ValueError("number of diff_frames must be >= 1")
@@ -150,9 +150,33 @@ def spectral_flux(spec, diff_frames=1):
     return np.sum(diff(spec, diff_frames=diff_frames, pos=True), axis=1)
 
 
+def _superflux_diff_spec(spec, diff_frames=1, max_bins=3):
+    """
+    Internal function to calculate the difference spec used for SuperFlux
+
+    :param spec:        the magnitude spectrogram
+    :param diff_frames: calculate the difference to the N-th previous frame
+    :param max_bins:    number of neighboring bins used for maximum filtering
+    :return:            difference spectrogram used for SuperFlux
+
+    """
+    # init diff matrix
+    diff_spec = np.zeros_like(spec)
+    if diff_frames < 1:
+        raise ValueError("number of diff_frames must be >= 1")
+    # widen the spectrogram in frequency dimension by `max_bins`
+    max_spec = maximum_filter(spec, size=[1, max_bins])
+    # calculate the diff
+    diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
+    # keep only positive values
+    np.maximum(diff_spec, 0, diff_spec)
+    # return diff spec
+    return diff_spec
+
+
 def superflux(spec, diff_frames=1, max_bins=3):
     """
-    SuperFlux with a maximum peak-tracking stage for difference calculation.
+    SuperFlux method with a maximum filter vibrato suppression stage.
 
     Calculates the difference of bin k of the magnitude spectrogram relative to
     the N-th previous frame with the maximum filtered spectrogram.
@@ -175,17 +199,103 @@ def superflux(spec, diff_frames=1, max_bins=3):
           the difference.
 
     """
-    # init diff matrix
-    diff_spec = np.zeros_like(spec)
-    if diff_frames < 1:
-        raise ValueError("number of diff_frames must be >= 1")
-    # widen the spectrogram in frequency dimension by `max_bins`
-    max_spec = maximum_filter(spec, size=[1, max_bins])
-    # calculate the diff
-    diff_spec[diff_frames:] = spec[diff_frames:] - max_spec[0:-diff_frames]
-    # keep only positive values
-    np.maximum(diff_spec, 0, diff_spec)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
+    return np.sum(_superflux_diff_spec(spec, diff_frames, max_bins), axis=1)
+
+
+def lgd_mask(spec, lgd, filterbank=None, temporal_filter=0, temporal_origin=0):
+    """
+    Calculates a weighting mask for the magnitude spectrogram based on the
+    local group delay.
+
+    :param spec:            the magnitude spectrogram
+    :param lgd:             local group delay of the spectrogram
+    :param filterbank:      filterbank used for dimensionality reduction of
+                            the magnitude spectrogram
+    :param temporal_filter: temporal maximum filtering of the local group delay
+    :param temporal_origin: origin of the temporal maximum filter
+
+    "Local group delay based vibrato and tremolo suppression for onset
+     detection"
+    Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2013.
+
+    """
+    from scipy.ndimage import maximum_filter, minimum_filter
+    # take only absolute values of the local group delay
+    np.abs(lgd, out=lgd)
+
+    # maximum filter along the temporal axis
+    # TODO: use HPSS instead of simple temporal filtering
+    if temporal_filter > 0:
+        lgd = maximum_filter(lgd, size=[temporal_filter, 1],
+                             origin=temporal_origin)
+    # lgd = uniform_filter(lgd, size=[1, 3])  # better for percussive onsets
+
+    # create the weighting mask
+    if filterbank is not None:
+        # if the magnitude spectrogram was filtered, use the minimum local
+        # group delay value of each filterbank (expanded by one frequency
+        # bin in both directions) as the mask
+        mask = np.zeros_like(spec)
+        num_bins = lgd.shape[1]
+        for b in range(mask.shape[1]):
+            # determine the corner bins for the mask
+            corner_bins = np.nonzero(filterbank[:, b])[0]
+            # always expand to the next neighbour
+            start_bin = corner_bins[0] - 1
+            stop_bin = corner_bins[-1] + 2
+            # constrain the range
+            if start_bin < 0:
+                start_bin = 0
+            if stop_bin > num_bins:
+                stop_bin = num_bins
+            # set mask
+            mask[:, b] = np.amin(lgd[:, start_bin: stop_bin], axis=1)
+    else:
+        # if the spectrogram is not filtered, use a simple minimum filter
+        # covering only the current bin and its neighbours
+        mask = minimum_filter(lgd, size=[1, 3])
+    # return the normalised mask
+    return mask / np.pi
+
+
+def complex_flux(spec, lgd, filterbank=None, diff_frames=1, max_bins=3,
+                 temporal_filter=3, temporal_origin=0):
+    """
+    Complex Flux with a local group delay based tremolo suppression.
+
+    Calculates the difference of bin k of the magnitude spectrogram relative
+    to the N-th previous frame of the (maximum filtered) spectrogram.
+
+    :param spec:            the magnitude spectrogram
+    :param lgd:             local group delay of the spectrogram
+    :param filterbank:      filterbank for dimensionality reduction of the spec
+    :param diff_frames:     calculate the difference to the N-th previous frame
+    :param max_bins:        number of neighbour bins used for maximum filtering
+    :param temporal_filter: temporal maximum filtering of the local group delay
+    :param temporal_origin: origin of the temporal maximum filter
+    :return:                complex flux onset detection function
+
+    "Local group delay based vibrato and tremolo suppression for onset
+     detection"
+    Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2013.
+
+    Note: If `max_bins` is set to any value > 1, the SuperFlux method is used
+          to compute the differences of the magnitude spectrogram, otherwise
+          the normal spectral flux is used.
+
+    """
+    # compute the difference spectrogram as in the SuperFlux algorithm
+    diff_spec = _superflux_diff_spec(spec, diff_frames, max_bins)
+    # create a mask based on the local group delay information
+    mask = lgd_mask(spec, lgd, filterbank, temporal_filter, temporal_origin)
+    # weight the differences with the mask
+    diff_spec *= mask
+    # sum all positive 1st order max. filtered and weighted differences
     return np.sum(diff_spec, axis=1)
 
 
@@ -697,8 +807,8 @@ class SpectralOnsetDetection(OnsetDetection):
         # return the activations
         return self._activations
 
-    # FIXME: do use s.spec and s.diff directly instead of passing the number of
-    # diff_frames to all these functions?
+    # FIXME: do use s.spec and s.num_diff_frames directly instead of passing
+    #        the number of diff_frames to all these functions?
 
     # Onset Detection Functions
     def hfc(self):
@@ -727,6 +837,28 @@ class SpectralOnsetDetection(OnsetDetection):
         # compute and return the activations
         act = superflux(self.data.spec, self.data.num_diff_frames,
                         self.max_bins)
+        self._activations = Activations(act, self._fps)
+        return self._activations
+
+    def complex_flux(self, temporal_filter=3, temporal_origin=0):
+        """
+        Complex flux is basically the spectral flux / SuperFlux with an
+        additional local group delay based tremolo suppression.
+
+        :param temporal_filter: size of the temporal maximum filtering of the
+                                local group delay [frames]
+        :param temporal_origin: origin of the temporal maximum filter
+        :return:                ComplexFlux onset detection function
+
+        """
+        # compute and return the activations
+        act = complex_flux(spec=self.data.spec,
+                           lgd=np.abs(self.data.lgd),
+                           filterbank=self.data.filterbank,
+                           diff_frames=self.data.num_diff_frames,
+                           max_bins=self.max_bins,
+                           temporal_filter=temporal_filter,
+                           temporal_origin=temporal_origin)
         self._activations = Activations(act, self._fps)
         return self._activations
 
