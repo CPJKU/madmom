@@ -379,7 +379,7 @@ def weighted_phase_deviation(spec, phase):
     """
     # make sure the spectrogram is not filtered before
     if np.shape(phase) != np.shape(spec):
-        raise ValueError("Magn. spectrogram and phase must be of same shape")
+        raise ValueError('spectrogram and phase must be of same shape')
     # weighted_phase_deviation = spec * phase_deviation
     return np.mean(np.abs(_phase_deviation(phase) * spec), axis=1)
 
@@ -424,7 +424,7 @@ def _complex_domain(spec, phase):
 
     """
     if np.shape(phase) != np.shape(spec):
-        raise ValueError("Magn. spectrogram and phase must be of same shape")
+        raise ValueError('spectrogram and phase must be of same shape')
     # expected spectrogram
     cd_target = np.zeros_like(phase)
     # assume constant phase change
