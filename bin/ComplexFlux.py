@@ -45,10 +45,11 @@ def parser():
     Filterbank.add_arguments(p, bands=24, norm_filters=False)
     LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
     g = SpectralOnsetDetection.add_arguments(p)
-    g.add_argument('--temporal_filter', action='store', type=int, default=3,
-                   help='use temporal maximum filtering over N frames '
-                        '[default=%(default)d]')
-    OnsetDetection.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
+    g.add_argument('--temporal_filter', action='store', type=float,
+                   default=SpectralOnsetDetection.TEMPORAL_FILTER,
+                   help='use temporal maximum filtering over N seconds '
+                        '[default=%(default).3f]')
+    OnsetDetection.add_arguments(p, threshold=0.25, pre_max=0.01, post_max=0.05,
                                  pre_avg=0.15, post_avg=0)
     # version
     p.add_argument('--version', action='version', version='ComplexFlux')

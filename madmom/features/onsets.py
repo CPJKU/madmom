@@ -749,6 +749,8 @@ class SpectralOnsetDetection(OnsetDetection):
     FPS = 200
     ONLINE = False
     MAX_BINS = 3
+    TEMPORAL_FILTER = 0.015
+    TEMPORAL_ORIGIN = 0
 
     def __init__(self, signal, max_bins=MAX_BINS, *args, **kwargs):
         """
@@ -840,17 +842,22 @@ class SpectralOnsetDetection(OnsetDetection):
         self._activations = Activations(act, self._fps)
         return self._activations
 
-    def complex_flux(self, temporal_filter=3, temporal_origin=0):
+    def complex_flux(self, temporal_filter=TEMPORAL_FILTER,
+                     temporal_origin=TEMPORAL_ORIGIN):
         """
         Complex flux is basically the spectral flux / SuperFlux with an
         additional local group delay based tremolo suppression.
 
         :param temporal_filter: size of the temporal maximum filtering of the
-                                local group delay [frames]
-        :param temporal_origin: origin of the temporal maximum filter
+                                local group delay [seconds]
+        :param temporal_origin: origin shift of the temporal maximum filter
+                                [seconds]
         :return:                ComplexFlux onset detection function
 
         """
+        # convert timing information to frames
+        temporal_filter = int(round(self.fps * temporal_filter))
+        temporal_origin = int(round(self.fps * temporal_origin))
         # compute and return the activations
         act = complex_flux(spec=self.data.spec,
                            lgd=np.abs(self.data.lgd),
