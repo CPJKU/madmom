@@ -49,8 +49,8 @@ def parser():
                    default=SpectralOnsetDetection.TEMPORAL_FILTER,
                    help='use temporal maximum filtering over N seconds '
                         '[default=%(default).3f]')
-    OnsetDetection.add_arguments(p, threshold=0.25, pre_max=0.01, post_max=0.05,
-                                 pre_avg=0.15, post_avg=0)
+    OnsetDetection.add_arguments(p, threshold=0.25, pre_max=0.01,
+                                 post_max=0.05, pre_avg=0.15, post_avg=0)
     # version
     p.add_argument('--version', action='version', version='ComplexFlux')
     # parse arguments
