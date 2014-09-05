@@ -10,14 +10,11 @@ import glob
 import sys
 import numpy as np
 
-from madmom import MODELS_PATH
-from . import Activations, RNNEventDetection
+from .. import MODELS_PATH
+from . import Activations, RNNEventDetection, smooth_signal
 
 
 # wrapper function for detecting the dominant interval
-from madmom.features import smooth_signal
-
-
 def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
                              min_tau=1, max_tau=None):
     """
