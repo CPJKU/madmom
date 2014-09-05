@@ -329,7 +329,7 @@ class CRFBeatDetection(RNNBeatTracking):
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
     try:
-        from viterbi import crf_viterbi
+        from .viterbi import crf_viterbi
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
@@ -549,9 +549,9 @@ class MMBeatTracking(RNNBeatTracking):
     MAX_BPM = 220
 
     try:
-        from dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
-                         BeatTrackingTransitionModel as TM,
-                         NNBeatTrackingObservationModel as OM)
+        from .dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
+                          BeatTrackingTransitionModel as TM,
+                          NNBeatTrackingObservationModel as OM)
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the dbn '
