@@ -10,8 +10,8 @@ This file contains test functions for the madmom.utils.helpers module.
 import unittest
 import __builtin__
 
-from madmom.test import DATA_PATH
-from madmom.utils import *
+from ..test import DATA_PATH
+from ..utils import *
 
 
 ANNOTATIONS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
