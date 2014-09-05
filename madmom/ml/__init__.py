@@ -3,4 +3,4 @@
 Machine learning package.
 
 """
-import rnn
+from . import rnn

@@ -5,7 +5,4 @@ The definition of "lower" may vary, but all "higher" level features
 (e.g. beats, onsets, etc.) can be found in the `features` package.
 
 """
-import signal
-import wav
-import spectrogram
-import filters
+from . import signal, wav, spectrogram, filters
