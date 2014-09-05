@@ -995,7 +995,7 @@ class RnnlibConfigFile(object):
         :param npz:      also convert to .npz format
 
         Note: If no filename is given, the filename of the .save file is used
-              and the extension is set to .h5 or .npz repectively.
+              and the extension is set to .h5 or .npz respectively.
 
         """
         import h5py
@@ -1181,7 +1181,7 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
         # use the splitting as is
         splits = splitting
     if isinstance(splitting, list):
-        from madmom.utils import match_file
+        from ..utils import match_file
         for fold, split_file in enumerate(splitting):
             with open(split_file, 'rb') as split:
                 splits[fold] = []
@@ -1377,7 +1377,7 @@ def main():
         # targets
         if f.endswith('.notes'):
             # load notes
-            from madmom.features.notes import load_notes
+            from ..features.notes import load_notes
             notes = load_notes(f)
             # shift the notes if needed
             if args.shift:
