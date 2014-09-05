@@ -9,8 +9,8 @@ This file contains onset evaluation tests.
 
 import unittest
 
-from ..evaluation import *
-from ..evaluation.onsets import *
+from madmom.evaluation import SimpleEvaluation
+from madmom.evaluation.onsets import *
 
 DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
                          3.030000001])

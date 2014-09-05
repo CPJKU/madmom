@@ -9,7 +9,7 @@ This file contains beat evaluation tests.
 
 import unittest
 
-from ..evaluation.beats import *
+from madmom.evaluation.beats import *
 
 ANNOTATIONS = np.asarray([1., 2, 3, 4, 5, 6, 7, 8, 9, 10])
 DOUBLE_ANNOTATIONS = np.asarray([1., 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6,

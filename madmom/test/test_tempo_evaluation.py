@@ -10,8 +10,8 @@ This file contains tempo evaluation tests.
 import unittest
 import __builtin__
 
-from ..evaluation.tempo import *
-from ..test import DATA_PATH
+from madmom.evaluation.tempo import *
+from . import DATA_PATH
 
 TEMPI = np.asarray([120.1, 59])
 STRENGTHS = np.asarray([0.6, 0.4])

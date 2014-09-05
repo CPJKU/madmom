@@ -9,7 +9,7 @@ This file contains evaluation tests.
 
 import unittest
 
-from ..evaluation import *
+from madmom.evaluation import *
 
 
 DETECTIONS = np.asarray([0.99, 1.45, 2.01, 2.015, 3.1, 8.1])
