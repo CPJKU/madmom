@@ -38,7 +38,7 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # current viterbi variables
     cdef float [::1] v_c = np.empty(num_st, dtype=np.float32)
-    # previous viterbi variables. will be initialised with prior (first beat)
+    # previous viterbi variables. will be initialized with prior (first beat)
     cdef float [::1] v_p = np.empty(num_st, dtype=np.float32)
     # back-tracking pointers;
     cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=np.int)

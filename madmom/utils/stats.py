@@ -21,7 +21,7 @@ class TanhProb(object):
 
     def __init__(self, i, phi, lmbda):
         """
-        Initialises the parameters of the PDF.
+        Initializes the parameters of the PDF.
 
         :param i:     defines the transition point between the shelves
         :param phi:   defines the steepness of the transition (the smaller, the
