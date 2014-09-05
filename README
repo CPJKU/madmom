@@ -29,7 +29,10 @@ python setup.py build
 python setup.py install
 
 You might need higher privileges (use su or sudo) to install the files to a
-common place like '/usr/local' or similar.
+common place like '/usr/local' or similar. Alternatively you can install the
+package locally by adding the '--user' argument:
+
+python setup.py install --user
 
 Please make sure that all modules are up to date, especially those mentioned
 in requirements.txt must be the specific version (or newer), otherwise it can
