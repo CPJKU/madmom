@@ -320,9 +320,9 @@ class Filter(np.ndarray):
     @classmethod
     def band_bins(cls, bins, **kwargs):
         """
-        Must yield the centre/crossover bins needed for filter creation.
+        Must yield the center/crossover bins needed for filter creation.
 
-        :param bins:   centre/crossover bins of filters [list or numpy array]
+        :param bins:   center/crossover bins of filters [list or numpy array]
         :param kwargs: additional parameters
         :return:       bins and normalisation information for filter creation
 
@@ -334,12 +334,12 @@ class Filter(np.ndarray):
         """
         Creates a list with filters for the the given bins.
 
-        :param bins:   (centre/crossover) bins of filters [list or numpy array]
+        :param bins:   (center/crossover) bins of filters [list or numpy array]
         :param kwargs: additional parameters passed to band_bins()
         :return:       list with filters
 
         """
-        # generate a list of filters for the given centre/crossover bins
+        # generate a list of filters for the given center/crossover bins
         filters = []
         for filter_args in cls.band_bins(bins, **kwargs):
             # create a filter and append it to the list
@@ -354,12 +354,12 @@ class TriangularFilter(Filter):
 
     """
 
-    def __new__(cls, start, centre, stop, norm=False):
+    def __new__(cls, start, center, stop, norm=False):
         """
         Creates a new TriangularFilter instance.
 
         :param start:  start bin
-        :param centre: centre bin (of height 1, unless filter is normalized).
+        :param center: center bin (of height 1, unless filter is normalized).
         :param stop:   stop bin
         :param norm:   normalize the area of the filter(s) to 1
         :return:       a triangular shaped filter with length 'stop', height 1
@@ -367,10 +367,10 @@ class TriangularFilter(Filter):
 
         """
         # center must be within start & stop
-        if start >= centre >= stop:
+        if start >= center >= stop:
             raise ValueError('center must be between start and stop')
-        # make centre and stop relative
-        centre -= start
+        # make center and stop relative
+        center -= start
         stop -= start
         # set the height of the filter, normalized if necessary.
         # A standard filter is at least 3 bins wide, and stop - start = 2
@@ -378,29 +378,29 @@ class TriangularFilter(Filter):
         height = 2. / stop if norm else 1.
         # create filter
         data = np.zeros(stop)
-        # rising edge (without the centre)
-        data[:centre] = np.linspace(0, height, centre, endpoint=False)
-        # falling edge (including the centre, but without the last bin)
-        data[centre:] = np.linspace(height, 0, stop - centre, endpoint=False)
+        # rising edge (without the center)
+        data[:center] = np.linspace(0, height, center, endpoint=False)
+        # falling edge (including the center, but without the last bin)
+        data[center:] = np.linspace(height, 0, stop - center, endpoint=False)
         # cast to TriangularFilter
         obj = Filter.__new__(cls, data, start)
-        # set the centre bin
-        obj.centre = start + centre
+        # set the center bin
+        obj.center = start + center
         # return the filter
         return obj
 
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
         """
-        Yields start, centre and stop bins and normalisation info for creation
+        Yields start, center and stop bins and normalisation info for creation
         of triangular filters.
 
-        :param bins:       centre bins of filters [list or numpy array]
+        :param bins:       center bins of filters [list or numpy array]
         :param norm:       normalize the area of the filter(s) to 1
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies
         :param overlap:    filters should overlap
-        :return:           start, centre and stop bins & normalisation info
+        :return:           start, center and stop bins & normalisation info
 
         """
         # only keep unique bins if requested
@@ -610,8 +610,8 @@ class Filterbank(np.ndarray):
         return np.asarray(freqs)
 
     @property
-    def filter_centre_frequencies(self):
-        """Centre frequencies of the filters."""
+    def filter_center_frequencies(self):
+        """Center frequencies of the filters."""
         freqs = []
         for band in range(self.num_bands):
             freqs.append(bins2frequencies(np.argmax(self[:, band]),
