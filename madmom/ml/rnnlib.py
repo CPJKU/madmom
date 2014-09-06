@@ -1317,7 +1317,7 @@ def main():
     """
     from ..audio.wav import Wav
     from ..audio.spectrogram import LogFiltSpec
-    from ..utils import files, match_file, load_events, quantise_events
+    from ..utils import files, match_file, load_events, quantize_events
 
     # parse arguments
     args = parser()
@@ -1396,7 +1396,7 @@ def main():
         else:
             # load events (onset/beat)
             targets = load_events(f)
-            targets = quantise_events(targets, args.fps, length=s.num_frames,
+            targets = quantize_events(targets, args.fps, length=s.num_frames,
                                       shift=args.shift)
         # tags
         tags = ("file=%s | fps=%s | specs=%s | bands=%s | fmin=%s | fmax=%s | "

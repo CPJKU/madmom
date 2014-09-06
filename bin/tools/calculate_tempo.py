@@ -83,7 +83,7 @@ def main():
             centers = np.concatenate(([-5], means, [5]))
             edges = 0.5 * (centers[1:] + centers[:-1])
             cluster_counts = np.histogram(log_intervals, edges)[0]
-            # TODO: normalise strengths with IBI!?
+            # TODO: normalize strengths with IBI!?
             strengths = cluster_counts / np.sum(cluster_counts).astype(float)
             cluster_order = np.argsort(cluster_counts)[::-1]
             # verbose information

@@ -257,7 +257,7 @@ def lgd_mask(spec, lgd, filterbank=None, temporal_filter=0, temporal_origin=0):
         # if the spectrogram is not filtered, use a simple minimum filter
         # covering only the current bin and its neighbours
         mask = minimum_filter(lgd, size=[1, 3])
-    # return the normalised mask
+    # return the normalized mask
     return mask / np.pi
 
 

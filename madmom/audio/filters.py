@@ -320,9 +320,9 @@ class Filter(np.ndarray):
     @classmethod
     def band_bins(cls, bins, **kwargs):
         """
-        Must yield the centre/crossover bins needed for filter creation.
+        Must yield the center/crossover bins needed for filter creation.
 
-        :param bins:   centre/crossover bins of filters [list or numpy array]
+        :param bins:   center/crossover bins of filters [list or numpy array]
         :param kwargs: additional parameters
         :return:       bins and normalisation information for filter creation
 
@@ -334,12 +334,12 @@ class Filter(np.ndarray):
         """
         Creates a list with filters for the the given bins.
 
-        :param bins:   (centre/crossover) bins of filters [list or numpy array]
+        :param bins:   (center/crossover) bins of filters [list or numpy array]
         :param kwargs: additional parameters passed to band_bins()
         :return:       list with filters
 
         """
-        # generate a list of filters for the given centre/crossover bins
+        # generate a list of filters for the given center/crossover bins
         filters = []
         for filter_args in cls.band_bins(bins, **kwargs):
             # create a filter and append it to the list
@@ -354,53 +354,53 @@ class TriangularFilter(Filter):
 
     """
 
-    def __new__(cls, start, centre, stop, norm=False):
+    def __new__(cls, start, center, stop, norm=False):
         """
         Creates a new TriangularFilter instance.
 
         :param start:  start bin
-        :param centre: centre bin (of height 1, unless filter is normalised).
+        :param center: center bin (of height 1, unless filter is normalized).
         :param stop:   stop bin
-        :param norm:   normalise the area of the filter(s) to 1
+        :param norm:   normalize the area of the filter(s) to 1
         :return:       a triangular shaped filter with length 'stop', height 1
-                       (unless normalised) with indices <= 'start' set to 0
+                       (unless normalized) with indices <= 'start' set to 0
 
         """
         # center must be within start & stop
-        if start >= centre >= stop:
+        if start >= center >= stop:
             raise ValueError('center must be between start and stop')
-        # make centre and stop relative
-        centre -= start
+        # make center and stop relative
+        center -= start
         stop -= start
-        # set the height of the filter, normalised if necessary.
+        # set the height of the filter, normalized if necessary.
         # A standard filter is at least 3 bins wide, and stop - start = 2
-        # thus the filter has an area of 1 if normalised this way
+        # thus the filter has an area of 1 if normalized this way
         height = 2. / stop if norm else 1.
         # create filter
         data = np.zeros(stop)
-        # rising edge (without the centre)
-        data[:centre] = np.linspace(0, height, centre, endpoint=False)
-        # falling edge (including the centre, but without the last bin)
-        data[centre:] = np.linspace(height, 0, stop - centre, endpoint=False)
+        # rising edge (without the center)
+        data[:center] = np.linspace(0, height, center, endpoint=False)
+        # falling edge (including the center, but without the last bin)
+        data[center:] = np.linspace(height, 0, stop - center, endpoint=False)
         # cast to TriangularFilter
         obj = Filter.__new__(cls, data, start)
-        # set the centre bin
-        obj.centre = start + centre
+        # set the center bin
+        obj.center = start + center
         # return the filter
         return obj
 
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
         """
-        Yields start, centre and stop bins and normalisation info for creation
+        Yields start, center and stop bins and normalisation info for creation
         of triangular filters.
 
-        :param bins:       centre bins of filters [list or numpy array]
-        :param norm:       normalise the area of the filter(s) to 1
+        :param bins:       center bins of filters [list or numpy array]
+        :param norm:       normalize the area of the filter(s) to 1
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies
         :param overlap:    filters should overlap
-        :return:           start, centre and stop bins & normalisation info
+        :return:           start, center and stop bins & normalisation info
 
         """
         # only keep unique bins if requested
@@ -439,9 +439,9 @@ class RectangularFilter(Filter):
 
         :param start: start bin of the filter
         :param stop:  stop bin of the filter
-        :param norm:  normalise the area of the filter(s) to 1
+        :param norm:  normalize the area of the filter(s) to 1
         :return:      a rectangular shaped filter with length 'stop', height 1
-                      (unless normalised) with indices <= 'start' set to 0
+                      (unless normalized) with indices <= 'start' set to 0
 
         """
         # center must be within start & stop
@@ -449,7 +449,7 @@ class RectangularFilter(Filter):
             raise ValueError('start must be smaller than stop')
         # make stop relative
         stop -= start
-        # set the height of the filter, normalised if necessary
+        # set the height of the filter, normalized if necessary
         height = 1. / stop if norm else 1.
         # create filter
         data = np.ones(stop) * height
@@ -463,7 +463,7 @@ class RectangularFilter(Filter):
         rectangular filters.
 
         :param bins:       crossover bins of filters [numpy array]
-        :param norm:       normalise the area of the filter(s) to 1
+        :param norm:       normalize the area of the filter(s) to 1
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies
         :param overlap:    filters should overlap
@@ -610,8 +610,8 @@ class Filterbank(np.ndarray):
         return np.asarray(freqs)
 
     @property
-    def filter_centre_frequencies(self):
-        """Centre frequencies of the filters."""
+    def filter_center_frequencies(self):
+        """Center frequencies of the filters."""
         freqs = []
         for band in range(self.num_bands):
             freqs.append(bins2frequencies(np.argmax(self[:, band]),
@@ -630,7 +630,7 @@ class Filterbank(np.ndarray):
 
     @property
     def norm(self):
-        """Filters are normalised."""
+        """Filters are normalized."""
         return self._norm
 
     def __str__(self):
@@ -649,7 +649,7 @@ class Filterbank(np.ndarray):
         :param fmin:         the minimum frequency
         :param fmax:         the maximum frequency
         :param bands:        number of filter bands per octave
-        :param norm_filters: normalise the area of the filter
+        :param norm_filters: normalize the area of the filter
         :return:             filtering argument parser group object
 
         """
@@ -681,7 +681,7 @@ class Filterbank(np.ndarray):
             # switch to turn it on
             g.add_argument('--norm_filters', action='store_true',
                            default=norm_filters,
-                           help='normalise filters to have equal area')
+                           help='normalize filters to have equal area')
         if norm_filters is True:
             g.add_argument('--no_norm_filters', dest='norm_filters',
                            action='store_false', default=norm_filters,
@@ -708,7 +708,7 @@ class MelFilterbank(Filterbank):
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
         :param bands:        number of filter bands
-        :param norm:         normalise the filters to area 1
+        :param norm:         normalize the filters to area 1
         :param duplicates:   keep duplicate filters resulting from insufficient
                              resolution of low frequencies
 
@@ -755,7 +755,7 @@ class BarkFilterbank(Filterbank):
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
         :param double:       double the number of frequency bands
-        :param norm:         normalise the area of the filter to 1
+        :param norm:         normalize the area of the filter to 1
         :param duplicates:   keep duplicate filters resulting from insufficient
                              resolution of low frequencies
 
@@ -801,7 +801,7 @@ class LogarithmicFilterbank(Filterbank):
         :param bands_per_octave: number of filter bands per octave
         :param fmin:             the minimum frequency [Hz]
         :param fmax:             the maximum frequency [Hz]
-        :param norm:             normalise the area of the filter to 1
+        :param norm:             normalize the area of the filter to 1
         :param duplicates:       keep duplicate filters resulting from
                                  insufficient resolution of low frequencies
         :param a4:               tuning frequency of A4 [Hz]
@@ -860,7 +860,7 @@ class SemitoneFilterbank(LogarithmicFilterbank):
         :param sample_rate:  sample rate of the audio file [Hz]
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
-        :param norm:         normalise the area of the filter to 1
+        :param norm:         normalize the area of the filter to 1
         :param duplicates:   keep duplicate filters resulting from insufficient
                              resolution of low frequencies
         :param a4:           tuning frequency of A4 [Hz]
@@ -886,7 +886,7 @@ class SimpleChromaFilterbank(Filterbank):
         :param sample_rate:  sample rate of the audio file [Hz]
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
-        :param norm:         normalise the area of the filter to 1
+        :param norm:         normalize the area of the filter to 1
         :param duplicates:   omit duplicate filters resulting from insufficient
                              resolution of low frequencies
         :param a4:           tuning frequency of A4 [Hz]
@@ -924,7 +924,7 @@ class SimpleChromaFilterbank(Filterbank):
 
     @property
     def norm(self):
-        """Filters are normalised."""
+        """Filters are normalized."""
         return self._norm
 
     @property

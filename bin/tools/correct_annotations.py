@@ -37,8 +37,8 @@ def main():
     g = p.add_argument_group('timestamp correction methods')
     g.add_argument('--smooth', default=None, type=float,
                    help='smooth the annotations [seconds]')
-    g.add_argument('--quantise', default=None,
-                   help='quantise the annotations to this resolution (given '
+    g.add_argument('--quantize', default=None,
+                   help='quantize the annotations to this resolution (given '
                         'in seconds), or to the time instants given in this '
                         'file')
     g.add_argument('--offset', default=None,
@@ -76,14 +76,14 @@ def main():
         # smooth
         if args.smooth:
             raise NotImplementedError
-        # quantise
-        quantised = None
-        if args.quantise:
-            if isinstance(args.quantise, basestring):
+        # quantize
+        quantized = None
+        if args.quantize:
+            if isinstance(args.quantize, basestring):
                 # load quantisation timestamps
-                quantised = load_events(args.quantise)
+                quantized = load_events(args.quantize)
             else:
-                quantised = float(args.quantise)
+                quantized = float(args.quantize)
 
         # write the corrected file
         with open("%s.corrected" % infile, 'wb') as o:
@@ -113,18 +113,16 @@ def main():
                         # shift
                         if args.shift:
                             timestamp += args.shift
-                        # quantise
-                        if isinstance(quantised, np.ndarray):
-                            print timestamp, quantised
-
+                        # quantize
+                        if isinstance(quantized, np.ndarray):
                             # get the closest match
-                            timestamp = quantised[np.argmin(np.abs(quantised -
+                            timestamp = quantized[np.argmin(np.abs(quantized -
                                                                    timestamp))]
-                        elif isinstance(quantised, float):
+                        elif isinstance(quantized, float):
                             # set to the grid with the given resolution
-                            timestamp /= quantised
+                            timestamp /= quantized
                             timestamp = np.round(timestamp)
-                            timestamp *= quantised
+                            timestamp *= quantized
 
                         # skip negative timestamps
                         if timestamp < 0:
@@ -135,7 +133,6 @@ def main():
                             o.write('%s\t%s\n' % (timestamp, rest))
                         else:
                             o.write('%s\n' % timestamp)
-
 
 if __name__ == '__main__':
     main()

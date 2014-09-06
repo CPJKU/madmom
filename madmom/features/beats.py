@@ -484,11 +484,11 @@ class CRFBeatDetection(RNNBeatTracking):
                                              possible_intervals,
                                              it.repeat(interval_sigma)))
 
-        # normalise their probabilities
-        normalised_seq_probabilities = np.array([r[1] / r[0].shape[0]
+        # normalize their probabilities
+        normalized_seq_probabilities = np.array([r[1] / r[0].shape[0]
                                                  for r in results])
         # pick the best one
-        best_seq = results[normalised_seq_probabilities.argmax()][0]
+        best_seq = results[normalized_seq_probabilities.argmax()][0]
         # save the detected beats
         self._detections = best_seq.astype(np.float) / self.fps
         # and return them
@@ -647,7 +647,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda:       split one beat period into N parts,
                                          the first representing beat states
                                          and the remaining non-beat states
-        :param norm_observations:        normalise the observations
+        :param norm_observations:        normalize the observations
 
         :return:                         detected beat positions
 
@@ -706,7 +706,7 @@ class MMBeatTracking(RNNBeatTracking):
         :param observation_lambda: split one beat period into N parts, the
                                    first representing beat states and the
                                    remaining non-beat states
-        :param norm_observations:  normalise the observations
+        :param norm_observations:  normalize the observations
 
         :return:             beat argument parser group object
 
@@ -758,10 +758,10 @@ class MMBeatTracking(RNNBeatTracking):
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
-                           help='do not normalise the observations of the DBN')
+                           help='do not normalize the observations of the DBN')
         else:
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
-                           help='normalise the observations of the DBN')
+                           help='normalize the observations of the DBN')
         # return the argument group so it can be modified if needed
         return g

@@ -334,7 +334,7 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         :param observation_lambda: split one beat period into N parts,
                                    the first representing beat states
                                    and the remaining non-beat states
-        :param norm_observations:  normalise the observations
+        :param norm_observations:  normalize the observations
 
         "A multi-model approach to beat tracking considering heterogeneous
          music styles"
@@ -347,7 +347,7 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         super(NNBeatTrackingObservationModel, self).__init__(None, None)
         # convert the given activations to an contiguous array
         self.observations = np.ascontiguousarray(observations, dtype=np.float)
-        # normalise the activations
+        # normalize the activations
         if norm_observations:
             self.observations /= np.max(self.observations)
         # save the given parameters
@@ -564,7 +564,7 @@ cdef class DynamicBayesianNetwork(object):
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
 
-            # overwrite the old states with the normalised current ones
+            # overwrite the old states with the normalized current ones
             # Note: this is faster than unrolling the loop! But it is a bit
             #       tricky: we need to do the summing and normalisation on the
             #       numpy array but do the assignment on the memoryview
