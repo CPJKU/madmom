@@ -12,7 +12,7 @@ import glob
 import numpy as np
 from scipy.ndimage.filters import uniform_filter, maximum_filter
 
-from .. import MODELS_PATH
+from madmom import MODELS_PATH
 from . import Activations, EventDetection, RNNEventDetection, smooth_signal
 
 EPSILON = 1e-6
@@ -728,7 +728,7 @@ def nn_peak_picking(activations, nn_files, threshold, smooth=None,
     Music (MML), 2013.
 
     """
-    from ..ml.rnn import process_rnn
+    from madmom.ml.rnn import process_rnn
     # smooth activations
     if smooth is not None:
         activations = smooth_signal(activations, smooth)
@@ -780,8 +780,8 @@ class SpectralOnsetDetection(OnsetDetection):
         :return:           pre-processed data
 
         """
-        from ..audio.signal import FramedSignal
-        from ..audio.spectrogram import Spectrogram
+        from madmom.audio.signal import FramedSignal
+        from madmom.audio.spectrogram import Spectrogram
         # instantiate a FramedSignal object
         if online:
             origin = 'online'
@@ -996,7 +996,7 @@ class NNSpectralOnsetDetection(SpectralOnsetDetection):
         """
         # perform NN peak picking and overwrite the activations with the
         # predictions of the NN
-        from ..ml.rnn import process_rnn
+        from madmom.ml.rnn import process_rnn
         act = process_rnn(self.activations, self.nn_files, threads=None)
         self._activations = Activations(act.ravel(), self.fps)
         # continue with normal peak picking, adjust parameters accordingly
@@ -1125,9 +1125,9 @@ def parser():
 
     """
     import argparse
-    from ..audio.signal import Signal, FramedSignal
-    from ..audio.spectrogram import Spectrogram
-    from ..audio.filters import Filterbank
+    from madmom.audio.signal import Signal, FramedSignal
+    from madmom.audio.spectrogram import Spectrogram
+    from madmom.audio.filters import Filterbank
 
     # define parser
     p = argparse.ArgumentParser(
@@ -1187,10 +1187,10 @@ def main():
     """
     import os.path
 
-    from ..utils import files
-    from ..audio.signal import Signal
-    from ..audio.spectrogram import Spectrogram
-    from ..audio.filters import LogarithmicFilterbank
+    from madmom.utils import files
+    from madmom.audio.signal import Signal
+    from madmom.audio.spectrogram import Spectrogram
+    from madmom.audio.filters import LogarithmicFilterbank
 
     # parse arguments
     args = parser()
