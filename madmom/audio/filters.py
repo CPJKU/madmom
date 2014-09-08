@@ -695,11 +695,10 @@ class MelFilterbank(Filterbank):
     Mel filterbank class.
 
     """
-    MEL_BANDS = 40
+    BANDS = 40
 
     def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                bands=MEL_BANDS, norm=NORM_FILTERS,
-                duplicates=DUPLICATE_FILTERS):
+                bands=BANDS, norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS):
         """
         Creates a new MelFilterbank instance.
 
@@ -740,12 +739,12 @@ class BarkFilterbank(Filterbank):
     Bark filterbank class.
 
     """
-    BARK_FMIN = 20
-    BARK_FMAX = 15500
-    BARK_DOUBLE = False
+    FMIN = 20
+    FMAX = 15500
+    DOUBLE = False
 
-    def __new__(cls, num_fft_bins, sample_rate, fmin=BARK_FMIN, fmax=BARK_FMAX,
-                double=BARK_DOUBLE, norm=NORM_FILTERS,
+    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
+                double=DOUBLE, norm=NORM_FILTERS,
                 duplicates=DUPLICATE_FILTERS):
         """
         Creates a new BarkFilterbank instance.
@@ -962,9 +961,9 @@ class PitchClassProfileFilterbank(Filterbank):
 
     """
     # default values
-    PCP_CLASSES = 12
+    CLASSES = 12
 
-    def __new__(cls, num_fft_bins, sample_rate, num_classes=PCP_CLASSES,
+    def __new__(cls, num_fft_bins, sample_rate, num_classes=CLASSES,
                 fmin=FMIN, fmax=FMAX, fref=A4):
         """
         Creates a new PitchClassProfile (PCP) filterbank instance.
@@ -1020,13 +1019,13 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
 
     """
     # default values
-    HPCP_FMIN = 100
-    HPCP_FMAX = 5000
-    HPCP_CLASSES = 36
-    HPCP_WINDOW = 4
+    FMIN = 100
+    FMAX = 5000
+    CLASSES = 36
+    WINDOW = 4
 
-    def __new__(cls, num_fft_bins, sample_rate, num_classes=HPCP_CLASSES,
-                fmin=HPCP_FMIN, fmax=HPCP_FMAX, fref=A4, window=HPCP_WINDOW):
+    def __new__(cls, num_fft_bins, sample_rate, num_classes=CLASSES,
+                fmin=FMIN, fmax=FMAX, fref=A4, window=WINDOW):
         """
         Creates a new HarmonicPitchClassProfile (HPCP) filterbank instance.
 

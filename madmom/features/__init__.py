@@ -392,7 +392,7 @@ class RNNEventDetection(EventDetection):
         :return:                 pre-processed data
 
         """
-        from .audio.spectrogram import LogFiltSpec
+        from madmom.audio.spectrogram import LogFiltSpec
         data = []
         # FIXME: remove this hack!
         fps = 100

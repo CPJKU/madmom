@@ -42,7 +42,7 @@ class RnnlibActivations(np.ndarray):
     Class for reading in activations as written by RNNLIB.
 
     """
-    def __new__(cls, filename, fps=None, labels=None):
+    def __new__(cls, filename, fps=None):
         # default is only one label
         labels = [1]
         label = 0

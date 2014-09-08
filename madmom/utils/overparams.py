@@ -116,7 +116,7 @@ class OrderedDictYAMLLoader(yaml.Loader):
         return mapping
 
 
-class OverridableParameters():
+class OverridableParameters(object):
     """
     Wrapper class for argparse.ArgumentParser. See module docs.
 

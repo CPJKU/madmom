@@ -82,7 +82,7 @@ def main():
         # create a logarithmically filtered Spectrogram object
         s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
                         frame_size=args.frame_size, origin=args.origin,
-                        fps=args.fps,  bands_per_octave=args.bands,
+                        fps=args.fps, bands_per_octave=args.bands,
                         fmin=args.fmin, fmax=args.fmax, mul=args.mul,
                         add=args.add, norm_filters=args.norm_filters,
                         ratio=args.ratio, diff_frames=args.diff_frames)

@@ -10,10 +10,8 @@ This file contains chroma related functionality.
 import numpy as np
 
 from madmom.audio.spectrogram import Spectrogram
-from madmom.audio.filters import (PitchClassProfileFilterbank,
-                                  HarmonicPitchClassProfileFilterbank, FMIN,
-                                  FMAX, PCP_CLASSES, HPCP_CLASSES, HPCP_FMIN,
-                                  HPCP_FMAX, HPCP_WINDOW)
+from madmom.audio.filters import (PitchClassProfileFilterbank as PCP,
+                                  HarmonicPitchClassProfileFilterbank as HPCP)
 
 
 def pcp_chord_transcription(pcp):
@@ -46,8 +44,8 @@ class PitchClassProfile(object):
     Beijing, China
 
     """
-    def __init__(self, spectrogram, num_classes=PCP_CLASSES, fmin=FMIN,
-                 fmax=FMAX, fref=None, filterbank=None, *args, **kwargs):
+    def __init__(self, spectrogram, num_classes=PCP.CLASSES, fmin=PCP.FMIN,
+                 fmax=PCP.FMAX, fref=None, filterbank=None, *args, **kwargs):
         """
         Creates a new PitchClassProfile instance.
 
@@ -83,7 +81,7 @@ class PitchClassProfile(object):
         # set filterbank
         self._filterbank = filterbank
         # some hidden parameters for filterbank creation
-        self._filterbank_type = PitchClassProfileFilterbank
+        self._filterbank_type = PCP
         self._parameters = {'num_classes': num_classes,
                             'fmin': fmin,
                             'fmax': fmax,
@@ -125,8 +123,8 @@ class HarmonicPitchClassProfile(PitchClassProfile):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
-    def __init__(self, spectrogram, num_classes=HPCP_CLASSES, fmin=HPCP_FMIN,
-                 fmax=HPCP_FMAX, fref=None, window=HPCP_WINDOW,
+    def __init__(self, spectrogram, num_classes=HPCP.CLASSES, fmin=HPCP.FMIN,
+                 fmax=HPCP.FMAX, fref=None, window=HPCP.WINDOW,
                  filterbank=None, *args, **kwargs):
         """
         Creates a new HarmonicPitchClassProfile instance.
@@ -147,7 +145,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
             spectrogram, num_classes, fmin, fmax, fref, filterbank, *args,
             **kwargs)
         # set hidden parameters for filterbank creation
-        self._filterbank_type = HarmonicPitchClassProfileFilterbank
+        self._filterbank_type = HPCP
         self._parameters['window'] = window
 
     @property

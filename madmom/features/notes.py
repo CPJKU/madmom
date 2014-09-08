@@ -250,7 +250,7 @@ class RNNNoteTranscription(RNNEventDetection):
         :param sep:    separator for the fields [default='\t']
 
         """
-        from .utils import open
+        from madmom.utils import open
         # write the detected notes to the output
         with open(filename, 'wb') as f:
             for note in self.detections:
