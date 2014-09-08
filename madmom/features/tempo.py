@@ -69,8 +69,8 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
 
     """
     # import comb filter
-    from ..audio.filters import feed_backward_comb_filter
-    from ..audio.filters import CombFilterbank
+    from madmom.audio.filters import feed_backward_comb_filter
+    from madmom.audio.filters import CombFilterbank
     # set the maximum delay
     if max_tau is None:
         max_tau = len(activations) - min_tau
@@ -245,7 +245,7 @@ class TempoEstimation(RNNBeatTracking):
         :param mirex:    report the lower tempo first (as required by MIREX)
 
         """
-        from ..utils import open
+        from madmom.utils import open
         t1, t2, strength = self.detections
         # for MIREX, the lower tempo must be given first
         if mirex and t1 > t2:

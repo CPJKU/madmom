@@ -10,8 +10,9 @@ This file contains note transcription related functionality.
 import glob
 import numpy as np
 
-from .. import MODELS_PATH
-from ..utils import open
+from madmom import MODELS_PATH
+from madmom.utils import open
+
 from . import Activations, RNNEventDetection
 from .onsets import peak_picking
 
@@ -47,7 +48,7 @@ def load_notes(filename):
 #
 #         """
 #         # import
-#         from ..audio.spectrogram import Spectrogram
+#         from madmom.audio.spectrogram import Spectrogram
 #         # check spectrogram type
 #         if isinstance(spectrogram, Spectrogram):
 #             # already the right format
@@ -249,7 +250,7 @@ class RNNNoteTranscription(RNNEventDetection):
         :param sep:    separator for the fields [default='\t']
 
         """
-        from ..utils import open
+        from .utils import open
         # write the detected notes to the output
         with open(filename, 'wb') as f:
             for note in self.detections:
@@ -316,7 +317,7 @@ class RNNNoteTranscription(RNNEventDetection):
 #
 #     """
 #     import argparse
-#     from ..utils.params import (audio, spec, filtering, log, note, save_load)
+#     from madmom.utils.params import (audio, spec, filtering, log, note, save_load)
 #
 #     # define parser
 #     p = argparse.ArgumentParser(
@@ -359,10 +360,10 @@ class RNNNoteTranscription(RNNEventDetection):
 #     """
 #     import os.path
 #
-#     from ..utils import files
-#     from ..audio.wav import Wav
-#     from ..audio.spectrogram import Spectrogram
-#     from ..audio.filters import LogarithmicFilterbank
+#     from madmom.utils import files
+#     from madmom.audio.wav import Wav
+#     from madmom.audio.spectrogram import Spectrogram
+#     from madmom.audio.filters import LogarithmicFilterbank
 #
 #     # parse arguments
 #     args = parser()

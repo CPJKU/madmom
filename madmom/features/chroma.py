@@ -9,11 +9,11 @@ This file contains chroma related functionality.
 
 import numpy as np
 
-from ..audio.spectrogram import Spectrogram
-from ..audio.filters import (PitchClassProfileFilterbank,
-                             HarmonicPitchClassProfileFilterbank, FMIN, FMAX,
-                             PCP_CLASSES, HPCP_CLASSES, HPCP_FMIN, HPCP_FMAX,
-                             HPCP_WINDOW)
+from madmom.audio.spectrogram import Spectrogram
+from madmom.audio.filters import (PitchClassProfileFilterbank,
+                                  HarmonicPitchClassProfileFilterbank, FMIN,
+                                  FMAX, PCP_CLASSES, HPCP_CLASSES, HPCP_FMIN,
+                                  HPCP_FMAX, HPCP_WINDOW)
 
 
 def pcp_chord_transcription(pcp):
