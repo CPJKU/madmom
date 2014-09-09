@@ -1062,7 +1062,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         super(RNNOnsetDetection, self).__init__(signal, nn_files=nn_files,
                                                 *args, **kwargs)
 
-    def pre_process(self, frame_sizes=[1024, 2048, 4096], origin='offline'):
+    def pre_process(self, frame_sizes=None, origin='offline'):
         """
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
@@ -1071,6 +1071,9 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
         :return:            pre-processed data
 
         """
+        # set default frame sizes
+        if not frame_sizes:
+            frame_sizes = [1024, 2048, 4096]
         spr = super(RNNOnsetDetection, self)
         spr.pre_process(frame_sizes, bands_per_octave=6, origin=origin, mul=5,
                         ratio=0.25)

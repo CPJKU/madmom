@@ -1148,9 +1148,8 @@ def test_save_files(nn_files, out_dir=None, file_set='test', threads=2,
 
 def cross_validation(nc_files, filename, folds=8, randomize=True,
                      bidirectional=True, task='classification',
-                     learn_rate=1e-4, layer_sizes=[25, 25, 25],
-                     layer_type='lstm', momentum=0.9, optimizer='steepest',
-                     splitting=None):
+                     learn_rate=1e-4, layer_sizes=None, layer_type='lstm',
+                     momentum=0.9, optimizer='steepest', splitting=None):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
@@ -1171,6 +1170,9 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
           upwards or a list of files which contain one file per line.
 
     """
+    # set default layer sizes
+    if not layer_sizes:
+        layer_sizes = [25, 25, 25]
     # shuffle the files
     if randomize:
         import random
