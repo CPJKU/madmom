@@ -179,7 +179,7 @@ def main():
     Simple note evaluation.
 
     """
-    from ..utils import files, match_file
+    from madmom.utils import files, match_file
 
     # parse arguments
     args = parser()

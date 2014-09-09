@@ -78,7 +78,7 @@ class MFCC(Cepstrogram):
 
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
-        mel_bands = kwargs.pop('mel_bands', MelFilterbank.MEL_BANDS)
+        mel_bands = kwargs.pop('mel_bands', MelFilterbank.BANDS)
         fmin = kwargs.pop('fmin', FMIN)
         fmax = kwargs.pop('fmax', FMAX)
         norm_filters = kwargs.pop('norm_filters', NORM_FILTERS)

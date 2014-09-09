@@ -164,7 +164,7 @@ def main():
     Simple onset evaluation.
 
     """
-    from ..utils import files, match_file, load_events, combine_events
+    from madmom.utils import files, match_file, load_events, combine_events
 
     # parse arguments
     args = parser()

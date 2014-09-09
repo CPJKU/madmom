@@ -934,7 +934,7 @@ def main():
     Simple beat evaluation.
 
     """
-    from ..utils import files, match_file, load_events
+    from madmom.utils import files, match_file, load_events
 
     # parse arguments
     args = parser()

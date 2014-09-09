@@ -29,7 +29,7 @@ from threading import Thread
 import multiprocessing
 import subprocess
 
-from ..features import Activations
+from madmom.features import Activations
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
@@ -42,7 +42,7 @@ class RnnlibActivations(np.ndarray):
     Class for reading in activations as written by RNNLIB.
 
     """
-    def __new__(cls, filename, fps=None, labels=None):
+    def __new__(cls, filename, fps=None):
         # default is only one label
         labels = [1]
         label = 0
@@ -1181,7 +1181,7 @@ def cross_validation(nc_files, filename, folds=8, randomize=True,
         # use the splitting as is
         splits = splitting
     if isinstance(splitting, list):
-        from ..utils import match_file
+        from madmom.utils import match_file
         for fold, split_file in enumerate(splitting):
             with open(split_file, 'rb') as split:
                 splits[fold] = []
@@ -1228,7 +1228,7 @@ def parser():
 
     """
     import argparse
-    from ..utils import OverrideDefaultListAction
+    from madmom.utils import OverrideDefaultListAction
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -1288,9 +1288,9 @@ def parser():
     g.add_argument('--optimizer', default='steepest', type=str,
                    help='optimizer [default=%(default)s]')
     # add other options to the existing parser
-    from ..audio.signal import Signal, FramedSignal
-    from ..audio.filters import Filterbank
-    from ..audio.spectrogram import Spectrogram
+    from madmom.audio.signal import Signal, FramedSignal
+    from madmom.audio.filters import Filterbank
+    from madmom.audio.spectrogram import Spectrogram
     Signal.add_arguments(p)
     FramedSignal.add_arguments(p, online=False)
     Filterbank.add_arguments(p)
@@ -1315,9 +1315,9 @@ def main():
     understood by RNNLIB.
 
     """
-    from ..audio.wav import Wav
-    from ..audio.spectrogram import LogFiltSpec
-    from ..utils import files, match_file, load_events, quantize_events
+    from madmom.audio.wav import Wav
+    from madmom.audio.spectrogram import LogFiltSpec
+    from madmom.utils import files, match_file, load_events, quantize_events
 
     # parse arguments
     args = parser()
@@ -1370,14 +1370,14 @@ def main():
             else:
                 nc_data = np.hstack((nc_data, s.spec, s.pos_diff))
             # for creation of SuperFlux .nc files:
-            # from ..features.onsets import SpectralOnsetDetection as sodf
+            # from madmom.features.onsets import SpectralOnsetDetection as sodf
             # nc_data = sodf.from_data(s, fps=args.fps).superflux()
             # nc_data = np.atleast_2d(nc_data).T
 
         # targets
         if f.endswith('.notes'):
             # load notes
-            from ..features.notes import load_notes
+            from madmom.features.notes import load_notes
             notes = load_notes(f)
             # shift the notes if needed
             if args.shift:

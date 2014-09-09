@@ -713,8 +713,8 @@ class FilteredSpectrogram(Spectrogram):
         :param a4:               tuning frequency of A4 [Hz]
 
         """
-        from filters import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
-                             FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
+        from .filters import (LogarithmicFilterbank, BANDS_PER_OCTAVE, FMIN,
+                              FMAX, NORM_FILTERS, DUPLICATE_FILTERS)
         # fetch the arguments for filterbank creation (or set defaults)
         fb = kwargs.pop('filterbank', None)
         bands_per_octave = kwargs.pop('bands_per_octave', BANDS_PER_OCTAVE)

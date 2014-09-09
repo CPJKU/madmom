@@ -10,7 +10,7 @@ import glob
 import sys
 import numpy as np
 
-from .. import MODELS_PATH
+from madmom import MODELS_PATH
 from . import Activations, RNNEventDetection, smooth_signal
 
 
@@ -329,7 +329,7 @@ class CRFBeatDetection(RNNBeatTracking):
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
     try:
-        from viterbi import crf_viterbi
+        from .viterbi import crf_viterbi
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
@@ -521,7 +521,7 @@ class CRFBeatDetection(RNNBeatTracking):
                        default=interval_sigma,
                        help='allowed deviation from the dominant interval '
                             '[default=%(default).2f]')
-        from ..utils import OverrideDefaultListAction
+        from madmom.utils import OverrideDefaultListAction
         g.add_argument('--factor', '-f', action=OverrideDefaultListAction,
                        type=float, default=factors, dest='factors',
                        help='factors of dominant interval to try. '
@@ -549,9 +549,9 @@ class MMBeatTracking(RNNBeatTracking):
     MAX_BPM = 220
 
     try:
-        from dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
-                         BeatTrackingTransitionModel as TM,
-                         NNBeatTrackingObservationModel as OM)
+        from .dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
+                          BeatTrackingTransitionModel as TM,
+                          NNBeatTrackingObservationModel as OM)
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the dbn '
@@ -591,7 +591,7 @@ class MMBeatTracking(RNNBeatTracking):
         :return: most suitable RNN activation function (prediction)
 
         """
-        from ..ml.rnn import process_rnn
+        from madmom.ml.rnn import process_rnn
         # append the nn_files to the list of reference model(s)
         nn_files = self.nn_ref_files + self.nn_files
         # compute the predictions with RNNs, do not average them

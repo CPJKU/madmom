@@ -45,7 +45,7 @@ def compute_event_alignment(alignment, ground_truth):
 
     # do not allow to move backwards
     for i in range(1, al_pos.shape[0]):
-        al_pos[i] = max(al_pos[i-1], al_pos[i])
+        al_pos[i] = max(al_pos[i - 1], al_pos[i])
 
     # find corresponding indices
     al_idxs = np.searchsorted(al_pos, gt_pos)
@@ -100,8 +100,7 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
                'avg_error': aligned_error.mean(),
                'stddev_error': aligned_error.std(),
                'piece_completion': (1.0 - pc_idx /
-                                    correctly_aligned_error.mask.shape[0])
-              }
+                                    correctly_aligned_error.mask.shape[0])}
 
     # convert possibly masked values to NaN. A masked value can occur when
     # computing the mean or stddev of values that are all masked

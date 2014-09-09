@@ -199,7 +199,7 @@ class EventDetection(object):
               method to compute the activations.
 
         """
-        from ..audio.signal import Signal
+        from madmom.audio.signal import Signal
         # load the Signal
         if isinstance(Signal, Signal) or signal is None:
             # already a Signal instance
@@ -347,7 +347,7 @@ class EventDetection(object):
         :param filename: output file name or file handle
 
         """
-        from ..utils import write_events
+        from madmom.utils import write_events
         write_events(self.detections, filename)
 
 
@@ -392,7 +392,7 @@ class RNNEventDetection(EventDetection):
         :return:                 pre-processed data
 
         """
-        from ..audio.spectrogram import LogFiltSpec
+        from madmom.audio.spectrogram import LogFiltSpec
         data = []
         # FIXME: remove this hack!
         fps = 100
@@ -421,7 +421,7 @@ class RNNEventDetection(EventDetection):
         :return: averaged RNN predictions
 
         """
-        from ..ml.rnn import process_rnn
+        from madmom.ml.rnn import process_rnn
         # compute the predictions with RNNs
         predictions = process_rnn(self.data, self.nn_files, self.num_threads)
         # save the predictions as activations
@@ -442,7 +442,7 @@ class RNNEventDetection(EventDetection):
         """
         # add neural network related options to the existing parser
         g = parser.add_argument_group('neural network arguments')
-        from ..utils import OverrideDefaultListAction
+        from madmom.utils import OverrideDefaultListAction
         g.add_argument('--nn_files', action=OverrideDefaultListAction,
                        type=str, default=nn_files,
                        help='average the predictions of these pre-trained '

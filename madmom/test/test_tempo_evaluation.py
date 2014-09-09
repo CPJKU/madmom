@@ -11,7 +11,7 @@ import unittest
 import __builtin__
 
 from madmom.evaluation.tempo import *
-from madmom.test import DATA_PATH
+from . import DATA_PATH
 
 TEMPI = np.asarray([120.1, 59])
 STRENGTHS = np.asarray([0.6, 0.4])
