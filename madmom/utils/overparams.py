@@ -126,11 +126,11 @@ class OverridableParameters():
     :param description:     optional description of the argument parser
 
     """
-    def __init__(self,
-                 config_filename='config.yaml',
-                 section_names=[],
+    def __init__(self, config_filename='config.yaml', section_names=None,
                  description=''):
 
+        if not section_names:
+            section_names = []
         self.section_names = section_names
 
         if len(sys.argv) >= 3 and sys.argv[1] == '--config':

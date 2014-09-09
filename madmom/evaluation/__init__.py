@@ -446,7 +446,7 @@ class Evaluation(SimpleEvaluation):
 
     """
 
-    def __init__(self, tp=[], fp=[], tn=[], fn=[]):
+    def __init__(self, tp=None, fp=None, tn=None, fn=None):
         """
         Creates a new Evaluation instance.
 
@@ -456,6 +456,15 @@ class Evaluation(SimpleEvaluation):
         :param fn: list with false negative detections [seconds]
 
         """
+        # set default values
+        if not fn:
+            fn = []
+        if not tn:
+            tn = []
+        if not fp:
+            fp = []
+        if not tp:
+            tp = []
         super(Evaluation, self).__init__()
         self._tp = list(tp)
         self._fp = list(fp)
