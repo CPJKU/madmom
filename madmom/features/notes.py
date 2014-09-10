@@ -143,7 +143,7 @@ class RNNNoteTranscription(RNNEventDetection):
         Write the detected notes to a file.
 
         :param filename: output file name or file handle
-        :param sep:    separator for the fields [default='\t']
+        :param sep:      separator for the fields [default='\t']
 
         """
         from madmom.utils import open

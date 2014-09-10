@@ -42,6 +42,9 @@ def parser():
     RNNNoteTranscription.add_arguments(p)
     # midi arguments
     midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
+    # mirex stuff
+    p.add_argument('--mirex', action='store_true', default=False,
+                   help='use the MIREX output format')
     # version
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
@@ -91,6 +94,16 @@ def main():
             notes[:, 3] *= args.note_velocity
             m = midi.MIDIFile(notes)
             m.write(args.output)
+        elif args.mirex:
+            from madmom.audio.filters import midi2hz
+            from madmom.utils import open
+            # MIREX format: onset \t offset \t frequency
+            with open(args.output, 'wb') as f:
+                for note in n.detections:
+                    onset, midi_note = note
+                    offset = onset + args.note_length
+                    frequency = midi2hz(midi_note)
+                    f.write('%.2f\t%.2f\t%.2f\n' % (onset, offset, frequency))
         else:
             n.write(args.output)
 
