@@ -7,12 +7,8 @@ Redistribution in any form is not permitted!
 
 """
 
-import warnings
-with warnings.catch_warnings():
-    # import in this block to avoid warnings about missing compiled modules
-    warnings.filterwarnings("ignore")
-    from madmom.audio.signal import Signal
-    from madmom.features.tempo import TempoEstimation
+from madmom.audio.signal import Signal
+from madmom.features.tempo import TempoEstimation
 
 
 def parser():
