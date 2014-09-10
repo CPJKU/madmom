@@ -106,9 +106,10 @@ def detect_tempo(histogram, fps):
     """
     Extract the tempo from the given histogram.
 
-    :param histogram:    tempo histogram
-    :param fps:          frames per second (needed for conversion to BPM)
-    :return:             numpy array with
+    :param histogram: tempo histogram
+    :param fps:       frames per second (needed for conversion to BPM)
+    :return:          numpy array with the dominant tempi (first column)
+                      and their relative strengths (second column)
 
     """
     # histogram of IBIs
@@ -162,8 +163,8 @@ class TempoEstimation(RNNBeatTracking):
         :param act_smooth:   smooth the activation function over N seconds
         :param hist_smooth:  smooth the activation function over N bins
         :param alpha:        scaling factor for the comb filter
-        :return:             tuple with the dominant tempi and their
-                             relative strengths
+        :return:             numpy array with the dominant tempi (first column)
+                             and their relative strengths (second column)
 
         """
         # convert the arguments to frames
