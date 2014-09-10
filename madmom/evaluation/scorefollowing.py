@@ -52,7 +52,7 @@ def compute_event_alignment(alignment, ground_truth):
 
     # now, the number of indexes in the alignment should correspond
     # to the number of aligned positions in the ground truth
-    assert(len(al_idxs) == len(ground_truth))
+    assert len(al_idxs) == len(ground_truth)
 
     # first a dummy event at the very end of the alignment is added to be
     # able to process score events with were not reached by the tracker
@@ -256,7 +256,7 @@ class ScoreFollowingEvaluation(object):
 
     def as_csv_row(self):
         """Format the metrics as comma separated values."""
-        return ','.join(map(str, self.cont_metrics_sorted))
+        return ','.join([str(metric) for metric in self.cont_metrics_sorted])
 
 
 def parse_arguments():
