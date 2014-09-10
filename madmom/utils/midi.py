@@ -107,7 +107,7 @@ def read_variable_length(data):
     while next_byte:
         next_value = ord(data.next())
         # is the hi-bit set?
-        if not (next_value & 0x80):
+        if not next_value & 0x80:
             # no next BYTE
             next_byte = 0
             # mask out the 8th bit
@@ -986,11 +986,11 @@ class MIDITrack(object):
                 track_data += chr(event.status_msg)
                 track_data += chr(event.meta_command)
                 track_data += write_variable_length(len(event.data))
-                track_data += str.join('', map(chr, event.data))
+                track_data += ''.join([chr(data) for data in event.data])
             # is this event a SysEx Event?
             elif isinstance(event, SysExEvent):
                 track_data += chr(0xF0)
-                track_data += str.join('', map(chr, event.data))
+                track_data += ''.join([chr(data) for data in event.data])
                 track_data += chr(0xF7)
             # not a meta or SysEx event, must be a general message
             elif isinstance(event, Event):
@@ -999,7 +999,7 @@ class MIDITrack(object):
                         self._status.channel != event.channel:
                     self._status = event
                     track_data += chr(event.status_msg | event.channel)
-                track_data += str.join('', map(chr, event.data))
+                track_data += ''.join([chr(data) for data in event.data])
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepend track header
