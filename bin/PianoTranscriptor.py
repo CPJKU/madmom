@@ -27,6 +27,12 @@ def parser():
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     If invoked without any parameters, the software detects all notes in
     the given input (file) and writes them to the output (file).
+
+    "Polyphonic Piano Note Transcription with Recurrent Neural Networks"
+    Sebastian Böck and Markus Schedl.
+    Proceedings of the 37th International Conference on Acoustics, Speech and
+    Signal Processing (ICASSP), 2012.
+
     ''')
     # input/output options
     madmom.utils.io_arguments(p)
@@ -77,9 +83,8 @@ def main():
         # write the notes to output
         if args.midi:
             import numpy as np
-            notes = np.asarray(n.detections)
-            # expand the array
-            notes = np.hstack((notes, np.ones_like(notes)))
+            # expand the array to have a length and velocity
+            notes = np.hstack((n.detections, np.ones_like(n.detections)))
             # set dummy offset
             notes[:, 2] = notes[:, 0] + args.note_length
             # set dummy velocity

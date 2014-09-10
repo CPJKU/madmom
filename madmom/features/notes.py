@@ -142,6 +142,11 @@ class RNNNoteTranscription(RNNEventDetection):
     """
     Note transcription with RNNs.
 
+    "Polyphonic Piano Note Transcription with Recurrent Neural Networks"
+    Sebastian Böck and Markus Schedl.
+    Proceedings of the 37th International Conference on Acoustics, Speech and
+    Signal Processing (ICASSP), 2012.
+
     """
     # define NN files
     NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
@@ -237,8 +242,8 @@ class RNNNoteTranscription(RNNEventDetection):
         else:
             # just zip all detected notes
             detections = zip(onsets, midi_notes)
-        # sort and save the detections
-        self._detections = sorted(detections)
+        # sort the detections and save as numpy array
+        self._detections = np.asarray(sorted(detections))
         # also return them
         return self._detections
 
