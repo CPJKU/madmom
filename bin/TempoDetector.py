@@ -48,7 +48,7 @@ def parser():
     TempoEstimation.add_arguments(p)
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
-                   help='report the lower tempo first (as required by MIREX)')
+                   help='use the MIREX output format (lower tempo first)')
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # parse arguments
