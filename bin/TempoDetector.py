@@ -89,10 +89,9 @@ def main():
         # detect tempo
         t.detect(method=args.method, min_bpm=args.min_bpm,
                  max_bpm=args.max_bpm, act_smooth=args.act_smooth,
-                 hist_smooth=args.hist_smooth,
-                 grouping_dev=args.grouping_dev, alpha=args.alpha)
+                 hist_smooth=args.hist_smooth, alpha=args.alpha)
         # save detections
-        t.write(args.output, args.mirex)
+        t.write(args.output, mirex=args.mirex)
 
 if __name__ == '__main__':
     main()
