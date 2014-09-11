@@ -442,7 +442,7 @@ class MeanEvaluation(SimpleEvaluation):
 class Evaluation(SimpleEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure based on
-    numpy arrays with true/false positive/negative detections.
+    numpy arrays or lists with true/false positive/negative detections.
 
     """
 
@@ -457,14 +457,14 @@ class Evaluation(SimpleEvaluation):
 
         """
         # set default values
-        if not fn:
-            fn = []
-        if not tn:
-            tn = []
-        if not fp:
-            fp = []
-        if not tp:
+        if tp is None:
             tp = []
+        if fp is None:
+            fp = []
+        if tn is None:
+            tn = []
+        if fn is None:
+            fn = []
         super(Evaluation, self).__init__()
         self._tp = list(tp)
         self._fp = list(fp)
