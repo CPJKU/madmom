@@ -82,12 +82,11 @@ def main():
         b.activations.save(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
+        b.detect(act_smooth=args.act_smooth, min_bpm=args.min_bpm,
                  max_bpm=args.max_bpm, interval_sigma=args.interval_sigma,
                  factors=args.factors)
         # save detections
         b.write(args.output)
-
 
 if __name__ == "__main__":
     main()

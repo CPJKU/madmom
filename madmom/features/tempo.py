@@ -23,8 +23,11 @@ def smooth_histogram(histogram, smooth):
     Smooth the given histogram.
 
     :param histogram: histogram
-    :param smooth:    smoothing kernel [array or int]
+    :param smooth:    smoothing kernel [numpy array or int]
     :return:          smoothed histogram
+
+    Note: If 'smooth' is an integer, a Hamming window of that length will be
+          used as a smoothing kernel.
 
     """
     # smooth only the the histogram bins, not the corresponding delays
@@ -172,10 +175,7 @@ class TempoEstimation(RNNBeatTracking):
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         act_smooth = int(round(self.fps * act_smooth))
         # smooth the activations
-        if act_smooth > 1:
-            activations = smooth_signal(self.activations, act_smooth)
-        else:
-            activations = self.activations
+        activations = smooth_signal(self.activations, act_smooth)
         # generate a histogram of beat intervals
         if method == 'acf':
             histogram = interval_histogram_acf(activations, min_tau, max_tau)
@@ -185,8 +185,7 @@ class TempoEstimation(RNNBeatTracking):
         else:
             raise ValueError('tempo estimation method unknown')
         # smooth the histogram
-        if hist_smooth > 1:
-            histogram = smooth_histogram(histogram, hist_smooth)
+        histogram = smooth_histogram(histogram, hist_smooth)
         # detect the tempi and return them
         self._detections = detect_tempo(histogram, self.fps)
         return self._detections
