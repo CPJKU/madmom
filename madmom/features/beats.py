@@ -14,33 +14,6 @@ from madmom import MODELS_PATH
 from . import Activations, RNNEventDetection, smooth_signal
 
 
-# wrapper function for detecting the dominant interval
-def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
-                             min_tau=1, max_tau=None):
-    """
-    Compute the dominant interval of the given activation function.
-
-    :param activations: the activation function
-    :param act_smooth:  kernel (size) for smoothing the activation function
-    :param hist_smooth: kernel (size) for smoothing the interval histogram
-    :param min_tau:     minimal delay for histogram building [frames]
-    :param max_tau:     maximal delay for histogram building [frames]
-    :return:            dominant interval
-
-    """
-    import warnings
-    warnings.warn('This function will be removed soon! Please update your '
-                  'code to work without this function.')
-    from .tempo import interval_histogram_acf, dominant_interval
-    # smooth activations
-    if act_smooth > 1:
-        activations = smooth_signal(activations, act_smooth)
-    # create a interval histogram
-    h = interval_histogram_acf(activations, min_tau, max_tau)
-    # get the dominant interval and return it
-    return dominant_interval(h, smooth=hist_smooth)
-
-
 # detect the beats based on the given dominant interval
 def detect_beats(activations, interval, look_aside=0.2):
     """
@@ -113,8 +86,8 @@ def detect_beats(activations, interval, look_aside=0.2):
     # and calc the beats for this start position
     positions = []
     recursive(start_position)
-    # return indices (as floats, since they get converted to seconds later on)
-    return np.array(positions, dtype=np.float)
+    # return indices
+    return np.array(positions)
 
 
 class RNNBeatTracking(RNNEventDetection):
@@ -186,22 +159,24 @@ class RNNBeatTracking(RNNEventDetection):
               repeated from the new position to the end of the piece.
 
         """
+        from .tempo import interval_histogram_acf, dominant_interval
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
 
+        # smooth activations
+        smooth = int(self.fps * smooth)
+        activations = smooth_signal(self.activations, smooth)
+
         # if look_ahead is not defined, assume a global tempo
         if look_ahead is None:
-            # detect the dominant interval (i.e. global tempo)
-            interval = detect_dominant_interval(self.activations,
-                                                act_smooth=smooth,
-                                                hist_smooth=None,
-                                                min_tau=min_tau,
-                                                max_tau=max_tau)
+            # create a interval histogram
+            histogram = interval_histogram_acf(activations, min_tau, max_tau)
+            # get the dominant interval
+            interval = dominant_interval(histogram, smooth=None)
             # detect beats based on this interval
-            detections = detect_beats(self.activations, interval, look_aside)
-
+            detections = detect_beats(activations, interval, look_aside)
         else:
             # allow varying tempo
             look_ahead_frames = int(look_ahead * self.fps)
@@ -215,20 +190,19 @@ class RNNBeatTracking(RNNEventDetection):
                 end = pos + look_ahead_frames
                 if start < 0:
                     # pad with zeros
-                    act = np.append(np.zeros(-start), self.activations[0:end])
-                elif end > len(self.activations):
+                    act = np.append(np.zeros(-start), activations[0:end])
+                elif end > len(activations):
                     # append zeros accordingly
-                    zeros = np.zeros(end - len(self.activations))
-                    act = np.append(self.activations[start:], zeros)
+                    zeros = np.zeros(end - len(activations))
+                    act = np.append(activations[start:], zeros)
                 else:
-                    act = self.activations[start:end]
-                # detect the dominant interval
-                interval = detect_dominant_interval(act, act_smooth=smooth,
-                                                    hist_smooth=None,
-                                                    min_tau=min_tau,
-                                                    max_tau=max_tau)
+                    act = activations[start:end]
+                # create a interval histogram
+                histogram = interval_histogram_acf(act, min_tau, max_tau)
+                # get the dominant interval
+                interval = dominant_interval(histogram, smooth=None)
                 # add the offset (i.e. the new detected start position)
-                positions = np.array(detect_beats(act, interval, look_aside))
+                positions = detect_beats(act, interval, look_aside)
                 # correct the beat positions
                 positions += start
                 # search the closest beat to the predicted beat position
@@ -447,21 +421,21 @@ class CRFBeatDetection(RNNBeatTracking):
 
         """
         import itertools as it
-        # suppress warning of dominant_interval()
-        import warnings
-        warnings.filterwarnings("ignore")
+        from .tempo import interval_histogram_acf, dominant_interval
         # convert timing information to frames and set default values
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
-        # detect the dominant interval
-        # TODO: refactor this to use new feature.tempo functionality
-        #       and add ability to handle multiple tempi
-        dominant_interval = detect_dominant_interval(self.activations,
-                                                     act_smooth=smooth,
-                                                     min_tau=min_interval,
-                                                     max_tau=max_interval)
+
+        # smooth activations
+        smooth = int(self.fps * smooth)
+        activations = smooth_signal(self.activations, smooth)
+
+        # create a interval histogram
+        hist = interval_histogram_acf(activations, min_interval, max_interval)
+        # get the dominant interval
+        interval = dominant_interval(hist, smooth=None)
         # create variations of the dominant interval to check
-        possible_intervals = [int(dominant_interval * f) for f in factors]
+        possible_intervals = [int(interval * f) for f in factors]
         # remove all intervals outside the allowed range
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
