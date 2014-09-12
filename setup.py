@@ -29,7 +29,7 @@ extensions = [Extension('madmom.ml.rnn',
                         extra_link_args=['-fopenmp'])]
 
 setup(name='madmom',
-      version='0.02',
+      version='0.03',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '

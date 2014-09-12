@@ -14,33 +14,6 @@ from madmom import MODELS_PATH
 from . import Activations, RNNEventDetection, smooth_signal
 
 
-# wrapper function for detecting the dominant interval
-def detect_dominant_interval(activations, act_smooth=None, hist_smooth=None,
-                             min_tau=1, max_tau=None):
-    """
-    Compute the dominant interval of the given activation function.
-
-    :param activations: the activation function
-    :param act_smooth:  kernel (size) for smoothing the activation function
-    :param hist_smooth: kernel (size) for smoothing the interval histogram
-    :param min_tau:     minimal delay for histogram building [frames]
-    :param max_tau:     maximal delay for histogram building [frames]
-    :return:            dominant interval
-
-    """
-    import warnings
-    warnings.warn('This function will be removed soon! Please update your '
-                  'code to work without this function.')
-    from .tempo import interval_histogram_acf, dominant_interval
-    # smooth activations
-    if act_smooth > 1:
-        activations = smooth_signal(activations, act_smooth)
-    # create a interval histogram
-    h = interval_histogram_acf(activations, min_tau, max_tau)
-    # get the dominant interval and return it
-    return dominant_interval(h, smooth=hist_smooth)
-
-
 # detect the beats based on the given dominant interval
 def detect_beats(activations, interval, look_aside=0.2):
     """
@@ -113,8 +86,8 @@ def detect_beats(activations, interval, look_aside=0.2):
     # and calc the beats for this start position
     positions = []
     recursive(start_position)
-    # return indices (as floats, since they get converted to seconds later on)
-    return np.array(positions, dtype=np.float)
+    # return indices
+    return np.array(positions)
 
 
 class RNNBeatTracking(RNNEventDetection):
@@ -125,11 +98,14 @@ class RNNBeatTracking(RNNEventDetection):
     # define the NN files
     NN_FILES = glob.glob("%s/beats_blstm*npz" % MODELS_PATH)
     # default values for beat detection
-    SMOOTH = 0.09
+    # TODO: refactor this to use TempoEstimation functionality
+    ACT_SMOOTH = 0.09
     LOOK_ASIDE = 0.2
-    LOOK_AHEAD = 4
+    LOOK_AHEAD = 10
     MIN_BPM = 40
     MAX_BPM = 240
+    ALPHA = 0.79
+    HIST_SMOOTH = 7
 
     def __init__(self, signal, nn_files=NN_FILES, *args, **kwargs):
         """
@@ -156,7 +132,7 @@ class RNNBeatTracking(RNNEventDetection):
         Pre-process the signal to obtain a data representation suitable for RNN
         processing.
 
-        :return:            pre-processed data
+        :return: pre-processed data
 
         """
         spr = super(RNNBeatTracking, self)
@@ -165,18 +141,24 @@ class RNNBeatTracking(RNNEventDetection):
         # return data
         return self._data
 
-    def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-               look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
+    def detect(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
+               hist_smooth=HIST_SMOOTH, alpha=ALPHA, look_aside=LOOK_ASIDE,
+               look_ahead=LOOK_AHEAD):
         """
-        Track the beats with a simple auto-correlation method.
+        Track the beats by first estimating the (local) tempo and then align
+        the beats accordingly.
 
-        :param smooth:     smooth the activation function over N seconds
-        :param min_bpm:    minimum tempo used for beat tracking
-        :param max_bpm:    maximum tempo used for beat tracking
-        :param look_aside: look this fraction of a beat interval to the side
-        :param look_ahead: look N seconds ahead (and back) to determine the
-                           tempo
-        :return:           detected beat positions
+        :param min_bpm:     minimum tempo used for beat tracking
+        :param max_bpm:     maximum tempo used for beat tracking
+        :param act_smooth:  smooth the beat activation function over N seconds
+        :param hist_smooth: smooth the tempo histogram over N bins
+        :param alpha:       scaling factor of the comb filter
+        :param look_aside:  look this fraction of a beat interval to each side
+                            of the assumed next beat position to look for the
+                            most likely position of the next beat
+        :param look_ahead:  look N seconds in both directions to determine the
+                            local tempo and align the beats accordingly
+        :return:            detected beat positions
 
         Note: If `look_ahead` is undefined, a constant tempo throughout the
               whole piece is assumed.
@@ -186,22 +168,25 @@ class RNNBeatTracking(RNNEventDetection):
               repeated from the new position to the end of the piece.
 
         """
+        from .tempo import dominant_interval, interval_histogram_comb
         # convert timing information to frames and set default values
-        # TODO: use at least 1 frame if any of these values are > 0?
         min_tau = int(np.floor(60. * self.fps / max_bpm))
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
 
+        # smooth activations
+        act_smooth = int(self.fps * act_smooth)
+        activations = smooth_signal(self.activations, act_smooth)
+
+        # TODO: refactor interval stuff to use TempoEstimation functionality
         # if look_ahead is not defined, assume a global tempo
         if look_ahead is None:
-            # detect the dominant interval (i.e. global tempo)
-            interval = detect_dominant_interval(self.activations,
-                                                act_smooth=smooth,
-                                                hist_smooth=None,
-                                                min_tau=min_tau,
-                                                max_tau=max_tau)
+            # create a interval histogram
+            histogram = interval_histogram_comb(activations, alpha, min_tau,
+                                                max_tau)
+            # get the dominant interval
+            interval = dominant_interval(histogram, smooth=hist_smooth)
             # detect beats based on this interval
-            detections = detect_beats(self.activations, interval, look_aside)
-
+            detections = detect_beats(activations, interval, look_aside)
         else:
             # allow varying tempo
             look_ahead_frames = int(look_ahead * self.fps)
@@ -215,20 +200,20 @@ class RNNBeatTracking(RNNEventDetection):
                 end = pos + look_ahead_frames
                 if start < 0:
                     # pad with zeros
-                    act = np.append(np.zeros(-start), self.activations[0:end])
-                elif end > len(self.activations):
+                    act = np.append(np.zeros(-start), activations[0:end])
+                elif end > len(activations):
                     # append zeros accordingly
-                    zeros = np.zeros(end - len(self.activations))
-                    act = np.append(self.activations[start:], zeros)
+                    zeros = np.zeros(end - len(activations))
+                    act = np.append(activations[start:], zeros)
                 else:
-                    act = self.activations[start:end]
-                # detect the dominant interval
-                interval = detect_dominant_interval(act, act_smooth=smooth,
-                                                    hist_smooth=None,
-                                                    min_tau=min_tau,
-                                                    max_tau=max_tau)
+                    act = activations[start:end]
+                # create a interval histogram
+                histogram = interval_histogram_comb(act, alpha, min_tau,
+                                                    max_tau)
+                # get the dominant interval
+                interval = dominant_interval(histogram, smooth=hist_smooth)
                 # add the offset (i.e. the new detected start position)
-                positions = np.array(detect_beats(act, interval, look_aside))
+                positions = detect_beats(act, interval, look_aside)
                 # correct the beat positions
                 positions += start
                 # search the closest beat to the predicted beat position
@@ -250,22 +235,26 @@ class RNNBeatTracking(RNNEventDetection):
         return self._detections
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, smooth=SMOOTH,
-                      min_bpm=MIN_BPM, max_bpm=MAX_BPM, look_aside=LOOK_ASIDE,
-                      look_ahead=LOOK_AHEAD):
+    def add_arguments(cls, parser, nn_files=NN_FILES, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
+                      hist_smooth=HIST_SMOOTH, alpha=ALPHA,
+                      look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD):
         """
-        Add BeatDetector related arguments to an existing parser object.
+        Add beat tracking related arguments to an existing parser object.
 
-        :param parser:     existing argparse parser object
-        :param nn_files:   list with files of NN models
-        :param smooth:     smooth the beat activations over N seconds
-        :param min_bpm:    minimum tempo used for beat tracking
-        :param max_bpm:    maximum tempo used for beat tracking
-        :param look_aside: fraction of beat interval to look aside for the
-                           strongest beat
-        :param look_ahead: seconds to look ahead in order to estimate the local
-                           tempo and align the next beat
-        :return:           beat argument parser group object
+        :param parser:      existing argparse parser object
+        :param nn_files:    list with files of NN models
+        :param min_bpm:     minimum tempo used for beat tracking
+        :param max_bpm:     maximum tempo used for beat tracking
+        :param act_smooth:  smooth the beat activations over N seconds
+        :param hist_smooth: smooth the tempo histogram over N bins
+        :param alpha:       scaling factor of the comb filter
+        :param look_aside:  look this fraction of a beat interval to each side
+                            of the assumed next beat position to look for the
+                            most likely position of the next beat
+        :param look_ahead:  look N seconds in both directions to determine the
+                            local tempo and align the beats accordingly
+        :return:            beat argument parser group object
 
         """
         # add Activations parser
@@ -274,9 +263,6 @@ class RNNBeatTracking(RNNEventDetection):
         RNNEventDetection.add_arguments(parser, nn_files=nn_files)
         # add beat detection related options to the existing parser
         g = parser.add_argument_group('beat detection arguments')
-        g.add_argument('--smooth', action='store', type=float, default=smooth,
-                       help='smooth the beat activations over N seconds '
-                       '[default=%(default).2f]')
         # TODO: refactor this stuff to use the TempoEstimation functionality
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm, help='minimum tempo [bpm, '
@@ -284,18 +270,35 @@ class RNNBeatTracking(RNNEventDetection):
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm, help='maximum tempo [bpm, '
                        ' default=%(default).2f]')
+        g.add_argument('--act_smooth', action='store', type=float,
+                       default=act_smooth,
+                       help='smooth the beat activations over N seconds '
+                            '[default=%(default).2f]')
         # make switchable (useful for including the beat stuff for tempo
+        if hist_smooth is not None:
+            g.add_argument('--hist_smooth', action='store', type=int,
+                           default=hist_smooth,
+                           help='smooth the tempo histogram over N bins '
+                                '[default=%(default)d]')
+        if alpha is not None:
+            g.add_argument('--alpha', action='store', type=float,
+                           default=alpha,
+                           help='alpha for comb filter tempo estimation '
+                                '[default=%(default).2f]')
+        # TODO: unify look_aside with CRFBeatDetection's interval_sigma
         if look_aside is not None:
             g.add_argument('--look_aside', action='store', type=float,
                            default=look_aside,
-                           help='look this fraction of the beat interval '
-                                'around the beat to get the strongest one '
-                                '[default=%(default).2f]')
+                           help='look this fraction of a beat interval to '
+                                'each side of the assumed next beat position '
+                                'to look for the most likely position of the '
+                                'next beat [default=%(default).2f]')
         if look_ahead is not None:
             g.add_argument('--look_ahead', action='store', type=float,
                            default=look_ahead,
-                           help='look this many seconds ahead to estimate the '
-                                'local tempo [default=%(default).2f]')
+                           help='look this many seconds in both directions '
+                                'to determine the local tempo and align the '
+                                'beats accordingly [default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g
 
@@ -324,7 +327,7 @@ class CRFBeatDetection(RNNBeatTracking):
     """
     MIN_BPM = 20
     MAX_BPM = 240
-    SMOOTH = 0.09
+    ACT_SMOOTH = 0.09
     INTERVAL_SIGMA = 0.18
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
 
@@ -430,14 +433,14 @@ class CRFBeatDetection(RNNBeatTracking):
         return cls.crf_viterbi(init, trans, norm_fact, activations,
                                dominant_interval)
 
-    def detect(self, smooth=SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def detect(self, act_smooth=ACT_SMOOTH, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                interval_sigma=INTERVAL_SIGMA, factors=FACTORS):
         """
         Detect the beats with a conditional random field method based on
         neural network activations and a tempo estimation using
         auto-correlation.
 
-        :param smooth:         smooth the activations over N seconds
+        :param act_smooth:     smooth the beat activations over N seconds
         :param min_bpm:        minimum tempo used for beat tracking
         :param max_bpm:        maximum tempo used for beat tracking
         :param interval_sigma: allowed deviation from the dominant interval per
@@ -447,21 +450,23 @@ class CRFBeatDetection(RNNBeatTracking):
 
         """
         import itertools as it
-        # suppress warning of dominant_interval()
-        import warnings
-        warnings.filterwarnings("ignore")
+        from .tempo import interval_histogram_acf, dominant_interval
         # convert timing information to frames and set default values
         min_interval = int(np.floor(60. * self.fps / max_bpm))
         max_interval = int(np.ceil(60. * self.fps / min_bpm))
-        # detect the dominant interval
-        # TODO: refactor this to use new feature.tempo functionality
-        #       and add ability to handle multiple tempi
-        dominant_interval = detect_dominant_interval(self.activations,
-                                                     act_smooth=smooth,
-                                                     min_tau=min_interval,
-                                                     max_tau=max_interval)
+
+        # smooth activations
+        act_smooth = int(self.fps * act_smooth)
+        activations = smooth_signal(self.activations, act_smooth)
+
+        # create a interval histogram
+        # TODO: refactor this to use the new TempoEstimation functionality
+        #       directly or the functionality inherited from RNNBeatTracking
+        hist = interval_histogram_acf(activations, min_interval, max_interval)
+        # get the dominant interval
+        interval = dominant_interval(hist, smooth=None)
         # create variations of the dominant interval to check
-        possible_intervals = [int(dominant_interval * f) for f in factors]
+        possible_intervals = [int(interval * f) for f in factors]
         # remove all intervals outside the allowed range
         possible_intervals = [i for i in possible_intervals
                               if max_interval >= i >= min_interval]
@@ -496,7 +501,7 @@ class CRFBeatDetection(RNNBeatTracking):
 
     @classmethod
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      interval_sigma=INTERVAL_SIGMA, smooth=SMOOTH,
+                      interval_sigma=INTERVAL_SIGMA, act_smooth=ACT_SMOOTH,
                       min_bpm=MIN_BPM, max_bpm=MAX_BPM, factors=FACTORS):
         """
         Add CRFBeatDetection related arguments to an existing parser object.
@@ -505,7 +510,7 @@ class CRFBeatDetection(RNNBeatTracking):
         :param nn_files:       list with files of NN models
         :param interval_sigma: allowed deviation from the dominant interval per
                                beat
-        :param smooth:         smooth the beat activations over N seconds
+        :param act_smooth:     smooth the beat activations over N seconds
         :param min_bpm:        minimum tempo used for beat tracking
         :param max_bpm:        maximum tempo used for beat tracking
         :param factors:        factors of the dominant interval to try
@@ -513,9 +518,10 @@ class CRFBeatDetection(RNNBeatTracking):
         """
         # add RNNBeatTracking arguments
         g = RNNBeatTracking.add_arguments(parser, nn_files=nn_files,
-                                          smooth=smooth, min_bpm=min_bpm,
-                                          max_bpm=max_bpm, look_ahead=None,
-                                          look_aside=None)
+                                          min_bpm=min_bpm, max_bpm=max_bpm,
+                                          act_smooth=act_smooth,
+                                          hist_smooth=None, alpha=None,
+                                          look_ahead=None, look_aside=None)
         # add CRF related arguments
         g.add_argument('--interval_sigma', action='store', type=float,
                        default=interval_sigma,

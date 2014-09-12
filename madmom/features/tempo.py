@@ -23,8 +23,11 @@ def smooth_histogram(histogram, smooth):
     Smooth the given histogram.
 
     :param histogram: histogram
-    :param smooth:    smoothing kernel [array or int]
+    :param smooth:    smoothing kernel [numpy array or int]
     :return:          smoothed histogram
+
+    Note: If 'smooth' is an integer, a Hamming window of that length will be
+          used as a smoothing kernel.
 
     """
     # smooth only the the histogram bins, not the corresponding delays
@@ -69,7 +72,6 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
 
     """
     # import comb filter
-    from madmom.audio.filters import feed_backward_comb_filter
     from madmom.audio.filters import CombFilterbank
     # set the maximum delay
     if max_tau is None:
@@ -77,7 +79,7 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
     # get the range of taus
     taus = np.arange(min_tau, max_tau + 1)
     # apply a bank of comb filters
-    cfb = CombFilterbank(activations, feed_backward_comb_filter, taus, alpha)
+    cfb = CombFilterbank(activations, 'backward', taus, alpha)
     # determine the tau with the highest value for each time step
     # sum up the maxima to yield the histogram bin values
     histogram_bins = np.sum(cfb * (cfb == np.max(cfb, axis=0)), axis=1)
@@ -102,29 +104,18 @@ def dominant_interval(histogram, smooth=None):
     return histogram[1][np.argmax(histogram[0])]
 
 
-def log3(x):
-    """
-    Takes the logarithm to the basis of 3.
-
-    :param x: array like
-    :return:  logarithm to the basis of 3
-    """
-    return np.log(x) / np.log(3)
-
-
 # extract the tempo from a histogram
-def detect_tempo(histogram, fps, grouping_dev=0):
-    # the histogram bins
+def detect_tempo(histogram, fps):
     """
     Extract the tempo from the given histogram.
 
-    :param histogram:    tempo histogram
-    :param fps:          frames per second (needed for conversion to BPM)
-    :param grouping_dev: allowed tempo deviation for grouping tempi
-    :return:             tuple with (tempo1, tempo2, relative strength)
+    :param histogram: tempo histogram
+    :param fps:       frames per second (needed for conversion to BPM)
+    :return:          numpy array with the dominant tempi (first column)
+                      and their relative strengths (second column)
 
     """
-    # the histogram of the IBIs
+    # histogram of IBIs
     bins = histogram[0]
     # convert the histogram bin delays to tempi in beats per minute
     tempi = 60.0 * fps / histogram[1]
@@ -133,50 +124,22 @@ def detect_tempo(histogram, fps, grouping_dev=0):
     peaks = argrelmax(bins, mode='wrap')[0]
     # we need more than 1 peak to report multiple tempi
     if len(peaks) == 0:
-        # no peaks, no tempo
-        return NO_TEMPO, NO_TEMPO, 0.
+        # a flat histogram has no peaks, use the center bin
+        if len(bins):
+            return np.asarray([tempi[len(bins) / 2], 1.])
+        # otherwise: no peaks, no tempo
+        return np.asarray([NO_TEMPO, 0.])
     elif len(peaks) == 1:
         # report only the strongest tempo
-        return tempi[peaks[0]], NO_TEMPO, 1.
+        return np.asarray([tempi[peaks[0]], 1.])
     else:
         # sort the peaks in descending order of bin heights
         sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
-        # group the corresponding tempi if needed
-        if grouping_dev:
-            # get the peak tempi
-            t = tempi[sorted_peaks]
-            # get the whole-numbered divisors from all tempo combinations
-            c = t / t[:, np.newaxis]
-            # group all double tempi
-            # transform the fractions to the log2 space
-            double_c = np.abs(np.log2(c))
-            # and keep only those within a certain deviation
-            double_c = np.round(double_c / grouping_dev) * grouping_dev
-            double_c = double_c % 1 == 0
-            # get the corresponding strengths
-            double = bins[sorted_peaks][np.newaxis, :] * double_c
-            # select the winning combination
-            double_tempi = double[np.argmax(np.sum(double_c, axis=1))]
-            # group all triple tempi
-            # transform the fractions to the log3 space
-            triple_c = np.abs(log3(c))
-            # again, keep only those within a certain deviation
-            triple_c = np.round(triple_c / grouping_dev) * grouping_dev
-            triple_c = triple_c % 1 == 0
-            # get the corresponding strengths
-            triple = bins[sorted_peaks][np.newaxis, :] * triple_c
-            # select the winning combination
-            triple_tempi = triple[np.argmax(np.sum(triple_c, axis=1))]
-            # combine the double and triple tempo combinations
-            strengths = np.max((double_tempi, triple_tempi), axis=0)
-            # re-sort the peaks
-            sorted_peaks = sorted_peaks[np.argsort(strengths)[::-1]]
-        # otherwise just return the 2 strongest tempi
-        t1, t2 = tempi[sorted_peaks[:2]]
-        # calculate the relative strength
-        strength = bins[sorted_peaks[0]]
-        strength /= np.sum(bins[sorted_peaks[:2]])
-        return t1, t2, strength
+        # normalize their strengths
+        strengths = bins[sorted_peaks]
+        strengths /= np.sum(strengths)
+        # return the tempi and their normalized strengths
+        return np.asarray(zip(tempi[sorted_peaks], strengths))
 
 
 class TempoEstimation(RNNBeatTracking):
@@ -190,12 +153,10 @@ class TempoEstimation(RNNBeatTracking):
     MAX_BPM = 250
     HIST_SMOOTH = 7
     ACT_SMOOTH = 0.14
-    GROUPING_DEV = 0
     ALPHA = 0.79
 
     def detect(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-               act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-               grouping_dev=GROUPING_DEV, alpha=ALPHA):
+               act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA):
         """
         Estimates the tempo of the signal.
 
@@ -204,13 +165,9 @@ class TempoEstimation(RNNBeatTracking):
         :param max_bpm:      maximum tempo to detect
         :param act_smooth:   smooth the activation function over N seconds
         :param hist_smooth:  smooth the activation function over N bins
-        :param grouping_dev: allowed tempo deviation for grouping tempi
         :param alpha:        scaling factor for the comb filter
-        :return:             tuple with the two most dominant tempi and the
-                             relative strength of them
-
-        Note: If the 'grouping_dev' is set to 0, the tempi are not grouped.
-              The deviation is the allowed delta in the log2 / log3 space.
+        :return:             numpy array with the dominant tempi (first column)
+                             and their relative strengths (second column)
 
         """
         # convert the arguments to frames
@@ -218,10 +175,7 @@ class TempoEstimation(RNNBeatTracking):
         max_tau = int(np.ceil(60. * self.fps / min_bpm))
         act_smooth = int(round(self.fps * act_smooth))
         # smooth the activations
-        if act_smooth > 1:
-            activations = smooth_signal(self.activations, act_smooth)
-        else:
-            activations = self.activations
+        activations = smooth_signal(self.activations, act_smooth)
         # generate a histogram of beat intervals
         if method == 'acf':
             histogram = interval_histogram_acf(activations, min_tau, max_tau)
@@ -231,23 +185,35 @@ class TempoEstimation(RNNBeatTracking):
         else:
             raise ValueError('tempo estimation method unknown')
         # smooth the histogram
-        if hist_smooth > 1:
-            histogram = smooth_histogram(histogram, hist_smooth)
+        histogram = smooth_histogram(histogram, hist_smooth)
         # detect the tempi and return them
-        self._detections = detect_tempo(histogram, self.fps, grouping_dev)
+        self._detections = detect_tempo(histogram, self.fps)
         return self._detections
 
     def write(self, filename, mirex=False):
         """
-        Write the detections to a file.
+        Write the two most dominant tempi and the relative strength to a file.
 
-        :param filename: output file name or file handle
-        :param mirex:    report the lower tempo first (as required by MIREX)
+        :param filename:  output file name or file handle
+        :param mirex:     report the lower tempo first (as required by MIREX)
 
         """
         from madmom.utils import open
-        t1, t2, strength = self.detections
-        # for MIREX, the lower tempo must be given first
+        # default values
+        t1, t2, strength = 0., 0., 1.
+        # only one tempo was detected
+        if len(self.detections) == 1:
+            t1 = self.detections[0][0]
+            # generate a fake second tempo
+            if t1 > 120:
+                t2 = t1 / 2.
+            else:
+                t2 = t1 * 2.
+        # consider only the two strongest tempi and strengths
+        elif len(self.detections) > 1:
+            t1, t2 = self.detections[:2, 0]
+            strength = self.detections[0, 1] / sum(self.detections[:2, 1])
+        # or MIREX, the lower tempo must be given first
         if mirex and t1 > t2:
             t1, t2, strength = t2, t1, 1. - strength
         # write to output
@@ -258,7 +224,7 @@ class TempoEstimation(RNNBeatTracking):
     def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
                       method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-                      dev=GROUPING_DEV, alpha=ALPHA):
+                      alpha=ALPHA):
         """
         Add tempo estimation related arguments to an existing parser object.
 
@@ -269,7 +235,6 @@ class TempoEstimation(RNNBeatTracking):
         :param max_bpm:     maximum tempo [bpm]
         :param act_smooth:  smooth the activations over N seconds
         :param hist_smooth: smooth the tempo histogram over N bins
-        :param dev:         allowed deviation of tempi when grouping them
         :param alpha:       scaling factor of the comb filter
         :return:            tempo argument parser group object
 
@@ -297,10 +262,6 @@ class TempoEstimation(RNNBeatTracking):
                        default=hist_smooth,
                        help='smooth the tempo histogram over N bins '
                             '[default=%(default)d]')
-        g.add_argument('--dev', dest='grouping_dev', action='store',
-                       type=float, default=dev,
-                       help='maximum allowed tempo deviation when grouping '
-                            'tempi [default=%(default).2f]')
         g.add_argument('--alpha', action='store', type=float, default=alpha,
                        help='alpha for comb filter tempo estimation '
                        '[default=%(default).2f]')

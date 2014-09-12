@@ -7,12 +7,8 @@ Redistribution in any form is not permitted!
 
 """
 
-import warnings
-with warnings.catch_warnings():
-    # import in this block to avoid warnings about missing compiled modules
-    warnings.filterwarnings("ignore")
-    from madmom.audio.signal import Signal
-    from madmom.features.tempo import TempoEstimation
+from madmom.audio.signal import Signal
+from madmom.features.tempo import TempoEstimation
 
 
 def parser():
@@ -48,7 +44,7 @@ def parser():
     TempoEstimation.add_arguments(p)
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
-                   help='report the lower tempo first (as required by MIREX)')
+                   help='use the MIREX output format (lower tempo first)')
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # parse arguments
@@ -89,10 +85,9 @@ def main():
         # detect tempo
         t.detect(method=args.method, min_bpm=args.min_bpm,
                  max_bpm=args.max_bpm, act_smooth=args.act_smooth,
-                 hist_smooth=args.hist_smooth,
-                 grouping_dev=args.grouping_dev, alpha=args.alpha)
+                 hist_smooth=args.hist_smooth, alpha=args.alpha)
         # save detections
-        t.write(args.output, args.mirex)
+        t.write(args.output, mirex=args.mirex)
 
 if __name__ == '__main__':
     main()

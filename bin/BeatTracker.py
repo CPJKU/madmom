@@ -33,6 +33,9 @@ def parser():
     Proceedings of the 14th International Conference on Digital Audio Effects
     (DAFx-11), 2011.
 
+    A new comb filter method is used for tempo estimation (instead of the old
+    auto-correlation based one).
+
     ''')
 
     # input/output options
@@ -42,7 +45,7 @@ def parser():
     # beat tracking arguments
     RNNBeatTracking.add_arguments(p)
     # version
-    p.add_argument('--version', action='version', version='BeatTracker.2013')
+    p.add_argument('--version', action='version', version='BeatTracker.2014')
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -53,7 +56,7 @@ def parser():
 
 
 def main():
-    """BeatTracker.2013"""
+    """BeatTracker.2014"""
     # parse arguments
     args = parser()
 
@@ -78,8 +81,9 @@ def main():
         b.activations.save(args.output, sep=args.sep)
     else:
         # detect the beats
-        b.detect(smooth=args.smooth, min_bpm=args.min_bpm,
-                 max_bpm=args.max_bpm, look_aside=args.look_aside,
+        b.detect(min_bpm=args.min_bpm, max_bpm=args.max_bpm,
+                 act_smooth=args.act_smooth, hist_smooth=args.hist_smooth,
+                 alpha=args.alpha, look_aside=args.look_aside,
                  look_ahead=args.look_ahead)
         # save detections
         b.write(args.output)

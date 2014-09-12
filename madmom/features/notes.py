@@ -29,118 +29,14 @@ def load_notes(filename):
         return np.loadtxt(f)
 
 
-# class SpectralNoteTranscription(object):
-#     """
-#     The SpectralNoteTranscription class implements a very basic method of note
-#     transcription based on a spectrogram.
-#
-#     """
-#     def __init__(self, spectrogram, num_harmonics=5, harmonic_frames=11,
-#                  lgd=True, *args, **kwargs):
-#         """
-#         Creates a new SpectralNoteTranscription instance.
-#
-#         :param spectrogram:     the spectrogram object on which the note
-#                                 transcription operates
-#         :param num_harmonics:   model N harmonics
-#         :param harmonic_frames: perform harmonic median filtering over N frames
-#         :param lgd:             use local group delay to weight the spectrogram
-#
-#         """
-#         # import
-#         from madmom.audio.spectrogram import Spectrogram
-#         # check spectrogram type
-#         if isinstance(spectrogram, Spectrogram):
-#             # already the right format
-#             self._spectrogram = spectrogram
-#         else:
-#             # assume a file name, try to instantiate a Spectrogram object
-#             self._spectrogram = Spectrogram(spectrogram, *args, **kwargs)
-#         # attributes
-#         self._num_harmonics = num_harmonics
-#         self._harmonic_frames = harmonic_frames
-#         self._lgd = lgd
-#         # hidden attributes
-#         self._notes = None
-#         self._onsets = None
-#
-#     @property
-#     def spectrogram(self):
-#         """Spectrogram."""
-#         return self._spectrogram
-#
-#     @property
-#     def num_harmonics(self):
-#         """Number of harmonics to model."""
-#         return self._num_harmonics
-#
-#     @property
-#     def harmonic_frames(self):
-#         """Number of harmonics frames."""
-#         return self._harmonic_frames
-#
-#     @property
-#     def lgd(self):
-#         """Use local group delay weighting."""
-#         return self._lgd
-#
-#     @property
-#     def notes(self):
-#         """Naïve implementation of notes."""
-#         if self._notes is None:
-#             # alias
-#             spec = self.spectrogram.spec
-#
-#             # use only harmonic parts
-#             if self.harmonic_frames > 1:
-#                 spec = median_filter(spec, (self.harmonic_frames, 1))
-#
-#             # add local group delay weighting
-#             if self.lgd:
-#                 lgd = 1 - np.abs(self.spectrogram.lgd) / np.pi
-#                 # harmonic LGD?
-#                 if self.harmonic_frames > 1:
-#                     lgd = median_filter(lgd, (self.harmonic_frames, 1))
-#                 # weight the spec
-#                 spec *= lgd
-#
-#             # bin of the last fundamental
-#             last_fundamental_bin = np.argmax(self.spectrogram.fft_freqs >=
-#                                              midi2hz(109))
-#             # spec sums
-#             sums = np.zeros_like(spec)
-#             for f in range(1, last_fundamental_bin):
-#                 # sum the given number of harmonics
-#                 f_sum = np.sum(spec[:, f::f][:, :self.num_harmonics], axis=1)
-#                 # weight with the fundamental
-#                 f_sum *= spec[:, f]
-#                 # save for the given fundamental
-#                 sums[:, f] = f_sum
-#             # convert to MIDI scale
-#             fmin = midi2hz(-1)
-#             fb = LogarithmicFilterbank(
-#                 self.spectrogram.num_fft_bins,
-#                 self.spectrogram.frames.signal.sample_rate, 12, norm=True,
-#                 duplicates=True, fmin=fmin)
-#             # save the notes
-#             self._notes = np.dot(sums, fb)
-#         # return notes
-#         return self._notes
-#
-#     @property
-#     def onsets(self):
-#         """Onsets."""
-#         if self._onsets is None:
-#             self._onsets = np.zeros_like(self._notes)
-#             self._onsets[1:] = np.diff(self._notes, axis=0)
-#             self._onsets *= self._onsets > 0
-#         # return onsets
-#         return self._onsets
-
-
 class RNNNoteTranscription(RNNEventDetection):
     """
     Note transcription with RNNs.
+
+    "Polyphonic Piano Note Transcription with Recurrent Neural Networks"
+    Sebastian Böck and Markus Schedl.
+    Proceedings of the 37th International Conference on Acoustics, Speech and
+    Signal Processing (ICASSP), 2012.
 
     """
     # define NN files
@@ -237,8 +133,8 @@ class RNNNoteTranscription(RNNEventDetection):
         else:
             # just zip all detected notes
             detections = zip(onsets, midi_notes)
-        # sort and save the detections
-        self._detections = sorted(detections)
+        # sort the detections and save as numpy array
+        self._detections = np.asarray(sorted(detections))
         # also return them
         return self._detections
 
@@ -247,7 +143,7 @@ class RNNNoteTranscription(RNNEventDetection):
         Write the detected notes to a file.
 
         :param filename: output file name or file handle
-        :param sep:    separator for the fields [default='\t']
+        :param sep:      separator for the fields [default='\t']
 
         """
         from madmom.utils import open
@@ -309,119 +205,3 @@ class RNNNoteTranscription(RNNEventDetection):
                        '[default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
-
-
-# def parser():
-#     """
-#     Command line argument parser for note transcription.
-#
-#     """
-#     import argparse
-#     from madmom.utils.params import (audio, spec, filtering, log, note, save_load)
-#
-#     # define parser
-#     p = argparse.ArgumentParser(
-#         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-#     If invoked without any parameters, the software detects all notes in
-#     the given files.
-#
-#     """)
-#     # general options
-#     p.add_argument('files', metavar='files', nargs='+',
-#                    help='files to be processed')
-#     p.add_argument('-v', dest='verbose', action='store_true',
-#                    help='be verbose')
-#     p.add_argument('--length', action='store', type=float, default=None,
-#                    help='length of the signal to process')
-#     # add other argument groups
-#     audio(p, online=False)
-#     spec(p)
-#     filtering(p, default=False)
-#     log(p, default=True)
-#     note(p)
-#     save_load(p)
-#     # parse arguments
-#     args = p.parse_args()
-#     # print arguments
-#     if args.verbose:
-#         print args
-#     if args.length is not None:
-#         args.length *= args.fps
-#     else:
-#         args.length = 'extend'
-#     # return args
-#     return args
-#
-#
-# def main():
-#     """
-#     Example note transcription program.
-#
-#     """
-#     import os.path
-#
-#     from madmom.utils import files
-#     from madmom.audio.wav import Wav
-#     from madmom.audio.spectrogram import Spectrogram
-#     from madmom.audio.filters import LogarithmicFilterbank
-#
-#     # parse arguments
-#     args = parser()
-#
-#     # init filterbank
-#     fb = None
-#
-#     # which files to process
-#     if args.load:
-#         # load the activations
-#         ext = '.activations'
-#     else:
-#         # only process .wav files
-#         ext = '.wav'
-#     # process the files
-#     for f in files(args.files, ext):
-#         if args.verbose:
-#             print f
-#
-#         # use the name of the file without the extension
-#         filename = os.path.splitext(f)[0]
-#
-#         # do the processing stuff unless the activations are loaded from file
-#         if args.load:
-#             # load the activations from file
-#             # FIXME: fps must be encoded in the file
-#             n = NoteTranscription(f, args.fps)
-#         else:
-#             # create a Wav object
-#             w = Wav(f, mono=True, norm=args.norm, att=args.att)
-#             if args.filter:
-#                 # (re-)create filterbank if the sample rate is not the same
-#                 if fb is None or fb.sample_rate != w.sample_rate:
-#                     # create filterbank if needed
-#                     fb = LogarithmicFilterbank(args.window / 2, w.sample_rate,
-#                                                args.bands, args.fmin,
-#                                                args.fmax, args.equal)
-#             # create a Spectrogram object
-#             s = Spectrogram(w, frame_size=args.window, filterbank=fb,
-#                             log=args.log, mul=args.mul, add=args.add,
-#                             ratio=args.ratio, diff_frames=args.diff_frames,
-#                             num_frames=args.length)
-#             # create a SpectralNoteTranscription object
-#             snt = SpectralNoteTranscription(s)
-#             snt.notes()
-#         # save note activations or detect notes
-#         if args.save:
-#             # save the raw ODF activations
-#             n.save_activations("%s.%s" % (filename, args.odf))
-#         else:
-#             # detect the notes
-#             n.detect(args.thresholds, combine=args.combine, delay=args.delay,
-#                      smooth=args.smooth, pre_avg=args.pre_avg,
-#                      post_avg=args.post_avg, pre_max=args.pre_max,
-#                      post_max=args.post_max)
-#             # write the notes to a file
-#             n.write("%s.%s" % (filename, args.ext))
-#         # continue with next file
-#
-# if __name__ == '__main__':
-#     main()
