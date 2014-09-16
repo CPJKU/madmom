@@ -35,7 +35,7 @@ setup(name='madmom',
       author='Department of Computational Perception, Johannes Kepler '
              'University, Linz, Austria and Austrian Research Institute for '
              'Artificial Intelligence (OFAI), Vienna, Austria',
-      author_email='python-sigk@jku.at',
+      author_email='python-sig@jku.at',
       url='https://jobim.ofai.at/gitlab/madmom/madmom',
       license='BSD, with some exclusions',
       ext_modules=extensions,
