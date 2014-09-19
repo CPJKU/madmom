@@ -111,7 +111,7 @@ def compute_cont_metrics(event_alignment, ground_truth, window):
     # consider the case where EVERYTHING was missed or misaligned. the standard
     # computation fails then.
     if correctly_aligned_error.mask.all():
-        piece_completion = 0.0
+        results['piece_completion'] = 0.0
 
     return results
 
