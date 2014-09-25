@@ -1035,7 +1035,7 @@ class RNNOnsetDetection(OnsetDetection, RNNEventDetection):
 
     """
     # define NN files
-    NN_FILES = glob.glob("%s/onsets_brnn_[1-8]*npz" % MODELS_PATH)
+    NN_FILES = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
     # peak-picking defaults
     THRESHOLD = 0.35
     COMBINE = 0.03
