@@ -1175,11 +1175,14 @@ class MIDIFile(object):
         # sort the notes
         notes.sort()
 
-        # convert onset times and durations from ticks to a more meaningful unit
+        # convert onset times and durations from ticks to a meaningful unit
         if self.note_time_unit == 's':
             self.note_ticks_to_seconds(notes)
-        else:
+        elif self.note_time_unit == 'b':
             self.note_ticks_to_beats(notes)
+        else:
+            raise ValueError("note_time_unit must be either 's' (seconds) or "
+                             "'b' (beats), not %s." % self.note_time_unit)
 
         # return the notes as numpy array
         return np.asarray(notes, np.float)
