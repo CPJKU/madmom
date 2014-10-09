@@ -1019,8 +1019,8 @@ class MIDIFile(object):
         """
         Instantiate a new MIDI file instance.
 
-        :param data:       can be a .mid file or numpy array with notes
-        :param resolution: resolution, i.e. microseconds per quarter note
+        :param data:           can be a .mid file or numpy array with notes
+        :param resolution:     resolution, i.e. microseconds per quarter note
         :param note_time_unit: sets the time unit for notes, seconds ('s') or
                                beats ('b').
 
@@ -1186,69 +1186,68 @@ class MIDIFile(object):
 
     def note_ticks_to_beats(self, notes):
         """
-        Converts onset and offset times for notes from ticks to beats.
+        Converts onsets and offsets of notes from ticks to beats.
 
         :param notes: list of notes tuples: (onset, pitch, offset, velocity)
-        :return: list of notes with onset and offset in beats
+        :return:      list of notes with onsets and offsets in beats
+
         """
         tpq = self.ticks_per_quarter_note
-        time_sigs = self.time_signatures.astype(np.float)
+        time_signatures = self.time_signatures.astype(np.float)
 
-        # change the second column of time_sigs to beat position of the
-        # signature change first col is now the tick position,
-        # second col the beat position and the
-        # third the new beat unit after the signature change
-        time_sigs[0, 1] = 0
+        # change the second column of time_signatures to beat position of the
+        # signature change, the first column is now the tick position, the
+        # second column the beat position and the third column the new beat
+        # unit after the signature change
+        time_signatures[0, 1] = 0
 
         # quarter notes between time signature changes
-        qnbtsc = np.diff(time_sigs[:, 0]) / tpq
+        qnbtsc = np.diff(time_signatures[:, 0]) / tpq
         # beats between time signature changes
-        bbtsc = qnbtsc * (time_sigs[:-1, 2] / 4.0)
+        bbtsc = qnbtsc * (time_signatures[:-1, 2] / 4.0)
         # compute beat position of each time signature change
-        time_sigs[1:, 1] = time_sigs[:-1, 0] + bbtsc
-
+        time_signatures[1:, 1] = time_signatures[:-1, 0] + bbtsc
+        # iterate over all notes
         for i in range(len(notes)):
             onset, pitch, offset, velocity = notes[i]
-
             # get info about last time signature change
-            ts = time_sigs[np.argmax(time_sigs[:, 0] > onset) - 1]
-
-            onset_ticks_since_ts = onset - ts[0]
-            onset_beats = ts[1] + (onset_ticks_since_ts / tpq) * (ts[2] / 4.0)
-
-            offset_ticks_since_ts = offset - ts[0]
-            offset_beats = ts[1] + (offset_ticks_since_ts / tpq) * (ts[2] / 4.0)
-
+            tsc = time_signatures[np.argmax(time_signatures[:, 0] > onset) - 1]
+            # adjust onsets
+            onset_ticks_since_tsc = onset - tsc[0]
+            onset_beats = tsc[1] + (onset_ticks_since_tsc / tpq) * (tsc[2] /
+                                                                    4.0)
+            # adjust offsets
+            offset_ticks_since_ts = offset - tsc[0]
+            offset_beats = tsc[1] + (offset_ticks_since_ts / tpq) * (tsc[2] /
+                                                                     4.0)
+            # update the note
             notes[i] = (onset_beats, pitch, offset_beats, velocity)
-
+        # return notes
         return notes
 
     def note_ticks_to_seconds(self, notes):
         """
-        Converts onset and offset times for notes from ticks to seconds.
+        Converts onsets and offsets of notes from ticks to seconds.
 
         :param notes: list of notes tuples: (onset, pitch, offset, velocity)
-        :return: list of notes with onset and offset in seconds
+        :return:      list of notes with onsets and offsets in seconds
+
         """
         # cache tempo
         tempi = self.tempi
         # iterate over all notes
-        # TODO: numpy-fy this!
         for i in range(len(notes)):
             onset, pitch, offset, velocity = notes[i]
-
             # get last tempo for the onset and offset
             t1 = tempi[np.argmax(tempi[:, 0] > onset) - 1]
             t2 = tempi[np.argmax(tempi[:, 0] > offset) - 1]
             # onset/offset calculation
             onset = (onset - t1[0]) * t1[1] + t1[2]
             offset = (offset - t2[0]) * t2[1] + t2[2]
-
-            # update the note onset
+            # update the note
             notes[i] = (onset, pitch, offset, velocity)
-
+        # return notes
         return notes
-
 
     def make_ticks_abs(self):
         """
