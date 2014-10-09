@@ -1217,9 +1217,9 @@ class MIDIFile(object):
             onset_beats = tsc[1] + (onset_ticks_since_tsc / tpq) * (tsc[2] /
                                                                     4.0)
             # adjust offsets
-            offset_ticks_since_ts = offset - tsc[0]
-            offset_beats = tsc[1] + (offset_ticks_since_ts / tpq) * (tsc[2] /
-                                                                     4.0)
+            offset_ticks_since_tsc = offset - tsc[0]
+            offset_beats = tsc[1] + (offset_ticks_since_tsc / tpq) * (tsc[2] /
+                                                                      4.0)
             # update the note
             notes[i] = (onset_beats, pitch, offset_beats, velocity)
         # return notes
