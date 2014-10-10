@@ -1206,7 +1206,8 @@ class MIDIFile(object):
         # beats between time signature changes
         bbtsc = qnbtsc * (time_signatures[:-1, 2] / 4.0)
         # compute beat position of each time signature change
-        time_signatures[1:, 1] = time_signatures[:-1, 0] + bbtsc
+        time_signatures[1:, 1] = bbtsc.cumsum()
+
         # iterate over all notes
         for i in range(len(notes)):
             onset, pitch, offset, velocity = notes[i]
@@ -1322,22 +1323,36 @@ class MIDIFile(object):
         return self
 
     # methods for writing MIDI stuff
+    @property
+    def midi_data(self):
+        """
+        Return MIDI byte data
+
+        :return: midi byte data
+        """
+        from StringIO import StringIO
+        str_buffer = StringIO()
+
+        # write a MIDI header
+        header_data = struct.pack(">LHHH", 6, self.format,
+                                  len(self.tracks), self.resolution)
+        str_buffer.write('MThd%s' % header_data)
+
+        # write each track
+        for track in self.tracks:
+            track.write(str_buffer)
+
+        return str_buffer.getvalue()
+
     def write(self, midi_file):
         """
         Write a MIDI file.
 
-        :param midi_file: the MIDI file handle
+        :param midi_file: the MIDI file name
 
         """
         with open(midi_file, 'wb') as midi_file:
-            # write a MIDI header
-            header_data = struct.pack(">LHHH", 6, self.format,
-                                      len(self.tracks), self.resolution)
-            midi_file.write('MThd%s' % header_data)
-            # write all tracks
-            for track in self.tracks:
-                # write each track to file
-                track.write(midi_file)
+            midi_file.write(self.get_midi_data())
 
     def add_notes_to_track(self, notes, track):
         """
