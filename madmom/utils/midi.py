@@ -1327,24 +1327,21 @@ class MIDIFile(object):
 
     # methods for writing MIDI stuff
     @property
-    def midi_data(self):
+    def data(self):
         """
-        Return MIDI byte data
+        MIDI byte data.
 
-        :return: midi byte data
         """
         from StringIO import StringIO
         str_buffer = StringIO()
-
         # write a MIDI header
         header_data = struct.pack(">LHHH", 6, self.format,
                                   len(self.tracks), self.resolution)
         str_buffer.write('MThd%s' % header_data)
-
         # write each track
         for track in self.tracks:
             track.write(str_buffer)
-
+        # return the data buffer
         return str_buffer.getvalue()
 
     def write(self, midi_file):
@@ -1355,7 +1352,7 @@ class MIDIFile(object):
 
         """
         with open(midi_file, 'wb') as midi_file:
-            midi_file.write(self.get_midi_data())
+            midi_file.write(self.data)
 
     def add_notes_to_track(self, notes, track):
         """
