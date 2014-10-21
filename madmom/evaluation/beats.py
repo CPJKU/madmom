@@ -474,13 +474,13 @@ def continuity(detections, annotations, tempo_tolerance, phase_tolerance,
     return cmlc, cmlt, amlc, amlt
 
 
-def information_gain(detections, annotations, bins):
+def information_gain(detections, annotations, num_bins):
     """
     Calculate information gain for the given detections and annotations.
 
     :param detections:  numpy array with the detected beats [float, seconds]
     :param annotations: numpy array with the annotated beats [float, seconds]
-    :param bins:        number of bins for the error histogram [int, even]
+    :param num_bins:    number of bins for the error histogram [int, even]
     :return:            information gain, beat error histogram
 
     "Measuring the performance of beat tracking algorithms algorithms using a
@@ -493,14 +493,14 @@ def information_gain(detections, annotations, bins):
 
     """
     # allow only even numbers and require at least 2 bins
-    if bins % 2 != 0 or bins < 2:
+    if num_bins % 2 != 0 or num_bins < 2:
         raise ValueError("Number of error histogram bins must be even and "
                          "greater than 0")
 
     # neither detections nor annotations
     if len(detections) == 0 and len(annotations) == 0:
         # return a max. information gain and an empty error histogram
-        return np.log2(bins), np.zeros(bins)
+        return np.log2(num_bins), np.zeros(num_bins)
     # at least 2 detections and annotations must be given
     if len(detections) < 2 or len(annotations) < 2:
         # return an information gain of 0 and a uniform beat error histogram
@@ -509,12 +509,12 @@ def information_gain(detections, annotations, bins):
         #       detections and annotations is chosen instead of just the length
         #       of the annotations as in the Matlab implementation.
         max_length = max(len(detections), len(annotations))
-        return 0., np.ones(bins) * max_length / float(bins)
+        return 0., np.ones(num_bins) * max_length / float(num_bins)
 
     # check if there are enough beat annotations for the number of bins
-    if bins > len(annotations):
+    if num_bins > len(annotations):
         warnings.warn("Not enough beat annotations (%d) for %d histogram bins."
-                      % (len(annotations), bins))
+                      % (len(annotations), num_bins))
 
     # create bins for the error histogram that cover the range from -0.5 to 0.5
     # make the first and last bin half as wide as the rest, so that the last
@@ -523,10 +523,10 @@ def information_gain(detections, annotations, bins):
     # this is more or less accomplished automatically since np.histogram
     # accepts a sequence of bin edges instead of bin centres, but we need to
     # apply an offset and increase the number of bins by 1
-    offset = 0.5 / bins
+    offset = 0.5 / num_bins
     # because the last bin is wrapped around to the first bin later on increase
     # the number of bins by a total of 2
-    histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, bins + 2)
+    histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, num_bins + 2)
 
     # evaluate detections against annotations
     fwd_histogram = _error_histogram(detections, annotations, histogram_bins)
@@ -634,7 +634,7 @@ class BeatEvaluation(OnsetEvaluation):
                  goto_threshold=GOTO_THRESHOLD, goto_sigma=GOTO_SIGMA,
                  goto_mu=GOTO_MU, tempo_tolerance=TEMPO_TOLERANCE,
                  phase_tolerance=PHASE_TOLERANCE, offbeat=OFFBEAT,
-                 double=DOUBLE, triple=TRIPLE, bins=BINS):
+                 double=DOUBLE, triple=TRIPLE, num_bins=BINS):
         """
         Evaluate the given detections and annotations.
 
@@ -652,7 +652,7 @@ class BeatEvaluation(OnsetEvaluation):
         :param offbeat:         include offbeat variations
         :param double:          include double/half tempo variations
 -       :param triple:          include triple/third tempo variations
-        :param bins:            number of bins for the error histogram
+        :param num_bins:        number of bins for the error histogram
 
         """
         # convert the detections and annotations
@@ -670,7 +670,7 @@ class BeatEvaluation(OnsetEvaluation):
                             phase_tolerance, offbeat, double, triple)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
-        scores = information_gain(detections, annotations, bins)
+        scores = information_gain(detections, annotations, num_bins)
         self.information_gain, self.error_histogram = scores
 
     def __len__(self):
@@ -986,7 +986,7 @@ def main():
                            goto_sigma=args.goto_sigma, goto_mu=args.goto_mu,
                            tempo_tolerance=args.tempo_tolerance,
                            phase_tolerance=args.phase_tolerance,
-                           bins=args.bins, offbeat=args.offbeat,
+                           num_bins=args.bins, offbeat=args.offbeat,
                            double=args.double, triple=args.triple)
         # print stats for the file
         if args.verbose:
