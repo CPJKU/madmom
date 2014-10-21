@@ -198,6 +198,15 @@ class SimpleEvaluation(object):
         return self._num_fn
 
     @property
+    def num_annotations(self):
+        """Number of annotations."""
+        return self.num_tp + self.num_fn
+
+    def __len__(self):
+        # the length equals the number of annotations
+        return self.num_annotations
+
+    @property
     def precision(self):
         """Precision."""
         # correct / retrieved
@@ -268,6 +277,16 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
+    @property
+    def true_positive_rate(self):
+        """True positive rate."""
+        return self.recall
+
+    @property
+    def false_positive_rate(self):
+        """False positive rate."""
+        return 1. - self.precision
+
     def print_errors(self, indent='', tex=False, verbose=True):
         """
         Print errors.
@@ -278,30 +297,28 @@ class SimpleEvaluation(object):
 
         """
         # print the errors
-        annotations = self.num_tp + self.num_fn
-        tpr = self.recall
-        fpr = (1 - self.precision)
         if tex:
             # tex formatting
             ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
                   'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
                   'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
                   '%.2f ms & %.2f ms\\\\' % \
-                  (annotations, self.precision, self.recall, self.fmeasure,
-                   tpr, fpr, self.accuracy, self.mean_error * 1000.,
-                   self.std_error * 1000.)
+                  (self.num_annotations, self.precision, self.recall,
+                   self.fmeasure, self.true_positive_rate,
+                   self.false_positive_rate, self.accuracy,
+                   self.mean_error * 1000., self.std_error * 1000.)
         else:
             # normal formatting
-            ret = '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-                  'r=%.3f f=%.3f' % (indent, annotations, self.num_tp,
+            ret = '%sannotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
+                  'r=%.3f f=%.3f' % (indent, self.num_annotations, self.num_tp,
                                      self.num_fp, self.num_fn, self.precision,
                                      self.recall, self.fmeasure)
             if verbose:
-                ret += '\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% mean: %.1f ' \
-                       'ms std: %.1f ms' % (indent, tpr * 100., fpr * 100.,
-                                            self.accuracy * 100.,
-                                            self.mean_error * 1000.,
-                                            self.std_error * 1000.)
+                ret += ' tpr: %.3f fpr: %.3f acc: %.3f mean: %.1f ' \
+                       'ms std: %.1f ms' % \
+                       (self.true_positive_rate, self.false_positive_rate,
+                        self.accuracy, self.mean_error * 1000.,
+                        self.std_error * 1000.)
         # return
         return ret
 
@@ -335,8 +352,12 @@ class MeanEvaluation(SimpleEvaluation):
         self._fmeasure = []
         self._accuracy = []
         self._errors = []
-        self._mean = []
-        self._std = []
+        self._mean_errors = []
+        self._std_errors = []
+
+    def __len__(self):
+        # just use the length of any of the arrays
+        return len(self._num_tp)
 
     # for adding another Evaluation object
     def append(self, other):
@@ -360,8 +381,8 @@ class MeanEvaluation(SimpleEvaluation):
             # TODO: extend the errors list instead of appending, might lead to
             #       undesired effects with lists of tuples or lists of lists
             self._errors.extend(other.errors)
-            self._mean.append(other.mean_error)
-            self._std.append(other.std_error)
+            self._mean_errors.append(other.mean_error)
+            self._std_errors.append(other.std_error)
         else:
             raise TypeError('Can only append SimpleEvaluation or derived class'
                             ' to %s, not %s' % (type(self).__name__,
@@ -426,16 +447,37 @@ class MeanEvaluation(SimpleEvaluation):
     @property
     def mean_error(self):
         """Mean of the errors."""
-        if len(self._mean) == 0:
+        if len(self._mean_errors) == 0:
             return 0.
-        return np.mean(self._mean)
+        return np.mean(self._mean_errors)
 
     @property
     def std_error(self):
         """Standard deviation of the errors."""
-        if len(self._std) == 0:
+        if len(self._std_errors) == 0:
             return 0.
-        return np.mean(self._std)
+        return np.mean(self._std_errors)
+
+    def print_errors(self, indent='', verbose=True):
+        """
+        Print errors.
+
+        :param indent:  use the given string as indentation
+        :param verbose: add true/false positive rates and mean/std of errors
+
+        """
+        # use floats instead of integers for reporting
+        ret = '%sannotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
+              'p=%.3f r=%.3f f=%.3f' % \
+              (indent, self.num_annotations, self.num_tp, self.num_fp,
+               self.num_fn, self.precision, self.recall, self.fmeasure)
+        if verbose:
+            ret += ' tpr: %.3f fpr: %.3f acc: %.3f mean: %.1f ' \
+                   'ms std: %.1f ms' % \
+                   (self.true_positive_rate, self.false_positive_rate,
+                    self.accuracy, self.mean_error * 1000.,
+                    self.std_error * 1000.)
+        return ret
 
 
 # class for evaluation of Precision, Recall, F-measure with lists
@@ -445,7 +487,6 @@ class Evaluation(SimpleEvaluation):
     numpy arrays or lists with true/false positive/negative detections.
 
     """
-
     def __init__(self, tp=None, fp=None, tn=None, fn=None):
         """
         Creates a new Evaluation instance.
@@ -560,7 +601,6 @@ class MultiClassEvaluation(Evaluation):
     2D numpy arrays with true/false positive/negative detections.
 
     """
-
     def print_errors(self, indent='', tex=False, verbose=True):
         """
         Print errors.

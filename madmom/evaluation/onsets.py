@@ -181,44 +181,38 @@ def main():
     sum_eval = SumEvaluation()
     mean_eval = MeanEvaluation()
     # evaluate all files
-    for det_file in det_files:
-        # load the detections
-        detections = load_events(det_file)
-        # shift the detections if needed
-        if args.delay != 0:
-            detections += args.delay
-        # get the matching annotation files
-        matches = match_file(det_file, ann_files, args.det_suffix,
-                             args.ann_suffix)
-        # quit if any file does not have a matching annotation file
-        if len(matches) == 0:
-            print " can't find an annotation file for %s. exiting." % det_file
-            exit()
-        # do a mean evaluation with all matched annotation files
-        me = MeanEvaluation()
-        for ann_file in matches:
-            # load the annotations
-            annotations = load_events(ann_file)
-            # combine the annotations if needed
-            if args.combine > 0:
-                annotations = combine_events(annotations, args.combine)
-            # add the OnsetEvaluation to mean evaluation
-            me.append(OnsetEvaluation(detections, annotations,
-                                      window=args.window))
-            # process the next annotation file
-        # print stats for each file
+    for ann_file in ann_files:
+        # load the annotations
+        annotations = load_events(ann_file)
+        # get the matching detection files
+        matches = match_file(ann_file, det_files,
+                             args.ann_suffix, args.det_suffix)
+        if len(matches) > 1:
+            # exit if multiple detections were found
+            raise SystemExit("multiple detections for %s found." % ann_file)
+        elif len(matches) == 0:
+            # print a warning if no detections were found
+            import warnings
+            warnings.warn(" can't find detections for %s." % ann_file)
+            # but continue and assume no detections
+            detections = np.zeros(0)
+        else:
+            # load the detections
+            detections = load_events(matches[0])
+        # combine the annotations if needed
+        if args.combine > 0:
+            annotations = combine_events(annotations, args.combine)
+        # evaluate
+        e = OnsetEvaluation(detections, annotations, window=args.window)
+        # print stats for the file
         if args.verbose:
-            print det_file
-            print me.print_errors('  ', args.tex)
-        # add the resulting sum counter
-        sum_eval += me
-        mean_eval.append(me)
-        # process the next detection file
+            print e.print_errors('%s\n  ' % ann_file)
+        # add this file's evaluation to the global evaluation
+        sum_eval += e
+        mean_eval.append(e)
     # print summary
-    print 'sum for %i files:' % (len(det_files))
-    print sum_eval.print_errors('  ', args.tex)
-    print 'mean for %i files:' % (len(det_files))
-    print mean_eval.print_errors('  ', args.tex)
+    print sum_eval.print_errors('sum for %i file(s):\n  ' % len(mean_eval))
+    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
 
 if __name__ == '__main__':
     main()

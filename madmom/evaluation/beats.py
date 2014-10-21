@@ -673,6 +673,10 @@ class BeatEvaluation(OnsetEvaluation):
         scores = information_gain(detections, annotations, bins)
         self.information_gain, self.error_histogram = scores
 
+    def __len__(self):
+        # just use the length of any of the arrays
+        return len(self._fmeasure)
+
     @property
     def global_information_gain(self):
         """Global information gain."""
@@ -950,51 +954,47 @@ def main():
     # mean evaluation for all files
     mean_eval = MeanBeatEvaluation()
     # evaluate all files
-    for det_file in det_files:
-        # load the detections
-        detections = load_events(det_file)
-        # get the matching annotation files
-        matches = match_file(det_file, ann_files,
-                             args.det_suffix, args.ann_suffix)
-        # quit if any file does not have a matching annotation file
-        if len(matches) == 0:
-            print " can't find an annotation file found for %s" % det_file
-            exit()
-        # do a mean evaluation with all matched annotation files
-        me = MeanBeatEvaluation()
-        for ann_file in matches:
-            # load the annotations
-            annotations = load_events(ann_file)
-            # remove beats and annotations that are within the first N seconds
-            if args.skip > 0:
-                # skipping the first few seconds alters the results
-                start_idx = np.searchsorted(detections, args.skip, 'right')
-                detections = detections[start_idx:]
-                start_idx = np.searchsorted(annotations, args.skip, 'right')
-                annotations = annotations[start_idx:]
-            # add the BeatEvaluation this file's mean evaluation
-            me.append(BeatEvaluation(detections, annotations,
-                                     window=args.window,
-                                     tolerance=args.tolerance,
-                                     sigma=args.sigma,
-                                     goto_threshold=args.goto_threshold,
-                                     goto_sigma=args.goto_sigma,
-                                     goto_mu=args.goto_mu,
-                                     tempo_tolerance=args.tempo_tolerance,
-                                     phase_tolerance=args.phase_tolerance,
-                                     bins=args.bins, offbeat=args.offbeat,
-                                     double=args.double, triple=args.triple))
-            # process the next annotation file
-        # print stats for each file
+    for ann_file in ann_files:
+        # load the annotations
+        annotations = load_events(ann_file)
+        # get the matching detection files
+        matches = match_file(ann_file, det_files,
+                             args.ann_suffix, args.det_suffix)
+        if len(matches) > 1:
+            # exit if multiple detections were found
+            raise SystemExit("multiple detections for %s found." % ann_file)
+        elif len(matches) == 0:
+            # print a warning if no detections were found
+            import warnings
+            warnings.warn(" can't find detections for %s." % ann_file)
+            # but continue and assume no detections
+            detections = np.zeros(0)
+        else:
+            # load the detections
+            detections = load_events(matches[0])
+        # remove beats and annotations that are within the first N seconds
+        if args.skip > 0:
+            # skipping the first few seconds alters the results
+            start_idx = np.searchsorted(detections, args.skip, 'right')
+            detections = detections[start_idx:]
+            start_idx = np.searchsorted(annotations, args.skip, 'right')
+            annotations = annotations[start_idx:]
+        # evaluate
+        e = BeatEvaluation(detections, annotations, window=args.window,
+                           tolerance=args.tolerance, sigma=args.sigma,
+                           goto_threshold=args.goto_threshold,
+                           goto_sigma=args.goto_sigma, goto_mu=args.goto_mu,
+                           tempo_tolerance=args.tempo_tolerance,
+                           phase_tolerance=args.phase_tolerance,
+                           bins=args.bins, offbeat=args.offbeat,
+                           double=args.double, triple=args.triple)
+        # print stats for the file
         if args.verbose:
-            print det_file
-            print me.print_errors('  ', args.tex)
-        # add this file's mean evaluation to the global evaluation
-        mean_eval.append(me)
-        # process the next detection file
+            print e.print_errors('%s\n  ' % ann_file)
+        # add this file's evaluation to the global evaluation
+        mean_eval.append(e)
     # print summary
-    print 'mean for %i files:' % (len(det_files))
-    print mean_eval.print_errors('  ', args.tex)
+    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
 
 if __name__ == '__main__':
     main()
