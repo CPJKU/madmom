@@ -160,14 +160,14 @@ class TempoEstimation(RNNBeatTracking):
         """
         Estimates the tempo of the signal.
 
-        :param method:       either 'acf' or 'comb'.
-        :param min_bpm:      minimum tempo to detect
-        :param max_bpm:      maximum tempo to detect
-        :param act_smooth:   smooth the activation function over N seconds
-        :param hist_smooth:  smooth the activation function over N bins
-        :param alpha:        scaling factor for the comb filter
-        :return:             numpy array with the dominant tempi (first column)
-                             and their relative strengths (second column)
+        :param method:      either 'acf' or 'comb'.
+        :param min_bpm:     minimum tempo to detect
+        :param max_bpm:     maximum tempo to detect
+        :param act_smooth:  smooth the activation function over N seconds
+        :param hist_smooth: smooth the activation function over N bins
+        :param alpha:       scaling factor for the comb filter
+        :return:            numpy array with the dominant tempi (first column)
+                            and their relative strengths (second column)
 
         """
         # convert the arguments to frames
@@ -194,8 +194,8 @@ class TempoEstimation(RNNBeatTracking):
         """
         Write the two most dominant tempi and the relative strength to a file.
 
-        :param filename:  output file name or file handle
-        :param mirex:     report the lower tempo first (as required by MIREX)
+        :param filename: output file name or file handle
+        :param mirex:    report the lower tempo first (as required by MIREX)
 
         """
         from madmom.utils import open
@@ -213,7 +213,7 @@ class TempoEstimation(RNNBeatTracking):
         elif len(self.detections) > 1:
             t1, t2 = self.detections[:2, 0]
             strength = self.detections[0, 1] / sum(self.detections[:2, 1])
-        # or MIREX, the lower tempo must be given first
+        # for MIREX, the lower tempo must be given first
         if mirex and t1 > t2:
             t1, t2, strength = t2, t1, 1. - strength
         # write to output
