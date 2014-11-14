@@ -37,7 +37,12 @@ include madmom/evaluation/notes.py
 include madmom/evaluation/tempo.py
 
 # include models
-include madmom/models/*
+include madmom/models/LICENSE
+include madmom/models/beats_blstm_[1-8].npz
+include madmom/models/onsets_rnn_[1-8].npz
+include madmom/models/onsets_brnn_[1-8].npz
+include madmom/models/onsets_brnn_peak_picking_[1-8].npz
+include madmom/models/notes_brnn.npz
 
 # include scripts
 include bin/*
