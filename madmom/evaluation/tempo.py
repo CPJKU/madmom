@@ -122,7 +122,6 @@ class TempoEvaluation(object):
     Tempo evaluation class.
 
     """
-
     def __init__(self, detections, annotations, strengths,
                  tolerance=TOLERANCE):
         """
@@ -149,6 +148,10 @@ class TempoEvaluation(object):
         strengths = np.hstack((strengths, strengths, strengths))
         self.acc2 = tempo_evaluation(detections, annotations, strengths,
                                      tolerance)[1]
+
+    def __len__(self):
+        # just use the length of any of the arrays
+        return len(self._pscore)
 
     def print_errors(self, indent='', tex=False):
         """
@@ -308,43 +311,38 @@ def main():
     # mean evaluation for all files
     mean_eval = MeanTempoEvaluation()
     # evaluate all files
-    for det_file in det_files:
-        # get the matching annotation files
-        matches = match_file(det_file, ann_files, args.det_suffix,
-                             args.ann_suffix)
-        # pass or quit if any file does not have a matching annotation file
-        if len(matches) == 0:
-            print " can't find a annotation file for %s. exiting." % det_file
-            if args.verbose == 0:
-                exit()
-        # get the detections tempi (ignore the strengths)
-        detections, _ = load_tempo(det_file)
-        # do a mean evaluation with all matched annotation files
-        # TODO: decide whether we want multiple annotations per file or
-        #       multiple files and do a mean_evaluation on those
-        me = MeanTempoEvaluation()
-        for ann_file in matches:
-            # load the annotations
-            annotations, strengths = load_tempo(ann_file)
-            # crop the detections to the length of the annotations
-            # TODO: should this logic go into the TempoEvaluation class?
-            if not args.all:
-                detections = detections[:len(annotations)]
-                strengths = strengths[:len(annotations)]
-            # add the Evaluation to mean evaluation
-            me.append(TempoEvaluation(detections, annotations, strengths,
-                                      args.tolerance))
-            # process the next annotation file
+    for ann_file in ann_files:
+        # load the annotations
+        annotations, strengths = load_tempo(ann_file)
+        # get the matching detection files
+        matches = match_file(ann_file, det_files,
+                             args.ann_suffix, args.det_suffix)
+        if len(matches) > 1:
+            # exit if multiple detections were found
+            raise SystemExit("multiple detections for %s found." % ann_file)
+        elif len(matches) == 0:
+            # print a warning if no detections were found
+            import warnings
+            warnings.warn(" can't find detections for %s." % ann_file)
+            # but continue and assume no detected tempo
+            detections = np.zeros(0)
+        else:
+            # get the detections tempi (ignore the strengths)
+            detections, _ = load_tempo(matches[0])
+        # crop the detections to the length of the annotations
+        # TODO: should this logic go into the TempoEvaluation class?
+        if not args.all:
+            detections = detections[:len(annotations)]
+            strengths = strengths[:len(annotations)]
+        # add the Evaluation to mean evaluation
+        e = TempoEvaluation(detections, annotations, strengths, args.tolerance)
         # print stats for each file
         if args.verbose:
-            print det_file
-            print me.print_errors('  ', args.tex)
+            print e.print_errors('%s\n  ' % ann_file)
         # add this file's mean evaluation to the global evaluation
-        mean_eval.append(me)
-        # process the next detection file
+        mean_eval.append(e)
     # print summary
-    print 'mean for %i files:' % (len(det_files))
-    print mean_eval.print_errors('  ', args.tex)
+    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
 
 if __name__ == '__main__':
     main()

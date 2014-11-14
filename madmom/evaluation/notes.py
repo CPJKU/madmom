@@ -196,39 +196,42 @@ def main():
     sum_eval = MultiClassEvaluation()
     mean_eval = MeanEvaluation()
     # evaluate all files
-    for det_file in det_files:
-        # load the detections
-        detections = load_notes(det_file)
+    for ann_file in ann_files:
+        # load the annotations
+        annotations = load_notes(ann_file)
+        # get the matching detection files
+        matches = match_file(ann_file, det_files,
+                             args.ann_suffix, args.det_suffix)
+        if len(matches) > 1:
+            # exit if multiple detections were found
+            raise SystemExit("multiple detections for %s found." % ann_file)
+        elif len(matches) == 0:
+            # print a warning if no detections were found
+            import warnings
+            warnings.warn(" can't find detections for %s." % ann_file)
+            # but continue and assume no detections
+            detections = np.zeros((0,0))
+        else:
+            # load the detections
+            detections = load_notes(matches[0])
         # shift the detections if needed
         if args.delay != 0:
             detections[:, 0] += args.delay
-        # get the matching annotation files
-        matches = match_file(det_file, ann_files, args.det_suffix,
-                             args.ann_suffix)
-        # quit if any file does not have exactly one matching annotation file
-        if len(matches) != 1:
-            print " can't find exactly 1 annotation file for %s." % det_file
-            exit()
-        # load the annotations
-        annotations = load_notes(matches[0])
-        # add the NoteEvaluation to mean evaluation
-        ne = NoteEvaluation(detections, annotations, window=args.window)
-        # process the next annotation file
-        # print stats for each file
+        # evaluate
+        e = NoteEvaluation(detections, annotations, window=args.window)
+        # print stats for the file
         if args.verbose:
-            print det_file
+            print ann_file
             if args.verbose >= 2:
-                print ne.print_errors('  ', args.tex, True)
+                print e.print_errors('  ', args.tex, True)
             else:
-                print ne.print_errors('  ', args.tex, False)
+                print e.print_errors('  ', args.tex, False)
         # add this file's evaluation to the global evaluation
-        sum_eval += ne
-        mean_eval.append(ne)
+        sum_eval += e
+        mean_eval.append(e)
     # print summary
-    print 'sum for %i files:' % (len(det_files))
-    print sum_eval.print_errors('  ', args.tex, args.verbose)
-    print 'mean for %i files:' % (len(det_files))
-    print mean_eval.print_errors('  ', args.tex, args.verbose)
+    print sum_eval.print_errors('sum for %i file(s):\n  ' % len(mean_eval))
+    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
 
 if __name__ == '__main__':
     main()
