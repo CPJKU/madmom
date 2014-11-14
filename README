@@ -3,13 +3,18 @@ Johannes Kepler University, Linz, Austria (http://www.cp.jku.at) and the
 Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 (http://www.ofai.at).
 
-Unless indicated otherwise, all files are published under the license which can
-be found in the LICENSE file of the same directory or - if none is there - of
-the next higher directory.
+License:
+--------
 
-All features can change without prior notice. Do NOT expect these to stay the
-same forever! If you need stable features, create a branch and set the needed
-parameters accordingly.
+Unless indicated otherwise, all source code files are published under the BSD
+license and all data/model files under the Creative Commons BY-NC-SA license.
+For details, please see the LICENSE file.
+
+If you want to include any of the provided technology in a commercial product,
+please contact Gerhard Widmer at gerhard.widmer@jku.at.
+
+Installation:
+-------------
 
 To use this package without installing it, make sure this directory is in your
 $PYTHONPATH.
@@ -37,6 +42,13 @@ python setup.py install --user
 Please make sure that all modules are up to date, especially those mentioned
 in requirements.txt must be the specific version (or newer), otherwise it can
 result in unexpected errors or false computations!
+
+Notes:
+------
+
+All features can change without prior notice. Do NOT expect these to stay the
+same forever! If you need stable features, create a branch and set the needed
+parameters accordingly.
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
 ATLAS instead of Apple's own Accelerate framework or use the '--threads 1'

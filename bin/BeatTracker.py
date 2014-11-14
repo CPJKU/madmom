@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) Sebastian Böck <sebastian.boeck@jku.at>
-
-Redistribution in any form is not permitted!
+@author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
 

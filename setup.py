@@ -29,7 +29,7 @@ extensions = [Extension('madmom.ml.rnn',
                         extra_link_args=['-fopenmp'])]
 
 setup(name='madmom',
-      version='0.03',
+      version='0.1',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '
@@ -37,6 +37,6 @@ setup(name='madmom',
              'Artificial Intelligence (OFAI), Vienna, Austria',
       author_email='python-sig@jku.at',
       url='https://jobim.ofai.at/gitlab/madmom/madmom',
-      license='BSD, with some exclusions',
+      license='BSD, CC BY-NC-SA',
       ext_modules=extensions,
       cmdclass={'build_ext': build_ext})
