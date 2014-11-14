@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Copyright (c) Filip Korzeniowski <filip.korzeniowski@jku.at>
-
-Redistribution in any form is not permitted!
+@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
 """
 

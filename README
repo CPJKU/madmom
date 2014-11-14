@@ -3,9 +3,16 @@ Johannes Kepler University, Linz, Austria (http://www.cp.jku.at) and the
 Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 (http://www.ofai.at).
 
-Unless indicated otherwise, all files are published under the license which can
-be found in the LICENSE file of the same directory or - if none is there - of
-the next higher directory.
+Unless indicated otherwise, all source code files are published under the
+license which can be found in the LICENSE file of the same directory or - if
+none is there - of the next higher directory.
+
+All data and (trained) model files are published under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 license. For details, please see the
+LICENSE file in the madmom/models directory.
+
+If you want to include any of the provided technology in a commercial product,
+please feel free to contact us via mail at: python-sig@jku.at.
 
 All features can change without prior notice. Do NOT expect these to stay the
 same forever! If you need stable features, create a branch and set the needed

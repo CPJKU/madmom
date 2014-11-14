@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-SuperFlux onset detection algorithm.
+SuperFlux with neural network based peak picking onset detection algorithm.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
