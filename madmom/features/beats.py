@@ -274,7 +274,7 @@ class RNNBeatTracking(RNNEventDetection):
                        default=act_smooth,
                        help='smooth the beat activations over N seconds '
                             '[default=%(default).2f]')
-        # make switchable (useful for including the beat stuff for tempo
+        # make switchable (useful for including the beat stuff for tempo)
         if hist_smooth is not None:
             g.add_argument('--hist_smooth', action='store', type=int,
                            default=hist_smooth,
@@ -536,15 +536,11 @@ class CRFBeatDetection(RNNBeatTracking):
         return g
 
 
-class MMBeatTracking(RNNBeatTracking):
+class DBNBeatTracking(RNNBeatTracking):
     """
-    Multi-model beat tracking with RNNs and a DBN.
+    Beat tracking with RNNs and a DBN.
 
     """
-    # define the model files
-    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % MODELS_PATH)
-    # DBN_FILE = "%s/beat_tracking_dbn.npz" % MODELS_PATH
-    DBN_FILE = None
     # some default values
     CORRECT = True
     NUM_BEAT_STATES = 1280
@@ -563,8 +559,7 @@ class MMBeatTracking(RNNBeatTracking):
         warnings.warn('MMBeatTracking only works if you build the dbn '
                       'module with cython!')
 
-    def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES,
-                 nn_ref_files=NN_REF_FILES, dbn_file=DBN_FILE, *args,
+    def __init__(self, data, nn_files=RNNBeatTracking.NN_FILES, *args,
                  **kwargs):
         """
         Use multiple RNNs to compute beat activation functions and then choose
@@ -573,7 +568,6 @@ class MMBeatTracking(RNNBeatTracking):
 
         :param signal:      Signal instance or file name or file handle
         :param nn_files:    list of files that define the RNN
-        :param ref_nn_file: list of files that define the reference NN model
 
         :param args:        additional arguments passed to RNNBeatTracking()
         :param kwargs:      additional arguments passed to RNNBeatTracking()
@@ -584,51 +578,12 @@ class MMBeatTracking(RNNBeatTracking):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
 
-        """
-        super(MMBeatTracking, self).__init__(data, nn_files, *args, **kwargs)
-        self.nn_ref_files = nn_ref_files
-        self.dbn_file = dbn_file
-
-    def process(self):
-        """
-        Computes the predictions on the data with the RNN models defined/given
-        and save the predictions of the most suitable model as activations.
-
-        :return: most suitable RNN activation function (prediction)
+        It does not use the multi-model (Section 2.2.) and selection stage
+        (Section 2.3), i.e. this version corresponds to the pure DBN version
+        of the algorithm for which results are given in Table 2.
 
         """
-        from madmom.ml.rnn import process_rnn
-        # append the nn_files to the list of reference model(s)
-        nn_files = self.nn_ref_files + self.nn_files
-        # compute the predictions with RNNs, do not average them
-        predictions = process_rnn(self.data, nn_files, self.num_threads,
-                                  average=False)
-        # get the reference predictions
-        num_ref_files = len(self.nn_ref_files)
-        if num_ref_files > 1:
-            # if we have multiple reference networks, average their predictions
-            reference_prediction = (sum(predictions[:num_ref_files]) /
-                                    num_ref_files)
-        elif num_ref_files == 1:
-            # if only 1 reference network was given, use the first prediction
-            reference_prediction = predictions[0]
-        else:
-            # just average all predictions to simulate a reference network
-            reference_prediction = sum(predictions) / len(nn_files)
-        # init the error with the max. possible value (i.e. prediction length)
-        best_error = len(reference_prediction)
-        # compare the (remaining) predictions with the reference prediction
-        for prediction in predictions[num_ref_files:]:
-            # calculate the squared error w.r.t. the reference prediction
-            error = np.sum((prediction - reference_prediction) ** 2.)
-            # chose the best activation
-            if error < best_error:
-                best_prediction = prediction
-                best_error = error
-        # save the best prediction as activations
-        self._activations = Activations(best_prediction.ravel(), self.fps)
-        # and return them
-        return self._activations
+        super(DBNBeatTracking, self).__init__(data, nn_files, *args, **kwargs)
 
     def detect(self, correct=CORRECT, num_beat_states=NUM_BEAT_STATES,
                tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
@@ -681,23 +636,16 @@ class MMBeatTracking(RNNBeatTracking):
         return self._detections
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
-                      nn_ref_files=NN_REF_FILES, correct=CORRECT,
-                      num_beat_states=NUM_BEAT_STATES, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM,
-                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                      observation_lambda=OBSERVATION_LAMBDA,
-                      norm_observations=NORM_OBSERVATIONS):
+    def add_dbn_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
+                          min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                          tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                          observation_lambda=OBSERVATION_LAMBDA,
+                          norm_observations=NORM_OBSERVATIONS,
+                          correct=CORRECT):
         """
-        Add MMBeatTracking related arguments to an existing parser object.
+        Add DBN related arguments to an existing parser object.
 
         :param parser:       existing argparse parser object
-        :param nn_files:     list with files of NN models
-        :param nn_ref_files: list with files of reference NN model(s)
-
-        Parameters for the dynamic Bayesian network:
-
-        :param correct: correct the beat positions
 
         Parameters for the transition model:
 
@@ -714,23 +662,14 @@ class MMBeatTracking(RNNBeatTracking):
                                    remaining non-beat states
         :param norm_observations:  normalize the observations
 
+        Post-processing parameters:
+
+        :param correct: correct the beat positions
+
         :return:             beat argument parser group object
 
         """
-        # add Activations parser
-        Activations.add_arguments(parser)
-        # add arguments from RNNEventDetection
-        g = RNNEventDetection.add_arguments(parser, nn_files=nn_files)
-        g.add_argument('--nn_ref_files', action='append', type=str,
-                       default=nn_ref_files,
-                       help='Compare the predictions to these pre-trained '
-                            'neural networks (multiple files can be given, '
-                            'one file per argument) and choose the most '
-                            'suitable one accordingly (i.e. the one with the '
-                            'least deviation form the reference model). '
-                            'If multiple reference files are given, the '
-                            'predictions of the networks are averaged first.')
-        # add DBN parser group (skip the tempo state option)
+        # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         if correct:
             g.add_argument('--no_correct', dest='correct',
@@ -769,5 +708,131 @@ class MMBeatTracking(RNNBeatTracking):
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalize the observations of the DBN')
+        # return the argument group so it can be modified if needed
+        return g
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES):
+        """
+        Add DBNBeatTracking related arguments to an existing parser object.
+
+        :param parser:   existing argparse parser object
+        :param nn_files: list with files of NN models
+
+        :return:         DBN beat tracking parser group object
+
+        """
+        # add Activations parser
+        Activations.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        # add DBN parser stuff
+        g = cls.add_dbn_arguments(parser)
+        # return the argument group so it can be modified if needed
+        return g
+
+
+class MMBeatTracking(DBNBeatTracking):
+    """
+    Multi-model beat tracking with RNNs and a DBN.
+
+    """
+    # define the reference model files
+    NN_REF_FILES = glob.glob("%s/beats_ref_blstm*npz" % MODELS_PATH)
+
+    def __init__(self, data, nn_files=DBNBeatTracking.NN_FILES,
+                 nn_ref_files=NN_REF_FILES, *args, **kwargs):
+        """
+        Use multiple RNNs to compute beat activation functions and then choose
+        the most appropriate one automatically by comparing them to a reference
+        model and finally infer the beats with a dynamic Bayesian network.
+
+        :param signal:      Signal instance or file name or file handle
+        :param nn_files:    list of files that define the RNN
+        :param ref_nn_file: list of files that define the reference NN model
+
+        :param args:        additional arguments passed to DBNBeatTracking()
+        :param kwargs:      additional arguments passed to DBNBeatTracking()
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2014
+
+        """
+        super(MMBeatTracking, self).__init__(data, nn_files, *args, **kwargs)
+        self.nn_ref_files = nn_ref_files
+
+    def process(self):
+        """
+        Computes the predictions on the data with the RNN models defined/given
+        and save the predictions of the most suitable model as activations.
+
+        :return: most suitable RNN activation function (prediction)
+
+        """
+        from madmom.ml.rnn import process_rnn
+        # append the nn_files to the list of reference model(s)
+        nn_files = self.nn_ref_files + self.nn_files
+        # compute the predictions with RNNs, do not average them
+        predictions = process_rnn(self.data, nn_files, self.num_threads,
+                                  average=False)
+        # get the reference predictions
+        num_ref_files = len(self.nn_ref_files)
+        if num_ref_files > 1:
+            # if we have multiple reference networks, average their predictions
+            reference_prediction = (sum(predictions[:num_ref_files]) /
+                                    num_ref_files)
+        elif num_ref_files == 1:
+            # if only 1 reference network was given, use the first prediction
+            reference_prediction = predictions[0]
+        else:
+            # just average all predictions to simulate a reference network
+            reference_prediction = sum(predictions) / len(nn_files)
+        # init the error with the max. possible value (i.e. prediction length)
+        best_error = len(reference_prediction)
+        # compare the (remaining) predictions with the reference prediction
+        for prediction in predictions[num_ref_files:]:
+            # calculate the squared error w.r.t. the reference prediction
+            error = np.sum((prediction - reference_prediction) ** 2.)
+            # chose the best activation
+            if error < best_error:
+                best_prediction = prediction
+                best_error = error
+        # save the best prediction as activations
+        self._activations = Activations(best_prediction.ravel(), self.fps)
+        # and return them
+        return self._activations
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=RNNBeatTracking.NN_FILES,
+                      nn_ref_files=NN_REF_FILES, **kwargs):
+        """
+        Add MMBeatTracking related arguments to an existing parser object.
+
+        :param parser:       existing argparse parser object
+        :param nn_files:     list of files that define the RNN
+        :param nn_ref_files: list with files of reference NN model(s)
+        :param kwargs:       additional arguments passed to
+                             DBNBeatTracking.add_dbn_arguments()
+        :return:             Multi-model DBN beat tracking parser group object
+
+        """
+        # add Activations parser
+        Activations.add_arguments(parser)
+        # add arguments from RNNEventDetection
+        g = RNNEventDetection.add_arguments(parser, nn_files=nn_files)
+        g.add_argument('--nn_ref_files', action='append', type=str,
+                       default=nn_ref_files,
+                       help='Compare the predictions to these pre-trained '
+                            'neural networks (multiple files can be given, '
+                            'one file per argument) and choose the most '
+                            'suitable one accordingly (i.e. the one with the '
+                            'least deviation form the reference model). '
+                            'If multiple reference files are given, the '
+                            'predictions of the networks are averaged first.')
+        # add DBN stuff
+        g = DBNBeatTracking.add_dbn_arguments(parser, **kwargs)
         # return the argument group so it can be modified if needed
         return g
