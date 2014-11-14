@@ -17,7 +17,7 @@ other stuff.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
-
+import abc
 import numpy as np
 
 # naming infix for bidirectional layer
@@ -83,7 +83,9 @@ class Layer(object):
     Generic network Layer.
 
     """
+    __metaclass__ = abc.ABCMeta
 
+    @abc.abstractmethod
     def activate(self, data):
         """
         Activate the layer.
@@ -92,23 +94,23 @@ class Layer(object):
         :return:     activations for this data
 
         """
-        raise NotImplementedError("To be implemented by subclass")
+        return
 
-    @property
+    @abc.abstractproperty
     def input_size(self):
         """
         Input size of the layer.
 
         """
-        raise NotImplementedError("To be implemented by subclass")
+        return
 
-    @property
+    @abc.abstractproperty
     def output_size(self):
         """
         Output size of the layer.
 
         """
-        raise NotImplementedError("To be implemented by subclass")
+        return
 
 
 class BidirectionalLayer(Layer):
