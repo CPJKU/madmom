@@ -1015,12 +1015,14 @@ class MIDIFile(object):
     MIDI File.
 
     """
-    def __init__(self, data=None, resolution=RESOLUTION):
+    def __init__(self, data=None, resolution=RESOLUTION, note_time_unit='s'):
         """
         Instantiate a new MIDI file instance.
 
-        :param data:       can be a .mid file or numpy array with notes
-        :param resolution: resolution, i.e. microseconds per quarter note
+        :param data:           can be a .mid file or numpy array with notes
+        :param resolution:     resolution, i.e. microseconds per quarter note
+        :param note_time_unit: sets the time unit for notes, seconds ('s') or
+                               beats ('b').
 
         Note: If a .mid file is given as data, it is read in automatically.
               If a numpy array with notes is given, the information can be
@@ -1030,6 +1032,7 @@ class MIDIFile(object):
         # init variables
         self.format = 0  # TODO: right now we only write format 0 files
         self.resolution = resolution  # i.e. microseconds per quarter note
+        self.note_time_unit = note_time_unit
         self.fps = None
         self.tracks = []
         # process data
@@ -1168,12 +1171,75 @@ class MIDIFile(object):
                 else:
                     raise TypeError('unexpected NoteEvent')
                 tick = e.tick
-        # sort the notes and convert to a numpy array
+
+        # sort the notes
         notes.sort()
+
+        # convert onset times and durations from ticks to a meaningful unit
+        if self.note_time_unit == 's':
+            self.note_ticks_to_seconds(notes)
+        elif self.note_time_unit == 'b':
+            self.note_ticks_to_beats(notes)
+        else:
+            raise ValueError("note_time_unit must be either 's' (seconds) or "
+                             "'b' (beats), not %s." % self.note_time_unit)
+
+        # return the notes as numpy array
+        return np.asarray(notes, np.float)
+
+    def note_ticks_to_beats(self, notes):
+        """
+        Converts onsets and offsets of notes from ticks to beats.
+
+        :param notes: list of notes tuples: (onset, pitch, offset, velocity)
+        :return:      list of notes with onsets and offsets in beats
+
+        """
+        tpq = self.ticks_per_quarter_note
+        time_signatures = self.time_signatures.astype(np.float)
+
+        # change the second column of time_signatures to beat position of the
+        # signature change, the first column is now the tick position, the
+        # second column the beat position and the third column the new beat
+        # unit after the signature change
+        time_signatures[0, 1] = 0
+
+        # quarter notes between time signature changes
+        qnbtsc = np.diff(time_signatures[:, 0]) / tpq
+        # beats between time signature changes
+        bbtsc = qnbtsc * (time_signatures[:-1, 2] / 4.0)
+        # compute beat position of each time signature change
+        time_signatures[1:, 1] = bbtsc.cumsum()
+
+        # iterate over all notes
+        for i in range(len(notes)):
+            onset, pitch, offset, velocity = notes[i]
+            # get info about last time signature change
+            tsc = time_signatures[np.argmax(time_signatures[:, 0] > onset) - 1]
+            # adjust onsets
+            onset_ticks_since_tsc = onset - tsc[0]
+            onset_beats = tsc[1] + (onset_ticks_since_tsc / tpq) * (tsc[2] /
+                                                                    4.0)
+            # adjust offsets
+            offset_ticks_since_tsc = offset - tsc[0]
+            offset_beats = tsc[1] + (offset_ticks_since_tsc / tpq) * (tsc[2] /
+                                                                      4.0)
+            # update the note
+            notes[i] = (onset_beats, pitch, offset_beats, velocity)
+        # return notes
+        return notes
+
+    def note_ticks_to_seconds(self, notes):
+        """
+        Converts onsets and offsets of notes from ticks to seconds.
+
+        :param notes: list of notes tuples: (onset, pitch, offset, velocity)
+        :return:      list of notes with onsets and offsets in seconds
+
+        """
         # cache tempo
         tempi = self.tempi
         # iterate over all notes
-        # TODO: numpy-fy this!
         for i in range(len(notes)):
             onset, pitch, offset, velocity = notes[i]
             # get last tempo for the onset and offset
@@ -1182,10 +1248,10 @@ class MIDIFile(object):
             # onset/offset calculation
             onset = (onset - t1[0]) * t1[1] + t1[2]
             offset = (offset - t2[0]) * t2[1] + t2[2]
-            # update the note onset
+            # update the note
             notes[i] = (onset, pitch, offset, velocity)
         # return notes
-        return np.asarray(notes, np.float)
+        return notes
 
     def make_ticks_abs(self):
         """
@@ -1260,22 +1326,33 @@ class MIDIFile(object):
         return self
 
     # methods for writing MIDI stuff
+    @property
+    def data(self):
+        """
+        MIDI byte data.
+
+        """
+        from StringIO import StringIO
+        str_buffer = StringIO()
+        # write a MIDI header
+        header_data = struct.pack(">LHHH", 6, self.format,
+                                  len(self.tracks), self.resolution)
+        str_buffer.write('MThd%s' % header_data)
+        # write each track
+        for track in self.tracks:
+            track.write(str_buffer)
+        # return the data buffer
+        return str_buffer.getvalue()
+
     def write(self, midi_file):
         """
         Write a MIDI file.
 
-        :param midi_file: the MIDI file handle
+        :param midi_file: the MIDI file name
 
         """
         with open(midi_file, 'wb') as midi_file:
-            # write a MIDI header
-            header_data = struct.pack(">LHHH", 6, self.format,
-                                      len(self.tracks), self.resolution)
-            midi_file.write('MThd%s' % header_data)
-            # write all tracks
-            for track in self.tracks:
-                # write each track to file
-                track.write(midi_file)
+            midi_file.write(self.data)
 
     def add_notes_to_track(self, notes, track):
         """
