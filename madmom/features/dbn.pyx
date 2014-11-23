@@ -15,6 +15,8 @@ from cython.parallel cimport prange
 import multiprocessing as mp
 NUM_THREADS = mp.cpu_count()
 
+cdef extern from "math.h":
+    float INFINITY
 
 # transition model stuff
 cdef class TransitionModel(object):
@@ -483,7 +485,7 @@ cdef class DynamicBayesianNetwork(object):
         cdef unsigned int prev_state, pointer
         cdef double density, transition_prob
         # reset the current viterbi variable
-        current_viterbi[state] = log(0.000000001)
+        current_viterbi[state] = -INFINITY
         # get the observation model probability density value
         # the om_pointers array holds pointers to the correct observation
         # probability density value for the actual state (i.e. column in the
