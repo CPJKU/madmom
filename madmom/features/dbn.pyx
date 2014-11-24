@@ -413,9 +413,9 @@ cdef class DynamicBayesianNetwork(object):
     cdef public ObservationModel observation_model
     cdef public np.ndarray initial_states
     cdef public unsigned int num_threads
-    cdef public double path_probability
     # hidden variable
     cdef np.ndarray _path
+    cdef double _path_probability
 
     def __init__(self, transition_model=None, observation_model=None,
                  initial_states=None, num_threads=NUM_THREADS):
@@ -453,6 +453,9 @@ cdef class DynamicBayesianNetwork(object):
         else:
             self.initial_states = np.ascontiguousarray(initial_states,
                                                        dtype=np.float)
+        # init path and its probability
+        self._path = None
+        self._path_probability = -INFINITY
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -532,23 +535,21 @@ cdef class DynamicBayesianNetwork(object):
         cdef unsigned int num_observations = len(om.log_densities)
 
         # current viterbi variables
-        current_viterbi_np = np.empty(num_states, dtype=np.float)
-        cdef double [::1] current_viterbi = current_viterbi_np
-
+        cdef double [::1] current_viterbi = np.empty(num_states,
+                                                     dtype=np.float)
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = self.initial_states
-
         # back-tracking pointers
         cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
                                                            num_states),
                                                           dtype=np.uint32)
         # back tracked path, a.k.a. path sequence
-        path = np.empty(num_observations, dtype=np.uint32)
+        self._path = np.empty(num_observations, dtype=np.uint32)
 
         # define counters etc.
         cdef int state, frame
         cdef unsigned int prev_state, pointer, num_threads = self.num_threads
-        cdef double obs, transition_prob, path_probability = 0.0
+        cdef double obs, transition_prob
 
         # iterate over all observations
         for frame in range(num_observations):
@@ -569,32 +570,23 @@ cdef class DynamicBayesianNetwork(object):
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
 
-            # overwrite the old states with the normalized current ones
-            # since we're in log-space, we need to subtract the max instead
-            # of dividing by the sum
-            # Note: this is faster than unrolling the loop! But it is a bit
-            #       tricky: we need to do the max() and normalisation on the
-            #       numpy array but do the assignment on the memoryview
-            previous_viterbi = current_viterbi_np - current_viterbi_np.max()
-            # add the sum of all viterbi variables to the overall sum
-            # path_probability += current_viterbi_np.sum()
+            # overwrite the old states with the current ones
+            previous_viterbi[:] = current_viterbi
 
         # fetch the final best state
-        state = current_viterbi_np.argmax()
-        # add its log probability to the sum
-        # path_probability += current_viterbi_np.max()
+        state = np.asarray(current_viterbi).argmax()
+        # set the path's probability to that of the best state
+        self._path_probability = np.asarray(current_viterbi)[state]
         # track the path backwards, start with the last frame and do not
         # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
         for frame in range(num_observations -1, -1, -1):
             # save the state in the path
-            path[frame] = state
+            self._path[frame] = state
             # fetch the next previous one
             state = bt_pointers[frame, state]
-        # save the tracked path and log sum and return them
-        self._path = path
-        self.path_probability = path_probability
-        return path, path_probability
+        # return the tracked path and its probability
+        return self._path, self._path_probability
 
     @property
     def path(self):
@@ -602,6 +594,15 @@ cdef class DynamicBayesianNetwork(object):
         if self._path is None:
             self.viterbi()
         return self._path
+
+    @property
+    def path_probability(self):
+        """Best path probability."""
+        # Note: we need to check the _path, since the _path_probability can't
+        #       get initialized as 'None' because of static typing
+        if self._path is None:
+            self.viterbi()
+        return self._path_probability
 
 
 cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
