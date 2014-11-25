@@ -15,6 +15,8 @@ from cython.parallel cimport prange
 import multiprocessing as mp
 NUM_THREADS = mp.cpu_count()
 
+cdef extern from "math.h":
+    float INFINITY
 
 # transition model stuff
 cdef class TransitionModel(object):
@@ -22,12 +24,13 @@ cdef class TransitionModel(object):
     Transition model for a DBN.
 
     The transition model is defined similar to a scipy compressed sparse row
-    matrix and holds all transition probabilities from one state to an other.
+    matrix and holds all transition log probabilities from one state to an
+    other.
 
     All state indices for row state s are stored in
     states[pointers[s]:pointers[s+1]]
-    and their corresponding probabilities are stored in
-    probabilities[pointers[s]:pointers[s+1]].
+    and their corresponding log probabilities are stored in
+    log_probabilities[pointers[s]:pointers[s+1]].
 
     This allows for a parallel computation of the viterbi path.
 
@@ -36,7 +39,7 @@ cdef class TransitionModel(object):
 
     """
     # define some variables which are also exported as Python attributes
-    cdef public np.ndarray probabilities
+    cdef public np.ndarray log_probabilities
     cdef public np.ndarray states
     cdef public np.ndarray pointers
     # hidden list with attributes to save/load
@@ -50,23 +53,28 @@ cdef class TransitionModel(object):
 
         """
         # set the attributes which should be saved or loaded
-        self.attributes = ['probabilities', 'states', 'pointers']
+        self.attributes = ['log_probabilities', 'states', 'pointers']
+        # init some variables
+        self.states = None
+        self.pointers = None
+        self.log_probabilities = None
         # load the transitions
         if model is not None:
             self.load(model)
 
-    def make_sparse(self, probabilities, states, prev_states):
+    def make_sparse(self, log_probabilities, states, prev_states):
         """
         Method to convert the given transitions to a sparse format.
 
         Three 1D numpy arrays of same length must be given. The indices
-        correspond with each other, i.e. the first entry of all three arrays
-        define the transition from the state defined prev_states[0] to the
-        state states[0] with the probability defined in probabilities[0].
+        correspond to each other, i.e. the first entry of all three arrays
+        define the transition from the state defined prev_states[0] to that
+        defined in states[0] with the log probability defined in
+        log_probabilities[0].
 
-        :param probabilities: transition probabilities
-        :param states:        corresponding states
-        :param prev_states:   corresponding previous states
+        :param log_probabilities: transition log probabilities
+        :param states:            corresponding states
+        :param prev_states:       corresponding previous states
 
         This method removes all duplicate states and thus allows for parallel
         processing of the Viterbi of the DBN.
@@ -74,11 +82,11 @@ cdef class TransitionModel(object):
         """
         from scipy.sparse import csr_matrix
         # convert everything into a sparse CSR matrix
-        transitions = csr_matrix((probabilities, (states, prev_states)))
+        transitions = csr_matrix((log_probabilities, (states, prev_states)))
         # save the sparse matrix as 3 linear arrays
         self.states = transitions.indices.astype(np.uint32)
         self.pointers = transitions.indptr.astype(np.uint32)
-        self.probabilities = transitions.data.astype(dtype=np.float)
+        self.log_probabilities = transitions.data.astype(dtype=np.float)
 
     def save(self, outfile, compressed=True):
         """
@@ -175,7 +183,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                           int [::1] tempo_states,
                           double tempo_change_probability):
         """
-        Compute the transition probabilities and return them in a format
+        Compute the transition log probabilities and return them in a format
         understood by make_sparse().
 
         :param num_beat_states:          number of states for one beat period
@@ -184,15 +192,16 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                          observation value to the next one)
         :param tempo_change_probability: probability of a tempo change from
                                          one observation to the next one
-        :return:                         (probabilities, states, prev_states)
+        :return:                         tuple with (log_probabilities, states,
+                                         prev_states)
 
         """
         # number of tempo & total states
         cdef unsigned int num_tempo_states = len(tempo_states)
         cdef unsigned int num_states = num_beat_states * num_tempo_states
         # transition probabilities
-        cdef double same_tempo_prob = 1. - tempo_change_probability
-        cdef double change_tempo_prob = 0.5 * tempo_change_probability
+        cdef double same_tempo_log_prob = log(1. - tempo_change_probability)
+        cdef double change_tempo_log_prob = log(0.5 * tempo_change_probability)
         # counters etc.
         cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
         # number of transition states
@@ -207,7 +216,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             np.empty(num_transition_states, np.uint32)
         cdef unsigned int [::1] prev_states = \
             np.empty(num_transition_states, np.uint32)
-        cdef double [::1] probabilities = \
+        cdef double [::1] log_probabilities = \
             np.empty(num_transition_states, np.float)
         cdef int i = 0
         # loop over all states
@@ -226,7 +235,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             # probability for transition from same tempo
             states[i] = state
             prev_states[i] = prev_state
-            probabilities[i] = same_tempo_prob
+            log_probabilities[i] = same_tempo_log_prob
             i += 1
             # transition from slower tempo
             if tempo_state > 0:
@@ -237,7 +246,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                 # probability for transition from slower tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
+                log_probabilities[i] = change_tempo_log_prob
                 i += 1
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
@@ -250,10 +259,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                 # probability for transition from faster tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
+                log_probabilities[i] = change_tempo_log_prob
                 i += 1
         # return the arrays
-        return probabilities, states, prev_states
+        return log_probabilities, states, prev_states
 
 
 # observation model stuff
@@ -264,45 +273,49 @@ cdef class ObservationModel(object):
     An observation model is defined as two plain numpy arrays, densities and
     pointers.
 
-    The 'densities' is a 2D numpy array with the number of rows being equal
+    The 'log_densities' is a 2D numpy array with the number of rows being equal
     to the length of the observations and the columns representing the
-    different observation probability densities. The type must be np.float.
+    different observation log probability densities. The type must be np.float.
 
     The 'pointers' is a 1D numpy array and has a length equal to the number of
     states of the DBN and points from each state to the corresponding column
-    of the 'densities' array. The type must be np.uint32.
+    of the 'log_densities' array. The type must be np.uint32.
 
     """
     # define some variables which are also exported as Python attributes
-    cdef public np.ndarray densities
+    cdef public np.ndarray log_densities
     cdef public np.ndarray pointers
 
-    def __init__(self, densities=None, pointers=None):
+    def __init__(self, log_densities=None, pointers=None):
         """
         Construct a ObservationModel instance for a DBN.
 
-        :param densities: numpy array with observation probability densities
-        :param pointers:  numpy array with pointers from DBN states to the
-                          correct densities column or the number of DBN states
+        :param log_densities: numpy array with observation log probability
+                              densities
+        :param pointers:      numpy array with pointers from DBN states to the
+                              correct densities column or the number of DBN
+                              states
 
-        If densities are 1D, they are converted to a 2D representation with
+        If log_densities are 1D, they are converted to a 2D representation with
         only 1 column. If pointers is an integer number, a pointers vector of
         that length is created, pointing always to the first column.
 
         """
         # densities
-        if densities is None:
-            pass
-        elif isinstance(densities, (list, np.ndarray)):
+        if log_densities is None:
+            # init as None
+            self.log_densities = None
+        elif isinstance(log_densities, (list, np.ndarray)):
             # convert to a 2d numpy array if needed
-            if densities.ndim == 1:
-                densities = np.atleast_2d(densities).T
-            self.densities = np.asarray(densities, dtype=np.float)
+            if log_densities.ndim == 1:
+                log_densities = np.atleast_2d(log_densities).T
+            self.log_densities = np.asarray(log_densities, dtype=np.float)
         else:
-            raise TypeError('wrong type for densities')
+            raise TypeError('wrong type for log_densities')
         # pointers
         if pointers is None:
-            pass
+            # init as None
+            self.pointers = None
         elif isinstance(pointers, int):
             # construct a pointers vector, always pointing to the first column
             self.pointers = np.zeros(pointers, dtype=np.uint32)
@@ -375,13 +388,13 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
         cdef unsigned int num_observations = len(observations)
         cdef unsigned int observation_lambda = self.observation_lambda
         # init densities
-        cdef double [:, ::1] densities = np.empty((num_observations, 2),
-                                                  dtype=np.float)
+        cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
+                                                      dtype=np.float)
         # define the observation states
         for i in range(num_observations):
-            densities[i, 0] = observations[i]
-            densities[i, 1] = ((1. - observations[i]) /
-                               (observation_lambda - 1))
+            log_densities[i, 0] = log(observations[i])
+            log_densities[i, 1] = log((1. - observations[i]) /
+                                      (observation_lambda - 1))
         # init observation pointers
         cdef unsigned int [:] pointers = np.zeros(num_states, dtype=np.uint32)
         cdef unsigned int observation_border = (num_beat_states /
@@ -393,7 +406,7 @@ cdef class NNBeatTrackingObservationModel(ObservationModel):
             else:
                 pointers[i] = 1
         # save everything
-        self.densities = np.asarray(densities)
+        self.log_densities = np.asarray(log_densities)
         self.pointers = np.asarray(pointers)
 
 
@@ -408,9 +421,9 @@ cdef class DynamicBayesianNetwork(object):
     cdef public ObservationModel observation_model
     cdef public np.ndarray initial_states
     cdef public unsigned int num_threads
-    cdef public double path_probability
     # hidden variable
     cdef np.ndarray _path
+    cdef double _log_probability
 
     def __init__(self, transition_model=None, observation_model=None,
                  initial_states=None, num_threads=NUM_THREADS):
@@ -448,6 +461,9 @@ cdef class DynamicBayesianNetwork(object):
         else:
             self.initial_states = np.ascontiguousarray(initial_states,
                                                        dtype=np.float)
+        # init path and its probability
+        self._path = None
+        self._log_probability = -INFINITY
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -480,7 +496,7 @@ cdef class DynamicBayesianNetwork(object):
         cdef unsigned int prev_state, pointer
         cdef double density, transition_prob
         # reset the current viterbi variable
-        current_viterbi[state] = 0.0
+        current_viterbi[state] = -INFINITY
         # get the observation model probability density value
         # the om_pointers array holds pointers to the correct observation
         # probability density value for the actual state (i.e. column in the
@@ -494,8 +510,8 @@ cdef class DynamicBayesianNetwork(object):
             prev_state = tm_states[pointer]
             # weight the previous state with the transition
             # probability and the observation probability density
-            transition_prob = prev_viterbi[prev_state] * \
-                              tm_probabilities[pointer] * density
+            transition_prob = prev_viterbi[prev_state] + \
+                              tm_probabilities[pointer] + density
             # if this transition probability is greater than the
             # current, overwrite it and save the previous state
             # in the current pointers
@@ -517,33 +533,31 @@ cdef class DynamicBayesianNetwork(object):
         cdef TransitionModel tm = self.transition_model
         cdef unsigned int [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_pointers = tm.pointers
-        cdef double [::1] tm_probabilities = tm.probabilities
+        cdef double [::1] tm_probabilities = tm.log_probabilities
         cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
         cdef ObservationModel om = self.observation_model
-        cdef double [:, ::1] om_densities = om.densities
+        cdef double [:, ::1] om_densities = om.log_densities
         cdef unsigned int [::1] om_pointers = om.pointers
-        cdef unsigned int num_observations = len(om.densities)
+        cdef unsigned int num_observations = len(om.log_densities)
 
         # current viterbi variables
-        current_viterbi_np = np.empty(num_states, dtype=np.float)
-        cdef double [::1] current_viterbi = current_viterbi_np
-
+        cdef double [::1] current_viterbi = np.empty(num_states,
+                                                     dtype=np.float)
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = self.initial_states
-
         # back-tracking pointers
         cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
                                                            num_states),
                                                           dtype=np.uint32)
         # back tracked path, a.k.a. path sequence
-        path = np.empty(num_observations, dtype=np.uint32)
+        self._path = np.empty(num_observations, dtype=np.uint32)
 
         # define counters etc.
         cdef int state, frame
         cdef unsigned int prev_state, pointer, num_threads = self.num_threads
-        cdef double obs, transition_prob, viterbi_sum, path_probability = 0.0
+        cdef double obs, transition_prob
 
         # iterate over all observations
         for frame in range(num_observations):
@@ -564,31 +578,23 @@ cdef class DynamicBayesianNetwork(object):
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
 
-            # overwrite the old states with the normalized current ones
-            # Note: this is faster than unrolling the loop! But it is a bit
-            #       tricky: we need to do the summing and normalisation on the
-            #       numpy array but do the assignment on the memoryview
-            viterbi_sum = current_viterbi_np.sum()
-            previous_viterbi = current_viterbi_np / viterbi_sum
-            # add the log sum of all viterbi variables to the overall sum
-            path_probability += log(viterbi_sum)
+            # overwrite the old states with the current ones
+            previous_viterbi[:] = current_viterbi
 
         # fetch the final best state
-        state = current_viterbi_np.argmax()
-        # add its log probability to the sum
-        path_probability += log(current_viterbi_np.max())
+        state = np.asarray(current_viterbi).argmax()
+        # set the path's probability to that of the best state
+        self._log_probability = np.asarray(current_viterbi)[state]
         # track the path backwards, start with the last frame and do not
         # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
         for frame in range(num_observations -1, -1, -1):
             # save the state in the path
-            path[frame] = state
+            self._path[frame] = state
             # fetch the next previous one
             state = bt_pointers[frame, state]
-        # save the tracked path and log sum and return them
-        self._path = path
-        self.path_probability = path_probability
-        return path, path_probability
+        # return the tracked path and its probability
+        return self._path, self._log_probability
 
     @property
     def path(self):
@@ -596,6 +602,15 @@ cdef class DynamicBayesianNetwork(object):
         if self._path is None:
             self.viterbi()
         return self._path
+
+    @property
+    def log_probability(self):
+        """Log probability of the best path."""
+        # Note: we need to check the _path, since the _log_probability can't
+        #       get initialized as 'None' because of static typing
+        if self._path is None:
+            self.viterbi()
+        return self._log_probability
 
 
 cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
