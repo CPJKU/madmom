@@ -200,8 +200,8 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         cdef unsigned int num_tempo_states = len(tempo_states)
         cdef unsigned int num_states = num_beat_states * num_tempo_states
         # transition probabilities
-        cdef double same_tempo_log_prob = log(1. - tempo_change_probability)
-        cdef double change_tempo_log_prob = log(0.5 * tempo_change_probability)
+        cdef double same_tempo_prob = 1. - tempo_change_probability
+        cdef double change_tempo_prob = 0.5 * tempo_change_probability
         # counters etc.
         cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
         # number of transition states
@@ -216,7 +216,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             np.empty(num_transition_states, np.uint32)
         cdef unsigned int [::1] prev_states = \
             np.empty(num_transition_states, np.uint32)
-        cdef double [::1] log_probabilities = \
+        cdef double [::1] probabilities = \
             np.empty(num_transition_states, np.float)
         cdef int i = 0
         # loop over all states
@@ -235,7 +235,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             # probability for transition from same tempo
             states[i] = state
             prev_states[i] = prev_state
-            log_probabilities[i] = same_tempo_log_prob
+            probabilities[i] = same_tempo_prob
             i += 1
             # transition from slower tempo
             if tempo_state > 0:
@@ -246,7 +246,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                 # probability for transition from slower tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                log_probabilities[i] = change_tempo_log_prob
+                probabilities[i] = change_tempo_prob
                 i += 1
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
@@ -259,10 +259,10 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                 # probability for transition from faster tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                log_probabilities[i] = change_tempo_log_prob
+                probabilities[i] = change_tempo_prob
                 i += 1
         # return the arrays
-        return log_probabilities, states, prev_states
+        return np.log(probabilities), states, prev_states
 
 
 # observation model stuff
@@ -457,7 +457,8 @@ cdef class DynamicBayesianNetwork(object):
                                                       num_states)
         # initial state distribution
         if initial_states is None:
-            self.initial_states = np.ones(num_states, dtype=np.float)
+            self.initial_states = np.log(np.ones(num_states, dtype=np.float) /
+                                         num_states)
         else:
             self.initial_states = np.ascontiguousarray(initial_states,
                                                        dtype=np.float)
