@@ -382,7 +382,6 @@ class NetCDF(object):
         # mandatory
         try:
             var = self.nc.variables['inputs']
-            #return var.getValue()
             return var.data
         except KeyError:
             return None
@@ -413,7 +412,6 @@ class NetCDF(object):
         # mandatory
         try:
             var = self.nc.variables['seqDims']
-            #return var.getValue()
             return var.data
         except KeyError:
             return None
@@ -561,7 +559,6 @@ class NetCDF(object):
         # optional
         try:
             var = self.nc.variables['seqTags']
-            #return var.getValue()
             return var.data
         except KeyError:
             return None

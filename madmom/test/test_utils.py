@@ -5,7 +5,7 @@ This file contains test functions for the madmom.utils.helpers module.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
-#pylint: skip-file
+# pylint: skip-file
 
 import unittest
 import __builtin__

@@ -873,7 +873,7 @@ def parser():
 
     To maintain compatibility with the original Matlab implementation, use
     the arguments '--skip 5 --no_triple'. Please note, that the results can
-    still differ, because ot the different implementation approach.
+    still differ, because of the different implementation approach.
 
     """)
     # files used for evaluation

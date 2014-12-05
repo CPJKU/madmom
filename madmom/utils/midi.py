@@ -1002,11 +1002,10 @@ class MIDITrack(object):
                 track_data += ''.join([chr(data) for data in event.data])
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
-        # prepend track header
+        # prepare the track header
         track_header = 'MTrk%s' % struct.pack(">L", len(track_data))
-        track_data = track_header + track_data
-        # and write the track
-        midi_file.write(track_data)
+        # write the track header + data
+        midi_file.write(track_header + track_data)
 
 
 # File I/O classes

@@ -792,6 +792,8 @@ class MMBeatTracking(DBNBeatTracking):
             reference_prediction = sum(predictions) / len(nn_files)
         # init the error with the max. possible value (i.e. prediction length)
         best_error = len(reference_prediction)
+        # init the best_prediction with an empty array
+        best_prediction = np.empty(0)
         # compare the (remaining) predictions with the reference prediction
         for prediction in predictions[num_ref_files:]:
             # calculate the squared error w.r.t. the reference prediction

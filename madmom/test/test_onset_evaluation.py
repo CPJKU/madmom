@@ -5,7 +5,7 @@ This file contains onset evaluation tests.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
-#pylint: skip-file
+# pylint: skip-file
 
 import unittest
 

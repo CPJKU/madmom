@@ -656,8 +656,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
                 transition_model.num_beat_states)
 
         # instantiate DBN
-        spr = super(BeatTrackingDynamicBayesianNetwork, self).__init__
-        spr(transition_model, observation_model, initial_states, num_threads)
+        super(BeatTrackingDynamicBayesianNetwork, self).__init__(
+            transition_model, observation_model, initial_states, num_threads)
         # save other parameters
         self.correct = correct
 

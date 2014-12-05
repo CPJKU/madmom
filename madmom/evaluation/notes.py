@@ -210,7 +210,7 @@ def main():
             import warnings
             warnings.warn(" can't find detections for %s." % ann_file)
             # but continue and assume no detections
-            detections = np.zeros((0,0))
+            detections = np.zeros((0, 0))
         else:
             # load the detections
             detections = load_notes(matches[0])
