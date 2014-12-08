@@ -202,6 +202,9 @@ def main():
         # combine the annotations if needed
         if args.combine > 0:
             annotations = combine_events(annotations, args.combine)
+        # shift the detections if needed
+        if args.delay != 0:
+            detections += args.delay
         # evaluate
         e = OnsetEvaluation(detections, annotations, window=args.window)
         # print stats for the file
