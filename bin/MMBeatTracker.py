@@ -82,6 +82,7 @@ def main():
     else:
         # detect the beats
         b.detect(num_beat_states=args.num_beat_states,
+                 num_tempo_states=args.num_tempo_states,
                  tempo_change_probability=args.tempo_change_probability,
                  observation_lambda=args.observation_lambda,
                  min_bpm=args.min_bpm, max_bpm=args.max_bpm,
