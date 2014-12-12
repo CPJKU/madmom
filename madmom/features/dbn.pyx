@@ -4,6 +4,12 @@ This file contains dynamic Bayesian network (DBN) functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
+If you want to change this module and use it interactively, use pyximport.
+
+>>> import pyximport
+>>> pyximport.install(reload_support=True,
+                      setup_args={'include_dirs': np.get_include()})
+
 """
 import numpy as np
 cimport numpy as np
@@ -167,7 +173,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
                                 'tempo_change_probability'])
         # compute transitions
         self.num_beat_states = num_beat_states
-        self.tempo_states = np.ascontiguousarray(tempo_states, dtype=np.int32)
+        self.tempo_states = np.ascontiguousarray(tempo_states, dtype=np.uint32)
         self.tempo_change_probability = tempo_change_probability
         # compute the transitions
         transitions = self._transition_model(self.num_beat_states,
@@ -180,7 +186,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def _transition_model(self, unsigned int num_beat_states,
-                          int [::1] tempo_states,
+                          unsigned int [::1] tempo_states,
                           double tempo_change_probability):
         """
         Compute the transition log probabilities and return them in a format
@@ -200,8 +206,8 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         cdef unsigned int num_tempo_states = len(tempo_states)
         cdef unsigned int num_states = num_beat_states * num_tempo_states
         # transition probabilities
-        cdef double same_tempo_prob = 1. - tempo_change_probability
-        cdef double change_tempo_prob = 0.5 * tempo_change_probability
+        cdef double same_tempo_prob = log(1. - tempo_change_probability)
+        cdef double change_tempo_prob = log(0.5 * tempo_change_probability)
         # counters etc.
         cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
         # number of transition states
@@ -216,7 +222,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             np.empty(num_transition_states, np.uint32)
         cdef unsigned int [::1] prev_states = \
             np.empty(num_transition_states, np.uint32)
-        cdef double [::1] probabilities = \
+        cdef double [::1] log_probabilities = \
             np.empty(num_transition_states, np.float)
         cdef int i = 0
         # loop over all states
@@ -224,6 +230,7 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             # position inside beat & tempo
             beat_state = state % num_beat_states
             tempo_state = state / num_beat_states
+            # get the corresponding tempo
             tempo = tempo_states[tempo_state]
             # for each state check the 3 possible transitions
             # previous state with same tempo
@@ -235,34 +242,54 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
             # probability for transition from same tempo
             states[i] = state
             prev_states[i] = prev_state
-            probabilities[i] = same_tempo_prob
+            log_probabilities[i] = same_tempo_prob
             i += 1
             # transition from slower tempo
             if tempo_state > 0:
                 # previous state with slower tempo
-                prev_state = ((beat_state + num_beat_states -
-                               (tempo - 1)) % num_beat_states +
+                prev_state = ((beat_state + num_beat_states - (tempo - 1)) %
+                              num_beat_states +
                               ((tempo_state - 1) * num_beat_states))
                 # probability for transition from slower tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
+                log_probabilities[i] = change_tempo_prob
                 i += 1
             # transition from faster tempo
             if tempo_state < num_tempo_states - 1:
                 # previous state with faster tempo
                 # Note: we add num_beat_states before the modulo operation
                 #       so that it can be computed in C (which is faster)
-                prev_state = ((beat_state + num_beat_states -
-                               (tempo + 1)) % num_beat_states +
+                prev_state = ((beat_state + num_beat_states - (tempo + 1)) %
+                              num_beat_states +
                               ((tempo_state + 1) * num_beat_states))
                 # probability for transition from faster tempo
                 states[i] = state
                 prev_states[i] = prev_state
-                probabilities[i] = change_tempo_prob
+                log_probabilities[i] = change_tempo_prob
                 i += 1
         # return the arrays
-        return np.log(probabilities), states, prev_states
+        return log_probabilities, states, prev_states
+
+    def beat_state_sequence(self, state_sequence):
+        """
+        Beat state sequence for the given state sequence.
+
+        :param state_sequence: numpy array with the state sequence
+        :return:               corresponding beat state sequence
+
+        """
+        return state_sequence % self.num_beat_states
+
+    def tempo_state_sequence(self, state_sequence):
+        """
+        Tempo state sequence for the given state sequence.
+
+        :param state_sequence: numpy array with the state sequence
+        :return:               corresponding tempo state sequence
+
+        """
+        return self.tempo_states[state_sequence / self.num_beat_states]
 
 
 # observation model stuff
@@ -471,7 +498,7 @@ cdef class DynamicBayesianNetwork(object):
     @cython.wraparound(False)
     cdef inline void _best_prev_state(self, int state, int frame,
                                       double [::1] current_viterbi,
-                                      double [::1] prev_viterbi,
+                                      double [::1] previous_viterbi,
                                       double [:, ::1] om_densities,
                                       unsigned int [::1] om_pointers,
                                       unsigned int [::1] tm_states,
@@ -484,7 +511,7 @@ cdef class DynamicBayesianNetwork(object):
         :param state:            current state
         :param frame:            current frame
         :param current_viterbi:  current viterbi variables
-        :param prev_viterbi:     previous viterbi variables
+        :param previous_viterbi: previous viterbi variables
         :param om_densities:     observation model densities
         :param om_pointers:      observation model pointers
         :param tm_states:        transition model states
@@ -508,16 +535,18 @@ cdef class DynamicBayesianNetwork(object):
         # the tm_pointers array holds pointers to the states which are
         # stored in the tm_states array
         for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
+            # get the previous state
             prev_state = tm_states[pointer]
-            # weight the previous state with the transition
-            # probability and the observation probability density
-            transition_prob = prev_viterbi[prev_state] + \
+            # weight the previous state with the transition probability
+            # and the current observation probability density
+            transition_prob = previous_viterbi[prev_state] + \
                               tm_probabilities[pointer] + density
-            # if this transition probability is greater than the
-            # current, overwrite it and save the previous state
-            # in the current pointers
+            # if this transition probability is greater than the current one,
+            # overwrite it and save the previous state in the current pointers
             if transition_prob > current_viterbi[state]:
+                # update the transition probability
                 current_viterbi[state] = transition_prob
+                # update the back tracking pointers
                 pointers[frame, state] = prev_state
 
     @cython.cdivision(True)
@@ -548,12 +577,14 @@ cdef class DynamicBayesianNetwork(object):
                                                      dtype=np.float)
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = self.initial_states
+
         # back-tracking pointers
         cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
                                                            num_states),
                                                           dtype=np.uint32)
         # back tracked path, a.k.a. path sequence
         self._path = np.empty(num_observations, dtype=np.uint32)
+        cdef unsigned int [::1] path = self._path
 
         # define counters etc.
         cdef int state, frame
@@ -585,13 +616,13 @@ cdef class DynamicBayesianNetwork(object):
         # fetch the final best state
         state = np.asarray(current_viterbi).argmax()
         # set the path's probability to that of the best state
-        self._log_probability = np.asarray(current_viterbi)[state]
+        self._log_probability = current_viterbi[state]
         # track the path backwards, start with the last frame and do not
         # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
         for frame in range(num_observations -1, -1, -1):
             # save the state in the path
-            self._path[frame] = state
+            path[frame] = state
             # fetch the next previous one
             state = bt_pointers[frame, state]
         # return the tracked path and its probability
@@ -664,13 +695,12 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     @property
     def beat_states_path(self):
         """Beat states path."""
-        return self.path % self.transition_model.num_beat_states
+        return self.transition_model.beat_state_sequence(self.path)
 
     @property
     def tempo_states_path(self):
         """Tempo states path."""
-        states = self.path / self.transition_model.num_beat_states
-        return self.transition_model.tempo_states[states]
+        return self.transition_model.tempo_state_sequence(self.path)
 
     @property
     def beats(self):
