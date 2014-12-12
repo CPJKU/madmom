@@ -544,12 +544,12 @@ class DBNBeatTracking(RNNBeatTracking):
     # some default values
     CORRECT = True
     NUM_BEAT_STATES = 1280
-    NUM_TEMPO_STATES = 30
+    NUM_TEMPO_STATES = None
     TEMPO_CHANGE_PROBABILITY = 0.008
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
-    MIN_BPM = 55
-    MAX_BPM = 220
+    MIN_BPM = 50
+    MAX_BPM = 215
 
     try:
         from .dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
@@ -600,7 +600,9 @@ class DBNBeatTracking(RNNBeatTracking):
         Parameters for the transition model:
 
         :param num_beat_states:          number of states for one beat period
-        :param num_tempo_states:         number of tempo states
+        :param num_tempo_states:         number of tempo states (if set, limit
+                                         the number of states and use a log
+                                         spacing, otherwise a linear spacing)
         :param tempo_change_probability: probability of a tempo change between
                                          two adjacent observations
         :param min_bpm:                  minimum tempo used for beat tracking
@@ -619,9 +621,15 @@ class DBNBeatTracking(RNNBeatTracking):
         # convert timing information to tempo space
         max_tempo = max_bpm * num_beat_states / (60. * self.fps)
         min_tempo = min_bpm * num_beat_states / (60. * self.fps)
-        tempo_states = np.logspace(np.log2(min_tempo),
-                                   np.log2(max_tempo),
-                                   num_tempo_states, base=2)
+        if num_tempo_states is None:
+            # do not limit the number of tempo states, use a linear spacing
+            tempo_states = np.arange(np.round(min_tempo),
+                                     np.round(max_tempo) + 1)
+        else:
+            # limit the number of tempo states, thus use a quasi log spacing
+            tempo_states = np.logspace(np.log2(min_tempo),
+                                       np.log2(max_tempo),
+                                       num_tempo_states, base=2)
         # quantize to integer tempo states
         tempo_states = np.unique(np.round(tempo_states).astype(np.int))
         # transition model
@@ -653,12 +661,14 @@ class DBNBeatTracking(RNNBeatTracking):
         """
         Add DBN related arguments to an existing parser object.
 
-        :param parser:       existing argparse parser object
+        :param parser: existing argparse parser object
 
         Parameters for the transition model:
 
         :param num_beat_states:          number of states for one beat period
-        :param num_tempo_states:         number of tempo states
+        :param num_tempo_states:         number of tempo states (if set, limit
+                                         the number of states and use a log
+                                         spacing, otherwise a linear spacing)
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
         :param tempo_change_probability: probability of a tempo change between
@@ -675,7 +685,7 @@ class DBNBeatTracking(RNNBeatTracking):
 
         :param correct: correct the beat positions
 
-        :return:             beat argument parser group object
+        :return: beat argument parser group object
 
         """
         # add DBN parser group
@@ -695,7 +705,9 @@ class DBNBeatTracking(RNNBeatTracking):
                             '[default=%(default)i]')
         g.add_argument('--num_tempo_states', action='store', type=int,
                        default=num_tempo_states,
-                       help='number of tempo states [default=%(default)i]')
+                       help='limit the number of tempo states; if set, align '
+                            'them with a log spacing, otherwise linearly '
+                            '[default=None]')
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
                        help='minimum tempo [bpm, default=%(default).2f]')
