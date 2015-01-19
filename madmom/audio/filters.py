@@ -1080,44 +1080,44 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
 
 
 # time filters
-def feed_forward_comb_filter(x, tau, alpha):
+def feed_forward_comb_filter(signal, tau, alpha):
     """
     Filter the signal with a feed forward comb filter.
 
-    :param x:     signal
-    :param tau:   delay length
-    :param alpha: scaling factor
-    :return:      comb filtered signal
+    :param signal: signal
+    :param tau:    delay length
+    :param alpha:  scaling factor
+    :return:       comb filtered signal
 
     """
     # y[n] = x[n] + α * x[n - τ]
     if tau <= 0:
         raise ValueError('tau must be greater than 0')
-    y = np.copy(x)
+    y = np.copy(signal)
     # add the delayed signal
-    y[tau:] += alpha * x[:-tau]
+    y[tau:] += alpha * signal[:-tau]
     # return
     return y
 
 
-def _feed_backward_comb_filter(x, tau, alpha):
+def _feed_backward_comb_filter(signal, tau, alpha):
     """
     Filter the signal with a feed backward comb filter.
 
-    :param x:     signal
-    :param tau:   delay length
-    :param alpha: scaling factor
-    :return:      comb filtered signal
+    :param signal: signal
+    :param tau:    delay length
+    :param alpha:  scaling factor
+    :return:       comb filtered signal
 
     """
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
         raise ValueError('tau must be greater than 0')
-    y = np.copy(x)
+    y = np.copy(signal)
     # loop over the complete signal
-    for n in range(tau, len(x)):
+    for n in range(tau, len(signal)):
         # add a delayed version of the output signal
-        y[n] = x[n] + alpha * y[n - tau]
+        y[n] = signal[n] + alpha * y[n - tau]
     # return
     return y
 
@@ -1131,12 +1131,12 @@ except ImportError:
     feed_backward_comb_filter = _feed_backward_comb_filter
 
 
-def comb_filterbank(x, comb_filter, tau, alpha):
+def comb_filterbank(signal, comb_filter, tau, alpha):
     """
     Filter the signal with a bank of either feed forward or backward comb
     filters.
 
-    :param x:           signal [numpy array]
+    :param signal:      signal [numpy array]
     :param comb_filter: comb filter to use (feed forward or backward)
     :param tau:         delay length(s) [list/array of samples]
     :param alpha:       corresponding scaling factor(s) [list/array of floats]
@@ -1147,22 +1147,22 @@ def comb_filterbank(x, comb_filter, tau, alpha):
     # convert tau to a integer numpy array
     tau = np.asarray(tau, dtype=int)
     if tau.ndim != 1:
-        raise ValueError('tau must be 1D numpy array')
+        raise ValueError('tau must be a 1D numpy array')
     # convert alpha to a numpy array
     alpha = np.asarray(alpha, dtype=float)
     if alpha.ndim != 1:
-        raise ValueError('alpha must be 1D numpy array')
+        raise ValueError('alpha must be a 1D numpy array')
     # alpha & tau must have the same size
     if tau.size != alpha.size:
         raise AssertionError('alpha & tau must have the same size')
     # determine output array size
-    size = list(x.shape)
+    size = list(signal.shape)
     # add dimension of tau range size (new 1st dim)
     size.insert(0, len(tau))
     # init output array
     y = np.zeros(tuple(size))
     for i, t in np.ndenumerate(tau):
-        y[i] = comb_filter(x, t, alpha[i])
+        y[i] = comb_filter(signal, t, alpha[i])
     return y
 
 
@@ -1176,25 +1176,21 @@ class CombFilterbank(np.ndarray):
         """
         Creates a new CombFilterbank array, i.e. a comb filtered version of
         the input data with the different tau values aligned along the (new)
-        1st dimension.
+        first dimension.
 
-        :param data:             numpy array
-        :param comb_filter:      comb filter to use (feed forward or backward)
-        :param tau:              delay length(s)
-                                 [samples, list/array of samples]
-        :param alpha:            scaling factor(s)
-                                 [float, list/array of floats]
+        :param data:        numpy array
+        :param comb_filter: comb filter to use (feed forward or backward)
+        :param tau:         delay length(s) [samples, list/array of samples]
+        :param alpha:       scaling factor(s) [float, list/array of floats]
 
         """
         # convert tau to a numpy array
         if isinstance(tau, int):
             tau = np.asarray([tau], dtype=int)
-        elif isinstance(tau, list):
-            tau = np.asarray(tau, dtype=int)
-        elif isinstance(tau, np.ndarray):
+        elif isinstance(tau, (list, np.ndarray)):
             tau = np.asarray(tau, dtype=int)
         else:
-            raise ValueError('tau must be convertible to an int numpy array')
+            raise ValueError('tau must be cast-able as an int numpy array')
 
         # set the filter function
         if comb_filter in ['forward', feed_backward_comb_filter]:
@@ -1207,9 +1203,7 @@ class CombFilterbank(np.ndarray):
         # convert alpha to a numpy array
         if isinstance(alpha, (float, int)):
             alpha = np.asarray([alpha] * len(tau), dtype=float)
-        elif isinstance(alpha, list):
-            alpha = np.asarray(alpha, dtype=float)
-        elif isinstance(alpha, np.ndarray):
+        elif isinstance(alpha, (list, np.ndarray)):
             alpha = np.asarray(alpha, dtype=float)
         else:
             raise ValueError('alpha must be cast-able as float numpy array')
