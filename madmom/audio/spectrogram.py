@@ -328,7 +328,7 @@ class Spectrogram(object):
         :param block_size: perform filtering in blocks of that size [frames]
 
         Note: bigger blocks lead to higher memory consumption but generally get
-              computed faster than smaller blocks; too big block might decrease
+              computed faster than smaller blocks; too big block sizes decrease
               performance again.
 
         """
