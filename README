@@ -17,7 +17,10 @@ Installation:
 -------------
 
 To use this package without installing it, make sure this directory is in your
-$PYTHONPATH.
+$PYTHONPATH, e.g. by the following command (if your are in the directory
+containing this README file):
+
+export PYTHONPATH=`pwd`:$PYTHONPATH
 
 Most modules work in Python-only mode, but some require to be compiled with
 cython. To do so, please run:

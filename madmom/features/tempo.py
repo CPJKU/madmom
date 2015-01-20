@@ -10,7 +10,8 @@ This file contains tempo related functionality.
 import numpy as np
 from scipy.signal import argrelmax
 
-from . import Activations, RNNEventDetection, smooth_signal
+from . import Activations, RNNEventDetection
+from madmom.audio.signal import smooth as smooth_signal
 from .beats import RNNBeatTracking
 
 

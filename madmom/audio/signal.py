@@ -11,11 +11,48 @@ import numpy as np
 
 
 # signal functions
-def attenuate(x, attenuation):
+def smooth(signal, kernel):
+    """
+    Smooth the signal.
+
+    :param signal: signal [numpy array]
+    :param kernel: smoothing kernel [numpy array or int]
+    :return:       smoothed signal
+
+    Note: If 'smooth' is an integer, a Hamming window of that length will be
+          used as a smoothing kernel.
+
+    """
+    # return signal if no smoothing is required
+    if not kernel:
+        return signal
+    # size for the smoothing kernel is given
+    if isinstance(kernel, int):
+        if kernel > 1:
+            # use a Hamming window of given length
+            kernel = np.hamming(kernel)
+    # otherwise use the given smoothing kernel directly
+    elif isinstance(kernel, np.ndarray):
+        if len(kernel) > 1:
+            kernel = kernel
+    # check if a kernel is given
+    if kernel is None:
+        raise ValueError('can not smooth signal with %s' % kernel)
+    # convolve with the kernel and return
+    if signal.ndim == 1:
+        return np.convolve(signal, kernel, 'same')
+    elif signal.ndim == 2:
+        from scipy.signal import convolve2d
+        return convolve2d(signal, kernel[:, np.newaxis], 'same')
+    else:
+        raise ValueError('signal must be either 1D or 2D')
+
+
+def attenuate(signal, attenuation):
     """"
     Attenuate the signal.
 
-    :param x:           signal (numpy array)
+    :param signal:      signal [numpy array]
     :param attenuation: attenuation level [dB]
     :return:            attenuated signal
 
@@ -24,110 +61,110 @@ def attenuate(x, attenuation):
     # following signal processing steps well-behaved, since these rely on
     # the dtype of the array to determine the correct value range.
     # But this introduces rounding (truncating) errors in case of signals
-    # with int dtypes. But these errors should be negligible.
-    return np.asarray(x / np.power(np.sqrt(10.), attenuation / 10.),
-                      dtype=x.dtype)
+    # with integer dtypes. But these errors should be negligible.
+    return np.asarray(signal / np.power(np.sqrt(10.), attenuation / 10.),
+                      dtype=signal.dtype)
 
 
-def normalize(x):
+def normalize(signal):
     """
     Normalize the signal to the range -1..+1
 
-    :param x: signal (numpy array)
-    :return:  normalized signal
+    :param signal: signal [numpy array]
+    :return:       normalized signal
 
     """
-    return x.astype(np.float) / np.max(x)
+    return signal.astype(np.float) / np.max(signal)
 
 
-def downmix(x):
+def downmix(signal):
     """
     Down-mix the signal to mono.
 
-    :param x: signal (numpy array)
-    :return:  mono signal
+    :param signal: signal [numpy array]
+    :return:       mono signal
 
     """
-    if x.ndim > 1:
+    if signal.ndim > 1:
         # FIXME: taking the mean and keeping the original dtype makes the
         # following signal processing steps well-behaved, since these rely on
         # the dtype of the array to determine the correct value range.
         # But this introduces rounding (truncating) errors in case of signals
-        # with int dtypes. But these errors should be negligible.
-        return np.mean(x, axis=-1, dtype=x.dtype)
+        # with integer dtypes. But these errors should be negligible.
+        return np.mean(signal, axis=-1, dtype=signal.dtype)
     else:
-        return x
+        return signal
 
 
-def downsample(x, factor=2):
+def downsample(signal, factor=2):
     """
     Down-samples the signal by the given factor
 
-    :param x:      signal (numpy array)
+    :param signal: signal [numpy array]
     :param factor: down-sampling factor
     :return:       down-sampled signal
 
     """
     # signal must be mono
-    if x.ndim > 1:
+    if signal.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         raise NotImplementedError("please implement stereo functionality")
     # when down-sampling by an integer factor, a simple view is more efficient
     if type(factor) == int:
-        return x[::factor]
+        return signal[::factor]
     # otherwise do more or less proper down-sampling
     # TODO: maybe use sox to implement this
     from scipy.signal import decimate
     # naive down-sampling
-    return np.hstack(decimate(x, factor))
+    return np.hstack(decimate(signal, factor))
 
 
-def trim(x):
+def trim(signal):
     """
     Trim leading and trailing zeros of the signal.
 
-    :param x: signal (numpy array)
-    :return:  trimmed signal
+    :param signal: signal [numpy array]
+    :return:       trimmed signal
 
     """
     # signal must be mono
-    if x.ndim > 1:
+    if signal.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
         # maybe it works, haven't checked
-        raise NotImplementedError("please implement stereo functionality")
-    return np.trim_zeros(x, 'fb')
+        raise NotImplementedError("please implement multi-dim functionality")
+    return np.trim_zeros(signal)
 
 
-def root_mean_square(x):
+def root_mean_square(signal):
     """
     Computes the root mean square of the signal. This can be used as a
     measurement of power.
 
-    :param x: signal (numpy array)
-    :return:  root mean square of the signal
+    :param signal: signal [numpy array]
+    :return:       root mean square of the signal
 
     """
     # make sure the signal is a numpy array
-    if not isinstance(x, np.ndarray):
-        raise TypeError("Invalid type for signal.")
+    if not isinstance(signal, np.ndarray):
+        raise TypeError("Invalid type for signal, must be a numpy array.")
     # signal must be mono
-    if x.ndim > 1:
+    if signal.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
-        raise NotImplementedError("please implement stereo functionality")
+        raise NotImplementedError("please implement multi-dim functionality")
     # Note: type conversion needed because of integer overflows
-    if x.dtype != np.float:
-        x = x.astype(np.float)
+    if signal.dtype != np.float:
+        signal = signal.astype(np.float)
     # return
-    return np.sqrt(np.dot(x, x) / x.size)
+    return np.sqrt(np.dot(signal, signal) / signal.size)
 
 
-def sound_pressure_level(x, p_ref=1.0):
+def sound_pressure_level(signal, p_ref=1.0):
     """
     Computes the sound pressure level of a signal.
 
-    :param x:     signal (numpy array)
-    :param p_ref: reference sound pressure level
-    :return:      sound pressure level of the signal
+    :param signal: signal [numpy array]
+    :param p_ref:  reference sound pressure level
+    :return:       sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
@@ -136,7 +173,7 @@ def sound_pressure_level(x, p_ref=1.0):
 
     """
     # compute the RMS
-    rms = root_mean_square(x)
+    rms = root_mean_square(signal)
     # compute the SPL
     if rms == 0:
         # return the smallest possible negative number
@@ -278,15 +315,15 @@ class Signal(object):
 
 
 # function for splitting a signal into frames
-def signal_frame(x, index, frame_size, hop_size, offset=0):
+def signal_frame(signal, index, frame_size, hop_size, offset=0):
     """
     This function returns frame[index] of the signal.
 
-    :param x:          the signal (numpy array)
-    :param index:      the index of the frame to return
-    :param frame_size: size of each frame in samples
-    :param hop_size:   the hop size in samples between adjacent frames
-    :param offset:     position of the first sample inside the signal
+    :param signal:     signal [numpy array]
+    :param index:      index of the frame to return [int]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   hop size in samples between adjacent frames [float/int]
+    :param offset:     position of the first sample inside the signal [int]
     :return:           the requested frame of the signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
@@ -297,7 +334,7 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
 
     """
     # length of the signal
-    num_samples = len(x)
+    num_samples = len(signal)
     # seek to the correct position in the audio signal
     ref_sample = int(index * hop_size)
     # position the window
@@ -306,34 +343,34 @@ def signal_frame(x, index, frame_size, hop_size, offset=0):
     # return the requested portion of the signal
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
-        return np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
+        return np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
     elif (start < 0) and (stop > num_samples):
         # window surrounds the actual signal, position signal accordingly
-        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
-        frame[-start:num_samples - start] = x
+        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[-start:num_samples - start] = signal
         return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
-        frame[-start:] = x[:stop]
+        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[-start:] = signal[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.zeros((frame_size,) + x.shape[1:], dtype=x.dtype)
-        frame[:num_samples - start] = x[start:]
+        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame[:num_samples - start] = signal[start:]
         return frame
     else:
         # normal read operation
-        return x[start:stop]
+        return signal[start:stop]
 
 
-def strided_frames(x, frame_size, hop_size):
+def strided_frames(signal, frame_size, hop_size):
     """
     Returns a 2D representation of the signal with overlapping frames.
 
-    :param x:          the signal (numpy array)
-    :param frame_size: size of each frame in samples
-    :param hop_size:   the hop size in samples between adjacent frames
+    :param signal:     signal [numpy array]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   the hop size in samples between adjacent frames [int]
     :return:           2D array with overlapping frames
 
     Note: This function is here only for completeness. It is faster only in
@@ -342,24 +379,25 @@ def strided_frames(x, frame_size, hop_size):
 
     """
     # init variables
-    samples = np.shape(x)[0]
+    samples = np.shape(signal)[0]
     # FIXME: does seeking only the right way for integer hop_size
     # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
     as_strided = np.lib.stride_tricks.as_strided
     # return the strided array
-    return as_strided(x, (samples, frame_size),
-                      (x.strides[0], x.strides[0]))[::hop_size]
+    return as_strided(signal, (samples, frame_size),
+                      (signal.strides[0], signal.strides[0]))[::hop_size]
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
-def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
+def segment_axis(signal, frame_size, hop_size=0, axis=None, end='cut',
+                 end_value=0):
     """
     Generate a new array that chops the given array along the given axis into
     overlapping frames.
 
-    :param x:          the signal (numpy array)
-    :param frame_size: size of each frame in samples
-    :param hop_size:   the hop size in samples between adjacent frames
+    :param signal:     signal [numpy array]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   hop size in samples between adjacent frames [int]
     :param axis:       axis to operate on; if None, act on the flattened array
     :param end:        what to do with the last frame, if the array is not
                        evenly divisible into pieces; possible values:
@@ -382,10 +420,10 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
     """
 
     if axis is None:
-        x = np.ravel(x)  # may copy
+        signal = np.ravel(signal)  # may copy
         axis = 0
 
-    length = x.shape[axis]
+    length = signal.shape[axis]
 
     if hop_size <= 0:
         raise ValueError("hop_size must be positive.")
@@ -404,48 +442,48 @@ def segment_axis(x, frame_size, hop_size=0, axis=None, end='cut', end_value=0):
         assert round_down < length < round_up
         assert round_up == round_down + hop_size or (round_up == frame_size and
                                                      round_down == 0)
-        x = x.swapaxes(-1, axis)
+        signal = signal.swapaxes(-1, axis)
 
         if end == 'cut':
-            x = x[..., :round_down]
+            signal = signal[..., :round_down]
         elif end in ['pad', 'wrap']:
             # need to copy
-            s = list(x.shape)
+            s = list(signal.shape)
             s[-1] = round_up
-            y = np.empty(s, dtype=x.dtype)
-            y[..., :length] = x
+            y = np.empty(s, dtype=signal.dtype)
+            y[..., :length] = signal
             if end == 'pad':
                 y[..., length:] = end_value
             elif end == 'wrap':
-                y[..., length:] = x[..., :round_up - length]
-            x = y
+                y[..., length:] = signal[..., :round_up - length]
+            signal = y
 
-        x = x.swapaxes(-1, axis)
+        signal = signal.swapaxes(-1, axis)
 
-    length = x.shape[axis]
+    length = signal.shape[axis]
     if length == 0:
         raise ValueError("Not enough data points to segment array in 'cut' "
                          "mode; try end='pad' or end='wrap'")
     assert length >= frame_size
     assert (length - frame_size) % hop_size == 0
     n = 1 + (length - frame_size) // hop_size
-    s = x.strides[axis]
-    new_shape = x.shape[:axis] + (n, frame_size) + x.shape[axis + 1:]
-    new_strides = x.strides[:axis] + (hop_size * s, s) + x.strides[axis + 1:]
+    s = signal.strides[axis]
+    new_shape = signal.shape[:axis] + (n, frame_size) + signal.shape[axis + 1:]
+    new_strides = signal.strides[:axis] + (hop_size * s, s) + signal.strides[axis + 1:]
 
     try:
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
-                                  shape=new_shape, buffer=x, dtype=x.dtype)
+                                  shape=new_shape, buffer=signal, dtype=signal.dtype)
     except TypeError:
         # TODO: remove warning?
         import warnings
         warnings.warn("Problem with ndarray creation forces copy.")
-        x = x.copy()
+        signal = signal.copy()
         # Shape doesn't change but strides does
-        new_strides = (x.strides[:axis] + (hop_size * s, s) +
-                       x.strides[axis + 1:])
+        new_strides = (signal.strides[:axis] + (hop_size * s, s) +
+                       signal.strides[axis + 1:])
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
-                                  shape=new_shape, buffer=x, dtype=x.dtype)
+                                  shape=new_shape, buffer=signal, dtype=signal.dtype)
 
 
 # default values for splitting a signal into overlapping frames

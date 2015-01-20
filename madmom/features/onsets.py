@@ -13,7 +13,8 @@ import numpy as np
 from scipy.ndimage.filters import uniform_filter, maximum_filter
 
 from madmom import MODELS_PATH
-from . import Activations, EventDetection, RNNEventDetection, smooth_signal
+from . import Activations, EventDetection, RNNEventDetection
+from madmom.audio.signal import smooth as smooth_signal
 
 EPSILON = 1e-6
 

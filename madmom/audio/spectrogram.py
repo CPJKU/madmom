@@ -13,11 +13,11 @@ import scipy.fftpack as fft
 from .filters import fft_freqs, A4
 
 
-def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
+def stft(signal, window, hop_size, offset=0, phase=False, fft_size=None):
     """
     Calculates the Short-Time-Fourier-Transform of the given signal.
 
-    :param x:        discrete signal (1D numpy array)
+    :param signal:   discrete signal (1D numpy array)
     :param window:   window function (1D numpy array)
     :param hop_size: the hop size in samples between adjacent frames [float]
     :param offset:   position of the first sample inside the signal [int]
@@ -33,13 +33,13 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
 
     # if the signal is not scaled, scale the window function accordingly
     try:
-        fft_window = window / np.iinfo(x.dtype).max
+        fft_window = window / np.iinfo(signal.dtype).max
     except ValueError:
         fft_window = window
     # size of window
     window_size = window.size
     # number of samples
-    samples = len(x)
+    samples = len(signal)
     # number of frames
     frames = int(np.ceil(samples / float(hop_size)))
     # size of FFT
@@ -52,7 +52,7 @@ def stft(x, window, hop_size, offset=0, phase=False, fft_size=None):
     # perform STFT
     for frame in range(frames):
         # get the right portion of the signal
-        fft_signal = signal_frame(x, frame, window_size, hop_size, offset)
+        fft_signal = signal_frame(signal, frame, window_size, hop_size, offset)
         # multiply the signal with the window function
         fft_signal = np.multiply(fft_signal, fft_window)
         # only shift and perform complex DFT if needed
@@ -328,7 +328,7 @@ class Spectrogram(object):
         :param block_size: perform filtering in blocks of that size [frames]
 
         Note: bigger blocks lead to higher memory consumption but generally get
-              computed faster than smaller blocks; too big block might decrease
+              computed faster than smaller blocks; too big block sizes decrease
               performance again.
 
         """

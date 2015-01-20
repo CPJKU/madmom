@@ -11,7 +11,8 @@ import sys
 import numpy as np
 
 from madmom import MODELS_PATH
-from . import Activations, RNNEventDetection, smooth_signal
+from . import Activations, RNNEventDetection
+from madmom.audio.signal import smooth as smooth_signal
 
 
 # detect the beats based on the given dominant interval
