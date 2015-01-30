@@ -9,6 +9,8 @@ This file contains basic signal processing functionality.
 
 import numpy as np
 
+from madmom import Processor
+
 
 # signal functions
 def smooth(signal, kernel):
@@ -58,12 +60,13 @@ def attenuate(signal, attenuation):
 
     """
     # FIXME: attenuating the signal and keeping the original dtype makes the
-    # following signal processing steps well-behaved, since these rely on
-    # the dtype of the array to determine the correct value range.
-    # But this introduces rounding (truncating) errors in case of signals
-    # with integer dtypes. But these errors should be negligible.
-    return np.asarray(signal / np.power(np.sqrt(10.), attenuation / 10.),
-                      dtype=signal.dtype)
+    #        following signal processing steps well-behaved, since these rely
+    #        on the dtype of the array to determine the correct value range.
+    #        This introduces rounding (truncating) errors in case of signals
+    #        with integer dtypes. But these errors should be negligible.
+    # np.asanyarray returns the signal's ndarray subclass
+    return np.asanyarray(signal / np.power(np.sqrt(10.), attenuation / 10.),
+                         dtype=signal.dtype)
 
 
 def normalize(signal):
@@ -130,7 +133,7 @@ def trim(signal):
     # signal must be mono
     if signal.ndim > 1:
         # FIXME: please implement stereo (or multi-channel) handling
-        # maybe it works, haven't checked
+        #        maybe it works, haven't checked
         raise NotImplementedError("please implement multi-dim functionality")
     return np.trim_zeros(signal)
 
@@ -168,8 +171,8 @@ def sound_pressure_level(signal, p_ref=1.0):
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
     Sound pressure level (SPL) or sound level is a logarithmic measure of the
-    effective sound pressure of a sound relative to a reference value.
-    It is measured in decibels (dB) above a standard reference level.
+    effective sound pressure of a sound relative to a reference value. It is
+    measured in decibels (dB) above a standard reference level.
 
     """
     # compute the RMS
@@ -183,82 +186,75 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-# default Signal values
-MONO = False
-NORM = False
-ATT = 0
-
-
-class Signal(object):
+# function for automatically determining how to open audio files
+def load_audio_file(filename, sample_rate=None):
     """
-    Signal is a very simple class which just stores a reference to the signal
-    and the sample rate and provides some basic methods for signal processing.
+    Load the audio data from the given file and return it as a numpy array.
+
+    :param filename:    name of the file or file handle
+    :param sample_rate: sample rate of the signal [Hz]
+    :return:            tuple (signal, sample_rate)
 
     """
-    def __init__(self, data, sample_rate=None, mono=MONO, norm=NORM, att=ATT):
+    # determine the name of the file
+    if isinstance(filename, file):
+        # open file handle
+        filename = filename.name
+    # how to handle the file?
+    if filename.endswith(".wav"):
+        # wav file
+        from scipy.io import wavfile
+        sample_rate, signal = wavfile.read(filename)
+    # generic signal converter
+    else:
+        # TODO: use sox to convert from different input signals and use the
+        #       given sample rate to re-sample the signal on the fly if needed
+        raise NotImplementedError('please integrate sox signal handling.')
+    return signal, sample_rate
+
+
+# signal classes
+class Signal(np.ndarray):
+    """
+    Signal extends a numpy ndarray with a 'sample_rate' and some other useful
+    attributes.
+
+    """
+    def __new__(cls, data, sample_rate=None):
         """
         Creates a new Signal instance.
 
-        :param data:        numpy array (`sample_rate` must be given as well)
-                            or Signal instance or file name or file handle
-        :param sample_rate: sample rate of the signal [Hz]
-        :param mono:        down-mix the signal to mono
-        :param norm:        normalize the signal
-        :param att:         attenuate the signal [dB]
+        :param data:        numpy array
+        :param sample_rate: sample rate of the signal
 
         """
-        # data handling
-        if isinstance(data, np.ndarray) and sample_rate is not None:
-            # data is an numpy array, use it directly
-            self._data = data
-        elif isinstance(data, Signal):
-            # already a Signal, copy the object attributes (which can be
-            # overwritten by passing other values to the constructor)
-            self._data = data.data
-            self._sample_rate = data.sample_rate
-        else:
-            # try to load an audio file
-            from .io import load_audio_file
-            self._data, self._sample_rate = load_audio_file(data, sample_rate)
-        # set sample rate
-        if sample_rate is not None:
-            self._sample_rate = sample_rate
-        # convenience handling of mono down-mixing and normalization
-        if mono:
-            # down-mix to mono
-            self._data = downmix(self._data)
-        if norm:
-            # normalize signal
-            self._data = normalize(self._data)
-        if att is not None and att != 0:
-            # attenuate signal
-            self._data = attenuate(self._data, att)
+        # try to load an audio file if the data is not a numpy array
+        if not isinstance(data, np.ndarray):
+            data, sample_rate = load_audio_file(data, sample_rate)
+        # cast as Signal
+        obj = np.asarray(data).view(cls)
+        # set attributes
+        obj.sample_rate = sample_rate
+        # return the object
+        return obj
 
-    @property
-    def data(self):
-        """The raw audio signal data."""
-        return self._data
-
-    @property
-    def sample_rate(self):
-        """Sample rate of the audio signal."""
-        return self._sample_rate
-
-    # len() returns the number of samples
-    def __len__(self):
-        return self.num_samples
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.sample_rate = getattr(obj, 'sample_rate', None)
 
     @property
     def num_samples(self):
         """Number of samples."""
-        return len(self.data)
+        return len(self)
 
     @property
     def num_channels(self):
         """Number of channels."""
         try:
             # multi channel files
-            return np.shape(self.data)[1]
+            return np.shape(self)[1]
         except IndexError:
             # catch mono files
             return 1
@@ -266,71 +262,117 @@ class Signal(object):
     @property
     def length(self):
         """Length of signal in seconds."""
-        return float(self.num_samples) / float(self.sample_rate)
+        return float(self.num_samples) / self.sample_rate
 
-    def copy(self, sample_rate=None, mono=None, norm=None, att=None):
+
+class SignalProcessor(Processor):
+    """
+    SignalProcessor is a basic signal processor.
+
+    """
+    # default values
+    SAMPLE_RATE = None
+    MONO = False
+    NORM = False
+    ATT = 0
+
+    def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT):
         """
-        Copies the Signal object and adjusts some parameters.
+        Creates a new SignalProcessor instance.
 
         :param sample_rate: sample rate of the signal [Hz]
-        :param mono:        down-mix the signal to mono
-        :param norm:        normalize the signal
+        :param mono:        down-mix the signal to mono [bool]
+        :param norm:        normalize the signal [bool]
         :param att:         attenuate the signal [dB]
-        :return:            Signal object with given parameters
 
         """
-        # copy the object attributes unless overwritten by passing other values
-        if sample_rate is None:
-            sample_rate = self.sample_rate
-        # return a new Signal
-        return Signal(self.data, sample_rate=sample_rate, mono=mono, norm=norm,
-                      att=att)
+        self.sample_rate = sample_rate
+        self.mono = mono
+        self.norm = norm
+        self.att = att
 
-    def __str__(self):
-        return "Signal: %d samples (%.2f sec); %d channel(s); %d Hz sample " \
-               "rate" % (self.num_samples, self.length, self.num_channels,
-                         self.sample_rate)
+    def process(self, data):
+        """
+        Processes the given signal.
+
+        :param data: file name or handle
+        :return:     processed signal
+
+        """
+        # instantiate a Signal (with the given sample rate if set)
+        data = Signal(data, self.sample_rate)
+        # process it if needed
+        if self.mono:
+            # down-mix to mono
+            data = downmix(data)
+        if self.norm:
+            # normalize signal
+            data = normalize(data)
+        if self.att is not None and self.att != 0:
+            # attenuate signal
+            data = attenuate(data, self.att)
+        # return processed data
+        return data
 
     @staticmethod
-    def add_arguments(parser, norm=NORM, att=ATT):
+    def add_arguments(parser, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM,
+                      att=ATT):
         """
-        Add audio signal related arguments to an existing parser object.
+        Add signal processing related arguments to an existing parser object.
 
-        :param parser: existing argparse parser object
-        :param norm:   normalize the signal
-        :param att:    attenuate the signal [dB]
-        :return:       audio signal argument parser group object
+        :param parser:      existing argparse parser object
+        :param sample_rate: re-sample the signal to this sample rate [Hz]
+        :param mono:        down-mix the signal to mono [bool]
+        :param norm:        normalize the signal [bool]
+        :param att:         attenuate the signal [dB, float]
+        :return:            signal processing argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
 
         """
-        # add wav options to the existing parser
-        g = parser.add_argument_group('audio signal arguments')
+        # add signal processing options to the existing parser
+        g = parser.add_argument_group('signal processing arguments')
+        if sample_rate is not None:
+            g.add_argument('--sample_rate', action='store_true',
+                           default=sample_rate,
+                           help='re-sample the signal to this sample rate [Hz]')
+        if mono is not None:
+            g.add_argument('--mono', action='store_true', default=mono,
+                           help='down-mix the signal to mono')
         if norm is not None:
             g.add_argument('--norm', action='store_true', default=norm,
-                           help='normalize the audio signal')
+                           help='normalize the signal')
         if att is not None:
             g.add_argument('--att', action='store', type=float, default=att,
-                           help='attenuate the audio signal [dB]')
+                           help='attenuate the signal [dB]')
         # return the argument group so it can be modified if needed
         return g
 
 
-# function for splitting a signal into frames
-def signal_frame(signal, index, frame_size, hop_size, offset=0):
+# functions for splitting a signal into frames
+def signal_frame(signal, index, frame_size, hop_size, origin=0):
     """
     This function returns frame[index] of the signal.
 
     :param signal:     signal [numpy array]
     :param index:      index of the frame to return [int]
     :param frame_size: size of each frame in samples [int]
-    :param hop_size:   hop size in samples between adjacent frames [float/int]
-    :param offset:     position of the first sample inside the signal [int]
+    :param hop_size:   hop size in samples between adjacent frames [float]
+    :param origin:     location of the window center relative to the signal
+                       position [int]
     :return:           the requested frame of the signal
 
     The first frame (index == 0) refers to the first sample of the signal, and
     each following frame is placed `hop_size` samples after the previous one.
-    The window is always centered around this reference sample.
 
-    `offset` sets the position of the first reference sample inside the signal.
+    The window is always centered around this reference sample. Its location
+    relative to the reference sample can be set with the `origin` parameter.
+    Arbitrary integer values can be given:
+      - zero centers the window on its reference sample
+      - negative values shift the window to the right
+      - positive values shift the window to the left
+
+    The part of the frame which is not covered by the signal is padded with 0s.
 
     """
     # length of the signal
@@ -338,25 +380,28 @@ def signal_frame(signal, index, frame_size, hop_size, offset=0):
     # seek to the correct position in the audio signal
     ref_sample = int(index * hop_size)
     # position the window
-    start = ref_sample - frame_size / 2 + offset
+    start = ref_sample - frame_size // 2 + origin
     stop = start + frame_size
     # return the requested portion of the signal
+    # Note: use signal.__class__(np.zeros(frame_size, dtype=signal.dtype)) to
+    #       return the exact same type as the signal but with arbitrary length
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
-        return np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
+        return frame
     elif (start < 0) and (stop > num_samples):
         # window surrounds the actual signal, position signal accordingly
-        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
         frame[-start:num_samples - start] = signal
         return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
         frame[-start:] = signal[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.zeros((frame_size,) + signal.shape[1:], dtype=signal.dtype)
+        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
         frame[:num_samples - start] = signal[start:]
         return frame
     else:
@@ -364,32 +409,8 @@ def signal_frame(signal, index, frame_size, hop_size, offset=0):
         return signal[start:stop]
 
 
-def strided_frames(signal, frame_size, hop_size):
-    """
-    Returns a 2D representation of the signal with overlapping frames.
-
-    :param signal:     signal [numpy array]
-    :param frame_size: size of each frame in samples [int]
-    :param hop_size:   the hop size in samples between adjacent frames [int]
-    :return:           2D array with overlapping frames
-
-    Note: This function is here only for completeness. It is faster only in
-          rare circumstances. Also, seeking to the right position is only
-          working properly, if an integer `hop_size` are used.
-
-    """
-    # init variables
-    samples = np.shape(signal)[0]
-    # FIXME: does seeking only the right way for integer hop_size
-    # see http://www.scipy.org/Cookbook/SegmentAxis for a more detailed example
-    as_strided = np.lib.stride_tricks.as_strided
-    # return the strided array
-    return as_strided(signal, (samples, frame_size),
-                      (signal.strides[0], signal.strides[0]))[::hop_size]
-
-
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
-def segment_axis(signal, frame_size, hop_size=0, axis=None, end='cut',
+def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
                  end_value=0):
     """
     Generate a new array that chops the given array along the given axis into
@@ -418,7 +439,10 @@ def segment_axis(signal, frame_size, hop_size=0, axis=None, end='cut',
            [6, 7, 8, 9]])
 
     """
-
+    # make sure that both frame_size and hop_size are integers
+    frame_size = int(frame_size)
+    hop_size = int(hop_size)
+    # TODO: add comments!
     if axis is None:
         signal = np.ravel(signal)  # may copy
         axis = 0
@@ -468,12 +492,15 @@ def segment_axis(signal, frame_size, hop_size=0, axis=None, end='cut',
     assert (length - frame_size) % hop_size == 0
     n = 1 + (length - frame_size) // hop_size
     s = signal.strides[axis]
-    new_shape = signal.shape[:axis] + (n, frame_size) + signal.shape[axis + 1:]
-    new_strides = signal.strides[:axis] + (hop_size * s, s) + signal.strides[axis + 1:]
+    new_shape = (signal.shape[:axis] + (n, frame_size) +
+                 signal.shape[axis + 1:])
+    new_strides = (signal.strides[:axis] + (hop_size * s, s) +
+                   signal.strides[axis + 1:])
 
     try:
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
-                                  shape=new_shape, buffer=signal, dtype=signal.dtype)
+                                  shape=new_shape, buffer=signal,
+                                  dtype=signal.dtype)
     except TypeError:
         # TODO: remove warning?
         import warnings
@@ -483,130 +510,131 @@ def segment_axis(signal, frame_size, hop_size=0, axis=None, end='cut',
         new_strides = (signal.strides[:axis] + (hop_size * s, s) +
                        signal.strides[axis + 1:])
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
-                                  shape=new_shape, buffer=signal, dtype=signal.dtype)
+                                  shape=new_shape, buffer=signal,
+                                  dtype=signal.dtype)
 
 
-# default values for splitting a signal into overlapping frames
-FRAME_SIZE = 2048
-HOP_SIZE = 441.
-FPS = 100.
-ORIGIN = 0
-START = 0
-NUM_FRAMES = 'extend'
-
-
+# classes for splitting a signal into frames
 class FramedSignal(object):
     """
-    FramedSignal splits a signal into frames and makes them iterable.
+    FramedSignal splits a Signal into frames and makes it iterable and
+    indexable.
 
     """
-    def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=None, origin=ORIGIN, start=START, num_frames=NUM_FRAMES,
-                 *args, **kwargs):
+
+    def __init__(self, signal, frame_size=2048, hop_size=441, fps=None,
+                 origin=0, start=0, end='extend', *args, **kwargs):
         """
         Creates a new FramedSignal instance.
 
-        :param signal:     a Signal or FramedSignal instance
-                           or anything a Signal can be instantiated from
+        :param signal:     Signal instance (or anything a Signal can be
+                           instantiated from)
         :param frame_size: size of one frame [int]
         :param hop_size:   progress N samples between adjacent frames [float]
-        :param fps:        use given frames per second (instead of using
-                           `hop_size`; if set, this overwrites the `hop_size`
-                           value) [float]
+        :param fps:        use given frames per second (if set, this overwrites
+                           the given `hop_size` value) [float]
         :param origin:     location of the window relative to the signal
                            position [int]
         :param start:      start sample [int]
-        :param num_frames: number of frames to return (see below)
+        :param end:        end of signal handling (see below)
 
-        The FramedSignal class is implemented as an iterator. It splits the
-        given Signal automatically into frames (of `frame_size` length) and
-        progresses `hop_size` samples (can be float, normal rounding applies)
-        between frames.
+        If no Signal instance was given, one is instantiated and these
+        arguments are passed:
+
+        :param args:       additional arguments passed to Signal()
+        :param kwargs:     additional keyword arguments passed to Signal()
+
+        The FramedSignal class is implemented as an iterator. It splits
+        the given Signal automatically into frames of `frame_size` length
+        with `hop_size` samples (can be float, normal rounding applies)
+        between the frames.
 
         The location of the window relative to its reference sample can be set
         with the `origin` parameter. Arbitrary integer values can be given
-        - zero centers the window on its reference sample
-        - negative values shift the window to the right
-        - positive values shift the window to the left
+          - zero centers the window on its reference sample
+          - negative values shift the window to the right
+          - positive values shift the window to the left
         Additionally, it can have the following literal values:
-        - 'center', 'offline': the window is centered on its reference sample
-        - 'left', 'past', 'online': the window is located to the left of
-          its reference sample (including the reference sample)
-        - 'right', 'future': the window is located to the right of its
-          reference sample
+          - 'center', 'offline':      the window is centered on its reference
+                                      sample
+          - 'left', 'past', 'online': the window is located to the left of its
+                                      reference sample (including the reference
+                                      sample)
+          - 'right', 'future':        the window is located to the right of its
+                                      reference sample
 
         If only a certain part of the Signal is wanted, `start` (in samples)
-        and `num_frames` (in frames) can be used to set the range accordingly.
-        Additionally, the `num_frames` parameter can have the following literal
-        values to cover the whole signal to the end with the following end of
-        signal behavior.
-        - 'normal': the origin of the last frame has to be within the signal
-        - 'extend': frames are returned as long as part of the frame overlaps
-          with the signal [default]
+        and `end` (in frames) can be used to set the range accordingly.
+        Additionally, the `end` parameter can have the following literal
+        values:
+          - 'normal': stop as soon as the whole signal got covered by at least
+                      one frame, i.e. pad maximally one frame
+          - 'extend': frames are returned as long as part of the frame overlaps
+                      with the signal to cover the whole signal to the end with
+                      the following end of signal behavior
 
         """
         # signal handling
         if isinstance(signal, Signal):
             # already a signal
-            self._signal = signal
+            self.signal = signal
         else:
             # try to instantiate a Signal
-            self._signal = Signal(signal, *args, **kwargs)
+            self.signal = Signal(signal, *args, **kwargs)
 
         # arguments for splitting the signal into frames
         if frame_size:
-            self._frame_size = int(frame_size)
+            self.frame_size = int(frame_size)
         if hop_size:
-            self._hop_size = float(hop_size)
+            self.hop_size = float(hop_size)
         # use fps instead of hop_size
         if fps:
             # overwrite the hop_size
-            self._hop_size = self._signal.sample_rate / float(fps)
+            self.hop_size = self.signal.sample_rate / float(fps)
 
-        # translate literal values
+        # translate literal window location values to numeric origin
         if origin in ('center', 'offline'):
             # the current position is the center of the frame
-            self._origin = 0
+            origin = 0
         elif origin in ('left', 'past', 'online'):
             # the current position is the right edge of the frame
             # this is usually used when simulating online mode, where only past
             # information of the audio signal can be used
-            self._origin = +(frame_size - 1) / 2
+            origin = (frame_size - 1) / 2
         elif origin in ('right', 'future'):
             # the current position is the left edge of the frame
-            self._origin = -(frame_size / 2)
-            # location of the window
-        else:
-            self._origin = origin
+            origin = -(frame_size / 2)
+        self.origin = int(origin)
 
         # start position of the signal (in samples)
-        self._start = int(start)
+        self.start = int(start)
 
-        # number of frames handling
-        if num_frames == 'extend':
+        # number of frames determination
+        if end == 'extend':
             # return frames as long as a frame covers any signal
-            self._num_frames = int(np.floor(len(self.signal) /
-                                            float(self.hop_size) + 1))
-        elif num_frames == 'normal':
+            num_frames = np.ceil((len(self.signal) - self.origin +
+                                  self.frame_size / 2) / float(self.hop_size))
+        elif end == 'normal':
             # return frames as long as the origin sample covers the signal
-            self._num_frames = int(np.ceil(len(self.signal) /
-                                           float(self.hop_size)))
+            num_frames = np.ceil((len(self.signal) - self.origin) /
+                                 float(self.hop_size))
         else:
-            self._num_frames = int(num_frames)
+            num_frames = end
+        self.num_frames = int(num_frames)
 
-    # make the Object indexable
+    # make the Object indexable / iterable
     def __getitem__(self, index):
         """
-        This makes the FramedSignal class an indexable object.
+        This makes the FramedSignalProcessor class indexable and/or iterable.
 
-        The signal is split into frames (of length frame_size) automatically.
-        Two frames are located hop_size samples apart. hop_size can be float,
-        normal rounding applies.
+        The signal is split into frames (of length 'frame_size') automatically.
+        Two frames are located 'hop_size' samples apart. 'hop_size' can be
+        float, normal rounding applies.
 
-        Note: index -1 refers NOT to the last frame, but to the frame directly
-        left of frame 0. Although this is contrary to common behavior, being
-        able to access these frames is important, because if the frames overlap
-        frame -1 contains parts of the signal of frame 0.
+        Note: Index -1 refers NOT to the last frame, but to the frame directly
+              left of frame 0. Although this is contrary to common behavior,
+              being able to access these frames can be important, e.g. if the
+              frames overlap, frame -1 contains parts of the signal of frame 0.
 
         """
         # a single index is given
@@ -615,16 +643,18 @@ class FramedSignal(object):
             if index < self.num_frames:
                 # return the frame at this index
                 # subtract the origin from the start position and use as offset
-                return signal_frame(self.signal.data, index,
+                return signal_frame(self.signal, index,
                                     frame_size=self.frame_size,
                                     hop_size=self.hop_size,
-                                    offset=(self.start - self.origin))
+                                    origin=(self.start - self.origin))
             # otherwise raise an error to indicate the end of signal
             raise IndexError("end of signal reached")
         # a slice is given
         elif isinstance(index, slice):
             # determine the frames to return
+            print index
             start, stop, step = index.indices(self.num_frames)
+            print start, stop, step
             # allow only normal steps
             if step != 1:
                 raise ValueError('only slices with a step size of 1 supported')
@@ -632,7 +662,7 @@ class FramedSignal(object):
             num_frames = stop - start
             # determine the start sample
             start_sample = self.start + self.hop_size * start
-            # return a new FramedSignal instance covering the requested frames
+            # return a new FramedSignalProcessor instance covering the requested frames
             return FramedSignal(self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
@@ -640,114 +670,134 @@ class FramedSignal(object):
         else:
             raise TypeError("frame indices must be slices or integers")
 
-    @property
-    def signal(self):
-        """The underlying (audio) signal."""
-        return self._signal
-
-    @property
-    def frame_size(self):
-        """Size of one frame."""
-        return self._frame_size
-
-    @property
-    def hop_size(self):
-        """Number of samples between adjacent frames."""
-        return self._hop_size
-
-    @property
-    def origin(self):
-        """Origin of the frame center relative to the signal position."""
-        return self._origin
-
-    @property
-    def start(self):
-        """Origin sample of the first frame."""
-        return self._start
-
-    @property
-    def num_frames(self):
-        """Number of frames."""
-        return self._num_frames
-
     # len() returns the number of frames, consistent with __getitem__()
     def __len__(self):
         return self.num_frames
 
     @property
+    def sample_rate(self):
+        """Sample rate of the signal."""
+        return self.signal.sample_rate
+
+    @property
+    def frame_rate(self):
+        """Frame rate."""
+        return float(self.signal.sample_rate) / self.hop_size
+
+    @property
     def fps(self):
         """Frames per second."""
-        return float(self.signal.sample_rate) / float(self.hop_size)
+        return self.frame_rate
 
     @property
     def overlap_factor(self):
-        """Overlap factor of two adjacent frames."""
+        """Overlapping factor of two adjacent frames."""
         return 1.0 - self.hop_size / self.frame_size
 
-    def copy(self, frame_size=None, hop_size=None, fps=None, origin=None,
-             start=None, num_frames=None):
-        """
-        Copies the FramedSignal object and adjusts some parameters.
+    @property
+    def shape(self):
+        """Shape of the frames."""
+        return self.num_frames, self.frame_size
 
-        :param frame_size: size of one frame [int]
+
+class FramedSignalProcessor(Processor):
+    """
+    Slice a Signal into frames.
+
+    """
+    # default values for splitting a signal into overlapping frames
+    FRAME_SIZE = 2048
+    HOP_SIZE = 441.
+    FPS = 100.
+    ONLINE = False
+    START = 0
+    END_OF_SIGNAL = 'extend'
+
+    def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
+                 online=ONLINE, end=END_OF_SIGNAL):
+        """
+        Creates a new FramedSignalProcessor instance.
+
+        :param frame_size: size of one frame in samples [int]
         :param hop_size:   progress N samples between adjacent frames [float]
-        :param fps:        use given frames per second (instead of using
-                           `hop_size`; if set, this overwrites the `hop_size`
-                           value) [float]
-        :param origin:     location of the window relative to the signal
-                           position [int]
-        :param start:      start sample [int]
-        :param num_frames: number of frames to return
-        :return:           FramedSignal object with given parameters
+        :param fps:        use frames per second (compute the needed `hop_size`
+                           instead of using the given `hop_size` value) [float]
+        :param online:     operate in online mode (see below) [bool]
+        :param end:        end of signal handling (see below)
+
+        The location of the window relative to its reference sample can be set
+        with the `online` parameter:
+          - 'True':  the window is located to the left of its reference sample
+                     (including the reference sample), i.e. only past
+                     information is used
+          - 'False': the window is centered on its reference sample [default]
+
+        The end of the signal handling can be set with the `end` parameter,
+        it accepts the following literal values:
+          - 'normal': the origin of the last frame has to be within the signal
+          - 'extend': frames are returned as long as part of the frame overlaps
+                      with the signal [default]
 
         """
-        # copy the object attributes unless overwritten by passing other values
-        if frame_size is None:
-            frame_size = self.frame_size
-        if hop_size is None:
-            hop_size = self.hop_size
-        if fps is None:
-            fps = self.fps
-        if origin is None:
-            origin = self.origin
-        if start is None:
-            start = self.start
-        if num_frames is None:
-            num_frames = self.num_frames
-        # return a new FramedSignal
-        return FramedSignal(self.signal, frame_size=frame_size,
-                            hop_size=hop_size, fps=fps, origin=origin,
-                            start=start, num_frames=num_frames)
+        self.frame_size = frame_size
+        self.hop_size = hop_size
+        self.fps = fps
+        self.online = online
+        self.end = end
 
-    def __str__(self):
-        return "FramedSignal: %d frame(s); %d frame size; %.1f hop size\n %s"\
-               % (self.num_frames, self.frame_size, self.hop_size,
-                  str(self.signal))
+    def process(self, data, start=0, num_frames=None):
+        """
+        Slice the signal into (overlapping) frames.
+
+        :param data:       signal to be sliced into frames [Signal]
+        :param start:      start sample [int]
+        :param num_frames: limit the number of frames to be returned [int]
+        :return:           FramedSignal (i.e. signal sliced into frames)
+
+        Note: If `num_frames` is 'None', the length of the returned signal is
+              determined by the `end_of_signal` setting.
+
+        """
+        # how many frames to process?
+        if num_frames is None:
+            num_frames = self.end
+        # translate online / offline mode
+        if self.online:
+            origin = 'online'
+        else:
+            origin = 'offline'
+        # instantiate a FramedSignal from the data and return it
+        return FramedSignal(data, frame_size=self.frame_size,
+                            hop_size=self.hop_size, fps=self.fps,
+                            origin=origin, start=start, end=num_frames)
 
     @staticmethod
-    def add_arguments(parser, online=None, fps=FPS, frame_size=FRAME_SIZE):
+    def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE):
         """
-        Add audio frames related arguments to an existing parser object.
+        Add signal framing related arguments to an existing parser object.
 
         :param parser:     existing argparse parser object
-        :param online:     online mode
-        :param fps:        frames per second
-        :param frame_size: size of one frame in samples
-        :return:           audio frames argument parser group object
+        :param frame_size: size of one frame in samples [int]
+        :param fps:        frames per second [float]
+        :param online:     online mode [bool]
+        :return:           signal framing argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
 
         """
-        # add wav options to the existing parser
-        g = parser.add_argument_group('audio frame arguments')
-        if online is not None:
-            g.add_argument('--online', dest='online', action='store_true',
-                           default=online,
-                           help='operate in online mode [default=%(default)s]')
-        if fps is not None:
-            g.add_argument('--fps', action='store', type=int, default=fps,
-                           help='frames per second [default=%(default)i]')
+        # add signal framing options to the existing parser
+        g = parser.add_argument_group('signal framing arguments')
         if frame_size is not None:
             g.add_argument('--frame_size', action='store', type=int,
                            default=frame_size,
                            help='frame size [samples, default=%(default)i]')
+        if fps is not None:
+            g.add_argument('--fps', action='store', type=int, default=fps,
+                           help='frames per second [default=%(default)i]')
+        if online is not None:
+            g.add_argument('--online', dest='online', action='store_true',
+                           default=online,
+                           help='operate in online mode [default=%(default)s]')
+        # TODO: include end_of_signal handling!?
         # return the argument group so it can be modified if needed
         return g

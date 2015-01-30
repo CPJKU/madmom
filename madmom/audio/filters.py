@@ -9,15 +9,9 @@ This file contains filter and filterbank related functionality.
 
 import numpy as np
 
+from madmom import Processor
 from .signal import segment_axis
 
-# default values for filters
-FMIN = 30
-FMAX = 17000
-BANDS_PER_OCTAVE = 12
-NORM_FILTERS = True
-DUPLICATE_FILTERS = False
-OVERLAP_FILTERS = True
 A4 = 440
 
 
@@ -30,7 +24,7 @@ def hz2mel(f):
     :return:  frequencies in Mel
 
     """
-    return 1127.01048 * np.log(f / 700. + 1.)
+    return 1127.01048 * np.log(np.asarray(f) / 700. + 1.)
 
 
 def mel2hz(m):
@@ -41,7 +35,7 @@ def mel2hz(m):
     :return:  frequencies in Hz
 
     """
-    return 700. * (np.exp(m / 1127.01048) - 1.)
+    return 700. * (np.exp(np.asarray(m) / 1127.01048) - 1.)
 
 
 def mel_frequencies(num_bands, fmin, fmax):
@@ -54,7 +48,7 @@ def mel_frequencies(num_bands, fmin, fmax):
     :return:          a list of frequencies
 
     """
-    # convert fmin and fmax to the Mel scale and return a list of frequencies
+    # convert fmin and fmax to the Mel scale and return an array of frequencies
     return mel2hz(np.linspace(hz2mel(fmin), hz2mel(fmax), num_bands))
 
 
@@ -67,9 +61,11 @@ def hz2bark(f):
     :return:  frequencies in Bark.
 
     """
+    raise NotImplementedError('please check this function, it produces '
+                              'negative values')
     # TODO: use Zwicker's formula?
-    # return 13. * arctan(0.00076*f) + 3.5 * arctan((f/7500.)**2)
-    return (26.81 / (1. + 1960. / f)) - 0.53
+    #       return 13 * arctan(0.00076 * f) + 3.5 * arctan((f / 7500.) ** 2)
+    return (26.81 / (1. + 1960. / np.asarray(f))) - 0.53
 
 
 def bark2hz(z):
@@ -80,9 +76,10 @@ def bark2hz(z):
     :return:  frequencies in Hz.
 
     """
-    # TODO: use Zwicker's formula?
-    # return 13. * arctan(0.00076*f) + 3.5 * arctan((f/7500.)**2)
-    return 1960. / (26.81 / (z + 0.53) - 1.)
+    raise NotImplementedError('please check this function, it produces weird '
+                              'values')
+    # TODO: use Zwicker's formula? what's the inverse of the above?
+    return 1960. / (26.81 / (np.asarray(z) + 0.53) - 1.)
 
 
 def bark_frequencies(fmin=20, fmax=15500):
@@ -130,14 +127,14 @@ def bark_double_frequencies(fmin=20, fmax=15500):
 
 
 # logarithmic frequency scale
-def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
+def log_frequencies(bands_per_octave, fmin, fmax, fref=A4):
     """
     Generates a list of frequencies aligned on a logarithmic frequency scale.
 
     :param bands_per_octave: number of filter bands per octave
     :param fmin:             the minimum frequency [Hz]
     :param fmax:             the maximum frequency [Hz]
-    :param a4:               tuning frequency of A4 [Hz]
+    :param fref:             tuning frequency [Hz]
     :return:                 a list of frequencies
 
     Note: if 12 bands per octave and a4=440 are used, the frequencies are
@@ -145,10 +142,11 @@ def log_frequencies(bands_per_octave, fmin, fmax, a4=A4):
 
     """
     # get the range
-    left = np.floor(np.log2(float(fmin) / a4) * bands_per_octave)
-    right = np.ceil(np.log2(float(fmax) / a4) * bands_per_octave)
+    left = np.floor(np.log2(float(fmin) / fref) * bands_per_octave)
+    right = np.ceil(np.log2(float(fmax) / fref) * bands_per_octave)
     # generate frequencies
-    frequencies = a4 * 2. ** (np.arange(left, right) / float(bands_per_octave))
+    frequencies = fref * 2. ** (np.arange(left, right) /
+                                float(bands_per_octave))
     # filter frequencies
     # needed, because range might be bigger because of the use of floor/ceil
     frequencies = frequencies[np.searchsorted(frequencies, fmin):]
@@ -172,27 +170,27 @@ def semitone_frequencies(fmin, fmax, a4=A4):
 
 
 # MIDI
-def midi2hz(m, a4=A4):
+def midi2hz(m, fref=A4):
     """
     Convert frequencies to the corresponding MIDI notes.
 
-    :param m:  input MIDI notes
-    :param a4: tuning frequency of A4 [Hz]
-    :return:   frequencies in Hz
+    :param m:    input MIDI notes
+    :param fref: tuning frequency of A4 [Hz]
+    :return:     frequencies in Hz
 
     For details see: http://www.phys.unsw.edu.au/jw/notes.html
 
     """
-    return 2. ** ((m - 69.) / 12.) * a4
+    return 2. ** ((m - 69.) / 12.) * fref
 
 
-def hz2midi(f, a4=A4):
+def hz2midi(f, fref=A4):
     """
     Convert MIDI notes to corresponding frequencies.
 
-    :param f:  input frequencies [Hz]
-    :param a4: tuning frequency of A4 [Hz]
-    :return:   MIDI notes
+    :param f:    input frequencies [Hz]
+    :param fref: tuning frequency of A4 [Hz]
+    :return:     MIDI notes
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
 
@@ -200,7 +198,7 @@ def hz2midi(f, a4=A4):
           need to round it to the nearest integer.
 
     """
-    return (12. * np.log2(f / float(a4))) + 69.
+    return (12. * np.log2(f / float(fref))) + 69.
 
 
 # provide an alias to semitone_frequencies
@@ -219,7 +217,7 @@ def hz2erb(f):
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
 
     """
-    return 21.4 * np.log10(1 + 4.37 * f / 1000.)
+    return 21.4 * np.log10(1 + 4.37 * np.asarray(f) / 1000.)
 
 
 def erb2hz(e):
@@ -233,54 +231,52 @@ def erb2hz(e):
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
 
     """
-    return (10. ** (e / 21.4) - 1.) * 1000. / 4.37
+    return (10. ** (np.asarray(e) / 21.4) - 1.) * 1000. / 4.37
 
 
 # helper functions for filter creation
-def fft_freqs(num_fft_bins, sample_rate):
+def fft_frequencies(num_bins, sample_rate):
     """
     Frequencies of the FFT bins.
 
-    :param num_fft_bins: number of FFT bins (= half the FFT size)
-    :param sample_rate:  sample rate of the signal
-    :return:             corresponding FFT bin frequencies
+    :param num_bins:    number of FFT bins (i.e. half the FFT length)
+    :param sample_rate: sample rate of the signal
+    :return:            corresponding FFT bin frequencies
 
     """
-    # slower: np.fft.fftfreq(num_fft_bins * 2)[:num_fft_bins] * sample_rate
-    return np.linspace(0, sample_rate / 2., num_fft_bins + 1)[:-1]
+    return np.fft.fftfreq(num_bins * 2, 1. / sample_rate)[:num_bins]
 
 
-def frequencies2bins(frequencies, num_fft_bins, sample_rate):
+def frequencies2bins(frequencies, num_bins, sample_rate):
     """
-    Convert frequencies to the corresponding bins.
+    Map frequencies to the closest corresponding bins.
 
-
-    :param frequencies:  a list of frequencies [Hz]
-    :param num_fft_bins: number of FFT bins (= half the FFT size)
-    :param sample_rate:  sample rate of the audio signal [Hz]
-    :return:             corresponding bins
+    :param frequencies: a list of frequencies [Hz]
+    :param num_bins:    number of FFT bins (i.e. half the FFT length)
+    :param sample_rate: sample rate of the audio signal [Hz]
+    :return:            corresponding bins
 
     """
     # map the frequencies to spectrogram bins
-    factor = (sample_rate / 2.0) / num_fft_bins
+    factor = (sample_rate / 2.0) / num_bins
     bins = np.round(np.asarray(frequencies) / factor).astype(int)
-    # return all bins within the valid range
-    return bins[:np.searchsorted(bins, num_fft_bins)]
+    # map frequencies out of range to a valid range
+    return np.minimum(np.maximum(bins, 0), num_bins)
 
 
-def bins2frequencies(bins, num_fft_bins, sample_rate):
+def bins2frequencies(bins, num_bins, sample_rate):
     """
     Convert bins to the corresponding frequencies.
 
-
-    :param bins:         a list of bins
-    :param num_fft_bins: number of FFT bins (= half the FFT size)
-    :param sample_rate:  sample rate of the audio signal [Hz]
-    :return:             corresponding frequencies [Hz]
+    :param bins:        a list of bins
+    :param num_bins:    number of FFT bins (i.e. half the FFT length)
+    :param sample_rate: sample rate of the audio signal [Hz]
+    :return:            corresponding frequencies [Hz]
 
     """
-    # map the frequencies to spectrogram bins
-    factor = (sample_rate / 2.0) / num_fft_bins
+    # map the frequencies to spectrogram bins,
+    # TODO: including float & out of range bins
+    factor = (sample_rate / 2.0) / num_bins
     return np.asarray(bins) * factor
 
 
@@ -359,14 +355,14 @@ class TriangularFilter(Filter):
         Creates a new TriangularFilter instance.
 
         :param start:  start bin
-        :param center: center bin (of height 1, unless filter is normalized).
+        :param center: center bin (of height 1, unless filter is normalized)
         :param stop:   stop bin
         :param norm:   normalize the area of the filter(s) to 1
         :return:       a triangular shaped filter with length 'stop', height 1
                        (unless normalized) with indices <= 'start' set to 0
 
         """
-        # center must be within start & stop
+        # center must be between start & stop
         if start >= center >= stop:
             raise ValueError('center must be between start and stop')
         # make center and stop relative
@@ -487,18 +483,30 @@ class RectangularFilter(Filter):
             # yield the frequencies and continue
             yield start, stop, norm
 
+# default values for filter banks
+FMIN = 30
+FMAX = 17000
+BANDS = 12
+NORM_FILTERS = True
+DUPLICATE_FILTERS = False
+OVERLAP_FILTERS = True
 
-class Filterbank(np.ndarray):
+
+class Filterbank(Processor, np.ndarray):
     """
     Generic filterbank class.
 
+    A Filterbank is a simple numpy array enhanced with several additional
+    attributes, e.g. number of bands.
+
     """
+    fref = None
 
     def __new__(cls, data, sample_rate):
         """
         Creates a new Filterbank instance.
 
-        :param data:        2-d numpy array
+        :param data:        2D numpy array
         :param sample_rate: sample rate of the audio signal [Hz]
 
         """
@@ -510,7 +518,7 @@ class Filterbank(np.ndarray):
             raise TypeError('wrong input data for Filterbank, must be '
                             'np.ndarray')
         # set attributes
-        obj._sample_rate = sample_rate
+        obj.sample_rate = sample_rate
         # return the object
         return obj
 
@@ -518,7 +526,7 @@ class Filterbank(np.ndarray):
         if obj is None:
             return
         # set default values here
-        self._norm = getattr(obj, '_norm', None)
+        self.sample_rate = getattr(obj, 'sample_rate', 1)
 
     @classmethod
     def _put_filter(cls, filt, band):
@@ -548,21 +556,21 @@ class Filterbank(np.ndarray):
         np.maximum(filt, filter_position, out=filter_position)
 
     @classmethod
-    def from_filters(cls, filters, num_fft_bins, sample_rate):
+    def from_filters(cls, filters, num_bins, sample_rate):
         """
         Creates a filterbank with possibly multiple filters per band.
 
-        :param filters:      list containing the filters per band; if multiple
-                             filters per band are desired, they should be also
-                             contained in a list, resulting in a list of lists
-                             of filters.
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
-        :param sample_rate:  sample rate of the audio signal
-        :return:             filterbank with respective filter elements
+        :param filters:     list containing the filters per band; if multiple
+                            filters per band are desired, they should be also
+                            contained in a list, resulting in a list of lists
+                            of filters.
+        :param num_bins:    number of FFT bins (i.e. half the FFT length)
+        :param sample_rate: sample rate of the audio signal
+        :return:            filterbank with respective filter elements
 
         """
         # create filterbank
-        fb = np.zeros((num_fft_bins, len(filters)))
+        fb = np.zeros((num_bins, len(filters)))
         # iterate over all filters
         for band_id, band_filter in enumerate(filters):
             # get the band's corresponding slice of the filterbank
@@ -579,8 +587,8 @@ class Filterbank(np.ndarray):
         return Filterbank.__new__(cls, fb, sample_rate)
 
     @property
-    def num_fft_bins(self):
-        """Number of FFT bins."""
+    def num_bins(self):
+        """Number of bins."""
         return self.shape[0]
 
     @property
@@ -589,14 +597,9 @@ class Filterbank(np.ndarray):
         return self.shape[1]
 
     @property
-    def sample_rate(self):
-        """Sample rate of the signal."""
-        return self._sample_rate
-
-    @property
     def bin_frequencies(self):
-        """Frequencies of FFT bins."""
-        return fft_freqs(self.num_fft_bins, self.sample_rate)
+        """Frequencies of filterbank bins."""
+        return fft_frequencies(self.num_bins, self.sample_rate)
 
     @property
     def filter_corner_frequencies(self):
@@ -605,7 +608,7 @@ class Filterbank(np.ndarray):
         for band in range(self.num_bands):
             bins = np.nonzero(self[:, band])[0]
             fmin, fmax = bins2frequencies((np.min(bins) - 1, np.max(bins)),
-                                          self.num_fft_bins, self.sample_rate)
+                                          self.num_bins, self.sample_rate)
             freqs.append([fmin, fmax])
         return np.asarray(freqs)
 
@@ -615,7 +618,7 @@ class Filterbank(np.ndarray):
         freqs = []
         for band in range(self.num_bands):
             freqs.append(bins2frequencies(np.argmax(self[:, band]),
-                                          self.num_fft_bins, self.sample_rate))
+                                          self.num_bins, self.sample_rate))
         return np.asarray(freqs)
 
     @property
@@ -628,64 +631,73 @@ class Filterbank(np.ndarray):
         """Maximum frequency of the filterbank."""
         return self.bin_frequencies[np.nonzero(self)[0][-1]]
 
-    @property
-    def norm(self):
-        """Filters are normalized."""
-        return self._norm
+    def process(self, data):
+        """
+        Filter the given data with the Filterbank.
 
-    def __str__(self):
-        return "Filterbank: %d FFT bins; %d bands; sample rate: %d, fmin: " \
-               "%.1f; fmax: %.1f" % (self.num_fft_bins, self.num_bands,
-                                     self.sample_rate, self.fmin, self.fmax)
+        :param data: data [2D numpy array]
+        :return:     filtered data
+
+        """
+        # this method makes the Filterbank act as a Processor
+        return np.dot(data, self)
 
     @staticmethod
-    def add_arguments(parser, default=None, fmin=FMIN, fmax=FMAX,
-                      bands=BANDS_PER_OCTAVE, norm_filters=NORM_FILTERS):
+    def add_arguments(parser, filter_type=None, fmin=None, fmax=None,
+                      bands=None, norm_filters=None, duplicate_filters=None):
         """
         Add filter related arguments to an existing parser object.
 
-        :param parser:       existing argparse parser object
-        :param default:      set the default (adds a switch to negate)
-        :param fmin:         the minimum frequency
-        :param fmax:         the maximum frequency
-        :param bands:        number of filter bands per octave
-        :param norm_filters: normalize the area of the filter
-        :return:             filtering argument parser group object
+        :param parser:            existing argparse parser object
+        :param filter_type:       type of filter to be used
+        :param fmin:              the minimum frequency [Hz, float]
+        :param fmax:              the maximum frequency [Hz, float]
+        :param bands:             number of filter bands (per octave) [int]
+        :param norm_filters:      normalize the area of the filter [bool]
+        :param duplicate_filters: keep duplicate filters [bool]
+        :return:                  filtering argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
 
         """
         # TODO: split this among the individual classes
         # add filter related options to the existing parser
         g = parser.add_argument_group('filterbank related arguments')
-        if default is False:
-            g.add_argument('--filter', action='store_true', default=default,
-                           help='filter the magnitude spectrogram with a '
-                                'filterbank (apply values below)')
-        elif default is True:
-            g.add_argument('--no_filter', dest='filter', action='store_false',
-                           default=default,
-                           help='do not filter the magnitude spectrogram with '
-                                'a filterbank (ignore values below)')
+        if filter_type is not None:
+            # FIXME: how to handle this option?
+            g.add_argument('--filter_type', action='store',
+                           default=filter_type,
+                           help='filter type [default=%(default)s]')
         if bands is not None:
             g.add_argument('--bands', action='store', type=int, default=bands,
-                           help='filter bands per octave '
+                           help='number of bands (per octave) '
                                 '[default=%(default)i]')
         if fmin is not None:
             g.add_argument('--fmin', action='store', type=float, default=fmin,
-                           help='minimum frequency of filter in Hz [default='
-                                '%(default)i]')
+                           help='minimum frequency of filter '
+                                '[Hz, default=%(default).2f]')
         if fmax is not None:
             g.add_argument('--fmax', action='store', type=float, default=fmax,
-                           help='maximum frequency of filter in Hz [default='
-                                '%(default)i]')
+                           help='maximum frequency of filter '
+                                '[Hz, default=%(default).2f]')
         if norm_filters is False:
             # switch to turn it on
             g.add_argument('--norm_filters', action='store_true',
                            default=norm_filters,
                            help='normalize filters to have equal area')
-        if norm_filters is True:
+        elif norm_filters is True:
             g.add_argument('--no_norm_filters', dest='norm_filters',
                            action='store_false', default=norm_filters,
                            help='do not equalize filters to have equal area')
+        if duplicate_filters is False:
+            # switch to turn it on
+            g.add_argument('--duplicate_filters', action='store_true',
+                           default=duplicate_filters,
+                           help='keep duplicate filters')
+        elif duplicate_filters is True:
+            g.add_argument('--no_duplicate_filters', dest='norm_filters',
+                           action='store_false', default=duplicate_filters,
+                           help='remove duplicate filters')
         # return the argument group so it can be modified if needed
         return g
 
@@ -696,42 +708,39 @@ class MelFilterbank(Filterbank):
 
     """
     BANDS = 40
+    FMIN = 30
+    FMAX = 17000
+    NORM_FILTERS = True
+    DUPLICATE_FILTERS = False
 
-    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                bands=BANDS, norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS):
+    def __new__(cls, num_bins, sample_rate, bands=BANDS, fmin=FMIN, fmax=FMAX,
+                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new MelFilterbank instance.
 
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
-        :param sample_rate:  sample rate of the audio file [Hz]
-        :param fmin:         the minimum frequency [Hz]
-        :param fmax:         the maximum frequency [Hz]
-        :param bands:        number of filter bands
-        :param norm:         normalize the filters to area 1
-        :param duplicates:   keep duplicate filters resulting from insufficient
-                             resolution of low frequencies
+        :param num_bins:          number of FFT bins (i.e. half the FFT length)
+        :param sample_rate:       sample rate of the audio file [Hz]
+        :param bands:             number of filter bands
+        :param fmin:              the minimum frequency [Hz]
+        :param fmax:              the maximum frequency [Hz]
+        :param norm_filters:      normalize the filters to area 1
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
 
         """
         # get a list of frequencies
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(bands + 2, fmin, fmax)
         # convert to bins
-        bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
+        bins = frequencies2bins(frequencies, num_bins, sample_rate)
         # get overlapping triangular filters
-        filters = TriangularFilter.filters(bins, norm=norm,
-                                           duplicates=duplicates, overlap=True)
+        filters = TriangularFilter.filters(bins, norm=norm_filters,
+                                           duplicates=duplicate_filters,
+                                           overlap=True)
         # create a MelFilterbank from the filters
-        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
-        # set additional attributes
-        obj._norm = norm
+        obj = cls.from_filters(filters, num_bins, sample_rate)
         # return the object
         return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        # set default values here
-        self._norm = getattr(obj, '_norm', NORM_FILTERS)
 
 
 class BarkFilterbank(Filterbank):
@@ -741,47 +750,42 @@ class BarkFilterbank(Filterbank):
     """
     FMIN = 20
     FMAX = 15500
-    DOUBLE = False
+    BANDS = 'simple'
+    NORM_FILTERS = True
+    DUPLICATE_FILTERS = False
 
-    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                double=DOUBLE, norm=NORM_FILTERS,
-                duplicates=DUPLICATE_FILTERS):
+    def __new__(cls, num_bins, sample_rate, bands=BANDS, fmin=FMIN, fmax=FMAX,
+                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new BarkFilterbank instance.
 
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
-        :param sample_rate:  sample rate of the audio file [Hz]
-        :param fmin:         the minimum frequency [Hz]
-        :param fmax:         the maximum frequency [Hz]
-        :param double:       double the number of frequency bands
-        :param norm:         normalize the area of the filter to 1
-        :param duplicates:   keep duplicate filters resulting from insufficient
-                             resolution of low frequencies
+        :param num_bins:          number of FFT bins (i.e. half the FFT length)
+        :param sample_rate:       sample rate of the audio file [Hz]
+        :param bands:             number of filter bands
+        :param fmin:              the minimum frequency [Hz]
+        :param fmax:              the maximum frequency [Hz]
+        :param norm_filters:      normalize the filters to area 1
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
 
         """
         # get a list of frequencies
-        if double:
+        if bands == 'simple':
             frequencies = bark_double_frequencies(fmin, fmax)
-        else:
+        elif bands == 'double':
             frequencies = bark_frequencies(fmin, fmax)
+        else:
+            raise ValueError("bands must be either 'simple' or 'double'")
         # convert to bins
-        bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
+        bins = frequencies2bins(frequencies, num_bins, sample_rate)
         # get non-overlapping rectangular filters
-        filters = RectangularFilter.filters(bins, norm=norm,
-                                            duplicates=duplicates,
+        filters = RectangularFilter.filters(bins, norm=norm_filters,
+                                            duplicates=duplicate_filters,
                                             overlap=False)
         # create a BarkFilterbank from the filters
-        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
-        # set additional attributes
-        obj._norm = norm
+        obj = cls.from_filters(filters, num_bins, sample_rate)
         # return the object
         return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        # set default values here
-        self._norm = getattr(obj, '_norm', NORM_FILTERS)
 
 
 class LogarithmicFilterbank(Filterbank):
@@ -789,36 +793,42 @@ class LogarithmicFilterbank(Filterbank):
     Logarithmic filterbank class.
 
     """
-    def __new__(cls, num_fft_bins, sample_rate,
-                bands_per_octave=BANDS_PER_OCTAVE, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
+    BANDS_PER_OCTAVE = 12
+
+    def __new__(cls, num_bins, sample_rate, bands=BANDS_PER_OCTAVE,
+                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new LogarithmicFilterbank instance.
 
-        :param num_fft_bins:     number of FFT bins (=half the FFT size)
-        :param sample_rate:      sample rate of the audio file [Hz]
-        :param bands_per_octave: number of filter bands per octave
-        :param fmin:             the minimum frequency [Hz]
-        :param fmax:             the maximum frequency [Hz]
-        :param norm:             normalize the area of the filter to 1
-        :param duplicates:       keep duplicate filters resulting from
-                                 insufficient resolution of low frequencies
-        :param a4:               tuning frequency of A4 [Hz]
+        :param num_bins:          number of FFT bins (i.e. half the FFT length)
+        :param sample_rate:       sample rate of the audio file [Hz]
+        :param bands:             number of filter bands per octave
+        :param fmin:              the minimum frequency [Hz]
+        :param fmax:              the maximum frequency [Hz]
+        :param fref:              tuning frequency of the filterbank [Hz]
+        :param norm_filters:      normalize the filters to area 1
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
+
+        Note: `bands` sets the number of bands per octave, not the overall
+              number of filter bands; if set to 12 it results in a semitone
+              filterbank.
 
         """
         # get a list of frequencies
-        frequencies = log_frequencies(bands_per_octave, fmin, fmax, a4)
+        frequencies = log_frequencies(bands, fmin, fmax, fref)
         # convert to bins
-        bins = frequencies2bins(frequencies, num_fft_bins, sample_rate)
+        bins = frequencies2bins(frequencies, num_bins, sample_rate)
         # get overlapping triangular filters
-        filters = TriangularFilter.filters(bins, norm=norm,
-                                           duplicates=duplicates, overlap=True)
+        filters = TriangularFilter.filters(bins, norm=norm_filters,
+                                           duplicates=duplicate_filters,
+                                           overlap=True)
         # create a LogarithmicFilterbank from the filters
-        obj = cls.from_filters(filters, num_fft_bins, sample_rate)
+        obj = cls.from_filters(filters, num_bins, sample_rate)
         # set additional attributes
-        obj._bands_per_octave = bands_per_octave
-        obj._norm = norm
-        obj._a4 = a4
+        obj.bands_per_octave = bands
+        obj.fref = fref
         # return the object
         return obj
 
@@ -826,91 +836,57 @@ class LogarithmicFilterbank(Filterbank):
         if obj is None:
             return
         # set default values here
-        self._bands_per_octave = getattr(obj, '_bands_per_octave',
-                                         BANDS_PER_OCTAVE)
-        self._norm = getattr(obj, '_norm', NORM_FILTERS)
-        self._a4 = getattr(obj, '_a4', A4)
+        self.bands_per_octave = getattr(obj, 'bands_per_octave',
+                                        self.BANDS_PER_OCTAVE)
+        self.fref = getattr(obj, 'fref', A4)
 
-    @property
-    def bands_per_octave(self):
-        """Number of bands per octave."""
-        return self._bands_per_octave
-
-    @property
-    def a4(self):
-        """Tuning frequency of A4."""
-        return self._a4
 
 # alias
 LogFilterbank = LogarithmicFilterbank
 
 
-class SemitoneFilterbank(LogarithmicFilterbank):
-    """
-    Semitone filterbank class.
-
-    """
-    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
-        """
-        Creates a new SemitoneFilterbank instance.
-
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
-        :param sample_rate:  sample rate of the audio file [Hz]
-        :param fmin:         the minimum frequency [Hz]
-        :param fmax:         the maximum frequency [Hz]
-        :param norm:         normalize the area of the filter to 1
-        :param duplicates:   keep duplicate filters resulting from insufficient
-                             resolution of low frequencies
-        :param a4:           tuning frequency of A4 [Hz]
-
-        """
-        # return a LogarithmicFilterbank with 12 bands per octave
-        return LogarithmicFilterbank.__new__(cls, num_fft_bins, sample_rate,
-                                             12, fmin, fmax, norm, duplicates,
-                                             a4)
-
-
+# chroma / harmonic filterbanks
 class SimpleChromaFilterbank(Filterbank):
     """
-    A simple chroma filterbank based on a semitone filterbank.
+    A simple chroma filterbank based on a (semitone) filterbank.
 
     """
-    def __new__(cls, num_fft_bins, sample_rate, fmin=FMIN, fmax=FMAX,
-                norm=NORM_FILTERS, duplicates=DUPLICATE_FILTERS, a4=A4):
+    BANDS = 12
+
+    def __new__(cls, num_bins, sample_rate, bands=BANDS, fmin=FMIN,
+                fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new SimpleChromaFilterbank instance.
 
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
-        :param sample_rate:  sample rate of the audio file [Hz]
-        :param fmin:         the minimum frequency [Hz]
-        :param fmax:         the maximum frequency [Hz]
-        :param norm:         normalize the area of the filter to 1
-        :param duplicates:   omit duplicate filters resulting from insufficient
-                             resolution of low frequencies
-        :param a4:           tuning frequency of A4 [Hz]
+        :param num_bins:          number of FFT bins (i.e. half the FFT length)
+        :param sample_rate:       sample rate of the audio file [Hz]
+        :param bands:             number of filter bands per octave
+        :param fmin:              the minimum frequency [Hz]
+        :param fmax:              the maximum frequency [Hz]
+        :param fref:              tuning frequency of the filterbank [Hz]
+        :param norm_filters:      normalize the filters to area 1
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
 
         """
-
-        stf = SemitoneFilterbank(num_fft_bins, sample_rate, fmin, fmax, norm,
-                                 duplicates, a4)
-
+        # TODO: add comments!
+        stf = LogarithmicFilterbank(
+            num_bins, sample_rate, bands=bands, fmin=fmin, fmax=fmax,
+            fref=fref, norm=norm_filters, duplicates=duplicate_filters)
+        # create an empty filterbank
         fb = np.empty((stf.shape[0], 12))
         spacing = np.arange(8) * 12
-
         for i in range(12):
             cur_spacing = spacing + i
             cur_spacing = cur_spacing[cur_spacing < stf.shape[1]]
             fb[:, i] = stf[:, cur_spacing].sum(1)
-
-        # TODO: check if this should depend on the norm parameter
+        # TODO: check if this should depend on the norm_filters parameter
         fb /= fb.sum(0)
-
         # cast to Filterbank
         obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
-        obj._norm = norm
-        obj._a4 = a4
+        obj.fref = fref
         # return the object
         return obj
 
@@ -918,18 +894,7 @@ class SimpleChromaFilterbank(Filterbank):
         if obj is None:
             return
         # set default values here
-        self._norm = getattr(obj, '_norm', NORM_FILTERS)
-        self._a4 = getattr(obj, '_a4', A4)
-
-    @property
-    def norm(self):
-        """Filters are normalized."""
-        return self._norm
-
-    @property
-    def a4(self):
-        """Tuning frequency of A4."""
-        return self._a4
+        self.fref = getattr(obj, 'fref', A4)
 
 
 class HarmonicFilterbank(Filterbank):
@@ -963,12 +928,12 @@ class PitchClassProfileFilterbank(Filterbank):
     # default values
     CLASSES = 12
 
-    def __new__(cls, num_fft_bins, sample_rate, num_classes=CLASSES,
+    def __new__(cls, num_bins, sample_rate, num_classes=CLASSES,
                 fmin=FMIN, fmax=FMAX, fref=A4):
         """
         Creates a new PitchClassProfile (PCP) filterbank instance.
 
-        :param num_fft_bins: number of FFT bins (= half the FFT size)
+        :param num_bins:     number of FFT bins (i.e. half the FFT length)
         :param sample_rate:  sample rate of the audio file [Hz]
         :param num_classes:  number of pitch classes
         :param fmin:         the minimum frequency [Hz]
@@ -977,23 +942,23 @@ class PitchClassProfileFilterbank(Filterbank):
 
         """
         # init a filterbank
-        fb = np.zeros((num_fft_bins, num_classes))
+        fb = np.zeros((num_bins, num_classes))
         # frequencies of the bins
-        bin_freqs = fft_freqs(num_fft_bins, sample_rate)
+        bin_freqs = fft_frequencies(num_bins, sample_rate)
         # log deviation from the reference frequency
         log_dev = np.log2(bin_freqs / fref)
         # map the log deviation to the closets pitch class profiles
         num_class = np.round(num_classes * log_dev) % num_classes
         # define the pitch class profile filterbank
         # skip log_dev[0], since it is NaN
-        fb[np.arange(1, num_fft_bins), num_class.astype(int)[1:]] = 1
+        fb[np.arange(1, num_bins), num_class.astype(int)[1:]] = 1
         # set all bins outside the allowed frequency range to 0
         fb[np.searchsorted(bin_freqs, fmax, 'right'):] = 0
         fb[:np.searchsorted(bin_freqs, fmin)] = 0
         # cast to Filterbank
         obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
-        obj._fref = fref
+        obj.fref = fref
         # return the object
         return obj
 
@@ -1001,12 +966,7 @@ class PitchClassProfileFilterbank(Filterbank):
         if obj is None:
             return
         # set default values here
-        self._fref = getattr(obj, '_fref', A4)
-
-    @property
-    def fref(self):
-        """Reference frequency of the first PCP bin."""
-        return self._fref
+        self.fref = getattr(obj, 'fref', A4)
 
 
 class HarmonicPitchClassProfileFilterbank(Filterbank):
@@ -1024,12 +984,12 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
     CLASSES = 36
     WINDOW = 4
 
-    def __new__(cls, num_fft_bins, sample_rate, num_classes=CLASSES,
+    def __new__(cls, num_bins, sample_rate, num_classes=CLASSES,
                 fmin=FMIN, fmax=FMAX, fref=A4, window=WINDOW):
         """
         Creates a new HarmonicPitchClassProfile (HPCP) filterbank instance.
 
-        :param num_fft_bins:  number of FFT bins (= half the FFT size)
+        :param num_bins:      number of FFT bins (i.e. half the FFT length)
         :param sample_rate:   sample rate of the audio file [Hz]
         :param num_classes:   number of harmonic pitch classes
         :param fmin:          the minimum frequency [Hz]
@@ -1039,9 +999,9 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
 
         """
         # init a filterbank
-        fb = np.zeros((num_fft_bins, num_classes))
+        fb = np.zeros((num_bins, num_classes))
         # frequencies of the FFT bins
-        bin_freqs = fft_freqs(num_fft_bins, sample_rate)
+        bin_freqs = fft_frequencies(num_bins, sample_rate)
         # log deviation from the reference frequency
         log_dev = np.log2(bin_freqs / fref)
         # map the log deviation to pitch class profiles
@@ -1063,7 +1023,7 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         # cast to Filterbank
         obj = Filterbank.__new__(cls, fb, sample_rate)
         # set additional attributes
-        obj._fref = fref
+        obj.fref = fref
         # return the object
         return obj
 
@@ -1071,15 +1031,10 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         if obj is None:
             return
         # set default values here
-        self._fref = getattr(obj, '_fref', A4)
-
-    @property
-    def fref(self):
-        """Reference frequency of the first HPCP bin."""
-        return self._fref
+        self.fref = getattr(obj, 'fref', A4)
 
 
-# time filters
+# comb filters
 def feed_forward_comb_filter(signal, tau, alpha):
     """
     Filter the signal with a feed forward comb filter.
@@ -1109,6 +1064,8 @@ def _feed_backward_comb_filter(signal, tau, alpha):
     :param alpha:  scaling factor
     :return:       comb filtered signal
 
+    Note: this function is extremely slow, use the faster cython version!
+
     """
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
@@ -1131,17 +1088,18 @@ except ImportError:
     feed_backward_comb_filter = _feed_backward_comb_filter
 
 
-def comb_filterbank(signal, comb_filter, tau, alpha):
+def comb_filter(signal, filter_function, tau, alpha):
     """
     Filter the signal with a bank of either feed forward or backward comb
     filters.
 
-    :param signal:      signal [numpy array]
-    :param comb_filter: comb filter to use (feed forward or backward)
-    :param tau:         delay length(s) [list/array of samples]
-    :param alpha:       corresponding scaling factor(s) [list/array of floats]
-    :return:            comb filtered signal with the different taus aligned
-                        along the (new) 1st dimension
+    :param signal:          signal [numpy array]
+    :param filter_function: filter function to use (feed forward or backward)
+    :param tau:             delay length(s) [list / array of samples]
+    :param alpha:           corresponding scaling factor(s)
+                            [list / array of floats]
+    :return:                comb filtered signal with the different taus
+                            aligned along the (new) first dimension
 
     """
     # convert tau to a integer numpy array
@@ -1162,80 +1120,60 @@ def comb_filterbank(signal, comb_filter, tau, alpha):
     # init output array
     y = np.zeros(tuple(size))
     for i, t in np.ndenumerate(tau):
-        y[i] = comb_filter(signal, t, alpha[i])
+        y[i] = filter_function(signal, t, alpha[i])
     return y
 
 
-class CombFilterbank(np.ndarray):
+class CombFilterbank(Processor):
     """
-    Comb Filterbank class.
+    CombFilterbank class.
 
     """
 
-    def __new__(cls, data, comb_filter, tau, alpha):
+    def __init__(self, filter_function, tau, alpha):
         """
-        Creates a new CombFilterbank array, i.e. a comb filtered version of
-        the input data with the different tau values aligned along the (new)
-        first dimension.
+        Creates a new CombFilterbank.
 
-        :param data:        numpy array
-        :param comb_filter: comb filter to use (feed forward or backward)
-        :param tau:         delay length(s) [samples, list/array of samples]
-        :param alpha:       scaling factor(s) [float, list/array of floats]
+        :param filter_function: comb filter function to use (either a function
+                                or one of the literals {'forward', 'backward'})
+        :param tau:             delay length(s) [int, list / array of samples]
+        :param alpha:           corresponding scaling factor(s) [float, list /
+                                array of floats]
 
         """
         # convert tau to a numpy array
         if isinstance(tau, int):
-            tau = np.asarray([tau], dtype=int)
+            self.tau = np.asarray([tau], dtype=int)
         elif isinstance(tau, (list, np.ndarray)):
-            tau = np.asarray(tau, dtype=int)
+            self.tau = np.asarray(tau, dtype=int)
         else:
             raise ValueError('tau must be cast-able as an int numpy array')
 
         # set the filter function
-        if comb_filter in ['forward', feed_backward_comb_filter]:
-            comb_filter = feed_backward_comb_filter
-        elif comb_filter in ['backward', feed_backward_comb_filter]:
-            comb_filter = feed_backward_comb_filter
+        if filter_function in ['forward', feed_backward_comb_filter]:
+            self.comb_filter_function = feed_backward_comb_filter
+        elif filter_function in ['backward', feed_backward_comb_filter]:
+            self.comb_filter_function = feed_backward_comb_filter
         else:
             raise ValueError('wrong comb_filter type')
 
         # convert alpha to a numpy array
         if isinstance(alpha, (float, int)):
-            alpha = np.asarray([alpha] * len(tau), dtype=float)
+            self.alpha = np.asarray([alpha] * len(tau), dtype=float)
         elif isinstance(alpha, (list, np.ndarray)):
-            alpha = np.asarray(alpha, dtype=float)
+            self.alpha = np.asarray(alpha, dtype=float)
         else:
             raise ValueError('alpha must be cast-able as float numpy array')
 
-        # comb filter the signal
-        cfb = comb_filterbank(data, comb_filter, tau, alpha)
-        # cast to CombFilterbank
-        obj = np.asarray(cfb).view(cls)
-        # set attributes
-        obj._data = data
-        obj._comb_filter = comb_filter
-        obj._tau = tau
-        obj._alpha = alpha
-        # return the object
-        return obj
+    def process(self, data):
+        """
+        Filter the given data with the CombFilterbank.
 
-    @property
-    def data(self):
-        """Original non-comb filtered data."""
-        return self._data
+        :param data: data to be filtered
+        :return:     comb filtered data with the different taus aligned
+                     along the (new) first dimension
 
-    @property
-    def comb_filter(self):
-        """Comb filter function."""
-        return self._comb_filter
-
-    @property
-    def tau(self):
-        """Tau value(s), i.e. the delay length(s) of the filterbank."""
-        return self._tau
-
-    @property
-    def alpha(self):
-        """Scaling factor(s)."""
-        return self._alpha
+        """
+        # this method makes the Filterbank act as a Processor
+        return comb_filter(data, self.comb_filter_function,
+                           self.tau, self.alpha)
