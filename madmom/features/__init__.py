@@ -10,7 +10,8 @@ import numpy as np
 
 class Activations(np.ndarray):
     """
-    Activations class.
+    The Activations class extends a numpy ndarray with a frame_rate (fps) and
+    some other useful attribute.
 
     """
     def __new__(cls, data, fps=None, sep=None):
@@ -252,8 +253,7 @@ class EventDetection(object):
         """
         Instantiate an EventDetection object from an Activations instance.
 
-        :param activations: Activations instance or input file name or file
-                            handle
+        :param activations: Activations instance or file name or file handle
         :param fps:         frames per second
         :param sep:         separator between activation values
         :return:            EventDetection instance
@@ -397,7 +397,7 @@ class RNNEventDetection(EventDetection):
         :param parser:      existing argparse parser object
         :param nn_files:    list with files of NN models
         :param num_threads: number of threads to run in parallel
-        :return:            neural network argument parser group object
+        :return:            neural network argument parser group
 
         """
         # add neural network related options to the existing parser

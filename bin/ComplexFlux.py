@@ -8,12 +8,13 @@ ComplexFlux onset detection algorithm.
 """
 import argparse
 
-import madmom.utils
-
-from madmom.audio.signal import Signal, FramedSignal
-from madmom.audio.filters import Filterbank
-from madmom.audio.spectrogram import LogFiltSpec
-from madmom.features.onsets import SpectralOnsetDetection, OnsetDetection
+from madmom.utils import write_events, io_arguments
+from madmom import SequentialProcessor
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import SpectrogramProcessor
+from madmom.features.onsets import SpectralOnsetDetectionProcessor
+from madmom.features.peak_picking import PeakPickingProcessor
+from madmom.features import Activations
 
 
 def parser():
@@ -38,33 +39,30 @@ def parser():
 
     ''')
     # input/output options
-    madmom.utils.io_arguments(p)
+    io_arguments(p)
     # add other argument groups
-    Signal.add_arguments(p)
-    FramedSignal.add_arguments(p, fps=200, online=False)
-    Filterbank.add_arguments(p, bands=24, norm_filters=False)
-    LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
-    g = SpectralOnsetDetection.add_arguments(p)
+    SignalProcessor.add_arguments(p, att=0, norm=False)
+    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
+    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
+                                              norm_filters=False)
+    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
+    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
+    g = SpectralOnsetDetectionProcessor.add_arguments(p)
     g.add_argument('--temporal_filter', action='store', type=float,
-                   default=SpectralOnsetDetection.TEMPORAL_FILTER,
+                   default=SpectralOnsetDetectionProcessor.TEMPORAL_FILTER,
                    help='use temporal maximum filtering over N seconds '
                         '[default=%(default).3f]')
-    OnsetDetection.add_arguments(p, threshold=0.25, pre_max=0.01,
-                                 post_max=0.05, pre_avg=0.15, post_avg=0)
+    PeakPickingProcessor.add_arguments(p, threshold=0.25, pre_max=0.01,
+                                       post_max=0.05, pre_avg=0.15, post_avg=0,
+                                       combine=0.03, delay=0)
+    Activations.add_arguments(p)
     # version
-    p.add_argument('--version', action='version', version='ComplexFlux')
+    p.add_argument('--version', action='version', version='ComplexFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
     if args.norm:
         args.online = False
-    # translate online/offline mode
-    if args.online:
-        args.origin = 'online'
-        args.post_max = 0
-        args.post_avg = 0
-    else:
-        args.origin = 'offline'
     # print arguments
     if args.verbose:
         print args
@@ -80,35 +78,26 @@ def main():
 
     # load or create onset activations
     if args.load:
-        # instantiate OnsetDetection object from activations
-        o = SpectralOnsetDetection.from_activations(args.input, fps=args.fps,
-                                                    sep=args.sep)
+        # load the activations
+        act = Activations.load(args.input, fps=args.fps, sep=args.sep)
     else:
-        # create a logarithmically filtered Spectrogram object
-        s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
-                        frame_size=args.frame_size, origin=args.origin,
-                        fps=args.fps, bands_per_octave=args.bands,
-                        fmin=args.fmin, fmax=args.fmax, mul=args.mul,
-                        add=args.add, norm_filters=args.norm_filters,
-                        ratio=args.ratio, diff_frames=args.diff_frames)
-        # create a SpectralOnsetDetection detection object
-        o = SpectralOnsetDetection.from_data(s, fps=args.fps)
-        o.max_bins = args.max_bins
-        # process with the detection function
-        o.complex_flux(temporal_filter=args.temporal_filter)
+        # create processors
+        p1 = SignalProcessor(**vars(args))
+        p2 = FramedSignalProcessor(**vars(args))
+        p3 = SpectrogramProcessor(**vars(args))
+        p4 = SpectralOnsetDetectionProcessor(odf='complex_flux', **vars(args))
+        # sequentially process everything
+        act = SequentialProcessor([p1, p2, p3, p4]).process(args.input)
 
     # save onset activations or detect onsets
     if args.save:
         # save activations
-        o.activations.save(args.output, sep=args.sep)
+        Activations(act, fps=args.fps).save(args.output, sep=args.sep)
     else:
-        # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=args.smooth, pre_avg=args.pre_avg,
-                 post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max, online=args.online)
-        # write the onsets to output
-        o.write(args.output)
+        # detect the onsets and write them to file/stdout
+        onsets = PeakPickingProcessor(**vars(args)).process(act)
+        write_events(onsets, args.output)
+
 
 if __name__ == '__main__':
     main()

@@ -238,11 +238,12 @@ class Signal(np.ndarray):
         # return the object
         return obj
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        # set default values here
-        self.sample_rate = getattr(obj, 'sample_rate', None)
+    # TODO: is this needed?
+    # def __array_finalize__(self, obj):
+    #     if obj is None:
+    #         return
+    #     # set default values here
+    #     self.sample_rate = getattr(obj, 'sample_rate', None)
 
     @property
     def num_samples(self):
@@ -276,7 +277,8 @@ class SignalProcessor(Processor):
     NORM = False
     ATT = 0
 
-    def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT):
+    def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT,
+                 *args, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
@@ -296,7 +298,7 @@ class SignalProcessor(Processor):
         Processes the given signal.
 
         :param data: file name or handle
-        :return:     processed signal
+        :return:     Signal instance with processed signal
 
         """
         # instantiate a Signal (with the given sample rate if set)
@@ -315,10 +317,9 @@ class SignalProcessor(Processor):
         return data
 
     @staticmethod
-    def add_arguments(parser, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM,
-                      att=ATT):
+    def add_arguments(parser, sample_rate=None, mono=None, norm=None, att=None):
         """
-        Add signal processing related arguments to an existing parser object.
+        Add signal processing related arguments to an existing parser.
 
         :param parser:      existing argparse parser object
         :param sample_rate: re-sample the signal to this sample rate [Hz]
@@ -341,10 +342,11 @@ class SignalProcessor(Processor):
                            help='down-mix the signal to mono')
         if norm is not None:
             g.add_argument('--norm', action='store_true', default=norm,
-                           help='normalize the signal')
+                           help='normalize the signal [default=%(default)s]')
         if att is not None:
             g.add_argument('--att', action='store', type=float, default=att,
-                           help='attenuate the signal [dB]')
+                           help='attenuate the signal '
+                                '[dB, default=%(default).1f]')
         # return the argument group so it can be modified if needed
         return g
 
@@ -612,8 +614,8 @@ class FramedSignal(object):
         # number of frames determination
         if end == 'extend':
             # return frames as long as a frame covers any signal
-            num_frames = np.ceil((len(self.signal) - self.origin +
-                                  self.frame_size / 2) / float(self.hop_size))
+            num_frames = np.floor((len(self.signal) - self.origin) /
+                                 float(self.hop_size) + 1)
         elif end == 'normal':
             # return frames as long as the origin sample covers the signal
             num_frames = np.ceil((len(self.signal) - self.origin) /
@@ -714,7 +716,7 @@ class FramedSignalProcessor(Processor):
     END_OF_SIGNAL = 'extend'
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
-                 online=ONLINE, end=END_OF_SIGNAL):
+                 online=ONLINE, end=END_OF_SIGNAL, *args, **kwargs):
         """
         Creates a new FramedSignalProcessor instance.
 
@@ -752,7 +754,7 @@ class FramedSignalProcessor(Processor):
         :param data:       signal to be sliced into frames [Signal]
         :param start:      start sample [int]
         :param num_frames: limit the number of frames to be returned [int]
-        :return:           FramedSignal (i.e. signal sliced into frames)
+        :return:           FramedSignal instance
 
         Note: If `num_frames` is 'None', the length of the returned signal is
               determined by the `end_of_signal` setting.
@@ -774,7 +776,7 @@ class FramedSignalProcessor(Processor):
     @staticmethod
     def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE):
         """
-        Add signal framing related arguments to an existing parser object.
+        Add signal framing related arguments to an existing parser.
 
         :param parser:     existing argparse parser object
         :param frame_size: size of one frame in samples [int]
@@ -792,8 +794,8 @@ class FramedSignalProcessor(Processor):
                            default=frame_size,
                            help='frame size [samples, default=%(default)i]')
         if fps is not None:
-            g.add_argument('--fps', action='store', type=int, default=fps,
-                           help='frames per second [default=%(default)i]')
+            g.add_argument('--fps', action='store', type=float, default=fps,
+                           help='frames per second [default=%(default).1f]')
         if online is not None:
             g.add_argument('--online', dest='online', action='store_true',
                            default=online,

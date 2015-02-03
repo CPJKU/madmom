@@ -646,9 +646,9 @@ class Filterbank(Processor, np.ndarray):
     def add_arguments(parser, filter_type=None, fmin=None, fmax=None,
                       bands=None, norm_filters=None, duplicate_filters=None):
         """
-        Add filter related arguments to an existing parser object.
+        Add filter related arguments to an existing parser.
 
-        :param parser:            existing argparse parser object
+        :param parser:            existing argparse parser
         :param filter_type:       type of filter to be used
         :param fmin:              the minimum frequency [Hz, float]
         :param fmax:              the maximum frequency [Hz, float]
@@ -702,6 +702,8 @@ class Filterbank(Processor, np.ndarray):
         return g
 
 
+# TODO: make these filterbanks accept a list of frequencies (the bin's freqs)
+#       instead of num_bins and sample_rate
 class MelFilterbank(Filterbank):
     """
     Mel filterbank class.
