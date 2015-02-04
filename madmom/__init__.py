@@ -25,7 +25,7 @@ MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
 
 class Processor(object):
     """
-    Abstract base class for all kind of processing objects.
+    Abstract base class for processing data.
 
     """
     __metaclass__ = abc.ABCMeta
@@ -77,26 +77,67 @@ class Processor(object):
         return data
 
 
-class DummyProcessor(Processor):
+class InputProcessor(Processor):
     """
-    Dummy processor which just passes the data.
+    Class for processing data.
 
     """
-
+    @abc.abstractmethod
     def process(self, data):
         """
-        Just passes the data.
+        Processes the data.
 
-        :param data: data to be returned
-        :return:     data
+        :param data: data to be processed
+        :return:     processed data
 
         """
         return data
 
 
+class OutputProcessor(Processor):
+    """
+    Class for processing data and/or feeding it into some sort of output.
+
+    """
+
+    @abc.abstractmethod
+    def process(self, output, data):
+        """
+        Processes the data and feeds it to output.
+
+        :param output: output file name or file handle
+        :param data:   data to be processed (e.g. written to file)
+        :return:       also return the processed data
+
+        """
+        # also return the data!
+        return data
+
+
+def _process(process_tuple):
+    """
+    Function to process a Processor object (first tuple item) with the given
+    data (second tuple item). Instead of a Processor also a function accepting
+    a single argument (data) and returning the processed data can be given.
+
+    :param process_tuple: tuple (Processor/function, data, args)
+    :return:              processed data
+
+    Note: This must be a top-level function to be pickle-able.
+
+    """
+    # process depending whether it is a Processor or a simple function
+    if isinstance(process_tuple[0], Processor):
+        # call the process method
+        return process_tuple[0].process(process_tuple[1], *process_tuple[2:])
+    else:
+        # simply call the function
+        return process_tuple[0](process_tuple[1], *process_tuple[2:])
+
+
 class SequentialProcessor(Processor):
     """
-    Base class for sequential processing of data.
+    Class for sequential processing of data.
 
     """
     def __init__(self, processors):
@@ -106,6 +147,10 @@ class SequentialProcessor(Processor):
         :param processors: list with Processor objects
 
         """
+        # wrap the processor in a list if needed
+        if isinstance(processors, Processor):
+            processors = [processors]
+        # save the processors
         self.processors = processors
 
     def process(self, data):
@@ -118,25 +163,30 @@ class SequentialProcessor(Processor):
         """
         # sequentially process the data
         for processor in self.processors:
-            data = processor.process(data)
+            data = _process((processor, data))
         return data
 
+    def append(self, other):
+        """
+        Append a processor to the processing chain.
 
-def _process(process_tuple):
-    """
-    Function to process a Processor object (first tuple item) with the given
-    data (second tuple item).
+        :param other: the Processor to be appended.
 
-    :param process_tuple: tuple (processing, data)
-    :return:              processed data
+        """
+        self.processors.append(other)
 
-    Note: this must be a top-level function to be pickle-able.
+    def extend(self, other):
+        """
+        Extend the processing chain with a list of Processors.
 
-    """
-    return process_tuple[0].process(process_tuple[1])
+        :param other: the Processors to be appended.
+
+        """
+        self.processors.extend(other)
 
 
-class ParallelProcessor(Processor):
+# inherit from SequentialProcessor because of append() and extend()
+class ParallelProcessor(SequentialProcessor):
     """
     Base class for parallel processing of data.
 
@@ -153,7 +203,7 @@ class ParallelProcessor(Processor):
 
         """
         # save the processing queue
-        self.processors = processors
+        super(ParallelProcessor, self).__init__(processors)
         # number of threads
         if num_threads is None:
             num_threads = 1
@@ -199,3 +249,54 @@ class ParallelProcessor(Processor):
                        help='number of parallel threads [default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
+
+
+class IOProcessor(Processor):
+    """
+    Input/output processor which processes the input data with the input
+    Processor and feeds everything into the given output Processor.
+
+    """
+
+    def __init__(self, input_processor, output_processor):
+        """
+        Creates a IOProcessor instance.
+
+        :param input_processor:  Processor or list or function
+        :param output_processor: OutputProcessor or function
+
+        Note: `input_processor` can be a Processor (or subclass thereof) or a
+              function accepting a single argument (data) or a list which gets
+              wrapped as a SequentialProcessor.
+
+              `output_processor` can be a OutputProcessor or a function
+              accepting two arguments (data, output)
+
+        """
+
+        if isinstance(input_processor, list):
+            self.input_processor = SequentialProcessor(input_processor)
+        else:
+            self.input_processor = input_processor
+        self.output_processor = output_processor
+
+    def process(self, data, output):
+        """
+        Processes the data with the input Processor and outputs everything into
+        the output Processor.
+
+        :param data:   input data or file to be loaded
+                       [numpy array or file name or file handle]
+        :param output: output file [file name or file handle]
+        :return:       Activations instance
+
+        """
+        # process the input data
+        data = _process((self.input_processor, data))
+        # process it with the output Processor and return it
+        if isinstance(self.output_processor, Processor):
+            # call the process method
+            return self.output_processor.process(data, output)
+        else:
+            # or simply call the function
+            return self.output_processor(data, output)

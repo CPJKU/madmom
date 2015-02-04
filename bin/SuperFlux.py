@@ -10,12 +10,12 @@ SuperFlux onset detection algorithm.
 import argparse
 
 from madmom.utils import write_events, io_arguments
-from madmom import SequentialProcessor
+from madmom import SequentialProcessor, IOProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import SpectrogramProcessor
 from madmom.features.onsets import SpectralOnsetDetectionProcessor
 from madmom.features.peak_picking import PeakPickingProcessor
-from madmom.features import Activations
+from madmom.features import ActivationsProcessor
 
 
 def parser():
@@ -50,7 +50,7 @@ def parser():
     PeakPickingProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
                                        post_max=0.05, pre_avg=0.15, post_avg=0,
                                        combine=0.03, delay=0)
-    Activations.add_arguments(p)
+    ActivationsProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments
@@ -74,24 +74,28 @@ def main():
     # load or create onset activations
     if args.load:
         # load the activations
-        act = Activations.load(args.input, fps=args.fps, sep=args.sep)
+        act = ActivationsProcessor(mode='r', **vars(args))
+        in_processor = SequentialProcessor([act])
     else:
         # create processors
-        p1 = SignalProcessor(**vars(args))
+        p1 = SignalProcessor(mono=True, **vars(args))
         p2 = FramedSignalProcessor(**vars(args))
         p3 = SpectrogramProcessor(**vars(args))
         p4 = SpectralOnsetDetectionProcessor(odf='superflux', **vars(args))
         # sequentially process everything
-        act = SequentialProcessor([p1, p2, p3, p4]).process(args.input)
+        in_processor = SequentialProcessor([p1, p2, p3, p4])
 
     # save onset activations or detect onsets
     if args.save:
         # save activations
-        Activations(act, fps=args.fps).save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the onsets and write them to file/stdout
-        onsets = PeakPickingProcessor(**vars(args)).process(act)
-        write_events(onsets, args.output)
+        # peak-picking & output processor
+        in_processor.append(PeakPickingProcessor(**vars(args)))
+        out_processor = write_events
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
 
 if __name__ == '__main__':
     main()

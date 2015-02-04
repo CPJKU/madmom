@@ -239,12 +239,12 @@ class Signal(np.ndarray):
         # return the object
         return obj
 
-    # # TODO: is this needed?
-    # def __array_finalize__(self, obj):
-    #     if obj is None:
-    #         return
-    #     # set default values here
-    #     self.sample_rate = getattr(obj, 'sample_rate', None)
+    # TODO: is this needed?
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.sample_rate = getattr(obj, 'sample_rate', None)
 
     @property
     def num_samples(self):
@@ -663,9 +663,7 @@ class FramedSignal(object):
         # a slice is given
         elif isinstance(index, slice):
             # determine the frames to return
-            print index
             start, stop, step = index.indices(self.num_frames)
-            print start, stop, step
             # allow only normal steps
             if step != 1:
                 raise ValueError('only slices with a step size of 1 supported')

@@ -7,14 +7,11 @@ This file contains onset detection related functionality.
 
 """
 
-import os
 
 import numpy as np
 from scipy.ndimage.filters import maximum_filter
 
-from madmom import MODELS_PATH, Processor, SequentialProcessor
-from . import Activations, RNNEventDetection
-from madmom.features.peak_picking import PeakPickingProcessor
+from madmom import Processor
 
 EPSILON = 1e-6
 
@@ -493,6 +490,9 @@ class SpectralOnsetDetectionProcessor(Processor):
     TEMPORAL_FILTER = 0.015
     TEMPORAL_ORIGIN = 0
 
+    methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
+               'cd', 'rcd']
+
     def __init__(self, odf=superflux, *args, **kwargs):
         """
         Creates a new SpectralOnsetDetection instance.
@@ -666,17 +666,21 @@ class SpectralOnsetDetectionProcessor(Processor):
         return g
 
 
-def parser():
+def main():
     """
-    Command line argument parser for onset detection.
+    Example onset detection program.
 
     """
     import argparse
-    from madmom.audio.signal import SignalProcessor, FramedSignal
-    from madmom.audio.spectrogram import Spectrogram
-    from madmom.audio.filters import Filterbank
 
-    # define parser
+    from madmom.utils import files, write_events
+    from madmom import IOProcessor, SequentialProcessor
+    from madmom.features import ActivationsProcessor
+    from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+    from madmom.audio.spectrogram import SpectrogramProcessor
+    from madmom.features.peak_picking import PeakPickingProcessor
+
+    # parse arguments
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
     If invoked without any parameters, the software detects all onsets in
@@ -693,60 +697,53 @@ def parser():
                    help='files to be processed')
     p.add_argument('-v', dest='verbose', action='store_true',
                    help='be verbose')
-    p.add_argument('--ext', action='store', type=str, default='txt',
-                   help='extension for detections [default=txt]')
+    p.add_argument('--suffix', action='store', type=str, default='.txt',
+                   help='suffix for detections [default=%(default)s]')
     # add other argument groups
-    SignalProcessor.add_arguments(p)
-    FramedSignal.add_arguments(p, online=False, fps=200)
-    Spectrogram.add_arguments(p, log=True)
-    Filterbank.add_arguments(p, default=True, norm_filters=False, bands=24)
-    OnsetDetection.add_arguments(p)
-    # list of offered ODFs
-    methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
-               'cd', 'rcd']
-    # TODO: add 'OnsetDetector', 'OnsetDetectorLL' and 'MML13' to the methods
-    SpectralOnsetDetection.add_arguments(p, methods=methods)
-    # o.add_argument('-o', dest='odf', default='superflux',
-    #                help='use this onset detection function %s' % methods)
+    SignalProcessor.add_arguments(p, mono=True, att=0, norm=False)
+    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
+    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
+                                              norm_filters=False)
+    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
+    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
+    SpectralOnsetDetectionProcessor.add_arguments(
+        p, method='superflux', methods=SpectralOnsetDetectionProcessor.methods)
+    PeakPickingProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
+                                       post_max=0.05, pre_avg=0.15, post_avg=0,
+                                       combine=0.03, delay=0)
+    ActivationsProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
     if args.norm:
         args.online = False
-        args.post_avg = 0
-        args.post_max = 0
-    # translate online/offline mode
-    if args.online:
-        args.origin = 'online'
-    else:
-        args.origin = 'offline'
     # print arguments
     if args.verbose:
         print args
-    # return args
-    return args
 
+    # prepare the processing chain
 
-def main():
-    """
-    Example onset detection program.
-
-    """
-    import os.path
-
-    from madmom.utils import files
-    from madmom.audio.signal import SignalProcessor
-    from madmom.audio.spectrogram import Spectrogram
-    from madmom.audio.filters import LogarithmicFilterbank
-
-    # parse arguments
-    args = parser()
-
-    # TODO: also add an option for evaluation and load the targets accordingly
-    # see cp.evaluation.helpers.match_files()
-
-    # init filterbank
-    fb = None
+    # load or create onset activations
+    if args.load:
+        # load the activations
+        act = ActivationsProcessor(mode='r', **vars(args))
+        in_processor = SequentialProcessor([act])
+    else:
+        # create processors
+        p1 = SignalProcessor(**vars(args))
+        p2 = FramedSignalProcessor(**vars(args))
+        p3 = SpectrogramProcessor(**vars(args))
+        p4 = SpectralOnsetDetectionProcessor(**vars(args))
+        # sequentially process everything
+        in_processor = SequentialProcessor([p1, p2, p3, p4])
+    # save onset activations or detect onsets
+    if args.save:
+        # save activations
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # peak-picking & output processor
+        in_processor.append(PeakPickingProcessor(**vars(args)))
+        out_processor = write_events
 
     # which files to process
     if args.load:
@@ -755,59 +752,19 @@ def main():
     else:
         # only process .wav files
         ext = '.wav'
+    # process everything
+    processor = IOProcessor(in_processor, out_processor)
+
     # process the files
-    for f in files(args.files, ext):
+    for infile in files(args.files, ext):
         if args.verbose:
-            print f
+            print infile
+        # append suffix to input filename
+        outfile = "%s%s" % (infile, args.suffix)
 
-        # use the name of the file without the extension
-        filename = os.path.splitext(f)[0]
+        # process infile to outfile
+        processor.process(infile, outfile)
 
-        # do the processing stuff unless the activations are loaded from file
-        if args.load:
-            # load the activations from file
-            # FIXME: fps must be encoded in the file
-            o = OnsetDetection.from_activations(f, args.fps)
-        else:
-            # create a SignalProcessor object
-            s = SignalProcessor(f, mono=True, norm=args.norm, att=args.att)
-            if args.filter:
-                # (re-)create filterbank if the sample rate is not the same
-                if fb is None or fb.sample_rate != s.sample_rate:
-                    # create filterbank if needed
-                    num_fft_bins = args.frame_size / 2
-                    fb = LogarithmicFilterbank(num_fft_bins=num_fft_bins,
-                                               sample_rate=s.sample_rate,
-                                               bands_per_octave=args.bands,
-                                               fmin=args.fmin, fmax=args.fmax,
-                                               norm=args.norm_filters)
-            # create a Spectrogram object to overwrite the data attribute
-            spec = Spectrogram(s, frame_size=args.frame_size, fps=args.fps,
-                               origin=args.origin, filterbank=fb,
-                               log=args.log, mul=args.mul, add=args.add,
-                               ratio=args.ratio, diff_frames=args.diff_frames)
-            # create a SpectralOnsetDetection object
-            o = SpectralOnsetDetection(None,
-                                       max_bins=args.max_bins).from_data(spec)
-            # process the data
-            o.process(args.odf)
-            print len(o.activations)
-        # save onset activations or detect onsets
-        if args.save:
-            # save the raw ODF activations
-            o.activations.save("%s.%s" % (filename, args.odf))
-        else:
-            # detect the onsets
-            o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                     smooth=args.smooth, pre_avg=args.pre_avg,
-                     post_avg=args.post_avg, pre_max=args.pre_max,
-                     post_max=args.post_max)
-            # write the onsets to a file
-            o.write("%s.%s" % (filename, args.ext))
-            # also output them to stdout if verbose
-            if args.verbose:
-                print 'detections:', o.detections
-        # continue with next file
 
 if __name__ == '__main__':
     main()

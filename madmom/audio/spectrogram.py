@@ -1001,9 +1001,9 @@ class StackSpectrogramProcessor(Processor):
 
         """
         # process everything
-        data = self.processor.process(data)
-        # stack everything
+        specs = self.processor.process(data)
+        # stack everything (a list of Spectrogram instances was returned)
         stack = []
-        for d in data:
-            stack.extend([d.spec, d.diff])
+        for s in specs:
+            stack.extend([s.spec, s.diff])
         return np.hstack(stack)

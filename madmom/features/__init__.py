@@ -7,11 +7,13 @@ vary, but all "lower" level features can be found the `audio` package.
 
 import numpy as np
 
+from madmom import Processor
+
 
 class Activations(np.ndarray):
     """
-    The Activations class extends a numpy ndarray with a frame_rate (fps) and
-    some other useful attribute.
+    The Activations class extends a numpy ndarray with a frame rate (fps)
+    attribute.
 
     """
     def __new__(cls, data, fps=None, sep=None):
@@ -117,13 +119,54 @@ class Activations(np.ndarray):
             # simple text format
             np.savetxt(outfile, self, fmt='%.5f', delimiter=sep)
 
+
+class ActivationsProcessor(Processor):
+    """
+    ActivationsProcessor processes a file and returns an Activations instance.
+
+    """
+    def __init__(self, mode, fps=None, sep=None, *args, **kwargs):
+        """
+
+        :param fps: frame rate of the activations
+                    (if set, it overwrites the saved frame rate)
+        :param sep: separator between activation values
+
+        Note: An undefined or empty (“”) separator means that the file should
+              be treated as a numpy binary file.
+              Only binary files can store the frame rate of the activations.
+
+        """
+        self.mode = mode
+        self.fps = fps
+        self.sep = sep
+
+    def process(self, data, output=None):
+        """
+        Loads the data stored in the given file and returns it as an
+        Activations instance.
+
+        :param data:   input data or file to be loaded
+                       [numpy array or file name or file handle]
+        :param output: output file [file name or file handle]
+        :return:       Activations instance
+
+        """
+        if self.mode in ('r', 'in', 'load'):
+            return Activations.load(data, fps=self.fps, sep=self.sep)
+        if self.mode in ('w', 'out', 'save'):
+            Activations(data, fps=self.fps).save(output, sep=self.sep)
+        else:
+            raise ValueError("wrong mode %s; choose {'r', 'w', 'in', 'out', "
+                             "'load', 'save'}")
+
     @staticmethod
     def add_arguments(parser):
         """
-        Add options to save/load activations to an existing parser object.
+        Add options to save/load activations to an existing parser.
 
-        :param parser: existing argparse parser object
-        :return:       input/output argument parser group object
+        :param parser: existing argparse parser
+        :return:       input/output argument parser group
 
         """
         # add onset detection related options to the existing parser

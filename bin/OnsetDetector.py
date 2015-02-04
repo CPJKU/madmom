@@ -9,12 +9,12 @@ import argparse
 import glob
 
 from madmom.utils import write_events, io_arguments
-from madmom import SequentialProcessor
+from madmom import SequentialProcessor, IOProcessor
 from madmom.audio.signal import SignalProcessor
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor
 from madmom.features.peak_picking import PeakPickingProcessor
-from madmom.features import Activations
+from madmom.features import ActivationsProcessor
 from madmom import MODELS_PATH
 
 # set the path to saved neural networks and generate a list of NN files
@@ -43,7 +43,7 @@ def parser():
     RNNProcessor.add_arguments(p, nn_files=NN_FILES)
     PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.07,
                                        combine=0.03, delay=0)
-    Activations.add_arguments(p)
+    ActivationsProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -66,7 +66,8 @@ def main():
     # load or create onset activations
     if args.load:
         # load the activations
-        act = Activations.load(args.input, fps=args.fps, sep=args.sep)
+        act = ActivationsProcessor(mode='r', **vars(args))
+        in_processor = SequentialProcessor([act])
     else:
         # signal handling processor
         sig = SignalProcessor(**vars(args))
@@ -78,19 +79,21 @@ def main():
         # multiple RNN processor
         rnn = RNNProcessor(nn_files=args.nn_files,
                            num_threads=args.num_threads)
-        # process everything
-        act = SequentialProcessor([sig, stack, rnn]).process(args.input)
+        # sequentially process everything
+        in_processor = SequentialProcessor([sig, stack, rnn])
 
     # save onset activations or detect onsets
     if args.save:
         # save activations
-        Activations(act, fps=args.fps).save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the onsets
+        # peak-picking & output processor
         pp = PeakPickingProcessor(pre_max=0.01, post_max=0.01, **vars(args))
-        onsets = pp.process(act)
-        # and write them to file/stdout
-        write_events(onsets, args.output)
+        in_processor.append(pp)
+        out_processor = write_events
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
 
 
 if __name__ == '__main__':
