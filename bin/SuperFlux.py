@@ -6,6 +6,7 @@ SuperFlux onset detection algorithm.
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
+
 import argparse
 
 from madmom.utils import write_events, io_arguments

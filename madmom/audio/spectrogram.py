@@ -10,7 +10,7 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
-from madmom import Processor
+from madmom import Processor, SequentialProcessor, ParallelProcessor
 from .filters import fft_frequencies, A4
 
 
@@ -612,7 +612,6 @@ class SpectrogramProcessor(Processor):
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
 
-
     def process(self, data):
         """
         Perform FFT on a framed signal and return the spectrogram.
@@ -946,3 +945,65 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         else:
             # return only the spec
             return np.dot(data.spec, fb)
+
+
+class StackSpectrogramProcessor(Processor):
+    """
+    Stack spec & diff.
+
+    """
+    def __init__(self, frame_sizes, online, fps, bands, norm_filters, mul, add,
+                 diff_ratio, *args, **kwargs):
+        """
+        Creates a new StackSpectrogramProcessor instance.
+
+        Multiple magnitude spectra (with different FFT sizes) are filtered and
+        logarithmically scaled before being stacked together with their first
+        order differences.
+
+        :param frame_sizes:   include spectrogram with these frame sizes
+                              [list of int]
+        :param bands:         use N bands per octave [int]
+        :param norm_filters:  normalize the filter to area 1 [bool]
+        :param online:        online mode [bool]
+        :param mul:           multiply the spectrogram with this factor before
+                              taking the logarithm of the magnitudes [float]
+        :param add:           add this value before taking the logarithm of
+                              the magnitudes [float]
+        :param diff_ratio:    calculate the difference to the frame at which
+                              the window used for the STFT yields this ratio
+                              of the maximum height [float]
+
+        """
+        from .signal import FramedSignalProcessor
+        from .filters import LogarithmicFilterbank
+        # use the same spec for all frame sizes
+        sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
+                                  bands=bands, norm_filters=norm_filters,
+                                  log=True, mul=mul, add=add,
+                                  diff_ratio=diff_ratio)
+        # multiple framing & spec processors
+        processor = []
+        for frame_size in frame_sizes:
+            fs = FramedSignalProcessor(frame_size=frame_size, fps=fps,
+                                       online=online)
+            processor.append(SequentialProcessor([fs, sp]))
+        # process all specs in parallel
+        # FIXME: this does not work with more than 1 threads!
+        self.processor = ParallelProcessor(processor, num_threads=1)
+
+    def process(self, data):
+        """
+        Stack the spectrograms and stack their magnitudes and differences.
+
+        :param data: Signal instance [Signal]
+        :return:     stacked specs and diffs
+
+        """
+        # process everything
+        data = self.processor.process(data)
+        # stack everything
+        stack = []
+        for d in data:
+            stack.extend([d.spec, d.diff])
+        return np.hstack(stack)

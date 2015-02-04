@@ -156,7 +156,7 @@ class ParallelProcessor(Processor):
         self.processors = processors
         # number of threads
         if num_threads is None:
-            num_threads = self.NUM_THREADS
+            num_threads = 1
         self.num_threads = num_threads
 
     def process(self, data, num_threads=None):
