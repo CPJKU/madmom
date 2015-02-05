@@ -5,8 +5,11 @@
 
 """
 
-from madmom.audio.signal import Signal
-from madmom.features.tempo import TempoEstimation
+from madmom import IOProcessor
+from madmom.utils import io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessor
+from madmom.features.tempo import TempoEstimationProcessor
 
 
 def parser():
@@ -17,7 +20,6 @@ def parser():
 
     """
     import argparse
-    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -34,12 +36,11 @@ def parser():
     (DAFx-11), 2011.
 
     ''')
-    # input/output options
-    madmom.utils.io_arguments(p)
-    # signal arguments
-    Signal.add_arguments(p, norm=False)
-    # rnn onset detection arguments
-    TempoEstimation.add_arguments(p)
+    # add arguments
+    io_arguments(p)
+    ActivationsProcessor.add_arguments(p)
+    RNNBeatProcessor.add_arguments(p)
+    TempoEstimationProcessor.add_arguments(p)
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
                    help='use the MIREX output format (lower tempo first)')
@@ -59,33 +60,22 @@ def main():
 
     # parse arguments
     args = parser()
+    args.fps = 100
 
-    # load or create onset activations
+    # load or create beat activations
     if args.load:
-        # load activations
-        t = TempoEstimation.from_activations(args.input, fps=100, sep=args.sep)
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # exit if no NN files are given
-        if not args.nn_files:
-            raise SystemExit('no NN model(s) given')
+        in_processor = RNNBeatProcessor(**vars(args))
 
-        # create a Signal object
-        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create a RNNBeatDetection object from the signal and given NN files
-        t = TempoEstimation(s, nn_files=args.nn_files,
-                            num_threads=args.num_threads)
-
-    # save activations or detect tempo
+    # save beat activations or detect beats
     if args.save:
-        # save activations
-        t.activations.save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect tempo
-        t.detect(method=args.method, min_bpm=args.min_bpm,
-                 max_bpm=args.max_bpm, act_smooth=args.act_smooth,
-                 hist_smooth=args.hist_smooth, alpha=args.alpha)
-        # save detections
-        t.write(args.output, mirex=args.mirex)
+        out_processor = TempoEstimationProcessor(**vars(args))
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
 
 if __name__ == '__main__':
     main()

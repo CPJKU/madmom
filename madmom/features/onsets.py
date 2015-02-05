@@ -7,11 +7,18 @@ This file contains onset detection related functionality.
 
 """
 
+import glob
 
 import numpy as np
-from scipy.ndimage.filters import maximum_filter
+from scipy.ndimage.filters import maximum_filter, uniform_filter
 
-from madmom import Processor
+from .. import MODELS_PATH, SequentialProcessor, IOProcessor
+from ..utils import write_events, files
+from ..ml.rnn import RNNProcessor
+from ..audio.signal import (SignalProcessor, FramedSignalProcessor,
+                            smooth as smooth_signal)
+from ..audio.spectrogram import SpectrogramProcessor, StackSpectrogramProcessor
+from ..features import ActivationsProcessor
 
 EPSILON = 1e-6
 
@@ -476,9 +483,9 @@ def rectified_complex_domain(spec, phase):
     return np.sum(np.abs(rcd), axis=1)
 
 
-class SpectralOnsetDetectionProcessor(Processor):
+class SpectralOnsetProcessor(SequentialProcessor):
     """
-    The SpectralOnsetDetection class implements most of the common onset
+    The SpectralOnsetProcessor class implements most of the common onset
     detection functions based on the magnitude or phase information of a
     spectrogram.
 
@@ -493,14 +500,22 @@ class SpectralOnsetDetectionProcessor(Processor):
     methods = ['superflux', 'hfc', 'sd', 'sf', 'mkl', 'pd', 'wpd', 'nwpd',
                'cd', 'rcd']
 
-    def __init__(self, odf=superflux, *args, **kwargs):
+    def __init__(self, method='superflux', *args, **kwargs):
         """
         Creates a new SpectralOnsetDetection instance.
 
-        :param odf:         onset detection function
+        :param method: onset detection function
 
         """
-        self.odf = odf
+        # signal handling processor
+        sig = SignalProcessor(mono=True, *args, **kwargs)
+        frames = FramedSignalProcessor(*args, **kwargs)
+        spec = SpectrogramProcessor(*args, **kwargs)
+        odf = getattr(self, method)
+        # print odf
+        # sequentially process everything
+        super(SpectralOnsetProcessor, self).__init__([sig, frames, spec, odf])
+        self.method = odf
 
     # Onset Detection Functions
     def hfc(self, data):
@@ -635,16 +650,6 @@ class SpectralOnsetDetectionProcessor(Processor):
         """
         return rectified_complex_domain(data.spec, data.phase)
 
-    def process(self, data):
-        """
-        Process the spectrogram and return an onset detection function.
-
-        :param data: Spectrogram instance
-        :return:     onset detection function
-
-        """
-        return getattr(self, self.odf)(data)
-
     @classmethod
     def add_arguments(cls, parser, method=None, methods=None):
         """
@@ -656,42 +661,402 @@ class SpectralOnsetDetectionProcessor(Processor):
         :return:         spectral onset detection argument parser group
 
         """
+        # add other parsers
+        SignalProcessor.add_arguments(parser, norm=False, att=0)
+        FramedSignalProcessor.add_arguments(parser, fps=200, online=False)
+        SpectrogramProcessor.add_filter_arguments(parser, bands=24, fmin=30,
+                                                  fmax=17000,
+                                                  norm_filters=False)
+        SpectrogramProcessor.add_log_arguments(parser, log=True, mul=1, add=1)
+        SpectrogramProcessor.add_diff_arguments(parser, diff_ratio=0.5,
+                                                diff_max_bins=3)
         # add onset detection related options to the existing parser
         g = parser.add_argument_group('spectral onset detection arguments')
         if methods is not None:
-            g.add_argument('-o', dest='odf', default=method,
-                           help='use one of these onset detection functions '
-                                '(%s) [default=%s]' % (methods, method))
+            g.add_argument('-o', '--odf', dest='method', default=method,
+                           choices=methods,
+                           help='use this onset detection function '
+                                '[default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
 
 
-def main():
+class RNNOnsetProcessor(SequentialProcessor):
     """
-    Example onset detection program.
+    Class for detecting onsets with a recurrent neural network (RNN).
+
+    """
+    BI_FILES = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
+    UNI_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
+    FPS = 100
+    ONLINE = False
+
+    def __init__(self, nn_files=BI_FILES, fps=FPS, online=ONLINE, *args,
+                 **kwargs):
+        """
+        Processor for finding possible onset positions in a signal.
+
+        :param nn_files: list of RNN model files
+
+        """
+        # signal handling processor
+        sig = SignalProcessor(mono=True, *args, **kwargs)
+        # TODO: this information should be stored in the nn_files
+        #       also the information about mul, add & diff_ratio and so on
+        frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
+        # parallel specs + stacking processor
+        stack = StackSpectrogramProcessor(frame_sizes=frame_sizes,
+                                          fps=fps, online=online, bands=6,
+                                          norm_filters=True, mul=5, add=1,
+                                          diff_ratio=0.25, *args, **kwargs)
+        # multiple RNN processor
+        rnn = RNNProcessor(nn_files=nn_files, *args, **kwargs)
+        # sequentially process everything
+        super(RNNOnsetProcessor, self).__init__([sig, stack, rnn])
+
+    @classmethod
+    def add_arguments(cls, parser, online=ONLINE):
+        """
+        Add RNN onset detection related arguments to an existing parser.
+
+        :param parser: existing argparse parser
+        :param online: settings for online mode (OnsetDetectorLL)
+
+        """
+        if online:
+            nn_files = cls.UNI_FILES
+            norm = None
+        else:
+            nn_files = cls.BI_FILES
+            norm = False
+        # add signal processing arguments
+        SignalProcessor.add_arguments(parser, norm=norm, att=0)
+        # add rnn processing arguments
+        RNNProcessor.add_arguments(parser, nn_files=nn_files)
+
+
+# universal peak-picking method
+def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
+                 pre_max=1, post_max=1):
+    """
+    Perform thresholding and peak-picking on the given activation function.
+
+    :param activations: the activation function
+    :param threshold:   threshold for peak-picking
+    :param smooth:      smooth the activation function with the kernel
+    :param pre_avg:     use N frames past information for moving average
+    :param post_avg:    use N frames future information for moving average
+    :param pre_max:     use N frames past information for moving maximum
+    :param post_max:    use N frames future information for moving maximum
+    :return:            indices of the detected peaks
+
+    Notes: If no moving average is needed (e.g. the activations are independent
+           of the signal's level as for neural network activations), set
+           `pre_avg` and `post_avg` to 0.
+
+           For offline peak picking, set `pre_max` and `post_max` to 1.
+
+           For online peak picking, set all `post_` parameters to 0.
+
+    "Evaluating the Online Capabilities of Onset Detection Methods"
+    Sebastian Böck, Florian Krebs and Markus Schedl
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2012.
+
+    """
+    # smooth activations
+    if smooth is not None:
+        activations = smooth_signal(activations, smooth)
+    # compute a moving average
+    avg_length = pre_avg + post_avg + 1
+    if avg_length > 1:
+        # TODO: make the averaging function exchangeable (mean/median/etc.)
+        avg_origin = int(np.floor((pre_avg - post_avg) / 2))
+        if activations.ndim == 1:
+            filter_size = avg_length
+        elif activations.ndim == 2:
+            filter_size = [avg_length, 1]
+        else:
+            raise ValueError('activations must be either 1D or 2D')
+        mov_avg = uniform_filter(activations, filter_size, mode='constant',
+                                 origin=avg_origin)
+    else:
+        # do not use a moving average
+        mov_avg = 0
+    # detections are those activations above the moving average + the threshold
+    detections = activations * (activations >= mov_avg + threshold)
+    # peak-picking
+    max_length = pre_max + post_max + 1
+    if max_length > 1:
+        # compute a moving maximum
+        max_origin = int(np.floor((pre_max - post_max) / 2))
+        if activations.ndim == 1:
+            filter_size = max_length
+        elif activations.ndim == 2:
+            filter_size = [max_length, 1]
+        else:
+            raise ValueError('activations must be either 1D or 2D')
+        mov_max = maximum_filter(detections, filter_size, mode='constant',
+                                 origin=max_origin)
+        # detections are peak positions
+        detections *= (detections == mov_max)
+    # return indices
+    if activations.ndim == 1:
+        return np.nonzero(detections)[0]
+    elif activations.ndim == 2:
+        return np.nonzero(detections)
+    else:
+        raise ValueError('activations must be either 1D or 2D')
+
+
+class OnsetDetectionProcessor(IOProcessor):
+    """
+    This class implements the detection (i.e. peak-picking) functionality
+    which can be used universally.
+
+    """
+    FPS = 100
+    THRESHOLD = 0.5  # binary threshold
+    SMOOTH = 0
+    PRE_AVG = 0
+    POST_AVG = 0
+    PRE_MAX = 1. / FPS  # corresponds to one frame
+    POST_MAX = 1. / FPS
+    COMBINE = 0.03
+    DELAY = 0
+
+    def __init__(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
+                 post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
+                 combine=COMBINE, delay=DELAY, online=False, fps=FPS,
+                 *args, **kwargs):
+        """
+        Creates a new PeakPickingProcessor instance.
+
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param pre_avg:   use N seconds past information for moving average
+        :param post_avg:  use N seconds future information for moving average
+        :param pre_max:   use N seconds past information for moving maximum
+        :param post_max:  use N seconds future information for moving maximum
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
+        :param online:    use online peak-picking (i.e. no future information)
+        :param fps:       frames per second used for conversion of timings
+
+        Notes: If no moving average is needed (e.g. the activations are
+               independent of the signal's level as for neural network
+               activations), `pre_avg` and `post_avg` should be set to 0.
+
+               For offline peak picking set `pre_max` >= 1. / `fps` and
+               `post_max` >= 1. / `fps`
+
+               For online peak picking, all `post_` parameters are set to 0.
+
+        "Evaluating the Online Capabilities of Onset Detection Methods"
+        Sebastian Böck, Florian Krebs and Markus Schedl
+        Proceedings of the 13th International Society for Music Information
+        Retrieval Conference (ISMIR), 2012.
+
+        """
+        # make this an IOProcessor by defining input and output processings
+        super(OnsetDetectionProcessor, self).__init__(self.detect, write_events)
+        # adjust some params for online mode
+        if online:
+            smooth = 0
+            post_avg = 0
+            post_max = 0
+        self.threshold = threshold
+        self.smooth = smooth
+        self.pre_avg = pre_avg
+        self.post_avg = post_avg
+        self.pre_max = pre_max
+        self.post_max = post_max
+        self.combine = combine
+        self.delay = delay
+        self.fps = fps
+
+    def detect(self, activations):
+        """
+        Detect the onsets in the given activation function.
+
+        :param activations: onset activation function
+        :return:            detected onsets
+
+        """
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        smooth = int(round(self.fps * self.smooth))
+        pre_avg = int(round(self.fps * self.pre_avg))
+        post_avg = int(round(self.fps * self.post_avg))
+        pre_max = int(round(self.fps * self.pre_max))
+        post_max = int(round(self.fps * self.post_max))
+        # detect the peaks (function returns int indices)
+        detections = peak_picking(activations, self.threshold, smooth,
+                                  pre_avg, post_avg, pre_max, post_max)
+        # convert detections to a list of timestamps
+        detections = detections.astype(np.float) / self.fps
+        # shift if necessary
+        if self.delay != 0:
+            detections += self.delay
+        # always use the first detection and all others if none was reported
+        # within the last `combine` seconds
+        if detections.size > 1:
+            # filter all detections which occur within `combine` seconds
+            combined_detections = detections[1:][np.diff(detections) >
+                                                 self.combine]
+            # add them after the first detection
+            detections = np.append(detections[0], combined_detections)
+        else:
+            detections = detections
+        # return the detections
+        return detections
+
+    @classmethod
+    def add_arguments(cls, parser, threshold=THRESHOLD, smooth=None,
+                      pre_avg=None, post_avg=None, pre_max=None, post_max=None,
+                      combine=COMBINE, delay=DELAY):
+        """
+        Add onset peak-picking related arguments to an existing parser.
+
+        :param parser:    existing argparse parser
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param pre_avg:   use N seconds past information for moving average
+        :param post_avg:  use N seconds future information for moving average
+        :param pre_max:   use N seconds past information for moving maximum
+        :param post_max:  use N seconds future information for moving maximum
+        :param combine:   only report one event within N seconds
+        :param delay:     report events N seconds delayed
+        :return:          onset peak-picking argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
+
+        """
+        # add onset peak-picking related options to the existing parser
+        g = parser.add_argument_group('onset peak-picking arguments')
+        g.add_argument('-t', dest='threshold', action='store', type=float,
+                       default=threshold,
+                       help='detection threshold [default=%(default).2f]')
+        if smooth is not None:
+            g.add_argument('--smooth', action='store', type=float,
+                           default=smooth,
+                           help='smooth the activation function over N '
+                                'seconds [default=%(default).2f]')
+        if pre_avg is not None:
+            g.add_argument('--pre_avg', action='store', type=float,
+                           default=pre_avg,
+                           help='build average over N previous seconds '
+                                '[default=%(default).2f]')
+        if post_avg is not None:
+            g.add_argument('--post_avg', action='store', type=float,
+                           default=post_avg, help='build average over N '
+                           'following seconds [default=%(default).2f]')
+        if pre_max is not None:
+            g.add_argument('--pre_max', action='store', type=float,
+                           default=pre_max,
+                           help='search maximum over N previous seconds '
+                                '[default=%(default).2f]')
+        if post_max is not None:
+            g.add_argument('--post_max', action='store', type=float,
+                           default=post_max,
+                           help='search maximum over N following seconds '
+                                '[default=%(default).2f]')
+        if combine is not None:
+            g.add_argument('--combine', action='store', type=float,
+                           default=combine,
+                           help='combine events within N seconds '
+                                '[default=%(default).2f]')
+        if delay is not None:
+            g.add_argument('--delay', action='store', type=float,
+                           default=delay,
+                           help='report the events N seconds delayed '
+                                '[default=%(default)i]')
+        # return the argument group so it can be modified if needed
+        return g
+
+
+class NNOnsetDetectionProcessor(IOProcessor):
+    """
+    Class for peak-picking with neural networks.
+
+    """
+    NN_FILES = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" % MODELS_PATH)
+    FPS = 100
+    THRESHOLD = 0.4
+    SMOOTH = 0.07
+    COMBINE = 0.04
+    DELAY = 0
+
+    def __init__(self, nn_files=NN_FILES, threshold=THRESHOLD, smooth=SMOOTH,
+                 combine=COMBINE, delay=DELAY, fps=FPS, *args, **kwargs):
+        """
+        Creates a new NNSpectralOnsetDetection instance.
+
+        :param nn_files:  neural network files with models for peak-picking
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one onset within N seconds
+        :param delay:     report onsets N seconds delayed
+
+        "Enhanced peak picking for onset detection with recurrent neural
+         networks"
+        Sebastian Böck, Jan Schlüter and Gerhard Widmer
+        Proceedings of the 6th International Workshop on Machine Learning and
+        Music (MML), 2013.
+
+        """
+        # first perform RNN processing, then onset peak-picking
+        rnn = RNNProcessor(nn_files=nn_files, num_threads=1)
+        pp = OnsetDetectionProcessor(threshold=threshold, smooth=smooth,
+                                     pre_max=1. / fps, post_max=1. / fps,
+                                     combine=combine, delay=delay, fps=fps)
+        # make this an IOProcessor by defining input and output processings
+        super(NNOnsetDetectionProcessor, self).__init__(rnn, pp)
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
+                      smooth=SMOOTH, combine=COMBINE, delay=DELAY):
+        """
+        Add peak-picking related arguments to an existing parser object.
+
+        :param parser:    existing argparse parser object
+        :param nn_files:  list with files of RNN models
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the activation function over N seconds
+        :param combine:   only report one event within N seconds
+        :param delay:     report events N seconds delayed
+        :return:          peak-picking argument parser group object
+
+        """
+        # add RNN parser arguments (but without number of threads)
+        RNNProcessor.add_arguments(parser, nn_files=nn_files, num_threads=0)
+        OnsetDetectionProcessor.add_arguments(parser, threshold=threshold,
+                                              smooth=smooth, combine=combine,
+                                              delay=delay)
+
+
+def parser():
+    """
+    Create a parser and parse the arguments.
+
+    :return: the parsed arguments
 
     """
     import argparse
 
-    from madmom.utils import files, write_events
-    from madmom import IOProcessor, SequentialProcessor
-    from madmom.features import ActivationsProcessor
-    from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-    from madmom.audio.spectrogram import SpectrogramProcessor
-    from madmom.features.peak_picking import PeakPickingProcessor
-
-    # parse arguments
+    # define parser
     p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    If invoked without any parameters, the software detects all onsets in
-    the given files according to the method proposed in:
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    If invoked without any parameters, the software detects all onsets in the
+    given input file and writes them to the output file with the SuperFlux
+    algorithm introduced in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx-13), 2013.
 
-    """)
+    ''')
     # general options
     p.add_argument('files', metavar='files', nargs='+',
                    help='files to be processed')
@@ -699,18 +1064,12 @@ def main():
                    help='be verbose')
     p.add_argument('--suffix', action='store', type=str, default='.txt',
                    help='suffix for detections [default=%(default)s]')
-    # add other argument groups
-    SignalProcessor.add_arguments(p, mono=True, att=0, norm=False)
-    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
-                                              norm_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
-    SpectralOnsetDetectionProcessor.add_arguments(
-        p, method='superflux', methods=SpectralOnsetDetectionProcessor.methods)
-    PeakPickingProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
-                                       post_max=0.05, pre_avg=0.15, post_avg=0,
-                                       combine=0.03, delay=0)
+    # add arguments
+    SpectralOnsetProcessor.add_arguments(p, method='superflux',
+                                         methods=SpectralOnsetProcessor.methods)
+    OnsetDetectionProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
+                                          post_max=0.05, pre_avg=0.15,
+                                          post_avg=0, combine=0.03, delay=0)
     ActivationsProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
@@ -720,30 +1079,30 @@ def main():
     # print arguments
     if args.verbose:
         print args
+    # return
+    return args
 
-    # prepare the processing chain
 
-    # load or create onset activations
+def main():
+    """
+    Example onset detection program.
+
+    """
+    # parse arguments
+    args = parser()
+
+    # load or create beat activations
     if args.load:
-        # load the activations
-        act = ActivationsProcessor(mode='r', **vars(args))
-        in_processor = SequentialProcessor([act])
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # create processors
-        p1 = SignalProcessor(**vars(args))
-        p2 = FramedSignalProcessor(**vars(args))
-        p3 = SpectrogramProcessor(**vars(args))
-        p4 = SpectralOnsetDetectionProcessor(**vars(args))
-        # sequentially process everything
-        in_processor = SequentialProcessor([p1, p2, p3, p4])
+        in_processor = SpectralOnsetProcessor(**vars(args))
     # save onset activations or detect onsets
     if args.save:
-        # save activations
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # peak-picking & output processor
-        in_processor.append(PeakPickingProcessor(**vars(args)))
-        out_processor = write_events
+        out_processor = OnsetDetectionProcessor(**vars(args))
+    # prepare the processor
+    processor = IOProcessor(in_processor, out_processor)
 
     # which files to process
     if args.load:
@@ -752,17 +1111,14 @@ def main():
     else:
         # only process .wav files
         ext = '.wav'
-    # process everything
-    processor = IOProcessor(in_processor, out_processor)
-
     # process the files
     for infile in files(args.files, ext):
         if args.verbose:
             print infile
         # append suffix to input filename
         outfile = "%s%s" % (infile, args.suffix)
-
         # process infile to outfile
+        print infile, outfile
         processor.process(infile, outfile)
 
 

@@ -5,20 +5,10 @@
 
 """
 
-import argparse
-import glob
-
-from madmom.utils import write_events, io_arguments
-from madmom import SequentialProcessor, IOProcessor
-from madmom.audio.signal import SignalProcessor
-from madmom.audio.spectrogram import StackSpectrogramProcessor
-from madmom.ml.rnn import RNNProcessor
-from madmom.features.peak_picking import PeakPickingProcessor
+from madmom import IOProcessor
+from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom import MODELS_PATH
-
-# set the path to saved neural networks and generate lists of NN files
-NN_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
+from madmom.features.onsets import RNNOnsetProcessor, OnsetDetectionProcessor
 
 
 def parser():
@@ -28,6 +18,8 @@ def parser():
     :return: the parsed arguments
 
     """
+    import argparse
+
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
@@ -54,14 +46,11 @@ def parser():
     - post processing reports the onset instantaneously instead of delayed.
 
     ''')
-    # input/output options
+    # add arguments
     io_arguments(p)
-    # add other argument groups
-    SignalProcessor.add_arguments(p, att=0)
-    # rnn onset detection arguments
-    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
-    PeakPickingProcessor.add_arguments(p, threshold=0.2, combine=0.03, delay=0)
     ActivationsProcessor.add_arguments(p)
+    RNNOnsetProcessor.add_arguments(p, online=True)
+    OnsetDetectionProcessor.add_arguments(p, threshold=0.2)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -78,40 +67,23 @@ def main():
 
     # parse arguments
     args = parser()
-    # set the frame rate
     args.fps = 100
 
-    # load or create onset activations
+    # load or create beat activations
     if args.load:
-        # load the activations
-        act = ActivationsProcessor(mode='r', **vars(args))
-        in_processor = SequentialProcessor([act])
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # signal handling processor
-        sig = SignalProcessor(**vars(args))
-        # parallel specs + stacking processor
-        stack = StackSpectrogramProcessor(frame_sizes=[512, 1024, 2048],
-                                          fps=args.fps, online=True, bands=6,
-                                          norm_filters=True, mul=5, add=1,
-                                          diff_ratio=0.25)
-        # multiple RNN processor
-        rnn = RNNProcessor(nn_files=args.nn_files,
-                           num_threads=args.num_threads)
-        # sequentially process everything
-        in_processor = SequentialProcessor([sig, stack, rnn])
+        in_processor = RNNOnsetProcessor(online=True, **vars(args))
 
-    # save onset activations or detect onsets
+    # save beat activations or detect beats
     if args.save:
-        # save activations
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the onsets
-        pp = PeakPickingProcessor(pre_max=0.01, **vars(args))
-        in_processor.append(pp)
-        out_processor = write_events
+        out_processor = OnsetDetectionProcessor(**vars(args))
 
     # process everything
     IOProcessor(in_processor, out_processor).process(args.input, args.output)
+
 
 if __name__ == '__main__':
     main()

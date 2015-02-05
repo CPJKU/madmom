@@ -5,8 +5,10 @@
 
 """
 
-from madmom.audio.signal import Signal
-from madmom.features.beats import DBNBeatTracking
+from madmom import IOProcessor
+from madmom.utils import io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
 
 
 def parser():
@@ -17,7 +19,6 @@ def parser():
 
     """
     import argparse
-    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -38,12 +39,11 @@ def parser():
 
     ''')
 
-    # input/output options
-    madmom.utils.io_arguments(p)
-    # signal arguments
-    Signal.add_arguments(p, norm=False)
-    # beat tracking arguments
-    DBNBeatTracking.add_arguments(p)
+    # add arguments
+    io_arguments(p)
+    ActivationsProcessor.add_arguments(p)
+    RNNBeatProcessor.add_arguments(p)
+    DBNBeatTrackingProcessor.add_dbn_arguments(p)
     # version
     p.add_argument('--version', action='version', version='DBNBeatTracker')
     # parse arguments
@@ -60,39 +60,24 @@ def main():
 
     # parse arguments
     args = parser()
+    args.fps = 100
 
-    # load or create onset activations
+    # load or create beat activations
     if args.load:
-        # load activations
-        b = DBNBeatTracking.from_activations(args.input, fps=100)
-        # set the number of threads, since the detection works multi-threaded
-        b.num_threads = args.num_threads
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # exit if no NN files are given
-        if not args.nn_files:
-            raise SystemExit('no NN model(s) given')
-
-        # create a Signal object
-        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create an RNNBeatTracking object
-        b = DBNBeatTracking(s, nn_files=args.nn_files,
-                            num_threads=args.num_threads)
+        in_processor = RNNBeatProcessor(**vars(args))
 
     # save beat activations or detect beats
     if args.save:
-        # save activations
-        b.activations.save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the beats
-        b.detect(num_beat_states=args.num_beat_states,
-                 num_tempo_states=args.num_tempo_states,
-                 tempo_change_probability=args.tempo_change_probability,
-                 observation_lambda=args.observation_lambda,
-                 min_bpm=args.min_bpm, max_bpm=args.max_bpm,
-                 correct=args.correct,
-                 norm_observations=args.norm_observations)
-        # save detections
-        b.write(args.output)
+        out_processor = DBNBeatTrackingProcessor(**vars(args))
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+
+
 
 if __name__ == '__main__':
     main()

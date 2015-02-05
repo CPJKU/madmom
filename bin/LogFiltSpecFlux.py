@@ -7,12 +7,13 @@ LogFiltSpecFlux onset detection algorithm.
 
 """
 
-import madmom.utils
-
-from madmom.audio.signal import Signal, FramedSignal
-from madmom.audio.filters import Filterbank
-from madmom.audio.spectrogram import LogFiltSpec
-from madmom.features.onsets import SpectralOnsetDetection, OnsetDetection
+from madmom import IOProcessor
+from madmom.utils import io_arguments
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import SpectrogramProcessor
+from madmom.features import ActivationsProcessor
+from madmom.features.onsets import (SpectralOnsetProcessor,
+                                    OnsetDetectionProcessor)
 
 
 def parser():
@@ -37,15 +38,18 @@ def parser():
     Retrieval Conference (ISMIR), 2012.
 
     ''')
-    # input/output options
-    madmom.utils.io_arguments(p)
-    # add other argument groups
-    Signal.add_arguments(p)
-    FramedSignal.add_arguments(p, fps=100, online=False)
-    Filterbank.add_arguments(p, bands=12, norm_filters=False)
-    LogFiltSpec.add_arguments(p, log=True, mul=1, add=1)
-    OnsetDetection.add_arguments(p, threshold=1.6, post_max=0.05, post_avg=0,
-                                 pre_avg=0.15, pre_max=0.01)
+    # add arguments
+    io_arguments(p)
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
+    SpectrogramProcessor.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
+                                              norm_filters=False)
+    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
+    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5)
+    OnsetDetectionProcessor.add_arguments(p, threshold=1.6, pre_max=0.01,
+                                          post_max=0.05, pre_avg=0.15,
+                                          post_avg=0, combine=0.03, delay=0)
+    ActivationsProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version',
                    version='LogFiltSpecFlux.2014')
@@ -54,13 +58,6 @@ def parser():
     # switch to offline mode
     if args.norm:
         args.online = False
-    # translate online/offline mode
-    if args.online:
-        args.origin = 'online'
-        args.post_max = 0
-        args.post_avg = 0
-    else:
-        args.origin = 'offline'
     # print arguments
     if args.verbose:
         print args
@@ -74,35 +71,20 @@ def main():
     # parse arguments
     args = parser()
 
-    # load or create onset activations
+    # load or create beat activations
     if args.load:
-        # load activations
-        o = OnsetDetection.from_activations(args.input, args.fps, args.sep)
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # create a logarithmically filtered Spectrogram object
-        s = LogFiltSpec(args.input, mono=True, norm=args.norm, att=args.att,
-                        frame_size=args.frame_size, origin=args.origin,
-                        fps=args.fps, bands_per_octave=args.bands,
-                        fmin=args.fmin, fmax=args.fmax, mul=args.mul,
-                        add=args.add, norm_filters=args.norm_filters,
-                        ratio=args.ratio, diff_frames=args.diff_frames)
-        # create a SpectralOnsetDetection detection object
-        o = SpectralOnsetDetection.from_data(s, fps=args.fps)
-        # process with the detection function
-        o.sf()
+        in_processor = SpectralOnsetProcessor(**vars(args))
 
     # save onset activations or detect onsets
     if args.save:
-        # save activations
-        o.activations.save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=args.smooth, pre_avg=args.pre_avg,
-                 post_avg=args.post_avg, pre_max=args.pre_max,
-                 post_max=args.post_max, online=args.online)
-        # write the onsets to output
-        o.write(args.output)
+        out_processor = OnsetDetectionProcessor(**vars(args))
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
 
 if __name__ == '__main__':
     main()

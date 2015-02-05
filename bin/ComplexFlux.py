@@ -7,16 +7,11 @@ ComplexFlux onset detection algorithm.
 
 """
 
-import argparse
-
-from madmom.utils import write_events, io_arguments
-from madmom import SequentialProcessor
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import SpectrogramProcessor
-from madmom.features.onsets import SpectralOnsetDetectionProcessor
-from madmom.features.peak_picking import PeakPickingProcessor
-from madmom.features import Activations
-
+from madmom import IOProcessor
+from madmom.utils import io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.onsets import (SpectralOnsetProcessor,
+                                    OnsetDetectionProcessor)
 
 def parser():
     """
@@ -25,6 +20,8 @@ def parser():
     :return: the parsed arguments
 
     """
+    import argparse
+
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
@@ -41,22 +38,11 @@ def parser():
     ''')
     # input/output options
     io_arguments(p)
-    # add other argument groups
-    SignalProcessor.add_arguments(p, att=0, norm=False)
-    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
-                                              norm_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
-    g = SpectralOnsetDetectionProcessor.add_arguments(p)
-    g.add_argument('--temporal_filter', action='store', type=float,
-                   default=SpectralOnsetDetectionProcessor.TEMPORAL_FILTER,
-                   help='use temporal maximum filtering over N seconds '
-                        '[default=%(default).3f]')
-    PeakPickingProcessor.add_arguments(p, threshold=0.25, pre_max=0.01,
-                                       post_max=0.05, pre_avg=0.15, post_avg=0,
-                                       combine=0.03, delay=0)
-    Activations.add_arguments(p)
+    SpectralOnsetProcessor.add_arguments(p)
+    OnsetDetectionProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
+                                          post_max=0.05, pre_avg=0.15,
+                                          post_avg=0, combine=0.03, delay=0)
+    ActivationsProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='ComplexFlux.2014')
     # parse arguments
@@ -77,27 +63,21 @@ def main():
     # parse arguments
     args = parser()
 
-    # load or create onset activations
+    # load or create beat activations
     if args.load:
-        # load the activations
-        act = Activations.load(args.input, fps=args.fps, sep=args.sep)
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # create processors
-        p1 = SignalProcessor(**vars(args))
-        p2 = FramedSignalProcessor(**vars(args))
-        p3 = SpectrogramProcessor(**vars(args))
-        p4 = SpectralOnsetDetectionProcessor(odf='complex_flux', **vars(args))
-        # sequentially process everything
-        act = SequentialProcessor([p1, p2, p3, p4]).process(args.input)
+        in_processor = SpectralOnsetProcessor(method='complex_flux',
+                                              **vars(args))
 
     # save onset activations or detect onsets
     if args.save:
-        # save activations
-        Activations(act, fps=args.fps).save(args.output, sep=args.sep)
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the onsets and write them to file/stdout
-        onsets = PeakPickingProcessor(**vars(args)).process(act)
-        write_events(onsets, args.output)
+        out_processor = OnsetDetectionProcessor(**vars(args))
+
+    # process everything
+    IOProcessor(in_processor, out_processor).process(args.input, args.output)
 
 
 if __name__ == '__main__':

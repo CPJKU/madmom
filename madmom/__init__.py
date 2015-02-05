@@ -77,23 +77,6 @@ class Processor(object):
         return data
 
 
-class InputProcessor(Processor):
-    """
-    Class for processing data.
-
-    """
-    @abc.abstractmethod
-    def process(self, data):
-        """
-        Processes the data.
-
-        :param data: data to be processed
-        :return:     processed data
-
-        """
-        return data
-
-
 class OutputProcessor(Processor):
     """
     Class for processing data and/or feeding it into some sort of output.
@@ -101,12 +84,12 @@ class OutputProcessor(Processor):
     """
 
     @abc.abstractmethod
-    def process(self, output, data):
+    def process(self, data, output):
         """
         Processes the data and feeds it to output.
 
-        :param output: output file name or file handle
         :param data:   data to be processed (e.g. written to file)
+        :param output: output file name or file handle
         :return:       also return the processed data
 
         """
@@ -120,7 +103,7 @@ def _process(process_tuple):
     data (second tuple item). Instead of a Processor also a function accepting
     a single argument (data) and returning the processed data can be given.
 
-    :param process_tuple: tuple (Processor/function, data, args)
+    :param process_tuple: tuple (Processor/function, data)
     :return:              processed data
 
     Note: This must be a top-level function to be pickle-able.
@@ -129,10 +112,10 @@ def _process(process_tuple):
     # process depending whether it is a Processor or a simple function
     if isinstance(process_tuple[0], Processor):
         # call the process method
-        return process_tuple[0].process(process_tuple[1], *process_tuple[2:])
+        return process_tuple[0].process(process_tuple[1])
     else:
         # simply call the function
-        return process_tuple[0](process_tuple[1], *process_tuple[2:])
+        return process_tuple[0](process_tuple[1])
 
 
 class SequentialProcessor(Processor):
@@ -239,13 +222,21 @@ class ParallelProcessor(SequentialProcessor):
         :param num_threads: number of threads to run in parallel [int]
         :return:            parallel processing argument parser group
 
-        Parameters are included in the group only if they are not 'None'.
+        Note: A value of 0 or negative numbers for `num_threads` suppresses the
+              inclusion of the parallel option. Instead 'None' is returned.
+              Setting `num_threads` to 'None' sets the number equal to the
+              number of available CPU cores.
 
         """
+        if num_threads is None:
+            num_threads = cls.NUM_THREADS
+        # do not include the group
+        if num_threads <= 0:
+            return None
         # add parallel processing options
         g = parser.add_argument_group('parallel processing arguments')
-        g.add_argument('-j', '--threads', dest='num_threads', action='store',
-                       type=int, default=num_threads,
+        g.add_argument('-j', '--threads', dest='num_threads',
+                       action='store', type=int, default=num_threads,
                        help='number of parallel threads [default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
@@ -253,7 +244,7 @@ class ParallelProcessor(SequentialProcessor):
 
 class IOProcessor(Processor):
     """
-    Input/output processor which processes the input data with the input
+    Input/Output Processor which processes the input data with the input
     Processor and feeds everything into the given output Processor.
 
     """
@@ -266,14 +257,13 @@ class IOProcessor(Processor):
         :param output_processor: OutputProcessor or function
 
         Note: `input_processor` can be a Processor (or subclass thereof) or a
-              function accepting a single argument (data) or a list which gets
-              wrapped as a SequentialProcessor.
+              function accepting a single argument (data) or a list thereof
+              which gets wrapped as a SequentialProcessor.
 
               `output_processor` can be a OutputProcessor or a function
               accepting two arguments (data, output)
 
         """
-
         if isinstance(input_processor, list):
             self.input_processor = SequentialProcessor(input_processor)
         else:

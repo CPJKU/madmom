@@ -569,13 +569,30 @@ class RecurrentNeuralNetwork(Processor):
 RNN = RecurrentNeuralNetwork
 
 
+# FIXME: use this workaround against slow pickling of RNN objects
+def _process(process_tuple):
+    """
+    Loads a RNN model from the given file (first tuple item) and passes the
+    given numpy array of data through it (second tuple item).
+
+    :param process_tuple: tuple (nn_file, data)
+    :return:              RNN output (predictions for the given data)
+
+    Note: this must be a top-level function to be pickle-able.
+
+    """
+    rnn = RecurrentNeuralNetwork.load(process_tuple[0])
+    return rnn.process(process_tuple[1])
+
+
 class RNNProcessor(ParallelProcessor):
     """
     Recurrent Neural Network (RNN) processor class.
 
     """
 
-    def __init__(self, nn_files, num_threads=None):
+    def __init__(self, nn_files, average=True, num_threads=None, *args,
+                 **kwargs):
         """
         Instantiates a RNNProcessor, which loads the models from files.
 
@@ -583,11 +600,15 @@ class RNNProcessor(ParallelProcessor):
         :param num_threads: number of parallel working threads
 
         """
-        nn_models = []
-        for nn_file in nn_files:
-            nn_models.append(RecurrentNeuralNetwork.load(nn_file))
-        # instantiate object
-        super(RNNProcessor, self).__init__(nn_models, num_threads)
+        # FIXME: use this workaround against slow pickling of RNN objects
+        self.processors = nn_files
+        self.average = average
+        self.num_threads = num_threads
+        # nn_models = []
+        # for nn_file in nn_files:
+        #     nn_models.append(RecurrentNeuralNetwork.load(nn_file))
+        # # instantiate object
+        # super(RNNProcessor, self).__init__(nn_models, num_threads)
 
     def process(self, data, num_threads=None):
         """
@@ -598,34 +619,48 @@ class RNNProcessor(ParallelProcessor):
         :return:            averaged predictions
 
         """
+        import multiprocessing as mp
+        import itertools as it
+        # number of threads
+        if num_threads is None:
+            num_threads = self.num_threads
+        # init a pool of workers (if needed)
+        map_ = map
+        if min(len(self.processors), max(1, num_threads)) != 1:
+            map_ = mp.Pool(num_threads).map
+        # process data in parallel and return a list with processed data
+        predictions = map_(_process, it.izip(self.processors, it.repeat(data)))
         # compute predictions with all saved neural networks (in parallel)
-        predictions = super(RNNProcessor, self).process(data, num_threads)
+        # predictions = super(RNNProcessor, self).process(data, num_threads)
         # average predictions if needed
-        if len(predictions) > 1:
-            # average the predictions
-            predictions = sum(predictions) / len(predictions)
-            # ravel them if needed
-            if predictions.shape[1] == 1:
-                return predictions.ravel()
+        if self.average and len(predictions) >= 1:
+            if len(predictions) > 1:
+                # average the predictions
+                predictions = sum(predictions) / len(predictions)
             else:
-                return predictions
-        else:
-            # nothing to average since we have only one prediction
-            return predictions[0]
+                # nothing to average since we have only one prediction
+                predictions = predictions[0]
+            # ravel them if needed
+            if predictions.ndim == 2 and predictions.shape[1] == 1:
+                predictions = predictions.ravel()
+        # return the (averaged) predictions
+        return predictions
 
     @classmethod
-    def add_arguments(cls, parser, nn_files):
+    def add_arguments(cls, parser, nn_files, num_threads=None):
         """
-        Add neural network testing options to an existing parser object.
+        Add neural network testing options to an existing parser.
 
-        :param parser:      existing argparse parser object
+        :param parser:      existing argparse parser
         :param nn_files:    list with files of RNN models
-        :return:            neural network argument parser group object
+        :param num_threads: number of parallel working threads
+        :return:            neural network argument parser group
+
+        Note: A value of 0 or negative numbers for `num_threads` suppresses the
+              inclusion of the parallel option.
 
         """
         from madmom.utils import OverrideDefaultListAction
-        # add threading options
-        ParallelProcessor.add_arguments(parser)
         # add neural network options
         g = parser.add_argument_group('neural network arguments')
         g.add_argument('--nn_files', action=OverrideDefaultListAction,
@@ -633,5 +668,7 @@ class RNNProcessor(ParallelProcessor):
                        help='average the predictions of these pre-trained '
                             'neural networks (multiple files can be given, '
                             'one file per argument)')
+        # add threading options
+        ParallelProcessor.add_arguments(parser, num_threads)
         # return the argument group so it can be modified if needed
         return g

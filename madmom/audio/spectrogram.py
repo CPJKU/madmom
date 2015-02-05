@@ -687,8 +687,8 @@ class SpectrogramProcessor(Processor):
         return g
 
     @staticmethod
-    def add_filter_arguments(parser, filterbank=None, bands=None, fmin=None,
-                             fmax=None, norm_filters=None):
+    def add_filter_arguments(parser, filterbank=FILTERBANK, bands=BANDS,
+                             fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS):
         """
         Add spectrogram filtering related arguments to an existing parser.
 
@@ -712,12 +712,13 @@ class SpectrogramProcessor(Processor):
                 g.add_argument('--no_filter', dest='filterbank',
                                action='store_false', default=filterbank,
                                help='do not filter the spectrogram with a '
-                                    'filterbank')
+                                    'filterbank [default=True]')
             else:
                 g.add_argument('--filter', action='store_true',
                                default=False,
                                help='filter the spectrogram with a '
-                                    'logarithmically spaced filterbank')
+                                    'logarithmically spaced filterbank '
+                                    '[default=False]')
         if bands is not None:
             g.add_argument('--bands', action='store', type=int,
                            default=bands,
@@ -737,11 +738,13 @@ class SpectrogramProcessor(Processor):
             if norm_filters:
                 g.add_argument('--no_norm_filters', dest='norm_filters',
                                action='store_false', default=norm_filters,
-                               help='do not normalize the filter to area 1')
+                               help='do not normalize the filter to area 1 '
+                                    '[default=False]')
             else:
                 g.add_argument('--norm_filters', dest='norm_filters',
                                action='store_true', default=norm_filters,
-                               help='normalize the filter to area 1')
+                               help='normalize the filter to area 1 '
+                                    '[default=True]')
         # return the group
         return g
 
@@ -991,6 +994,7 @@ class StackSpectrogramProcessor(Processor):
         # process all specs in parallel
         # FIXME: this does not work with more than 1 threads!
         self.processor = ParallelProcessor(processor, num_threads=1)
+        # self.processor = ParallelProcessor(processor)
 
     def process(self, data):
         """
