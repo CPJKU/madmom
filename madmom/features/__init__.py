@@ -159,6 +159,7 @@ class ActivationsProcessor(Processor):
         else:
             raise ValueError("wrong mode %s; choose {'r', 'w', 'in', 'out', "
                              "'load', 'save'}")
+        return data
 
     @staticmethod
     def add_arguments(parser):

@@ -7,11 +7,9 @@ SuperFlux onset detection algorithm.
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import (SpectralOnsetProcessor,
-                                    OnsetDetectionProcessor)
+from madmom.features.onsets import SpectralOnsetProcessor as SuperFlux
 
 
 def parser():
@@ -38,11 +36,16 @@ def parser():
     ''')
     # add arguments
     io_arguments(p)
-    SpectralOnsetProcessor.add_arguments(p)
-    OnsetDetectionProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
-                                          post_max=0.05, pre_avg=0.15,
-                                          post_avg=0, combine=0.03, delay=0)
     ActivationsProcessor.add_arguments(p)
+    SuperFlux.add_signal_arguments(p, norm=False, att=0)
+    SuperFlux.add_framing_arguments(p, fps=200, online=False)
+    SuperFlux.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
+                                   norm_filters=False)
+    SuperFlux.add_log_arguments(p, log=True, mul=1, add=1)
+    SuperFlux.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
+    SuperFlux.add_peak_picking_arguments(p, threshold=1.1, pre_max=0.01,
+                                         post_max=0.05, pre_avg=0.15,
+                                         post_avg=0, combine=0.03, delay=0)
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments
@@ -63,20 +66,16 @@ def main():
     # parse arguments
     args = parser()
 
-    # load or create beat activations
+    # create an processor
+    processor = SuperFlux(**vars(args))
+    # swap in/out processors if needed
     if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = SpectralOnsetProcessor(**vars(args))
-
-    # save onset activations or detect onsets
+        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
     if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = OnsetDetectionProcessor(**vars(args))
+        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
 
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+    processor.process(args.input, args.output)
 
 if __name__ == '__main__':
     main()

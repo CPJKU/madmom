@@ -279,7 +279,7 @@ class SignalProcessor(Processor):
     ATT = 0
 
     def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT,
-                 *args, **kwargs):
+                 **kwargs):
         """
         Creates a new SignalProcessor instance.
 
@@ -325,8 +325,9 @@ class SignalProcessor(Processor):
         # return processed data
         return data
 
-    @staticmethod
-    def add_arguments(parser, sample_rate=None, mono=None, norm=None, att=None):
+    @classmethod
+    def add_arguments(cls, parser, sample_rate=None, mono=None, norm=None,
+                      att=None):
         """
         Add signal processing related arguments to an existing parser.
 
@@ -534,7 +535,7 @@ class FramedSignal(object):
     """
 
     def __init__(self, signal, frame_size=2048, hop_size=441, fps=None,
-                 origin=0, start=0, end='extend', *args, **kwargs):
+                 origin=0, start=0, end='extend', **kwargs):
         """
         Creates a new FramedSignal instance.
 
@@ -591,7 +592,7 @@ class FramedSignal(object):
             self.signal = signal
         else:
             # try to instantiate a Signal
-            self.signal = Signal(signal, *args, **kwargs)
+            self.signal = Signal(signal, **kwargs)
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -723,7 +724,7 @@ class FramedSignalProcessor(Processor):
     END_OF_SIGNAL = 'extend'
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
-                 online=ONLINE, end=END_OF_SIGNAL, *args, **kwargs):
+                 online=ONLINE, end=END_OF_SIGNAL, **kwargs):
         """
         Creates a new FramedSignalProcessor instance.
 
@@ -789,8 +790,9 @@ class FramedSignalProcessor(Processor):
                             hop_size=self.hop_size, fps=self.fps,
                             origin=origin, start=start, end=num_frames)
 
-    @staticmethod
-    def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS, online=ONLINE):
+    @classmethod
+    def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,
+                      online=ONLINE):
         """
         Add signal framing related arguments to an existing parser.
 

@@ -76,6 +76,10 @@ class Processor(object):
         """
         return data
 
+    def __call__(self, *args, **kwargs):
+        """This magic method makes an instance callable."""
+        return self.process(*args, **kwargs)
+
 
 class OutputProcessor(Processor):
     """
@@ -211,7 +215,8 @@ class ParallelProcessor(SequentialProcessor):
         if min(len(self.processors), max(1, num_threads)) != 1:
             map_ = mp.Pool(num_threads).map
         # process data in parallel and return a list with processed data
-        return map_(_process, it.izip(self.processors, it.repeat(data)))
+        data = map_(_process, it.izip(self.processors, it.repeat(data)))
+        return data
 
     @classmethod
     def add_arguments(cls, parser, num_threads=NUM_THREADS):
@@ -249,26 +254,26 @@ class IOProcessor(Processor):
 
     """
 
-    def __init__(self, input_processor, output_processor):
+    def __init__(self, in_processor, out_processor=None):
         """
         Creates a IOProcessor instance.
 
-        :param input_processor:  Processor or list or function
-        :param output_processor: OutputProcessor or function
+        :param in_processor:  Processor or list or function
+        :param out_processor: OutputProcessor or function
 
-        Note: `input_processor` can be a Processor (or subclass thereof) or a
+        Note: `in_processor` can be a Processor (or subclass thereof) or a
               function accepting a single argument (data) or a list thereof
               which gets wrapped as a SequentialProcessor.
 
-              `output_processor` can be a OutputProcessor or a function
+              `out_processor` can be a OutputProcessor or a function
               accepting two arguments (data, output)
 
         """
-        if isinstance(input_processor, list):
-            self.input_processor = SequentialProcessor(input_processor)
+        if isinstance(in_processor, list):
+            self.in_processor = SequentialProcessor(in_processor)
         else:
-            self.input_processor = input_processor
-        self.output_processor = output_processor
+            self.in_processor = in_processor
+        self.out_processor = out_processor
 
     def process(self, data, output):
         """
@@ -281,12 +286,15 @@ class IOProcessor(Processor):
         :return:       Activations instance
 
         """
-        # process the input data
-        data = _process((self.input_processor, data))
+        # process the data by the input processor
+        data = _process((self.in_processor, data))
         # process it with the output Processor and return it
-        if isinstance(self.output_processor, Processor):
+        if self.out_processor is None:
+            # no processing needed, just return the data
+            return data
+        elif isinstance(self.out_processor, Processor):
             # call the process method
-            return self.output_processor.process(data, output)
+            return self.out_processor.process(data, output)
         else:
             # or simply call the function
-            return self.output_processor(data, output)
+            return self.out_processor(data, output)

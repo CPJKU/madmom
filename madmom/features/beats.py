@@ -11,7 +11,7 @@ import sys
 import glob
 import numpy as np
 
-from madmom import MODELS_PATH, SequentialProcessor, IOProcessor
+from madmom import MODELS_PATH, IOProcessor
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor
@@ -95,187 +95,14 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions)
 
 
-class RNNBeatProcessor(SequentialProcessor):
-    """
-    Class for tracking beats with a recurrent neural network (RNN).
-
-    """
-    NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
-    FPS = 100
-
-    def __init__(self, nn_files=NN_FILES, fps=FPS, *args, **kwargs):
-        """
-        Use (multiple) RNNs to predict a beat activation function.
-
-        :param nn_files: list of RNN model files
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx-11), 2011
-
-        """
-        # signal handling processor
-        sig = SignalProcessor(mono=True, *args, **kwargs)
-        # parallel specs + stacking processor
-        # TODO: this information should be stored in the nn_files
-        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
-                                          fps=fps, online=False, bands=3,
-                                          norm_filters=True, mul=1, add=1,
-                                          diff_ratio=0.5, *args, **kwargs)
-        # multiple RNN processor
-        rnn = RNNProcessor(nn_files=nn_files, *args, **kwargs)
-        # sequentially process everything
-        super(RNNBeatProcessor, self).__init__([sig, stack, rnn])
-        self.nn_files = nn_files
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES):
-        """
-        Add RNN beat tracking related arguments to an existing parser.
-
-        :param parser:   existing argparse parser
-        :param nn_files: list of RNN model files
-
-        """
-        # add signal processing arguments
-        SignalProcessor.add_arguments(parser, norm=False, att=0)
-        # add rnn processing arguments
-        RNNProcessor.add_arguments(parser, nn_files=nn_files)
-
-
-# TODO: should we inherit from RNNBeatProcessor?
-class MultiModelRNNBeatProcessor(SequentialProcessor):
-    """
-    Multi-model beat tracking with RNNs.
-
-    """
-    NN_FILES = RNNBeatProcessor.NN_FILES
-    NN_REF_FILES = None
-    FPS = RNNBeatProcessor.FPS
-
-    def __init__(self, nn_files=NN_FILES, nn_ref_files=NN_REF_FILES, fps=FPS,
-                 *args, **kwargs):
-        """
-        Use multiple RNNs to compute beat activation functions and then choose
-        the most appropriate one automatically by comparing them to a reference
-        model.
-
-        :param nn_files:    list of files that define the RNN
-        :param ref_nn_file: list of files that define the reference NN model
-
-        :param args:        additional arguments passed to DBNBeatTracking()
-        :param kwargs:      additional arguments passed to DBNBeatTracking()
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
-
-        """
-        self.nn_files = nn_files
-        self.nn_ref_files = nn_ref_files
-        print nn_files, nn_ref_files
-        # signal handling processor
-        sig = SignalProcessor(mono=True, *args, **kwargs)
-        # parallel specs + stacking processor
-        # TODO: this information should be stored in the nn_files
-        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
-                                          fps=fps, online=False, bands=3,
-                                          norm_filters=True, mul=1, add=1,
-                                          diff_ratio=0.5, *args, **kwargs)
-        # multiple RNN processor (without averaging the predictions)
-        if nn_ref_files is not None:
-            nn_files += nn_ref_files
-        rnn = RNNProcessor(nn_files=nn_files, average=False, *args, **kwargs)
-        # sequentially process everything
-        seq = [sig, stack, rnn, self.multi_model_selector]
-        super(MultiModelRNNBeatProcessor, self).__init__(seq)
-
-    def multi_model_selector(self, predictions):
-        """
-        Selects the most appropriate predictions form the list of predictions.
-
-        :param predictions: list with predictions (beat activation functions)
-        :return:            most suitable prediction
-
-        Note: the reference beat activation function must be given first
-
-        """
-        # get the reference predictions
-
-        if self.nn_ref_files is not None:
-            num_ref_files = len(self.nn_ref_files)
-        else:
-            num_ref_files = 0
-        # determine the reference prediction
-        if num_ref_files > 1:
-            # average the reference predictions
-            reference_prediction = (sum(predictions[:num_ref_files]) /
-                                    num_ref_files)
-        elif num_ref_files == 1:
-            # use the only given reference prediction
-            reference_prediction = predictions[0]
-        else:
-            # just average all predictions to simulate a reference network
-            reference_prediction = sum(predictions) / len(self.nn_files)
-        # init the error with the max. possible value (i.e. prediction length)
-        best_error = len(reference_prediction)
-        # init the best_prediction with an empty array
-        best_prediction = np.empty(0)
-        # compare the (remaining) predictions with the reference prediction
-        for prediction in predictions[num_ref_files:]:
-            # calculate the squared error w.r.t. the reference prediction
-            error = np.sum((prediction - reference_prediction) ** 2.)
-            # chose the best activation
-            if error < best_error:
-                best_prediction = prediction
-                best_error = error
-        # return the best prediction
-        return best_prediction.ravel()
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES,
-                      nn_ref_files=NN_REF_FILES, **kwargs):
-        """
-        Add MMBeatTracking related arguments to an existing parser object.
-
-        :param parser:       existing argparse parser object
-        :param nn_files:     list of files that define the RNN
-        :param nn_ref_files: list with files of reference NN model(s)
-        :param kwargs:       additional arguments passed to
-                             DBNBeatTracking.add_dbn_arguments()
-        :return:             Multi-model DBN beat tracking parser group object
-
-        """
-        # add signal processing arguments
-        SignalProcessor.add_arguments(parser, norm=False, att=0)
-        # add rnn processing arguments
-        g = RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        # add option for the reference files
-        g.add_argument('--nn_ref_files', action='append', type=str,
-                       default=nn_ref_files,
-                       help='Compare the predictions to these pre-trained '
-                            'neural networks (multiple files can be given, '
-                            'one file per argument) and choose the most '
-                            'suitable one accordingly (i.e. the one with the '
-                            'least deviation form the reference model). '
-                            'If multiple reference files are given, the '
-                            'predictions of the networks are averaged first.')
-        # return the argument group so it can be modified if needed
-        return g
-
-
-
+# classes for the detection of the beat inside a beat activation function
 class BeatTrackingProcessor(IOProcessor):
     """
     Class for tracking beats with a simple tempo estimation and beat aligning.
 
     """
     LOOK_ASIDE = 0.2
-    LOOK_AHEAD = 10
-    FPS = 100
+    LOOK_AHEAD = None
     # tempo defaults
     TEMPO_METHOD = 'comb'
     MIN_BPM = 40
@@ -284,8 +111,7 @@ class BeatTrackingProcessor(IOProcessor):
     HIST_SMOOTH = 7
     ALPHA = 0.79
 
-    def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=FPS,
-                 *args, **kwargs):
+    def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, **kwargs):
         """
         Track the beats according to the previously determined (global) tempo
         by simply aligning them around the estimated position.
@@ -305,7 +131,7 @@ class BeatTrackingProcessor(IOProcessor):
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         Sebastian Böck and Markus Schedl
         Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx-11), 2011
+        Effects (DAFx), 2011
 
         Instead of the auto-correlation based method for tempo estimation, it
         uses a comb filter per default. The behaviour can be controlled with
@@ -317,10 +143,10 @@ class BeatTrackingProcessor(IOProcessor):
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
-        self.fps = fps
+        # get fps from kwargs
+        self.fps = kwargs.get('fps', None)
         # tempo estimator
-        self.tempo_estimator = TempoEstimationProcessor(fps=fps, *args,
-                                                        **kwargs)
+        self.tempo_estimator = TempoEstimationProcessor(**kwargs)
 
     def detect(self, activations):
         """
@@ -421,20 +247,6 @@ class BeatTrackingProcessor(IOProcessor):
         # return the argument group so it can be modified if needed
         return g
 
-    @classmethod
-    def add_tempo_arguments(cls, parser):
-        """
-        Add tempo related arguments to an existing parser.
-
-        :param parser:      existing argparse parser
-        :return:            tempo argument parser group
-
-        """
-        group = TempoEstimationProcessor.add_arguments
-        return group(parser, method=cls.TEMPO_METHOD, min_bpm=cls.MIN_BPM,
-                     max_bpm=cls.MAX_BPM, act_smooth=cls.ACT_SMOOTH,
-                     hist_smooth=cls.HIST_SMOOTH, alpha=cls.ALPHA)
-
 
 # TODO: refactor the whole CRF Viterbi stuff as a .pyx class including the
 #       initial_distribution and all other functionality, but omit the factors,
@@ -475,7 +287,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS, *args,
+    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS,
                  **kwargs):
         """
         Track the beats according to the previously determined global tempo
@@ -492,12 +304,15 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         Retrieval Conference (ISMIR), 2014.
 
         """
-        super(CRFBeatDetectionProcessor, self).__init__(*args, **kwargs)
+        super(CRFBeatDetectionProcessor, self).__init__(**kwargs)
         # save variables
         self.interval_sigma = interval_sigma
         self.factors = factors
-        # if num_threads is set use it, otherwise set to None
+        # get fps and num_frames from kwargs
+        self.fps = kwargs.get('fps', None)
         self.num_threads = kwargs.get('num_threads', None)
+        # TODO: implement comb filter stuff and remove this...
+        self.tempo_estimator.method = 'acf'
 
     @staticmethod
     def initial_distribution(num_states, dominant_interval):
@@ -681,8 +496,7 @@ class DBNBeatTrackingProcessor(IOProcessor):
                  tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
                  min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, fps=None,
-                 num_threads=None, *args, **kwargs):
+                 norm_observations=NORM_OBSERVATIONS, **kwargs):
         """
         Track the beats with a dynamic Bayesian network.
 
@@ -726,8 +540,9 @@ class DBNBeatTrackingProcessor(IOProcessor):
         self.max_bpm = max_bpm
         self.observation_lambda = observation_lambda
         self.norm_observations = norm_observations
-        self.fps = fps
-        self.num_threads = num_threads
+        # get fps and num_frames from kwargs
+        self.fps = kwargs.get('fps', None)
+        self.num_threads = kwargs.get('num_threads', None)
 
     def detect(self, activations):
         """
@@ -767,13 +582,12 @@ class DBNBeatTrackingProcessor(IOProcessor):
         return dbn.beats / float(self.fps)
 
     @classmethod
-    def add_dbn_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
-                          num_tempo_states=NUM_TEMPO_STATES,
-                          min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                          tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                          observation_lambda=OBSERVATION_LAMBDA,
-                          norm_observations=NORM_OBSERVATIONS,
-                          correct=CORRECT):
+    def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
+                      num_tempo_states=NUM_TEMPO_STATES, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM,
+                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                      observation_lambda=OBSERVATION_LAMBDA,
+                      norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
         Add DBN related arguments to an existing parser object.
 
@@ -848,5 +662,259 @@ class DBNBeatTrackingProcessor(IOProcessor):
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalize the observations of the DBN')
+        # return the argument group so it can be modified if needed
+        return g
+
+
+class RNNBeatProcessor(IOProcessor):
+    """
+    Class for tracking beats with a recurrent neural network (RNN).
+
+    """
+    NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
+
+    def __init__(self, beat_method='dbn', nn_files=NN_FILES, **kwargs):
+        """
+        Use (multiple) RNNs to predict a beat activation function.
+
+        :param nn_files: list of RNN model files
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx), 2011
+
+        The individual beat tracking methods are described in the publications
+        mentioned in the respective methods.
+
+        """
+        # FIXME: remove this hack of setting fps here
+        kwargs['fps'] = 100
+        # input processor chain
+        sig = SignalProcessor(mono=True, **kwargs)
+
+        self.num_threads = kwargs.get('num_threads', None)
+        # TODO: this information should be stored in the nn_files
+        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
+                                          online=False, bands=3,
+                                          norm_filters=True, mul=1, add=1,
+                                          diff_ratio=0.5, **kwargs)
+        rnn = RNNProcessor(nn_files=nn_files, **kwargs)
+        in_processor = [sig, stack, rnn]
+        # output processor
+        self.method = getattr(self, beat_method)
+        # sequentially process everything
+        super(RNNBeatProcessor, self).__init__(in_processor, self.method)
+        self.nn_files = nn_files
+        self._kwargs = kwargs
+
+    # define the available trackers
+    def dbn(self, data, output):
+        """
+        Track the beats with a dynamic Bayesian network.
+
+        :param data:
+        :param output:
+        :return:
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2014
+
+        """
+        return DBNBeatTrackingProcessor(**self._kwargs).process(data, output)
+
+    def crf(self, data, output):
+        """
+        Track the beats with a conditional random field.
+
+        :param data:
+        :param output:
+        :return:
+
+        "Probabilistic extraction of beat positions from a beat activation
+         function"
+        Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
+        In Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2014.
+
+        """
+        return CRFBeatDetectionProcessor(**self._kwargs).process(data, output)
+
+    def detect(self, data, output):
+        """
+        Detect the beats by simply aligning them at positions corresponding to
+        peaks in the beat activation function with a previously determined
+        interval (i.e. global tempo).
+
+        :param data:
+        :param output:
+        :return:
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx), 2011
+
+        """
+        return BeatTrackingProcessor(**self._kwargs)(data, output)
+
+    def track(self, data, output):
+        """
+        Track the beats by simply aligning them at positions corresponding to
+        peaks in the beat activation function with a previously determined
+        interval (i.e. global tempo).
+
+        :param data:
+        :param output:
+        :return:
+
+        "Enhanced Beat Tracking with Context-Aware Neural Networks"
+        Sebastian Böck and Markus Schedl
+        Proceedings of the 14th International Conference on Digital Audio
+        Effects (DAFx), 2011
+
+        """
+        return BeatTrackingProcessor(**self._kwargs).process(data, output)
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES):
+        """
+        Add RNN beat tracking related arguments to an existing parser.
+
+        :param parser:   existing argparse parser
+        :param nn_files: list of RNN model files
+
+        """
+        # add signal processing arguments
+        SignalProcessor.add_arguments(parser, norm=False, att=0)
+        # add rnn processing arguments
+        RNNProcessor.add_arguments(parser, nn_files=nn_files)
+
+    # aliases for other argument parsers
+    add_tempo_arguments = TempoEstimationProcessor.add_arguments
+    add_detect_arguments = BeatTrackingProcessor.add_arguments
+    add_dbn_arguments = DBNBeatTrackingProcessor.add_arguments
+    add_crf_arguments = CRFBeatDetectionProcessor.add_arguments
+
+
+# TODO: should we inherit from RNNBeatProcessor?
+class MultiModelRNNBeatProcessor(IOProcessor):
+    """
+    Multi-model beat tracking with RNNs.
+
+    """
+    NN_FILES = RNNBeatProcessor.NN_FILES
+    NN_REF_FILES = None
+
+    def __init__(self, nn_files=NN_FILES, nn_ref_files=NN_REF_FILES, **kwargs):
+        """
+        Use multiple RNNs to compute beat activation functions and then choose
+        the most appropriate one automatically by comparing them to a reference
+        model.
+
+        :param nn_files:    list of files that define the RNN
+        :param ref_nn_file: list of files that define the reference NN model
+
+        :param args:        additional arguments passed to DBNBeatTracking()
+        :param kwargs:      additional arguments passed to DBNBeatTracking()
+
+        "A multi-model approach to beat tracking considering heterogeneous
+         music styles"
+        Sebastian Böck, Florian Krebs and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2014
+
+        """
+        self.nn_files = nn_files
+        self.nn_ref_files = nn_ref_files
+        # signal handling processor
+        sig = SignalProcessor(mono=True, **kwargs)
+        # parallel specs + stacking processor
+        # TODO: this information should be stored in the nn_files
+        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
+                                          online=False, bands=3,
+                                          norm_filters=True, mul=1, add=1,
+                                          diff_ratio=0.5, **kwargs)
+        # multiple RNN processor (without averaging the predictions)
+        if nn_ref_files is not None:
+            nn_files += nn_ref_files
+        rnn = RNNProcessor(nn_files=nn_files, average=False, **kwargs)
+        # sequentially process everything
+        seq = [sig, stack, rnn, self.multi_model_selector]
+        super(MultiModelRNNBeatProcessor, self).__init__(seq)
+
+    def multi_model_selector(self, predictions):
+        """
+        Selects the most appropriate predictions form the list of predictions.
+
+        :param predictions: list with predictions (beat activation functions)
+        :return:            most suitable prediction
+
+        Note: the reference beat activation function must be given first
+
+        """
+        # get the reference predictions
+
+        if self.nn_ref_files is not None:
+            num_ref_files = len(self.nn_ref_files)
+        else:
+            num_ref_files = 0
+        # determine the reference prediction
+        if num_ref_files > 1:
+            # average the reference predictions
+            reference_prediction = (sum(predictions[:num_ref_files]) /
+                                    num_ref_files)
+        elif num_ref_files == 1:
+            # use the only given reference prediction
+            reference_prediction = predictions[0]
+        else:
+            # just average all predictions to simulate a reference network
+            reference_prediction = sum(predictions) / len(self.nn_files)
+        # init the error with the max. possible value (i.e. prediction length)
+        best_error = len(reference_prediction)
+        # init the best_prediction with an empty array
+        best_prediction = np.empty(0)
+        # compare the (remaining) predictions with the reference prediction
+        for prediction in predictions[num_ref_files:]:
+            # calculate the squared error w.r.t. the reference prediction
+            error = np.sum((prediction - reference_prediction) ** 2.)
+            # chose the best activation
+            if error < best_error:
+                best_prediction = prediction
+                best_error = error
+        # return the best prediction
+        return best_prediction.ravel()
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files=NN_FILES,
+                      nn_ref_files=NN_REF_FILES, **kwargs):
+        """
+        Add MMBeatTracking related arguments to an existing parser object.
+
+        :param parser:       existing argparse parser object
+        :param nn_files:     list of files that define the RNN
+        :param nn_ref_files: list with files of reference NN model(s)
+        :param kwargs:       additional arguments passed to
+                             DBNBeatTracking.add_dbn_arguments()
+        :return:             Multi-model DBN beat tracking parser group object
+
+        """
+        # add signal processing arguments
+        SignalProcessor.add_arguments(parser, norm=False, att=0)
+        # add rnn processing arguments
+        g = RNNProcessor.add_arguments(parser, nn_files=nn_files)
+        # add option for the reference files
+        g.add_argument('--nn_ref_files', action='append', type=str,
+                       default=nn_ref_files,
+                       help='Compare the predictions to these pre-trained '
+                            'neural networks (multiple files can be given, '
+                            'one file per argument) and choose the most '
+                            'suitable one accordingly (i.e. the one with the '
+                            'least deviation form the reference model). '
+                            'If multiple reference files are given, the '
+                            'predictions of the networks are averaged first.')
         # return the argument group so it can be modified if needed
         return g

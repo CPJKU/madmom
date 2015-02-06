@@ -465,6 +465,8 @@ cdef class DynamicBayesianNetwork(object):
 
         """
         # save number of threads
+        if num_threads is None:
+            num_threads = NUM_THREADS
         self.num_threads = num_threads
         # transition model
         if isinstance(transition_model, TransitionModel):

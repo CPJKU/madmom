@@ -5,10 +5,9 @@
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor, CRFBeatDetectionProcessor
+from madmom.features.beats import RNNBeatProcessor
 
 
 def parser():
@@ -31,16 +30,17 @@ def parser():
      function"
     Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
     In Proceedings of the 15th International Society for Music Information
-    Retrieval Conference (ISMIR 2014), 2014.
+    Retrieval Conference (ISMIR), 2014.
 
     ''')
-
     # add arguments
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
     RNNBeatProcessor.add_arguments(p)
-    CRFBeatDetectionProcessor.add_tempo_arguments(p)
-    CRFBeatDetectionProcessor.add_arguments(p)
+    RNNBeatProcessor.add_tempo_arguments(p, min_bpm=20, max_bpm=240,
+                                         act_smooth=0.09, hist_smooth=7,
+                                         tempo_method=None, alpha=None)
+    RNNBeatProcessor.add_crf_arguments(p)
     # version
     p.add_argument('--version', action='version', version='CRFBeatDetector')
     # parse arguments
@@ -57,22 +57,17 @@ def main():
 
     # parse arguments
     args = parser()
-    args.fps = 100
 
-    # load or create beat activations
+    # create an processor
+    processor = RNNBeatProcessor(beat_method='crf', **vars(args))
+    # swap in/out processors if needed
     if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = RNNBeatProcessor(**vars(args))
-
-    # save beat activations or detect beats
+        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
     if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = CRFBeatDetectionProcessor(**vars(args))
+        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
 
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+    processor.process(args.input, args.output)
 
 if __name__ == "__main__":
     main()

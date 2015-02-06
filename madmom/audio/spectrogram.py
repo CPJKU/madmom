@@ -217,7 +217,7 @@ class Spectrogram(object):
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  duplicate_filters=DUPLICATE_FILTERS, log=False, mul=1, add=0,
                  diff_ratio=0.5, diff_frames=None, diff_max_bins=1,
-                 positive_diff=True, *args, **kwargs):
+                 positive_diff=True, **kwargs):
         """
         Creates a new Spectrogram instance of the given audio.
 
@@ -288,7 +288,7 @@ class Spectrogram(object):
             self.frames = frames
         else:
             # try to instantiate a FramedSignal object
-            self.frames = FramedSignal(frames, *args, **kwargs)
+            self.frames = FramedSignal(frames, **kwargs)
 
         # FFT parameters
 
@@ -557,7 +557,7 @@ class SpectrogramProcessor(Processor):
     def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
                  add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
-                 diff_max_bins=DIFF_MAX_BINS, *args, **kwargs):
+                 diff_max_bins=DIFF_MAX_BINS, **kwargs):
         """
         Creates a new SpectrogramProcessor instance.
 
@@ -648,8 +648,8 @@ class SpectrogramProcessor(Processor):
         #     # return only the spec
         #     return data.spec
 
-    @staticmethod
-    def add_fft_arguments(parser, window=None, norm_window=None,
+    @classmethod
+    def add_fft_arguments(cls, parser, window=None, norm_window=None,
                           fft_size=None):
         """
         Add spectrogram related arguments to an existing parser.
@@ -686,8 +686,8 @@ class SpectrogramProcessor(Processor):
         # return the group
         return g
 
-    @staticmethod
-    def add_filter_arguments(parser, filterbank=FILTERBANK, bands=BANDS,
+    @classmethod
+    def add_filter_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
                              fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS):
         """
         Add spectrogram filtering related arguments to an existing parser.
@@ -748,8 +748,8 @@ class SpectrogramProcessor(Processor):
         # return the group
         return g
 
-    @staticmethod
-    def add_log_arguments(parser, log=None, mul=None, add=None):
+    @classmethod
+    def add_log_arguments(cls, parser, log=None, mul=None, add=None):
         """
         Add logarithmic spectrogram scaling related arguments to an existing
         parser.
@@ -790,8 +790,8 @@ class SpectrogramProcessor(Processor):
         # return the groups
         return g
 
-    @staticmethod
-    def add_diff_arguments(parser, diff=None, diff_ratio=None,
+    @classmethod
+    def add_diff_arguments(cls, parser, diff=None, diff_ratio=None,
                            diff_frames=None, diff_max_bins=None):
         """
         Add spectrogram difference related arguments to an existing parser.
@@ -956,7 +956,7 @@ class StackSpectrogramProcessor(Processor):
 
     """
     def __init__(self, frame_sizes, online, fps, bands, norm_filters, mul, add,
-                 diff_ratio, *args, **kwargs):
+                 diff_ratio, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 

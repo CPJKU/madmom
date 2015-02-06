@@ -5,10 +5,9 @@
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
+from madmom.features.beats import RNNBeatProcessor
 
 
 def parser():
@@ -31,7 +30,7 @@ def parser():
      styles"
     Sebastian Böck, Florian Krebs and Gerhard Widmer
     Proceedings of the 15th International Society for Music Information
-    Retrieval Conference (ISMIR 2014), 2014.
+    Retrieval Conference (ISMIR), 2014.
 
     It does not use the multi-model (Section 2.2.) and selection stage (Section
     2.3), i.e. this version corresponds to the pure DBN version of the
@@ -43,7 +42,7 @@ def parser():
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
     RNNBeatProcessor.add_arguments(p)
-    DBNBeatTrackingProcessor.add_dbn_arguments(p)
+    RNNBeatProcessor.add_dbn_arguments(p)
     # version
     p.add_argument('--version', action='version', version='DBNBeatTracker')
     # parse arguments
@@ -60,23 +59,17 @@ def main():
 
     # parse arguments
     args = parser()
-    args.fps = 100
 
-    # load or create beat activations
+    # create an processor
+    processor = RNNBeatProcessor(beat_method='dbn', **vars(args))
+    # swap in/out processors if needed
     if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = RNNBeatProcessor(**vars(args))
-
-    # save beat activations or detect beats
+        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
     if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = DBNBeatTrackingProcessor(**vars(args))
+        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
 
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
-
+    processor.process(args.input, args.output)
 
 
 if __name__ == '__main__':

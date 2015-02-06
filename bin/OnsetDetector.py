@@ -5,10 +5,9 @@
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import RNNOnsetProcessor, OnsetDetectionProcessor
+from madmom.features.onsets import RNNOnsetProcessor
 
 
 def parser():
@@ -31,7 +30,6 @@ def parser():
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
     RNNOnsetProcessor.add_arguments(p)
-    OnsetDetectionProcessor.add_arguments(p, threshold=0.35, smooth=0.07)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -48,22 +46,17 @@ def main():
 
     # parse arguments
     args = parser()
-    args.fps = 100
 
-    # load or create beat activations
+    # create an processor
+    processor = RNNOnsetProcessor(**vars(args))
+    # swap in/out processors if needed
     if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = RNNOnsetProcessor(**vars(args))
-
-    # save beat activations or detect beats
+        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
     if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = OnsetDetectionProcessor(**vars(args))
+        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
 
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+    processor.process(args.input, args.output)
 
 
 if __name__ == '__main__':
