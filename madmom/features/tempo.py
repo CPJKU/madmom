@@ -12,6 +12,7 @@ from scipy.signal import argrelmax
 
 from madmom import IOProcessor
 from madmom.audio.signal import smooth as smooth_signal
+from madmom.features.beats import RNNBeatProcessor
 
 
 NO_TEMPO = np.nan
@@ -179,17 +180,9 @@ def write_tempo(tempi, filename, mirex=False):
 
 
 # wrapper function to be used as output of TempoEstimationProcessor
-def write_tempo_mirex(tempi, filename):
-    """
-    Write the most dominant tempi and the relative strength to a file.
-    Report the lower tempo first (as required by MIREX).
-
-    :param tempi:     tempi present
-    :param filename:  output file name or file handle
-    :return:          the most dominant tempi and the relative strength
-
-    """
-    return write_tempo(tempi, filename, mirex=True)
+from functools import partial
+write_tempo_mirex = partial(write_tempo, mirex=True)
+write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
 
 
 # tempo estimation processor class
@@ -208,7 +201,7 @@ class TempoEstimationProcessor(IOProcessor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 fps=None, mirex=False, *args, **kwargs):
+                 mirex=False, **kwargs):
         """
         Estimates the tempo of the signal.
 
@@ -220,10 +213,13 @@ class TempoEstimationProcessor(IOProcessor):
         :param alpha:       scaling factor for the comb filter
 
         """
+        # input processing chain
+        rnn = RNNBeatProcessor(**kwargs)
         # how should we output the tempo?
-        output = write_tempo_mirex if mirex else write_tempo
+        tempo_writer = write_tempo_mirex if mirex else write_tempo
         # make this an IOProcessor by defining input and output processings
-        super(TempoEstimationProcessor, self).__init__(self.detect, output)
+        super(TempoEstimationProcessor, self).__init__([rnn, self.detect],
+                                                       tempo_writer)
         # save variables
         self.method = method
         self.min_bpm = min_bpm
@@ -231,7 +227,7 @@ class TempoEstimationProcessor(IOProcessor):
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
         self.alpha = alpha
-        self.fps = fps
+        self.fps = rnn.fps
 
     @property
     def min_interval(self):

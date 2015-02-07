@@ -5,10 +5,8 @@
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor
 from madmom.features.tempo import TempoEstimationProcessor
 
 
@@ -39,7 +37,6 @@ def parser():
     # add arguments
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
-    RNNBeatProcessor.add_arguments(p)
     TempoEstimationProcessor.add_arguments(p)
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
@@ -60,22 +57,18 @@ def main():
 
     # parse arguments
     args = parser()
-    args.fps = 100
 
-    # load or create beat activations
+    # create an processor
+    processor = TempoEstimationProcessor(**vars(args))
+    # swap in/out processors if needed
     if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = RNNBeatProcessor(**vars(args))
-
-    # save beat activations or detect beats
+        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
     if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = TempoEstimationProcessor(**vars(args))
+        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
 
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+    processor.process(args.input, args.output)
+
 
 if __name__ == '__main__':
     main()

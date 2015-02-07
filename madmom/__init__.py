@@ -76,9 +76,9 @@ class Processor(object):
         """
         return data
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args):
         """This magic method makes an instance callable."""
-        return self.process(*args, **kwargs)
+        return self.process(*args)
 
 
 class OutputProcessor(Processor):
@@ -104,8 +104,10 @@ class OutputProcessor(Processor):
 def _process(process_tuple):
     """
     Function to process a Processor object (first tuple item) with the given
-    data (second tuple item). Instead of a Processor also a function accepting
-    a single argument (data) and returning the processed data can be given.
+    data (second tuple item).
+
+    Instead of a Processor also a function accepting a single positional
+    argument (data) and returning the processed data can be given.
 
     :param process_tuple: tuple (Processor/function, data)
     :return:              processed data
@@ -113,13 +115,8 @@ def _process(process_tuple):
     Note: This must be a top-level function to be pickle-able.
 
     """
-    # process depending whether it is a Processor or a simple function
-    if isinstance(process_tuple[0], Processor):
-        # call the process method
-        return process_tuple[0].process(process_tuple[1])
-    else:
-        # simply call the function
-        return process_tuple[0](process_tuple[1])
+    # just call whatever we got here, since every Processor is callable
+    return process_tuple[0](process_tuple[1])
 
 
 class SequentialProcessor(Processor):

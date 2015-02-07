@@ -7,7 +7,7 @@
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor
+from madmom.features.beats import CRFBeatDetectionProcessor
 
 
 def parser():
@@ -36,11 +36,8 @@ def parser():
     # add arguments
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
-    RNNBeatProcessor.add_arguments(p)
-    RNNBeatProcessor.add_tempo_arguments(p, min_bpm=20, max_bpm=240,
-                                         act_smooth=0.09, hist_smooth=7,
-                                         tempo_method=None, alpha=None)
-    RNNBeatProcessor.add_crf_arguments(p)
+    CRFBeatDetectionProcessor.add_tempo_arguments(p)
+    CRFBeatDetectionProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='CRFBeatDetector')
     # parse arguments
@@ -59,7 +56,7 @@ def main():
     args = parser()
 
     # create an processor
-    processor = RNNBeatProcessor(beat_method='crf', **vars(args))
+    processor = CRFBeatDetectionProcessor(**vars(args))
     # swap in/out processors if needed
     if args.load:
         processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
