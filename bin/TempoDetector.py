@@ -7,7 +7,7 @@
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.tempo import TempoEstimationProcessor
+from madmom.features.tempo import RNNTempoEstimation, TempoEstimation
 
 
 def parser():
@@ -37,7 +37,7 @@ def parser():
     # add arguments
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
-    TempoEstimationProcessor.add_arguments(p)
+    TempoEstimation.add_arguments(p)
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
                    help='use the MIREX output format (lower tempo first)')
@@ -59,13 +59,7 @@ def main():
     args = parser()
 
     # create an processor
-    processor = TempoEstimationProcessor(**vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
+    processor = RNNTempoEstimation(**vars(args))
     # process everything
     processor.process(args.input, args.output)
 

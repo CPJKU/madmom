@@ -5,11 +5,8 @@
 
 """
 
-from madmom import IOProcessor
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import (MultiModelRNNBeatProcessor,
-                                   DBNBeatTrackingProcessor)
+from madmom.features.beats import RNNBeatTracking, DBNBeatTracking
 
 
 def parser():
@@ -38,9 +35,9 @@ def parser():
 
     # add arguments
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
-    MultiModelRNNBeatProcessor.add_arguments(p)
-    DBNBeatTrackingProcessor.add_dbn_arguments(p)
+    RNNBeatTracking.add_activation_arguments(p)
+    RNNBeatTracking.add_rnn_arguments(p)
+    DBNBeatTracking.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # parse arguments
@@ -57,22 +54,11 @@ def main():
 
     # parse arguments
     args = parser()
-    args.fps = 100
-
-    # load or create beat activations
-    if args.load:
-        in_processor = ActivationsProcessor(mode='r', **vars(args))
-    else:
-        in_processor = MultiModelRNNBeatProcessor(**vars(args))
-
-    # save beat activations or detect beats
-    if args.save:
-        out_processor = ActivationsProcessor(mode='w', **vars(args))
-    else:
-        out_processor = DBNBeatTrackingProcessor(**vars(args))
-
+    # create an processor
+    processor = RNNBeatTracking(beat_method='DBNBeatTracking',
+                                multi_model=True, **vars(args))
     # process everything
-    IOProcessor(in_processor, out_processor).process(args.input, args.output)
+    processor.process(args.input, args.output)
 
 if __name__ == '__main__':
     main()

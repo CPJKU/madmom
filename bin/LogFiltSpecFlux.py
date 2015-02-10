@@ -9,7 +9,7 @@ LogFiltSpecFlux onset detection algorithm.
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import SpectralOnsetProcessor as LogFiltSpecFlux
+from madmom.features.onsets import SpectralOnsetDetection as LogFiltSpecFlux
 
 
 def parser():
@@ -69,7 +69,7 @@ def main():
     args = parser()
 
     # create an processor
-    processor = LogFiltSpecFlux(onset_method='sf', **vars(args))
+    processor = LogFiltSpecFlux(onset_method='spectral_flux', **vars(args))
     # swap in/out processors if needed
     if args.load:
         processor.in_processor = ActivationsProcessor(mode='r', **vars(args))

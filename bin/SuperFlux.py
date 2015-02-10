@@ -9,7 +9,7 @@ SuperFlux onset detection algorithm.
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import SpectralOnsetProcessor as SuperFlux
+from madmom.features.onsets import SpectralOnsetDetection as SuperFlux
 
 
 def parser():
@@ -68,12 +68,6 @@ def main():
 
     # create an processor
     processor = SuperFlux(**vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
     # process everything
     processor.process(args.input, args.output)
 

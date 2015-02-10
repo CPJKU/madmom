@@ -17,8 +17,7 @@ Please see the README for further details of this module.
 import os
 import abc
 
-from madmom.utils import open
-
+# from madmom.utils import open
 
 MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
 
@@ -45,7 +44,7 @@ class Processor(object):
         """
         import cPickle
         # instantiate a new object and return it
-        return cPickle.load(open(infile))
+        return cPickle.load(open(infile, 'rb'))
 
     def save(self, outfile):
         """
@@ -59,8 +58,12 @@ class Processor(object):
 
         """
         import cPickle
-        # save the Processor object to a file
-        cPickle.dump(self, open(outfile, 'rw'))
+        # close the file if needed and use its name
+        if not isinstance(outfile, basestring):
+            outfile.close()
+            outfile = outfile.name
+        cPickle.dump(self, open(outfile, 'wb'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
 
     @abc.abstractmethod
     def process(self, data):
@@ -76,9 +79,9 @@ class Processor(object):
         """
         return data
 
-    def __call__(self, *args):
-        """This magic method makes an instance callable."""
-        return self.process(*args)
+    # def __call__(self, *args):
+    #     """This magic method makes an instance callable."""
+    #     return self.process(*args)
 
 
 class OutputProcessor(Processor):
@@ -116,7 +119,15 @@ def _process(process_tuple):
 
     """
     # just call whatever we got here, since every Processor is callable
-    return process_tuple[0](process_tuple[1])
+    if process_tuple[0] is None:
+        # return the data unaltered
+        return process_tuple[1]
+    elif isinstance(process_tuple[0], Processor):
+        # call the process function
+        return process_tuple[0].process(process_tuple[1])
+    else:
+        # just call the function
+        return process_tuple[0](process_tuple[1])
 
 
 class SequentialProcessor(Processor):
@@ -244,10 +255,16 @@ class ParallelProcessor(SequentialProcessor):
         return g
 
 
-class IOProcessor(Processor):
+class IOProcessor(OutputProcessor):
     """
     Input/Output Processor which processes the input data with the input
     Processor and feeds everything into the given output Processor.
+
+    The output Processor is the only one ever called with two arguments
+    (data, output).
+
+    All Processors defined in the input chain are sequentially called with
+    only the data argument.
 
     """
 
@@ -266,13 +283,28 @@ class IOProcessor(Processor):
               accepting two arguments (data, output)
 
         """
+        # TODO: check the input and output processors!?
+        #       as input a Processor, SequentialProcessor, ParallelProcessor
+        #       or a function with only one argument should be accepted
+        #       as output a OutputProcessor, IOProcessor or function with two
+        #       arguments should be accepted
+        # wrap the input processor in a SequentialProcessor is needed
         if isinstance(in_processor, list):
             self.in_processor = SequentialProcessor(in_processor)
         else:
             self.in_processor = in_processor
-        self.out_processor = out_processor
+        # wrap the output processor in an IOProcessor is needed
+        if isinstance(out_processor, list):
+            if len(out_processor) >= 2:
+                # use the last processor as output and all others as input
+                self.out_processor = IOProcessor(out_processor[:-1],
+                                                 out_processor[-1])
+            if len(out_processor) == 1:
+                self.out_processor = out_processor[0]
+        else:
+            self.out_processor = out_processor
 
-    def process(self, data, output):
+    def process(self, data, output=None):
         """
         Processes the data with the input Processor and outputs everything into
         the output Processor.
@@ -285,7 +317,8 @@ class IOProcessor(Processor):
         """
         # process the data by the input processor
         data = _process((self.in_processor, data))
-        # process it with the output Processor and return it
+        # TODO: unify this with _process!?
+        # further process it with the output Processor and return it
         if self.out_processor is None:
             # no processing needed, just return the data
             return data

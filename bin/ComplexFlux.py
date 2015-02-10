@@ -9,7 +9,7 @@ ComplexFlux onset detection algorithm.
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import SpectralOnsetProcessor as ComlpexFlux
+from madmom.features.onsets import SpectralOnsetDetection as ComlpexFlux
 
 
 def parser():
@@ -69,12 +69,6 @@ def main():
 
     # create an processor
     processor = ComlpexFlux(onset_method='complex_flux', **vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
     # process everything
     processor.process(args.input, args.output)
 

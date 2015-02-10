@@ -7,7 +7,7 @@
 
 from madmom.utils import io_arguments
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import RNNOnsetProcessor
+from madmom.features.onsets import RNNOnsetDetection
 
 
 def parser():
@@ -29,7 +29,7 @@ def parser():
     # input/output options
     io_arguments(p)
     ActivationsProcessor.add_arguments(p)
-    RNNOnsetProcessor.add_arguments(p)
+    RNNOnsetDetection.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
@@ -48,13 +48,7 @@ def main():
     args = parser()
 
     # create an processor
-    processor = RNNOnsetProcessor(**vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
+    processor = RNNOnsetDetection(**vars(args))
     # process everything
     processor.process(args.input, args.output)
 

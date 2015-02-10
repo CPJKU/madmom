@@ -6,8 +6,7 @@
 """
 
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import BeatTrackingProcessor
+from madmom.features.beats import RNNBeatTracking, BeatDetection
 
 
 def parser():
@@ -38,9 +37,10 @@ def parser():
 
     # add arguments
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
-    BeatTrackingProcessor.add_tempo_arguments(p)
-    BeatTrackingProcessor.add_arguments(p, look_ahead=None)
+    RNNBeatTracking.add_activation_arguments(p)
+    RNNBeatTracking.add_rnn_arguments(p)
+    BeatDetection.add_tempo_arguments(p)
+    BeatDetection.add_arguments(p, look_ahead=None)
     # version
     p.add_argument('--version', action='version', version='BeatDetector.2014')
     # parse arguments
@@ -59,13 +59,7 @@ def main():
     args = parser()
 
     # create an processor
-    processor = BeatTrackingProcessor(**vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
+    processor = RNNBeatTracking(beat_method='BeatDetection', **vars(args))
     # process everything
     processor.process(args.input, args.output)
 

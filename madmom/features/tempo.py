@@ -10,9 +10,10 @@ This file contains tempo related functionality.
 import numpy as np
 from scipy.signal import argrelmax
 
-from madmom import IOProcessor
+from madmom import Processor, IOProcessor
 from madmom.audio.signal import smooth as smooth_signal
-from madmom.features.beats import RNNBeatProcessor
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessing
 
 
 NO_TEMPO = np.nan
@@ -143,50 +144,8 @@ def detect_tempo(histogram, fps):
         return np.asarray(zip(tempi[sorted_peaks], strengths))
 
 
-# helper function for writing the detected tempi to file
-def write_tempo(tempi, filename, mirex=False):
-    """
-    Write the most dominant tempi and the relative strength to a file.
-
-    :param tempi:     tempi present
-    :param filename:  output file name or file handle
-    :param mirex:     report the lower tempo first (as required by MIREX)
-    :return:          the most dominant tempi and the relative strength
-
-    """
-    from madmom.utils import open
-    # default values
-    t1, t2, strength = 0., 0., 1.
-    # only one tempo was detected
-    if len(tempi) == 1:
-        t1 = tempi[0][0]
-        # generate a fake second tempo
-        if t1 > 120:
-            t2 = t1 / 2.
-        else:
-            t2 = t1 * 2.
-    # consider only the two strongest tempi and strengths
-    elif len(tempi) > 1:
-        t1, t2 = tempi[:2, 0]
-        strength = tempi[0, 1] / sum(tempi[:2, 1])
-    # for MIREX, the lower tempo must be given first
-    if mirex and t1 > t2:
-        t1, t2, strength = t2, t1, 1. - strength
-    # write to output
-    with open(filename, 'wb') as f:
-        f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
-    # also return the tempi & strength
-    return t1, t2, strength
-
-
-# wrapper function to be used as output of TempoEstimationProcessor
-from functools import partial
-write_tempo_mirex = partial(write_tempo, mirex=True)
-write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
-
-
 # tempo estimation processor class
-class TempoEstimationProcessor(IOProcessor):
+class TempoEstimation(Processor):
     """
     Tempo Estimation Processor class.
 
@@ -201,7 +160,7 @@ class TempoEstimationProcessor(IOProcessor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 mirex=False, **kwargs):
+                 fps=None, **kwargs):
         """
         Estimates the tempo of the signal.
 
@@ -213,13 +172,6 @@ class TempoEstimationProcessor(IOProcessor):
         :param alpha:       scaling factor for the comb filter
 
         """
-        # input processing chain
-        rnn = RNNBeatProcessor(**kwargs)
-        # how should we output the tempo?
-        tempo_writer = write_tempo_mirex if mirex else write_tempo
-        # make this an IOProcessor by defining input and output processings
-        super(TempoEstimationProcessor, self).__init__([rnn, self.detect],
-                                                       tempo_writer)
         # save variables
         self.method = method
         self.min_bpm = min_bpm
@@ -227,7 +179,7 @@ class TempoEstimationProcessor(IOProcessor):
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
         self.alpha = alpha
-        self.fps = rnn.fps
+        self.fps = fps
 
     @property
     def min_interval(self):
@@ -239,7 +191,7 @@ class TempoEstimationProcessor(IOProcessor):
         """Maximum beat interval [frames]."""
         return int(np.ceil(60. * self.fps / self.min_bpm))
 
-    def detect(self, activations):
+    def process(self, activations):
         """
         Detect the tempi from the beat activations.
 
@@ -336,3 +288,79 @@ class TempoEstimationProcessor(IOProcessor):
                                 '[default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g
+
+
+# helper function for writing the detected tempi to file
+def write_tempo(tempi, filename, mirex=False):
+    """
+    Write the most dominant tempi and the relative strength to a file.
+
+    :param tempi:     tempi present
+    :param filename:  output file name or file handle
+    :param mirex:     report the lower tempo first (as required by MIREX)
+    :return:          the most dominant tempi and the relative strength
+
+    """
+    from madmom.utils import open
+    # default values
+    t1, t2, strength = 0., 0., 1.
+    # only one tempo was detected
+    if len(tempi) == 1:
+        t1 = tempi[0][0]
+        # generate a fake second tempo
+        if t1 > 120:
+            t2 = t1 / 2.
+        else:
+            t2 = t1 * 2.
+    # consider only the two strongest tempi and strengths
+    elif len(tempi) > 1:
+        t1, t2 = tempi[:2, 0]
+        strength = tempi[0, 1] / sum(tempi[:2, 1])
+    # for MIREX, the lower tempo must be given first
+    if mirex and t1 > t2:
+        t1, t2, strength = t2, t1, 1. - strength
+    # write to output
+    with open(filename, 'wb') as f:
+        f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
+    # also return the tempi & strength
+    return t1, t2, strength
+
+
+# wrapper function to be used as output of TempoEstimation
+from functools import partial
+write_tempo_mirex = partial(write_tempo, mirex=True)
+write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
+
+
+# RNN tempo estimation processor class
+class RNNTempoEstimation(IOProcessor):
+    """
+    Tempo Estimation Processor class.
+
+    """
+    def __init__(self, mirex=False, load=False, save=False, **kwargs):
+        """
+        Estimates the tempo of the signal.
+
+        :param mirex:
+        :param load:
+        :param save:
+
+        """
+        # input processing
+        in_processor = RNNBeatProcessing(**kwargs)
+        # TODO: this is super hackish, split RNNBeatTracking in RNN & writing
+        #       parts!
+        in_processor.out_processor = None
+        self.fps = kwargs['fps'] = in_processor.fps
+        # output processor
+        writer = write_tempo_mirex if mirex else write_tempo
+        out_processor = [TempoEstimation(**kwargs), writer]
+        # swap in/out processors if needed
+        if load:
+            in_processor = ActivationsProcessor(mode='r', **kwargs)
+        if save:
+            out_processor = ActivationsProcessor(mode='w', **kwargs)
+        # make this an IOProcessor by defining input and output processors
+        super(RNNTempoEstimation, self).__init__(in_processor, out_processor)
+
