@@ -19,7 +19,7 @@ from ..ml.rnn import RNNProcessor, average_predictions
 from ..audio.signal import (SignalProcessor, FramedSignalProcessor,
                             smooth as smooth_signal)
 from ..audio.spectrogram import SpectrogramProcessor, StackSpectrogramProcessor
-from ..features import ActivationsProcessor
+from . import ActivationsProcessor
 
 EPSILON = 1e-6
 
@@ -184,22 +184,52 @@ class PeakPicking(Processor):
         # detect the peaks (function returns int indices)
         detections = peak_picking(activations, self.threshold, smooth,
                                   pre_avg, post_avg, pre_max, post_max)
-        # TODO: make this multi-dim!
-        # convert detections to a list of timestamps
-        detections = detections.astype(np.float) / self.fps
-        # shift if necessary
-        if self.delay != 0:
-            detections += self.delay
-        # always use the first detection and all others if none was reported
-        # within the last `combine` seconds
-        if detections.size > 1:
-            # filter all detections which occur within `combine` seconds
-            combined_detections = detections[1:][np.diff(detections) >
-                                                 self.combine]
-            # add them after the first detection
-            detections = np.append(detections[0], combined_detections)
+
+        if isinstance(detections, tuple):
+            # 2D detections (i.e. notes)
+            onsets = detections[0].astype(np.float) / self.fps
+            midi_notes = detections[1] + 21
+            # shift if necessary
+            if self.delay != 0:
+                onsets += self.delay
+            # combine multiple notes
+            if self.combine > 0:
+                detections = []
+                # iterate over each detected note separately
+                for note in np.unique(midi_notes):
+                    # get all note detections
+                    note_onsets = onsets[midi_notes == note]
+                    # always use the first note
+                    detections.append((note_onsets[0], note))
+                    # filter all notes which occur within `combine` seconds
+                    combined_note_onsets = note_onsets[1:][
+                        np.diff(note_onsets) > self.combine]
+                    # zip the onsets with the MIDI note number and add them to
+                    # the list of detections2
+                    detections.extend(zip(combined_note_onsets,
+                                          [note] * len(combined_note_onsets)))
+            else:
+                # just zip all detected notes
+                detections = zip(onsets, midi_notes)
+            # sort the detections and save as numpy array
+            detections = np.asarray(sorted(detections))
         else:
-            detections = detections
+            # 1D detections (i.e. onsets)
+            # convert detections to a list of timestamps
+            detections = detections.astype(np.float) / self.fps
+            # shift if necessary
+            if self.delay != 0:
+                detections += self.delay
+            # always use the first detection and all others if none was reported
+            # within the last `combine` seconds
+            if detections.size > 1:
+                # filter all detections which occur within `combine` seconds
+                combined_detections = detections[1:][np.diff(detections) >
+                                                     self.combine]
+                # add them after the first detection
+                detections = np.append(detections[0], combined_detections)
+            else:
+                detections = detections
         # return the detections
         return detections
 
@@ -771,6 +801,7 @@ class SpectralOnsetDetection(IOProcessor):
         return g
 
     # add aliases to other argument parsers
+    add_activations_arguments = ActivationsProcessor.add_arguments
     add_signal_arguments = SignalProcessor.add_arguments
     add_framing_arguments = FramedSignalProcessor.add_arguments
     add_filter_arguments = SpectrogramProcessor.add_filter_arguments
@@ -846,13 +877,14 @@ class RNNOnsetDetection(IOProcessor):
         else:
             nn_files = cls.BI_FILES
             norm = False
+        # add activations arguments
+        ActivationsProcessor.add_arguments(parser)
         # add signal processing arguments
         SignalProcessor.add_arguments(parser, norm=norm, att=0)
         # add rnn processing arguments
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
         # add peak picking arguments
-        PeakPicking.add_arguments(parser, threshold=threshold,
-                                           smooth=smooth)
+        PeakPicking.add_arguments(parser, threshold=threshold, smooth=smooth)
 
 
 def parser():

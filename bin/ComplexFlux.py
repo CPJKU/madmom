@@ -8,7 +8,6 @@ ComplexFlux onset detection algorithm.
 """
 
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetDetection as ComlpexFlux
 
 
@@ -37,7 +36,7 @@ def parser():
     ''')
     # input/output options
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
+    ComlpexFlux.add_activations_arguments(p)
     ComlpexFlux.add_signal_arguments(p, norm=False, att=0)
     ComlpexFlux.add_framing_arguments(p, fps=200, online=False)
     ComlpexFlux.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,

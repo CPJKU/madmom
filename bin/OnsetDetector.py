@@ -6,7 +6,6 @@
 """
 
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.features.onsets import RNNOnsetDetection
 
 
@@ -28,7 +27,6 @@ def parser():
 
     # input/output options
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
     RNNOnsetDetection.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')

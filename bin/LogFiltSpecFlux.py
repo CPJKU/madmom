@@ -36,7 +36,7 @@ def parser():
     ''')
     # add arguments
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
+    LogFiltSpecFlux.add_activations_arguments(p)
     LogFiltSpecFlux.add_signal_arguments(p, norm=False, att=0)
     LogFiltSpecFlux.add_framing_arguments(p, fps=100, online=False)
     LogFiltSpecFlux.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,

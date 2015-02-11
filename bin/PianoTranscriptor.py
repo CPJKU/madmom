@@ -5,9 +5,8 @@
 
 """
 
-from madmom.audio.signal import Signal
 from madmom.features.notes import RNNNoteTranscription
-import madmom.utils.midi as midi
+from madmom.utils import io_arguments
 
 
 def parser():
@@ -18,7 +17,6 @@ def parser():
 
     """
     import argparse
-    import madmom.utils
 
     # define parser
     p = argparse.ArgumentParser(
@@ -33,16 +31,16 @@ def parser():
 
     ''')
     # input/output options
-    madmom.utils.io_arguments(p)
-    # signal arguments
-    Signal.add_arguments(p, norm=False)
-    # rnn note transcription arguments
+    io_arguments(p)
     RNNNoteTranscription.add_arguments(p)
     # midi arguments
-    midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
+    # import madmom.utils.midi as midi
+    # midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
+    p.add_argument('--midi', dest='output_format', action='store_const',
+                   const='midi', help='save as MIDI')
     # mirex stuff
-    p.add_argument('--mirex', action='store_true', default=False,
-                   help='use the MIREX output format')
+    p.add_argument('--mirex', dest='output_format', action='store_const',
+                   const='mirex', help='use the MIREX output format')
     # version
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
@@ -61,49 +59,11 @@ def main():
     # parse arguments
     args = parser()
 
-    # load or create onset activations
-    if args.load:
-        # load activations
-        n = RNNNoteTranscription.from_activations(args.input, fps=100)
-    else:
-        # exit if no NN files are given
-        if not args.nn_files:
-            raise SystemExit('no NN model(s) given')
+    # create an processor
+    processor = RNNNoteTranscription(**vars(args))
+    # process everything
+    processor.process(args.input, args.output)
 
-        # create a Signal object
-        s = Signal(args.input, mono=True, norm=args.norm, att=args.att)
-        # create a RNNBeatDetection object from the signal and given NN files
-        n = RNNNoteTranscription(s, nn_files=args.nn_files,
-                                 num_threads=args.num_threads)
-
-    # save note activations or detect the notes
-    if args.save:
-        # save activations
-        n.activations.save(args.output)
-    else:
-        # write the notes to output
-        if args.midi:
-            import numpy as np
-            # expand the array to have a length and velocity
-            notes = np.hstack((n.detections, np.ones_like(n.detections)))
-            # set dummy offset
-            notes[:, 2] = notes[:, 0] + args.note_length
-            # set dummy velocity
-            notes[:, 3] *= args.note_velocity
-            m = midi.MIDIFile(notes)
-            m.write(args.output)
-        elif args.mirex:
-            from madmom.audio.filters import midi2hz
-            from madmom.utils import open
-            # MIREX format: onset \t offset \t frequency
-            with open(args.output, 'wb') as f:
-                for note in n.detections:
-                    onset, midi_note = note
-                    offset = onset + args.note_length
-                    frequency = midi2hz(midi_note)
-                    f.write('%.2f\t%.2f\t%.2f\n' % (onset, offset, frequency))
-        else:
-            n.write(args.output)
 
 if __name__ == '__main__':
     main()

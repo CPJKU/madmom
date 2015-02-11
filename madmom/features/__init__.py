@@ -125,12 +125,13 @@ class ActivationsProcessor(Processor):
     ActivationsProcessor processes a file and returns an Activations instance.
 
     """
-    def __init__(self, mode, fps=None, sep=None, *args, **kwargs):
+    def __init__(self, mode, fps=None, sep=None, **kwargs):
         """
 
-        :param fps: frame rate of the activations
-                    (if set, it overwrites the saved frame rate)
-        :param sep: separator between activation values
+        :param mode: read/write mode of the Processor ['r', 'w']
+        :param fps:  frame rate of the activations
+                     (if set, it overwrites the saved frame rate)
+        :param sep:  separator between activation values
 
         Note: An undefined or empty (“”) separator means that the file should
               be treated as a numpy binary file.

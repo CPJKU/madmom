@@ -858,14 +858,16 @@ class MIDITrack(object):
     MIDI Track.
 
     """
-    def __init__(self):
+    def __init__(self, events=None, relative_timing=True):
         """
         Instantiate a new MIDI track instance.
 
         """
-        self.events = []
-        self._relative_timing = True
-        self._status = None  # needed for correct SysEx event handling
+        if events is None:
+            self.events = []
+        else:
+            self.events = events
+        self._relative_timing = relative_timing
 
     def make_ticks_abs(self):
         """
@@ -891,91 +893,16 @@ class MIDITrack(object):
                 running_tick += event.tick
             self._relative_timing = True
 
-    def read(self, midi_file):
+    @property
+    def data_stream(self):
         """
-        Read the MIDI track data from a file.
-
-        :param midi_file: open file handle
-        :return:          the MidiTrack object
-
-        """
-        # reset the status
-        self._status = None
-        # first four bytes are Track header
-        chunk = midi_file.read(4)
-        if chunk != 'MTrk':
-            raise TypeError("Bad track header in MIDI file: %s" % chunk)
-        # next four bytes are track size
-        track_size = struct.unpack(">L", midi_file.read(4))[0]
-        track_data = iter(midi_file.read(track_size))
-        # read in all events
-        while True:
-            try:
-                # first datum is variable length representing the delta-time
-                tick = read_variable_length(track_data)
-                # next byte is status message
-                status_msg = ord(track_data.next())
-                # is the event a MetaEvent?
-                if MetaEvent.is_event(status_msg):
-                    cmd = ord(track_data.next())
-                    if cmd not in EventRegistry.MetaEvents:
-                        raise Warning("Unknown Meta MIDI Event: %s" % cmd)
-                    cls = EventRegistry.MetaEvents[cmd]
-                    data_len = read_variable_length(track_data)
-                    data = [ord(track_data.next()) for _ in range(data_len)]
-                    # create an event and append it to the list
-                    self.events.append(cls(tick=tick, data=data))
-                # is this event a SysEx Event?
-                elif SysExEvent.is_event(status_msg):
-                    data = []
-                    while True:
-                        datum = ord(track_data.next())
-                        if datum == 0xF7:
-                            break
-                        data.append(datum)
-                    # create an event and append it to the list
-                    self.events.append(SysExEvent(tick=tick, data=data))
-                # not a meta or SysEx event, must be a general MIDI event
-                else:
-                    key = status_msg & 0xF0
-                    if key not in EventRegistry.Events:
-                        assert self._status, "Bad byte value"
-                        data = []
-                        key = self._status & 0xF0
-                        cls = EventRegistry.Events[key]
-                        channel = self._status & 0x0F
-                        data.append(status_msg)
-                        data += [ord(track_data.next()) for _ in
-                                 range(cls.length - 1)]
-                        # create an event and append it to the list
-                        self.events.append(cls(tick=tick, channel=channel,
-                                               data=data))
-                    else:
-                        self._status = status_msg
-                        cls = EventRegistry.Events[key]
-                        channel = self._status & 0x0F
-                        data = [ord(track_data.next()) for _ in
-                                range(cls.length)]
-                        # create an event and append it to the list
-                        self.events.append(cls(tick=tick, channel=channel,
-                                               data=data))
-            # no more events to be processed
-            except StopIteration:
-                break
-        # return the track
-        return self
-
-    def write(self, midi_file):
-        """
-        Write the MIDI track to file
-
-        :param midi_file: open file handle
+        MIDI data stream representation of the track.
 
         """
         # first make sure the timing information is relative
         self.make_ticks_rel()
-        # and the last status message is unset
-        self._status = None
+        # and unset the status message
+        status = None
         # then encode all events of the track
         track_data = ''
         for event in self.events:
@@ -994,18 +921,135 @@ class MIDITrack(object):
                 track_data += chr(0xF7)
             # not a meta or SysEx event, must be a general message
             elif isinstance(event, Event):
-                if not self._status or \
-                        self._status.status_msg != event.status_msg or \
-                        self._status.channel != event.channel:
-                    self._status = event
+                if not status or status.status_msg != event.status_msg or \
+                        status.channel != event.channel:
+                    status = event
                     track_data += chr(event.status_msg | event.channel)
                 track_data += ''.join([chr(data) for data in event.data])
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepare the track header
         track_header = 'MTrk%s' % struct.pack(">L", len(track_data))
-        # write the track header + data
-        midi_file.write(track_header + track_data)
+        # return the track header + data
+        return track_header + track_data
+
+    @classmethod
+    def from_file(cls, midi_stream):
+        """
+        Create a MIDITrack instance by reading the data from a stream.
+
+        :param midi_stream: MIDI file stream (e.g. open MIDI file handle)
+        :return:            the MidiTrack object
+
+        """
+        events = []
+        # reset the status
+        status = None
+        # first four bytes are Track header
+        chunk = midi_stream.read(4)
+        if chunk != 'MTrk':
+            raise TypeError("Bad track header in MIDI file: %s" % chunk)
+        # next four bytes are track size
+        track_size = struct.unpack(">L", midi_stream.read(4))[0]
+        track_data = iter(midi_stream.read(track_size))
+        # read in all events
+        while True:
+            try:
+                # first datum is variable length representing the delta-time
+                tick = read_variable_length(track_data)
+                # next byte is status message
+                status_msg = ord(track_data.next())
+                # is the event a MetaEvent?
+                if MetaEvent.is_event(status_msg):
+                    cmd = ord(track_data.next())
+                    if cmd not in EventRegistry.MetaEvents:
+                        raise Warning("Unknown Meta MIDI Event: %s" % cmd)
+                    cls = EventRegistry.MetaEvents[cmd]
+                    data_len = read_variable_length(track_data)
+                    data = [ord(track_data.next()) for _ in range(data_len)]
+                    # create an event and append it to the list
+                    events.append(cls(tick=tick, data=data))
+                # is this event a SysEx Event?
+                elif SysExEvent.is_event(status_msg):
+                    data = []
+                    while True:
+                        datum = ord(track_data.next())
+                        if datum == 0xF7:
+                            break
+                        data.append(datum)
+                    # create an event and append it to the list
+                    events.append(SysExEvent(tick=tick, data=data))
+                # not a meta or SysEx event, must be a general MIDI event
+                else:
+                    key = status_msg & 0xF0
+                    if key not in EventRegistry.Events:
+                        assert status, "Bad byte value"
+                        data = []
+                        key = status & 0xF0
+                        cls = EventRegistry.Events[key]
+                        channel = status & 0x0F
+                        data.append(status_msg)
+                        data += [ord(track_data.next()) for _ in
+                                 range(cls.length - 1)]
+                        # create an event and append it to the list
+                        events.append(cls(tick=tick, channel=channel,
+                                          data=data))
+                    else:
+                        status = status_msg
+                        cls = EventRegistry.Events[key]
+                        channel = status & 0x0F
+                        data = [ord(track_data.next()) for _ in
+                                range(cls.length)]
+                        # create an event and append it to the list
+                        events.append(cls(tick=tick, channel=channel,
+                                          data=data))
+            # no more events to be processed
+            except StopIteration:
+                break
+        # create a new track and return it
+        return cls(events)
+
+    @classmethod
+    def from_notes(cls, notes, resolution=RESOLUTION):
+        """
+        Add the notes of the given array to the track.
+
+        :param notes:      numpy array (onset time, pitch, duration, velocity)
+        :param resolution: resolution (i.e. microseconds per quarter note)
+
+        """
+        events = []
+        # FIXME: what we do here s basically writing a MIDI format 0 file,
+        #        since we put all events in a single (the given) track. The
+        #        tempo and time signature stuff is just a hack!
+        # first set a tempo, assume a tempo of 120bpm and 4/4 time
+        # signature, thus 1 quarter note is 0.5 sec long
+        tempo = SetTempoEvent()
+        tempo.microseconds_per_quarter_note = int(0.5 * 1e6)
+        sig = TimeSignatureEvent()
+        sig.denominator = 4
+        sig.numerator = 4
+        # beats per second
+        bps = 2
+        # add the notes
+        for note in range(len(notes)):
+            # add NoteOn
+            e_on = NoteOnEvent()
+            e_on.tick = int(notes[note, 0] * resolution * bps)
+            e_on.pitch = int(notes[note, 1])
+            e_on.velocity = int(notes[note, 3])
+            # and NoteOff
+            e_off = NoteOffEvent()
+            e_off.tick = int(notes[note, 2] * resolution * bps)
+            e_off.pitch = int(notes[note, 1])
+            events.append(e_on)
+            events.append(e_off)
+        # sort the events and prepend the tempo and time signature events
+        events = sorted(events)
+        events.insert(0, sig)
+        events.insert(0, tempo)
+        # create a track, set it to absolute timing and return it
+        return cls(events, relative_timing=False)
 
 
 # File I/O classes
@@ -1014,35 +1058,31 @@ class MIDIFile(object):
     MIDI File.
 
     """
-    def __init__(self, data=None, resolution=RESOLUTION, note_time_unit='s'):
+    def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0,
+                 note_time_unit='s'):
         """
         Instantiate a new MIDI file instance.
 
-        :param data:           can be a .mid file or numpy array with notes
-        :param resolution:     resolution, i.e. microseconds per quarter note
+        :param tracks:         list with MIDITrack instances
+        :param resolution:     resolution (i.e. microseconds per quarter note)
+        :param file_format:    format of the MIDI file
         :param note_time_unit: sets the time unit for notes, seconds ('s') or
                                beats ('b').
 
-        Note: If a .mid file is given as data, it is read in automatically.
-              If a numpy array with notes is given, the information can be
-              converted to a MIDI file by calling the write() method.
-
         """
         # init variables
-        self.format = 0  # TODO: right now we only write format 0 files
+        if tracks is None:
+            self.tracks = []
+        elif isinstance(tracks, MIDITrack):
+            self.tracks = [tracks]
+        elif isinstance(tracks, list):
+            self.tracks = tracks
+        else:
+            raise ValueError('file_format of `tracks` not supported.')
         self.resolution = resolution  # i.e. microseconds per quarter note
         self.note_time_unit = note_time_unit
-        self.fps = None
-        self.tracks = []
-        # process data
-        if isinstance(data, np.ndarray):
-            # data present as numpy array, convert the data to MIDI and add
-            # them to a new track
-            track = self.add_notes_to_track(data, track=MIDITrack())
-            self.tracks.append(track)
-        elif isinstance(data, (basestring, file)):
-            # try to read the data from file
-            self.read(data)
+        # FIXME: right now we can write only format 0 files...
+        self.format = file_format
 
     @property
     def ticks_per_quarter_note(self):
@@ -1268,13 +1308,53 @@ class MIDIFile(object):
         for track in self.tracks:
             track.make_ticks_rel()
 
-    def read(self, midi_file):
+    # methods for writing MIDI stuff
+    @property
+    def data_stream(self):
         """
-        Read in a MIDI file.
-
-        :param midi_file: the file name or a file handle
+        MIDI data stream representation of the MIDI file.
 
         """
+        # from StringIO import StringIO
+        # str_buffer = StringIO()
+        # # put the MIDI header in the stream
+        # header_data = struct.pack(">LHHH", 6, self.format,
+        #                           len(self.tracks), self.resolution)
+        # str_buffer.write('MThd%s' % header_data)
+        # # put each track in the stream
+        # for track in self.tracks:
+        #     str_buffer.write(track.data_stream)
+        # # return the string buffer
+        # return str_buffer.getvalue()
+        # generate a MIDI header
+        data = 'MThd%s' % struct.pack(">LHHH", 6, self.format,
+                                      len(self.tracks), self.resolution)
+        # append the tracks
+        for track in self.tracks:
+            data += track.data_stream
+        # return the raw data
+        return data
+
+    def write(self, midi_file):
+        """
+        Write a MIDI file.
+
+        :param midi_file: the MIDI file name
+
+        """
+        with open(midi_file, 'wb') as midi_file:
+            midi_file.write(self.data_stream)
+
+    @classmethod
+    def from_file(cls, midi_file):
+        """
+        Create a MIDIFile instance from a .mid file.
+
+        :param midi_file: .mid file to load
+        :return:          MIDIFile instance
+
+        """
+        tracks = []
         with open(midi_file, 'rb') as midi_file:
             # read in file header
             # first four bytes are MIDI header
@@ -1288,13 +1368,13 @@ class MIDIFile(object):
             # (in other words, how many ticks per quarter note)
             data = struct.unpack(">LHHH", midi_file.read(10))
             header_size = data[0]
-            self.format = data[1]
+            midi_format = data[1]
             num_tracks = data[2]
             resolution = data[3]
             # if the top bit of the resolution word is 0, the following 15 bits
             # describe the time division in ticks per beat
             if resolution & 0x8000 == 0:
-                self.resolution = resolution
+                resolution = resolution
             # otherwise the following 15 bits describe the time division in
             # frames per second
             else:
@@ -1319,83 +1399,22 @@ class MIDIFile(object):
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MIDITrack().read(midi_file)
-                self.tracks.append(track)
-        # return the object
-        return self
+                track = MIDITrack.from_file(midi_file)
+                tracks.append(track)
+        # return a newly created object
+        return cls(tracks=tracks, resolution=resolution, format=midi_format)
 
-    # methods for writing MIDI stuff
-    @property
-    def data(self):
+    @classmethod
+    def from_notes(cls, notes):
         """
-        MIDI byte data.
+        Create a MIDIFile instance from a numpy array with notes.
 
-        """
-        from StringIO import StringIO
-        str_buffer = StringIO()
-        # write a MIDI header
-        header_data = struct.pack(">LHHH", 6, self.format,
-                                  len(self.tracks), self.resolution)
-        str_buffer.write('MThd%s' % header_data)
-        # write each track
-        for track in self.tracks:
-            track.write(str_buffer)
-        # return the data buffer
-        return str_buffer.getvalue()
-
-    def write(self, midi_file):
-        """
-        Write a MIDI file.
-
-        :param midi_file: the MIDI file name
+        :param notes: numpy array (onset time, pitch, duration, velocity)
+        :return:      MIDIFile instance with all notes collected in one track
 
         """
-        with open(midi_file, 'wb') as midi_file:
-            midi_file.write(self.data)
-
-    def add_notes_to_track(self, notes, track):
-        """
-        Add the notes of the given array to the first track.
-
-        :param notes: numpy array with notes
-        :param track: a MIDITrack instance
-
-        """
-        # FIXME: what we do here s basically writing a MIDI format 0 file,
-        #        since we put all events in a single (the given) track. The
-        #        tempo and time signature stuff is just a hack!
-        track._relative_timing = False
-        # first set a tempo, assume a tempo of 120bpm and 4/4 time
-        # signature, thus 1 quarter note is 0.5 sec long
-        tempo = SetTempoEvent()
-        tempo.microseconds_per_quarter_note = int(0.5 * 1e6)
-        sig = TimeSignatureEvent()
-        sig.denominator = 4
-        sig.numerator = 4
-        # beats per second
-        bps = 2
-        # add them to the track
-        track.events.append(tempo)
-        track.events.append(sig)
-        events = []
-        # add the notes
-        for note in range(len(notes)):
-            # add NoteOn
-            e_on = NoteOnEvent()
-            e_on.tick = int(notes[note, 0] * self.resolution * bps)
-            e_on.pitch = int(notes[note, 1])
-            e_on.velocity = int(notes[note, 3])
-            # and NoteOff
-            e_off = NoteOffEvent()
-            e_off.tick = int(notes[note, 2] * self.resolution * bps)
-            e_off.pitch = int(notes[note, 1])
-            events.append(e_on)
-            events.append(e_off)
-        # sort the events and add them to the track
-        track.events = sorted(events)
-        track.make_ticks_rel()
-        # return the track
-        return track
+        # create a new track from the notes and then a MIDIFile instance
+        return cls(MIDITrack.from_notes(notes))
 
     @staticmethod
     def add_arguments(parser, length=None, velocity=None):
@@ -1421,3 +1440,25 @@ class MIDIFile(object):
                            help='set the note velocity [default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
+
+
+def process_notes(data, output=None):
+    """
+    This is a simple processing function. It either loads the notes from a MIDI
+    file and or writes the notes to a file.
+
+    The behaviour depends on the presence of the `output` argument, if 'None'
+    is given, the notes are read, otherwise the notes are written to file.
+
+    :param data:   notes or MIDI file to be loaded
+                   [numpy array or file name or file handle]
+    :param output: output file [file name or file handle]
+    :return:       notes
+
+    """
+    if output is None:
+        # load the notes
+        return MIDIFile.from_file(data).notes
+    else:
+        MIDIFile.from_notes(data).write(output)
+        return data

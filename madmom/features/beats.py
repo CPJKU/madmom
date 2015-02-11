@@ -889,38 +889,6 @@ class DBNBeatTracking(Processor):
         return g
 
 
-# class BeatProcessor(IOProcessor):
-#     """
-#     Class for detecting/tracking beats with method to be chosen.
-#
-#     """
-#     # TODO: add multi_model stuff!
-#     METHODS = ['BeatDetection', 'BeatTracking', 'CRFBeatDetection',
-#                'DBNBeatTracking']
-#
-#     def __init__(self, beat_method='DBNBeatTracking', load=False, save=True,
-#                  **kwargs):
-#         """
-#         Creates a new BeatProcessor instance.
-#
-#         :param onset_method: beat detection/tracking method
-#
-#         """
-#         # define input and output processors
-#         rnn = RNNBeatProcessing(**kwargs)
-#         kwargs['fps'] = rnn.fps
-#         in_processor = rnn
-#         out_processor = [globals()[beat_method](**kwargs), write_events]
-#         print out_processor
-#         # swap in/out processors if needed
-#         if load:
-#             in_processor = ActivationsProcessor(mode='r', **kwargs)
-#         if save:
-#             out_processor = ActivationsProcessor(mode='w', **kwargs)
-#         # make this an IOProcessor by defining input and output processors
-#         super(BeatProcessor, self).__init__(in_processor, out_processor)
-
-
 # TODO: split the classes similar to madmom.features.onsets?
 # meta class for tracking beats with RNNs and any post-processing method
 class RNNBeatTracking(IOProcessor):

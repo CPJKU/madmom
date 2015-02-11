@@ -364,3 +364,7 @@ class RNNTempoEstimation(IOProcessor):
         # make this an IOProcessor by defining input and output processors
         super(RNNTempoEstimation, self).__init__(in_processor, out_processor)
 
+    # add aliases to argument parsers
+    add_arguments = TempoEstimation.add_arguments
+    add_activation_arguments = ActivationsProcessor.add_arguments
+    add_rnn_arguments = RNNBeatProcessing.add_arguments

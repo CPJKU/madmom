@@ -39,17 +39,13 @@ def parser():
     ''')
     # add arguments
     io_arguments(p)
-    ActivationsProcessor.add_arguments(p)
-    # SpectralOnsetDetection.add_arguments(p)
+    SuperFlux.add_activations_arguments(p)
     SuperFlux.add_signal_arguments(p, norm=False, att=0)
     SuperFlux.add_framing_arguments(p, fps=100, online=False)
     SuperFlux.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
                                    norm_filters=False)
     SuperFlux.add_log_arguments(p, log=True, mul=1, add=1)
     SuperFlux.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
-    # SuperFlux.add_peak_picking_arguments(p, threshold=1.1, pre_max=0.01,
-    #                                      post_max=0.05, pre_avg=0.15,
-    #                                      post_avg=0, combine=0.03, delay=0)
     NNPeakPicking.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFluxNN')
