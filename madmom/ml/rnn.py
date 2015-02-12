@@ -553,7 +553,7 @@ class RecurrentNeuralNetwork(Processor):
         Process the given data with the RNN.
 
         :param data: activate the network with this data
-        :return:     network activations for this data
+        :return:     network predictions for this data
 
         """
         # check the dimensions of the data
@@ -563,6 +563,9 @@ class RecurrentNeuralNetwork(Processor):
         for layer in self.layers:
             # feed the output of one layer into the next one
             data = layer.activate(data)
+        # ravel the predictions if needed
+        if data.ndim == 2 and data.shape[1] == 1:
+            data = data.ravel()
         return data
 
 # alias
@@ -636,8 +639,5 @@ def average_predictions(predictions):
     else:
         # nothing to average since we have only one prediction
         predictions = predictions[0]
-    # ravel them if needed
-    if predictions.ndim == 2 and predictions.shape[1] == 1:
-        predictions = predictions.ravel()
     # return the (averaged) predictions
     return predictions

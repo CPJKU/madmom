@@ -66,14 +66,9 @@ def main():
 
     # create an processor
     processor = RNNOnsetDetection(online=True, **vars(args))
-    # swap in/out processors if needed
-    if args.load:
-        processor.in_processor = ActivationsProcessor(mode='r', **vars(args))
-    if args.save:
-        processor.out_processor = ActivationsProcessor(mode='w', **vars(args))
-
     # process everything
     processor.process(args.input, args.output)
+
 
 
 if __name__ == '__main__':

@@ -964,11 +964,11 @@ class MIDITrack(object):
                     cmd = ord(track_data.next())
                     if cmd not in EventRegistry.MetaEvents:
                         raise Warning("Unknown Meta MIDI Event: %s" % cmd)
-                    cls = EventRegistry.MetaEvents[cmd]
+                    event_cls = EventRegistry.MetaEvents[cmd]
                     data_len = read_variable_length(track_data)
                     data = [ord(track_data.next()) for _ in range(data_len)]
                     # create an event and append it to the list
-                    events.append(cls(tick=tick, data=data))
+                    events.append(event_cls(tick=tick, data=data))
                 # is this event a SysEx Event?
                 elif SysExEvent.is_event(status_msg):
                     data = []
@@ -986,23 +986,23 @@ class MIDITrack(object):
                         assert status, "Bad byte value"
                         data = []
                         key = status & 0xF0
-                        cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
                         data += [ord(track_data.next()) for _ in
-                                 range(cls.length - 1)]
+                                 range(event_cls.length - 1)]
                         # create an event and append it to the list
-                        events.append(cls(tick=tick, channel=channel,
-                                          data=data))
+                        events.append(event_cls(tick=tick, channel=channel,
+                                                data=data))
                     else:
                         status = status_msg
-                        cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
                         data = [ord(track_data.next()) for _ in
-                                range(cls.length)]
+                                range(event_cls.length)]
                         # create an event and append it to the list
-                        events.append(cls(tick=tick, channel=channel,
-                                          data=data))
+                        events.append(event_cls(tick=tick, channel=channel,
+                                                data=data))
             # no more events to be processed
             except StopIteration:
                 break
@@ -1012,7 +1012,7 @@ class MIDITrack(object):
     @classmethod
     def from_notes(cls, notes, resolution=RESOLUTION):
         """
-        Add the notes of the given array to the track.
+        Create a MIDITrack instance from the given notes.
 
         :param notes:      numpy array (onset time, pitch, duration, velocity)
         :param resolution: resolution (i.e. microseconds per quarter note)
@@ -1355,6 +1355,8 @@ class MIDIFile(object):
 
         """
         tracks = []
+        resolution = None
+        midi_format = None
         with open(midi_file, 'rb') as midi_file:
             # read in file header
             # first four bytes are MIDI header
@@ -1401,6 +1403,8 @@ class MIDIFile(object):
                 # read in one track and append it to the tracks list
                 track = MIDITrack.from_file(midi_file)
                 tracks.append(track)
+        if resolution is None or midi_format is None:
+            raise IOError('unable to read MIDI file %s.' % midi_file)
         # return a newly created object
         return cls(tracks=tracks, resolution=resolution, format=midi_format)
 

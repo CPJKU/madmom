@@ -15,8 +15,8 @@ from madmom.utils import open
 
 from . import ActivationsProcessor
 from .onsets import PeakPicking
-from ..audio.signal import SignalProcessor, smooth as smooth_signal
-from ..audio.spectrogram import SpectrogramProcessor, StackSpectrogramProcessor
+from ..audio.signal import SignalProcessor
+from ..audio.spectrogram import StackSpectrogramProcessor
 from ..ml.rnn import RNNProcessor, average_predictions
 
 
@@ -50,10 +50,14 @@ def write_notes(notes, filename, sep='\t'):
 
 def write_midi(notes, filename, note_length=0.6, note_velocity=100):
     """
+    Write the notes to a MIDI file.
 
-    :param notes:    detected notes
-    :param filename: output filename
-    :return:         numpy array with notes (including note length & velocity)
+    :param notes:         detected notes
+    :param filename:      output filename
+    :param note_velocity: default velocity of the notes
+    :param note_length:   default length of the notes
+    :return:              numpy array with notes (including note length &
+                          velocity)
 
     """
     from madmom.utils.midi import process_notes
@@ -69,10 +73,12 @@ def write_midi(notes, filename, note_length=0.6, note_velocity=100):
 
 def write_frequencies(notes, filename, note_length=0.6):
     """
+    Write the frequencies of the notes to file (i.e. MIREX format).
 
-    :param notes:
-    :param filename:
-    :return:
+    :param notes:       detected notes
+    :param filename:    output filename
+    :param note_length: default length of the notes
+    :return:            notes
 
     """
     from madmom.audio.filters import midi2hz
@@ -84,6 +90,7 @@ def write_frequencies(notes, filename, note_length=0.6):
             offset = onset + note_length
             frequency = midi2hz(midi_note)
             f.write('%.2f\t%.2f\t%.2f\n' % (onset, offset, frequency))
+    return notes
 
 
 def note_reshaper(notes):
@@ -146,6 +153,8 @@ class RNNNoteTranscription(IOProcessor):
             output = write_midi
         elif output_format == 'mirex':
             output = write_frequencies
+        else:
+            raise ValueError('unknown `output_format`: %s' % output_format)
         out_processor = [pp, output]
         # swap in/out processors if needed
         if load:

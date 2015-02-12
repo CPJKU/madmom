@@ -63,7 +63,7 @@ def stft(signal, window, hop_size, fft_size=None, correct_phase=False):
     else:
         num_fft_bins = fft_size >> 1
     # init STFT matrix
-    stft = np.empty([len(frames), num_fft_bins], np.complex)
+    stft = np.empty((len(frames), num_fft_bins), np.complex)
     for f, frame in enumerate(frames):
         # perform DFT
         stft[f] = dft(frame, window, fft_size, correct_phase)
@@ -405,9 +405,9 @@ class Spectrogram(object):
 
         # init STFT matrix
         if complex_stft:
-            self._stft = np.empty([num_frames, num_fft_bins], np.complex64)
+            self._stft = np.empty((num_frames, num_fft_bins), np.complex64)
         # init spectrogram matrix
-        self._spec = np.empty([num_frames, num_bins], np.float32)
+        self._spec = np.empty((num_frames, num_bins), np.float32)
 
         # process in blocks
         if self.filterbank is not None:
@@ -628,7 +628,7 @@ class SpectrogramProcessor(Processor):
                            diff_ratio=self.diff_ratio,
                            diff_frames=self.diff_frames,
                            diff_max_bins=self.diff_max_bins)
-        # # what to return?
+        # TODO: should we be able to select what to return?
         # The usage of the spectrogram differences can be controlled with the
         # `diff` parameter. It can have these values:
         #   - 'False':          do not use the differences, just the spectrogram
@@ -860,7 +860,7 @@ class SuperFluxProcessor(SpectrogramProcessor):
 
     """
 
-    def __init__(self, *arg, **kwargs):
+    def __init__(self, **kwargs):
         """
 
         :param arg:
@@ -882,7 +882,7 @@ class SuperFluxProcessor(SpectrogramProcessor):
         # instantiate SpectrogramProcessor
         super(SuperFluxProcessor, self).__init__(
             filterbank=filterbank, bands=bands, norm_filters=norm_filters,
-            log=log, diff=diff, diff_max_bins=diff_max_bins, *arg, **kwargs)
+            log=log, diff=diff, diff_max_bins=diff_max_bins, **kwargs)
 
 
 class MultiBandSuperFluxProcessor(SuperFluxProcessor):
@@ -892,7 +892,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
 
     """
 
-    def __init__(self, crossover_frequencies, norm_bands=True, *arg, **kwargs):
+    def __init__(self, crossover_frequencies, norm_bands=True, **kwargs):
         """
 
         :param crossover_frequencies:
@@ -904,7 +904,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         """
 
         # instantiate SpectrogramProcessor
-        super(MultiBandSuperFluxProcessor, self).__init__(*arg, **kwargs)
+        super(MultiBandSuperFluxProcessor, self).__init__(**kwargs)
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
 
@@ -984,17 +984,16 @@ class StackSpectrogramProcessor(Processor):
         sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
                                   bands=bands, norm_filters=norm_filters,
                                   log=True, mul=mul, add=add,
-                                  diff_ratio=diff_ratio)
+                                  diff_ratio=diff_ratio, **kwargs)
         # multiple framing & spec processors
         processor = []
         for frame_size in frame_sizes:
             fs = FramedSignalProcessor(frame_size=frame_size, fps=fps,
-                                       online=online)
+                                       online=online, **kwargs)
             processor.append(SequentialProcessor([fs, sp]))
         # process all specs in parallel
         # FIXME: this does not work with more than 1 threads!
         self.processor = ParallelProcessor(processor, num_threads=1)
-        # self.processor = ParallelProcessor(processor)
 
     def process(self, data):
         """

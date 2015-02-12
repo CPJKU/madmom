@@ -534,7 +534,7 @@ class FramedSignal(object):
 
     """
 
-    def __init__(self, signal, frame_size=2048, hop_size=441, fps=None,
+    def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
                  origin=0, start=0, end='extend', **kwargs):
         """
         Creates a new FramedSignal instance.

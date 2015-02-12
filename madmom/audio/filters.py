@@ -740,9 +740,7 @@ class MelFilterbank(Filterbank):
                                            duplicates=duplicate_filters,
                                            overlap=True)
         # create a MelFilterbank from the filters
-        obj = cls.from_filters(filters, num_bins, sample_rate)
-        # return the object
-        return obj
+        return cls.from_filters(filters, num_bins, sample_rate)
 
 
 class BarkFilterbank(Filterbank):
@@ -785,9 +783,7 @@ class BarkFilterbank(Filterbank):
                                             duplicates=duplicate_filters,
                                             overlap=False)
         # create a BarkFilterbank from the filters
-        obj = cls.from_filters(filters, num_bins, sample_rate)
-        # return the object
-        return obj
+        return cls.from_filters(filters, num_bins, sample_rate)
 
 
 class LogarithmicFilterbank(Filterbank):
@@ -873,9 +869,10 @@ class SimpleChromaFilterbank(Filterbank):
 
         """
         # TODO: add comments!
-        stf = LogarithmicFilterbank(
-            num_bins, sample_rate, bands=bands, fmin=fmin, fmax=fmax,
-            fref=fref, norm=norm_filters, duplicates=duplicate_filters)
+        stf = LogarithmicFilterbank(num_bins, sample_rate, bands=bands,
+                                    fmin=fmin, fmax=fmax, fref=fref,
+                                    norm_filters=norm_filters,
+                                    duplicate_filters=duplicate_filters)
         # create an empty filterbank
         fb = np.empty((stf.shape[0], 12))
         spacing = np.arange(8) * 12

@@ -975,10 +975,8 @@ class RnnlibConfigFile(object):
             # name of the activations file
             basename = os.path.basename(os.path.splitext(f)[0])
             act_file = "%s/%s.activations" % (out_dir, basename)
-            # position in the list
-            f_idx = nc_files.index(f)
-            # save
-            np.save(act_file, activations[f_idx])
+            # save the activations (at the given index position)
+            np.save(act_file, activations[nc_files.index(f)])
         # return the output directory
         return out_dir
 
@@ -1254,9 +1252,6 @@ def parser():
     g.add_argument('-a', dest='annotations', action=OverrideDefaultListAction,
                    default=['.onsets', '.beats', '.notes'],
                    help='annotations to use [default=%(default)s]')
-    g.add_argument('--spec', dest='specs', default=[1024, 2048, 4096],
-                   type=int, action=OverrideDefaultListAction,
-                   help='spectrogram size(s) to use')
     g.add_argument('--split', default=None, type=float,
                    help='split files every N seconds')
     g.add_argument('--shift', default=None, type=float,
@@ -1287,11 +1282,15 @@ def parser():
     g.add_argument('--optimizer', default='steepest', type=str,
                    help='optimizer [default=%(default)s]')
     # add other options to the existing parser
-    from madmom.audio.signal import Signal, FramedSignal
+    from madmom.audio.signal import SignalProcessor, FramedSignal
     from madmom.audio.filters import Filterbank
     from madmom.audio.spectrogram import Spectrogram
-    Signal.add_arguments(p)
-    FramedSignal.add_arguments(p, online=False)
+    SignalProcessor.add_arguments(p)
+    g = FramedSignal.add_arguments(p, online=False)
+    g.add_argument('--frame_size', dest='frame_sizes',
+                   default=[1024, 2048, 4096], type=int,
+                   action=OverrideDefaultListAction,
+                   help='frame size(s) to use')
     Filterbank.add_arguments(p)
     Spectrogram.add_arguments(p, log=True, mul=5, add=1)
     # parse arguments
@@ -1308,34 +1307,21 @@ def parser():
     return args
 
 
-def main():
+def create_nc_files(files, args):
     """
-    Example script for testing RNNLIB .save files or creating .nc files
-    understood by RNNLIB.
+    Create .nc files for the given .wav and annotation files.
+
+    :param files:
+    :param args:
 
     """
-    from madmom.audio.wav import Wav
-    from madmom.audio.spectrogram import LogFiltSpec
-    from madmom.utils import files, match_file, load_events, quantize_events
-
-    # parse arguments
-    args = parser()
-
-    # create config file(s)
-    if args.config:
-        nc_files = files(args.files, '.nc')
-        cross_validation(nc_files, args.config, folds=args.folds,
-                         randomize=args.random, task=args.task,
-                         bidirectional=args.bidirectional,
-                         learn_rate=args.learn_rate,
-                         layer_sizes=args.layer_sizes,
-                         layer_type=args.layer_type, momentum=args.momentum,
-                         optimizer=args.optimizer, splitting=args.splitting)
-
-    # test all .save files
-    save_files = files(args.files, '.save')
-    test_save_files(save_files, out_dir=args.output, file_set=args.set,
-                    threads=args.threads, verbose=args.verbose)
+    from madmom.audio.signal import SignalProcessor
+    from madmom.audio.spectrogram import SpectrogramProcessor
+    sig = SignalProcessor(mono=True, norm=args.norm)
+    stack = StackSpectrogramProcessor(frame_sizes=args.frame_sizes,
+                                      online=online, bands=6,
+                                      norm_filters=True, mul=5, add=1,
+                                      diff_ratio=0.25, **kwargs)
 
     # treat all files as annotation files
     ann_files = []
@@ -1354,12 +1340,13 @@ def main():
         # print file
         if args.verbose:
             print f
-        # create a Wav object
-        w = Wav(wav_files[0], mono=True, norm=args.norm)
-        # spec
+        # signal
+        sig = SignalProcessor(wav_files[0], mono=True, )
+        # stacked spec
+
         nc_data = None
         for spec in args.specs:
-            s = LogFiltSpec(w, frame_size=spec, fps=args.fps,
+            s = LogFiltSpec(sig, frame_size=spec, fps=args.fps,
                             origin=args.origin, bands_per_octave=args.bands,
                             fmin=args.fmin, fmax=args.fmax,
                             mul=args.mul, add=args.add,
@@ -1431,6 +1418,35 @@ def main():
                             (tags, i, start, stop - 1)
                 create_nc_file(nc_part_file, nc_data[start:stop],
                                targets[start:stop], part_tags)
+
+def main():
+    """
+    Example script for testing RNNLIB .save files or creating .nc files
+    understood by RNNLIB.
+
+    """
+    from madmom.utils import files, match_file, load_events, quantize_events
+
+    # parse arguments
+    args = parser()
+
+    # create config file(s)
+    if args.config:
+        nc_files = files(args.files, '.nc')
+        cross_validation(nc_files, args.config, folds=args.folds,
+                         randomize=args.random, task=args.task,
+                         bidirectional=args.bidirectional,
+                         learn_rate=args.learn_rate,
+                         layer_sizes=args.layer_sizes,
+                         layer_type=args.layer_type, momentum=args.momentum,
+                         optimizer=args.optimizer, splitting=args.splitting)
+
+    # test all .save files
+    save_files = files(args.files, '.save')
+    test_save_files(save_files, out_dir=args.output, file_set=args.set,
+                    threads=args.threads, verbose=args.verbose)
+
+    # create .nc files
 
 
 if __name__ == '__main__':

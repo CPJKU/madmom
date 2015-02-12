@@ -107,13 +107,13 @@ class PeakPicking(Processor):
     """
     FPS = 100
     THRESHOLD = 0.5  # binary threshold
-    SMOOTH = 0
-    PRE_AVG = 0
-    POST_AVG = 0
-    PRE_MAX = 0
-    POST_MAX = 0
+    SMOOTH = 0.
+    PRE_AVG = 0.
+    POST_AVG = 0.
+    PRE_MAX = 0.
+    POST_MAX = 0.
     COMBINE = 0.03
-    DELAY = 0
+    DELAY = 0.
     ONLINE = False
 
     def __init__(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
@@ -310,7 +310,7 @@ class NNPeakPicking(SequentialProcessor):
     DELAY = 0
 
     def __init__(self, nn_files=NN_FILES, threshold=THRESHOLD, smooth=SMOOTH,
-                 combine=COMBINE, delay=DELAY, fps=FPS, *args, **kwargs):
+                 combine=COMBINE, delay=DELAY, fps=FPS, **kwargs):
         """
         Creates a new NNSpectralOnsetDetection instance.
 
@@ -770,6 +770,9 @@ class SpectralOnsetDetection(IOProcessor):
             out_processor = [PeakPicking(**kwargs), write_events]
         elif peak_picking_method in ('nn', 'neural_network'):
             out_processor = [NNPeakPicking(**kwargs), write_events]
+        else:
+            raise ValueError('unknown `peak_picking_method`: %s' %
+                             peak_picking_method)
         # swap in/out processors if needed
         if load:
             in_processor = ActivationsProcessor(mode='r', **kwargs)
@@ -843,9 +846,8 @@ class RNNOnsetDetection(IOProcessor):
                                           diff_ratio=0.25, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
-        pp = PeakPicking(threshold=threshold, smooth=smooth,
-                                  pre_max=1. / fps, post_max=1. / fps,
-                                  online=online)
+        pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,
+                         post_max=1. / fps, online=online, **kwargs)
         # define input and output processors
         in_processor = [sig, stack, rnn, avg]
         out_processor = [pp, write_events]
@@ -917,11 +919,9 @@ def parser():
     p.add_argument('--suffix', action='store', type=str, default='.txt',
                    help='suffix for detections [default=%(default)s]')
     # add arguments
-    SpectralOnsetDetection.add_arguments(p, method='superflux',
-                                         methods=SpectralOnsetDetection.methods)
-    PeakPicking.add_arguments(p, threshold=1.1, pre_max=0.01,
-                                          post_max=0.05, pre_avg=0.15,
-                                          post_avg=0, combine=0.03, delay=0)
+    SpectralOnsetDetection.add_arguments(p, method='superflux')
+    PeakPicking.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
+                              pre_avg=0.15, post_avg=0, combine=0.03, delay=0)
     ActivationsProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()

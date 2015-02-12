@@ -413,15 +413,29 @@ class BeatTracking(Processor):
                             max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
                             hist_smooth=HIST_SMOOTH, alpha=ALPHA):
         """
+        Add tempo arguments to an existing parser.
+
+        :param parser:      existing argparse parser
+        :param method:      tempo estimation method ['comb', 'acf']
+        :param min_bpm:     minimum tempo [bpm]
+        :param max_bpm:     maximum tempo [bpm]
+        :param act_smooth:  smooth the activations over N seconds
+        :param hist_smooth: smooth the tempo histogram over N bins
+        :param alpha:       scaling factor of the comb filter
+        :return:            tempo argument parser group
 
         """
         # TODO: import the TempoEstimation here otherwise we have a
         #       loop. This is super ugly, but right now I can't think of a
         #       better solution...
         from madmom.features.tempo import TempoEstimation as tempo
-        tempo.add_arguments(parser, method=method, min_bpm=min_bpm,
-                            max_bpm=max_bpm, act_smooth=act_smooth,
-                            hist_smooth=hist_smooth, alpha=alpha)
+        return tempo.add_arguments(parser, method=method, min_bpm=min_bpm,
+                                   max_bpm=max_bpm, act_smooth=act_smooth,
+                                   hist_smooth=hist_smooth, alpha=alpha)
+
+
+
+
 
 
 class BeatDetection(BeatTracking):
