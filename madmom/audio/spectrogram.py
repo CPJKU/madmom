@@ -955,8 +955,8 @@ class StackSpectrogramProcessor(Processor):
     Stack spec & diff.
 
     """
-    def __init__(self, frame_sizes, online, fps, bands, norm_filters, mul, add,
-                 diff_ratio, **kwargs):
+    def __init__(self, frame_sizes, online, fps, bands, norm_filters, log, mul,
+                 add, diff_ratio, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 
@@ -983,7 +983,7 @@ class StackSpectrogramProcessor(Processor):
         # use the same spec for all frame sizes
         sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
                                   bands=bands, norm_filters=norm_filters,
-                                  log=True, mul=mul, add=add,
+                                  log=log, mul=mul, add=add,
                                   diff_ratio=diff_ratio, **kwargs)
         # multiple framing & spec processors
         processor = []

@@ -204,7 +204,7 @@ def load_audio_file(filename, sample_rate=None):
     if filename.endswith(".wav"):
         # wav file
         from scipy.io import wavfile
-        sample_rate, signal = wavfile.read(filename)
+        sample_rate, signal = wavfile.read(filename, mmap=True)
     # generic signal converter
     else:
         # TODO: use sox to convert from different input signals and use the
@@ -808,9 +808,18 @@ class FramedSignalProcessor(Processor):
         # add signal framing options to the existing parser
         g = parser.add_argument_group('signal framing arguments')
         if frame_size is not None:
-            g.add_argument('--frame_size', action='store', type=int,
-                           default=frame_size,
-                           help='frame size [samples, default=%(default)i]')
+            # depending on the type, use different options
+            if isinstance(frame_size, int):
+                g.add_argument('--frame_size', action='store', type=int,
+                               default=frame_size,
+                               help='frame size [samples, default=%(default)i]')
+            elif isinstance(frame_size, list):
+                from madmom.utils import OverrideDefaultListAction
+                g.add_argument('--frame_size', type=int, default=frame_size,
+                               action=OverrideDefaultListAction,
+                               help='frame size(s) to use, multiple values '
+                                    'be given, one per argument. [samples, '
+                                    'default=%(default)s]')
         if fps is not None:
             g.add_argument('--fps', action='store', type=float, default=fps,
                            help='frames per second [default=%(default).1f]')
@@ -818,6 +827,7 @@ class FramedSignalProcessor(Processor):
             g.add_argument('--online', dest='online', action='store_true',
                            default=online,
                            help='operate in online mode [default=%(default)s]')
+
         # TODO: include end_of_signal handling!?
         # return the argument group so it can be modified if needed
         return g

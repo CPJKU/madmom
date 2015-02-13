@@ -127,7 +127,8 @@ class RNNBeatProcessing(SequentialProcessor):
         sig = SignalProcessor(mono=True, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           online=False, bands=3,
-                                          norm_filters=True, mul=1, add=1,
+                                          norm_filters=True,
+                                          log=True, mul=1, add=1,
                                           diff_ratio=0.5, **kwargs)
         if nn_ref_files is not None:
             if nn_ref_files == nn_files:
@@ -723,9 +724,7 @@ class DBNBeatTracking(Processor):
     MAX_BPM = 215
 
     try:
-        from .dbn import (BeatTrackingDynamicBayesianNetwork as DBN,
-                          BeatTrackingTransitionModel as TM,
-                          NNBeatTrackingObservationModel as OM)
+        from .dbn import BeatTrackingDynamicBayesianNetwork as DBN
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the dbn '
@@ -770,16 +769,26 @@ class DBNBeatTracking(Processor):
         Retrieval Conference (ISMIR), 2014
 
         """
-        self.correct = correct
-        self.num_beat_states = num_beat_states
-        self.num_tempo_states = num_tempo_states
-        self.tempo_change_probability = tempo_change_probability
-        self.min_bpm = min_bpm
-        self.max_bpm = max_bpm
-        self.observation_lambda = observation_lambda
-        self.norm_observations = norm_observations
         self.fps = fps
-        self.num_threads = num_threads
+        # convert timing information to tempo space
+        max_tempo = max_bpm * num_beat_states / (60. * fps)
+        min_tempo = min_bpm * num_beat_states / (60. * fps)
+        if num_tempo_states is None:
+            # do not limit the number of tempo states, use a linear spacing
+            tempo_states = np.arange(np.round(min_tempo),
+                                     np.round(max_tempo) + 1)
+        else:
+            # limit the number of tempo states, thus use a quasi log spacing
+            tempo_states = np.logspace(np.log2(min_tempo),
+                                       np.log2(max_tempo),
+                                       num_tempo_states, base=2)
+        # instantiate a DBN
+        self.dbn = self.DBN(num_beat_states=num_beat_states,
+                            tempo_states=tempo_states,
+                            tempo_change_probability=tempo_change_probability,
+                            observation_lambda=observation_lambda,
+                            norm_observations=norm_observations,
+                            correct=correct, num_threads=num_threads)
 
     def process(self, activations):
         """
@@ -789,34 +798,9 @@ class DBNBeatTracking(Processor):
         :return:            detected beat positions
 
         """
-        # convert timing information to tempo space
-        max_tempo = self.max_bpm * self.num_beat_states / (60. * self.fps)
-        min_tempo = self.min_bpm * self.num_beat_states / (60. * self.fps)
-        if self.num_tempo_states is None:
-            # do not limit the number of tempo states, use a linear spacing
-            tempo_states = np.arange(np.round(min_tempo),
-                                     np.round(max_tempo) + 1)
-        else:
-            # limit the number of tempo states, thus use a quasi log spacing
-            tempo_states = np.logspace(np.log2(min_tempo),
-                                       np.log2(max_tempo),
-                                       self.num_tempo_states, base=2)
-        # quantize to integer tempo states
-        tempo_states = np.unique(np.round(tempo_states).astype(np.int))
-        # transition model
-        tm = self.TM(num_beat_states=self.num_beat_states,
-                     tempo_states=tempo_states,
-                     tempo_change_probability=self.tempo_change_probability)
-        # observation model
-        om = self.OM(activations, num_states=tm.num_states,
-                     num_beat_states=tm.num_beat_states,
-                     observation_lambda=self.observation_lambda,
-                     norm_observations=self.norm_observations)
-        # init the DBN
-        dbn = self.DBN(transition_model=tm, observation_model=om,
-                       num_threads=self.num_threads, correct=self.correct)
-        # convert the detected beats to seconds and return them
-        return dbn.beats / float(self.fps)
+        # process the dbn and convert the detected beats to seconds
+        return self.dbn.beats(activations) / float(self.fps)
+
 
     @classmethod
     def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
@@ -884,7 +868,7 @@ class DBNBeatTracking(Processor):
         g.add_argument('--tempo_change_probability', action='store',
                        type=float, default=tempo_change_probability,
                        help='probability of a tempo between two adjacent '
-                            'observations [default=%(default).4f]')
+                            'observation_model [default=%(default).4f]')
         # observation model stuff
         g.add_argument('--observation_lambda', action='store', type=int,
                        default=observation_lambda,
@@ -894,11 +878,11 @@ class DBNBeatTracking(Processor):
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
-                           help='do not normalize the observations of the DBN')
+                           help='do not normalize the observation_model of the DBN')
         else:
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
-                           help='normalize the observations of the DBN')
+                           help='normalize the observation_model of the DBN')
         # return the argument group so it can be modified if needed
         return g
 

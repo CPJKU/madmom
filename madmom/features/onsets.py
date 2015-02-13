@@ -14,7 +14,7 @@ from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
 from .. import MODELS_PATH, IOProcessor, SequentialProcessor, Processor
-from ..utils import write_events, files
+from ..utils import write_events, search_files
 from ..ml.rnn import RNNProcessor, average_predictions
 from ..audio.signal import (SignalProcessor, FramedSignalProcessor,
                             smooth as smooth_signal)
@@ -842,7 +842,8 @@ class RNNOnsetDetection(IOProcessor):
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
         stack = StackSpectrogramProcessor(frame_sizes=frame_sizes,
                                           online=online, bands=6,
-                                          norm_filters=True, mul=5, add=1,
+                                          norm_filters=True,
+                                          log=True, mul=5, add=1,
                                           diff_ratio=0.25, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
@@ -954,7 +955,7 @@ def main():
         # only process .wav files
         ext = '.wav'
     # process the files
-    for infile in files(args.files, ext):
+    for infile in search_files(args.files, ext):
         if args.verbose:
             print infile
         # append suffix to input filename

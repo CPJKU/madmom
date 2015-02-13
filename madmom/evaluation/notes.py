@@ -179,14 +179,14 @@ def main():
     Simple note evaluation.
 
     """
-    from madmom.utils import files, match_file
+    from madmom.utils import search_files, match_file
 
     # parse arguments
     args = parser()
 
     # get detection and annotation files
-    det_files = files(args.files, args.det_suffix)
-    ann_files = files(args.files, args.ann_suffix)
+    det_files = search_files(args.files, args.det_suffix)
+    ann_files = search_files(args.files, args.ann_suffix)
     # quit if no files are found
     if len(det_files) == 0:
         print "no files to evaluate. exiting."

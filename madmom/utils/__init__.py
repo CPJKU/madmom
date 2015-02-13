@@ -41,22 +41,23 @@ def open(filename, mode='r'):
         fid.close()
 
 
-def files(path, suffix=None):
+def search_files(path, suffix=None):
     """
-    Returns a list of files in path matching the given extension.
+    Returns a list of files in path matching the given suffix or filters
+    the given list to include only those matching the given suffix.
 
-    :param path: path or list of files to be filtered/searched
-    :param suffix:  only return files with this extension
-    :return:     list of files
+    :param path:   path or list of files to be searched / filtered
+    :param suffix: only return files with this suffix [string, list]
+    :return:       list of files
 
     """
-    # determine the detection files
+    # determine the files
     if type(path) == list:
         # a list of files or paths is given
         file_list = []
         # recursively call the function
         for f in path:
-            file_list.extend(files(f, suffix))
+            file_list.extend(search_files(f, suffix))
     elif os.path.isdir(path):
         # use all files in the given path
         if suffix is None:
@@ -72,19 +73,19 @@ def files(path, suffix=None):
         # no matching needed
         if suffix is None:
             file_list = [path]
-        # a list of extensions is given
+        # a list of suffices is given
         elif isinstance(suffix, list):
             for e in suffix:
                 if path.endswith(e):
                     file_list = [path]
-        # a single extension is given
+        # a single suffix is given
         elif path.endswith(suffix):
             file_list = [path]
     else:
         raise IOError("%s does not exist." % path)
     # sort files
     file_list.sort()
-    # return list
+    # return file list
     return file_list
 
 
