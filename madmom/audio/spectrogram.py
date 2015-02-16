@@ -11,7 +11,7 @@ import numpy as np
 import scipy.fftpack as fft
 
 from madmom import Processor, SequentialProcessor, ParallelProcessor
-from .filters import fft_frequencies, A4
+from .filters import A4
 
 
 # functions
@@ -325,9 +325,8 @@ class Spectrogram(object):
         # TODO: add option to automatically calculate `fref`
         # create a filterbank
         if filterbank is not None:
-            fb = filterbank(self.num_fft_bins, self.frames.sample_rate,
-                            bands=bands, fmin=fmin, fmax=fmax, fref=fref,
-                            norm_filters=norm_filters,
+            fb = filterbank(self.fft_freqs, bands=bands, fmin=fmin, fmax=fmax,
+                            fref=fref, norm_filters=norm_filters,
                             duplicate_filters=duplicate_filters)
             # save the filterbank so it gets used when calculating the STFT
             self.filterbank = fb
@@ -371,7 +370,8 @@ class Spectrogram(object):
     @property
     def fft_freqs(self):
         """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_fft_bins, self.frames.sample_rate)
+        return np.fft.fftfreq(self.fft_size, 1. /
+                              self.frames.sample_rate)[:self.num_fft_bins]
 
     @property
     def num_fft_bins(self):

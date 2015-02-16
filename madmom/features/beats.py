@@ -435,10 +435,6 @@ class BeatTracking(Processor):
                                    hist_smooth=hist_smooth, alpha=alpha)
 
 
-
-
-
-
 class BeatDetection(BeatTracking):
     """
     Class for detecting beats with a simple tempo estimation and beat aligning.
@@ -800,7 +796,6 @@ class DBNBeatTracking(Processor):
         """
         # process the dbn and convert the detected beats to seconds
         return self.dbn.beats(activations) / float(self.fps)
-
 
     @classmethod
     def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,

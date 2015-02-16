@@ -138,7 +138,7 @@ class RNNNoteTranscription(IOProcessor):
         sig = SignalProcessor(mono=True, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           bands=12, online=False,
-                                          norm_filters=True, mul=5,
+                                          norm_filters=True, log=True, mul=5,
                                           add=1, diff_ratio=0.5, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions

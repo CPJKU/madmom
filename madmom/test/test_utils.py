@@ -21,7 +21,7 @@ DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.030000001]
 class TestFileSelection(unittest.TestCase):
     # tests for files()
     def test_files_without_suffix(self):
-        all_files = files(DATA_PATH)
+        all_files = search_files(DATA_PATH)
         self.assertEqual(all_files, [DATA_PATH + 'commented_file.txt',
                                      DATA_PATH + 'file.onsets',
                                      DATA_PATH + 'file.onsets.txt',
@@ -29,13 +29,13 @@ class TestFileSelection(unittest.TestCase):
                                      DATA_PATH + 'file_txt'])
 
     def test_txt_files(self):
-        txt_files = files(DATA_PATH, suffix='txt')
+        txt_files = search_files(DATA_PATH, suffix='txt')
         self.assertEqual(txt_files, [DATA_PATH + 'commented_file.txt',
                                      DATA_PATH + 'file.onsets.txt',
                                      DATA_PATH + 'file_txt'])
 
     def test_dot_txt_files(self):
-        dot_txt_files = files(DATA_PATH, suffix='.txt')
+        dot_txt_files = search_files(DATA_PATH, suffix='.txt')
         self.assertEqual(dot_txt_files, [DATA_PATH + 'commented_file.txt',
                                          DATA_PATH + 'file.onsets.txt'])
 
