@@ -42,10 +42,13 @@ def write_notes(notes, filename, sep='\t'):
 
     """
     from madmom.utils import open
-    # write the detected notes to the output
-    with open(filename, 'wb') as f:
-        for note in notes:
-            f.write(sep.join([str(x) for x in note]) + '\n')
+    # write the notes to the output
+    if filename is not None:
+        with open(filename, 'wb') as f:
+            for note in notes:
+                f.write(sep.join([str(x) for x in note]) + '\n')
+    # also return them
+    return notes
 
 
 def write_midi(notes, filename, note_length=0.6, note_velocity=100):

@@ -156,8 +156,12 @@ def write_events(events, filename):
     :param filename: output file name or file handle
 
     """
-    with open(filename, 'wb') as f:
-        f.writelines('%g\n' % e for e in events)
+    # write the events to the output
+    if filename is not None:
+        with open(filename, 'wb') as f:
+            f.writelines('%g\n' % e for e in events)
+    # also return them
+    return events
 
 
 def combine_events(events, delta):

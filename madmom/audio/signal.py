@@ -289,18 +289,11 @@ class SignalProcessor(Processor):
         :param att:         attenuate the signal [dB]
 
         """
+        super(SignalProcessor, self).__init__(**kwargs)
         self.sample_rate = sample_rate
         self.mono = mono
         self.norm = norm
         self.att = att
-
-    def __str__(self):
-        return 'SignalProcessor: %s\n' \
-               '  sample_rate %s\n' \
-               '  mono        %s\n' \
-               '  norm        %s\n' \
-               '  attenuation %.1f' % (repr(self), self.sample_rate, self.mono,
-                                       self.norm, self.att)
 
     def process(self, data):
         """
@@ -749,20 +742,12 @@ class FramedSignalProcessor(Processor):
                       with the signal [default]
 
         """
+        super(FramedSignalProcessor, self).__init__(**kwargs)
         self.frame_size = frame_size
         self.hop_size = hop_size
         self.fps = fps
         self.online = online
         self.end = end
-
-    def __str__(self):
-        return 'FramedSignalProcessor: %s\n' \
-               '  frame_size %d\n' \
-               '  hop_size   %.1f\n' \
-               '  fps        %s\n' \
-               '  online     %s\n' \
-               '  end        %s' % (repr(self), self.frame_size, self.hop_size,
-                                    self.fps, self.online, self.end)
 
     def process(self, data, start=0, num_frames=None):
         """

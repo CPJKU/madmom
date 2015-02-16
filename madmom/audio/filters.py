@@ -703,7 +703,8 @@ class MelFilterbank(Filterbank):
     DUPLICATE_FILTERS = False
 
     def __new__(cls, bin_frequencies, bands=BANDS, fmin=FMIN, fmax=FMAX,
-                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS):
+                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
+                **kwargs):
         """
         Creates a new MelFilterbank instance.
 
@@ -741,7 +742,8 @@ class BarkFilterbank(Filterbank):
     DUPLICATE_FILTERS = False
 
     def __new__(cls, bin_frequencies, bands=BANDS, fmin=FMIN, fmax=FMAX,
-                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS):
+                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
+                **kwargs):
         """
         Creates a new BarkFilterbank instance.
 

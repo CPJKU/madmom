@@ -592,6 +592,7 @@ class SpectrogramProcessor(Processor):
                               together with a 24 band logarithmic filterbank)
 
         """
+        super(SpectrogramProcessor, self).__init__(**kwargs)
         # filterbank stuff
         # TODO: add literal values
         if filterbank is True:
@@ -978,6 +979,7 @@ class StackSpectrogramProcessor(Processor):
                               of the maximum height [float]
 
         """
+        super(StackSpectrogramProcessor, self).__init__(**kwargs)
         from .signal import FramedSignalProcessor
         from .filters import LogarithmicFilterbank
         # use the same spec for all frame sizes
