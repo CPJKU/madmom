@@ -27,7 +27,6 @@ class Cepstrogram(Processor):
         :param transform: transform
 
         """
-        super(Cepstrogram, self).__init__(**kwargs)
         self.transform = transform
 
     def process(self, spectrogram):

@@ -289,7 +289,6 @@ class SignalProcessor(Processor):
         :param att:         attenuate the signal [dB]
 
         """
-        super(SignalProcessor, self).__init__(**kwargs)
         self.sample_rate = sample_rate
         self.mono = mono
         self.norm = norm
@@ -742,7 +741,6 @@ class FramedSignalProcessor(Processor):
                       with the signal [default]
 
         """
-        super(FramedSignalProcessor, self).__init__(**kwargs)
         self.frame_size = frame_size
         self.hop_size = hop_size
         self.fps = fps
