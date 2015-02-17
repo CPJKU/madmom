@@ -271,8 +271,7 @@ class Spectrogram(object):
         :param add:               add this value before taking the logarithm
                                   of the magnitudes [float]
 
-        If no FramedSignal instance was given, one is instantiated and these
-        arguments are passed:
+        Difference parameters:
 
         :param diff_ratio:        calculate the difference to the frame at
                                   which the window used for the STFT yields

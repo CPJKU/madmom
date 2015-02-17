@@ -8,8 +8,8 @@ SuperFlux with neural network based peak picking onset detection algorithm.
 """
 
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
-from madmom.features.onsets import SpectralOnsetDetection as SuperFlux, NNPeakPicking
+from madmom.features.onsets import (SpectralOnsetDetection as SuperFlux,
+                                    NNPeakPicking)
 
 
 def parser():

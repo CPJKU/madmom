@@ -35,8 +35,6 @@ from madmom.features import Activations
 RNNLIB = 'rnnlib'
 
 
-# TODO: inherit from features.Activations
-#       add another @classmethod constructor or overwrite __new__()?
 class RnnlibActivations(np.ndarray):
     """
     Class for reading in activations as written by RNNLIB.
@@ -1265,36 +1263,59 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     """
     Create .nc files for the given .wav and annotation files.
 
+    :param files:         use the files (must contain both the audio files and
+                          the annotation files)
+    :param annotations:   use these annotation suffices [list of strings]
+    :param out_dir:       output directory for the created .nc files
 
-    :param files:
-    :param annotations:
-    :param out_dir:
+    Signal parameters:
 
-    :param norm:
-    :param att:
+    :param norm:          normalize the signal
+    :param att:           attenuate the signal
 
-    :param frame_size:
-    :param online:
-    :param fps:
+    Framing parameters:
 
-    :param filterbank:
-    :param bands:
-    :param fmin:
-    :param fmax:
-    :param norm_filters:
+    :param frame_size:    size of one frame(s), if a list is given, the
+                          individual spectrograms are stacked [int]
+    :param fps:           use given frames per second [float]
+    :param online:        online mode, i.e. use only past information
 
-    :param log:
-    :param mul:
-    :param add:
+    Filterbank parameters:
 
-    :param diff_ratio:
-    :param diff_frames:
-    :param diff_max_bins:
+    :param filterbank:    filterbank type [Filterbank]
+    :param bands:         number of filter bands (per octave, depending on the
+                          type of the filterbank)
+    :param fmin:          the minimum frequency [Hz]
+    :param fmax:          the maximum frequency [Hz]
+    :param norm_filters:  normalize the filter to area 1 [bool]
 
-    :param shift:
-    :param split:
+    Logarithmic magnitude parameters:
 
-    :param verbose:
+    :param log:           scale the magnitude spectrogram logarithmically [bool]
+    :param mul:           multiply the magnitude spectrogram with this factor
+                          before taking the logarithm [float]
+    :param add:           add this value before taking the logarithm of the
+                          magnitudes [float]
+
+    Difference parameters:
+
+    :param diff_ratio:    calculate the difference to the frame at
+                          which the window used for the STFT yields
+                          this ratio of the maximum height [float]
+    :param diff_frames:   calculate the difference to the N-th previous frame
+                          [int] (if set, this overrides the value calculated
+                          from the `diff_ratio`)
+    :param diff_max_bins: apply a maximum filter with this width (in bins in
+                          frequency dimension) before calculating the diff;
+                          (e.g. for the difference spectrogram of the SuperFlux
+                          algorithm 3 `max_bins` are used together with a 24
+                          band logarithmic filterbank)
+
+    Other parameters:
+
+    :param shift:         shift the targets N frames
+    :param split:         split the files into parts with N frames length
+    :param verbose:       be verbose
 
     """
     from madmom import SequentialProcessor
