@@ -11,7 +11,32 @@ import numpy as np
 import scipy.fftpack as fft
 
 from madmom import Processor, SequentialProcessor, ParallelProcessor
-from .filters import A4
+
+# filter defaults
+from .filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
+                      A4, NORM_FILTERS, DUPLICATE_FILTERS)
+FILTERBANK = LogarithmicFilterbank
+# log defaults
+LOG = False
+MUL = 1
+ADD = 0
+# diff defaults
+DIFF_RATIO = 0.5
+DIFF_FRAMES = None
+DIFF_MAX_BINS = 1
+POSITIVE_DIFF = True
+
+
+def fft_frequencies(num_fft_bins, sample_rate):
+    """
+    Frequencies of the FFT bins.
+
+    :param num_fft_bins: number of FFT bins (i.e. half the FFT length)
+    :param sample_rate:  sample rate of the signal
+    :return:             frequencies of the FFT bins
+
+    """
+    return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
 
 
 # functions
@@ -203,21 +228,13 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    from .filters import (LogarithmicFilterbank, FMIN, FMAX, NORM_FILTERS,
-                          A4, DUPLICATE_FILTERS)
-    # filterbank default values
-    filterbank = None
-
-    log = None
-
     def __init__(self, frames, window=np.hanning, norm_window=False,
-                 fft_size=None, block_size=2048,
-                 filterbank=LogarithmicFilterbank,
-                 bands=LogarithmicFilterbank.BANDS_PER_OCTAVE,
-                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, log=False, mul=1, add=0,
-                 diff_ratio=0.5, diff_frames=None, diff_max_bins=1,
-                 positive_diff=True, **kwargs):
+                 fft_size=None, block_size=2048, filterbank=FILTERBANK,
+                 bands=BANDS, fmin=FMIN, fmax=FMAX, fref=A4,
+                 norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
+                 log=LOG, mul=MUL, add=ADD, diff_ratio=DIFF_RATIO,
+                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
+                 positive_diff=POSITIVE_DIFF, **kwargs):
         """
         Creates a new Spectrogram instance of the given audio.
 
@@ -290,9 +307,8 @@ class Spectrogram(object):
             # try to instantiate a FramedSignal object
             self.frames = FramedSignal(frames, **kwargs)
 
-        # FFT parameters
-
-        # determine window to use
+        # FFT stuff
+        # determine which window to use
         if hasattr(window, '__call__'):
             # if only function is given, use the size to the audio frame size
             self.window = window(self.frames.frame_size)
@@ -320,24 +336,23 @@ class Spectrogram(object):
         # perform some calculations (e.g. filtering) in blocks of that size
         self.block_size = block_size
 
-        # filterbank parameters
-
+        # filterbank stuff
         # TODO: add option to automatically calculate `fref`
-        # create a filterbank
         if filterbank is not None:
-            fb = filterbank(self.fft_freqs, bands=bands, fmin=fmin, fmax=fmax,
-                            fref=fref, norm_filters=norm_filters,
-                            duplicate_filters=duplicate_filters)
-            # save the filterbank so it gets used when calculating the STFT
-            self.filterbank = fb
+            # create a filterbank of the given type
+            filterbank = filterbank(self.fft_freqs, bands=bands, fmin=fmin,
+                                    fmax=fmax, fref=fref,
+                                    norm_filters=norm_filters,
+                                    duplicate_filters=duplicate_filters)
+        # save the filterbank so it gets used when calculating the STFT
+        self.filterbank = filterbank
 
-        # log parameters
+        # log stuff
         self.log = log
         self.mul = mul
         self.add = add
 
-        # diff parameters
-
+        # diff stuff
         # calculate the number of diff frames to use
         if not diff_frames:
             # calculate on basis of the diff_ratio
@@ -370,8 +385,7 @@ class Spectrogram(object):
     @property
     def fft_freqs(self):
         """Frequencies of the FFT bins."""
-        return np.fft.fftfreq(self.fft_size, 1. /
-                              self.frames.sample_rate)[:self.num_fft_bins]
+        return fft_frequencies(self.num_fft_bins, self.frames.sample_rate)
 
     @property
     def num_fft_bins(self):
@@ -538,23 +552,8 @@ class SpectrogramProcessor(Processor):
     Spectrogram Class.
 
     """
-    # filter defaults
-    from .filters import LogarithmicFilterbank
-    FILTERBANK = LogarithmicFilterbank
-    BANDS = 6
-    FMIN = 30
-    FMAX = 17000
-    NORM_FILTERS = False
-    # log defaults
-    LOG = False
-    MUL = 1
-    ADD = 0
-    # diff defaults
-    DIFF_RATIO = 0.5
-    DIFF_FRAMES = None
-    DIFF_MAX_BINS = 1
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=LogarithmicFilterbank, bands=BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
                  add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, **kwargs):
@@ -595,9 +594,9 @@ class SpectrogramProcessor(Processor):
         # filterbank stuff
         # TODO: add literal values
         if filterbank is True:
-            # use the default filterbank
-            from .filters import LogarithmicFilterbank
             filterbank = LogarithmicFilterbank
+        elif filterbank is False:
+            filterbank = None
         self.filterbank = filterbank
         self.bands = bands
         self.fmin = fmin
@@ -710,19 +709,19 @@ class SpectrogramProcessor(Processor):
             # TODO: add literal values
             if filterbank:
                 g.add_argument('--no_filter', dest='filterbank',
-                               action='store_false', default=filterbank,
+                               action='store_false',
+                               default=LogarithmicFilterbank,
                                help='do not filter the spectrogram with a '
                                     'filterbank [default=True]')
             else:
-                g.add_argument('--filter', action='store_true',
-                               default=False,
+                g.add_argument('--filter', action='store_true', default=None,
                                help='filter the spectrogram with a '
                                     'logarithmically spaced filterbank '
                                     '[default=False]')
         if bands is not None:
             g.add_argument('--bands', action='store', type=int,
                            default=bands,
-                           help='use a filterbank with N bands per octave '
+                           help='use a filterbank with N bands (per octave) '
                                 '[default=%(default)i]')
         if fmin is not None:
             g.add_argument('--fmin', action='store', type=float,
@@ -868,21 +867,20 @@ class SuperFluxProcessor(SpectrogramProcessor):
         :return:
 
         """
-        # set the default values (but they are overwritten if set)
+        # set the default values (they can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
-        filterbank = kwargs.pop('filterbank',
-                                SpectrogramProcessor.LogarithmicFilterbank)
+        filterbank = kwargs.pop('filterbank', FILTERBANK)
         bands = kwargs.pop('bands', 24)
         norm_filters = kwargs.pop('norm_filters', False)
         # log magnitudes
         log = kwargs.pop('log', True)
         # we want max filtered diffs
-        diff = kwargs.pop('diff', True)
+        diff_ratio = kwargs.pop('diff_ratio', 0.5)
         diff_max_bins = kwargs.pop('diff_max_bins', 3)
         # instantiate SpectrogramProcessor
         super(SuperFluxProcessor, self).__init__(
             filterbank=filterbank, bands=bands, norm_filters=norm_filters,
-            log=log, diff=diff, diff_max_bins=diff_max_bins, **kwargs)
+            log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins, **kwargs)
 
 
 class MultiBandSuperFluxProcessor(SuperFluxProcessor):
@@ -955,8 +953,9 @@ class StackSpectrogramProcessor(Processor):
     Stack spec & diff.
 
     """
-    def __init__(self, frame_sizes, online, fps, bands, norm_filters, log, mul,
-                 add, diff_ratio, **kwargs):
+    def __init__(self, frame_sizes, online, fps, filterbank=FILTERBANK,
+                 bands=BANDS, fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
+                 log=LOG, mul=MUL, add=ADD, diff_ratio=DIFF_RATIO, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 
@@ -979,10 +978,9 @@ class StackSpectrogramProcessor(Processor):
 
         """
         from .signal import FramedSignalProcessor
-        from .filters import LogarithmicFilterbank
         # use the same spec for all frame sizes
-        sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
-                                  bands=bands, norm_filters=norm_filters,
+        sp = SpectrogramProcessor(filterbank=filterbank, bands=bands, fmin=fmin,
+                                  fmax=fmax, norm_filters=norm_filters,
                                   log=log, mul=mul, add=add,
                                   diff_ratio=diff_ratio, **kwargs)
         # multiple framing & spec processors

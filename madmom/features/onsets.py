@@ -920,7 +920,7 @@ def parser():
     p.add_argument('--suffix', action='store', type=str, default='.txt',
                    help='suffix for detections [default=%(default)s]')
     # add arguments
-    SpectralOnsetDetection.add_arguments(p, method='superflux')
+    SpectralOnsetDetection.add_arguments(p)
     PeakPicking.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
                               pre_avg=0.15, post_avg=0, combine=0.03, delay=0)
     ActivationsProcessor.add_arguments(p)
