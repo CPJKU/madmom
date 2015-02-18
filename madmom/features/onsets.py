@@ -13,13 +13,14 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from .. import MODELS_PATH, IOProcessor, SequentialProcessor, Processor
-from ..utils import write_events, search_files
-from ..ml.rnn import RNNProcessor, average_predictions
-from ..audio.signal import (SignalProcessor, FramedSignalProcessor,
-                            smooth as smooth_signal)
-from ..audio.spectrogram import SpectrogramProcessor, StackSpectrogramProcessor
-from . import ActivationsProcessor
+from madmom import MODELS_PATH, IOProcessor, SequentialProcessor, Processor
+from madmom.utils import write_events, search_files
+from madmom.ml.rnn import RNNProcessor, average_predictions
+from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
+                                 smooth as smooth_signal)
+from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      StackSpectrogramProcessor)
+from madmom.features import ActivationsProcessor
 
 EPSILON = 1e-6
 

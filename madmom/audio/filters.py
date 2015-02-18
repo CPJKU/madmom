@@ -10,7 +10,7 @@ This file contains filter and filterbank related functionality.
 import numpy as np
 
 from madmom import Processor
-from .signal import segment_axis
+from madmom.audio.signal import segment_axis
 
 A4 = 440
 

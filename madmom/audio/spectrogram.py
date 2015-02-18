@@ -13,8 +13,8 @@ import scipy.fftpack as fft
 from madmom import Processor, SequentialProcessor, ParallelProcessor
 
 # filter defaults
-from .filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
-                      A4, NORM_FILTERS, DUPLICATE_FILTERS)
+from madmom.audio.filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
+                                  A4, NORM_FILTERS, DUPLICATE_FILTERS)
 FILTERBANK = LogarithmicFilterbank
 # log defaults
 LOG = False

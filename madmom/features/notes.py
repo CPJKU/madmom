@@ -13,11 +13,11 @@ import numpy as np
 from madmom import MODELS_PATH, IOProcessor
 from madmom.utils import open
 
-from . import ActivationsProcessor
-from .onsets import PeakPicking
-from ..audio.signal import SignalProcessor
-from ..audio.spectrogram import StackSpectrogramProcessor
-from ..ml.rnn import RNNProcessor, average_predictions
+from madmom.features import ActivationsProcessor
+from madmom.features.onsets import PeakPicking
+from madmom.audio.signal import SignalProcessor
+from madmom.audio.spectrogram import StackSpectrogramProcessor
+from madmom.ml.rnn import RNNProcessor, average_predictions
 
 
 def load_notes(filename):
