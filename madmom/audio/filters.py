@@ -244,6 +244,9 @@ def frequencies2bins(frequencies, bin_frequencies):
     :return:                corresponding bins [numpy array]
 
     """
+    # cast as numpy arrays
+    frequencies = np.asarray(frequencies)
+    bin_frequencies = np.asarray(bin_frequencies)
     # map the frequencies to spectrogram bins
     # solution found at: http://stackoverflow.com/questions/8914491/
     indices = bin_frequencies.searchsorted(frequencies)
@@ -265,7 +268,7 @@ def bins2frequencies(bins, bin_frequencies):
 
     """
     # map the frequencies to spectrogram bins
-    return bin_frequencies[np.asarray(bins)]
+    return np.asarray(bin_frequencies, dtype=np.float)[np.asarray(bins)]
 
 
 # filter classes
@@ -280,7 +283,7 @@ class Filter(np.ndarray):
         Creates a new Filter instance.
 
         :param data:  1D numpy array
-        :param start: start position
+        :param start: start position [int]
 
         The start position is mandatory if this Filter should be used for the
         creation of a Filterbank. If not set, a start position of 0 is assumed.
@@ -296,8 +299,8 @@ class Filter(np.ndarray):
         if data.ndim != 1:
             raise NotImplementedError('please add multi-dimension support')
         # set attributes
-        obj.start = start
-        obj.stop = start + len(data)
+        obj.start = int(start)
+        obj.stop = int(start + len(data))
         # return the object
         return obj
 
@@ -380,11 +383,18 @@ class TriangularFilter(Filter):
         of triangular filters.
 
         :param bins:       center bins of filters [list or numpy array]
-        :param norm:       normalize the area of the filter(s) to 1
+        :param norm:       normalize the area of the filter(s) to 1 [bool]
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies
-        :param overlap:    filters should overlap
+        :param overlap:    filters should overlap [bool]
         :return:           start, center and stop bins & normalisation info
+
+        Note: If `duplicates` is set, duplicate filter bins are kept as is,
+              otherwise they are removed, i.e. any filter bin is included only
+              1 time at most.
+              If `overlap` is 'False', the 'start' and 'stop' bins of the
+              filters are interpolated between the centre bins, normal rounding
+              applies.
 
         """
         # only keep unique bins if requested
@@ -401,8 +411,8 @@ class TriangularFilter(Filter):
             # create non-overlapping filters
             if not overlap:
                 # re-arrange the start and stop positions
-                start = np.round(float(center + start) / 2)
-                stop = np.round(float(center + stop) / 2)
+                start = int(round((center + start) / 2.))
+                stop = int(round((center + stop) / 2.))
             # consistently handle too-small filters
             if duplicates and (stop - start < 2):
                 center = start
@@ -428,15 +438,15 @@ class RectangularFilter(Filter):
                       (unless normalized) with indices <= 'start' set to 0
 
         """
-        # center must be within start & stop
+        # start must be smaller than stop
         if start >= stop:
             raise ValueError('start must be smaller than stop')
-        # make stop relative
-        stop -= start
+        # length of the filter
+        length = stop - start
         # set the height of the filter, normalized if necessary
-        height = 1. / stop if norm else 1.
+        height = 1. / length if norm else 1.
         # create filter
-        data = np.ones(stop) * height
+        data = np.ones(length, dtype=np.float) * height
         # cast to RectangularFilter and return it
         return Filter.__new__(cls, data, start)
 
@@ -452,6 +462,10 @@ class RectangularFilter(Filter):
                            resolution of low frequencies
         :param overlap:    filters should overlap
         :return:           start and stop bins & normalisation info
+
+        Note: If `duplicates` is set, duplicate filter bins are kept as is,
+              otherwise they are removed, i.e. any filter bin is included only
+              1 time at most.
 
         """
         # only keep unique bins if requested
@@ -472,8 +486,8 @@ class RectangularFilter(Filter):
             yield start, stop, norm
 
 # default values for filter banks
-FMIN = 30
-FMAX = 17000
+FMIN = 30.
+FMAX = 17000.
 BANDS = 12
 NORM_FILTERS = True
 DUPLICATE_FILTERS = False
@@ -504,14 +518,17 @@ class Filterbank(np.ndarray):
 
         """
         # input is an numpy ndarray instance
-        if isinstance(data, np.ndarray):
+        if isinstance(data, np.ndarray) and data.ndim == 2:
             # cast as Filterbank
             obj = np.asarray(data).view(cls)
         else:
-            raise TypeError('wrong input data for Filterbank, must be '
+            raise TypeError('wrong input data for Filterbank, must be a 2D '
                             'np.ndarray')
-        # set attributes
-        obj.bin_frequencies = bin_frequencies
+        # set bin frequencies
+        if len(bin_frequencies) != obj.shape[0]:
+            raise ValueError("'bin_frequencies' must have the same length as "
+                             "the first dimension of 'data'.")
+        obj.bin_frequencies = np.asarray(bin_frequencies, dtype=np.float)
         # return the object
         return obj
 
@@ -526,8 +543,14 @@ class Filterbank(np.ndarray):
         """
         Puts a filter in the band, internal helper function.
 
-        :param filt: numpy array
-        :param band: band in which the filter should be put (numpy array)
+        :param filt: Filter instance
+        :param band: band in which the filter should be put [numpy array]
+
+        Note: The `band` must be an existing numpy array where the filter
+              `filt` is put in, given the position of the filter.
+              Out of range filters are truncated.
+              If there are non-zero values in the filter band at the respective
+              positions, the maximum value of the `band` and the `filt` is used.
 
         """
         if not isinstance(filt, Filter):
@@ -541,7 +564,7 @@ class Filterbank(np.ndarray):
             start = 0
         # truncate the filter if it ends after the last band bin
         if stop > len(band):
-            filt = filt[:stop - len(band)]
+            filt = filt[:-(stop - len(band))]
             stop = len(band)
         # put the filter in place
         filter_position = band[start:stop]
@@ -553,11 +576,12 @@ class Filterbank(np.ndarray):
         """
         Creates a filterbank with possibly multiple filters per band.
 
-        :param filters:         list containing the filters per band; if
+        :param filters:         list containing the Filters per band; if
                                 multiple filters per band are desired, they
                                 should be also contained in a list, resulting
-                                in a list of lists of filters
-        :param bin_frequencies: frequencies of the bins
+                                in a list of lists of Filters
+        :param bin_frequencies: frequencies of the bins (needed to determine
+                                the expected size of the filterbank)
         :return:                filterbank with respective filter elements
 
         """
@@ -589,24 +613,35 @@ class Filterbank(np.ndarray):
         return self.shape[1]
 
     @property
-    def filter_corner_frequencies(self):
-        """Corner frequencies of the filters."""
+    def corner_frequencies(self):
+        """Corner frequencies of the filter bands."""
         freqs = []
         for band in range(self.num_bands):
+            # get the non-zero bins per band
             bins = np.nonzero(self[:, band])[0]
-            fmin, fmax = bins2frequencies([np.min(bins) - 1, np.max(bins)],
-                                          self.bin_frequencies)
-            freqs.append([fmin, fmax])
-        return np.asarray(freqs)
+            # append the lowest and highest bin
+            freqs.append([np.min(bins), np.max(bins)])
+        # map to frequencies
+        return bins2frequencies(freqs, self.bin_frequencies)
 
     @property
-    def filter_center_frequencies(self):
-        """Center frequencies of the filters."""
+    def center_frequencies(self):
+        """Center frequencies of the filter bands."""
         freqs = []
         for band in range(self.num_bands):
-            freqs.append(bins2frequencies(np.argmax(self[:, band]),
-                                          self.bin_frequencies))
-        return np.asarray(freqs)
+            # get the non-zero bins per band
+            bins = np.nonzero(self[:, band])[0]
+            min_bin = np.min(bins)
+            max_bin = np.max(bins)
+            # if we have a uniform filter, use the center bin
+            if self[min_bin, band] == self[max_bin, band]:
+                center = int(min_bin + (max_bin - min_bin) / 2.)
+            # if we have a filter with a peak, use the peak bin
+            else:
+                center = min_bin + np.argmax(self[min_bin: max_bin, band])
+            freqs.append(center)
+        # map to frequencies
+        return bins2frequencies(freqs, self.bin_frequencies)
 
     @property
     def fmin(self):
@@ -697,8 +732,8 @@ class MelFilterbank(Filterbank):
 
     """
     BANDS = 40
-    FMIN = 30
-    FMAX = 17000
+    FMIN = 20.
+    FMAX = 17000.
     NORM_FILTERS = True
     DUPLICATE_FILTERS = False
 
@@ -715,6 +750,10 @@ class MelFilterbank(Filterbank):
         :param norm_filters:      normalize the filters to area 1
         :param duplicate_filters: keep duplicate filters resulting from
                                   insufficient resolution of low frequencies
+
+        Note: Because of rounding and mapping o frequencies to bins and vice
+              versa, the actual minimum, maximum and center frequencies do not
+              necessarily reflect the
 
         """
         # get a list of frequencies
@@ -735,8 +774,8 @@ class BarkFilterbank(Filterbank):
     Bark filterbank class.
 
     """
-    FMIN = 20
-    FMAX = 15500
+    FMIN = 20.
+    FMAX = 15500.
     BANDS = 'simple'
     NORM_FILTERS = True
     DUPLICATE_FILTERS = False
@@ -758,9 +797,9 @@ class BarkFilterbank(Filterbank):
         """
         # get a list of frequencies
         if bands == 'simple':
-            frequencies = bark_double_frequencies(fmin, fmax)
-        elif bands == 'double':
             frequencies = bark_frequencies(fmin, fmax)
+        elif bands == 'double':
+            frequencies = bark_double_frequencies(fmin, fmax)
         else:
             raise ValueError("bands must be either 'simple' or 'double'")
         # convert to bins
@@ -853,6 +892,8 @@ class SimpleChromaFilterbank(Filterbank):
                                   insufficient resolution of low frequencies
 
         """
+        raise NotImplementedError("please check if produces correct/expected "
+                                  "results and enable if yes.")
         # TODO: add comments!
         stf = LogarithmicFilterbank(bin_frequencies, bands=bands, fmin=fmin,
                                     fmax=fmax, fref=fref,
@@ -924,6 +965,8 @@ class PitchClassProfileFilterbank(Filterbank):
         :param fref:            reference frequency for the first PCP bin [Hz]
 
         """
+        raise NotImplementedError("please check if produces correct/expected "
+                                  "results and enable if yes.")
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # log deviation from the reference frequency
@@ -978,6 +1021,8 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         :param window:          length of the weighting window [bins]
 
         """
+        raise NotImplementedError("please check if produces correct/expected "
+                                  "results and enable if yes.")
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # log deviation from the reference frequency
@@ -1128,8 +1173,8 @@ class CombFilterbank(Processor):
             raise ValueError('tau must be cast-able as an int numpy array')
 
         # set the filter function
-        if filter_function in ['forward', feed_backward_comb_filter]:
-            self.comb_filter_function = feed_backward_comb_filter
+        if filter_function in ['forward', feed_forward_comb_filter]:
+            self.comb_filter_function = feed_forward_comb_filter
         elif filter_function in ['backward', feed_backward_comb_filter]:
             self.comb_filter_function = feed_backward_comb_filter
         else:

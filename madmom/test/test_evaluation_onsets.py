@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-This file contains onset evaluation tests.
+This file contains tests for the madmom.evaluation.onsets module.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 

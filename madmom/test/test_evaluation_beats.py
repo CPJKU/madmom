@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-This file contains beat evaluation tests.
+This file contains tests for the madmom.evaluation.beats module.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -80,7 +80,7 @@ class TestFindClosestInterval(unittest.TestCase):
         intervals = find_closest_intervals(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
         self.assertTrue(np.allclose(intervals, correct))
-        # intervals = find_closest_intervals(DETECTIONS, ANNOTATIONS)
+        # intervals = find_closest_intervals(DETECTIONS, EVENTS)
         # correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
         # test annotations w.r.t. detections
         intervals = find_closest_intervals(ANNOTATIONS, DETECTIONS)

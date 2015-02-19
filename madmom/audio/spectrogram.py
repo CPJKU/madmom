@@ -922,7 +922,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         # create an empty filterbank
         fb = np.zeros((data.num_bins, len(self.crossover_frequencies) + 1))
         # get the closest cross over bins
-        freq_distance = (data.filterbank.filter_center_frequencies -
+        freq_distance = (data.filterbank.center_frequencies -
                          np.asarray(self.crossover_frequencies)[:, np.newaxis])
         crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
         # prepend index 0 and append length of the filterbank
