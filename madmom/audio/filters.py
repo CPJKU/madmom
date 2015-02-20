@@ -10,7 +10,6 @@ This file contains filter and filterbank related functionality.
 import numpy as np
 
 from madmom import Processor
-from madmom.audio.signal import segment_axis
 
 A4 = 440
 
@@ -403,11 +402,14 @@ class TriangularFilter(Filter):
         #       the spectral flux)
         if not duplicates:
             bins = np.unique(bins)
-        # make sure enough frequencies are given
+        # make sure enough bins are given
         if len(bins) < 3:
             raise ValueError('not enough bins to create a TriangularFilter')
-        # return the frequencies
-        for start, center, stop in segment_axis(bins, 3, 1):
+        # yield the bins
+        index = 0
+        while index + 3 <= len(bins):
+            # get start, center and stop bins
+            start, center, stop = bins[index: index + 3]
             # create non-overlapping filters
             if not overlap:
                 # re-arrange the start and stop positions
@@ -417,8 +419,10 @@ class TriangularFilter(Filter):
             if duplicates and (stop - start < 2):
                 center = start
                 stop = start + 1
-            # yield the frequencies and continue
+            # yield the bins and continue
             yield start, center, stop, norm
+            # increase counter
+            index += 1
 
 
 class RectangularFilter(Filter):
@@ -474,16 +478,21 @@ class RectangularFilter(Filter):
         #       the spectral flux)
         if not duplicates:
             bins = np.unique(bins)
-        # make sure enough frequencies are given
+        # make sure enough bins are given
         if len(bins) < 2:
             raise ValueError('not enough bins to create a RectangularFilter')
         # overlapping filters?
         if overlap:
             raise NotImplementedError('please implement if needed!')
-        # return the frequencies
-        for start, stop in segment_axis(bins, 2, 1):
-            # yield the frequencies and continue
+        # yield the bins
+        index = 0
+        while index + 2 <= len(bins):
+            # get start and stop bins
+            start, stop = bins[index: index + 2]
+            # yield the bins and continue
             yield start, stop, norm
+            # increase counter
+            index += 1
 
 # default values for filter banks
 FMIN = 30.

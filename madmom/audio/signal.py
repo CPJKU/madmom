@@ -15,31 +15,33 @@ from madmom import Processor
 # signal functions
 def smooth(signal, kernel):
     """
-    Smooth the signal.
+    Smooth the signal along the first axis.
 
     :param signal: signal [numpy array]
     :param kernel: smoothing kernel [numpy array or int]
     :return:       smoothed signal
 
-    Note: If 'smooth' is an integer, a Hamming window of that length will be
+    Note: If `kernel` is an integer, a Hamming window of that length will be
           used as a smoothing kernel.
 
     """
-    # return signal if no smoothing is required
-    if not kernel:
+    # check if a kernel is given
+    if kernel is None:
         return signal
     # size for the smoothing kernel is given
-    if isinstance(kernel, int):
+    elif isinstance(kernel, int):
         if kernel > 1:
             # use a Hamming window of given length
             kernel = np.hamming(kernel)
+        else:
+            raise ValueError("can't create a smoothing window of size %d" %
+                             kernel)
     # otherwise use the given smoothing kernel directly
     elif isinstance(kernel, np.ndarray):
         if len(kernel) > 1:
             kernel = kernel
-    # check if a kernel is given
-    if kernel is None:
-        raise ValueError('can not smooth signal with %s' % kernel)
+    else:
+        raise ValueError("can't smooth signal with %s" % kernel)
     # convolve with the kernel and return
     if signal.ndim == 1:
         return np.convolve(signal, kernel, 'same')
@@ -55,16 +57,22 @@ def attenuate(signal, attenuation):
     Attenuate the signal.
 
     :param signal:      signal [numpy array]
-    :param attenuation: attenuation level [dB]
+    :param attenuation: attenuation level [dB, float]
     :return:            attenuated signal
 
+    Note: The signal is returned with the same type, thus in case of integer
+          dtypes, rounding errors may occur.
+
     """
+    # return the signal unaltered if no attenuation is given
+    if attenuation == 0:
+        return signal
     # FIXME: attenuating the signal and keeping the original dtype makes the
     #        following signal processing steps well-behaved, since these rely
     #        on the dtype of the array to determine the correct value range.
     #        This introduces rounding (truncating) errors in case of signals
     #        with integer dtypes. But these errors should be negligible.
-    # np.asanyarray returns the signal's ndarray subclass
+    # Note: np.asanyarray returns the signal's ndarray subclass
     return np.asanyarray(signal / np.power(np.sqrt(10.), attenuation / 10.),
                          dtype=signal.dtype)
 
@@ -76,8 +84,11 @@ def normalize(signal):
     :param signal: signal [numpy array]
     :return:       normalized signal
 
+    Note: The signal is always returned with np.float dtype.
+
     """
-    return signal.astype(np.float) / np.max(signal)
+    # Note: np.asanyarray returns the signal's ndarray subclass
+    return np.asanyarray(signal.astype(np.float) / np.max(signal))
 
 
 def downmix(signal):
@@ -87,39 +98,16 @@ def downmix(signal):
     :param signal: signal [numpy array]
     :return:       mono signal
 
+    Note: The signal is returned with the same type, thus in case of integer
+          dtypes, rounding errors may occur.
+
     """
+    # down-mix the signal and keep the original dtype if wanted
+    # Note: np.asanyarray returns the signal's ndarray subclass
     if signal.ndim > 1:
-        # FIXME: taking the mean and keeping the original dtype makes the
-        # following signal processing steps well-behaved, since these rely on
-        # the dtype of the array to determine the correct value range.
-        # But this introduces rounding (truncating) errors in case of signals
-        # with integer dtypes. But these errors should be negligible.
         return np.mean(signal, axis=-1, dtype=signal.dtype)
     else:
         return signal
-
-
-def downsample(signal, factor=2):
-    """
-    Down-samples the signal by the given factor
-
-    :param signal: signal [numpy array]
-    :param factor: down-sampling factor
-    :return:       down-sampled signal
-
-    """
-    # signal must be mono
-    if signal.ndim > 1:
-        # FIXME: please implement stereo (or multi-channel) handling
-        raise NotImplementedError("please implement stereo functionality")
-    # when down-sampling by an integer factor, a simple view is more efficient
-    if type(factor) == int:
-        return signal[::factor]
-    # otherwise do more or less proper down-sampling
-    # TODO: maybe use sox to implement this
-    from scipy.signal import decimate
-    # naive down-sampling
-    return np.hstack(decimate(signal, factor))
 
 
 def trim(signal):
@@ -234,16 +222,16 @@ class Signal(np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate)
         # cast as Signal
         obj = np.asarray(data).view(cls)
-        # set attributes
+        if sample_rate is not None:
+            sample_rate = float(sample_rate)
         obj.sample_rate = sample_rate
         # return the object
         return obj
 
-    # TODO: is this needed?
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        # set default values here
+        # set default values here, also needed for views of the Signal
         self.sample_rate = getattr(obj, 'sample_rate', None)
 
     @property
@@ -264,6 +252,9 @@ class Signal(np.ndarray):
     @property
     def length(self):
         """Length of signal in seconds."""
+        # n/a if the signal has no sample rate
+        if self.sample_rate is None:
+            return None
         return float(self.num_samples) / self.sample_rate
 
 
@@ -276,7 +267,7 @@ class SignalProcessor(Processor):
     SAMPLE_RATE = None
     MONO = False
     NORM = False
-    ATT = 0
+    ATT = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT,
                  **kwargs):
@@ -375,6 +366,9 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
       - zero centers the window on its reference sample
       - negative values shift the window to the right
       - positive values shift the window to the left
+    An `origin` of half the size of the `frame_size` results in windows located
+    to the left of the reference sample, i.e. the first frame starts at the
+    first sample of the signal.
 
     The part of the frame which is not covered by the signal is padded with 0s.
 
@@ -384,28 +378,30 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     # seek to the correct position in the audio signal
     ref_sample = int(index * hop_size)
     # position the window
-    start = ref_sample - frame_size // 2 + origin
+    start = ref_sample - frame_size // 2 + int(origin)
     stop = start + frame_size
     # return the requested portion of the signal
-    # Note: use signal.__class__(np.zeros(frame_size, dtype=signal.dtype)) to
-    #       return the exact same type as the signal but with arbitrary length
+    # Note: usually np.zeros_like(signal[:frame_size]) is exactly what we want
+    #       (i.e. zeros of frame_size length and the same type as the signal),
+    #       but since we have no guarantee that the signal is that long, we
+    #       have to use the workaround of np.repeat(signal[:1] * 0, frame_size)
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
-        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
+        frame = np.repeat(signal[:1] * 0, frame_size)
         return frame
     elif (start < 0) and (stop > num_samples):
         # window surrounds the actual signal, position signal accordingly
-        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
+        frame = np.repeat(signal[:1] * 0, frame_size)
         frame[-start:num_samples - start] = signal
         return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
+        frame = np.repeat(signal[:1] * 0, frame_size)
         frame[-start:] = signal[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = signal.__class__(np.zeros(frame_size, dtype=signal.dtype))
+        frame = np.repeat(signal[:1] * 0, frame_size)
         frame[:num_samples - start] = signal[start:]
         return frame
     else:
@@ -418,7 +414,7 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
                  end_value=0):
     """
     Generate a new array that chops the given array along the given axis into
-    overlapping frames.
+    (overlapping) frames.
 
     :param signal:     signal [numpy array]
     :param frame_size: size of each frame in samples [int]
@@ -435,6 +431,8 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
     The array is not copied unless necessary (either because it is unevenly
     strided and being flattened or because end is set to 'pad' or 'wrap').
 
+    The returned array is always of type np.ndarray.
+
     Example:
     >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
@@ -450,6 +448,8 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
     if axis is None:
         signal = np.ravel(signal)  # may copy
         axis = 0
+    if axis != 0:
+        raise ValueError('please check if the resulting array is correct.')
 
     length = signal.shape[axis]
 
@@ -574,8 +574,13 @@ class FramedSignal(object):
           - 'normal': stop as soon as the whole signal got covered by at least
                       one frame, i.e. pad maximally one frame
           - 'extend': frames are returned as long as part of the frame overlaps
-                      with the signal to cover the whole signal to the end with
-                      the following end of signal behavior
+                      with the signal to cover the whole signal
+
+        Note: We do not use the `frame_size` for the calculation of the number
+              of frames in order to be able to stack multiple frames obtained
+              with different frame sizes. Thus it is not guaranteed that every
+              sample of the signal is returned in a frame if the `origin` is
+              not 'right' or 'future'.
 
         """
         # signal handling
@@ -614,8 +619,6 @@ class FramedSignal(object):
         self.start = int(start)
 
         # number of frames determination
-        # Note: we do not use the frame_size here, otherwise the resulting
-        #       frames (i.e. the STFTs thereof) would not be stackable
         if end == 'extend':
             # return frames as long as a frame covers any signal
             num_frames = np.floor(len(self.signal) / float(self.hop_size) + 1)
@@ -677,13 +680,11 @@ class FramedSignal(object):
         return self.num_frames
 
     @property
-    def sample_rate(self):
-        """Sample rate of the signal."""
-        return self.signal.sample_rate
-
-    @property
     def frame_rate(self):
         """Frame rate."""
+        # n/a if the signal has no sample rate
+        if self.signal.sample_rate is None:
+            return None
         return float(self.signal.sample_rate) / self.hop_size
 
     @property
@@ -698,7 +699,7 @@ class FramedSignal(object):
 
     @property
     def shape(self):
-        """Shape of the frames."""
+        """Shape of the FramedSignal (frames x samples)."""
         return self.num_frames, self.frame_size
 
 
@@ -743,7 +744,7 @@ class FramedSignalProcessor(Processor):
         """
         self.frame_size = frame_size
         self.hop_size = hop_size
-        self.fps = fps
+        self.fps = fps  # do not convert here, pass it to FramedSignal
         self.online = online
         self.end = end
 

@@ -1040,7 +1040,8 @@ class MIDITrack(object):
             e_on.velocity = int(notes[note, 3])
             # and NoteOff
             e_off = NoteOffEvent()
-            e_off.tick = int(notes[note, 2] * resolution * bps)
+            e_off.tick = int((notes[note, 0] + notes[note, 2])
+                             * resolution * bps)
             e_off.pitch = int(notes[note, 1])
             events.append(e_on)
             events.append(e_off)
@@ -1205,7 +1206,8 @@ class MIDIFile(object):
                     if note_onsets[e.pitch] >= e.tick:
                         raise AssertionError('note duration must be positive')
                     # append the note to the list
-                    notes.append((note_onsets[e.pitch], e.pitch, e.tick,
+                    notes.append((note_onsets[e.pitch], e.pitch,
+                                  e.tick - note_onsets[e.pitch],
                                   note_velocities[e.pitch]))
                 else:
                     raise TypeError('unexpected NoteEvent')
@@ -1406,7 +1408,8 @@ class MIDIFile(object):
         if resolution is None or midi_format is None:
             raise IOError('unable to read MIDI file %s.' % midi_file)
         # return a newly created object
-        return cls(tracks=tracks, resolution=resolution, format=midi_format)
+        return cls(tracks=tracks, resolution=resolution,
+                   file_format=midi_format)
 
     @classmethod
     def from_notes(cls, notes):

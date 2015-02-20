@@ -22,7 +22,7 @@ DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115, 1.365,
               1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
 
 
-class TestFileSelection(unittest.TestCase):
+class TestSearchFilesFunction(unittest.TestCase):
     # tests for files()
     def test_files_without_suffix(self):
         all_files = search_files(DATA_PATH)
@@ -34,7 +34,11 @@ class TestFileSelection(unittest.TestCase):
                      DATA_PATH + 'sample.onsets.txt',
                      DATA_PATH + 'sample.sv',
                      DATA_PATH + 'sample.tempo',
-                     DATA_PATH + 'sample.wav']
+                     DATA_PATH + 'sample.wav',
+                     DATA_PATH + 'stereo_sample.mid',
+                     DATA_PATH + 'stereo_sample.notes',
+                     DATA_PATH + 'stereo_sample.sv',
+                     DATA_PATH + 'stereo_sample.wav']
         self.assertEqual(all_files, sorted(file_list))
 
     def test_txt_files(self):
@@ -51,7 +55,7 @@ class TestFileSelection(unittest.TestCase):
         self.assertEqual(dot_txt_files, sorted(file_list))
 
 
-class TestFileMatching(unittest.TestCase):
+class TestStripSuffixFunction(unittest.TestCase):
     # tests for strip_suffix(filename, ext=None)
     def test_strip_txt_suffix(self):
         self.assertEqual(strip_suffix('file.txt', 'txt'), 'file.')
@@ -61,6 +65,8 @@ class TestFileMatching(unittest.TestCase):
         self.assertEqual(strip_suffix('file.txt', '.txt'), 'file')
         self.assertEqual(strip_suffix('/path/file.txt', '.txt'), '/path/file')
 
+
+class TestMatchFileFunction(unittest.TestCase):
     # test for match_file(filename, match_list, ext=None, match_suffix=None)
     def test_match_dot_txt_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
@@ -78,7 +84,7 @@ class TestFileMatching(unittest.TestCase):
         self.assertEqual(result, ['/path/file.txt.other'])
 
 
-class TestReadFiles(unittest.TestCase):
+class TestLoadEventsFunction(unittest.TestCase):
 
     def test_read_events_from_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'w')
@@ -107,7 +113,7 @@ class TestReadFiles(unittest.TestCase):
         self.assertTrue(events.any())
 
 
-class TestWriteFiles(unittest.TestCase):
+class TestWriteEventsFunction(unittest.TestCase):
 
     def test_write_events_to_closed_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'r')
@@ -129,7 +135,7 @@ class TestWriteFiles(unittest.TestCase):
         self.assertTrue(np.array_equal(annotations, EVENTS))
 
 
-class TestCombineEvents(unittest.TestCase):
+class TestCombineEventsFunction(unittest.TestCase):
 
     def test_combine_000(self):
         comb = combine_events(EVENTS, 0.)
@@ -152,7 +158,7 @@ class TestCombineEvents(unittest.TestCase):
         self.assertTrue(np.allclose(comb, correct))
 
 
-class TestQuantizeEvents(unittest.TestCase):
+class TestQuantizeEventsFunction(unittest.TestCase):
 
     def test_quantize_10(self):
         quantized = quantize_events(EVENTS, 10, length=None)

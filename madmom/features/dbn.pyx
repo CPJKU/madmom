@@ -507,13 +507,14 @@ cdef class BeatTrackingObservationModel(ObservationModel):
         tm = transition_model
         # compute observation pointers
         # always point to the non-beat densities
-        pointers = np.ones(tm.num_states, dtype=np.uint32)
+        self.pointers = np.ones(tm.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
         beat_idx = tm.position(np.arange(tm.num_states)) < border
-        pointers[beat_idx] = 0
+        self.pointers[beat_idx] = 0
         # instantiate an ObservationModel
-        super(BeatTrackingObservationModel, self).__init__(None, pointers)
+        # FIXME: we don't have log_densities for instantiation yet...
+        # super(BeatTrackingObservationModel, self).__init__(None, pointers)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)

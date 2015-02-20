@@ -384,7 +384,8 @@ class Spectrogram(object):
     @property
     def fft_freqs(self):
         """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_fft_bins, self.frames.sample_rate)
+        return fft_frequencies(self.num_fft_bins,
+                               self.frames.signal.sample_rate)
 
     @property
     def num_fft_bins(self):
