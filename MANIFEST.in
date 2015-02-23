@@ -3,38 +3,7 @@ include README
 include LICENSE
 include requirements.txt
 
-# include these modules
-include madmom/__init__.py
-
-include madmom/audio/__init__.py
-include madmom/audio/io.py
-include madmom/audio/wav.py
-include madmom/audio/signal.py
-include madmom/audio/filters.py
-include madmom/audio/spectrogram.py
-include madmom/audio/comb_filters.pyx
-
-include madmom/features/__init__.py
-include madmom/features/onsets.py
-include madmom/features/onsets.py
-include madmom/features/beats.py
-include madmom/features/notes.py
-include madmom/features/tempo.py
-include madmom/features/dbn.pyx
-include madmom/features/viterbi.pyx
-
-include madmom/ml/__init__.py
-include madmom/ml/rnn.py
-include madmom/ml/rnn.pxd
-
-include madmom/utils/__init__.py
-include madmom/utils/midi.py
-
-include madmom/evaluation/__init__.py
-include madmom/evaluation/onsets.py
-include madmom/evaluation/beats.py
-include madmom/evaluation/notes.py
-include madmom/evaluation/tempo.py
+# modules are included automatically (via 'py_modules' in setup.py)
 
 # include models
 include madmom/models/LICENSE
@@ -46,11 +15,9 @@ include madmom/models/notes_brnn.npz
 
 # include scripts
 include bin/*
+include bin/tools/*
 
 # never include these files
 global-exclude *.pyc
 global-exclude .DS_Store
 global-exclude .ipynb
-
-# never include tests
-prune madmom/test
