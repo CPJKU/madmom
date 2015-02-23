@@ -650,7 +650,24 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(isinstance(result.overlap_factor, float))
         self.assertTrue(isinstance(result.shape, tuple))
 
-    def test_types_array_with_sample_rate(self):
+    def test_types_slice(self):
+        # get a slice of a FramedSignal
+        result = FramedSignal(np.arange(10), 4, 2)[:2]
+        self.assertTrue(isinstance(result, FramedSignal))
+        self.assertTrue(isinstance(result.signal, Signal))
+        self.assertTrue(isinstance(result.frame_size, int))
+        self.assertTrue(isinstance(result.hop_size, float))
+        self.assertTrue(isinstance(result.origin, int))
+        self.assertTrue(isinstance(result.start, int))
+        self.assertTrue(isinstance(result.num_frames, int))
+        self.assertTrue(isinstance(result[0], Signal))
+        # properties
+        self.assertTrue(isinstance(result.frame_rate, type(None)))
+        self.assertTrue(isinstance(result.fps, type(None)))
+        self.assertTrue(isinstance(result.overlap_factor, float))
+        self.assertTrue(isinstance(result.shape, tuple))
+
+    def test_types_with_sample_rate(self):
         result = FramedSignal(np.arange(10), 4, 2, sample_rate=1)
         self.assertTrue(isinstance(result, FramedSignal))
         self.assertTrue(isinstance(result.signal, Signal))

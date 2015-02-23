@@ -15,11 +15,11 @@ from madmom import Processor, SequentialProcessor, ParallelProcessor
 # filter defaults
 from madmom.audio.filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
                                   A4, NORM_FILTERS, DUPLICATE_FILTERS)
-FILTERBANK = LogarithmicFilterbank
+FILTERBANK = None
 # log defaults
 LOG = False
-MUL = 1
-ADD = 0
+MUL = 1.
+ADD = 0.
 # diff defaults
 DIFF_RATIO = 0.5
 DIFF_FRAMES = None
@@ -156,7 +156,8 @@ def adaptive_whitening(spec, floor=0.5, relaxation=10):
     Proceedings of the International Computer Music Conference (ICMC), 2007
 
     """
-    raise Warning("check if adaptive_whitening returns meaningful results")
+    raise NotImplementedError("check if adaptive_whitening returns meaningful "
+                              "results")
     relaxation = 10.0 ** (-6. * relaxation)
     p = np.zeros_like(spec)
     # iterate over all frames
@@ -178,9 +179,9 @@ def statistical_spectrum_descriptors(spec):
 
     "Evaluation of Feature Extractors and Psycho-acoustic Transformations
      for Music Genre Classification."
-    T. Lidy and A. Rauber
+    Thomas Lidy and Andreas Rauber
     Proceedings of the 6th International Conference on Music Information
-    Retrieval (ISMIR 2005), London, UK, September 2005
+    Retrieval (ISMIR), 2005
 
     """
     from scipy.stats import skew, kurtosis
@@ -193,22 +194,23 @@ def statistical_spectrum_descriptors(spec):
             'max': np.max(spec, axis=0)}
 
 
-def tuning_frequency(spec, sample_rate, num_hist_bins=15, fref=A4):
+def tuning_frequency(spec, bin_frequencies, num_hist_bins=15, fref=A4):
     """
-    Determines the tuning frequency based on the given (peak) magnitude
-    spectrogram.
+    Determines the tuning frequency of the audio signal based on the given
+    (peak) magnitude spectrogram.
 
-    :param spec:          (peak) magnitude spectrogram [numpy array]
-    :param sample_rate:   sample rate of the audio file [Hz]
-    :param num_hist_bins: number of histogram bins
-    :param fref:          reference tuning frequency [Hz]
-    :return:              tuning frequency
+    :param spec:            (peak) magnitude spectrogram [numpy array]
+    :param bin_frequencies: frequencies of the spectrogram bins [numpy array]
+    :param num_hist_bins:   number of histogram bins
+    :param fref:            reference tuning frequency [Hz]
+    :return:                tuning frequency
 
     """
-    # frequencies of the bins
-    bin_freqs = fft_frequencies(spec.shape[1], sample_rate)
+    raise NotImplementedError("check if tuning_frequency returns meaningful "
+                              "results")
+    # TODO: make this function accept just a signal?
     # interval of spectral bins from the reference frequency in semitones
-    semitone_int = 12. * np.log2(bin_freqs / fref)
+    semitone_int = 12. * np.log2(bin_frequencies / fref)
     # deviation from the next semitone
     semitone_dev = semitone_int - np.round(semitone_int)
     # build a histogram
@@ -228,13 +230,13 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
-    def __init__(self, frames, window=np.hanning, norm_window=False,
-                 fft_size=None, block_size=2048, filterbank=FILTERBANK,
-                 bands=BANDS, fmin=FMIN, fmax=FMAX, fref=A4,
-                 norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
-                 log=LOG, mul=MUL, add=ADD, diff_ratio=DIFF_RATIO,
-                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
-                 positive_diff=POSITIVE_DIFF, **kwargs):
+    def __init__(self, frames, window=np.hanning, fft_size=None,
+                 block_size=2048, filterbank=None, bands=BANDS,
+                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
+                 add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
+                 diff_max_bins=DIFF_MAX_BINS, positive_diff=POSITIVE_DIFF,
+                 **kwargs):
         """
         Creates a new Spectrogram instance of the given audio.
 
@@ -243,13 +245,10 @@ class Spectrogram(object):
 
         FFT parameters:
 
-        :param window:            window function
-        :param norm_window:       set area of window function to 1 [bool]
-        :param fft_size:          use this size for FFT
-                                  [int, should be a power of 2]
+        :param window:            window function [numpy ufunc or numpy array]
+        :param fft_size:          use this size for FFT [int, power of 2]
         :param block_size:        perform some operations (e.g. filtering) in
-                                  blocks of this size
-                                  [int, should be a power of 2]
+                                  blocks of this size [int, power of 2]
 
         Filterbank parameters:
 
@@ -294,6 +293,7 @@ class Spectrogram(object):
         :param args:              arguments passed to FramedSignal
         :param kwargs:            keyword arguments passed to FramedSignal
 
+        Note: `fft_size` and `block_size` should be a power of 2.
 
         """
         from .signal import FramedSignal
@@ -314,17 +314,17 @@ class Spectrogram(object):
         elif isinstance(window, np.ndarray):
             # otherwise use the given window directly
             self.window = window
+            if self.window.size != self.frames.frame_size:
+                raise ValueError('Window must have the same size as the audio '
+                                 'frames.')
         else:
             # other types are not supported
             raise TypeError("Invalid window type.")
-        # normalize the window if needed
-        if norm_window:
-            self.window /= np.sum(self.window)
         # window used for DFT
         try:
             # the audio signal is not scaled, scale the window accordingly
-            max_value = np.iinfo(self.frames.signal.dtype).max
-            self.fft_window = self.window / max_value
+            max_range = np.iinfo(self.frames.signal.dtype).max
+            self.fft_window = self.window / max_range
         except ValueError:
             self.fft_window = self.window
         # DFT size
@@ -479,6 +479,26 @@ class Spectrogram(object):
         return self._stft
 
     @property
+    def phase(self):
+        """Phase of the STFT."""
+        # compute phase if needed
+        if self._phase is None:
+            # TODO: this also stores the STFT, which might not be needed
+            self._phase = phase(self.stft).astype(np.float32)
+        # return phase
+        return self._phase
+
+    @property
+    def lgd(self):
+        """Local group delay of the STFT."""
+        # compute the local group delay if needed
+        if self._lgd is None:
+            # TODO: this also stores the phase, which might not be needed
+            self._lgd = local_group_delay(self.phase).astype(np.float32)
+        # return lgd
+        return self._lgd
+
+    @property
     def spec(self):
         """Magnitude spectrogram of the STFT."""
         # compute spec if needed
@@ -501,26 +521,6 @@ class Spectrogram(object):
 
     # alias
     magnitude = spec
-
-    @property
-    def phase(self):
-        """Phase of the STFT."""
-        # compute phase if needed
-        if self._phase is None:
-            # TODO: this also stores the STFT, which might not be needed
-            self._phase = phase(self.stft).astype(np.float32)
-        # return phase
-        return self._phase
-
-    @property
-    def lgd(self):
-        """Local group delay of the STFT."""
-        # compute the local group delay if needed
-        if self._lgd is None:
-            # TODO: this also stores the phase, which might not be needed
-            self._lgd = local_group_delay(self.phase).astype(np.float32)
-        # return lgd
-        return self._lgd
 
     @property
     def diff(self):
@@ -553,7 +553,7 @@ class SpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=LogarithmicFilterbank, bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
                  add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, **kwargs):
@@ -564,9 +564,10 @@ class SpectrogramProcessor(Processor):
 
         :param filterbank:    filter the magnitude spectrogram with a
                               filterbank of this type [None or Filterbank]
-        :param bands:         use N bands per octave [int]
+        :param bands:         use N bands (per octave) [int]
         :param fmin:          minimum frequency of the filterbank [float]
         :param fmax:          maximum frequency of the filterbank [float]
+        :param norm_filters:  normalize the filter to area 1 [bool]
 
         Magnitude spectrogram scaling parameters:
 
@@ -590,9 +591,13 @@ class SpectrogramProcessor(Processor):
                               the SuperFlux algorithm 3 `max_bins` are used
                               together with a 24 band logarithmic filterbank)
 
+        Note: `filterbank` also accepts the boolean values 'False' and 'True'
+              which get translated to no filterbank or a filterbank of the
+              default type ('LogarithmicFilterbank').
+
         """
         # filterbank stuff
-        # TODO: add literal values
+        # TODO: add literal values?
         if filterbank is True:
             filterbank = LogarithmicFilterbank
         elif filterbank is False:
@@ -627,35 +632,14 @@ class SpectrogramProcessor(Processor):
                            diff_ratio=self.diff_ratio,
                            diff_frames=self.diff_frames,
                            diff_max_bins=self.diff_max_bins)
-        # TODO: should we be able to select what to return?
-        # The usage of the spectrogram differences can be controlled with the
-        # `diff` parameter. It can have these values:
-        #   - 'False':          do not use the differences, just the spectrogram
-        #   - 'True':           use only the differences, not the spectrogram
-        #   - 'stack':          stack the differences on top of the spectrogram
-        # if self.diff is None:
-        #     # just return the Spectrogram instance
-        #     return data
-        # # return spec and/or diff
-        # if self.diff == 'stack':
-        #     # return stacked spec and diff
-        #     return np.hstack((data.spec, data.diff))
-        # elif self.diff is True:
-        #     # return only the diff
-        #     return data.diff
-        # else:
-        #     # return only the spec
-        #     return data.spec
 
     @classmethod
-    def add_fft_arguments(cls, parser, window=None, norm_window=None,
-                          fft_size=None):
+    def add_fft_arguments(cls, parser, window=None, fft_size=None):
         """
         Add spectrogram related arguments to an existing parser.
 
         :param parser:      existing argparse parser
         :param window:      window function
-        :param norm_window: set area of window function to 1 [bool]
         :param fft_size:    use this size for FFT [int, should be a power of 2]
         :return:            spectrogram argument parser group
 
@@ -668,15 +652,6 @@ class SpectrogramProcessor(Processor):
             g.add_argument('--window', dest='window',
                            action='store', default=window,
                            help='window function to use for FFT')
-        if norm_window is not None:
-            if norm_window:
-                g.add_argument('--no_norm_window', dest='norm_window',
-                               action='store_false', default=norm_window,
-                               help='do not normalize the window to area 1')
-            else:
-                g.add_argument('--norm_window', dest='norm_window',
-                               action='store_true', default=norm_window,
-                               help='normalize the window to area 1')
         if fft_size is not None:
             g.add_argument('--fft_size', action='store', type=int,
                            default=fft_size,
@@ -869,7 +844,7 @@ class SuperFluxProcessor(SpectrogramProcessor):
         """
         # set the default values (they can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
-        filterbank = kwargs.pop('filterbank', FILTERBANK)
+        filterbank = kwargs.pop('filterbank', LogarithmicFilterbank)
         bands = kwargs.pop('bands', 24)
         norm_filters = kwargs.pop('norm_filters', False)
         # log magnitudes
@@ -913,6 +888,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         :return:
 
         """
+        raise NotImplementedError("check if it returns meaningful results")
         # instantiate a Spectrogram
         data = Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
                            fmin=self.fmin, fmax=self.fmax,
@@ -953,9 +929,9 @@ class StackSpectrogramProcessor(Processor):
     Stack spec & diff.
 
     """
-    def __init__(self, frame_sizes, online, fps, filterbank=FILTERBANK,
-                 bands=BANDS, fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
-                 log=LOG, mul=MUL, add=ADD, diff_ratio=DIFF_RATIO, **kwargs):
+    def __init__(self, frame_sizes, fps=100, online=False, bands=BANDS,
+                 fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG,
+                 mul=MUL, add=ADD, diff_ratio=DIFF_RATIO, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 
@@ -963,15 +939,29 @@ class StackSpectrogramProcessor(Processor):
         logarithmically scaled before being stacked together with their first
         order differences.
 
+        Framing parameters:
+
         :param frame_sizes:   include spectrogram with these frame sizes
                               [list of int]
-        :param bands:         use N bands per octave [int]
-        :param norm_filters:  normalize the filter to area 1 [bool]
+        :param fps:           frames per second [float]
         :param online:        online mode [bool]
+
+        Filterbank parameters:
+
+        :param bands:         use N bands per octave [int]
+        :param fmin:          minimum frequency of the filterbank [float]
+        :param fmax:          maximum frequency of the filterbank [float]
+        :param norm_filters:  normalize the filter to area 1 [bool]
+
+        Logarithmic magnitude parameters:
+
         :param mul:           multiply the spectrogram with this factor before
                               taking the logarithm of the magnitudes [float]
         :param add:           add this value before taking the logarithm of
                               the magnitudes [float]
+
+        Difference parameters:
+
         :param diff_ratio:    calculate the difference to the frame at which
                               the window used for the STFT yields this ratio
                               of the maximum height [float]
@@ -979,10 +969,11 @@ class StackSpectrogramProcessor(Processor):
         """
         from .signal import FramedSignalProcessor
         # use the same spec for all frame sizes
-        sp = SpectrogramProcessor(filterbank=filterbank, bands=bands, fmin=fmin,
-                                  fmax=fmax, norm_filters=norm_filters,
-                                  log=log, mul=mul, add=add,
-                                  diff_ratio=diff_ratio, **kwargs)
+        sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
+                                  bands=bands, fmin=fmin, fmax=fmax,
+                                  norm_filters=norm_filters, log=log,
+                                  mul=mul, add=add, diff_ratio=diff_ratio,
+                                  **kwargs)
         # multiple framing & spec processors
         processor = []
         for frame_size in frame_sizes:
