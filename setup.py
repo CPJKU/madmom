@@ -45,6 +45,14 @@ extensions = [Extension('madmom.ml.rnn',
                         extra_compile_args=['-fopenmp'],
                         extra_link_args=['-fopenmp'])]
 
+classifiers = ['Development Status :: 3 - Alpha',
+               'Programming Language :: Python :: 2.7',
+               'Environment :: Console',
+               'License :: OSI Approved :: BSD License',
+               'License :: Free for non-commercial use',
+               'Topic :: Multimedia :: Sound/Audio :: Analysis',
+               'Topic :: Scientific/Engineering :: Artificial Intelligence']
+
 setup(name='madmom',
       version='0.5',
       description='Python package used at cp.jku.at and ofai.at',
@@ -57,4 +65,5 @@ setup(name='madmom',
       license='BSD, CC BY-NC-SA',
       py_modules=modules,
       ext_modules=extensions,
-      cmdclass={'build_ext': build_ext})
+      cmdclass={'build_ext': build_ext},
+      classifiers=classifiers)
