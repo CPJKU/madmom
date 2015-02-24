@@ -69,5 +69,6 @@ def main():
     # process everything
     processor.process(args.input, args.output)
 
+
 if __name__ == '__main__':
     main()

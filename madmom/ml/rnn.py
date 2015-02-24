@@ -572,22 +572,6 @@ class RecurrentNeuralNetwork(Processor):
 RNN = RecurrentNeuralNetwork
 
 
-# FIXME: use this workaround against slow pickling of RNN objects
-def _process(process_tuple):
-    """
-    Loads a RNN model from the given file (first tuple item) and passes the
-    given numpy array of data through it (second tuple item).
-
-    :param process_tuple: tuple (nn_file, data)
-    :return:              RNN output (predictions for the given data)
-
-    Note: this must be a top-level function to be pickle-able.
-
-    """
-    rnn = RecurrentNeuralNetwork.load(process_tuple[0])
-    return rnn.process(process_tuple[1])
-
-
 class RNNProcessor(ParallelProcessor):
     """
     Recurrent Neural Network (RNN) processor class.
@@ -603,34 +587,13 @@ class RNNProcessor(ParallelProcessor):
 
         """
         # FIXME: use this workaround against slow pickling of RNN objects
-        self.processors = nn_files
-        self.num_threads = num_threads
-        # nn_models = []
-        # for nn_file in nn_files:
-        #     nn_models.append(RecurrentNeuralNetwork.load(nn_file))
-        # # instantiate object
-        # super(RNNProcessor, self).__init__(nn_models, num_threads)
-
-    def process(self, data, num_threads=None):
-        """
-        Process the data and return averaged predictions of the RNNs.
-
-        :param data:        data to be processed
-        :param num_threads: number of parallel working threads
-        :return:            averaged predictions
-
-        """
-        import multiprocessing as mp
-        import itertools as it
-        # number of threads
-        if num_threads is None:
-            num_threads = self.num_threads
-        # init a pool of workers (if needed)
-        map_ = map
-        if min(len(self.processors), max(1, num_threads)) != 1:
-            map_ = mp.Pool(num_threads).map
-        # process data in parallel and return a list with processed data
-        return map_(_process, it.izip(self.processors, it.repeat(data)))
+        # self.processors = nn_files
+        # self.num_threads = num_threads
+        nn_models = []
+        for nn_file in nn_files:
+            nn_models.append(RecurrentNeuralNetwork.load(nn_file))
+        # instantiate object
+        super(RNNProcessor, self).__init__(nn_models, num_threads)
 
     @classmethod
     def add_arguments(cls, parser, nn_files, num_threads=None):

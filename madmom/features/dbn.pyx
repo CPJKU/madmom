@@ -26,7 +26,7 @@ cdef extern from "math.h":
 
 
 # transition_model stuff
-cdef class TransitionModel(object):
+class TransitionModel(object):
     """
     Transition model class for a DBN.
 
@@ -45,10 +45,6 @@ cdef class TransitionModel(object):
     being sub-classed to define a new transition model.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public np.ndarray states
-    cdef public np.ndarray pointers
-    cdef public np.ndarray log_probabilities
 
     def __init__(self, states, pointers, log_probabilities):
         """
@@ -105,7 +101,7 @@ cdef class TransitionModel(object):
 
 
 # observation stuff
-cdef class ObservationModel(object):
+class ObservationModel(object):
     """
     Observation model class for a DBN.
 
@@ -121,9 +117,6 @@ cdef class ObservationModel(object):
     of the 'log_densities' array. The type must be np.uint32.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public np.ndarray log_densities
-    cdef public np.ndarray pointers
 
     def __init__(self, log_densities, pointers=None):
         """
@@ -148,8 +141,65 @@ cdef class ObservationModel(object):
             self.pointers = np.zeros(len(log_densities), dtype=np.uint32)
 
 
+# inline function to determine the best previous state
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void _best_prev_state(int state, int frame,
+                                  double [::1] current_viterbi,
+                                  double [::1] previous_viterbi,
+                                  double [:, ::1] om_densities,
+                                  unsigned int [::1] om_pointers,
+                                  unsigned int [::1] tm_states,
+                                  unsigned int [::1] tm_pointers,
+                                  double [::1] tm_probabilities,
+                                  unsigned int [:, ::1] pointers) nogil:
+    """
+    Inline function to determine the best previous state.
+
+    :param state:            current state
+    :param frame:            current frame
+    :param current_viterbi:  current viterbi variables
+    :param previous_viterbi: previous viterbi variables
+    :param om_densities:     observation model densities
+    :param om_pointers:      observation model pointers
+    :param tm_states:        transition model states
+    :param tm_pointers:      transition model pointers
+    :param tm_probabilities: transition model probabilities
+    :param pointers:         back tracking pointers
+
+    """
+    # define variables
+    cdef unsigned int prev_state, pointer
+    cdef double density, transition_prob
+    # reset the current viterbi variable
+    current_viterbi[state] = -INFINITY
+    # get the observation model probability density value
+    # the om_pointers array holds pointers to the correct observation
+    # probability density value for the actual state (i.e. column in the
+    # om_densities array)
+    # Note: defining density here gives a 5% speed-up!?
+    density = om_densities[frame, om_pointers[state]]
+    # iterate over all possible previous states
+    # the tm_pointers array holds pointers to the states which are
+    # stored in the tm_states array
+    for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
+        # get the previous state
+        prev_state = tm_states[pointer]
+        # weight the previous state with the transition probability
+        # and the current observation probability density
+        transition_prob = previous_viterbi[prev_state] + \
+                          tm_probabilities[pointer] + density
+        # if this transition probability is greater than the current one,
+        # overwrite it and save the previous state in the current pointers
+        if transition_prob > current_viterbi[state]:
+            # update the transition probability
+            current_viterbi[state] = transition_prob
+            # update the back tracking pointers
+            pointers[frame, state] = prev_state
+
 # DBN stuff
-cdef class DynamicBayesianNetwork(object):
+class DynamicBayesianNetwork(object):
     """
     Dynamic Bayesian network.
 
@@ -158,11 +208,6 @@ cdef class DynamicBayesianNetwork(object):
     `initial_distribution` must be defined.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public TransitionModel transition_model
-    cdef public ObservationModel observation_model
-    cdef public np.ndarray initial_distribution
-    cdef public unsigned int num_threads
 
     def __init__(self, transition_model, observation_model,
                  initial_distribution=None, num_threads=NUM_THREADS):
@@ -192,62 +237,6 @@ cdef class DynamicBayesianNetwork(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    cdef inline void _best_prev_state(self, int state, int frame,
-                                      double [::1] current_viterbi,
-                                      double [::1] previous_viterbi,
-                                      double [:, ::1] om_densities,
-                                      unsigned int [::1] om_pointers,
-                                      unsigned int [::1] tm_states,
-                                      unsigned int [::1] tm_pointers,
-                                      double [::1] tm_probabilities,
-                                      unsigned int [:, ::1] pointers) nogil:
-        """
-        Inline function to determine the best previous state.
-
-        :param state:            current state
-        :param frame:            current frame
-        :param current_viterbi:  current viterbi variables
-        :param previous_viterbi: previous viterbi variables
-        :param om_densities:     observation model densities
-        :param om_pointers:      observation model pointers
-        :param tm_states:        transition model states
-        :param tm_pointers:      transition model pointers
-        :param tm_probabilities: transition model probabilities
-        :param pointers:         back tracking pointers
-
-        """
-        # define variables
-        cdef unsigned int prev_state, pointer
-        cdef double density, transition_prob
-        # reset the current viterbi variable
-        current_viterbi[state] = -INFINITY
-        # get the observation model probability density value
-        # the om_pointers array holds pointers to the correct observation
-        # probability density value for the actual state (i.e. column in the
-        # om_densities array)
-        # Note: defining density here gives a 5% speed-up!?
-        density = om_densities[frame, om_pointers[state]]
-        # iterate over all possible previous states
-        # the tm_pointers array holds pointers to the states which are
-        # stored in the tm_states array
-        for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
-            # get the previous state
-            prev_state = tm_states[pointer]
-            # weight the previous state with the transition probability
-            # and the current observation probability density
-            transition_prob = previous_viterbi[prev_state] + \
-                              tm_probabilities[pointer] + density
-            # if this transition probability is greater than the current one,
-            # overwrite it and save the previous state in the current pointers
-            if transition_prob > current_viterbi[state]:
-                # update the transition probability
-                current_viterbi[state] = transition_prob
-                # update the back tracking pointers
-                pointers[frame, state] = prev_state
-
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
     def viterbi(self):
         """
         Determine the best path with the Viterbi algorithm.
@@ -256,14 +245,14 @@ cdef class DynamicBayesianNetwork(object):
 
         """
         # transition model stuff
-        cdef TransitionModel tm = self.transition_model
+        tm = self.transition_model
         cdef unsigned int [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.log_probabilities
         cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
-        cdef ObservationModel om = self.observation_model
+        om = self.observation_model
         cdef double [:, ::1] om_densities = om.log_densities
         cdef unsigned int [::1] om_pointers = om.pointers
         cdef unsigned int num_observations = len(om.log_densities)
@@ -290,7 +279,7 @@ cdef class DynamicBayesianNetwork(object):
             if num_threads == 1:
                 # search for best transition_model sequentially
                 for state in range(num_states):
-                    self._best_prev_state(state, frame, current_viterbi,
+                    _best_prev_state(state, frame, current_viterbi,
                                           previous_viterbi, om_densities,
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
@@ -298,7 +287,7 @@ cdef class DynamicBayesianNetwork(object):
                 # search for best transition_model in parallel
                 for state in prange(num_states, nogil=True, schedule='static',
                                     num_threads=num_threads):
-                    self._best_prev_state(state, frame, current_viterbi,
+                    _best_prev_state(state, frame, current_viterbi,
                                           previous_viterbi, om_densities,
                                           om_pointers, tm_states, tm_pointers,
                                           tm_probabilities, bt_pointers)
@@ -324,17 +313,11 @@ cdef class DynamicBayesianNetwork(object):
         return path, log_probability
 
 
-cdef class BeatTrackingTransitionModel(TransitionModel):
+class BeatTrackingTransitionModel(TransitionModel):
     """
     Transition model for beat tracking with a DBN.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public unsigned int num_beat_states
-    cdef public np.ndarray tempo_states
-    cdef public float tempo_change_probability
-    cdef public np.ndarray position_mapping
-    cdef public np.ndarray tempo_mapping
 
     def __init__(self, num_beat_states, tempo_states, tempo_change_probability):
         """
@@ -475,14 +458,11 @@ cdef class BeatTrackingTransitionModel(TransitionModel):
         return state // self.num_beat_states
 
 
-cdef class BeatTrackingObservationModel(ObservationModel):
+class BeatTrackingObservationModel(ObservationModel):
     """
     Observation model for beat tracking with a DBN.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public float observation_lambda
-    cdef public bint norm_observations
 
     def __init__(self, transition_model, observation_lambda,
                  norm_observations=False):
@@ -544,18 +524,11 @@ cdef class BeatTrackingObservationModel(ObservationModel):
         return self.log_densities
 
 
-cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
+class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
     """
     Dynamic Bayesian network for beat tracking.
 
     """
-    # define some variables which are also exported as Python attributes
-    cdef public unsigned int num_beat_states
-    cdef public np.ndarray tempo_states
-    cdef public float tempo_change_probability
-    cdef public float observation_lambda
-    cdef public bint norm_observations
-    cdef public bint correct
 
     def __init__(self, num_beat_states, tempo_states, tempo_change_probability,
                  observation_lambda, norm_observations=False, correct=True,
@@ -592,8 +565,6 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
         Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
 
         """
-        # save variables
-        self.correct = correct
         # transition model
         tm = BeatTrackingTransitionModel(num_beat_states, tempo_states,
                                          tempo_change_probability)
@@ -603,6 +574,8 @@ cdef class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
         # instantiate a DynamicBayesianNetwork
         super(BeatTrackingDynamicBayesianNetwork, self).__init__(tm, om, None,
                                                                  num_threads)
+        # save variables
+        self.correct = correct
 
     def beats(self, activations):
         """

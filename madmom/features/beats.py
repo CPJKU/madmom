@@ -127,9 +127,8 @@ class RNNBeatProcessing(SequentialProcessor):
         sig = SignalProcessor(mono=True, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           online=False, bands=3,
-                                          norm_filters=True,
-                                          log=True, mul=1, add=1,
-                                          diff_ratio=0.5, **kwargs)
+                                          norm_filters=True, log=True, mul=1,
+                                          add=1, diff_ratio=0.5, **kwargs)
         if nn_ref_files is not None:
             if nn_ref_files == nn_files:
                 # if we don't have nn_ref_files given or they are the same as
