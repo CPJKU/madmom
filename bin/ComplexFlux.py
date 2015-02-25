@@ -68,6 +68,9 @@ def main():
 
     # create an processor
     processor = ComlpexFlux(onset_method='complex_flux', **vars(args))
+    # pickle the processor if needed
+    if args.pickle is not None:
+        processor.dump(args.pickle)
     # process everything
     processor.process(args.input, args.output)
 

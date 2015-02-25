@@ -522,11 +522,15 @@ class CRFBeatDetection(BeatTracking):
         # save variables
         self.interval_sigma = interval_sigma
         self.factors = factors
-        # get fps and num_frames from kwargs
-        self.num_threads = kwargs.get('num_threads', None)
+        # get num_threads from kwargs
+        num_threads = min(len(self.factors), kwargs.get('num_threads', 1))
         # TODO: implement comb filter stuff and remove this...
         self.tempo_estimator.method = 'acf'
-        self.num_threads = num_threads
+        # init a pool of workers (if needed)
+        self.map = map
+        if num_threads != 1:
+            import multiprocessing as mp
+            self.map = mp.Pool(num_threads).map
 
     @staticmethod
     def initial_distribution(num_states, dominant_interval):
@@ -631,19 +635,13 @@ class CRFBeatDetection(BeatTracking):
         # put the greatest first so that it get processed first
         possible_intervals.reverse()
 
-        # init a pool of workers (if needed)
-        map_ = map
-        if min(len(self.factors), max(1, self.num_threads)) != 1:
-            import multiprocessing as mp
-            map_ = mp.Pool(self.num_threads).map
-
-        # compute the beat sequences (in parallel)
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
         contiguous_act = np.ascontiguousarray(activations, dtype=np.float32)
-        results = map_(_process_crf, it.izip(it.repeat(contiguous_act),
-                                             possible_intervals,
-                                             it.repeat(self.interval_sigma)))
+        results = self.map(_process_crf,
+                           it.izip(it.repeat(contiguous_act),
+                                   possible_intervals,
+                                   it.repeat(self.interval_sigma)))
 
         # normalize their probabilities
         normalized_seq_probabilities = np.array([r[1] / r[0].shape[0]

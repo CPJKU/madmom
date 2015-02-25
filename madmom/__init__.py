@@ -43,10 +43,14 @@ class Processor(object):
 
         """
         import cPickle
-        # instantiate a new object and return it
+        # close the open file if needed and use its name
+        if not isinstance(infile, basestring):
+            infile.close()
+            infile = infile.name
+        # instantiate a new Processor and return it
         return cPickle.load(open(infile, 'rb'))
 
-    def save(self, outfile):
+    def dump(self, outfile):
         """
         Save the Processor to a file.
 
@@ -58,10 +62,11 @@ class Processor(object):
 
         """
         import cPickle
-        # close the file if needed and use its name
+        # close the open file if needed and use its name
         if not isinstance(outfile, basestring):
             outfile.close()
             outfile = outfile.name
+        # dump the Processor to the given file
         cPickle.dump(self, open(outfile, 'wb'),
                      protocol=cPickle.HIGHEST_PROTOCOL)
 
@@ -79,9 +84,9 @@ class Processor(object):
         """
         return data
 
-    # def __call__(self, *args):
-    #     """This magic method makes an instance callable."""
-    #     return self.process(*args)
+    def __call__(self, *args):
+        """This magic method makes an instance callable."""
+        return self.process(*args)
 
 
 class OutputProcessor(Processor):
@@ -189,6 +194,7 @@ class ParallelProcessor(SequentialProcessor):
     import multiprocessing as mp
     NUM_THREADS = mp.cpu_count()
 
+    # works, but is not pickle-able
     def __init__(self, processors, num_threads=NUM_THREADS):
         """
         Instantiates a ParallelProcessor object.
@@ -197,34 +203,31 @@ class ParallelProcessor(SequentialProcessor):
         :param num_threads: number of parallel working threads
 
         """
-        # save the processing queue
+        # save the processing chain
         super(ParallelProcessor, self).__init__(processors)
         # number of threads
         if num_threads is None:
             num_threads = 1
-        self.num_threads = num_threads
+        # Note: we must define the map function here, otherwise it leaks both
+        #       memory and file descriptors if we init the pool in the process
+        #       method. Thus we must use only 1 thread if we want to pickle the
+        #       Processor
+        self.map = map
+        if min(len(processors), max(1, num_threads)) != 1:
+            import multiprocessing as mp
+            self.map = mp.Pool(num_threads).map
 
-    def process(self, data, num_threads=None):
+    def process(self, data):
         """
         Process the data in parallel.
 
-        :param data:        data to be processed
-        :param num_threads: number of parallel working threads
-        :return:            list with individually processed data
+        :param data: data to be processed
+        :return:     list with individually processed data
 
         """
-        import multiprocessing as mp
         import itertools as it
-        # number of threads
-        if num_threads is None:
-            num_threads = self.num_threads
-        # init a pool of workers (if needed)
-        map_ = map
-        if min(len(self.processors), max(1, num_threads)) != 1:
-            map_ = mp.Pool(num_threads).map
         # process data in parallel and return a list with processed data
-        data = map_(_process, it.izip(self.processors, it.repeat(data)))
-        return data
+        return self.map(_process, it.izip(self.processors, it.repeat(data)))
 
     @classmethod
     def add_arguments(cls, parser, num_threads=NUM_THREADS):

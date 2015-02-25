@@ -244,6 +244,8 @@ def io_arguments(parser):
                         help='output file [default: STDOUT]')
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
+    parser.add_argument('--pickle', type=str, action='store',
+                        help='pickle the processor to the given file')
 
 
 class OverrideDefaultListAction(argparse.Action):

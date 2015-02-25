@@ -57,6 +57,9 @@ def main():
     # create an processor
     processor = RNNBeatTracking(beat_method='DBNBeatTracking',
                                 multi_model=True, **vars(args))
+    # pickle the processor if needed
+    if args.pickle is not None:
+        processor.dump(args.pickle)
     # process everything
     processor.process(args.input, args.output)
 
