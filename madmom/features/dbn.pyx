@@ -597,9 +597,9 @@ class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
             beat_range = self.observation_model.pointers[path]
             # get all change points between True and False
             idx = np.nonzero(np.diff(beat_range))[0] + 1
-            # if the first frame is in the beat range, prepend a 1 (non-beat)
+            # if the first frame is in the beat range, add a change at frame 0
             if not beat_range[0]:
-                idx = np.r_[1, idx]
+                idx = np.r_[0, idx]
             # if the last frame is in the beat range, append the length of the
             # array
             if not beat_range[-1]:
