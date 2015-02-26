@@ -245,7 +245,10 @@ def io_arguments(parser):
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
     parser.add_argument('--pickle', type=str, action='store',
-                        help='pickle the processor to the given file')
+                        help='pickle the processor to the given file (please '
+                             'note that the resulting file is considered a '
+                             'model with all the license restrictions, see '
+                             'the LICENSE file for details.')
 
 
 class OverrideDefaultListAction(argparse.Action):

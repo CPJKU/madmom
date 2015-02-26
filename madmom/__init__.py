@@ -62,6 +62,9 @@ class Processor(object):
 
         """
         import cPickle
+        import warnings
+        warnings.warn('The resulting file is considered a model file, please '
+                      'see the LICENSE file for details!')
         # close the open file if needed and use its name
         if not isinstance(outfile, basestring):
             outfile.close()
