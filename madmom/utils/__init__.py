@@ -11,6 +11,7 @@ import fnmatch
 import contextlib
 import __builtin__
 import argparse
+import multiprocessing as mp
 
 import numpy as np
 
@@ -229,28 +230,7 @@ def quantize_events(events, fps, length=None, shift=None):
     return quantized
 
 
-def io_arguments(parser):
-    """
-    Add input / output related arguments to an existing parser object.
-
-    :param parser: existing argparse parser object
-
-    """
-    # general options
-    parser.add_argument('input', type=argparse.FileType('r'),
-                        help='input file (.wav or saved activation function)')
-    parser.add_argument('output', nargs='?', type=argparse.FileType('w'),
-                        default=sys.stdout,
-                        help='output file [default: STDOUT]')
-    parser.add_argument('-v', dest='verbose', action='count',
-                        help='increase verbosity level')
-    parser.add_argument('--pickle', type=str, action='store',
-                        help='pickle the processor to the given file (please '
-                             'note that the resulting file is considered a '
-                             'model with all the license restrictions, see '
-                             'the LICENSE file for details.')
-
-
+# argparse action to set and overwrite default lists
 class OverrideDefaultListAction(argparse.Action):
     """
     OverrideDefaultListAction
@@ -270,3 +250,145 @@ class OverrideDefaultListAction(argparse.Action):
             self.set_to_default = False
         cur_values = getattr(namespace, self.dest)
         cur_values.append(value)
+
+
+# functions for processing file(s) with a Processor
+def process_single(processor, input, output, **kwargs):
+    """
+    Process a single file with the given Processor.
+
+    :param processor: pickled Processor
+    :param input:     input audio file
+    :param output:    output file
+
+    """
+    processor.process(input, output)
+
+
+class ParallelProcess(mp.Process):
+    """
+    Parallel Process class.
+
+    """
+    def __init__(self, task_queue):
+        """
+        Create a ParallelProcess, which processes tasks.
+
+        :param task_queue: queue with tasks
+
+        """
+        mp.Process.__init__(self)
+        self.task_queue = task_queue
+
+    def run(self):
+        """
+        Process all tasks from the task queue.
+
+        """
+        while True:
+            # get the task tuple
+            processor, input_file, output_file = self.task_queue.get()
+            # process the Processor with the data
+            processor.process(input_file, output_file)
+            # signal that it is done
+            self.task_queue.task_done()
+
+
+def process_batch(processor, files, output_dir=None, output_suffix=None,
+                  num_workers=mp.cpu_count(), **kwargs):
+    """
+    Process a list of files with the given Processor in batch mode.
+
+    :param processor:     pickled Processor
+    :param files:         audio files [list]
+    :param output_dir:    output directory
+    :param output_suffix: output suffix
+    :param num_workers:   number of parallel working threads
+
+    Note: Either `output_dir` or `output_suffix` must be set.
+
+    """
+    # either output_dir or output_suffix must be given
+    if output_dir is None and output_suffix is None:
+        raise ValueError('either output directory or suffix must be given')
+    # make sure the directory exists
+    if output_dir is not None:
+        try:
+            # create output directory
+            os.mkdir(output_dir)
+        except OSError:
+            # directory exists already
+            pass
+
+    # create task queue
+    tasks = mp.JoinableQueue()
+    # create working threads
+    processes = [ParallelProcess(tasks) for _ in range(num_workers)]
+    for p in processes:
+        p.daemon = True
+        p.start()
+
+    # process all the files
+    for input_file in files:
+        # set the output file name
+        if output_dir is not None:
+            output_file = "%s/%s" % (output_dir, os.path.basename(input_file))
+        else:
+            output_file = input_file
+        # append the suffix if needed
+        if output_suffix is not None:
+            output_file += output_suffix
+        # put processing tasks in the queue
+        tasks.put((processor, input_file, output_file))
+    # wait for all processing tasks to finish
+    tasks.join()
+
+
+# function for pickling a processor
+def pickle_processor(processor, outfile, **kwargs):
+    """
+    Pickle the Processor to file.
+
+    :param processor: the Processor
+    :param outfile:   file where to pickle it
+
+    """
+    processor.dump(outfile)
+
+
+# generic input/output arguments for scripts
+def io_arguments(parser):
+    """
+    Add input / output related arguments to an existing parser.
+
+    :param parser: existing argparse parser
+
+    """
+    # add general options
+    parser.add_argument('-v', dest='verbose', action='count',
+                        help='increase verbosity level')
+    # add subparsers
+    sub_parsers = parser.add_subparsers(title='processing options')
+    # pickle processor options
+    sp = sub_parsers.add_parser('pickle', help='pickle processor')
+    sp.set_defaults(func=pickle_processor)
+    sp.add_argument('outfile', type=str, help='file to pickle the processor')
+    # single file processing options
+    sp = sub_parsers.add_parser('single', help='single file processing')
+    sp.set_defaults(func=process_single)
+    sp.add_argument('input', type=argparse.FileType('r'),
+                    help='input audio file')
+    sp.add_argument('output', nargs='?',
+                    type=argparse.FileType('w'), default=sys.stdout,
+                    help='output file [default: STDOUT]')
+    # batch file processing options
+    sp = sub_parsers.add_parser('batch', help='batch file processing')
+    sp.set_defaults(func=process_batch)
+    sp.add_argument('files', nargs='+', help='files to be processed')
+    sp.add_argument('-o', dest='output_dir', default=None,
+                    help='output directory [default=%(default)s]')
+    sp.add_argument('-s', dest='output_suffix', default='.txt',
+                    help='extension appended to the files '
+                         '[default=%(default)s]')
+    sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
+                    help='number of parallel threads [default=%(default)s]')

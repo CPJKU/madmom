@@ -17,7 +17,6 @@ Please see the README for further details of this module.
 import os
 import abc
 
-# from madmom.utils import open
 
 MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
 
@@ -194,8 +193,7 @@ class ParallelProcessor(SequentialProcessor):
     Base class for parallel processing of data.
 
     """
-    import multiprocessing as mp
-    NUM_THREADS = mp.cpu_count()
+    NUM_THREADS = 1
 
     # works, but is not pickle-able
     def __init__(self, processors, num_threads=NUM_THREADS):
@@ -213,8 +211,9 @@ class ParallelProcessor(SequentialProcessor):
             num_threads = 1
         # Note: we must define the map function here, otherwise it leaks both
         #       memory and file descriptors if we init the pool in the process
-        #       method. Thus we must use only 1 thread if we want to pickle the
-        #       Processor
+        #       method. This also means that we must use only 1 thread if we
+        #       want to pickle the Processor, because map is pickle-able,
+        #       whereas mp.Pool().map is not.
         self.map = map
         if min(len(processors), max(1, num_threads)) != 1:
             import multiprocessing as mp
@@ -225,7 +224,7 @@ class ParallelProcessor(SequentialProcessor):
         Process the data in parallel.
 
         :param data: data to be processed
-        :return:     list with individually processed data
+        :return:     list with processed data
 
         """
         import itertools as it

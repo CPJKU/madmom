@@ -21,13 +21,15 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all notes in
-    the given input (file) and writes them to the output (file).
+    The software detects all notes (onsets) in an audio file with the algorithm
+    described in:
 
     "Polyphonic Piano Note Transcription with Recurrent Neural Networks"
     Sebastian Böck and Markus Schedl.
     Proceedings of the 37th International Conference on Acoustics, Speech and
     Signal Processing (ICASSP), 2012.
+
+    Instead of 'LSTM' units, the current version uses 'tanh' units.
 
     ''')
     # input/output options
@@ -59,13 +61,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = RNNNoteTranscription(**vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == '__main__':

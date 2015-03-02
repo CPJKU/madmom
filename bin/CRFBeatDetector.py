@@ -21,9 +21,8 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all beats in the
-    given input (file) and writes them to the output (file) according to the
-    method described in:
+    The software detects all beats in an audio file according to the method
+    described in:
 
     "Probabilistic extraction of beat positions from a beat activation
      function"
@@ -55,13 +54,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = RNNBeatTracking(beat_method='CRFBeatDetection', **vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == "__main__":

@@ -23,9 +23,8 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in the
-    given input file and writes them to the output file with the SuperFlux
-    algorithm with additional tremolo suppression as introduced in:
+    The software detects all onsets in an audio file with the SuperFlux
+    algorithm with additional tremolo suppression as described in:
 
     "Local group delay based vibrato and tremolo suppression for onset
      detection"
@@ -66,13 +65,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = ComlpexFlux(onset_method='complex_flux', **vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == '__main__':

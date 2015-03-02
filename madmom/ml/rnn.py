@@ -586,23 +586,19 @@ class RNNProcessor(ParallelProcessor):
         :param num_threads: number of parallel working threads
 
         """
-        # FIXME: use this workaround against slow pickling of RNN objects
-        # self.processors = nn_files
-        # self.num_threads = num_threads
         nn_models = []
         for nn_file in nn_files:
             nn_models.append(RecurrentNeuralNetwork.load(nn_file))
-        # instantiate object
+        # instantiate ParallelProcessor
         super(RNNProcessor, self).__init__(nn_models, num_threads)
 
     @classmethod
-    def add_arguments(cls, parser, nn_files, num_threads=None):
+    def add_arguments(cls, parser, nn_files):
         """
         Add neural network testing options to an existing parser.
 
         :param parser:      existing argparse parser
         :param nn_files:    list with files of RNN models
-        :param num_threads: number of parallel working threads
         :return:            neural network argument parser group
 
         Note: A value of 0 or negative numbers for `num_threads` suppresses the
@@ -617,8 +613,6 @@ class RNNProcessor(ParallelProcessor):
                        help='average the predictions of these pre-trained '
                             'neural networks (multiple files can be given, '
                             'one file per argument)')
-        # add threading options
-        ParallelProcessor.add_arguments(parser, num_threads)
         # return the argument group so it can be modified if needed
         return g
 

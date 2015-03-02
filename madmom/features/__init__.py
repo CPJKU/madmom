@@ -174,9 +174,9 @@ class ActivationsProcessor(Processor):
         # add onset detection related options to the existing parser
         g = parser.add_argument_group('save/load the activations')
         # add options for saving and loading the activations
-        g.add_argument('-s', dest='save', action='store_true', default=False,
+        g.add_argument('--save', action='store_true', default=False,
                        help='save the activations to file')
-        g.add_argument('-l', dest='load', action='store_true', default=False,
+        g.add_argument('--load', action='store_true', default=False,
                        help='load the activations from file')
         g.add_argument('--sep', action='store', default=None,
                        help='separator for saving/loading the activations '

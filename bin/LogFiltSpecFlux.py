@@ -24,9 +24,8 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in the
-    given input file and writes them to the output file with the
-    LogFiltSpecFlux algorithm introduced in:
+    The software detects all onsets in an audio file with the LogFiltSpecFlux
+    algorithm with additional tremolo suppression as described in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
     Sebastian Böck, Florian Krebs and Markus Schedl
@@ -68,13 +67,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = LogFiltSpecFlux(onset_method='spectral_flux', **vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == '__main__':

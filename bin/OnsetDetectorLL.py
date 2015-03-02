@@ -21,9 +21,8 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in the
-    given input (file) and writes them to the output (file) with the algorithm
-    introduced in:
+    The software detects all onsets in an audio file with the algorithm
+    described in:
 
     "Online Real-time Onset Detection with Recurrent Neural Networks"
     Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl
@@ -64,13 +63,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = RNNOnsetDetection(online=True, **vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == '__main__':

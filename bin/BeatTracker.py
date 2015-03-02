@@ -21,9 +21,8 @@ def parser():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all beats in the
-    given input (file) and writes them to the output (file). The algorithm can
-    follow tempo changes.
+    The software detects all beats in an audio file; it can follow tempo
+    changes.
 
     "Enhanced Beat Tracking with Context-Aware Neural Networks"
     Sebastian Böck and Markus Schedl
@@ -58,13 +57,10 @@ def main():
     # parse arguments
     args = parser()
 
-    # create an processor
+    # create a processor
     processor = RNNBeatTracking(beat_method='BeatTracking', **vars(args))
-    # pickle the processor if needed
-    if args.pickle is not None:
-        processor.dump(args.pickle)
-    # process everything
-    processor.process(args.input, args.output)
+    # and call the processing function
+    args.func(processor, **vars(args))
 
 
 if __name__ == '__main__':

@@ -353,7 +353,7 @@ class NNPeakPicking(SequentialProcessor):
 
         """
         # add RNN parser arguments (but without number of threads)
-        RNNProcessor.add_arguments(parser, nn_files=nn_files, num_threads=0)
+        RNNProcessor.add_arguments(parser, nn_files=nn_files)
         PeakPicking.add_arguments(parser, threshold=threshold, smooth=smooth,
                                   combine=combine, delay=delay)
 
