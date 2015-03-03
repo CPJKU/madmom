@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-This file contains tempo evaluation tests.
+This file contains tests for the madmom.evaluation.tempo module.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -13,28 +13,27 @@ import __builtin__
 from madmom.evaluation.tempo import *
 from . import DATA_PATH
 
-TEMPI = np.asarray([120.1, 59])
-STRENGTHS = np.asarray([0.6, 0.4])
-DETECTIONS = np.asarray([60, 90])
+TEMPI = np.asarray([87.5, 175])
+STRENGTHS = np.asarray([0.7, 0.3])
+DETECTIONS = np.asarray([176.47, 117.65])
 
 
 # test functions
 class TestLoadTempoFunction(unittest.TestCase):
 
     def test_load_tempo_from_file(self):
-        annotations = load_tempo(DATA_PATH + 'file.tempo')
+        annotations = load_tempo(DATA_PATH + 'sample.tempo')
         self.assertIsInstance(annotations, tuple)
 
     def test_load_tempo_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'file.tempo', 'r')
+        file_handle = __builtin__.open(DATA_PATH + 'sample.tempo', 'r')
         annotations = load_tempo(file_handle)
         self.assertIsInstance(annotations, tuple)
         file_handle.close()
 
     def test_load_tempo_annotations(self):
-        annotations = load_tempo(DATA_PATH + 'file.tempo')
+        annotations = load_tempo(DATA_PATH + 'sample.tempo')
         self.assertIsInstance(annotations, tuple)
-        print annotations
         self.assertTrue(np.allclose(annotations[0], TEMPI))
         self.assertTrue(np.allclose(annotations[1], STRENGTHS))
 
@@ -91,7 +90,7 @@ class TestTempoEvaluationFunction(unittest.TestCase):
         self.assertEqual(scores, (0, False, False))
         # normal calculation
         scores = tempo_evaluation(DETECTIONS, TEMPI, STRENGTHS, 0.08)
-        self.assertEqual(scores, (0.4, True, False))
+        self.assertEqual(scores, (0.3, True, False))
         # uniform strength calculation
         scores = tempo_evaluation(DETECTIONS, TEMPI, None, 0.08)
         self.assertEqual(scores, (0.5, True, False))

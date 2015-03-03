@@ -12,7 +12,7 @@ import argparse
 from scipy.cluster.vq import kmeans
 from scipy.signal import argrelmax
 
-from madmom.utils import files, strip_suffix
+from madmom.utils import search_files, strip_suffix
 from madmom.evaluation.beats import calc_intervals
 
 
@@ -47,7 +47,7 @@ def main():
         print args
 
     # correct all files
-    for in_file in files(args.files, '.beats'):
+    for in_file in search_files(args.files, '.beats'):
         # calculate inter beat intervals
         beats = np.loadtxt(in_file)
         if beats.ndim > 1:

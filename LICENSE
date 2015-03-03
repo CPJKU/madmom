@@ -39,7 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Data/model files:
 -----------------
 
-Data and model files usually have .npy, .npz, .h5, .hdf5, .mat file extensions.
+Data and model files usually have .npy, .npz, .h5, .hdf5, .pkl or .mat file
+extensions.
 
 All model and data files are distributed under the following license:
 
@@ -66,4 +67,5 @@ http://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 
 If you want to include any of these files (or a variation or modification
 thereof) or technology which utilises them in a commercial product, please
-contact Gerhard Widmer at gerhard.widmer@jku.at.
+contact Gerhard Widmer at gerhard.widmer@jku.at. Please note that pickled
+Processors (i.e. saved models) fall into this category.

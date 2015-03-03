@@ -7,108 +7,86 @@ This file contains all cepstrogram related functionality.
 
 """
 
-import scipy.fftpack as fft
+from scipy.fftpack import dct
+
+from madmom import Processor, SequentialProcessor
+from madmom.audio.filters import MelFilterbank
+from madmom.audio.spectrogram import Spectrogram, SpectrogramProcessor
 
 
-class Cepstrogram(object):
-
+class Cepstrogram(Processor):
     """
     Cepstrogram is a generic class which applies some transformation (usually
-    a DFT or DCT) on a spectrogram.
+    a DCT) on a spectrogram.
 
     """
-    def __init__(self, spectrogram, *args, **kwargs):
+    def __init__(self, transform=dct, **kwargs):
         """
         Creates a new Cepstrogram instance for the given spectrogram.
 
-        :param spectrogram: spectrogram to operate on
+        :param transform: transform
 
         """
-        from .spectrogram import Spectrogram
-        # audio signal stuff
+        self.transform = transform
+
+    def process(self, spectrogram):
+        """
+        :param spectrogram: Spectrogram instance or numpy array
+        :return:            cepstrogram
+
+        """
         if isinstance(spectrogram, Spectrogram):
-            # already a Spectrogram object
-            self._spectrogram = spectrogram
+            return self.transform(spectrogram.spec)
         else:
-            # try to instantiate a Spectrogram object
-            self._spectrogram = Spectrogram(spectrogram, *args, **kwargs)
-
-    @property
-    def spectrogram(self):
-        """Spectrogram."""
-        return self._spectrogram
+            return self.transform(spectrogram)
 
 
-class MFCC(Cepstrogram):
+class MFCC(SequentialProcessor):
     """
     MFCC is a subclass of Cepstrogram which filters the magnitude spectrogram
     of the spectrogram with a Mel filterbank, takes the logarithm and performs
     a discrete cosine transform afterwards.
 
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, mel_bands=30, fmin=40, fmax=15000, norm_filters=True,
+                 mul=1, add=0, transform=dct, **kwargs):
         """
-        Creates a new MFCC instance.
+        Creates a new MFCC processor.
 
-        :param filterbank: filterbank for dimensionality reduction
-
-        If no filterbank is given, one with the following parameters is created
-        automatically.
+        A Mel filterbank with these parameters:
 
         :param mel_bands:    number of filter bands per octave
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
         :param norm_filters: normalize filter area to 1
 
+        is used to filter a logarithmic spectrogram, which can be controlled by
+        the following parameters:
+
+        :param mul:          multiply the spectrogram with this factor before
+                             taking the logarithm of the magnitudes [float]
+        :param add:          add this value before taking the logarithm of
+                             the magnitudes [float]
+
+        Finally the chosen transform is applied.
+
+        :param transform:    transformation to be applied on the spectrogram
+
         """
         # from https://en.wikipedia.org/wiki/Mel-frequency_cepstrum:
         #
         # MFCCs are commonly derived as follows:
         #
-        # • Take the Fourier transform of (a windowed excerpt of) a signal.
-        # • Map the powers of the spectrum obtained above onto the mel scale,
-        #   using triangular overlapping windows.
-        # • Take the logs of the powers at each of the mel frequencies.
-        # • Take the discrete cosine transform of the list of mel log powers,
-        #   as if it were a signal.
-        # • The MFCCs are the amplitudes of the resulting spectrum
-        from .filters import (MelFilterbank, FMIN, FMAX, NORM_FILTERS)
-        # TODO: set other defaults than those in .filterbank for MFCCs?
-        from .spectrogram import MUL, ADD
-
-        # fetch the arguments for filterbank creation (or set defaults)
-        fb = kwargs.pop('filterbank', None)
-        mel_bands = kwargs.pop('mel_bands', MelFilterbank.BANDS)
-        fmin = kwargs.pop('fmin', FMIN)
-        fmax = kwargs.pop('fmax', FMAX)
-        norm_filters = kwargs.pop('norm_filters', NORM_FILTERS)
-
-        # fetch the arguments for the logarithmic magnitude (or set defaults)
-        mul = kwargs.pop('mul', MUL)
-        add = kwargs.pop('add', ADD)
-
-        # create Cepstrogram object
-        super(MFCC, self).__init__(*args, **kwargs)
-        # if no filterbank was given, create one
-        if fb is None:
-            sample_rate = self.spectrogram.frames.signal.sample_rate
-            fb = MelFilterbank(num_fft_bins=self.spectrogram.num_fft_bins,
-                               sample_rate=sample_rate, bands=mel_bands,
-                               fmin=fmin, fmax=fmax, norm=norm_filters)
-
-        # set the parameters, so they get used for computation
-        self._spectrogram._filterbank = fb
-        self._spectrogram._log = True
-        self._spectrogram._mul = mul
-        self._spectrogram._add = add
-
-        # MFCC matrix
-        self._mfcc = None
-
-    @property
-    def mfcc(self):
-        """Mel-frequency cepstral coefficients."""
-        if self._mfcc is None:
-            # take the DCT of the LogMelSpec (including the first bin)
-            self._mfcc = fft.dct(self._spectrogram.spec)
-        return self._mfcc
+        # 1) Take the Fourier transform of (a windowed excerpt of) a signal.
+        # 2) Map the powers of the spectrum obtained above onto the mel scale,
+        #    using triangular overlapping windows.
+        # 3) Take the logs of the powers at each of the mel frequencies.
+        # 4) Take the discrete cosine transform of the list of mel log powers,
+        #    as if it were a signal.
+        # 5) The MFCCs are the amplitudes of the resulting spectrum
+        spec = SpectrogramProcessor(filterbank=MelFilterbank, bands=mel_bands,
+                                    fmin=fmin, fmax=fmax,
+                                    norm_filters=norm_filters, log=True,
+                                    mul=mul, add=add, **kwargs)
+        # make it a SequentialProcessor([1-3, 4])
+        super(MFCC, self).__init__([spec, Cepstrogram(transform=transform)])

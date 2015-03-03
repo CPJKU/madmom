@@ -277,16 +277,6 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
-    @property
-    def true_positive_rate(self):
-        """True positive rate."""
-        return self.recall
-
-    @property
-    def false_positive_rate(self):
-        """False positive rate."""
-        return 1. - self.precision
-
     def print_errors(self, indent='', tex=False, verbose=True):
         """
         Print errors.
@@ -299,14 +289,12 @@ class SimpleEvaluation(object):
         # print the errors
         if tex:
             # tex formatting
-            ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
-                  'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
-                  'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
-                  '%.2f ms & %.2f ms\\\\' % \
+            ret = 'tex & Precision & Recall & F-measure & Accuracy & Mean & ' \
+                  'Std.dev\\\\\n %i annotations & %.3f & %.3f & %.3f & %.3f ' \
+                  '& %.2f ms & %.2f ms\\\\' % \
                   (self.num_annotations, self.precision, self.recall,
-                   self.fmeasure, self.true_positive_rate,
-                   self.false_positive_rate, self.accuracy,
-                   self.mean_error * 1000., self.std_error * 1000.)
+                   self.fmeasure, self.accuracy, self.mean_error * 1000.,
+                   self.std_error * 1000.)
         else:
             # normal formatting
             ret = '%sannotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
@@ -314,10 +302,8 @@ class SimpleEvaluation(object):
                                      self.num_fp, self.num_fn, self.precision,
                                      self.recall, self.fmeasure)
             if verbose:
-                ret += ' tpr: %.3f fpr: %.3f acc: %.3f mean: %.1f ' \
-                       'ms std: %.1f ms' % \
-                       (self.true_positive_rate, self.false_positive_rate,
-                        self.accuracy, self.mean_error * 1000.,
+                ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
+                       (self.accuracy, self.mean_error * 1000.,
                         self.std_error * 1000.)
         # return
         return ret
@@ -472,10 +458,8 @@ class MeanEvaluation(SimpleEvaluation):
               (indent, self.num_annotations, self.num_tp, self.num_fp,
                self.num_fn, self.precision, self.recall, self.fmeasure)
         if verbose:
-            ret += ' tpr: %.3f fpr: %.3f acc: %.3f mean: %.1f ' \
-                   'ms std: %.1f ms' % \
-                   (self.true_positive_rate, self.false_positive_rate,
-                    self.accuracy, self.mean_error * 1000.,
+            ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
+                   (self.accuracy, self.mean_error * 1000.,
                     self.std_error * 1000.)
         return ret
 

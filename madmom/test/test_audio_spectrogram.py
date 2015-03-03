@@ -1,0 +1,427 @@
+# encoding: utf-8
+"""
+This file contains tests for the madmom.audio.spectrogram module.
+
+@author: Sebastian Böck <sebastian.boeck@jku.at>
+
+"""
+# pylint: skip-file
+
+import unittest
+
+from . import DATA_PATH
+
+from madmom.audio.spectrogram import *
+from madmom.audio.signal import FramedSignal
+from madmom.audio.filters import Filterbank, LogarithmicFilterbank
+
+
+# test functions
+class TestBinFrequenciesFunction(unittest.TestCase):
+
+    def test_num_arguments(self):
+        # number of arguments arguments
+        with self.assertRaises(TypeError):
+            fft_frequencies()
+        with self.assertRaises(TypeError):
+            fft_frequencies(1)
+        with self.assertRaises(TypeError):
+            fft_frequencies(1, 2, 3)
+
+    def test_types(self):
+        result = fft_frequencies(5, 10)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float)
+
+    def test_value(self):
+        result = fft_frequencies(5, 10)
+        self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
+
+
+class TestDftFunction(unittest.TestCase):
+
+    def test_types(self):
+        self.assertTrue(True)
+
+    def test_values(self):
+        self.assertTrue(True)
+
+
+class TestStftFunction(unittest.TestCase):
+
+    def test_types(self):
+        self.assertTrue(True)
+
+    def test_value(self):
+        self.assertTrue(True)
+
+
+class TestSpecFunction(unittest.TestCase):
+
+    def test_types(self):
+        result = spec(np.random.rand(10))
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, ))
+        result = spec(np.random.rand(10, 2))
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, 2))
+        # complex data
+        data = np.random.rand(10) + 1j * np.random.rand(10)
+        result = spec(data)
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, ))
+        data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
+        result = spec(data)
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, 2))
+
+    def test_values(self):
+        data = np.random.rand(10) + 1j * np.random.rand(10)
+        self.assertTrue(np.allclose(np.abs(data), spec(data)))
+        data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
+        self.assertTrue(np.allclose(np.abs(data), spec(data)))
+
+
+class TestPhaseFunction(unittest.TestCase):
+
+    def test_types(self):
+        result = phase(np.random.rand(10))
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, ))
+        result = phase(np.random.rand(10, 2))
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, 2))
+        # complex data
+        data = np.random.rand(10) + 1j * np.random.rand(10)
+        result = phase(data)
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, ))
+        data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
+        result = phase(data)
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, 2))
+
+    def test_values(self):
+        data = np.random.rand(10) + 1j * np.random.rand(10)
+        self.assertTrue(np.allclose(np.angle(data), phase(data)))
+        data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
+        self.assertTrue(np.allclose(np.angle(data), phase(data)))
+
+
+class TestLocalGroupDelayFunction(unittest.TestCase):
+
+    def test_errors(self):
+        self.assertTrue(True)
+
+
+class TestAdaptiveWhiteningFunction(unittest.TestCase):
+
+    def test_errors(self):
+        with self.assertRaises(NotImplementedError):
+            adaptive_whitening(np.random.rand(10))
+
+
+class TestStatisticalSpectrumDescriptorsFunction(unittest.TestCase):
+
+    def test_types(self):
+        result = statistical_spectrum_descriptors(np.random.rand(10))
+        self.assertTrue(isinstance(result, dict))
+        self.assertTrue(result['mean'].dtype == np.float)
+        self.assertTrue(result['median'].dtype == np.float)
+        self.assertTrue(result['variance'].dtype == np.float)
+        self.assertTrue(type(result['skewness']) == float)
+        self.assertTrue(type(result['kurtosis']) == float)
+        self.assertTrue(result['min'].dtype == np.float)
+        self.assertTrue(result['max'].dtype == np.float)
+        result = statistical_spectrum_descriptors(np.random.rand(10, 2))
+        self.assertTrue(isinstance(result, dict))
+        self.assertTrue(result['mean'].dtype == np.float)
+        self.assertTrue(result['median'].dtype == np.float)
+        self.assertTrue(result['variance'].dtype == np.float)
+        self.assertTrue(result['skewness'].dtype == np.float)
+        self.assertTrue(result['kurtosis'].dtype == np.float)
+        self.assertTrue(result['min'].dtype == np.float)
+        self.assertTrue(result['max'].dtype == np.float)
+
+    def test_values(self):
+        from scipy.stats import skew, kurtosis
+        data = np.random.rand(10)
+        result = statistical_spectrum_descriptors(data)
+        self.assertTrue(np.allclose(result['mean'], np.mean(data, axis=0)))
+        self.assertTrue(np.allclose(result['median'], np.median(data, axis=0)))
+        self.assertTrue(np.allclose(result['variance'], np.var(data, axis=0)))
+        self.assertTrue(np.allclose(result['skewness'], skew(data)))
+        self.assertTrue(np.allclose(result['kurtosis'], kurtosis(data)))
+        self.assertTrue(np.allclose(result['min'], np.min(data, axis=0)))
+        self.assertTrue(np.allclose(result['max'], np.max(data, axis=0)))
+        data = np.random.rand(10, 2)
+        result = statistical_spectrum_descriptors(data)
+        self.assertTrue(np.allclose(result['mean'], np.mean(data, axis=0)))
+        self.assertTrue(np.allclose(result['median'], np.median(data, axis=0)))
+        self.assertTrue(np.allclose(result['variance'], np.var(data, axis=0)))
+        self.assertTrue(np.allclose(result['skewness'], skew(data)))
+        self.assertTrue(np.allclose(result['kurtosis'], kurtosis(data)))
+        self.assertTrue(np.allclose(result['min'], np.min(data, axis=0)))
+        self.assertTrue(np.allclose(result['max'], np.max(data, axis=0)))
+
+
+class TestTuningFrequencyFunction(unittest.TestCase):
+
+    def test_errors(self):
+        with self.assertRaises(NotImplementedError):
+            adaptive_whitening(np.random.rand(10))
+
+
+# test classes
+class TestSpectrogramClass(unittest.TestCase):
+
+    def test_types(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        self.assertTrue(isinstance(result, Spectrogram))
+        self.assertTrue(isinstance(result.frames, FramedSignal))
+        self.assertTrue(isinstance(result.window, np.ndarray))
+        self.assertTrue(isinstance(result.fft_size, int))
+        self.assertTrue(isinstance(result.fft_window, np.ndarray))
+        self.assertTrue(isinstance(result.block_size, int))
+        self.assertTrue(isinstance(result.filterbank, type(None)))
+        self.assertTrue(isinstance(result.log, bool))
+        self.assertTrue(isinstance(result.mul, float))
+        self.assertTrue(isinstance(result.add, float))
+        self.assertTrue(isinstance(result.num_diff_frames, int))
+        self.assertTrue(isinstance(result.diff_max_bins, int))
+        self.assertTrue(isinstance(result.positive_diff, bool))
+        # properties
+        self.assertTrue(isinstance(result.num_frames, int))
+        self.assertTrue(isinstance(result.fft_freqs, np.ndarray))
+        self.assertTrue(isinstance(result.num_fft_bins, int))
+        self.assertTrue(isinstance(result.num_bins, int))
+        self.assertTrue(isinstance(result.stft, np.ndarray))
+        self.assertTrue(isinstance(result.spec, np.ndarray))
+        self.assertTrue(isinstance(result.magnitude, np.ndarray))
+        self.assertTrue(isinstance(result.phase, np.ndarray))
+        self.assertTrue(isinstance(result.lgd, np.ndarray))
+        self.assertTrue(isinstance(result.diff, np.ndarray))
+
+    def test_types_filterbank(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav',
+                             filterbank=LogarithmicFilterbank)
+        self.assertTrue(isinstance(result, Spectrogram))
+        self.assertTrue(isinstance(result.filterbank, Filterbank))
+
+    def test_values(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
+        self.assertTrue(result.fft_size == 2048)
+        self.assertTrue(np.allclose(result.fft_window,
+                                    np.hanning(2048) / 32767))
+        self.assertTrue(result.block_size == 2048)
+        self.assertTrue(result.filterbank is None)
+        self.assertTrue(result.log is False)
+        self.assertTrue(result.mul == 1)
+        self.assertTrue(result.add == 0)
+        self.assertTrue(result.num_diff_frames == 1)
+        self.assertTrue(result.diff_max_bins == 1)
+        self.assertTrue(result.positive_diff is True)
+        # properties
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(np.allclose(result.fft_freqs,
+                                    fft_frequencies(1024, 44100)))
+        self.assertTrue(result.num_fft_bins == 1024)
+        self.assertTrue(result.num_bins == 1024)
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        self.assertTrue(result.spec.shape == (281, 1024))
+        self.assertTrue(result.magnitude.shape == (281, 1024))
+        self.assertTrue(result.diff.shape == (281, 1024))
+
+    def test_values_filterbank(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav',
+                             filterbank=LogarithmicFilterbank)
+        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
+        self.assertTrue(result.fft_size == 2048)
+        self.assertTrue(np.allclose(result.fft_window,
+                                    np.hanning(2048) / 32767))
+        self.assertTrue(np.allclose(result.filterbank,
+                                    LogarithmicFilterbank(result.fft_freqs)))
+        self.assertTrue(result.num_fft_bins == 1024)
+        self.assertTrue(result.num_bins == 81)
+        # these matrices are not filtered
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        # these matrices are filtered
+        self.assertTrue(result.spec.shape == (281, 81))
+        self.assertTrue(result.magnitude.shape == (281, 81))
+        self.assertTrue(result.diff.shape == (281, 81))
+
+    def test_values_log(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav', log=True, mul=2, add=1)
+        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
+        self.assertTrue(result.fft_size == 2048)
+        self.assertTrue(np.allclose(result.fft_window,
+                                    np.hanning(2048) / 32767))
+        self.assertTrue(result.log is True)
+        self.assertTrue(result.mul == 2)
+        self.assertTrue(result.add == 1)
+
+
+class TestSpectrogramProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = SpectrogramProcessor()
+        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertTrue(isinstance(processor.filterbank, type(None)))
+        self.assertTrue(isinstance(processor.bands, int))
+        self.assertTrue(isinstance(processor.fmin, float))
+        self.assertTrue(isinstance(processor.fmax, float))
+        self.assertTrue(isinstance(processor.log, bool))
+        self.assertTrue(isinstance(processor.mul, float))
+        self.assertTrue(isinstance(processor.add, float))
+        self.assertTrue(isinstance(processor.diff_ratio, float))
+        self.assertTrue(isinstance(processor.diff_frames, type(None)))
+        self.assertTrue(isinstance(processor.diff_max_bins, int))
+
+    def test_types_filterbank(self):
+        processor = SpectrogramProcessor(filterbank=True)
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        processor = SpectrogramProcessor(filterbank=False)
+        self.assertTrue(isinstance(processor.filterbank, type(None)))
+
+    def test_values(self):
+        processor = SpectrogramProcessor()
+        self.assertTrue(processor.filterbank is None)
+        self.assertTrue(processor.bands == 12)
+        self.assertTrue(processor.fmin == 30)
+        self.assertTrue(processor.fmax == 17000)
+        self.assertTrue(processor.norm_filters is True)
+        self.assertTrue(processor.log is False)
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins == 1)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        self.assertTrue(result.spec.shape == (281, 1024))
+        self.assertTrue(result.diff.shape == (281, 1024))
+        self.assertTrue(result.diff.min() == 0)
+
+    def test_values_filterbank(self):
+        processor = SpectrogramProcessor(filterbank=LogarithmicFilterbank)
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(processor.bands == 12)
+        self.assertTrue(processor.fmin == 30)
+        self.assertTrue(processor.fmax == 17000)
+        self.assertTrue(processor.norm_filters is True)
+        self.assertTrue(processor.log is False)
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins == 1)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        self.assertTrue(result.spec.shape == (281, 81))
+        self.assertTrue(result.diff.shape == (281, 81))
+        self.assertTrue(result.diff.min() == 0)
+
+    def test_values_others(self):
+        processor = SpectrogramProcessor(log=True, mul=2, add=1)
+        self.assertTrue(processor.log is True)
+        self.assertTrue(processor.mul == 2)
+        self.assertTrue(processor.add == 1)
+        processor = SpectrogramProcessor(diff_ratio=0.25)
+        self.assertTrue(processor.diff_ratio == 0.25)
+        processor = SpectrogramProcessor(diff_frames=2)
+        self.assertTrue(processor.diff_frames == 2)
+        processor = SpectrogramProcessor(diff_max_bins=3)
+        self.assertTrue(processor.diff_max_bins == 3)
+        processor = SpectrogramProcessor(norm_filters=False)
+        self.assertTrue(processor.norm_filters is False)
+
+
+class TestSuperFluxProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = SuperFluxProcessor()
+        self.assertTrue(isinstance(processor, SuperFluxProcessor))
+        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+
+    def test_values(self):
+        processor = SuperFluxProcessor()
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(processor.bands == 24)
+        self.assertTrue(processor.fmin == 30)
+        self.assertTrue(processor.fmax == 17000)
+        self.assertTrue(processor.norm_filters is False)
+        self.assertTrue(processor.log is True)
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins == 3)
+
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        self.assertTrue(result.spec.shape == (281, 140))
+        self.assertTrue(result.diff.shape == (281, 140))
+        self.assertTrue(result.diff.min() == 0)
+
+
+class TestMultiBandSuperFluxProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = MultiBandSuperFluxProcessor([200, 1000])
+        self.assertTrue(isinstance(processor, MultiBandSuperFluxProcessor))
+        self.assertTrue(isinstance(processor, SuperFluxProcessor))
+        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(type(processor.crossover_frequencies) == list)
+        self.assertTrue(type(processor.norm_bands) == bool)
+
+    def test_values(self):
+        processor = MultiBandSuperFluxProcessor([200, 1000])
+        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(processor.bands == 24)
+        self.assertTrue(processor.fmin == 30)
+        self.assertTrue(processor.fmax == 17000)
+        self.assertTrue(processor.norm_filters is False)
+        self.assertTrue(processor.log is True)
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins == 3)
+        self.assertTrue(processor.crossover_frequencies == [200, 1000])
+        with self.assertRaises(NotImplementedError):
+            processor.process(DATA_PATH + '/sample.wav')
+
+
+class TestStackSpectrogramProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = StackSpectrogramProcessor([512, 1024, 2048])
+        self.assertTrue(isinstance(processor, StackSpectrogramProcessor))
+        self.assertTrue(isinstance(processor, Processor))
+
+    def test_values(self):
+        processor = StackSpectrogramProcessor([512])
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 116))
+        processor = StackSpectrogramProcessor([1024])
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 138))
+        processor = StackSpectrogramProcessor([2048])
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 162))
+        processor = StackSpectrogramProcessor([512, 1024, 2048])
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 116 + 138 + 162))

@@ -10,7 +10,7 @@ Script for correcting ground truth annotations in multiple fashions.
 import numpy as np
 import argparse
 
-from madmom.utils import files, match_file, load_events
+from madmom.utils import search_files, match_file, load_events
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
         print args
 
     # correct all files
-    for infile in files(args.files, args.suffix):
+    for infile in search_files(args.files, args.suffix):
         if args.verbose:
             print infile
 

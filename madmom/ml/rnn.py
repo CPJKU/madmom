@@ -20,6 +20,8 @@ other stuff.
 import abc
 import numpy as np
 
+from madmom import Processor, ParallelProcessor
+
 # naming infix for bidirectional layer
 REVERSE = 'reverse'
 
@@ -467,28 +469,27 @@ class LSTMLayer(object):
 
 
 # network class
-class RecurrentNeuralNetwork(object):
+class RecurrentNeuralNetwork(Processor):
     """
     Recurrent Neural Network (RNN) class.
 
     """
-    def __init__(self, filename=None):
+    def __init__(self, layers=None):
         """
         Create a new RecurrentNeuralNetwork object.
 
-        :param filename: build the RNN according to the model stored in that
-                         file [default=None]
+        :param layers: build a RNN object with the given layers
 
         """
-        self.layers = []
-        if filename:
-            self.load(filename)
+        self.layers = layers
 
-    def load(self, filename):
+    @classmethod
+    def load(cls, filename):
         """
-        Load the model of the RecurrentNeuralNetwork from a .npz file.
+        Load the RecurrentNeuralNetwork model from a .npz file.
 
         :param filename: name of the .npz file with the RNN model
+        :return:         RecurrentNeuralNetwork instance
 
         """
         import re
@@ -533,7 +534,8 @@ class RecurrentNeuralNetwork(object):
                 # just return the forward layer
                 return fwd_layer
 
-        # loop over all layers and add them to the model
+        # loop over all layers
+        layers = []
         for i in xrange(num_layers + 1):
             # get all parameters for that layer
             layer_params = dict((k.split('_', 2)[2], data[k])
@@ -542,76 +544,93 @@ class RecurrentNeuralNetwork(object):
             # create a layer from these parameters
             layer = create_layer(layer_params)
             # add to the model
-            self.layers.append(layer)
+            layers.append(layer)
+        # instantiate a RNN from the layers and return it
+        return cls(layers)
 
-    def activate(self, data):
+    def process(self, data):
         """
-        Activate the RNN.
+        Process the given data with the RNN.
 
-        :param data: activate with this data
-        :return:     network activations for this data
+        :param data: activate the network with this data
+        :return:     network predictions for this data
 
         """
         # check the dimensions of the data
         if data.ndim == 1:
             data = np.atleast_2d(data).T
         # loop over all layers
-        # feed the output of one layer as input to the next one
         for layer in self.layers:
-            # activate the layer
+            # feed the output of one layer into the next one
             data = layer.activate(data)
+        # ravel the predictions if needed
+        if data.ndim == 2 and data.shape[1] == 1:
+            data = data.ravel()
         return data
 
 # alias
 RNN = RecurrentNeuralNetwork
 
 
-def _process(process_tuple):
+class RNNProcessor(ParallelProcessor):
     """
-    Loads a RNN model from the given file (first tuple item) and passes the
-    given numpy array of data through it (second tuple item).
-
-    :param process_tuple: tuple (nn_file, data)
-    :return:              RNN output (predictions for the given data)
-
-    Note: this must be a top-level function to be pickle-able.
+    Recurrent Neural Network (RNN) processor class.
 
     """
-    return RecurrentNeuralNetwork(process_tuple[0]).activate(process_tuple[1])
+
+    def __init__(self, nn_files, num_threads=None, **kwargs):
+        """
+        Instantiates a RNNProcessor, which loads the models from files.
+
+        :param nn_files:    list of files with the RNN models
+        :param num_threads: number of parallel working threads
+
+        """
+        nn_models = []
+        for nn_file in nn_files:
+            nn_models.append(RecurrentNeuralNetwork.load(nn_file))
+        # instantiate ParallelProcessor
+        super(RNNProcessor, self).__init__(nn_models, num_threads)
+
+    @classmethod
+    def add_arguments(cls, parser, nn_files):
+        """
+        Add neural network testing options to an existing parser.
+
+        :param parser:      existing argparse parser
+        :param nn_files:    list with files of RNN models
+        :return:            neural network argument parser group
+
+        Note: A value of 0 or negative numbers for `num_threads` suppresses the
+              inclusion of the parallel option.
+
+        """
+        from madmom.utils import OverrideDefaultListAction
+        # add neural network options
+        g = parser.add_argument_group('neural network arguments')
+        g.add_argument('--nn_files', action=OverrideDefaultListAction,
+                       type=str, default=nn_files,
+                       help='average the predictions of these pre-trained '
+                            'neural networks (multiple files can be given, '
+                            'one file per argument)')
+        # return the argument group so it can be modified if needed
+        return g
 
 
-def process_rnn(data, nn_files, threads=None, average=True):
+def average_predictions(predictions):
     """
-    The data is processed by the given NN files and all predictions or the
-    averaged prediction is returned.
+    Returns the average of all predictions from the list.
 
-    :param data:     data to be processed by the NNs
-    :param nn_files: list with NN files
-    :param threads:  number of parallel working threads
-    :param average:  average predictions
-    :return:         averaged prediction or a list with all predictions
+    :param predictions: list with predictions (beat activation functions)
+    :return:            averaged prediction
 
     """
-    import multiprocessing as mp
-    import itertools as it
-    # number of threads
-    if threads is None:
-        threads = mp.cpu_count()
-    # init a pool of workers (if needed)
-    map_ = map
-    if min(len(nn_files), max(1, threads)) != 1:
-        map_ = mp.Pool(threads).map
-
-    # compute predictions with all saved neural networks (in parallel)
-    predictions = map_(_process, it.izip(nn_files, it.repeat(data)))
-
     # average predictions if needed
-    if average and len(nn_files) > 1:
+    if len(predictions) > 1:
         # average the predictions
-        return sum(predictions) / len(nn_files)
-    elif average:
-        # nothing to average since we only have one prediction
-        return predictions[0]
+        predictions = sum(predictions) / len(predictions)
     else:
-        # return all predictions as a list
-        return predictions
+        # nothing to average since we have only one prediction
+        predictions = predictions[0]
+    # return the (averaged) predictions
+    return predictions

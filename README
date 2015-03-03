@@ -54,5 +54,8 @@ same forever! If you need stable features, create a branch and set the needed
 parameters accordingly.
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
-ATLAS instead of Apple's own Accelerate framework or use the '--threads 1'
-switch where appropriate.
+ATLAS instead of Apple's own Accelerate framework or use the a single thread
+(i.e. use the "-j 1" switch).
+
+If you get errors pointing to any .pyx file, please recompile (see above)
+before investigating this error further.

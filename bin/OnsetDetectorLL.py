@@ -5,32 +5,20 @@
 
 """
 
-import glob
+import argparse
 
-from madmom import MODELS_PATH
-from madmom.audio.signal import Signal
+from madmom.utils import io_arguments
 from madmom.features.onsets import RNNOnsetDetection
 
-# set the path to saved neural networks and generate lists of NN files
-NN_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
 
-
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
-    import madmom.utils
+def main():
+    """OnsetDetectorLL.2013"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in the
-    given input (file) and writes them to the output (file) with the algorithm
-    introduced in:
+    The software detects all onsets in an audio file with the algorithm
+    described in:
 
     "Online Real-time Onset Detection with Recurrent Neural Networks"
     Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl
@@ -51,57 +39,22 @@ def parser():
     - post processing reports the onset instantaneously instead of delayed.
 
     ''')
-    # input/output options
-    madmom.utils.io_arguments(p)
-    # signal arguments
-    Signal.add_arguments(p, norm=None)
-    # rnn onset detection arguments
-    RNNOnsetDetection.add_arguments(p, nn_files=NN_FILES, threshold=0.2,
-                                    combine=0.03, smooth=None)
     # version
-    p.add_argument('--version', action='version',
-                   version='OnsetDetectorLL.2013')
+    p.add_argument('--version', action='version', version='OnsetDetector.2013')
+    # add arguments
+    io_arguments(p)
+    RNNOnsetDetection.add_arguments(p, online=True)
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
 
+    # create a processor
+    processor = RNNOnsetDetection(online=True, **vars(args))
+    # and call the processing function
+    args.func(processor, **vars(args))
 
-def main():
-    """OnsetDetectorLL.2013"""
-
-    # parse arguments
-    args = parser()
-
-    # load or create onset activations
-    if args.load:
-        # load activations
-        o = RNNOnsetDetection.from_activations(args.input, fps=100)
-    else:
-        # exit if no NN files are given
-        if not args.nn_files:
-            raise SystemExit('no NN model(s) given')
-
-        s = Signal(args.input, mono=True, att=args.att)
-        # create an RNNOnsetDetection object
-        o = RNNOnsetDetection(s, nn_files=args.nn_files,
-                              num_threads=args.num_threads)
-        # pre-process accordingly
-        o.pre_process(frame_sizes=[512, 1024, 2048], origin='online')
-
-    # save onset activations or detect onsets
-    if args.save:
-        # save activations
-        o.activations.save(args.output, sep=args.sep)
-    else:
-        # detect onsets
-        o.detect(args.threshold, combine=args.combine, delay=args.delay,
-                 smooth=0, online=True)
-        # save detections
-        o.write(args.output)
 
 if __name__ == '__main__':
     main()
