@@ -5,18 +5,14 @@
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.onsets import RNNOnsetDetection
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """OnsetDetectorLL.2013"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -43,25 +39,16 @@ def parser():
     - post processing reports the onset instantaneously instead of delayed.
 
     ''')
+    # version
+    p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # add arguments
     io_arguments(p)
     RNNOnsetDetection.add_arguments(p, online=True)
-    # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """OnsetDetectorLL.2013"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = RNNOnsetDetection(online=True, **vars(args))

@@ -5,18 +5,14 @@
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.tempo import RNNTempoEstimation
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """TempoDetector.2014"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -31,6 +27,8 @@ def parser():
     (DAFx-11), 2011.
 
     ''')
+    # version
+    p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
     io_arguments(p)
     RNNTempoEstimation.add_activation_arguments(p)
@@ -39,22 +37,11 @@ def parser():
     # mirex stuff
     p.add_argument('--mirex', action='store_true', default=False,
                    help='use the MIREX output format (lower tempo first)')
-    # version
-    p.add_argument('--version', action='version', version='TempoDetector.2014')
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """TempoDetector.2014"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = RNNTempoEstimation(**vars(args))

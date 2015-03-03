@@ -57,8 +57,5 @@ If you get segfaults on Mac OS X systems, please check if numpy and scipy use
 ATLAS instead of Apple's own Accelerate framework or use the a single thread
 (i.e. use the "-j 1" switch).
 
-The same applies if you want to pickle any Processor, which can only pickled
-if no multi-threading is used.
-
 If you get errors pointing to any .pyx file, please recompile (see above)
 before investigating this error further.

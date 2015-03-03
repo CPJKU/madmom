@@ -4,19 +4,14 @@
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 """
+import argparse
 
 from madmom.utils import io_arguments
 from madmom.features.beats import RNNBeatTracking, BeatTracking
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """BeatTracker.2014"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -33,29 +28,19 @@ def parser():
     auto-correlation based one).
 
     ''')
-
+    # version
+    p.add_argument('--version', action='version', version='BeatTracker.2014')
     # add arguments
     io_arguments(p)
     RNNBeatTracking.add_activation_arguments(p)
     RNNBeatTracking.add_rnn_arguments(p)
     BeatTracking.add_tempo_arguments(p)
     BeatTracking.add_arguments(p, look_ahead=10)
-    # version
-    p.add_argument('--version', action='version', version='BeatTracker.2014')
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """BeatTracker.2014"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = RNNBeatTracking(beat_method='BeatTracking', **vars(args))

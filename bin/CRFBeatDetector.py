@@ -5,18 +5,14 @@
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.beats import RNNBeatTracking, CRFBeatDetection
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """CRFBeatDetector"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -31,28 +27,20 @@ def parser():
     Retrieval Conference (ISMIR), 2014.
 
     ''')
+    # version
+    p.add_argument('--version', action='version', version='CRFBeatDetector')
     # add arguments
     io_arguments(p)
     RNNBeatTracking.add_activation_arguments(p)
     RNNBeatTracking.add_rnn_arguments(p)
     CRFBeatDetection.add_tempo_arguments(p)
     CRFBeatDetection.add_arguments(p)
-    # version
-    p.add_argument('--version', action='version', version='CRFBeatDetector')
+
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """CRFBeatDetector."""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = RNNBeatTracking(beat_method='CRFBeatDetection', **vars(args))

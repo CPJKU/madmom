@@ -7,18 +7,14 @@ SuperFlux onset detection algorithm.
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.onsets import SpectralOnsetDetection as SuperFlux
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """SuperFlux.2014"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -32,6 +28,8 @@ def parser():
     (DAFx-13), 2013.
 
     ''')
+    # version
+    p.add_argument('--version', action='version', version='SuperFlux.2014')
     # add arguments
     io_arguments(p)
     SuperFlux.add_activations_arguments(p)
@@ -44,8 +42,6 @@ def parser():
     SuperFlux.add_peak_picking_arguments(p, threshold=1.1, pre_max=0.01,
                                          post_max=0.05, pre_avg=0.15,
                                          post_avg=0, combine=0.03, delay=0)
-    # version
-    p.add_argument('--version', action='version', version='SuperFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -54,15 +50,6 @@ def parser():
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """SuperFlux.2014"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = SuperFlux(**vars(args))

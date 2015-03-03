@@ -5,18 +5,14 @@
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.onsets import RNNOnsetDetection
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """OnsetDetector.2013"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -24,26 +20,16 @@ def parser():
     The software detects all onsets in an audio file with a recurrent neural
     network.
     ''')
-
+    # version
+    p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # input/output options
     io_arguments(p)
     RNNOnsetDetection.add_arguments(p)
-    # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """OnsetDetector.2013"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = RNNOnsetDetection(**vars(args))

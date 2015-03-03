@@ -7,19 +7,14 @@ LogFiltSpecFlux onset detection algorithm.
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetDetection as LogFiltSpecFlux
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """LogFiltSpecFlux.2014"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -33,6 +28,9 @@ def parser():
     Retrieval Conference (ISMIR), 2012.
 
     ''')
+    # version
+    p.add_argument('--version', action='version',
+                   version='LogFiltSpecFlux.2014')
     # add arguments
     io_arguments(p)
     LogFiltSpecFlux.add_activations_arguments(p)
@@ -46,9 +44,6 @@ def parser():
                                                post_max=0.05, pre_avg=0.15,
                                                post_avg=0, combine=0.03,
                                                delay=0)
-    # version
-    p.add_argument('--version', action='version',
-                   version='LogFiltSpecFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -57,15 +52,6 @@ def parser():
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """LogFiltSpecFlux.2014"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = LogFiltSpecFlux(onset_method='spectral_flux', **vars(args))

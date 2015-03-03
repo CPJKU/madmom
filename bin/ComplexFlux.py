@@ -7,18 +7,14 @@ ComplexFlux onset detection algorithm.
 
 """
 
+import argparse
+
 from madmom.utils import io_arguments
 from madmom.features.onsets import SpectralOnsetDetection as ComlpexFlux
 
 
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
+def main():
+    """ComplexFlux"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -33,7 +29,9 @@ def parser():
     Retrieval Conference (ISMIR), 2013.
 
     ''')
-    # input/output options
+    # version
+    p.add_argument('--version', action='version', version='ComplexFlux.2014')
+    # add arguments
     io_arguments(p)
     ComlpexFlux.add_activations_arguments(p)
     ComlpexFlux.add_signal_arguments(p, norm=False, att=0)
@@ -45,8 +43,6 @@ def parser():
     ComlpexFlux.add_peak_picking_arguments(p, threshold=0.25, pre_max=0.01,
                                            post_max=0.05, pre_avg=0.15,
                                            post_avg=0, combine=0.03, delay=0)
-    # version
-    p.add_argument('--version', action='version', version='ComplexFlux.2014')
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -55,15 +51,6 @@ def parser():
     # print arguments
     if args.verbose:
         print args
-    # return
-    return args
-
-
-def main():
-    """ComplexFlux"""
-
-    # parse arguments
-    args = parser()
 
     # create a processor
     processor = ComlpexFlux(onset_method='complex_flux', **vars(args))
