@@ -24,7 +24,7 @@ def main():
     "Enhanced Beat Tracking with Context-Aware Neural Networks"
     Sebastian Böck and Markus Schedl
     Proceedings of the 14th International Conference on Digital Audio Effects
-    (DAFx-11), 2011.
+    (DAFx), 2011.
 
     ''')
     # version

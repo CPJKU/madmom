@@ -855,7 +855,8 @@ class SuperFluxProcessor(SpectrogramProcessor):
         # instantiate SpectrogramProcessor
         super(SuperFluxProcessor, self).__init__(
             filterbank=filterbank, bands=bands, norm_filters=norm_filters,
-            log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins, **kwargs)
+            log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins,
+            **kwargs)
 
 
 class MultiBandSuperFluxProcessor(SuperFluxProcessor):
@@ -865,14 +866,13 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
 
     """
 
-    def __init__(self, crossover_frequencies, norm_bands=True, **kwargs):
+    def __init__(self, crossover_frequencies, norm_bands=False, diff=None,
+                 **kwargs):
         """
 
         :param crossover_frequencies:
         :param norm_bands:
-        :param arg:
-        :param kwargs:
-        :return:
+        :param diff:
 
         """
 
@@ -880,6 +880,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         super(MultiBandSuperFluxProcessor, self).__init__(**kwargs)
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
+        self.diff = diff
 
     def process(self, data):
         """
@@ -888,7 +889,7 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         :return:
 
         """
-        raise NotImplementedError("check if it returns meaningful results")
+        # raise NotImplementedError("check if it returns meaningful results")
         # instantiate a Spectrogram
         data = Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
                            fmin=self.fmin, fmax=self.fmax,
@@ -910,11 +911,11 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         # normalize it
         if self.norm_bands:
             fb /= np.sum(fb, axis=0)
-        # TODO: filter spec / diff individually or spec first and calc diff
-        #       then?
         # return spec and/or diff
         if self.diff == 'stack':
             # return stacked spec and diff
+            # TODO: filter spec / diff individually or spec first and calculate
+            #       diff then?
             return np.hstack((np.dot(data.spec, fb), np.dot(data.diff, fb)))
         elif self.diff is True:
             # return only the diff
