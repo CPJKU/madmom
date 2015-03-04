@@ -175,12 +175,13 @@ def sound_pressure_level(signal, p_ref=1.0):
 
 
 # function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None):
+def load_audio_file(filename, sample_rate=None, mono=False):
     """
     Load the audio data from the given file and return it as a numpy array.
 
     :param filename:    name of the file or file handle
     :param sample_rate: sample rate of the signal [Hz]
+    :param mono:        down-mix the signal to mono [bool]
     :return:            tuple (signal, sample_rate)
 
     """
@@ -195,9 +196,15 @@ def load_audio_file(filename, sample_rate=None):
         sample_rate, signal = wavfile.read(filename, mmap=True)
     # generic signal converter
     else:
-        # TODO: use sox to convert from different input signals and use the
-        #       given sample rate to re-sample the signal on the fly if needed
-        raise NotImplementedError('please integrate sox signal handling.')
+        from .ffmpeg import decode_to_memory
+        if sample_rate is None:
+            sample_rate = 44100
+        num_channels = 1 if mono else None
+
+        signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
+                                                sample_rate=sample_rate,
+                                                num_channels=num_channels),
+                               dtype=np.int16)
     return signal, sample_rate
 
 
