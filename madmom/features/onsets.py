@@ -759,6 +759,8 @@ class SpectralOnsetDetection(IOProcessor):
 
         :param onset_method:        onset detection function
         :param peak_picking_method: peak picking method
+        :param load:                load the onset detection function from file
+        :param save:                save the onset detection function to file
 
         """
         # processor chain
@@ -789,9 +791,9 @@ class SpectralOnsetDetection(IOProcessor):
         """
         Add spectral onset detection arguments to an existing parser.
 
-        :param parser:        existing argparse parser
-        :param onset_method:  default ODF method
-        :return:              spectral onset detection argument parser group
+        :param parser:       existing argparse parser
+        :param onset_method: default ODF method
+        :return:             spectral onset detection argument parser group
 
         """
         # add onset detection method arguments to the existing parser
@@ -830,7 +832,12 @@ class RNNOnsetDetection(IOProcessor):
         """
         Processor for finding possible onset positions in a signal.
 
-        :param nn_files: list of RNN model files
+        :param nn_files:  list of RNN model files
+        :param online:    use online mode
+        :param threshold: threshold for peak-picking
+        :param smooth:    smooth the onset activations over N seconds
+        :param load:      load the NN onset activations from file
+        :param save:      save the NN onset activations to file
 
         """
         # FIXME: remove this hack of setting fps here
@@ -871,7 +878,6 @@ class RNNOnsetDetection(IOProcessor):
         :param online:    settings for online mode (OnsetDetectorLL)
         :param threshold: threshold for peak-picking
         :param smooth:    smooth the activation function over N seconds
-        :return:
 
         """
         if online:
@@ -910,7 +916,7 @@ def parser():
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx-13), 2013.
+    (DAFx), 2013.
 
     ''')
     # general options

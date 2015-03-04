@@ -295,10 +295,10 @@ def write_tempo(tempi, filename, mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
-    :param tempi:     tempi present
-    :param filename:  output file name or file handle
-    :param mirex:     report the lower tempo first (as required by MIREX)
-    :return:          the most dominant tempi and the relative strength
+    :param tempi:    tempi present
+    :param filename: output file name or file handle
+    :param mirex:    report the lower tempo first (as required by MIREX)
+    :return:         the most dominant tempi and the relative strength
 
     """
     from madmom.utils import open
@@ -338,23 +338,25 @@ class RNNTempoEstimation(IOProcessor):
     Tempo Estimation Processor class.
 
     """
-    def __init__(self, mirex=False, load=False, save=False, **kwargs):
+    def __init__(self, tempo_format=None, load=False, save=False, **kwargs):
         """
         Estimates the tempo of the signal.
 
-        :param mirex:
-        :param load:
-        :param save:
+        :param output_format: output format for the detected tempi
+        :param load:          load the NN beat activations from file
+        :param save:          save the NN beat activations to file
 
         """
-        # input processing
+        # use the RNN Beat processor as input processing
         in_processor = RNNBeatProcessing(**kwargs)
-        # TODO: this is super hackish, split RNNBeatTracking in RNN & writing
-        #       parts!
-        in_processor.out_processor = None
         self.fps = kwargs['fps'] = in_processor.fps
         # output processor
-        writer = write_tempo_mirex if mirex else write_tempo
+        writer = write_tempo
+        if tempo_format == 'mirex':
+            writer = write_tempo_mirex
+        elif tempo_format in ('raw', 'all'):
+            # borrow the note writer for outputting multiple values
+            from madmom.features.notes import write_notes as writer
         out_processor = [TempoEstimation(**kwargs), writer]
         # swap in/out processors if needed
         if load:

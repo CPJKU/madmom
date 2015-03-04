@@ -35,8 +35,14 @@ def main():
     RNNTempoEstimation.add_rnn_arguments(p)
     RNNTempoEstimation.add_arguments(p)
     # mirex stuff
-    p.add_argument('--mirex', action='store_true', default=False,
+    g = p.add_mutually_exclusive_group()
+    g.add_argument('--mirex', dest='tempo_format',
+                   action='store_const', const='mirex',
                    help='use the MIREX output format (lower tempo first)')
+    g.add_argument('--all', dest='tempo_format',
+                   action='store_const', const='all',
+                   help='output all detected tempi in raw format')
+
     # parse arguments
     args = p.parse_args()
     # print arguments

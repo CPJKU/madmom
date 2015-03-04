@@ -278,11 +278,11 @@ class BeatTracking(Processor):
         Track the beats according to the previously determined (local) tempo
         by simply aligning them around the estimated position.
 
-        :param look_aside:   look this fraction of a beat interval to each side
-                             of the assumed next beat position to look for the
-                             most likely position of the next beat
-        :param look_ahead:   look N seconds in both directions to determine the
-                             local tempo and align the beats accordingly
+        :param look_aside: look this fraction of a beat interval to each side
+                           of the assumed next beat position to look for the
+                           most likely position of the next beat
+        :param look_ahead: look N seconds in both directions to determine the
+                           local tempo and align the beats accordingly
 
         If `look_ahead` is not set, a constant tempo throughout the whole piece
         is assumed. If `look_ahead` is set, the local tempo (in a range +/-
@@ -378,13 +378,13 @@ class BeatTracking(Processor):
         """
         Add beat tracking related arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param look_aside:  look this fraction of a beat interval to each side
-                            of the assumed next beat position to look for the
-                            most likely position of the next beat
-        :param look_ahead:  look N seconds in both directions to determine the
-                            local tempo and align the beats accordingly
-        :return:            beat argument parser group
+        :param parser:     existing argparse parser
+        :param look_aside: look this fraction of a beat interval to each side
+                           of the assumed next beat position to look for the
+                           most likely position of the next beat
+        :param look_ahead: look N seconds in both directions to determine the
+                           local tempo and align the beats accordingly
+        :return:           beat argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
@@ -446,9 +446,9 @@ class BeatDetection(BeatTracking):
         Detect the beats according to the previously determined global tempo
         by simply aligning them around the estimated position.
 
-        :param look_aside:   look this fraction of a beat interval to each side
-                             of the assumed next beat position to look for the
-                             most likely position of the next beat
+        :param look_aside: look this fraction of a beat interval to each side
+                           of the assumed next beat position to look for the
+                           most likely position of the next beat
 
         "Enhanced Beat Tracking with Context-Aware Neural Networks"
         Sebastian Böck and Markus Schedl
@@ -898,6 +898,9 @@ class RNNBeatTracking(IOProcessor):
         :param beat_method: method for tracking the beats
         :param multi_model: use a multi-model approach to select the most
                             suitable RNN model
+        :param nn_files:    list of NN model files
+        :param load:        load the NN beat activations from file
+        :param save:        save the NN beat activations to file
 
         """
         # set the reference model files
