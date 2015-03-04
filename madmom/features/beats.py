@@ -971,7 +971,7 @@ class DownbeatTracking(Processor):
     MIN_BPM = [45, 15]
     MAX_BPM = [215, 245]
     NUM_BAR_STATES = [1200, 1600]
-    METERS = [[3, 4], [4, 4]]
+    NUM_BEATS = [3, 4]
     TEMPO_CHANGE_PROBABILITY = [0.02, 0.02]
     NORM_OBSERVATIONS = False
     GMM_FILE = glob.glob("%s/downbeat_ismir2013.pickle" % MODELS_PATH)[0]
@@ -986,9 +986,9 @@ class DownbeatTracking(Processor):
                       'module with cython!')
 
     def __init__(self, gmm_file=GMM_FILE, num_bar_states=NUM_BAR_STATES,
-                 min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 num_beats=NUM_BEATS, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                 norm_observations=NORM_OBSERVATIONS, meters=METERS,
+                 norm_observations=NORM_OBSERVATIONS,
                  downbeats=False, fps=None, **kwargs):
         """
 
@@ -997,10 +997,11 @@ class DownbeatTracking(Processor):
         Parameters for the transition model:
 
         :param num_bar_states:           number of states for one bar period
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
+        :param num_beats:                number of beats in one bar period
         :param min_bpm:                  minimum tempo used for beat tracking
         :param max_bpm:                  maximum tempo used for beat tracking
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
 
         Parameters for the observation model:
 
@@ -1019,13 +1020,13 @@ class DownbeatTracking(Processor):
 
         """
         # check if all lists have the same length
-        if not (len(num_bar_states) == len(min_bpm) == len(max_bpm) ==
-                    len(tempo_change_probability)):
-            raise ValueError("'num_bar_states', 'min_bpm', 'max_bpm' and "
-                             "'tempo_change_probability' must have the same "
-                             "length")
+        if not (len(num_bar_states) == len(num_beats) == len(min_bpm) ==
+                    len(max_bpm) == len(tempo_change_probability)):
+            raise ValueError("'num_bar_states', 'num_beats', 'min_bpm', "
+                             "'max_bpm' and 'tempo_change_probability' must "
+                             "have the same length")
         self.fps = fps
-        self.meters = meters
+        self.num_beats = num_beats
         self.downbeats = downbeats
         import cPickle
         with open(gmm_file, 'r') as f:
@@ -1035,9 +1036,9 @@ class DownbeatTracking(Processor):
         tempo_states = []
         for pattern in range(len(num_bar_states)):
             max_tempo = int(np.ceil(max_bpm[pattern] * num_bar_states[pattern]
-                                    / (60. * meters[pattern][0] * self.fps)))
+                                    / (60. * num_beats[pattern] * self.fps)))
             min_tempo = int(np.floor(min_bpm[pattern] * num_bar_states[pattern]
-                                     / (60. * meters[pattern][0] * self.fps)))
+                                     / (60. * num_beats[pattern] * self.fps)))
             tempo_states.append(np.arange(min_tempo, max_tempo))
         # transition model
         self.tm = self.TM(num_bar_states, tempo_states,
@@ -1065,7 +1066,7 @@ class DownbeatTracking(Processor):
         # the position inside the pattern
         position = self.tm.position(path)
         # beat position (= weighted by number of beats in bar)
-        beat_counter = (position * self.meters[pattern][0]).astype(int)
+        beat_counter = (position * self.num_beats[pattern]).astype(int)
         # transitions are the points where the beat counters change
         beat_positions = np.nonzero(np.diff(beat_counter))[0] + 1
         # the beat numbers are the counters + 1 at the transition points
