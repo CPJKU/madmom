@@ -15,11 +15,11 @@ from madmom import Processor, SequentialProcessor, ParallelProcessor
 # filter defaults
 from madmom.audio.filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
                                   A4, NORM_FILTERS, DUPLICATE_FILTERS)
-FILTERBANK = None
+FILTERBANK = LogarithmicFilterbank
 # log defaults
-LOG = False
+LOG = True
 MUL = 1.
-ADD = 0.
+ADD = 1.
 # diff defaults
 DIFF_RATIO = 0.5
 DIFF_FRAMES = None
@@ -233,7 +233,7 @@ class Spectrogram(object):
     def __init__(self, frames, window=np.hanning, fft_size=None,
                  block_size=2048, filterbank=None, bands=BANDS,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
+                 duplicate_filters=DUPLICATE_FILTERS, log=False, mul=MUL,
                  add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, positive_diff=POSITIVE_DIFF,
                  **kwargs):
@@ -382,12 +382,6 @@ class Spectrogram(object):
         return len(self.frames)
 
     @property
-    def fft_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_fft_bins,
-                               self.frames.signal.sample_rate)
-
-    @property
     def num_fft_bins(self):
         """Number of FFT bins."""
         return self.fft_size >> 1
@@ -399,6 +393,20 @@ class Spectrogram(object):
             return self.num_fft_bins
         else:
             return self.filterbank.shape[1]
+
+    @property
+    def fft_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_frequencies(self.num_fft_bins,
+                               self.frames.signal.sample_rate)
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the spectrogram bins."""
+        if self.filterbank is None:
+            return self.fft_freqs
+        else:
+            return self.filterbank.center_frequencies
 
     def compute_stft(self, complex_stft=False, block_size=None):
         """
@@ -549,13 +557,13 @@ class Spectrogram(object):
 # Spectrogram Processor class
 class SpectrogramProcessor(Processor):
     """
-    Spectrogram Class.
+    Spectrogram Processor Class.
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
-                 fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
-                 add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
+    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
+                 norm_filters=NORM_FILTERS, log=LOG, mul=MUL, add=ADD,
+                 diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, **kwargs):
         """
         Creates a new SpectrogramProcessor instance.
@@ -765,14 +773,12 @@ class SpectrogramProcessor(Processor):
         return g
 
     @classmethod
-    def add_diff_arguments(cls, parser, diff=None, diff_ratio=None,
+    def add_diff_arguments(cls, parser, diff_ratio=None,
                            diff_frames=None, diff_max_bins=None):
         """
         Add spectrogram difference related arguments to an existing parser.
 
         :param parser:        existing argparse parser
-        :param diff:          use the differences of the magnitude spectrogram
-                              {False, True, 'stack'} (see below)
         :param diff_ratio:    calculate the difference to the frame at which
                               the window of the STFT have this ratio of the
                               maximum height [float]
@@ -790,21 +796,9 @@ class SpectrogramProcessor(Processor):
         Only the `diff_frames` parameter behaves differently, it is included
         if either the `diff_ratio` is set or a value != 'None' is given.
 
-        The usage of the spectrogram differences can be controlled with the
-        `diff` parameter. It can have these values:
-          - 'False':          do not use the differences, just the spectrogram
-          - 'True':           use only the differences, not the spectrogram
-          - 'stack':          stack the differences on top of the spectrogram
-
         """
         # add diff related options to the existing parser
         g = parser.add_argument_group('spectrogram difference arguments')
-        if diff is not None:
-            g.add_argument('--diff', dest='diff',
-                           action='store', default=diff,
-                           help='use only the differences [True], use only the'
-                                ' spectrogram [False], or stack them ["stack"]'
-                                ' [default=%(default)s]')
         if diff_ratio is not None:
             g.add_argument('--diff_ratio', action='store', type=float,
                            default=diff_ratio,
@@ -836,13 +830,10 @@ class SuperFluxProcessor(SpectrogramProcessor):
 
     def __init__(self, **kwargs):
         """
-
-        :param arg:
-        :param kwargs:
-        :return:
+        Creates a new SuperFluxProcessor instance.
 
         """
-        # set the default values (they can be overwritten if set)
+        # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
         filterbank = kwargs.pop('filterbank', LogarithmicFilterbank)
         bands = kwargs.pop('bands', 24)
@@ -859,48 +850,60 @@ class SuperFluxProcessor(SpectrogramProcessor):
             **kwargs)
 
 
-class MultiBandSuperFluxProcessor(SuperFluxProcessor):
+class MultiBandSpectrogramProcessor(SpectrogramProcessor):
     """
-    Spectrogram processor which uses a log filtered spectrogram and filters it
-    another time to result in multiple bands.
+    Spectrogram processor which combines the differences of a log filtered
+    spectrogram into multiple bands.
 
     """
 
-    def __init__(self, crossover_frequencies, norm_bands=False, diff=None,
+    def __init__(self, crossover_frequencies, norm_bands=False, diff=True,
                  **kwargs):
         """
 
-        :param crossover_frequencies:
-        :param norm_bands:
-        :param diff:
+        :param crossover_frequencies: list of crossover frequencies at which
+                                      the spectrogram is split into bands
+        :param norm_bands:            normalize the bands [bool]
+        :param diff:                  use the differences of the magnitude
+                                      spectrogram [bool] (see below)
+
+        The combination of the spectrogram magnitudes or differences into
+        multiple bands can be controlled with the `diff` parameter. It can
+        have these values:
+            - 'False':    do not use the differences, combine the spectrogram
+            - 'True':     combine only the differences, not the magnitudes
 
         """
-
         # instantiate SpectrogramProcessor
-        super(MultiBandSuperFluxProcessor, self).__init__(**kwargs)
+        super(MultiBandSpectrogramProcessor, self).__init__(**kwargs)
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
         self.diff = diff
 
     def process(self, data):
         """
+        Perform FFT on a framed signal and return the a multi-band
+        representation of either the magnitude spectrogram or the differences
+        thereof.
 
-        :param data:
-        :return:
+        :param data: frames to be processed [FramedSignal]
+        :return:     Spectrogram instance
 
         """
-        # raise NotImplementedError("check if it returns meaningful results")
         # instantiate a Spectrogram
         data = Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
                            fmin=self.fmin, fmax=self.fmax,
-                           norm_filters=self.norm_filters, log=self.log,
-                           mul=self.mul, add=self.add)
-        # before returning the spec and/or diff, filter the spec a 2nd time
-        # TODO: move this to filterbank and make it accept a list of frequencies
+                           norm_filters=self.norm_filters,
+                           log=self.log, mul=self.mul, add=self.add,
+                           diff_ratio=self.diff_ratio,
+                           diff_frames=self.diff_frames,
+                           diff_max_bins=self.diff_max_bins)
+        # TODO: move this to filterbank and make it accept a list of bin
+        #       frequencies (data.bin_freqs) to generate a rectangular filter
         # create an empty filterbank
         fb = np.zeros((data.num_bins, len(self.crossover_frequencies) + 1))
         # get the closest cross over bins
-        freq_distance = (data.filterbank.center_frequencies -
+        freq_distance = (data.bin_freqs -
                          np.asarray(self.crossover_frequencies)[:, np.newaxis])
         crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
         # prepend index 0 and append length of the filterbank
@@ -911,18 +914,45 @@ class MultiBandSuperFluxProcessor(SuperFluxProcessor):
         # normalize it
         if self.norm_bands:
             fb /= np.sum(fb, axis=0)
-        # return spec and/or diff
-        if self.diff == 'stack':
-            # return stacked spec and diff
-            # TODO: filter spec / diff individually or spec first and calculate
-            #       diff then?
-            return np.hstack((np.dot(data.spec, fb), np.dot(data.diff, fb)))
-        elif self.diff is True:
-            # return only the diff
+        # filter the spec or the diff a second time
+        # TODO: should this class always act on just the differences? filtering
+        #       the spec a second time is not the most meaningful thing...
+        if self.diff:
             return np.dot(data.diff, fb)
         else:
-            # return only the spec
             return np.dot(data.spec, fb)
+
+    @classmethod
+    def add_multi_band_arguments(cls, parser, crossover_frequencies=None,
+                                 norm_bands=None):
+        """
+        Add multi-band spectrogram related arguments to an existing parser.
+
+        :param parser:                existing argparse parser
+        :param crossover_frequencies: list with crossover frequencies
+        :param norm_bands:            normalize the bands
+        :return:                      multi-band argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
+
+        """
+        # add filterbank related options to the existing parser
+        g = parser.add_argument_group('multi-band spectrogram arguments')
+        if crossover_frequencies is not None:
+            g.add_argument('--crossover_frequencies',
+                           action='store', default=crossover_frequencies,
+                           help='list with crossover frequencies')
+        if norm_bands is not None:
+            if norm_bands:
+                g.add_argument('--no_norm_bands', dest='norm_bands',
+                               action='store_false', default=norm_bands,
+                               help='no not normalize the bands')
+            else:
+                g.add_argument('--norm_bands', action='store_true',
+                               default=-norm_bands,
+                               help='normalize the bands')
+        # return the group
+        return g
 
 
 class StackSpectrogramProcessor(Processor):

@@ -218,7 +218,7 @@ class TestSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.filterbank is None)
         self.assertTrue(result.log is False)
         self.assertTrue(result.mul == 1)
-        self.assertTrue(result.add == 0)
+        self.assertTrue(result.add == 1)
         self.assertTrue(result.num_diff_frames == 1)
         self.assertTrue(result.diff_max_bins == 1)
         self.assertTrue(result.positive_diff is True)
@@ -271,7 +271,8 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
     def test_types(self):
         processor = SpectrogramProcessor()
         self.assertTrue(isinstance(processor, SpectrogramProcessor))
-        self.assertTrue(isinstance(processor.filterbank, type(None)))
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
         self.assertTrue(isinstance(processor.bands, int))
         self.assertTrue(isinstance(processor.fmin, float))
         self.assertTrue(isinstance(processor.fmax, float))
@@ -284,41 +285,22 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types_filterbank(self):
         processor = SpectrogramProcessor(filterbank=True)
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
         processor = SpectrogramProcessor(filterbank=False)
         self.assertTrue(isinstance(processor.filterbank, type(None)))
 
     def test_values(self):
         processor = SpectrogramProcessor()
-        self.assertTrue(processor.filterbank is None)
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
         self.assertTrue(processor.bands == 12)
         self.assertTrue(processor.fmin == 30)
         self.assertTrue(processor.fmax == 17000)
         self.assertTrue(processor.norm_filters is True)
-        self.assertTrue(processor.log is False)
+        self.assertTrue(processor.log is True)
         self.assertTrue(processor.mul == 1)
-        self.assertTrue(processor.add == 0)
-        self.assertTrue(processor.diff_ratio == 0.5)
-        self.assertTrue(processor.diff_frames is None)
-        self.assertTrue(processor.diff_max_bins == 1)
-        result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.stft.shape == (281, 1024))
-        self.assertTrue(result.phase.shape == (281, 1024))
-        self.assertTrue(result.lgd.shape == (281, 1024))
-        self.assertTrue(result.spec.shape == (281, 1024))
-        self.assertTrue(result.diff.shape == (281, 1024))
-        self.assertTrue(result.diff.min() == 0)
-
-    def test_values_filterbank(self):
-        processor = SpectrogramProcessor(filterbank=LogarithmicFilterbank)
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
-        self.assertTrue(processor.bands == 12)
-        self.assertTrue(processor.fmin == 30)
-        self.assertTrue(processor.fmax == 17000)
-        self.assertTrue(processor.norm_filters is True)
-        self.assertTrue(processor.log is False)
-        self.assertTrue(processor.mul == 1)
-        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.add == 1)
         self.assertTrue(processor.diff_ratio == 0.5)
         self.assertTrue(processor.diff_frames is None)
         self.assertTrue(processor.diff_max_bins == 1)
@@ -328,6 +310,27 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(result.lgd.shape == (281, 1024))
         self.assertTrue(result.spec.shape == (281, 81))
         self.assertTrue(result.diff.shape == (281, 81))
+        self.assertTrue(result.diff.min() == 0)
+
+    def test_values_no_filterbank(self):
+        processor = SpectrogramProcessor(filterbank=None)
+        self.assertTrue(processor.filterbank is None)
+        self.assertTrue(processor.bands == 12)
+        self.assertTrue(processor.fmin == 30)
+        self.assertTrue(processor.fmax == 17000)
+        self.assertTrue(processor.norm_filters is True)
+        self.assertTrue(processor.log is True)
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 1)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins == 1)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.stft.shape == (281, 1024))
+        self.assertTrue(result.phase.shape == (281, 1024))
+        self.assertTrue(result.lgd.shape == (281, 1024))
+        self.assertTrue(result.spec.shape == (281, 1024))
+        self.assertTrue(result.diff.shape == (281, 1024))
         self.assertTrue(result.diff.min() == 0)
 
     def test_values_others(self):
@@ -351,18 +354,20 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         processor = SuperFluxProcessor()
         self.assertTrue(isinstance(processor, SuperFluxProcessor))
         self.assertTrue(isinstance(processor, SpectrogramProcessor))
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
 
     def test_values(self):
         processor = SuperFluxProcessor()
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
         self.assertTrue(processor.bands == 24)
         self.assertTrue(processor.fmin == 30)
         self.assertTrue(processor.fmax == 17000)
         self.assertTrue(processor.norm_filters is False)
         self.assertTrue(processor.log is True)
         self.assertTrue(processor.mul == 1)
-        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.add == 1)
         self.assertTrue(processor.diff_ratio == 0.5)
         self.assertTrue(processor.diff_frames is None)
         self.assertTrue(processor.diff_max_bins == 3)
@@ -376,33 +381,35 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertTrue(result.diff.min() == 0)
 
 
-class TestMultiBandSuperFluxProcessorClass(unittest.TestCase):
+class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types(self):
-        processor = MultiBandSuperFluxProcessor([200, 1000])
-        self.assertTrue(isinstance(processor, MultiBandSuperFluxProcessor))
-        self.assertTrue(isinstance(processor, SuperFluxProcessor))
+        processor = MultiBandSpectrogramProcessor([200, 1000])
+        self.assertTrue(isinstance(processor, MultiBandSpectrogramProcessor))
         self.assertTrue(isinstance(processor, SpectrogramProcessor))
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
         self.assertTrue(type(processor.crossover_frequencies) == list)
         self.assertTrue(type(processor.norm_bands) == bool)
 
     def test_values(self):
-        processor = MultiBandSuperFluxProcessor([200, 1000])
-        self.assertTrue(issubclass(processor.filterbank, LogarithmicFilterbank))
-        self.assertTrue(processor.bands == 24)
+        processor = MultiBandSpectrogramProcessor([200, 1000])
+        self.assertTrue(issubclass(processor.filterbank,
+                                   LogarithmicFilterbank))
+        self.assertTrue(processor.bands == 12)
         self.assertTrue(processor.fmin == 30)
         self.assertTrue(processor.fmax == 17000)
-        self.assertTrue(processor.norm_filters is False)
+        self.assertTrue(processor.norm_filters is True)
         self.assertTrue(processor.log is True)
         self.assertTrue(processor.mul == 1)
-        self.assertTrue(processor.add == 0)
+        self.assertTrue(processor.add == 1)
         self.assertTrue(processor.diff_ratio == 0.5)
         self.assertTrue(processor.diff_frames is None)
-        self.assertTrue(processor.diff_max_bins == 3)
+        self.assertTrue(processor.diff_max_bins == 1)
         self.assertTrue(processor.crossover_frequencies == [200, 1000])
-        with self.assertRaises(NotImplementedError):
-            processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 3))
+        self.assertTrue(result.min() == 0)
 
 
 class TestStackSpectrogramProcessorClass(unittest.TestCase):

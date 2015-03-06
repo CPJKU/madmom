@@ -760,9 +760,9 @@ class MelFilterbank(Filterbank):
         :param duplicate_filters: keep duplicate filters resulting from
                                   insufficient resolution of low frequencies
 
-        Note: Because of rounding and mapping o frequencies to bins and vice
+        Note: Because of rounding and mapping of frequencies to bins and vice
               versa, the actual minimum, maximum and center frequencies do not
-              necessarily reflect the
+              necessarily reflect the given parameters.
 
         """
         # get a list of frequencies

@@ -12,8 +12,11 @@ import glob
 import numpy as np
 
 from madmom import MODELS_PATH, Processor, IOProcessor, SequentialProcessor
-from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import StackSpectrogramProcessor
+from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
+                                 smooth as smooth_signal)
+from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      StackSpectrogramProcessor,
+                                      MultiBandSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.utils import write_events
 from madmom.features import ActivationsProcessor
@@ -968,13 +971,13 @@ class DownbeatTracking(Processor):
     according to
 
     """
-    MIN_BPM = [45, 15]
-    MAX_BPM = [215, 245]
+    MIN_BPM = [55, 60]
+    MAX_BPM = [205, 225]
     NUM_BAR_STATES = [1200, 1600]
     NUM_BEATS = [3, 4]
     TEMPO_CHANGE_PROBABILITY = [0.02, 0.02]
     NORM_OBSERVATIONS = False
-    GMM_FILE = glob.glob("%s/downbeat_ismir2013.pickle" % MODELS_PATH)[0]
+    GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
 
     try:
         from .dbn import (DynamicBayesianNetwork as DBN,
@@ -1154,25 +1157,18 @@ class SpectralBeatTracking(IOProcessor):
     magnitude spectrogram.
 
     """
-    FRAME_SIZE = 2048
-    FPS = 100
 
-    def __init__(self, frame_size=FRAME_SIZE, fps=FPS, load=False, save=False,
-                 downbeats=False, **kwargs):
+    def __init__(self, downbeats=False, load=False, save=False, **kwargs):
         """
         Creates a new SpectralBeatTracking instance.
 
         """
-        from madmom.audio.spectrogram import MultiBandSuperFluxProcessor
         from madmom.features.notes import write_notes as write_beats
-        kwargs['fps'] = fps
         # define input and output processors
-        in_processor = MultiBandSuperFluxProcessor(bands=12, log=True, mul=1,
-                                                   add=1, diff_max_bins=1,
-                                                   diff=True, norm_filters=True,
-                                                   crossover_frequencies=[270],
-                                                   frame_size=frame_size,
-                                                   **kwargs)
+        sig = SignalProcessor(mono=True, **kwargs)
+        frames = FramedSignalProcessor(**kwargs)
+        spec = MultiBandSpectrogramProcessor(diff=True, **kwargs)
+        in_processor = [sig, frames, spec]
         if downbeats:
             write_beats = write_events
         out_processor = [DownbeatTracking(downbeats=downbeats, **kwargs),
@@ -1184,3 +1180,33 @@ class SpectralBeatTracking(IOProcessor):
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
         super(SpectralBeatTracking, self).__init__(in_processor, out_processor)
+
+    @classmethod
+    def add_arguments(cls, parser, beat_method=None):
+        """
+        Add spectral beat tracking arguments to an existing parser.
+
+        :param parser:      existing argparse parser
+        :param beat_method: default ODF method
+        :return:            spectral onset detection argument parser group
+
+        """
+        # add onset detection method arguments to the existing parser
+        g = parser.add_argument_group('spectral beat tracking arguments')
+        if beat_method is not None:
+            g.add_argument('-o', '--odf', dest='beat_method',
+                           default=beat_method, choices=cls.METHODS,
+                           help='use this onset detection function '
+                                '[default=%(default)s]')
+        # return the argument group so it can be modified if needed
+        return g
+
+    # add aliases to other argument parsers
+    add_activations_arguments = ActivationsProcessor.add_arguments
+    add_signal_arguments = SignalProcessor.add_arguments
+    add_framing_arguments = FramedSignalProcessor.add_arguments
+    add_filter_arguments = SpectrogramProcessor.add_filter_arguments
+    add_log_arguments = SpectrogramProcessor.add_log_arguments
+    add_diff_arguments = SpectrogramProcessor.add_diff_arguments
+    add_multi_band_arguments = \
+        MultiBandSpectrogramProcessor.add_multi_band_arguments

@@ -443,7 +443,7 @@ def spectral_diff(spectrogram):
     "A hybrid approach to musical note onset detection"
     Chris Duxbury, Mark Sandler and Matthew Davis
     Proceedings of the 5th International Conference on Digital Audio Effects
-    (DAFx-02), 2002.
+    (DAFx), 2002.
 
     """
     # Spectral diff is the sum of all squared positive 1st order differences
@@ -480,7 +480,7 @@ def superflux(spectrogram):
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx-13), 2013.
+    (DAFx), 2013.
 
     Note: this method works only properly, if the spectrogram is filtered with
           a filterbank of the right frequency spacing. Filter banks with 24
@@ -895,81 +895,3 @@ class RNNOnsetDetection(IOProcessor):
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
         # add peak picking arguments
         PeakPicking.add_arguments(parser, threshold=threshold, smooth=smooth)
-
-
-def parser():
-    """
-    Create a parser and parse the arguments.
-
-    :return: the parsed arguments
-
-    """
-    import argparse
-
-    # define parser
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    If invoked without any parameters, the software detects all onsets in the
-    given input file and writes them to the output file with the SuperFlux
-    algorithm introduced in:
-
-    "Maximum Filter Vibrato Suppression for Onset Detection"
-    Sebastian Böck and Gerhard Widmer
-    Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx), 2013.
-
-    ''')
-    # general options
-    p.add_argument('files', metavar='files', nargs='+',
-                   help='files to be processed')
-    p.add_argument('-v', dest='verbose', action='store_true',
-                   help='be verbose')
-    p.add_argument('--suffix', action='store', type=str, default='.txt',
-                   help='suffix for detections [default=%(default)s]')
-    # add arguments
-    SpectralOnsetDetection.add_arguments(p)
-    PeakPicking.add_arguments(p, threshold=1.1, pre_max=0.01, post_max=0.05,
-                              pre_avg=0.15, post_avg=0, combine=0.03, delay=0)
-    ActivationsProcessor.add_arguments(p)
-    # parse arguments
-    args = p.parse_args()
-    # switch to offline mode
-    if args.norm:
-        args.online = False
-    # print arguments
-    if args.verbose:
-        print args
-    # return
-    return args
-
-
-def main():
-    """
-    Example onset detection program.
-
-    """
-    # parse arguments
-    args = parser()
-
-    # create an processor
-    processor = SpectralOnsetDetection(**vars(args))
-
-    # which files to process
-    if args.load:
-        # load the activations
-        ext = '.activations'
-    else:
-        # only process .wav files
-        ext = '.wav'
-    # process the files
-    for infile in search_files(args.files, ext):
-        if args.verbose:
-            print infile
-        # append suffix to input filename
-        outfile = "%s%s" % (infile, args.suffix)
-        # process infile to outfile
-        processor.process(infile, outfile)
-
-
-if __name__ == '__main__':
-    main()
