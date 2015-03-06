@@ -149,14 +149,18 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
         infile = infile.encode(sys.getfilesystemencoding())
     else:
         infile = str(infile)
-    call = ["ffmpeg", "-v", "quiet", "-y", "-i", infile, "-f", str(fmt)]
-    if num_channels is not None:
-        call.extend(["-ac", str(num_channels)])
-    if sample_rate is not None:
-        call.extend(["-ar", str(sample_rate)])
+    # general options
+    call = ["ffmpeg", "-v", "quiet"]
+    # infile options
     if skip is not None:
         call.extend(["-ss", str(float(skip))])
     if max_len is not None:
         call.extend(["-t", str(float(max_len))])
+    call.extend(["-i", infile, "-y", "-f", str(fmt)])
+    # output options
+    if num_channels is not None:
+        call.extend(["-ac", str(num_channels)])
+    if sample_rate is not None:
+        call.extend(["-ar", str(sample_rate)])
     call.append(output)
     return call

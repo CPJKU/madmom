@@ -175,7 +175,7 @@ def sound_pressure_level(signal, p_ref=1.0):
 
 
 # function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None, mono=False):
+def load_audio_file(filename, sample_rate=None, mono=True):
     """
     Load the audio data from the given file and return it as a numpy array.
 
@@ -200,7 +200,9 @@ def load_audio_file(filename, sample_rate=None, mono=False):
         if sample_rate is None:
             sample_rate = 44100
         num_channels = 1 if mono else None
-
+        if num_channels != 1:
+            raise ValueError('only mono signal handling is supported.')
+        # convert the audio signal using ffmpeg
         signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
                                                 sample_rate=sample_rate,
                                                 num_channels=num_channels),
