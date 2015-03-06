@@ -333,3 +333,6 @@ class IOProcessor(OutputProcessor):
         else:
             # or simply call the function
             return self.out_processor(data, output)
+
+# finally import all submodules
+from . import audio, features, evaluation, ml, utils

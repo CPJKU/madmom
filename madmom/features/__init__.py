@@ -183,3 +183,6 @@ class ActivationsProcessor(Processor):
                             '[default: None, i.e. numpy binary format]')
         # return the argument group so it can be modified if needed
         return g
+
+# finally import the submodules
+from . import onsets, beats, notes, tempo

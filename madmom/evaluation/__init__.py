@@ -679,3 +679,6 @@ def evaluation_io(parser, ann_suffix, det_suffix):
                         help='increase verbosity level')
     # return the parser
     return parser
+
+# finally import the submodules
+from . import onsets, beats, notes, tempo
