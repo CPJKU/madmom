@@ -14,6 +14,7 @@ from Cython.Distutils import build_ext
 import numpy as np
 
 modules = ['madmom.audio',
+           'madmom.audio.ffmpeg',
            'madmom.audio.signal',
            'madmom.audio.filters',
            'madmom.audio.spectrogram',
@@ -23,6 +24,7 @@ modules = ['madmom.audio',
            'madmom.features.notes',
            'madmom.features.tempo',
            'madmom.ml',
+           'madmom.ml.rnn',
            'madmom.utils',
            'madmom.utils.midi',
            'madmom.evaluation.onsets',
@@ -54,7 +56,7 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 setup(name='madmom',
-      version='0.5',
+      version='0.6',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '
