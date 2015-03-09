@@ -23,14 +23,14 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :param fmt:          the format of the samples:
                          'f32le' for float32, little-endian
                          's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample to
-    :param num_channels: the number of channels to reduce to
+    :param sample_rate:  the sample rate to re-sample the signal to
+    :param num_channels: the number of channels to reduce the signal to
     :param skip:         number of seconds to skip at beginning of file
     :param max_len:      maximum number of seconds to decode
     :param outfile:      the file to decode the sound file to; if not given,
                          a temporary file will be created
     :param tmp_dir:      the directory to create the temporary file in
-                         (if no outfile was given)
+                         (if no `outfile` was given)
     :param tmp_suffix:   fhe file suffix for the temporary file if no outfile
                          was given; example: ".pcm" (including the dot!)
     :return:             the output file name
@@ -68,8 +68,8 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :param fmt:          the format of the samples:
                          'f32le' for float32, little-endian
                          's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample to
-    :param num_channels: the number of channels to reduce to
+    :param sample_rate:  the sample rate to re-sample the signal to
+    :param num_channels: the number of channels to reduce the signal to
     :param skip:         number of seconds to skip at beginning of file
     :param max_len:      maximum number of seconds to decode
     :return:             a binary string of samples
@@ -101,8 +101,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :param fmt:          the format of the samples:
                          'f32le' for float32, little-endian
                          's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample to
-    :param num_channels: the number of channels to reduce to
+    :param sample_rate:  the sample rate to re-sample the signal to
+    :param num_channels: the number of channels to reduce the signal to
     :param skip:         number of seconds to skip at beginning of file
     :param max_len:      maximum number of seconds to decode
     :param buf_size:     size of buffer for the file-like object:
@@ -164,3 +164,27 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
         call.extend(["-ar", str(sample_rate)])
     call.append(output)
     return call
+
+
+def get_file_info(infile):
+    """
+    Extract and return information about audio files.
+
+    :param infile: name of the audio file
+    :return:       dictionary containing audio file information
+
+    """
+    # init dictionary
+    info = {'num_channels': None,
+                   'sample_rate': None}
+    # call ffprobe
+    output = subprocess.check_output(["ffprobe", "-v", "quiet", "-show_streams",
+                                      infile])
+    # parse information
+    for line in output.split():
+        if line.startswith('channels='):
+            info['num_channels'] = int(line[len('channels='):])
+        if line.startswith('sample_rate='):
+            info['sample_rate'] = int(line[len('sample_rate='):])
+    # return the dictionary
+    return info

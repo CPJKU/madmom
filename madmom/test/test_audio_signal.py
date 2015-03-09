@@ -359,9 +359,39 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(len(signal) == 123481)
         self.assertTrue(sample_rate == 44100)
 
-    def test_error(self):
-        with self.assertRaises(NotImplementedError):
-            load_audio_file(DATA_PATH + '/sample.flac')
+    def test_stereo(self):
+        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.flac')
+        self.assertTrue(np.allclose(signal[:4],
+                                    [[33, 38], [35, 36], [29, 34], [36, 31]]))
+        self.assertTrue(len(signal) == 182919)
+        self.assertTrue(sample_rate == 44100)
+        self.assertTrue(signal.shape == (182919, 2))
+
+    def test_stereo_downmix_wav(self):
+        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.wav',
+                                              num_channels=1)
+        # TODO: is it a problemm that the results are rounded differently?
+        self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33]))
+        self.assertTrue(len(signal) == 182919)
+        self.assertTrue(sample_rate == 44100)
+        self.assertTrue(signal.shape == (182919, ))
+
+    def test_stereo_downmix_flac(self):
+        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.flac',
+                                              num_channels=1)
+        # TODO: is it a problemm that the results are rounded differently?
+        self.assertTrue(np.allclose(signal[:5], [36, 36, 32, 34, 34]))
+        self.assertTrue(len(signal) == 182919)
+        self.assertTrue(sample_rate == 44100)
+        self.assertTrue(signal.shape == (182919, ))
+
+    def test_stereo_resample_downmix_wav(self):
+        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.wav',
+                                              sample_rate=22050, num_channels=1)
+        self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33]))
+        self.assertTrue(len(signal) == 91460)
+        self.assertTrue(sample_rate == 22050)
+        self.assertTrue(signal.shape == (91460, ))
 
 
 # signal classes
@@ -443,7 +473,7 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(result.dtype == np.int16)
 
     def test_types_mono(self):
-        processor = SignalProcessor(mono=True)
+        processor = SignalProcessor(num_channels=1)
         self.assertTrue(isinstance(processor, SignalProcessor))
         self.assertTrue(isinstance(processor, Processor))
         result = processor.process(DATA_PATH + '/sample.wav')
@@ -474,12 +504,14 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(result.dtype == np.int16)
 
     def test_constant_types(self):
-        self.assertTrue(isinstance(SignalProcessor.MONO, bool))
+        self.assertTrue(isinstance(SignalProcessor.SAMPLE_RATE, type(None)))
+        self.assertTrue(isinstance(SignalProcessor.NUM_CHANNELS, type(None)))
         self.assertTrue(isinstance(SignalProcessor.NORM, bool))
         self.assertTrue(isinstance(SignalProcessor.ATT, float))
 
     def test_constant_values(self):
-        self.assertEqual(SignalProcessor.MONO, False)
+        self.assertEqual(SignalProcessor.SAMPLE_RATE, None)
+        self.assertEqual(SignalProcessor.NUM_CHANNELS, None)
         self.assertEqual(SignalProcessor.NORM, False)
         self.assertEqual(SignalProcessor.ATT, 0)
 
@@ -497,13 +529,13 @@ class TestSignalProcessorClass(unittest.TestCase):
 
     def test_rewrite_values(self):
         processor = SignalProcessor()
-        self.assertTrue(processor.mono is False)
+        self.assertTrue(processor.num_channels is None)
         self.assertTrue(processor.norm is False)
         self.assertTrue(processor.att == 0.)
-        processor.mono = True
+        processor.num_channels = 1
         processor.norm = True
         processor.att = 10
-        self.assertTrue(processor.mono is True)
+        self.assertTrue(processor.num_channels == 1)
         self.assertTrue(processor.norm is True)
         self.assertTrue(processor.att == 10.)
 
