@@ -205,7 +205,10 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
         elif num_channels is None:
             # return as many channels as is
             pass
-        else:
+        elif signal.ndim == 1:
+            # return the desired number of channels if possible
+            signal = np.tile(signal[:, np.newaxis], num_channels)
+        elif signal.shape[1] != num_channels:
             # any other number of channels is not supported
             raise NotImplementedError("don't know how to reduce the number of "
                                       "channels to %i" % num_channels)

@@ -376,6 +376,15 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, ))
 
+    def test_stereo_two_channels_wav(self):
+        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.wav',
+                                              num_channels=2)
+        self.assertTrue(np.allclose(signal[:4],
+                                    [[33, 38], [35, 36], [29, 34], [36, 31]]))
+        self.assertTrue(len(signal) == 182919)
+        self.assertTrue(sample_rate == 44100)
+        self.assertTrue(signal.shape == (182919, 2))
+
     def test_stereo_downmix_flac(self):
         signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.flac',
                                               num_channels=1)
