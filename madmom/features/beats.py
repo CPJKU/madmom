@@ -501,8 +501,7 @@ class CRFBeatDetection(BeatTracking):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS,
-                 num_threads=None, **kwargs):
+    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS, **kwargs):
         """
         Track the beats according to the previously determined global tempo
         using a conditional random field model.

@@ -11,6 +11,7 @@ If you want to change this module and use it interactively, use pyximport.
                       setup_args={'include_dirs': np.get_include()})
 
 """
+
 import numpy as np
 cimport numpy as np
 cimport cython

@@ -175,8 +175,7 @@ def get_file_info(infile):
 
     """
     # init dictionary
-    info = {'num_channels': None,
-                   'sample_rate': None}
+    info = {'num_channels': None, 'sample_rate': None}
     # call ffprobe
     output = subprocess.check_output(["ffprobe", "-v", "quiet", "-show_streams",
                                       infile])

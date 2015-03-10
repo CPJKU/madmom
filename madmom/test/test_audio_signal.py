@@ -132,7 +132,6 @@ class TestAttenuateFunction(unittest.TestCase):
         result = attenuate(sig_1d.astype(np.int), 0)
         self.assertTrue(np.allclose(result, sig_1d.astype(np.int)))
         result = attenuate(sig_1d.astype(np.int), 5)
-        zeros = np.zeros_like(sig_1d, dtype=np.int)
         self.assertTrue(np.allclose(result, 0 * sig_1d))
 
     def test_values_2d_int_dtype(self):
