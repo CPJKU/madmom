@@ -67,5 +67,7 @@ setup(name='madmom',
       license='BSD, CC BY-NC-SA',
       py_modules=modules,
       ext_modules=extensions,
+      packages=['madmom'],
+      package_data={'madmom': ['models/*']},
       cmdclass={'build_ext': build_ext},
       classifiers=classifiers)
