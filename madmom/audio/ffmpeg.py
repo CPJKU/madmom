@@ -185,6 +185,6 @@ def get_file_info(infile):
         if line.startswith('channels='):
             info['num_channels'] = int(line[len('channels='):])
         if line.startswith('sample_rate='):
-            info['sample_rate'] = int(line[len('sample_rate='):])
+            info['sample_rate'] = float(line[len('sample_rate='):])
     # return the dictionary
     return info
