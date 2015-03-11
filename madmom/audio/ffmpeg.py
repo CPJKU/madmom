@@ -13,7 +13,7 @@ import sys
 
 def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, max_len=None, outfile=None, tmp_dir=None,
-                   tmp_suffix=None):
+                   tmp_suffix=None, cmd='ffmpeg'):
     """
     Decodes the given audio file, optionally down-mixes it to mono and writes
     it to another file as a sequence of samples. Returns the file name of the
@@ -33,6 +33,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          (if no `outfile` was given)
     :param tmp_suffix:   fhe file suffix for the temporary file if no outfile
                          was given; example: ".pcm" (including the dot!)
+    :param cmd:          command line tool to use (defaults to ffmpeg,
+                         alternatively supports avconv)
     :return:             the output file name
 
     """
@@ -49,7 +51,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     # call ffmpeg (throws exception on error)
     try:
         call = _assemble_ffmpeg_call(infile, outfile, fmt, sample_rate,
-                                     num_channels, skip, max_len)
+                                     num_channels, skip, max_len, cmd)
         subprocess.check_call(call)
     except Exception:
         if delete_on_fail:
@@ -59,7 +61,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
 
 def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                     skip=None, max_len=None):
+                     skip=None, max_len=None, cmd='ffmpeg'):
     """
     Decodes the given audio file, down-mixes it to mono and returns it as a
     binary string of a sequence of samples.
@@ -72,11 +74,13 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :param num_channels: the number of channels to reduce the signal to
     :param skip:         number of seconds to skip at beginning of file
     :param max_len:      maximum number of seconds to decode
+    :param cmd:          command line tool to use (defaults to ffmpeg,
+                         alternatively supports avconv)
     :return:             a binary string of samples
 
     """
     call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
-                                 num_channels, skip, max_len)
+                                 num_channels, skip, max_len, cmd)
     if hasattr(subprocess, 'check_output'):
         # call ffmpeg (throws exception on error)
         signal = subprocess.check_output(call)
@@ -90,7 +94,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
 
 def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                   skip=None, max_len=None, buf_size=-1):
+                   skip=None, max_len=None, buf_size=-1, cmd='ffmpeg'):
     """
     Decodes the given audio file, down-mixes it to mono and returns a file-like
     object for reading the samples, as well as a process object. To stop
@@ -110,6 +114,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          '0' means unbuffered,
                          '1' means line-buffered,
                          any other value is the buffer size in bytes.
+    :param cmd:          command line tool to use (defaults to ffmpeg,
+                         alternatively supports avconv)
     :return:             tuple (file-like object for reading the decoded
                          samples, process object for the decoding process)
 
@@ -119,14 +125,15 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     #       proc.terminate explicitly, but this is only available in
     #       Python 2.6+. proc.wait needs to be called in any case.
     call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
-                                 num_channels, skip, max_len)
+                                 num_channels, skip, max_len, cmd)
     # redirect stdout to a pipe and buffer as requested
     proc = subprocess.Popen(call, stdout=subprocess.PIPE, bufsize=buf_size)
     return proc.stdout, proc
 
 
 def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
-                          num_channels=1, skip=None, max_len=None):
+                          num_channels=1, skip=None, max_len=None,
+                          cmd='ffmpeg'):
     """
     Internal function. Creates a sequence of strings indicating the application
     (ffmpeg) to be called as well as the parameters necessary to decode the
@@ -142,6 +149,8 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     :param num_channels: the number of channels to reduce to
     :param skip:         number of seconds to skip at beginning of file
     :param max_len:      maximum number of seconds to decode
+    :param cmd:          command line tool to use (defaults to ffmpeg,
+                         alternatively supports avconv)
     :return:             assembled ffmpeg call
 
     """
@@ -150,7 +159,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     else:
         infile = str(infile)
     # general options
-    call = ["ffmpeg", "-v", "quiet"]
+    call = [cmd, "-v", "quiet"]
     # infile options
     if skip is not None:
         call.extend(["-ss", str(float(skip))])
@@ -166,18 +175,20 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     return call
 
 
-def get_file_info(infile):
+def get_file_info(infile, cmd='ffprobe'):
     """
     Extract and return information about audio files.
 
     :param infile: name of the audio file
+    :param cmd:    command line tool to use (defaults to ffprobe,
+                   alternatively supports avprobe)
     :return:       dictionary containing audio file information
 
     """
     # init dictionary
     info = {'num_channels': None, 'sample_rate': None}
     # call ffprobe
-    output = subprocess.check_output(["ffprobe", "-v", "quiet", "-show_streams",
+    output = subprocess.check_output([cmd, "-v", "quiet", "-show_streams",
                                       infile])
     # parse information
     for line in output.split():
