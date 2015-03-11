@@ -392,3 +392,6 @@ def io_arguments(parser):
                          '[default=%(default)s]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
+
+# finally import the submodules
+from . import midi

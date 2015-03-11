@@ -138,7 +138,7 @@ class RNNNoteTranscription(IOProcessor):
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = fps = 100
         # input processor chain
-        sig = SignalProcessor(mono=True, **kwargs)
+        sig = SignalProcessor(num_channels=1, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           bands=12, online=False,
                                           norm_filters=True, log=True, mul=5,

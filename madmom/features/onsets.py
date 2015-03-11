@@ -764,7 +764,7 @@ class SpectralOnsetDetection(IOProcessor):
 
         """
         # processor chain
-        sig = SignalProcessor(mono=True, **kwargs)
+        sig = SignalProcessor(num_channels=1, **kwargs)
         frames = FramedSignalProcessor(**kwargs)
         spec = SpectrogramProcessor(**kwargs)
         # define input and output processors
@@ -846,7 +846,7 @@ class RNNOnsetDetection(IOProcessor):
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = fps = 100
         # input processor chain
-        sig = SignalProcessor(mono=True, **kwargs)
+        sig = SignalProcessor(num_channels=1, **kwargs)
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
         stack = StackSpectrogramProcessor(frame_sizes=frame_sizes,
                                           online=online, bands=6,

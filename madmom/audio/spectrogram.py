@@ -508,11 +508,11 @@ class Spectrogram(object):
                 # use it
                 self._spec = np.abs(self._stft)
                 # filter if needed
-                if self._filterbank is not None:
-                    self._spec = np.dot(self._spec, self._filterbank)
+                if self.filterbank is not None:
+                    self._spec = np.dot(self._spec, self.filterbank)
                 # take the logarithm
-                if self._log:
-                    self._spec = np.log10(self._mul * self._spec + self._add)
+                if self.log:
+                    self._spec = np.log10(self.mul * self._spec + self.add)
             else:
                 # compute the spec
                 self.compute_stft()

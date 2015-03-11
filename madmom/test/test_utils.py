@@ -38,6 +38,7 @@ class TestSearchFilesFunction(unittest.TestCase):
                      DATA_PATH + 'stereo_sample.mid',
                      DATA_PATH + 'stereo_sample.notes',
                      DATA_PATH + 'stereo_sample.sv',
+                     DATA_PATH + 'stereo_sample.flac',
                      DATA_PATH + 'stereo_sample.wav']
         self.assertEqual(all_files, sorted(file_list))
 

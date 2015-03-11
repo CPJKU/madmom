@@ -175,29 +175,62 @@ def sound_pressure_level(signal, p_ref=1.0):
 
 
 # function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None):
+def load_audio_file(filename, sample_rate=None, num_channels=None):
     """
     Load the audio data from the given file and return it as a numpy array.
 
-    :param filename:    name of the file or file handle
-    :param sample_rate: sample rate of the signal [Hz]
-    :return:            tuple (signal, sample_rate)
+    :param filename:     name of the file or file handle
+    :param sample_rate:  desired sample rate of the signal [Hz]
+    :param num_channels: reduce the signal to N channels [int]
+    :return:             tuple (signal, sample_rate)
+
+    Note: `sample_rate` or `num_channels` set to 'None' returns the audio
+          signal as is, i.e. it gathers the sample rate and number of channels
+          directly from the audio file.
 
     """
     # determine the name of the file
     if isinstance(filename, file):
         # open file handle
         filename = filename.name
-    # how to handle the file?
-    if filename.endswith(".wav"):
+    # .wav signal handler
+    if filename.endswith(".wav") and sample_rate is None:
         # wav file
         from scipy.io import wavfile
         sample_rate, signal = wavfile.read(filename, mmap=True)
+        # down-mix if needed
+        if num_channels == 1:
+            # down-mix to mono
+            signal = downmix(signal)
+        elif num_channels is None:
+            # return as many channels as is
+            pass
+        elif signal.ndim == 1:
+            # return the desired number of channels if possible
+            signal = np.tile(signal[:, np.newaxis], num_channels)
+        elif signal.shape[1] != num_channels:
+            # any other number of channels is not supported
+            raise NotImplementedError("don't know how to reduce the number of "
+                                      "channels to %i" % num_channels)
     # generic signal converter
     else:
-        # TODO: use sox to convert from different input signals and use the
-        #       given sample rate to re-sample the signal on the fly if needed
-        raise NotImplementedError('please integrate sox signal handling.')
+        from .ffmpeg import decode_to_memory, get_file_info
+        # convert the audio signal using ffmpeg
+        signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
+                                                sample_rate=sample_rate,
+                                                num_channels=num_channels),
+                               dtype=np.int16)
+        # get the needed information from the file
+        info = get_file_info(filename)
+        if sample_rate is None:
+            sample_rate = info['sample_rate']
+        if num_channels is None:
+            num_channels = info['num_channels']
+        # reshape the audio signal
+        if num_channels == 1:
+            signal = signal.ravel()
+        else:
+            signal = signal.reshape((-1, num_channels))
     return signal, sample_rate
 
 
@@ -209,17 +242,24 @@ class Signal(np.ndarray):
 
     """
 
-    def __new__(cls, data, sample_rate=None):
+    def __new__(cls, data, sample_rate=None, num_channels=None):
         """
         Creates a new Signal instance.
 
-        :param data:        numpy array
-        :param sample_rate: sample rate of the signal
+        :param data:         numpy array or audio file name or file handle
+        :param sample_rate:  sample rate of the signal [int]
+        :param num_channels: number of channels [int]
+
+        Note: `sample_rate` or `num_channels` can be used to set the desired
+              sample rate and number of channels if the audio is read from file.
+              If set to 'None' the audio signal is used as is, i.e. the sample
+              rate and number of channels are determined directly from the
+              audio file.
 
         """
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
-            data, sample_rate = load_audio_file(data, sample_rate)
+            data, sample_rate = load_audio_file(data, sample_rate, num_channels)
         # cast as Signal
         obj = np.asarray(data).view(cls)
         if sample_rate is not None:
@@ -265,40 +305,44 @@ class SignalProcessor(Processor):
     """
     # default values
     SAMPLE_RATE = None
-    MONO = False
+    NUM_CHANNELS = None
     NORM = False
     ATT = 0.
 
-    def __init__(self, sample_rate=SAMPLE_RATE, mono=MONO, norm=NORM, att=ATT,
-                 **kwargs):
+    def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
+                 norm=NORM, att=ATT, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
-        :param sample_rate: sample rate of the signal [Hz]
-        :param mono:        down-mix the signal to mono [bool]
-        :param norm:        normalize the signal [bool]
-        :param att:         attenuate the signal [dB]
+        :param sample_rate:  sample rate of the signal [Hz]
+        :param num_channels: reduce the signal to N channels [int]
+        :param norm:         normalize the signal [bool]
+        :param att:          attenuate the signal [dB]
+
+        Note: If `sample_rate` is set, the signal will be re-sampled to that
+              sample rate; if 'None' the sample rate of the audio file will be
+              used.
+              If `num_channels` is set, the signal will be reduced to that
+              number of channels; if 'None' as many channels as present in the
+              audio file are returned.
 
         """
         self.sample_rate = sample_rate
-        self.mono = mono
+        self.num_channels = num_channels
         self.norm = norm
         self.att = att
 
     def process(self, data):
         """
-        Processes the given signal.
+        Processes the given audio file.
 
         :param data: file name or handle
         :return:     Signal instance with processed signal
 
         """
         # instantiate a Signal (with the given sample rate if set)
-        data = Signal(data, self.sample_rate)
+        data = Signal(data, self.sample_rate, self.num_channels)
         # process it if needed
-        if self.mono:
-            # down-mix to mono
-            data = downmix(data)
         if self.norm:
             # normalize signal
             data = normalize(data)
@@ -331,7 +375,8 @@ class SignalProcessor(Processor):
                            default=sample_rate,
                            help='re-sample the signal to this sample rate [Hz]')
         if mono is not None:
-            g.add_argument('--mono', action='store_true', default=mono,
+            g.add_argument('--mono', dest='num_channels', action='store_const',
+                           const=1,
                            help='down-mix the signal to mono')
         if norm is not None:
             g.add_argument('--norm', action='store_true', default=norm,

@@ -124,7 +124,7 @@ class RNNBeatProcessing(SequentialProcessor):
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = self.fps = 100
         # define processing chain
-        sig = SignalProcessor(mono=True, **kwargs)
+        sig = SignalProcessor(num_channels=1, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           online=False, bands=3,
                                           norm_filters=True, log=True, mul=1,
@@ -501,8 +501,7 @@ class CRFBeatDetection(BeatTracking):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS,
-                 num_threads=None, **kwargs):
+    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS, **kwargs):
         """
         Track the beats according to the previously determined global tempo
         using a conditional random field model.

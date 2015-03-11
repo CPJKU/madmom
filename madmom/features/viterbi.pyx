@@ -5,6 +5,7 @@ This file contains the speed crucial Viterbi functionality.
 @author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
 """
+
 import numpy as np
 cimport numpy as np
 cimport cython

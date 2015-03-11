@@ -1326,7 +1326,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                               quantize_events)
 
     # define processing chain
-    sig = SignalProcessor(mono=True, norm=norm, att=att)
+    sig = SignalProcessor(num_channels=1, norm=norm, att=att)
     stack = StackSpectrogramProcessor(frame_sizes=frame_size, online=online,
                                       fps=fps, filterbank=filterbank,
                                       bands=bands, fmin=fmin, fmax=fmax,
