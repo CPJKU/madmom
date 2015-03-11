@@ -846,7 +846,7 @@ class RNNOnsetDetection(IOProcessor):
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = fps = 100
         # input processor chain
-        sig = SignalProcessor(num_channels=1, **kwargs)
+        sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
         stack = StackSpectrogramProcessor(frame_sizes=frame_sizes,
                                           online=online, bands=6,

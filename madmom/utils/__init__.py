@@ -381,6 +381,8 @@ def io_arguments(parser):
     sp.add_argument('output', nargs='?',
                     type=argparse.FileType('w'), default=sys.stdout,
                     help='output file [default: STDOUT]')
+    sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
+                    help='number of parallel threads [default=%(default)s]')
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
     sp.set_defaults(func=process_batch)
@@ -391,7 +393,7 @@ def io_arguments(parser):
                     help='extension appended to the files '
                          '[default=%(default)s]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
-                    help='number of parallel threads [default=%(default)s]')
+                    help='number of parallel workers [default=%(default)s]')
 
 # finally import the submodules
 from . import midi

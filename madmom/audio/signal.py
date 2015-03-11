@@ -193,11 +193,17 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
     if isinstance(filename, file):
         # open file handle
         filename = filename.name
-    # .wav signal handler
-    if filename.endswith(".wav") and sample_rate is None:
-        # wav file
+    # try to read the file as a .wav file
+    try:
+        # .wav file handler
         from scipy.io import wavfile
-        sample_rate, signal = wavfile.read(filename, mmap=True)
+        sample_rate_, signal = wavfile.read(filename, mmap=True)
+        # if the sample rate is not the desired one, fail and use ffmpeg
+        if sample_rate is not None and sample_rate != sample_rate_:
+            # use a ValueError, which is also thrown if not a .wav file
+            raise ValueError('not the correct sample rate')
+        else:
+            sample_rate = sample_rate_
         # down-mix if needed
         if num_channels == 1:
             # down-mix to mono
@@ -212,8 +218,8 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
             # any other number of channels is not supported
             raise NotImplementedError("don't know how to reduce the number of "
                                       "channels to %i" % num_channels)
-    # generic signal converter
-    else:
+    except ValueError:
+        # generic signal converter
         from .ffmpeg import decode_to_memory, get_file_info
         # convert the audio signal using ffmpeg
         signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
@@ -231,6 +237,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
             signal = signal.ravel()
         else:
             signal = signal.reshape((-1, num_channels))
+    # return the signal and sample rate
     return signal, sample_rate
 
 

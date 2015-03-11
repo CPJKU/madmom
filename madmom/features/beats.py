@@ -124,7 +124,7 @@ class RNNBeatProcessing(SequentialProcessor):
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = self.fps = 100
         # define processing chain
-        sig = SignalProcessor(num_channels=1, **kwargs)
+        sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
                                           online=False, bands=3,
                                           norm_filters=True, log=True, mul=1,
