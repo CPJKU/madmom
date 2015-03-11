@@ -597,12 +597,9 @@ class RNNProcessor(ParallelProcessor):
         """
         Add neural network testing options to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param nn_files:    list with files of RNN models
-        :return:            neural network argument parser group
-
-        Note: A value of 0 or negative numbers for `num_threads` suppresses the
-              inclusion of the parallel option.
+        :param parser:   existing argparse parser
+        :param nn_files: list with files of RNN models
+        :return:         neural network argument parser group
 
         """
         from madmom.utils import OverrideDefaultListAction
