@@ -186,20 +186,17 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
-    :return:             tuple (signal, sample_rate) or `None` if the file
-                         cannot be read, resampled or re-channeled
+    :return:             tuple (signal, sample_rate)
 
     """
     from scipy.io import wavfile
-    try:
-        sample_rate_, signal = wavfile.read(filename, mmap=True)
-    except ValueError:
-        return None
-    # if the sample rate is not the desired one, return `None`
-    if sample_rate is not None and sample_rate != sample_rate_:
-        return None
-    else:
-        sample_rate = sample_rate_
+    file_sample_rate, signal = wavfile.read(filename, mmap=True)
+    # if the sample rate is not the desired one, raise exception
+    if sample_rate is not None and sample_rate != file_sample_rate:
+        raise NotImplementedError("Requested sample rate of %f Hz, but got %f "
+                                  "Hz and resampling is not implemented." %
+                                  (sample_rate, file_sample_rate))
+    sample_rate = file_sample_rate
     # down-mix if needed
     if num_channels == 1:
         # down-mix to mono
@@ -211,8 +208,10 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
         # upmix a mono signal simply by copying channels
         signal = np.tile(signal[:, np.newaxis], num_channels)
     elif signal.shape[1] != num_channels:
-        # any channel conversion is not supported
-        return None
+        # any other channel conversion is not supported
+        raise NotImplementedError("Requested %d channels, but got %d channels "
+                                  "and channel conversion is not implemented." %
+                                  (num_channels, signal.shape[1]))
     return signal, sample_rate
 
 
@@ -229,31 +228,24 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
-    :return:             tuple (signal, sample_rate) or `None` if the file
-                         cannot be read
+    :return:             tuple (signal, sample_rate)
     """
     from .ffmpeg import decode_to_memory, get_file_info
-    from subprocess import CalledProcessError
-    try:
-        # convert the audio signal using ffmpeg
-        signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
-                                                sample_rate=sample_rate,
-                                                num_channels=num_channels,
-                                                cmd=cmd_decode),
-                               dtype=np.int16)
-        # get the needed information from the file
-        if sample_rate is None or num_channels is None:
-            info = get_file_info(filename, cmd=cmd_probe)
-            if sample_rate is None:
-                sample_rate = info['sample_rate']
-            if num_channels is None:
-                num_channels = info['num_channels']
-    except (OSError, CalledProcessError):
-        return None
+    # convert the audio signal using ffmpeg
+    signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
+                                            sample_rate=sample_rate,
+                                            num_channels=num_channels,
+                                            cmd=cmd_decode),
+                           dtype=np.int16)
+    # get the needed information from the file
+    if sample_rate is None or num_channels is None:
+        info = get_file_info(filename, cmd=cmd_probe)
+        if sample_rate is None:
+            sample_rate = info['sample_rate']
+        if num_channels is None:
+            num_channels = info['num_channels']
     # reshape the audio signal
-    if num_channels == 1:
-        signal = signal.ravel()
-    else:
+    if num_channels > 1:
         signal = signal.reshape((-1, num_channels))
     return signal, sample_rate
 
@@ -277,11 +269,20 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
         # open file handle
         filename = filename.name
     # try reading as a wave file, ffmpeg or avconv (in this order)
-    return (load_wave_file(filename, sample_rate, num_channels) or
-            load_ffmpeg_file(filename, sample_rate, num_channels) or
-            load_ffmpeg_file(filename, sample_rate, num_channels,
-                             'avconv', 'avprobe'))
-
+    try:
+        return load_wave_file(filename, sample_rate, num_channels)
+    except Exception:
+        pass
+    try:
+        return load_ffmpeg_file(filename, sample_rate, num_channels)
+    except Exception:
+        pass
+    try:
+        return load_ffmpeg_file(filename, sample_rate, num_channels,
+                                'avconv', 'avprobe')
+    except Exception:
+        pass
+    raise RuntimeError("All attempts to load audio file %r failed." % filename)
 
 # signal classes
 class Signal(np.ndarray):
