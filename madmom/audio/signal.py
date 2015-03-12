@@ -182,7 +182,7 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
     file with copy-on-write semantics to defer I/O costs until needed.
 
     :param filename:     name of the file
-    :param sample_rate:  desired sample rate of the signal [Hz], or
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
@@ -224,7 +224,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     into memory.
 
     :param filename:     name of the file
-    :param sample_rate:  desired sample rate of the signal [Hz], or
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
@@ -273,7 +273,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
     This tries load_wave_file and load_ffmpeg_file (for ffmpeg and avconv).
 
     :param filename:     name of the file or file handle
-    :param sample_rate:  desired sample rate of the signal [Hz], or
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
