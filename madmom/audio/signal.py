@@ -174,72 +174,131 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-# function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None, num_channels=None):
+def load_wave_file(filename, sample_rate=None, num_channels=None):
     """
     Load the audio data from the given file and return it as a numpy array.
+    Only supports wave files, does not support resampling, and does not support
+    arbitrary channel number conversions. Reads the data as a memory-mapped
+    file with copy-on-write semantics to defer I/O costs until needed.
 
-    :param filename:     name of the file or file handle
-    :param sample_rate:  desired sample rate of the signal [Hz]
-    :param num_channels: reduce the signal to N channels [int]
+    :param filename:     name of the file
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
+                         `None` to return the signal in its original rate
+    :param num_channels: reduce or expand the signal to N channels [int], or
+                         `None` to return the signal with its original channels
     :return:             tuple (signal, sample_rate)
 
-    Note: `sample_rate` or `num_channels` set to 'None' returns the audio
-          signal as is, i.e. it gathers the sample rate and number of channels
-          directly from the audio file.
-
     """
-    # determine the name of the file
-    if isinstance(filename, file):
-        # open file handle
-        filename = filename.name
-    # try to read the file as a .wav file
-    try:
-        # .wav file handler
-        from scipy.io import wavfile
-        sample_rate_, signal = wavfile.read(filename, mmap=True)
-        # if the sample rate is not the desired one, fail and use ffmpeg
-        if sample_rate is not None and sample_rate != sample_rate_:
-            # use a ValueError, which is also thrown if not a .wav file
-            raise ValueError('not the correct sample rate')
-        else:
-            sample_rate = sample_rate_
-        # down-mix if needed
-        if num_channels == 1:
-            # down-mix to mono
-            signal = downmix(signal)
-        elif num_channels is None:
-            # return as many channels as is
-            pass
-        elif signal.ndim == 1:
-            # return the desired number of channels if possible
-            signal = np.tile(signal[:, np.newaxis], num_channels)
-        elif signal.shape[1] != num_channels:
-            # any other number of channels is not supported
-            raise NotImplementedError("don't know how to reduce the number of "
-                                      "channels to %i" % num_channels)
-    except ValueError:
-        # generic signal converter
-        from .ffmpeg import decode_to_memory, get_file_info
-        # convert the audio signal using ffmpeg
-        signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
-                                                sample_rate=sample_rate,
-                                                num_channels=num_channels),
-                               dtype=np.int16)
-        # get the needed information from the file
-        info = get_file_info(filename)
+    from scipy.io import wavfile
+    file_sample_rate, signal = wavfile.read(filename, mmap=True)
+    # if the sample rate is not the desired one, raise exception
+    if sample_rate is not None and sample_rate != file_sample_rate:
+        raise NotImplementedError("Requested sample rate of %f Hz, but got %f "
+                                  "Hz and resampling is not implemented." %
+                                  (sample_rate, file_sample_rate))
+    sample_rate = file_sample_rate
+    # down-mix if needed
+    if num_channels == 1:
+        # down-mix to mono
+        signal = downmix(signal)
+    elif num_channels is None:
+        # return as many channels as there are
+        pass
+    elif signal.ndim == 1:
+        # upmix a mono signal simply by copying channels
+        signal = np.tile(signal[:, np.newaxis], num_channels)
+    elif signal.shape[1] != num_channels:
+        # any other channel conversion is not supported
+        raise NotImplementedError("Requested %d channels, but got %d channels "
+                                  "and channel conversion is not implemented." %
+                                  (num_channels, signal.shape[1]))
+    return signal, sample_rate
+
+
+def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
+                     dtype=np.int16, cmd_decode='ffmpeg', cmd_probe='ffprobe'):
+    """
+    Load the audio data from the given file and return it as a numpy array.
+    This uses ffmpeg (or avconv) and thus supports a lot of different file
+    formats, resampling and channel conversions. The file will be fully decoded
+    into memory.
+
+    :param filename:     name of the file
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
+                         `None` to return the signal in its original rate
+    :param num_channels: reduce or expand the signal to N channels [int], or
+                         `None` to return the signal with its original channels
+    :param dtype:        numpy dtype to return the signal in (supports signed
+                         and unsigned 8/16/32-bit integers, and single and double
+                         precision floats, each in little- or big-endian)
+    :return:             tuple (signal, sample_rate)
+    """
+    from .ffmpeg import decode_to_memory, get_file_info
+    # convert dtype to sample type
+    # (all ffmpeg PCM sample types: ffmpeg -formats | grep PCM)
+    dtype = np.dtype(dtype)
+    # - unsigned int, signed int, floating point:
+    sample_type = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
+    # - sample size in bits:
+    sample_type += str(8 * dtype.itemsize)
+    # - little endian or big endian:
+    if dtype.byteorder == '=':
+        import sys
+        sample_type += sys.byteorder[0] + 'e'
+    else:
+        sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    # convert the audio signal using ffmpeg
+    signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
+                                            sample_rate=sample_rate,
+                                            num_channels=num_channels,
+                                            cmd=cmd_decode),
+                           dtype=dtype)
+    # get the needed information from the file
+    if sample_rate is None or num_channels is None:
+        info = get_file_info(filename, cmd=cmd_probe)
         if sample_rate is None:
             sample_rate = info['sample_rate']
         if num_channels is None:
             num_channels = info['num_channels']
-        # reshape the audio signal
-        if num_channels == 1:
-            signal = signal.ravel()
-        else:
-            signal = signal.reshape((-1, num_channels))
-    # return the signal and sample rate
+    # reshape the audio signal
+    if num_channels > 1:
+        signal = signal.reshape((-1, num_channels))
     return signal, sample_rate
 
+
+# function for automatically determining how to open audio files
+def load_audio_file(filename, sample_rate=None, num_channels=None):
+    """
+    Load the audio data from the given file and return it as a numpy array.
+    This tries load_wave_file and load_ffmpeg_file (for ffmpeg and avconv).
+
+    :param filename:     name of the file or file handle
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
+                         `None` to return the signal in its original rate
+    :param num_channels: reduce or expand the signal to N channels [int], or
+                         `None` to return the signal with its original channels
+    :return:             tuple (signal, sample_rate)
+
+    """
+    # determine the name of the file if it is a file handle
+    if isinstance(filename, file):
+        # open file handle
+        filename = filename.name
+    # try reading as a wave file, ffmpeg or avconv (in this order)
+    try:
+        return load_wave_file(filename, sample_rate, num_channels)
+    except Exception:
+        pass
+    try:
+        return load_ffmpeg_file(filename, sample_rate, num_channels)
+    except Exception:
+        pass
+    try:
+        return load_ffmpeg_file(filename, sample_rate, num_channels,
+                                'avconv', 'avprobe')
+    except Exception:
+        pass
+    raise RuntimeError("All attempts to load audio file %r failed." % filename)
 
 # signal classes
 class Signal(np.ndarray):
