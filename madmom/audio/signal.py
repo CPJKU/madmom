@@ -216,7 +216,7 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
 
 
 def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
-                     cmd_decode='ffmpeg', cmd_probe='ffprobe'):
+                     dtype=np.int16, cmd_decode='ffmpeg', cmd_probe='ffprobe'):
     """
     Load the audio data from the given file and return it as a numpy array.
     This uses ffmpeg (or avconv) and thus supports a lot of different file
@@ -228,15 +228,31 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
+    :param dtype:        numpy dtype to return the signal in (supports signed
+                         and unsigned 8/16/32-bit integers, and single and double
+                         precision floats, each in little- or big-endian)
     :return:             tuple (signal, sample_rate)
     """
     from .ffmpeg import decode_to_memory, get_file_info
+    # convert dtype to sample type
+    # (all ffmpeg PCM sample types: ffmpeg -formats | grep PCM)
+    dtype = np.dtype(dtype)
+    # - unsigned int, signed int, floating point:
+    sample_type = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
+    # - sample size in bits:
+    sample_type += str(8 * dtype.itemsize)
+    # - little endian or big endian:
+    if dtype.byteorder == '=':
+        import sys
+        sample_type += sys.byteorder[0] + 'e'
+    else:
+        sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
     # convert the audio signal using ffmpeg
-    signal = np.frombuffer(decode_to_memory(filename, fmt='s16le',
+    signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
                                             cmd=cmd_decode),
-                           dtype=np.int16)
+                           dtype=dtype)
     # get the needed information from the file
     if sample_rate is None or num_channels is None:
         info = get_file_info(filename, cmd=cmd_probe)
