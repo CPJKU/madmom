@@ -327,6 +327,7 @@ class SigmoidLayer(RecurrentLayer):
 class Cell(object):
     """
     Cell as used by LSTM units.
+
     """
     def __init__(self, weights, bias, recurrent_weights, transfer_fn=tanh):
         """
@@ -435,11 +436,11 @@ class LSTMLayer(object):
         """
         # init arrays
         size = len(data)
-        # output (of the previous time step)
+        # output matrix for the whole sequence
         out = np.zeros((size, self.cell.bias.size), dtype=np.float32)
+        # output (of the previous time step)
         out_ = np.zeros(self.cell.bias.size, dtype=np.float32)
-        # state (of the previous/current time step)
-        state = np.zeros_like(out, dtype=np.float32)
+        # state (of the previous time step)
         state_ = np.zeros(self.cell.bias.size, dtype=np.float32)
         # process the input data
         for i in xrange(size):
@@ -457,7 +458,7 @@ class LSTMLayer(object):
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
             state_ = cell * ig + state_ * fg
-            state[i] = state_
+            # state[i] = state_
             # output gate:
             # operate on current data, current state and previous output
             og = self.output_gate.activate(data_, out_, state_)
@@ -577,7 +578,6 @@ class RNNProcessor(ParallelProcessor):
     Recurrent Neural Network (RNN) processor class.
 
     """
-
     def __init__(self, nn_files, num_threads=None, **kwargs):
         """
         Instantiates a RNNProcessor, which loads the models from files.

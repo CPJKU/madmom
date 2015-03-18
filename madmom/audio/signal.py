@@ -300,6 +300,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
         pass
     raise RuntimeError("All attempts to load audio file %r failed." % filename)
 
+
 # signal classes
 class Signal(np.ndarray):
     """
