@@ -444,6 +444,7 @@ class LSTMLayer(object):
         state_ = np.zeros(self.cell.bias.size, dtype=np.float32)
         # process the input data
         for i in xrange(size):
+            # cache input data
             data_ = data[i]
             # input gate:
             # operate on current data, previous state and previous output
@@ -458,7 +459,6 @@ class LSTMLayer(object):
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
             state_ = cell * ig + state_ * fg
-            # state[i] = state_
             # output gate:
             # operate on current data, current state and previous output
             og = self.output_gate.activate(data_, out_, state_)
