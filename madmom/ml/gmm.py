@@ -198,32 +198,6 @@ class GMM(object):
         use.  Must be one of 'spherical', 'tied', 'diag', 'full'.
         Defaults to 'diag'.
 
-    random_state: RandomState or an int seed (0 by default)
-        A random number generator instance
-
-    min_covar : float, optional
-        Floor on the diagonal of the covariance matrix to prevent
-        overfitting.  Defaults to 1e-3.
-
-    thresh : float, optional
-        Convergence threshold.
-
-    n_iter : int, optional
-        Number of EM iterations to perform.
-
-    n_init : int, optional
-        Number of initializations to perform. the best results is kept
-
-    params : string, optional
-        Controls which parameters are updated in the training
-        process.  Can contain any combination of 'w' for weights,
-        'm' for means, and 'c' for covars.  Defaults to 'wmc'.
-
-    init_params : string, optional
-        Controls which parameters are updated in the initialization
-        process.  Can contain any combination of 'w' for weights,
-        'm' for means, and 'c' for covars.  Defaults to 'wmc'.
-
     Attributes
     ----------
     `weights_` : array, shape (`n_components`,)
@@ -246,34 +220,18 @@ class GMM(object):
 
     """
 
-    def __init__(self, n_components=1, covariance_type='diag',
-                 random_state=None, thresh=1e-2, min_covar=1e-3,
-                 n_iter=100, n_init=1, params='wmc', init_params='wmc'):
-        self.n_components = n_components
-        self.covariance_type = covariance_type
-        self.thresh = thresh
-        self.min_covar = min_covar
-        self.random_state = random_state
-        self.n_iter = n_iter
-        self.n_init = n_init
-        self.params = params
-        self.init_params = init_params
+    def __init__(self, n_components=1, covariance_type='full'):
 
-        if not covariance_type in ['spherical', 'tied', 'diag', 'full']:
+        if covariance_type not in ['spherical', 'tied', 'diag', 'full']:
             raise ValueError('Invalid value for covariance_type: %s' %
                              covariance_type)
-
-        if n_init < 1:
-            raise ValueError('GMM estimation requires at least one run')
-
+        # save parameters
+        self.n_components = n_components
+        self.covariance_type = covariance_type
+        # init variables
         self.weights_ = np.ones(self.n_components) / self.n_components
-
-        # flag to indicate exit status of fit() method: converged (True) or
-        # n_iter reached (False)
-        self.converged_ = False
-        # init the other attributes with None
-        self.covars_ = None
         self.means_ = None
+        self.covars_ = None
 
     def score_samples(self, X):
         """Return the per-sample likelihood of the data under the model.
@@ -329,7 +287,8 @@ class GMM(object):
         logprob, _ = self.score_samples(X)
         return logprob
 
-    def fit(self, X):
+    def fit(self, X, random_state=None, thresh=1e-2, min_covar=1e-3,
+            n_iter=100, n_init=1, params='wmc', init_params='wmc'):
         """Estimate model parameters with the expectation-maximization
         algorithm.
 
@@ -344,16 +303,41 @@ class GMM(object):
         X : array_like, shape (n, n_features)
             List of n_features-dimensional data points.  Each row
             corresponds to a single data point.
+
+        random_state: RandomState or an int seed (0 by default)
+            A random number generator instance
+
+        min_covar : float, optional
+            Floor on the diagonal of the covariance matrix to prevent
+            overfitting.  Defaults to 1e-3.
+
+        thresh : float, optional
+            Convergence threshold.
+
+        n_iter : int, optional
+            Number of EM iterations to perform.
+
+        n_init : int, optional
+            Number of initializations to perform. the best results is kept
+
+        params : string, optional
+            Controls which parameters are updated in the training
+            process.  Can contain any combination of 'w' for weights,
+            'm' for means, and 'c' for covars.  Defaults to 'wmc'.
+
+        init_params : string, optional
+            Controls which parameters are updated in the initialization
+            process.  Can contain any combination of 'w' for weights,
+            'm' for means, and 'c' for covars.  Defaults to 'wmc'.
         """
         import sklearn.mixture
         # first initialise a sklearn.mixture.GMM object
         gmm = sklearn.mixture.GMM(n_components=self.n_components,
                                   covariance_type=self.covariance_type,
-                                  random_state=self.random_state,
-                                  thresh=self.thresh, min_covar=self.min_covar,
-                                  n_iter=self.n_iter, n_init=self.n_init,
-                                  params=self.params,
-                                  init_params=self.init_params)
+                                  random_state=random_state, thresh=thresh,
+                                  min_covar=min_covar, n_iter=n_iter,
+                                  n_init=n_init, params=params,
+                                  init_params=init_params)
         # fit this GMM
         gmm.fit(X)
         # copy the needed information to self
