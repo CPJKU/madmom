@@ -24,6 +24,7 @@ modules = ['madmom.audio',
            'madmom.features.notes',
            'madmom.features.tempo',
            'madmom.ml',
+           'madmom.ml.gmm',
            'madmom.ml.rnn',
            'madmom.utils',
            'madmom.utils.midi',
@@ -56,7 +57,7 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 setup(name='madmom',
-      version='0.6',
+      version='0.7',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '

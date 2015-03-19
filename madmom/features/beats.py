@@ -12,8 +12,11 @@ import glob
 import numpy as np
 
 from madmom import MODELS_PATH, Processor, IOProcessor, SequentialProcessor
-from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import StackSpectrogramProcessor
+from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
+                                 smooth as smooth_signal)
+from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      StackSpectrogramProcessor,
+                                      MultiBandSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.utils import write_events
 from madmom.features import ActivationsProcessor
@@ -716,7 +719,9 @@ class DBNBeatTracking(Processor):
     MAX_BPM = 215
 
     try:
-        from .dbn import BeatTrackingDynamicBayesianNetwork as DBN
+        from .dbn import (DynamicBayesianNetwork as DBN,
+                          BeatTrackingTransitionModel as TM,
+                          BeatTrackingObservationModel as OM)
     except ImportError:
         import warnings
         warnings.warn('MMBeatTracking only works if you build the dbn '
@@ -774,13 +779,14 @@ class DBNBeatTracking(Processor):
             tempo_states = np.logspace(np.log2(min_tempo),
                                        np.log2(max_tempo),
                                        num_tempo_states, base=2)
+        # transition model
+        self.tm = self.TM(num_beat_states, tempo_states, tempo_change_probability)
+        # observation model
+        self.om = self.OM(self.tm, observation_lambda, norm_observations)
         # instantiate a DBN
-        self.dbn = self.DBN(num_beat_states=num_beat_states,
-                            tempo_states=tempo_states,
-                            tempo_change_probability=tempo_change_probability,
-                            observation_lambda=observation_lambda,
-                            norm_observations=norm_observations,
-                            correct=correct, num_threads=num_threads)
+        self.dbn = self.DBN(self.tm, self.om, None, num_threads)
+        # save variables
+        self.correct = correct
 
     def process(self, activations):
         """
@@ -790,8 +796,42 @@ class DBNBeatTracking(Processor):
         :return:            detected beat positions
 
         """
-        # process the dbn and convert the detected beats to seconds
-        return self.dbn.beats(activations) / float(self.fps)
+        # first compute the observation model's log_densities
+        self.om.compute_densities(activations)
+        # then get the best state path by calling the viterbi algorithm
+        path, _ = self.dbn.viterbi()
+        # correct the beat positions if needed
+        if self.correct:
+            beats = []
+            # for each detection determine the "beat range", i.e. states where
+            # the pointers of the observation model are 0
+            beat_range = self.om.pointers[path]
+            # get all change points between True and False
+            idx = np.nonzero(np.diff(beat_range))[0] + 1
+            # if the first frame is in the beat range, add a change at frame 0
+            if not beat_range[0]:
+                idx = np.r_[0, idx]
+            # if the last frame is in the beat range, append the length of the
+            # array
+            if not beat_range[-1]:
+                idx = np.r_[idx, beat_range.size]
+            # iterate over all regions
+            for left, right in idx.reshape((-1, 2)):
+                # pick the frame with the highest observation_model value
+                beats.append(np.argmax(activations[left:right]) + left)
+            beats = np.asarray(beats)
+        else:
+            # just take the frames with the smallest beat state values
+            from scipy.signal import argrelmin
+            beats = argrelmin(self.tm.position(path),
+                              mode='wrap')[0]
+            # recheck if they are within the "beat range", i.e. the pointers
+            # of the observation model for that state must be 0
+            # Note: interpolation and alignment of the beats to be at state 0
+            #       does not improve results over this simple method
+            beats = beats[self.om.pointers[path[beats]] == 0]
+        # convert the detected beats to seconds
+        return beats / float(self.fps)
 
     @classmethod
     def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
@@ -801,9 +841,9 @@ class DBNBeatTracking(Processor):
                       observation_lambda=OBSERVATION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
-        Add DBN related arguments to an existing parser object.
+        Add DBN related arguments to an existing parser.
 
-        :param parser: existing argparse parser object
+        :param parser:                   existing argparse parser
 
         Parameters for the transition model:
 
@@ -922,3 +962,251 @@ class RNNBeatTracking(IOProcessor):
     # add aliases to argument parsers
     add_activation_arguments = ActivationsProcessor.add_arguments
     add_rnn_arguments = RNNBeatProcessing.add_arguments
+
+
+# downbeat tracking stuff
+class DownbeatTracking(Processor):
+    """
+    Class for tracking beats and downbeats with a Hidden Markov Model (HMM)
+    according to
+
+    """
+    MIN_BPM = [55, 60]
+    MAX_BPM = [205, 225]
+    NUM_BAR_STATES = [1200, 1600]
+    NUM_BEATS = [3, 4]
+    TEMPO_CHANGE_PROBABILITY = [0.02, 0.02]
+    NORM_OBSERVATIONS = False
+    GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
+
+    try:
+        from .dbn import (DynamicBayesianNetwork as DBN,
+                          DownBeatTrackingTransitionModel as TM,
+                          GMMDownBeatTrackingObservationModel as OM)
+    except ImportError:
+        import warnings
+        warnings.warn('Downbeat tracking only works if you build the dbn '
+                      'module with cython!')
+
+    def __init__(self, gmm_file=GMM_FILE, num_bar_states=NUM_BAR_STATES,
+                 num_beats=NUM_BEATS, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                 norm_observations=NORM_OBSERVATIONS,
+                 downbeats=False, fps=None, **kwargs):
+        """
+
+        :param gmm_file:                 load the fitted GMMs from this file
+
+        Parameters for the transition model:
+
+        :param num_bar_states:           number of states for one bar period
+        :param num_beats:                number of beats in one bar period
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+
+        Parameters for the observation model:
+
+        :param norm_observations:        normalise the observations
+
+        Other parameters:
+
+        :param downbeats:                report only the downbeats (default:
+                                         beats and the respective position)
+
+        "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
+         Audio"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2013
+
+        """
+        # check if all lists have the same length
+        if not (len(num_bar_states) == len(num_beats) == len(min_bpm) ==
+                    len(max_bpm) == len(tempo_change_probability)):
+            raise ValueError("'num_bar_states', 'num_beats', 'min_bpm', "
+                             "'max_bpm' and 'tempo_change_probability' must "
+                             "have the same length")
+        self.fps = fps
+        self.num_beats = num_beats
+        self.downbeats = downbeats
+        import cPickle
+        with open(gmm_file, 'r') as f:
+            # load the fitted GMMs
+            gmms = cPickle.load(f)
+        # convert timing information to tempo space for each pattern
+        tempo_states = []
+        for pattern in range(len(num_bar_states)):
+            max_tempo = int(np.ceil(max_bpm[pattern] * num_bar_states[pattern]
+                                    / (60. * num_beats[pattern] * self.fps)))
+            min_tempo = int(np.floor(min_bpm[pattern] * num_bar_states[pattern]
+                                     / (60. * num_beats[pattern] * self.fps)))
+            tempo_states.append(np.arange(min_tempo, max_tempo))
+        # transition model
+        self.tm = self.TM(num_bar_states, tempo_states,
+                          tempo_change_probability)
+        # observation model
+        self.om = self.OM(gmms, self.tm, norm_observations)
+        # instantiate a DBN
+        self.dbn = self.DBN(self.tm, self.om, None, None)
+
+    def process(self, activations):
+        """
+        Detect the beats in the given activation function.
+
+        :param activations: beat activation function
+        :return:            detected beat positions
+
+        """
+        # first compute the observation model's log_densities
+        self.om.compute_densities(activations)
+        # then get the best state path by calling the viterbi algorithm
+        path, _ = self.dbn.viterbi()
+        # get the corresponding pattern (use only the first state, since it
+        # doesn't change throughout the sequence)
+        pattern = self.tm.pattern(path[0])
+        # the position inside the pattern
+        position = self.tm.position(path)
+        # beat position (= weighted by number of beats in bar)
+        beat_counter = (position * self.num_beats[pattern]).astype(int)
+        # transitions are the points where the beat counters change
+        beat_positions = np.nonzero(np.diff(beat_counter))[0] + 1
+        # the beat numbers are the counters + 1 at the transition points
+        beat_numbers = beat_counter[beat_positions] + 1
+        # convert the detected beats to a list of timestamps
+        beats = np.asarray(beat_positions) / float(self.fps)
+        # return the downbeats or beats and their beat number
+        if self.downbeats:
+            return beats[beat_numbers == 1]
+        else:
+            return zip(beats, beat_numbers)
+
+    @classmethod
+    def add_arguments(cls, parser, num_bar_states=NUM_BAR_STATES,
+                      min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+                      norm_observations=NORM_OBSERVATIONS):
+        """
+        Add DBN related arguments to an existing parser.
+
+        :param parser:                   existing argparse parser
+
+        Parameters for the transition model:
+
+        Each of the following arguments expect a list with as many values as
+        rhythmic patterns.
+
+        :param num_bar_states:           number of states for one bar period
+        :param min_bpm:                  minimum tempo used for beat tracking
+        :param max_bpm:                  maximum tempo used for beat tracking
+        :param tempo_change_probability: probability of a tempo change between
+                                         two adjacent observations
+
+        Parameters for the observation model:
+
+        :param norm_observations:        normalize the observations
+
+        :return:                         downbeat argument parser group
+
+        """
+        # add DBN parser group
+        g = parser.add_argument_group('dynamic Bayesian Network arguments')
+        from madmom.utils import OverrideDefaultListAction
+        # TODO: make parsing nicer!
+        g.add_argument('--num_bar_states', action=OverrideDefaultListAction,
+                       type=str, default=num_bar_states,
+                       help='number of states for one bar period (one value '
+                            'must be given for each pattern) [default=%s]' %
+                            num_bar_states)
+        g.add_argument('--min_bpm', action=OverrideDefaultListAction,
+                       type=float, default=min_bpm,
+                       help='minimum tempo (one value must be given for each '
+                            'pattern) [bpm, default=%s]' % min_bpm)
+        g.add_argument('--max_bpm', action=OverrideDefaultListAction,
+                       type=float, default=max_bpm,
+                       help='maximum tempo (one value must be given for each '
+                            'pattern) [bpm, default=%s]' % max_bpm)
+        g.add_argument('--tempo_change_probability',
+                       action=OverrideDefaultListAction, type=float,
+                       default=tempo_change_probability,
+                       help='probability of a tempo between two adjacent '
+                            'observations (one value must be given for each '
+                            'pattern) [default=%s]' % tempo_change_probability)
+        # observation model stuff
+        if norm_observations:
+            g.add_argument('--no_norm_obs', dest='norm_observations',
+                           action='store_false', default=norm_observations,
+                           help='do not normalize the observations of the DBN')
+        else:
+            g.add_argument('--norm_obs', dest='norm_observations',
+                           action='store_true', default=norm_observations,
+                           help='normalize the observations of the DBN')
+        # add output format stuff
+        g = parser.add_argument_group('output arguments')
+        g.add_argument('--downbeats', action='store_true', default=False,
+                       help='output only the downbeats')
+        # return the argument group so it can be modified if needed
+        return g
+
+
+# TODO: split the classes similar to madmom.features.beats?
+class SpectralBeatTracking(IOProcessor):
+    """
+    The SpectralBeatTracking class implements (down-)beat tracking based on the
+    magnitude spectrogram.
+
+    """
+
+    def __init__(self, downbeats=False, load=False, save=False, **kwargs):
+        """
+        Creates a new SpectralBeatTracking instance.
+
+        """
+        from madmom.features.notes import write_notes as write_beats
+        # define input and output processors
+        sig = SignalProcessor(mono=True, **kwargs)
+        frames = FramedSignalProcessor(**kwargs)
+        spec = MultiBandSpectrogramProcessor(diff=True, **kwargs)
+        in_processor = [sig, frames, spec]
+        if downbeats:
+            write_beats = write_events
+        out_processor = [DownbeatTracking(downbeats=downbeats, **kwargs),
+                         write_beats]
+        # swap in/out processors if needed
+        if load:
+            in_processor = ActivationsProcessor(mode='r', **kwargs)
+        if save:
+            out_processor = ActivationsProcessor(mode='w', **kwargs)
+        # make this an IOProcessor by defining input and output processors
+        super(SpectralBeatTracking, self).__init__(in_processor, out_processor)
+
+    @classmethod
+    def add_arguments(cls, parser, beat_method=None):
+        """
+        Add spectral beat tracking arguments to an existing parser.
+
+        :param parser:      existing argparse parser
+        :param beat_method: default ODF method
+        :return:            spectral onset detection argument parser group
+
+        """
+        # add onset detection method arguments to the existing parser
+        g = parser.add_argument_group('spectral beat tracking arguments')
+        if beat_method is not None:
+            g.add_argument('-o', '--odf', dest='beat_method',
+                           default=beat_method, choices=cls.METHODS,
+                           help='use this onset detection function '
+                                '[default=%(default)s]')
+        # return the argument group so it can be modified if needed
+        return g
+
+    # add aliases to other argument parsers
+    add_activations_arguments = ActivationsProcessor.add_arguments
+    add_signal_arguments = SignalProcessor.add_arguments
+    add_framing_arguments = FramedSignalProcessor.add_arguments
+    add_filter_arguments = SpectrogramProcessor.add_filter_arguments
+    add_log_arguments = SpectrogramProcessor.add_log_arguments
+    add_diff_arguments = SpectrogramProcessor.add_diff_arguments
+    add_multi_band_arguments = \
+        MultiBandSpectrogramProcessor.add_multi_band_arguments

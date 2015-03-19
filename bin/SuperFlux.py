@@ -25,7 +25,7 @@ def main():
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx-13), 2013.
+    (DAFx), 2013.
 
     ''')
     # version

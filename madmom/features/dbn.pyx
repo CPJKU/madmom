@@ -19,8 +19,7 @@ from libc.math cimport log
 
 # parallel processing stuff
 from cython.parallel cimport prange
-import multiprocessing as mp
-NUM_THREADS = mp.cpu_count()
+NUM_THREADS = 1
 
 cdef extern from "math.h":
     float INFINITY
@@ -336,7 +335,7 @@ class BeatTrackingTransitionModel(TransitionModel):
          music styles"
         Sebastian Böck, Florian Krebs and Gerhard Widmer
         Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+        Retrieval Conference (ISMIR), 2014
 
         """
         # save variables
@@ -479,7 +478,7 @@ class BeatTrackingObservationModel(ObservationModel):
          music styles"
         Sebastian Böck, Florian Krebs and Gerhard Widmer
         Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+        Retrieval Conference (ISMIR), 2014
 
         """
         self.observation_lambda = observation_lambda
@@ -502,9 +501,9 @@ class BeatTrackingObservationModel(ObservationModel):
     @cython.wraparound(False)
     def compute_densities(self, float [::1] observations):
         """
-        Compute the log_densities from the given observations.
+        Compute the observation log densities.
 
-        :param observations: observation_model (i.e. activations of the NN)
+        :param observations: observations (i.e. activations of the NN)
         :return:             log_densities
 
         """
@@ -515,7 +514,7 @@ class BeatTrackingObservationModel(ObservationModel):
         # init densities
         cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
                                                       dtype=np.float)
-        # define the observation states
+        # define the observation densities
         for i in range(num_observations):
             log_densities[i, 0] = log(observations[i])
             log_densities[i, 1] = log((1. - observations[i]) /
@@ -525,99 +524,199 @@ class BeatTrackingObservationModel(ObservationModel):
         return self.log_densities
 
 
-class BeatTrackingDynamicBayesianNetwork(DynamicBayesianNetwork):
+# down-beat tracking stuff
+class DownBeatTrackingTransitionModel(TransitionModel):
     """
-    Dynamic Bayesian network for beat tracking.
+    Transition model for down-beat tracking with a DBN.
+
+    """
+    def __init__(self, num_bar_states, tempo_states,
+                 tempo_change_probabilities):
+        """
+        Construct a transition model instance suitable for down-beat tracking.
+
+        DownBeatTrackingTransitionModel is an extension of the
+        BeatTrackingTransitionModel. Instead of modelling a single pattern, it
+        allows multiple patterns. It basically accepts the same arguments as
+        the BeatTrackingTransitionModel, but everything as lists, with the list
+        entries at the same position corresponding to one (rhythmic) pattern.
+
+        :param num_bar_states:            list with number of bar states for
+                                          one bar period
+        :param tempo_states:              list with numpy arrays with tempo
+                                          states (number of bar states to
+                                          progress from one observation value
+                                          to the next one)
+        :param tempo_change_probabilities: list with probabilities of a tempo
+                                          change from one observation to the
+                                          next one
+
+        "Rhythmic pattern modeling for beat and downbeat tracking in musical
+         audio"
+        Florian Krebs, Sebastian Böck, and Gerhard Widmer
+        Proceedings of the 14th International Society for Music Information
+        Retrieval Conference (ISMIR), 2013.
+
+        """
+        # instantiate an empty TransitionModel object
+        super(DownBeatTrackingTransitionModel, self).__init__(None, None, None)
+        # check if all lists have the same length
+        if not (len(num_bar_states) == len(tempo_states) ==
+            len(tempo_change_probabilities)):
+            raise ValueError("'num_bar_states', 'tempo_states' and "
+                             "'tempo_change_probabilities' must have the same "
+                             "length")
+        # save the given arguments
+        self.num_bar_states = num_bar_states
+        self.tempo_states = tempo_states
+        self.tempo_change_probabilities = tempo_change_probabilities
+        # for each pattern, compute the transitions
+        for i, (bs, ts, tcp) in enumerate(zip(num_bar_states, tempo_states,
+                                              tempo_change_probabilities)):
+            # make sure that the tempo_states are contiguous in memory
+            ts = np.ascontiguousarray(ts, dtype=np.int32)
+            # create a BeatTrackingTransitionModel
+            tm = BeatTrackingTransitionModel(bs, ts, tcp)
+            seq = np.arange(tm.num_states)
+            # set/update the probabilities, states and pointers
+            if i == 0:
+                # set TM arrays
+                states = tm.states
+                pointers = tm.pointers
+                log_probabilities = tm.log_probabilities
+                # internal mapping arrays
+                self.position_mapping = tm.position(seq)
+                self.tempo_mapping = tm.tempo(seq)
+                self.pattern_mapping = np.repeat(i, tm.num_states)
+            else:
+                # update TM array
+                states = np.hstack((states,
+                                    tm.states + len(pointers) - 1))
+                pointers = np.hstack((pointers,
+                                      tm.pointers[1:] + max(pointers)))
+                log_probabilities = np.hstack((log_probabilities,
+                                               tm.log_probabilities))
+                # update internal mapping arrays
+                self.position_mapping = np.hstack((self.position_mapping,
+                                                   tm.position(seq)))
+                self.tempo_mapping = np.hstack((self.tempo_mapping,
+                                                tm.tempo(seq)))
+                self.pattern_mapping = np.hstack((self.pattern_mapping,
+                                                  np.repeat(i, tm.num_states)))
+        # instantiate a BeatTrackingTransitionModel with the transitions
+        super(DownBeatTrackingTransitionModel, self).__init__(states,
+                                                              pointers,
+                                                              log_probabilities)
+
+    @property
+    def num_tempo_states(self):
+        """Number of tempo states."""
+        return [len(t) for t in self.tempo_states]
+
+    @property
+    def num_patterns(self):
+        """Number of rhythmic patterns"""
+        # use the length of any of the lists as number of patterns
+        return len(self.tempo_states)
+
+    def position(self, state_sequence):
+        """
+        Position (within the bar) for a given state sequence.
+
+        :param state_sequence: given state sequence
+        :return:               corresponding bar state sequence
+
+        """
+        return self.position_mapping[state_sequence]
+
+    def tempo(self, state_sequence):
+        """
+        Tempo for the given state sequence.
+
+        :param state_sequence: given state sequence
+        :return:               corresponding tempo state sequence
+
+        """
+        return self.tempo_mapping[state_sequence]
+
+    def pattern(self, state_sequence):
+        """
+        Pattern for the given state sequence.
+
+        :param state_sequence: given state sequence
+        :return:               corresponding pattern state sequence
+
+        """
+        return self.pattern_mapping[state_sequence]
+
+
+class GMMDownBeatTrackingObservationModel(ObservationModel):
+    """
+    Observation model for GMM based beat tracking with a DBN.
 
     """
 
-    def __init__(self, num_beat_states, tempo_states, tempo_change_probability,
-                 observation_lambda, norm_observations=False, correct=True,
-                 num_threads=NUM_THREADS):
+    def __init__(self, gmms, transition_model, norm_observations):
         """
-        Construct a new dynamic Bayesian network suitable for beat tracking.
+        Construct a observation model instance using Gaussian Mixture Models
+        (GMMs).
 
-        Transition related parameters:
-
-        :param num_beat_states:          number of beat states for one beat
-                                         period
-        :param tempo_states:             array with tempo states (number of
-                                         beat states to progress from one
-                                         observation value to the next one)
-        :param tempo_change_probability: probability of a tempo change from
-                                         one observation to the next one
-
-        Observation related parameters:
-
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param norm_observations:        normalize the observation_model
-
-        Beat tracking related parameters:
-
-        :param correct:                  correct the detected beat positions
-        :param num_threads:              number of parallel threads
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR 2014), Taipeh, Taiwan, November 2014
+        :param gmms:              list with fitted GMM(s), one entry per
+                                  rhythmic pattern
+        :param transition_model:  transition model
+        :param norm_observations: normalize the observations
 
         """
-        # transition model
-        tm = BeatTrackingTransitionModel(num_beat_states, tempo_states,
-                                         tempo_change_probability)
-        # observation model
-        om = BeatTrackingObservationModel(tm, observation_lambda,
-                                          norm_observations)
-        # instantiate a DynamicBayesianNetwork
-        super(BeatTrackingDynamicBayesianNetwork, self).__init__(tm, om, None,
-                                                                 num_threads)
-        # save variables
-        self.correct = correct
+        self.gmms = gmms
+        self.transition_model = transition_model
+        self.norm_observations = norm_observations
+        # define the pointers of the log densities
+        self.pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
+        states = np.arange(self.transition_model.num_states)
+        pattern = self.transition_model.pattern(states)
+        position = self.transition_model.position(states)
+        densities_idx_offset = 0
+        for p in range(len(gmms)):
+            # number of fitted GMMs for this pattern
+            num_gmms = len(gmms[p])
+            # distribute the observation densities defined by the GMMs
+            # uniformly across the entire state space (for this pattern)
+            # Note: the densities of all GMMs are just stacked on top of each
+            #       other, so we have to add an offset
+            self.pointers[pattern == p] = (position[pattern == p] * num_gmms +
+                                           densities_idx_offset)
+            # increase the offset by the number of GMMs
+            densities_idx_offset += num_gmms
 
-    def beats(self, activations):
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def compute_densities(self, observations):
         """
-        Detect the beats in the given beat activation function.
+        Compute the observation log densities using (a) GMM(s).
 
-        :param activations: beat activation function
-        :return:            the detected beat positions
+        :param observations: observations (i.e. activations of the NN)
+        :return:             log_densities
 
         """
-        # first compute the observation model's log_densities
-        self.observation_model.compute_densities(activations)
-        # then return the state path by calling the viterbi algorithm
-        path, _ = self.viterbi()
-        # correct the beat positions if needed
-        if self.correct:
-            beats = []
-            # for each detection determine the "beat range", i.e. states where
-            # the pointers of the observation model are 0
-            beat_range = self.observation_model.pointers[path]
-            # get all change points between True and False
-            idx = np.nonzero(np.diff(beat_range))[0] + 1
-            # if the first frame is in the beat range, add a change at frame 0
-            if not beat_range[0]:
-                idx = np.r_[0, idx]
-            # if the last frame is in the beat range, append the length of the
-            # array
-            if not beat_range[-1]:
-                idx = np.r_[idx, beat_range.size]
-            # iterate over all regions
-            for left, right in idx.reshape((-1, 2)):
-                # pick the frame with the highest observation_model value
-                beats.append(np.argmax(activations[left:right]) + left)
-            beats = np.asarray(beats)
-        else:
-            # just take the frames with the smallest beat state values
-            from scipy.signal import argrelmin
-            beats = argrelmin(self.transition_model.position(path),
-                              mode='wrap')[0]
-            # recheck if they are within the "beat range", i.e. the pointers
-            # of the observation model for that state must be 0
-            # Note: interpolation and alignment of the beats to be at state 0
-            #       does not improve results over this simple method
-            beats = beats[self.observation_model.pointers[path[beats]] == 0]
-        return beats
+        # counter, etc.
+        cdef unsigned int i, j
+        cdef unsigned int num_observations = len(observations)
+        cdef unsigned int num_patterns = len(self.gmms)
+        cdef unsigned int num_gmms = 0
+        # maximum number of GMMs of all patterns
+        for i in range(num_patterns):
+            num_gmms += len(self.gmms[i])
+        # init the densities
+        log_densities = np.empty((num_observations, num_gmms), dtype=np.float)
+        # define the observation densities
+        cdef unsigned int c = 0
+        for i in range(num_patterns):
+            for j in range(len(self.gmms[i])):
+                # get the predictions of each GMM for the observations
+                # TODO: use a faster C version without sklearn!
+                log_densities[:, c] = self.gmms[i][j].score(observations)
+                c += 1
+        # save the densities and return them
+        self.log_densities = log_densities
+        return self.log_densities

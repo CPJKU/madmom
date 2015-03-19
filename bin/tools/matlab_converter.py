@@ -39,7 +39,7 @@ def main():
             # wrap in a dictionary
             data = {'data': data}
         # the data must be in a dictionary
-        if isinstance(data, dict):
+        if isinstance(data, (dict, np.lib.npyio.NpzFile)):
             # write the .mat file
             sio.savemat(os.path.splitext(f)[0], data, appendmat=True)
         else:
