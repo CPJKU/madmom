@@ -800,7 +800,6 @@ class DBNBeatTracking(Processor):
         beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
         # transition model
         self.tm = self.TM(beat_space, alpha)
-        print self.tm.num_states
         # observation model
         self.om = self.OM(self.tm, observation_lambda, norm_observations)
         # instantiate a DBN
@@ -945,7 +944,7 @@ class DownbeatTracking(Processor):
     """
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_TEMPO_STATES = [40, 40]
+    NUM_TEMPO_STATES = [50, 50]
     ALPHA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
@@ -1028,8 +1027,11 @@ class DownbeatTracking(Processor):
         beat_space = []
         for pattern in range(len(num_tempo_states)):
             # convert timing information to beat space
+            # Note: we multiply the fps with the number of beats in this
+            #       pattern, since a complete cycle is N times that long
             beat_space.append(beat_states(min_bpm[pattern], max_bpm[pattern],
-                                          fps, num_tempo_states[pattern]))
+                                          fps * num_beats[pattern],
+                                          num_tempo_states[pattern]))
         # transition model
         self.tm = self.TM(beat_space, alpha)
         # observation model
@@ -1108,26 +1110,26 @@ class DownbeatTracking(Processor):
         from madmom.utils import OverrideDefaultListAction
         # TODO: make parsing nicer!
         g.add_argument('--min_bpm', action=OverrideDefaultListAction,
-                       type=float, default=min_bpm,
+                       default=min_bpm,
                        help='minimum tempo (one value must be given for each '
-                            'pattern) [bpm, default=%s]' % min_bpm)
+                            'pattern) [bpm, default=%(default)s]')
         g.add_argument('--max_bpm', action=OverrideDefaultListAction,
-                       type=float, default=max_bpm,
+                       default=max_bpm,
                        help='maximum tempo (one value must be given for each '
-                            'pattern) [bpm, default=%s]' % max_bpm)
+                            'pattern) [bpm, default=%(default)s]')
         g.add_argument('--num_tempo_states', action=OverrideDefaultListAction,
                        default=num_tempo_states,
                        help='limit the number of tempo states; if set, align '
                             'them with a log spacing, otherwise linearly (one '
                             'value must be given for each pattern) '
-                            '[default=%(default)d]')
+                            '[default=%(default)s]')
         g.add_argument('--alpha', action=OverrideDefaultListAction,
-                       type=float, default=alpha,
+                       default=alpha,
                        help='squeezing factor for the tempo change '
                             'distribution; higher values prefer a constant '
                             'tempo over a tempo change from one beat to the '
                             'next one (one value must be given for each '
-                            'pattern) [default=%(default).1f]')
+                            'pattern) [default=%(default)s]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',

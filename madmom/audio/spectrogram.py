@@ -710,12 +710,12 @@ class SpectrogramProcessor(Processor):
             g.add_argument('--fmin', action='store', type=float,
                            default=fmin,
                            help='minimum frequency of the filterbank '
-                                '[default=%(default).1f]')
+                                '[Hz, default=%(default).1f]')
         if fmax is not None:
             g.add_argument('--fmax', action='store', type=float,
                            default=fmax,
                            help='maximum frequency of the filterbank '
-                                '[default=%(default).1f]')
+                                '[Hz, default=%(default).1f]')
         if norm_filters is not None:
             if norm_filters:
                 g.add_argument('--no_norm_filters', dest='norm_filters',
@@ -941,7 +941,8 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         if crossover_frequencies is not None:
             g.add_argument('--crossover_frequencies',
                            action='store', default=crossover_frequencies,
-                           help='list with crossover frequencies')
+                           help='list with crossover frequencies '
+                                '[Hz, default=%(default)s]')
         if norm_bands is not None:
             if norm_bands:
                 g.add_argument('--no_norm_bands', dest='norm_bands',
