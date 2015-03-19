@@ -703,6 +703,36 @@ class CRFBeatDetection(BeatTracking):
                             hist_smooth=hist_smooth, alpha=None)
 
 
+# function for converting min & max tempo ranges to beat states
+def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
+    """
+    Convert the timing information to beat states usable for transition models
+    of a dynamic Bayesian network.
+
+    :param min_bpm:          minimum tempo to model one cycle [float]
+    :param max_bpm:          maximum tempo to model one cycle [float]
+    :param fps:              frame rate (frames per second) [float]
+    :param num_tempo_states: number of tempo states [int] (if set, limit the
+                             number of states and use a log spacing, otherwise
+                             a linear spacing)
+    :return:                 numpy array with beat states
+
+    """
+    # convert timing information to beat space
+    min_interval = 60. * fps / max_bpm
+    max_interval = 60. * fps / min_bpm
+    if num_tempo_states is None:
+        # do not limit the number of tempo states, use a linear spacing
+        states = np.arange(np.round(min_interval), np.round(max_interval) + 1)
+    else:
+        # limit the number of tempo states, thus use a log spacing
+        states = np.logspace(np.log2(min_interval), np.log2(max_interval),
+                             num_tempo_states, base=2)
+    # quantize to integer tempo states
+    return np.unique(np.round(states).astype(np.int))
+
+
+# class for beat tracking
 class DBNBeatTracking(Processor):
     """
     Beat tracking with RNNs and a DBN.
@@ -710,12 +740,11 @@ class DBNBeatTracking(Processor):
     """
     # some default values
     CORRECT = True
-    NUM_BEAT_STATES = 1280
-    NUM_TEMPO_STATES = None
-    TEMPO_CHANGE_PROBABILITY = 0.008
+    NUM_TEMPO_STATES = 40
+    ALPHA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
-    MIN_BPM = 50
+    MIN_BPM = 55
     MAX_BPM = 215
 
     try:
@@ -727,37 +756,35 @@ class DBNBeatTracking(Processor):
         warnings.warn('MMBeatTracking only works if you build the dbn '
                       'module with cython!')
 
-    def __init__(self, correct=CORRECT, num_beat_states=NUM_BEAT_STATES,
-                 num_tempo_states=NUM_TEMPO_STATES,
-                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                 min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
                  observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, fps=None,
-                 num_threads=None, **kwargs):
+                 norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
         """
         Track the beats with a dynamic Bayesian network.
 
-        :param correct:                  correct the beats (i.e. align them
-                                         to the nearest peak of the beat
-                                         activation function)
+        :param correct:            correct the beats (i.e. align them
+                                   to the nearest peak of the beat
+                                   activation function)
 
         Parameters for the transition model:
 
-        :param num_beat_states:          number of states for one beat period
-        :param num_tempo_states:         number of tempo states (if set, limit
-                                         the number of states and use a log
-                                         spacing, otherwise a linear spacing)
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
+        :param min_bpm:            minimum tempo used for beat tracking
+        :param max_bpm:            maximum tempo used for beat tracking
+        :param num_tempo_states:   number of tempo states (if set, limit the
+                                   number of states and use a log spacing,
+                                   otherwise a linear spacing)
+        :param alpha:              squeezing factor for the tempo change
+                                   distribution (higher values prefer a
+                                   constant tempo over a tempo change from
+                                   one beat to the next one)
 
         Parameters for the observation model:
 
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param norm_observations:        normalize the observations
+        :param observation_lambda: split one beat period into N parts, the
+                                   first representing beat states and the
+                                   remaining non-beat states
+        :param norm_observations:  normalize the observations
 
         "A multi-model approach to beat tracking considering heterogeneous
          music styles"
@@ -765,27 +792,21 @@ class DBNBeatTracking(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
 
+        Instead of the original proposed transition model, this one is used:
+        TODO: add reference
+
         """
-        self.fps = fps
-        # convert timing information to tempo space
-        max_tempo = max_bpm * num_beat_states / (60. * fps)
-        min_tempo = min_bpm * num_beat_states / (60. * fps)
-        if num_tempo_states is None:
-            # do not limit the number of tempo states, use a linear spacing
-            tempo_states = np.arange(np.round(min_tempo),
-                                     np.round(max_tempo) + 1)
-        else:
-            # limit the number of tempo states, thus use a quasi log spacing
-            tempo_states = np.logspace(np.log2(min_tempo),
-                                       np.log2(max_tempo),
-                                       num_tempo_states, base=2)
+        # convert timing information to beat space
+        beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
         # transition model
-        self.tm = self.TM(num_beat_states, tempo_states, tempo_change_probability)
+        self.tm = self.TM(beat_space, alpha)
+        print self.tm.num_states
         # observation model
         self.om = self.OM(self.tm, observation_lambda, norm_observations)
         # instantiate a DBN
-        self.dbn = self.DBN(self.tm, self.om, None, num_threads)
+        self.dbn = self.DBN(self.tm, self.om, None, num_threads=1)
         # save variables
+        self.fps = fps
         self.correct = correct
 
     def process(self, activations):
@@ -834,40 +855,39 @@ class DBNBeatTracking(Processor):
         return beats / float(self.fps)
 
     @classmethod
-    def add_arguments(cls, parser, num_beat_states=NUM_BEAT_STATES,
-                      num_tempo_states=NUM_TEMPO_STATES, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM,
-                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+    def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
                       observation_lambda=OBSERVATION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
-        Add DBN related arguments to an existing parser.
+        Add DBN related arguments to an existing parser object.
 
-        :param parser:                   existing argparse parser
+        :param parser: existing argparse parser object
 
         Parameters for the transition model:
 
-        :param num_beat_states:          number of states for one beat period
-        :param num_tempo_states:         number of tempo states (if set, limit
-                                         the number of states and use a log
-                                         spacing, otherwise a linear spacing)
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
+        :param min_bpm:            minimum tempo used for beat tracking
+        :param max_bpm:            maximum tempo used for beat tracking
+        :param num_tempo_states:   number of tempo states (if set, limit the
+                                   number of states and use a log spacing,
+                                   otherwise a linear spacing)
+        :param alpha:              squeezing factor for the tempo change
+                                   distribution (higher values prefer a
+                                   constant tempo over a tempo change from
+                                   one beat to the next one)
 
         Parameters for the observation model:
 
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states and
-                                         the remaining non-beat states
-        :param norm_observations:        normalize the observations
+        :param observation_lambda: split one beat period into N parts, the
+                                   first representing beat states and the
+                                   remaining non-beat states
+        :param norm_observations:  normalize the observations
 
         Post-processing parameters:
 
-        :param correct:                  correct the beat positions
+        :param correct:            correct the beat positions
 
-        :return:                         beat argument parser group
+        :return:                   beat argument parser group
 
         """
         # add DBN parser group
@@ -881,25 +901,23 @@ class DBNBeatTracking(Processor):
                            action='store_true', default=correct,
                            help='correct the beat positions')
         # add a transition parameters
-        g.add_argument('--num_beat_states', action='store', type=int,
-                       default=num_beat_states,
-                       help='number of beat states for one beat period '
-                            '[default=%(default)i]')
-        g.add_argument('--num_tempo_states', action='store', type=int,
-                       default=num_tempo_states,
-                       help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
-                            '[default=None]')
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
                        help='minimum tempo [bpm, default=%(default).2f]')
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm,
                        help='maximum tempo [bpm,  default=%(default).2f]')
-        g.add_argument('--tempo_change_probability', action='store',
-                       type=float, default=tempo_change_probability,
-                       help='probability of a tempo between two adjacent '
-                            'observation_model [default=%(default).4f]')
+        g.add_argument('--num_tempo_states', action='store', type=int,
+                       default=num_tempo_states,
+                       help='limit the number of tempo states; if set, align '
+                            'them with a log spacing, otherwise linearly '
+                            '[default=%(default)d]')
+        g.add_argument('--alpha', action='store',
+                       type=float, default=alpha,
+                       help='squeezing factor for the tempo change '
+                            'distribution (higher values prefer a constant '
+                            'tempo over a tempo change from one beat to the '
+                            'next one) [default=%(default).1f]')
         # observation model stuff
         g.add_argument('--observation_lambda', action='store', type=int,
                        default=observation_lambda,
@@ -909,62 +927,16 @@ class DBNBeatTracking(Processor):
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
-                           help='do not normalize the observation_model of the DBN')
+                           help='do not normalize the observations of the DBN')
         else:
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
-                           help='normalize the observation_model of the DBN')
+                           help='normalize the observations of the DBN')
         # return the argument group so it can be modified if needed
         return g
 
 
-# TODO: split the classes similar to madmom.features.onsets?
-# meta class for tracking beats with RNNs and any post-processing method
-class RNNBeatTracking(IOProcessor):
-    """
-    Class for detecting/tracking beats with recurrent neural networks (RNN)
-    and different post-processing methods.
-
-    """
-    NN_FILES = RNNBeatProcessing.NN_FILES
-
-    def __init__(self, beat_method='DBNBeatTracking', multi_model=False,
-                 nn_files=NN_FILES, load=False, save=False, **kwargs):
-        """
-        Detecting/tracking beats with multiple recurrent neural networks (RNN)
-        and different post-processing methods.
-
-        :param beat_method: method for tracking the beats
-        :param multi_model: use a multi-model approach to select the most
-                            suitable RNN model
-        :param nn_files:    list of NN model files
-        :param load:        load the NN beat activations from file
-        :param save:        save the NN beat activations to file
-
-        """
-        # set the reference model files
-        nn_ref_files = nn_files if multi_model else None
-        # TODO: remove this fps hack!
-        kwargs['fps'] = 100
-        # set input processor
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        else:
-            in_processor = RNNBeatProcessing(nn_files, nn_ref_files, **kwargs)
-        # set output processor
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        else:
-            out_processor = [globals()[beat_method](**kwargs), write_events]
-        # make this an IOProcessor by defining input and output processors
-        super(RNNBeatTracking, self).__init__(in_processor, out_processor)
-
-    # add aliases to argument parsers
-    add_activation_arguments = ActivationsProcessor.add_arguments
-    add_rnn_arguments = RNNBeatProcessing.add_arguments
-
-
-# downbeat tracking stuff
+# class for beat tracking
 class DownbeatTracking(Processor):
     """
     Class for tracking beats and downbeats with a Hidden Markov Model (HMM)
@@ -973,9 +945,9 @@ class DownbeatTracking(Processor):
     """
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_BAR_STATES = [1200, 1600]
+    NUM_TEMPO_STATES = [40, 40]
+    ALPHA = [100, 100]
     NUM_BEATS = [3, 4]
-    TEMPO_CHANGE_PROBABILITY = [0.02, 0.02]
     NORM_OBSERVATIONS = False
     GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
 
@@ -988,32 +960,41 @@ class DownbeatTracking(Processor):
         warnings.warn('Downbeat tracking only works if you build the dbn '
                       'module with cython!')
 
-    def __init__(self, gmm_file=GMM_FILE, num_bar_states=NUM_BAR_STATES,
-                 num_beats=NUM_BEATS, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
-                 norm_observations=NORM_OBSERVATIONS,
+    def __init__(self, gmm_file=GMM_FILE, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
+                 num_beats=NUM_BEATS, norm_observations=NORM_OBSERVATIONS,
                  downbeats=False, fps=None, **kwargs):
         """
 
-        :param gmm_file:                 load the fitted GMMs from this file
+        :param gmm_file:          load the fitted GMMs from this file
 
         Parameters for the transition model:
 
-        :param num_bar_states:           number of states for one bar period
-        :param num_beats:                number of beats in one bar period
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
+        Each of the following arguments expect a list with as many items as
+        rhythmic patterns.
+
+        :param min_bpm:           list with minimum tempi used for tracking
+        :param max_bpm:           list with maximum tempi used for tracking
+        :param num_tempo_states:  list with number of tempo states (if set,
+                                  limit the number of states and use a log
+                                  spacing, otherwise a linear spacing). If a
+                                  single value is given, the same value is
+                                  assumed for all patterns.
+        :param alpha:             (list) with squeezing factor(s) for the tempo
+                                  change distribution (higher values prefer a
+                                  constant tempo over a tempo change from
+                                  one beat to the next one). If a single value
+                                  is given, the same value is assumed for all
+                                  patterns.
 
         Parameters for the observation model:
 
-        :param norm_observations:        normalise the observations
+        :param norm_observations: normalise the observations
 
         Other parameters:
 
-        :param downbeats:                report only the downbeats (default:
-                                         beats and the respective position)
+        :param downbeats:         report only the downbeats (default: beats
+                                  and the respective position)
 
         "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
          Audio"
@@ -1021,13 +1002,21 @@ class DownbeatTracking(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2013
 
+        Instead of the original proposed transition model, this one is used:
+        TODO: add reference
+
         """
+        # expand num_tempo_states and alpha to lists if needed
+        if not isinstance(num_tempo_states, list):
+            num_tempo_states = [num_tempo_states] * len(num_tempo_states)
+        if not isinstance(alpha, list):
+            alpha = [alpha] * len(beat_states)
         # check if all lists have the same length
-        if not (len(num_bar_states) == len(num_beats) == len(min_bpm) ==
-                    len(max_bpm) == len(tempo_change_probability)):
-            raise ValueError("'num_bar_states', 'num_beats', 'min_bpm', "
-                             "'max_bpm' and 'tempo_change_probability' must "
-                             "have the same length")
+        if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
+                len(alpha) == len(num_beats)):
+            raise ValueError("'min_bpm', 'max_bpm', 'num_tempo_states', "
+                             "'alpha' and 'num_beats' must have the same "
+                             "length")
         self.fps = fps
         self.num_beats = num_beats
         self.downbeats = downbeats
@@ -1036,20 +1025,17 @@ class DownbeatTracking(Processor):
             # load the fitted GMMs
             gmms = cPickle.load(f)
         # convert timing information to tempo space for each pattern
-        tempo_states = []
-        for pattern in range(len(num_bar_states)):
-            max_tempo = int(np.ceil(max_bpm[pattern] * num_bar_states[pattern]
-                                    / (60. * num_beats[pattern] * self.fps)))
-            min_tempo = int(np.floor(min_bpm[pattern] * num_bar_states[pattern]
-                                     / (60. * num_beats[pattern] * self.fps)))
-            tempo_states.append(np.arange(min_tempo, max_tempo))
+        beat_space = []
+        for pattern in range(len(num_tempo_states)):
+            # convert timing information to beat space
+            beat_space.append(beat_states(min_bpm[pattern], max_bpm[pattern],
+                                          fps, num_tempo_states[pattern]))
         # transition model
-        self.tm = self.TM(num_bar_states, tempo_states,
-                          tempo_change_probability)
+        self.tm = self.TM(beat_space, alpha)
         # observation model
         self.om = self.OM(gmms, self.tm, norm_observations)
         # instantiate a DBN
-        self.dbn = self.DBN(self.tm, self.om, None, None)
+        self.dbn = self.DBN(self.tm, self.om, None, num_threads=1)
 
     def process(self, activations):
         """
@@ -1083,42 +1069,44 @@ class DownbeatTracking(Processor):
             return zip(beats, beat_numbers)
 
     @classmethod
-    def add_arguments(cls, parser, num_bar_states=NUM_BAR_STATES,
-                      min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      tempo_change_probability=TEMPO_CHANGE_PROBABILITY,
+    def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
                       norm_observations=NORM_OBSERVATIONS):
         """
         Add DBN related arguments to an existing parser.
 
-        :param parser:                   existing argparse parser
+        :param parser:            existing argparse parser
 
         Parameters for the transition model:
 
-        Each of the following arguments expect a list with as many values as
+        Each of the following arguments expect a list with as many items as
         rhythmic patterns.
 
-        :param num_bar_states:           number of states for one bar period
-        :param min_bpm:                  minimum tempo used for beat tracking
-        :param max_bpm:                  maximum tempo used for beat tracking
-        :param tempo_change_probability: probability of a tempo change between
-                                         two adjacent observations
+        :param min_bpm:           list with minimum tempi used for tracking
+        :param max_bpm:           list with maximum tempi used for tracking
+        :param num_tempo_states:  list with number of tempo states (if set,
+                                  limit the number of states and use a log
+                                  spacing, otherwise a linear spacing). If a
+                                  single value is given, the same value is
+                                  assumed for all patterns.
+        :param alpha:             (list) with squeezing factor(s) for the tempo
+                                  change distribution (higher values prefer a
+                                  constant tempo over a tempo change from
+                                  one beat to the next one). If a single value
+                                  is given, the same value is assumed for all
+                                  patterns.
 
         Parameters for the observation model:
 
-        :param norm_observations:        normalize the observations
+        :param norm_observations: normalize the observations
 
-        :return:                         downbeat argument parser group
+        :return:                  downbeat argument parser group
 
         """
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         from madmom.utils import OverrideDefaultListAction
         # TODO: make parsing nicer!
-        g.add_argument('--num_bar_states', action=OverrideDefaultListAction,
-                       type=str, default=num_bar_states,
-                       help='number of states for one bar period (one value '
-                            'must be given for each pattern) [default=%s]' %
-                            num_bar_states)
         g.add_argument('--min_bpm', action=OverrideDefaultListAction,
                        type=float, default=min_bpm,
                        help='minimum tempo (one value must be given for each '
@@ -1127,12 +1115,19 @@ class DownbeatTracking(Processor):
                        type=float, default=max_bpm,
                        help='maximum tempo (one value must be given for each '
                             'pattern) [bpm, default=%s]' % max_bpm)
-        g.add_argument('--tempo_change_probability',
-                       action=OverrideDefaultListAction, type=float,
-                       default=tempo_change_probability,
-                       help='probability of a tempo between two adjacent '
-                            'observations (one value must be given for each '
-                            'pattern) [default=%s]' % tempo_change_probability)
+        g.add_argument('--num_tempo_states', action=OverrideDefaultListAction,
+                       default=num_tempo_states,
+                       help='limit the number of tempo states; if set, align '
+                            'them with a log spacing, otherwise linearly (one '
+                            'value must be given for each pattern) '
+                            '[default=%(default)d]')
+        g.add_argument('--alpha', action=OverrideDefaultListAction,
+                       type=float, default=alpha,
+                       help='squeezing factor for the tempo change '
+                            'distribution; higher values prefer a constant '
+                            'tempo over a tempo change from one beat to the '
+                            'next one (one value must be given for each '
+                            'pattern) [default=%(default).1f]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
@@ -1150,7 +1145,8 @@ class DownbeatTracking(Processor):
         return g
 
 
-# TODO: split the classes similar to madmom.features.beats?
+# class for tracking beats with based on spectral features with any
+# post-processing method
 class SpectralBeatTracking(IOProcessor):
     """
     The SpectralBeatTracking class implements (down-)beat tracking based on the
@@ -1210,3 +1206,48 @@ class SpectralBeatTracking(IOProcessor):
     add_diff_arguments = SpectrogramProcessor.add_diff_arguments
     add_multi_band_arguments = \
         MultiBandSpectrogramProcessor.add_multi_band_arguments
+
+
+# class for tracking beats with RNNs and any post-processing method
+class RNNBeatTracking(IOProcessor):
+    """
+    Class for detecting/tracking beats with recurrent neural networks (RNN)
+    and different post-processing methods.
+
+    """
+    NN_FILES = RNNBeatProcessing.NN_FILES
+
+    def __init__(self, beat_method='DBNBeatTracking', multi_model=False,
+                 nn_files=NN_FILES, load=False, save=False, **kwargs):
+        """
+        Detecting/tracking beats with multiple recurrent neural networks (RNN)
+        and different post-processing methods.
+
+        :param beat_method: method for tracking the beats
+        :param multi_model: use a multi-model approach to select the most
+                            suitable RNN model
+        :param nn_files:    list of NN model files
+        :param load:        load the NN beat activations from file
+        :param save:        save the NN beat activations to file
+
+        """
+        # set the reference model files
+        nn_ref_files = nn_files if multi_model else None
+        # TODO: remove this fps hack!
+        kwargs['fps'] = 100
+        # set input processor
+        if load:
+            in_processor = ActivationsProcessor(mode='r', **kwargs)
+        else:
+            in_processor = RNNBeatProcessing(nn_files, nn_ref_files, **kwargs)
+        # set output processor
+        if save:
+            out_processor = ActivationsProcessor(mode='w', **kwargs)
+        else:
+            out_processor = [globals()[beat_method](**kwargs), write_events]
+        # make this an IOProcessor by defining input and output processors
+        super(RNNBeatTracking, self).__init__(in_processor, out_processor)
+
+    # add aliases to argument parsers
+    add_activation_arguments = ActivationsProcessor.add_arguments
+    add_rnn_arguments = RNNBeatProcessing.add_arguments

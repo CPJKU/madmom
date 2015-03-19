@@ -25,9 +25,15 @@ def main():
     Proceedings of the 14th International Society for Music Information
     Retrieval Conference (ISMIR), 2013.
 
+    Instead of the originally proposed transition model for the DBN, the
+    following is used:
+
+    TODO: add reference!
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='DownBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='DownBeatTracker.2015')
     # add arguments
     io_arguments(p)
     SpectralBeatTracking.add_activations_arguments(p)
