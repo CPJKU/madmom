@@ -32,7 +32,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.notes.txt')
     RNNNoteTranscription.add_arguments(p)
     # midi arguments
     # import madmom.utils.midi as midi
@@ -45,6 +45,10 @@ def main():
 
     # parse arguments
     args = p.parse_args()
+    print args
+    # set the suffix for midi files
+    if args.output_format == 'midi':
+        args.output_suffix = '.mid'
     # print arguments
     if args.verbose:
         print args

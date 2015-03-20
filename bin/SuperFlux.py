@@ -31,7 +31,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='SuperFlux.2014')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.onsets.txt')
     SuperFlux.add_activations_arguments(p)
     SuperFlux.add_signal_arguments(p, norm=False, att=0)
     SuperFlux.add_framing_arguments(p, fps=200, online=False)

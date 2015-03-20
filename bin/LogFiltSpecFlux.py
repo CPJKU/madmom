@@ -32,7 +32,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='LogFiltSpecFlux.2014')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.onsets.txt')
     LogFiltSpecFlux.add_activations_arguments(p)
     LogFiltSpecFlux.add_signal_arguments(p, norm=False, att=0)
     LogFiltSpecFlux.add_framing_arguments(p, fps=100, online=False)
