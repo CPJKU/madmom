@@ -944,7 +944,7 @@ class DownbeatTracking(Processor):
     """
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_TEMPO_STATES = [50, 50]
+    NUM_TEMPO_STATES = [55, 55]
     ALPHA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
