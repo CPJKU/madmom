@@ -741,7 +741,7 @@ class DBNBeatTracking(Processor):
     # some default values
     CORRECT = True
     NUM_TEMPO_STATES = 40
-    ALPHA = 100
+    TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
     MIN_BPM = 55
@@ -757,7 +757,8 @@ class DBNBeatTracking(Processor):
                       'module with cython!')
 
     def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
+                 num_tempo_states=NUM_TEMPO_STATES,
+                 transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
         """
@@ -774,7 +775,7 @@ class DBNBeatTracking(Processor):
         :param num_tempo_states:   number of tempo states (if set, limit the
                                    number of states and use a log spacing,
                                    otherwise a linear spacing)
-        :param alpha:              squeezing factor for the tempo change
+        :param transition_lambda:  lambda for the exponential tempo change
                                    distribution (higher values prefer a
                                    constant tempo over a tempo change from
                                    one beat to the next one)
@@ -799,7 +800,7 @@ class DBNBeatTracking(Processor):
         # convert timing information to beat space
         beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
         # transition model
-        self.tm = self.TM(beat_space, alpha)
+        self.tm = self.TM(beat_space, transition_lambda)
         # observation model
         self.om = self.OM(self.tm, observation_lambda, norm_observations)
         # instantiate a DBN
@@ -855,7 +856,8 @@ class DBNBeatTracking(Processor):
 
     @classmethod
     def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
+                      num_tempo_states=NUM_TEMPO_STATES,
+                      transition_lambda=TRANSITION_LAMBDA,
                       observation_lambda=OBSERVATION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
@@ -870,7 +872,7 @@ class DBNBeatTracking(Processor):
         :param num_tempo_states:   number of tempo states (if set, limit the
                                    number of states and use a log spacing,
                                    otherwise a linear spacing)
-        :param alpha:              squeezing factor for the tempo change
+        :param transition_lambda:  lambda for the exponential tempo change
                                    distribution (higher values prefer a
                                    constant tempo over a tempo change from
                                    one beat to the next one)
@@ -911,12 +913,12 @@ class DBNBeatTracking(Processor):
                        help='limit the number of tempo states; if set, align '
                             'them with a log spacing, otherwise linearly '
                             '[default=%(default)d]')
-        g.add_argument('--alpha', action='store',
-                       type=float, default=alpha,
-                       help='squeezing factor for the tempo change '
-                            'distribution (higher values prefer a constant '
-                            'tempo over a tempo change from one beat to the '
-                            'next one) [default=%(default).1f]')
+        g.add_argument('--transition_lambda', action='store',
+                       type=float, default=transition_lambda,
+                       help='lambda of the tempo transition distribution; '
+                            'higher values prefer a constant tempo over a '
+                            'tempo change from one beat to the next one '
+                            '[default=%(default).1f]')
         # observation model stuff
         g.add_argument('--observation_lambda', action='store', type=int,
                        default=observation_lambda,
@@ -945,7 +947,7 @@ class DownbeatTracking(Processor):
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
     NUM_TEMPO_STATES = [55, 55]
-    ALPHA = [100, 100]
+    TRANSITION_LAMBDA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
     GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
@@ -960,9 +962,10 @@ class DownbeatTracking(Processor):
                       'module with cython!')
 
     def __init__(self, gmm_file=GMM_FILE, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
-                 num_beats=NUM_BEATS, norm_observations=NORM_OBSERVATIONS,
-                 downbeats=False, fps=None, **kwargs):
+                 num_tempo_states=NUM_TEMPO_STATES,
+                 transition_lambda=TRANSITION_LAMBDA, num_beats=NUM_BEATS,
+                 norm_observations=NORM_OBSERVATIONS, downbeats=False,
+                 fps=None, **kwargs):
         """
 
         :param gmm_file:          load the fitted GMMs from this file
@@ -979,12 +982,13 @@ class DownbeatTracking(Processor):
                                   spacing, otherwise a linear spacing). If a
                                   single value is given, the same value is
                                   assumed for all patterns.
-        :param alpha:             (list) with squeezing factor(s) for the tempo
-                                  change distribution (higher values prefer a
-                                  constant tempo over a tempo change from
-                                  one beat to the next one). If a single value
-                                  is given, the same value is assumed for all
-                                  patterns.
+        :param transition_lambda: (list with) lambda(s) for the exponential
+                                  tempo change distribution (higher values
+                                  prefer a constant tempo over a tempo change
+                                  from one beat to the next one). If a single
+                                  value is given, the same value is assumed for
+                                  all patterns.
+        :param num_beats:         list with number of beats per bar
 
         Parameters for the observation model:
 
@@ -1005,16 +1009,16 @@ class DownbeatTracking(Processor):
         TODO: add reference
 
         """
-        # expand num_tempo_states and alpha to lists if needed
+        # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
             num_tempo_states = [num_tempo_states] * len(num_tempo_states)
-        if not isinstance(alpha, list):
-            alpha = [alpha] * len(beat_states)
+        if not isinstance(transition_lambda, list):
+            transition_lambda = [transition_lambda] * len(beat_states)
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
-                len(alpha) == len(num_beats)):
+                len(transition_lambda) == len(num_beats)):
             raise ValueError("'min_bpm', 'max_bpm', 'num_tempo_states', "
-                             "'alpha' and 'num_beats' must have the same "
+                             "'transition_lambda' and 'num_beats' must have the same "
                              "length")
         self.fps = fps
         self.num_beats = num_beats
@@ -1033,7 +1037,7 @@ class DownbeatTracking(Processor):
                                           fps * num_beats[pattern],
                                           num_tempo_states[pattern]))
         # transition model
-        self.tm = self.TM(beat_space, alpha)
+        self.tm = self.TM(beat_space, transition_lambda)
         # observation model
         self.om = self.OM(gmms, self.tm, norm_observations)
         # instantiate a DBN
@@ -1072,7 +1076,8 @@ class DownbeatTracking(Processor):
 
     @classmethod
     def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      num_tempo_states=NUM_TEMPO_STATES, alpha=ALPHA,
+                      num_tempo_states=NUM_TEMPO_STATES,
+                      transition_lambda=TRANSITION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS):
         """
         Add DBN related arguments to an existing parser.
@@ -1088,15 +1093,11 @@ class DownbeatTracking(Processor):
         :param max_bpm:           list with maximum tempi used for tracking
         :param num_tempo_states:  list with number of tempo states (if set,
                                   limit the number of states and use a log
-                                  spacing, otherwise a linear spacing). If a
-                                  single value is given, the same value is
-                                  assumed for all patterns.
-        :param alpha:             (list) with squeezing factor(s) for the tempo
+                                  spacing, otherwise a linear spacing)
+        :param transition_lambda: list with lambdas for the exponential tempo
                                   change distribution (higher values prefer a
-                                  constant tempo over a tempo change from
-                                  one beat to the next one). If a single value
-                                  is given, the same value is assumed for all
-                                  patterns.
+                                  constant tempo over a tempo change from one
+                                  bar to the next one)
 
         Parameters for the observation model:
 
@@ -1123,13 +1124,13 @@ class DownbeatTracking(Processor):
                             'them with a log spacing, otherwise linearly (one '
                             'value must be given for each pattern) '
                             '[default=%(default)s]')
-        g.add_argument('--alpha', action=OverrideDefaultListAction,
-                       default=alpha,
-                       help='squeezing factor for the tempo change '
-                            'distribution; higher values prefer a constant '
-                            'tempo over a tempo change from one beat to the '
-                            'next one (one value must be given for each '
-                            'pattern) [default=%(default)s]')
+        g.add_argument('--transition_lambda', action=OverrideDefaultListAction,
+                       default=transition_lambda,
+                       help='lambda of the tempo transition distribution; '
+                            'higher values prefer a constant tempo over a '
+                            'tempo change from one bar to the next one (one '
+                            'value must be given for each pattern) '
+                            '[default=%(default)s]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
@@ -1178,26 +1179,6 @@ class SpectralBeatTracking(IOProcessor):
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
         super(SpectralBeatTracking, self).__init__(in_processor, out_processor)
-
-    @classmethod
-    def add_arguments(cls, parser, beat_method=None):
-        """
-        Add spectral beat tracking arguments to an existing parser.
-
-        :param parser:      existing argparse parser
-        :param beat_method: default ODF method
-        :return:            spectral onset detection argument parser group
-
-        """
-        # add onset detection method arguments to the existing parser
-        g = parser.add_argument_group('spectral beat tracking arguments')
-        if beat_method is not None:
-            g.add_argument('-o', '--odf', dest='beat_method',
-                           default=beat_method, choices=cls.METHODS,
-                           help='use this onset detection function '
-                                '[default=%(default)s]')
-        # return the argument group so it can be modified if needed
-        return g
 
     # add aliases to other argument parsers
     add_activations_arguments = ActivationsProcessor.add_arguments

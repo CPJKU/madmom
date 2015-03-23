@@ -319,34 +319,30 @@ class BeatTrackingTransitionModel(TransitionModel):
 
     """
 
-    def __init__(self, beat_states, alpha):
+    def __init__(self, beat_states, transition_lambda):
         """
         Construct a new BeatTrackingTransitionModel.
 
-        :param beat_states: array with beat states (each entry is used to model
-                            a tempo, its values gives the number of states to
-                            model the complete beat length)
-        :param alpha:       squeezing factor for the tempo change distribution
-                            (higher values prefer a constant tempo over a tempo
-                            change from one beat to the next one)
+        :param beat_states:       array with beat states (each entry is used to
+                                  model a tempo, its values gives the number of
+                                  states to model the complete beat length)
+        :param transition_lambda: array with lambdas for the exponential tempo
+                                  change distribution (higher values prefer a
+                                  constant tempo over a tempo change from one
+                                  beat to the next one)
 
         TODO: add reference!
 
         """
         # compute transitions
         self.beat_states = np.ascontiguousarray(beat_states, dtype=np.uint32)
-        self.alpha = alpha
+        self.transition_lambda = np.asarray(transition_lambda, dtype=np.float)
         # compute the position and tempo mapping
         self.position_mapping, self.tempo_mapping = self.compute_mapping()
         # compute the transitions
         transitions = self.make_sparse(*self.compute_transitions())
         # instantiate a BeatTrackingTransitionModel with the transitions
         super(BeatTrackingTransitionModel, self).__init__(*transitions)
-
-    # @property
-    # def num_states(self):
-    #     """Number of states."""
-    #     return np.sum(self.beat_states)
 
     @property
     def num_tempo_states(self):
@@ -363,7 +359,6 @@ class BeatTrackingTransitionModel(TransitionModel):
         """Last state for each tempo."""
         return np.cumsum(self.beat_states).astype(np.uint32) - 1
 
-
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
@@ -378,7 +373,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         """
         # cache variables
         cdef unsigned int [::1] beat_states = self.beat_states
-        cdef double alpha = self.alpha
+        cdef double transition_lambda = self.transition_lambda
         # number of tempo & total states
         cdef unsigned int num_tempo_states = len(beat_states)
         cdef unsigned int num_states = np.sum(beat_states)
@@ -406,8 +401,9 @@ class BeatTrackingTransitionModel(TransitionModel):
                 # two tempi
                 ratio = beat_states[tempo_state] / \
                         float(beat_states[from_tempo])
-                # compute the probability for the tempo change
-                prob = exp(-alpha * abs(ratio - 1))
+                # compute the probability for the tempo change following an
+                # exponential distribution
+                prob = exp(-transition_lambda * abs(ratio - 1))
                 # keep only transition probabilities > threshold
                 if prob > threshold:
                     # save the probability
@@ -612,7 +608,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
     Transition model for down-beat tracking with a DBN.
 
     """
-    def __init__(self, beat_states, alpha):
+    def __init__(self, beat_states, transition_lambda):
         """
         Construct a new DownBeatTrackingTransitionModel.
 
@@ -621,33 +617,36 @@ class DownBeatTrackingTransitionModel(TransitionModel):
         the BeatTrackingTransitionModel, but everything as lists, with the list
         entries at the same position corresponding to one (rhythmic) pattern.
 
-        :param beat_states: list of arrays with beat states (each item in the
-                            list models a pattern and each item in the array is
-                            used to model a tempo, its values gives the number
-                            of states to model the complete bar length)
-        :param alpha:       (list of) squeezing factor(s) for the tempo change
-                            distribution (higher values prefer a constant tempo
-                            over a tempo change from one beat to the next one)
-                            If a single value is given, the same value is
-                            assumed for all patterns.
+        :param beat_states:       list of arrays with beat states (each item
+                                  in the list models a pattern and each item
+                                  in the array is used to model a tempo, its
+                                  values gives the number of states to model
+                                  the complete bar length)
+        :param transition_lambda: list of arrays with lambdas for the
+                                  exponential tempo change distribution
+                                  (higher values prefer a constant tempo over
+                                  a tempo change from one bar to the next one)
+                                  If a single value is given, the same value
+                                  is assumed for all patterns.
 
         TODO: add reference!
 
         """
-        # expand the squeezing factor to a list if needed
-        if not isinstance(alpha, list):
-            alpha = [alpha] * len(beat_states)
+        # expand the transition lambda to a list if needed, i.e. use the same
+        # value for all patterns
+        if not isinstance(transition_lambda, list):
+            transition_lambda = [transition_lambda] * len(transition_lambda)
         # check if all lists have the same length
-        if not len(beat_states) == len(alpha):
-            raise ValueError("'beat_states' and 'alpha' must have the same "
-                             "length")
+        if not len(beat_states) == len(transition_lambda):
+            raise ValueError("'beat_states' and 'transition_lambda' must have "
+                             "the same length")
         # save the given arguments
         self.beat_states = beat_states
-        self.alpha = alpha
+        self.transition_lambda = transition_lambda
         # for each pattern, compute the transitions
-        for pattern, (beat_states_, alpha_) in enumerate(zip(beat_states, alpha)):
+        for pattern, (bs, tl) in enumerate(zip(beat_states, transition_lambda)):
             # create a BeatTrackingTransitionModel
-            tm = BeatTrackingTransitionModel(beat_states_, alpha_)
+            tm = BeatTrackingTransitionModel(bs, tl)
             seq = np.arange(tm.num_states, dtype=np.int)
             # set/update the probabilities, states and pointers
             if pattern == 0:
@@ -676,9 +675,8 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                                   np.repeat(pattern,
                                                             tm.num_states)))
         # instantiate a TransitionModel with the transitions
-        super(DownBeatTrackingTransitionModel, self).__init__(states,
-                                                              pointers,
-                                                              log_probabilities)
+        super(DownBeatTrackingTransitionModel, self).__init__(
+            states, pointers, log_probabilities)
 
     @property
     def num_tempo_states(self):
@@ -785,7 +783,6 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         for i in range(num_patterns):
             for j in range(len(self.gmms[i])):
                 # get the predictions of each GMM for the observations
-                # TODO: use a faster C version without sklearn!
                 log_densities[:, c] = self.gmms[i][j].score(observations)
                 c += 1
         # save the densities and return them
