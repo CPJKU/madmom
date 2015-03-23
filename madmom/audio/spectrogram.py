@@ -939,10 +939,12 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('multi-band spectrogram arguments')
         if crossover_frequencies is not None:
-            g.add_argument('--crossover_frequencies',
-                           action='store', default=crossover_frequencies,
-                           help='list with crossover frequencies '
-                                '[Hz, default=%(default)s]')
+            from madmom.utils import OverrideDefaultTypedListAction
+            g.add_argument('--crossover_frequencies', list_type=float,
+                           action=OverrideDefaultTypedListAction,
+                           default=crossover_frequencies,
+                           help='(comma separated) list with crossover '
+                                'frequencies [Hz, default=%(default)s]')
         if norm_bands is not None:
             if norm_bands:
                 g.add_argument('--no_norm_bands', dest='norm_bands',

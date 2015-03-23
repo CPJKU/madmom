@@ -252,6 +252,39 @@ class OverrideDefaultListAction(argparse.Action):
         cur_values.append(value)
 
 
+class OverrideDefaultTypedListAction(argparse.Action):
+    """
+    OverrideDefaultTypedListAction
+
+    An argparse action that works similarly to the regular 'append' action.
+    The default value is deleted when a new value is specified. Multiple values
+    can be parsed from a list with the specified separator.
+
+    """
+    def __init__(self, list_type, sep=',', *args, **kwargs):
+        """
+        Create a OverrideDefaultTypedListAction instance.
+
+        When called, the given values (separated by `sep`) are parsed as a list
+        of items of the specified type.
+
+        :param list_type: type of the list
+        :param sep:       separator between values.
+
+        """
+        self.list_type = list_type
+        self.sep = sep
+        super(OverrideDefaultTypedListAction, self).__init__(*args, **kwargs)
+        self.set_to_default = True
+
+    def __call__(self, parser, namespace, value, option_string=None):
+        if self.set_to_default:
+            setattr(namespace, self.dest, [])
+            self.set_to_default = False
+        cur_values = getattr(namespace, self.dest)
+        cur_values.extend([self.list_type(v) for v in value.split(self.sep)])
+
+
 # functions for processing file(s) with a Processor
 def process_single(processor, input, output, **kwargs):
     """

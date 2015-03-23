@@ -1078,7 +1078,7 @@ class DownbeatTracking(Processor):
     def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempo_states=NUM_TEMPO_STATES,
                       transition_lambda=TRANSITION_LAMBDA,
-                      norm_observations=NORM_OBSERVATIONS):
+                      num_beats=NUM_BEATS, norm_observations=NORM_OBSERVATIONS):
         """
         Add DBN related arguments to an existing parser.
 
@@ -1098,6 +1098,7 @@ class DownbeatTracking(Processor):
                                   change distribution (higher values prefer a
                                   constant tempo over a tempo change from one
                                   bar to the next one)
+        :param num_beats:         list with number of beats per bar
 
         Parameters for the observation model:
 
@@ -1108,29 +1109,35 @@ class DownbeatTracking(Processor):
         """
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        from madmom.utils import OverrideDefaultListAction
-        # TODO: make parsing nicer!
-        g.add_argument('--min_bpm', action=OverrideDefaultListAction,
-                       default=min_bpm,
-                       help='minimum tempo (one value must be given for each '
-                            'pattern) [bpm, default=%(default)s]')
-        g.add_argument('--max_bpm', action=OverrideDefaultListAction,
-                       default=max_bpm,
-                       help='maximum tempo (one value must be given for each '
-                            'pattern) [bpm, default=%(default)s]')
-        g.add_argument('--num_tempo_states', action=OverrideDefaultListAction,
-                       default=num_tempo_states,
+        from madmom.utils import OverrideDefaultTypedListAction
+        g.add_argument('--min_bpm', action=OverrideDefaultTypedListAction,
+                       default=min_bpm, list_type=float,
+                       help='minimum tempo (comma separated list with one '
+                            'value per pattern) [bpm, default=%(default)s]')
+        g.add_argument('--max_bpm', action=OverrideDefaultTypedListAction,
+                       default=max_bpm, list_type=float,
+                       help='maximum tempo (comma separated list with one '
+                            'value per pattern) [bpm, default=%(default)s]')
+        g.add_argument('--num_tempo_states',
+                       action=OverrideDefaultTypedListAction,
+                       default=num_tempo_states, list_type=int,
                        help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly (one '
-                            'value must be given for each pattern) '
+                            'them with a log spacing, otherwise linearly '
+                            '(comma separated list with one value per pattern) '
                             '[default=%(default)s]')
-        g.add_argument('--transition_lambda', action=OverrideDefaultListAction,
-                       default=transition_lambda,
+        g.add_argument('--transition_lambda',
+                       action=OverrideDefaultTypedListAction,
+                       default=transition_lambda, list_type=float,
                        help='lambda of the tempo transition distribution; '
                             'higher values prefer a constant tempo over a '
-                            'tempo change from one bar to the next one (one '
-                            'value must be given for each pattern) '
+                            'tempo change from one bar to the next one (comma '
+                            'separated list with one value per pattern) '
                             '[default=%(default)s]')
+        g.add_argument('--num_beats',
+                       action=OverrideDefaultTypedListAction,
+                       default=num_beats, list_type=int,
+                       help='number of beats per par (comma separated list '
+                            'with one value per pattern) [default=%(default)s]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
