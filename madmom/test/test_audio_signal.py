@@ -41,12 +41,12 @@ class TestSmoothFunction(unittest.TestCase):
 
     def test_errors(self):
         with self.assertRaises(ValueError):
-            smooth(sig_1d, 0)
-        with self.assertRaises(ValueError):
             smooth(np.zeros(9).reshape(3, 3), 'bla')
 
     def test_values_1d(self):
         result = smooth(sig_1d, None)
+        self.assertTrue(np.allclose(result, sig_1d))
+        result = smooth(sig_1d, 0)
         self.assertTrue(np.allclose(result, sig_1d))
         result = smooth(sig_1d, 3)
         result_3 = [0, 0.08, 1, 0.08, 0.08, 1, 0.08, 0.08, 1]

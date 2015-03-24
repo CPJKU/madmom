@@ -170,7 +170,7 @@ class SequentialProcessor(Processor):
 
     def append(self, other):
         """
-        Append a processor to the processing chain.
+        Append another Processor to the processing chain.
 
         :param other: the Processor to be appended.
 
@@ -181,7 +181,7 @@ class SequentialProcessor(Processor):
         """
         Extend the processing chain with a list of Processors.
 
-        :param other: the Processors to be appended.
+        :param other: list with Processors to be appended.
 
         """
         self.processors.extend(other)
@@ -195,7 +195,6 @@ class ParallelProcessor(SequentialProcessor):
     """
     NUM_THREADS = 1
 
-    # works, but is not pickle-able
     def __init__(self, processors, num_threads=NUM_THREADS):
         """
         Instantiates a ParallelProcessor object.
@@ -241,9 +240,10 @@ class ParallelProcessor(SequentialProcessor):
         :return:            parallel processing argument parser group
 
         Note: A value of 0 or negative numbers for `num_threads` suppresses the
-              inclusion of the parallel option. Instead 'None' is returned.
-              Setting `num_threads` to 'None' sets the number equal to the
-              number of available CPU cores.
+              inclusion of the parallel option and 'None' is returned instead
+              of the parsing group.
+              Setting `num_threads` to 'None' sets the number to the number of
+              CPU cores.
 
         """
         if num_threads is None:

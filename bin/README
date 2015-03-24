@@ -1,18 +1,30 @@
 This folder contains executable scripts, which make use of all the nice things
-included in this package. Most of them can be run in the following way:
+included in this package. Most of them can be run in single file mode:
 
-bin/name_of_script.py INFILE [OUTFILE]
+bin/name_of_script.py single INFILE [OUTFILE]
+
+or in batch mode:
+
+bin/name_of_script.py batch LIST OF INFILES
 
 There should be an `--help` option which describes all the other options.
+Please note that both the script and the single/batch mode have their own help
+messages, i.e. `bin/name_of_script.py -h` and `bin/name_of_script.py single -h`
+show different help messages with options for the algorithm itself or for the
+operation mode (single/batch).
 
 The scripts should be considered as examples of usage, which can change without
 prior notice. Do NOT rely on any feature output of these scripts! If you need
 stable features, create a branch and set all parameters accordingly.
+Alternatively you can use the `--pickle` mode to pickle any Processors/scripts
+to be able to reproduce results with the very same setting of parameters.
+Please be aware that the software modules must be exactly the same, thus it is
+advisable to to this in a branch as well or rely on a commit (or at least on a
+version tag) of the software.
 
 Since some of the scripts are used directly for the annual MIREX evaluation,
 tagged branches reflecting the settings of these submitted algorithms should be
 created. 
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
-ATLAS instead of Apple's own Accelerate framework or use the '--threads 1'
-switch.
+ATLAS instead of Apple's own Accelerate framework or use the '-j 1' switch.

@@ -45,7 +45,6 @@ def main():
 
     # parse arguments
     args = p.parse_args()
-    print args
     # set the suffix for midi files
     if args.output_format == 'midi':
         args.output_suffix = '.mid'

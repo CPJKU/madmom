@@ -807,7 +807,7 @@ class SpectralOnsetDetection(IOProcessor):
         return g
 
     # add aliases to other argument parsers
-    add_activations_arguments = ActivationsProcessor.add_arguments
+    add_activation_arguments = ActivationsProcessor.add_arguments
     add_signal_arguments = SignalProcessor.add_arguments
     add_framing_arguments = FramedSignalProcessor.add_arguments
     add_filter_arguments = SpectrogramProcessor.add_filter_arguments

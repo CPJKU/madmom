@@ -33,7 +33,7 @@ def main():
     p.add_argument('--version', action='version', version='ComplexFlux.2014')
     # add arguments
     io_arguments(p, suffix='.onsets.txt')
-    ComlpexFlux.add_activations_arguments(p)
+    ComlpexFlux.add_activation_arguments(p)
     ComlpexFlux.add_signal_arguments(p, norm=False, att=0)
     ComlpexFlux.add_framing_arguments(p, fps=200, online=False)
     ComlpexFlux.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,

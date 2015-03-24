@@ -30,7 +30,9 @@ def smooth(signal, kernel):
         return signal
     # size for the smoothing kernel is given
     elif isinstance(kernel, int):
-        if kernel > 1:
+        if kernel == 0:
+            return signal
+        elif kernel > 1:
             # use a Hamming window of given length
             kernel = np.hamming(kernel)
         else:

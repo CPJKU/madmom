@@ -1258,8 +1258,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                     frame_size=2048, online=False, fps=100,
                     filterbank=None, bands=6, fmin=30, fmax=17000,
                     norm_filters=True, log=True, mul=1, add=0, diff_ratio=0.5,
-                    diff_frames=None, diff_max_bins=1,
-                    shift=0, split=None, verbose=False):
+                    diff_frames=None, diff_max_bins=1, shift=0, spread=0,
+                    split=None, verbose=False):
     """
     Create .nc files for the given .wav and annotation files.
 
@@ -1313,7 +1313,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Other parameters:
 
-    :param shift:         shift the targets N frames
+    :param shift:         shift the targets N seconds
+    :param spread:        spread the targets N seconds
     :param split:         split the files into parts with N frames length
     :param verbose:       be verbose
 
@@ -1380,6 +1381,11 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         else:
             # load events (onset/beat)
             targets = load_events(f)
+            # spread the targets by simply adding a shifted version of itself
+            if spread:
+                targets = np.concatenate((targets, targets + spread,
+                                          targets - spread))
+                targets.sort()
             targets = quantize_events(targets, fps, length=len(nc_data),
                                       shift=shift)
         # tags
@@ -1523,6 +1529,8 @@ def main():
                     help='split files every N seconds')
     sp.add_argument('--shift', default=None, type=float,
                     help='shift targets N seconds')
+    sp.add_argument('--spread', default=None, type=float,
+                    help='spread targets N seconds')
 
     # parse arguments
     args = p.parse_args()

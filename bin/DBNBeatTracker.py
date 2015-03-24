@@ -30,9 +30,15 @@ def main():
     2.3), i.e. this version corresponds to the pure DBN version of the
     algorithm for which results are given in Table 2.
 
+    Instead of the originally proposed transition model for the DBN, the
+    following is used:
+
+    TODO: add reference!
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='DBNBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='DBNBeatTracker.2015')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
     RNNBeatTracking.add_activation_arguments(p)

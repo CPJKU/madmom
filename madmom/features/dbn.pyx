@@ -15,7 +15,7 @@ If you want to change this module and use it interactively, use pyximport.
 import numpy as np
 cimport numpy as np
 cimport cython
-from libc.math cimport log
+from libc.math cimport log, exp, sqrt, M_PI as PI
 
 # parallel processing stuff
 from cython.parallel cimport prange
@@ -319,29 +319,26 @@ class BeatTrackingTransitionModel(TransitionModel):
 
     """
 
-    def __init__(self, num_beat_states, tempo_states, tempo_change_probability):
+    def __init__(self, beat_states, transition_lambda):
         """
         Construct a new BeatTrackingTransitionModel.
 
-        :param num_beat_states:          number of beat states for one beat
-                                         period
-        :param tempo_states:             array with tempo states (number of
-                                         beat states to progress from one
-                                         observation value to the next one)
-        :param tempo_change_probability: probability of a tempo change from
-                                         one observation to the next one
+        :param beat_states:       array with beat states (each entry is used to
+                                  model a tempo, its values gives the number of
+                                  states to model the complete beat length)
+        :param transition_lambda: array with lambdas for the exponential tempo
+                                  change distribution (higher values prefer a
+                                  constant tempo over a tempo change from one
+                                  beat to the next one)
 
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
+        TODO: add reference!
 
         """
-        # save variables
-        self.num_beat_states = num_beat_states
-        self.tempo_states = tempo_states
-        self.tempo_change_probability = tempo_change_probability
+        # compute transitions
+        self.beat_states = np.ascontiguousarray(beat_states, dtype=np.uint32)
+        self.transition_lambda = np.asarray(transition_lambda, dtype=np.float)
+        # compute the position and tempo mapping
+        self.position_mapping, self.tempo_mapping = self.compute_mapping()
         # compute the transitions
         transitions = self.make_sparse(*self.compute_transitions())
         # instantiate a BeatTrackingTransitionModel with the transitions
@@ -350,7 +347,17 @@ class BeatTrackingTransitionModel(TransitionModel):
     @property
     def num_tempo_states(self):
         """Number of tempo states."""
-        return len(self.tempo_states)
+        return len(self.beat_states)
+
+    @property
+    def first_beat_positions(self):
+        """First state for each tempo."""
+        return np.cumsum(np.r_[0, self.beat_states[:-1]]).astype(np.uint32)
+
+    @property
+    def last_beat_positions(self):
+        """Last state for each tempo."""
+        return np.cumsum(self.beat_states).astype(np.uint32) - 1
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -361,90 +368,159 @@ class BeatTrackingTransitionModel(TransitionModel):
         states to another one) and return them in a format understood by
         'make_sparse()'.
 
-        :return: tuple with (states, pointers, log_probabilities)
+        :return: tuple with (states, prev_states, log_probabilities)
 
         """
+        # cache variables
+        cdef unsigned int [::1] beat_states = self.beat_states
+        cdef double transition_lambda = self.transition_lambda
         # number of tempo & total states
-        cdef unsigned int num_beat_states = self.num_beat_states
-        cdef unsigned int num_tempo_states = len(self.tempo_states)
-        cdef unsigned int num_states = num_beat_states * num_tempo_states
-        # transition probabilities
-        cdef double same_tempo_prob = log(1. - self.tempo_change_probability)
-        cdef double change_tempo_prob = log(0.5 * self.tempo_change_probability)
+        cdef unsigned int num_tempo_states = len(beat_states)
+        cdef unsigned int num_states = np.sum(beat_states)
         # counters etc.
-        cdef unsigned int state, prev_state, beat_state, tempo_state, tempo
-        # number of transition states
-        # num_tempo_states * 3 because every state has a transition from the
-        # same tempo and from the slower and faster one, -2 because the slowest
-        # and the fastest tempi can't have transition_model from outside the tempo
-        # range
-        cdef int num_transition_states = (num_beat_states *
-                                          (num_tempo_states * 3 - 2))
-        # arrays for transition_model matrix creation
+        cdef unsigned int state, prev_state, tempo_state, from_tempo
+        cdef double ratio, u, prob, prob_sum
+        cdef double threshold = np.spacing(1)
+
+        # to determine the number of transitions, we need to determine the
+        # number of tempo change transitions first; also compute their
+        # probabilities for later use
+
+        # tempo changes can only occur at the beginning of a beat
+        # transition matrix for the tempo changes
+        trans_prob_ = np.zeros((num_tempo_states, num_tempo_states),
+                               dtype=np.float)
+        cdef double [:, ::1] trans_prob = trans_prob_
+        # iterate over all tempo states
+        for tempo_state in range(num_tempo_states):
+            # reset probability sum
+            prob_sum = 0
+            # compute transition probabilities to all other tempo states
+            for from_tempo in range(num_tempo_states):
+                # compute the ratio of the number of beat states between the
+                # two tempi
+                ratio = beat_states[tempo_state] / \
+                        float(beat_states[from_tempo])
+                # compute the probability for the tempo change following an
+                # exponential distribution
+                prob = exp(-transition_lambda * abs(ratio - 1))
+                # keep only transition probabilities > threshold
+                if prob > threshold:
+                    # save the probability
+                    trans_prob[from_tempo, tempo_state] = prob
+                    # collect normalization data
+                    prob_sum += prob
+            # normalize the tempo transitions
+            for from_tempo in range(num_tempo_states):
+                trans_prob[from_tempo, tempo_state] /= prob_sum
+
+        # number of tempo transitions (= non-zero probabilities)
+        cdef unsigned int num_tempo_transitions = \
+            len(np.nonzero(trans_prob_)[0])
+
+        # apart from the very beginning of a beat, the tempo stays the same,
+        # thus the number of transitions is equal to the total number of states
+        # plus the number of tempo transitions minus the number of tempo states
+        # since these transitions are already included in the tempo transitions
+        cdef int num_transitions = num_states + num_tempo_transitions - \
+                                   num_tempo_states
+        # arrays for transition matrix creation
         cdef unsigned int [::1] states = \
-            np.empty(num_transition_states, np.uint32)
+            np.empty(num_transitions, dtype=np.uint32)
         cdef unsigned int [::1] prev_states = \
-            np.empty(num_transition_states, np.uint32)
+            np.empty(num_transitions, dtype=np.uint32)
+        # init the log_probabilities with zeros (log(1) = 0), so we have to
+        # care only about the probabilities of the tempo transitions
         cdef double [::1] log_probabilities = \
-            np.empty(num_transition_states, np.float)
+            np.zeros(num_transitions, dtype=np.float)
+
+        # cache first and last positions
+        cdef unsigned int [::1] first_beat_positions = \
+            self.first_beat_positions
+        cdef unsigned int [::1] last_beat_positions =\
+            self.last_beat_positions
+        # state counter
         cdef int i = 0
-        # loop over all states
-        for state in range(num_states):
-            # position inside beat & tempo
-            beat_state = state % num_beat_states
-            tempo_state = state / num_beat_states
-            # get the corresponding tempo
-            tempo = self.tempo_states[tempo_state]
-            # for each state check the 3 possible transition_model
-            # previous state with same tempo
-            # Note: we add num_beat_states before the modulo operation so
-            #       that it can be computed in C (which is faster)
-            prev_state = ((beat_state + num_beat_states - tempo) %
-                          num_beat_states +
-                          (tempo_state * num_beat_states))
-            # probability for transition from same tempo
-            states[i] = state
-            prev_states[i] = prev_state
-            log_probabilities[i] = same_tempo_prob
-            i += 1
-            # transition from slower tempo
-            if tempo_state > 0:
-                # previous state with slower tempo
-                prev_state = ((beat_state + num_beat_states - (tempo - 1)) %
-                              num_beat_states +
-                              ((tempo_state - 1) * num_beat_states))
-                # probability for transition from slower tempo
-                states[i] = state
+        # loop over all tempi
+        for tempo_state in range(num_tempo_states):
+            # generate all transitions from other tempi
+            for from_tempo in range(num_tempo_states):
+                # but only if it is a probable transition
+                if trans_prob[from_tempo, tempo_state] != 0:
+                    # generate a transition
+                    prev_states[i] = last_beat_positions[from_tempo]
+                    states[i] = first_beat_positions[tempo_state]
+                    log_probabilities[i] = log(trans_prob[from_tempo,
+                                                          tempo_state])
+                    # increase counter
+                    i += 1
+            # transitions within the same tempo
+            for prev_state in range(first_beat_positions[tempo_state],
+                                    last_beat_positions[tempo_state]):
+                # generate a transition with log(1) = 0 probability
                 prev_states[i] = prev_state
-                log_probabilities[i] = change_tempo_prob
+                states[i] = prev_state + 1
+                # Note: skip setting the probability here, since
+                #       log_probabilities was initialised with 0
+                # increase counter
                 i += 1
-            # transition from faster tempo
-            if tempo_state < num_tempo_states - 1:
-                # previous state with faster tempo
-                # Note: we add num_beat_states before the modulo operation
-                #       so that it can be computed in C (which is faster)
-                prev_state = ((beat_state + num_beat_states - (tempo + 1)) %
-                              num_beat_states +
-                              ((tempo_state + 1) * num_beat_states))
-                # probability for transition from faster tempo
-                states[i] = state
-                prev_states[i] = prev_state
-                log_probabilities[i] = change_tempo_prob
-                i += 1
-        # return a TransitionModel
+        # return the arrays
         return states, prev_states, log_probabilities
 
-    # mapping functions
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def compute_mapping(self):
+        """
+        Compute the mapping from state numbers to position and tempo states.
+
+        :return: tuple with (position_mapping, tempo_mapping)
+
+        """
+        # counters etc.
+        cdef unsigned int tempo_state, first_beat, last_beat
+        cdef unsigned int num_states = np.sum(self.beat_states)
+        cdef float pos, num_beat_states
+
+        # mapping arrays from state numbers to tempo / position
+        cdef unsigned int [::1] tempo = \
+            np.empty(num_states, dtype=np.uint32)
+        cdef double [::1] position = \
+            np.empty(num_states, dtype=np.float)
+        # cache variables
+        cdef unsigned int [::1] beat_states = \
+            self.beat_states
+        cdef unsigned int [::1] first_beat_positions = \
+            self.first_beat_positions
+        cdef unsigned int [::1] last_beat_positions = \
+            self.last_beat_positions
+        # loop over all tempi
+        for tempo_state in range(self.num_tempo_states):
+            # first and last beat (exclusive) for tempo
+            first_beat = first_beat_positions[tempo_state]
+            last_beat = last_beat_positions[tempo_state]
+            # number of beats for tempo
+            num_beat_states = float(beat_states[tempo_state])
+            # reset position counter
+            pos = 0
+            for state in range(first_beat, last_beat + 1):
+                # tempo state mapping
+                tempo[state] = tempo_state
+                # position inside beat mapping
+                position[state] = pos / num_beat_states
+                pos += 1
+        # return the mappings
+        return np.asarray(position), np.asarray(tempo)
+
     def position(self, state):
         """
-        Position (within the beat) for a given state sequence.
+        Position (inside one beat) for a given state sequence.
 
         :param state: state (sequence) [int or numpy array]
         :return:      corresponding beat state sequence
 
         """
-        # return a value in the range of 0..1
-        return state % self.num_beat_states / float(self.num_beat_states)
+        return self.position_mapping[state]
 
     def tempo(self, state):
         """
@@ -454,8 +530,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         :return:      corresponding tempo state sequence
 
         """
-        # return the tempo state index
-        return state // self.num_beat_states
+        return self.tempo_mapping[state]
 
 
 class BeatTrackingObservationModel(ObservationModel):
@@ -490,7 +565,7 @@ class BeatTrackingObservationModel(ObservationModel):
         self.pointers = np.ones(tm.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
-        beat_idx = tm.position(np.arange(tm.num_states)) < border
+        beat_idx = tm.position(np.arange(tm.num_states, dtype=np.int)) < border
         self.pointers[beat_idx] = 0
         # instantiate an ObservationModel
         # FIXME: we don't have log_densities for instantiation yet...
@@ -501,10 +576,13 @@ class BeatTrackingObservationModel(ObservationModel):
     @cython.wraparound(False)
     def compute_densities(self, float [::1] observations):
         """
-        Compute the observation log densities.
+        Compute the observation log densities and save them.
 
         :param observations: observations (i.e. activations of the NN)
         :return:             log_densities
+
+        Note: this method must be called prior to calling the viterbi() method
+              of the DBN.
 
         """
         # init variables
@@ -530,56 +608,48 @@ class DownBeatTrackingTransitionModel(TransitionModel):
     Transition model for down-beat tracking with a DBN.
 
     """
-    def __init__(self, num_bar_states, tempo_states,
-                 tempo_change_probabilities):
+    def __init__(self, beat_states, transition_lambda):
         """
-        Construct a transition model instance suitable for down-beat tracking.
+        Construct a new DownBeatTrackingTransitionModel.
 
-        DownBeatTrackingTransitionModel is an extension of the
-        BeatTrackingTransitionModel. Instead of modelling a single pattern, it
-        allows multiple patterns. It basically accepts the same arguments as
+        Instead of modelling a single pattern (as BeatTrackingTransitionModel),
+        it allows multiple patterns. It basically accepts the same arguments as
         the BeatTrackingTransitionModel, but everything as lists, with the list
         entries at the same position corresponding to one (rhythmic) pattern.
 
-        :param num_bar_states:            list with number of bar states for
-                                          one bar period
-        :param tempo_states:              list with numpy arrays with tempo
-                                          states (number of bar states to
-                                          progress from one observation value
-                                          to the next one)
-        :param tempo_change_probabilities: list with probabilities of a tempo
-                                          change from one observation to the
-                                          next one
+        :param beat_states:       list of arrays with beat states (each item
+                                  in the list models a pattern and each item
+                                  in the array is used to model a tempo, its
+                                  values gives the number of states to model
+                                  the complete bar length)
+        :param transition_lambda: list of arrays with lambdas for the
+                                  exponential tempo change distribution
+                                  (higher values prefer a constant tempo over
+                                  a tempo change from one bar to the next one)
+                                  If a single value is given, the same value
+                                  is assumed for all patterns.
 
-        "Rhythmic pattern modeling for beat and downbeat tracking in musical
-         audio"
-        Florian Krebs, Sebastian Böck, and Gerhard Widmer
-        Proceedings of the 14th International Society for Music Information
-        Retrieval Conference (ISMIR), 2013.
+        TODO: add reference!
 
         """
-        # instantiate an empty TransitionModel object
-        super(DownBeatTrackingTransitionModel, self).__init__(None, None, None)
+        # expand the transition lambda to a list if needed, i.e. use the same
+        # value for all patterns
+        if not isinstance(transition_lambda, list):
+            transition_lambda = [transition_lambda] * len(transition_lambda)
         # check if all lists have the same length
-        if not (len(num_bar_states) == len(tempo_states) ==
-            len(tempo_change_probabilities)):
-            raise ValueError("'num_bar_states', 'tempo_states' and "
-                             "'tempo_change_probabilities' must have the same "
-                             "length")
+        if not len(beat_states) == len(transition_lambda):
+            raise ValueError("'beat_states' and 'transition_lambda' must have "
+                             "the same length")
         # save the given arguments
-        self.num_bar_states = num_bar_states
-        self.tempo_states = tempo_states
-        self.tempo_change_probabilities = tempo_change_probabilities
+        self.beat_states = beat_states
+        self.transition_lambda = transition_lambda
         # for each pattern, compute the transitions
-        for i, (bs, ts, tcp) in enumerate(zip(num_bar_states, tempo_states,
-                                              tempo_change_probabilities)):
-            # make sure that the tempo_states are contiguous in memory
-            ts = np.ascontiguousarray(ts, dtype=np.int32)
+        for pattern, (bs, tl) in enumerate(zip(beat_states, transition_lambda)):
             # create a BeatTrackingTransitionModel
-            tm = BeatTrackingTransitionModel(bs, ts, tcp)
-            seq = np.arange(tm.num_states)
+            tm = BeatTrackingTransitionModel(bs, tl)
+            seq = np.arange(tm.num_states, dtype=np.int)
             # set/update the probabilities, states and pointers
-            if i == 0:
+            if pattern == 0:
                 # set TM arrays
                 states = tm.states
                 pointers = tm.pointers
@@ -587,7 +657,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                 # internal mapping arrays
                 self.position_mapping = tm.position(seq)
                 self.tempo_mapping = tm.tempo(seq)
-                self.pattern_mapping = np.repeat(i, tm.num_states)
+                self.pattern_mapping = np.repeat(pattern, tm.num_states)
             else:
                 # update TM array
                 states = np.hstack((states,
@@ -602,52 +672,51 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                 self.tempo_mapping = np.hstack((self.tempo_mapping,
                                                 tm.tempo(seq)))
                 self.pattern_mapping = np.hstack((self.pattern_mapping,
-                                                  np.repeat(i, tm.num_states)))
-        # instantiate a BeatTrackingTransitionModel with the transitions
-        super(DownBeatTrackingTransitionModel, self).__init__(states,
-                                                              pointers,
-                                                              log_probabilities)
+                                                  np.repeat(pattern,
+                                                            tm.num_states)))
+        # instantiate a TransitionModel with the transitions
+        super(DownBeatTrackingTransitionModel, self).__init__(
+            states, pointers, log_probabilities)
 
     @property
     def num_tempo_states(self):
         """Number of tempo states."""
-        return [len(t) for t in self.tempo_states]
+        return [len(t) for t in self.beat_states]
 
     @property
     def num_patterns(self):
         """Number of rhythmic patterns"""
-        # use the length of any of the lists as number of patterns
-        return len(self.tempo_states)
+        return len(self.beat_states)
 
-    def position(self, state_sequence):
+    def position(self, state):
         """
-        Position (within the bar) for a given state sequence.
+        Position (inside one bar) for a given state sequence.
 
-        :param state_sequence: given state sequence
-        :return:               corresponding bar state sequence
-
-        """
-        return self.position_mapping[state_sequence]
-
-    def tempo(self, state_sequence):
-        """
-        Tempo for the given state sequence.
-
-        :param state_sequence: given state sequence
-        :return:               corresponding tempo state sequence
+        :param state: state (sequence) [int or numpy array]
+        :return:      corresponding beat state sequence
 
         """
-        return self.tempo_mapping[state_sequence]
+        return self.position_mapping[state]
 
-    def pattern(self, state_sequence):
+    def tempo(self, state):
+        """
+        Tempo for a given state sequence.
+
+        :param state: state (sequence) [int or numpy array]
+        :return:      corresponding tempo state sequence
+
+        """
+        return self.tempo_mapping[state]
+
+    def pattern(self, state):
         """
         Pattern for the given state sequence.
 
-        :param state_sequence: given state sequence
-        :return:               corresponding pattern state sequence
+        :param state: state (sequence) [int or numpy array]
+        :return:      corresponding pattern state sequence
 
         """
-        return self.pattern_mapping[state_sequence]
+        return self.pattern_mapping[state]
 
 
 class GMMDownBeatTrackingObservationModel(ObservationModel):
@@ -714,7 +783,6 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         for i in range(num_patterns):
             for j in range(len(self.gmms[i])):
                 # get the predictions of each GMM for the observations
-                # TODO: use a faster C version without sklearn!
                 log_densities[:, c] = self.gmms[i][j].score(observations)
                 c += 1
         # save the densities and return them

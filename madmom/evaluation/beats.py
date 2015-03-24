@@ -673,10 +673,6 @@ class BeatEvaluation(OnsetEvaluation):
         scores = information_gain(detections, annotations, num_bins)
         self.information_gain, self.error_histogram = scores
 
-    def __len__(self):
-        # just use the length of any of the arrays
-        return len(self._fmeasure)
-
     @property
     def global_information_gain(self):
         """Global information gain."""
@@ -739,6 +735,10 @@ class MeanBeatEvaluation(BeatEvaluation):
         # information gain stuff
         self._information_gain = np.zeros(0)
         self._error_histogram = None
+
+    def __len__(self):
+        # just use the length of any of the arrays
+        return len(self._fmeasure)
 
     # for adding another BeatEvaluation object
     def append(self, other):

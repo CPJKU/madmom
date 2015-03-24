@@ -34,7 +34,7 @@ def main():
     ''')
     # add arguments
     io_arguments(p, suffix='.onsets.txt')
-    SuperFlux.add_activations_arguments(p)
+    SuperFlux.add_activation_arguments(p)
     SuperFlux.add_signal_arguments(p, norm=False, att=0)
     SuperFlux.add_framing_arguments(p, fps=100, online=False)
     SuperFlux.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
