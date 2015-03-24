@@ -46,6 +46,10 @@ Please make sure that all modules are up to date, especially those mentioned
 in requirements.txt must be the specific version (or newer), otherwise it can
 result in unexpected errors or false computations!
 
+The package does work out of the box with .wav audio files with a sample rate
+of 44.1kHz and 16 bit depth. If other sound formats should be used, ffmpeg (or
+avconv on Ubuntu Linux) must be installed on the system.
+
 Notes:
 ------
 
