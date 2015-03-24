@@ -29,7 +29,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='DownBeatTracker')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.beats.txt')
     SpectralBeatTracking.add_activations_arguments(p)
     SpectralBeatTracking.add_signal_arguments(p, norm=False, att=0)
     SpectralBeatTracking.add_framing_arguments(p, fps=50, online=False)

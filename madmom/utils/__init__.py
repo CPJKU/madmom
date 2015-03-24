@@ -295,7 +295,7 @@ class ParallelProcess(mp.Process):
 
 
 def process_batch(processor, files, output_dir=None, output_suffix=None,
-                  num_workers=mp.cpu_count(), **kwargs):
+                  strip_ext=True, num_workers=mp.cpu_count(), **kwargs):
     """
     Process a list of files with the given Processor in batch mode.
 
@@ -303,7 +303,8 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     :param files:         audio files [list]
     :param output_dir:    output directory
     :param output_suffix: output suffix
-    :param num_workers:   number of parallel working threads
+    :param strip_ext:     strip off the extension from the files [bool]
+    :param num_workers:   number of parallel working threads [int]
 
     Note: Either `output_dir` or `output_suffix` must be set.
 
@@ -335,6 +336,9 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
             output_file = "%s/%s" % (output_dir, os.path.basename(input_file))
         else:
             output_file = input_file
+        # strip off the extension
+        if strip_ext:
+            output_file = os.path.splitext(output_file)[0]
         # append the suffix if needed
         if output_suffix is not None:
             output_file += output_suffix
@@ -357,7 +361,7 @@ def pickle_processor(processor, outfile, **kwargs):
 
 
 # generic input/output arguments for scripts
-def io_arguments(parser):
+def io_arguments(parser, suffix='.txt'):
     """
     Add input / output related arguments to an existing parser.
 
@@ -389,9 +393,13 @@ def io_arguments(parser):
     sp.add_argument('files', nargs='+', help='files to be processed')
     sp.add_argument('-o', dest='output_dir', default=None,
                     help='output directory [default=%(default)s]')
-    sp.add_argument('-s', dest='output_suffix', default='.txt',
-                    help='extension appended to the files '
-                         '[default=%(default)s]')
+    sp.add_argument('-s', dest='output_suffix', default=suffix,
+                    help='suffix appended to the files (dot must be included '
+                         'if wanted) [default=%(default)s]')
+    sp.add_argument('--ext', dest='strip_ext', action='store_false',
+                    default=True,
+                    help='keep the extension of the input file [default='
+                         'strip it off before appending the output suffix]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
                     help='number of parallel workers [default=%(default)s]')
 

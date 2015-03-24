@@ -30,7 +30,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.tempo.txt')
     RNNTempoEstimation.add_activation_arguments(p)
     RNNTempoEstimation.add_rnn_arguments(p)
     RNNTempoEstimation.add_arguments(p)

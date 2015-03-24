@@ -42,7 +42,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # add arguments
-    io_arguments(p)
+    io_arguments(p, suffix='.onsets.txt')
     RNNOnsetDetection.add_arguments(p, online=True)
     # parse arguments
     args = p.parse_args()
