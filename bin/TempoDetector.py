@@ -31,7 +31,7 @@ def main():
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
     io_arguments(p)
-    RNNTempoEstimation.add_activation_arguments(p)
+    RNNTempoEstimation.add_activations_arguments(p)
     RNNTempoEstimation.add_rnn_arguments(p)
     RNNTempoEstimation.add_arguments(p)
     # mirex stuff

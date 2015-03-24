@@ -1133,11 +1133,13 @@ class DownbeatTracking(Processor):
                             'tempo change from one bar to the next one (comma '
                             'separated list with one value per pattern) '
                             '[default=%(default)s]')
-        g.add_argument('--num_beats',
-                       action=OverrideDefaultTypedListAction,
-                       default=num_beats, list_type=int,
-                       help='number of beats per par (comma separated list '
-                            'with one value per pattern) [default=%(default)s]')
+        if num_beats is not None:
+            g.add_argument('--num_beats',
+                           action=OverrideDefaultTypedListAction,
+                           default=num_beats, list_type=int,
+                           help='number of beats per par (comma separated '
+                                'list with one value per pattern) '
+                                '[default=%(default)s]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
@@ -1239,5 +1241,5 @@ class RNNBeatTracking(IOProcessor):
         super(RNNBeatTracking, self).__init__(in_processor, out_processor)
 
     # add aliases to argument parsers
-    add_activation_arguments = ActivationsProcessor.add_arguments
+    add_activations_arguments = ActivationsProcessor.add_arguments
     add_rnn_arguments = RNNBeatProcessing.add_arguments

@@ -721,12 +721,12 @@ class SpectrogramProcessor(Processor):
                 g.add_argument('--no_norm_filters', dest='norm_filters',
                                action='store_false', default=norm_filters,
                                help='do not normalize the filter to area 1 '
-                                    '[default=False]')
+                                    '[default=True]')
             else:
                 g.add_argument('--norm_filters', dest='norm_filters',
                                action='store_true', default=norm_filters,
                                help='normalize the filter to area 1 '
-                                    '[default=True]')
+                                    '[default=False]')
         # return the group
         return g
 
@@ -755,12 +755,11 @@ class SpectrogramProcessor(Processor):
             if log:
                 g.add_argument('--no_log', dest='log',
                                action='store_false', default=log,
-                               help='no logarithmic magnitude '
-                               '[default=logarithmic]')
+                               help='linear magnitudes [default=logarithmic]')
             else:
                 g.add_argument('--log', action='store_true',
-                               default=-log, help='logarithmic '
-                               'magnitude [default=linear]')
+                               default=-log,
+                               help='logarithmic magnitudes [default=linear]')
         if mul is not None:
             g.add_argument('--mul', action='store', type=float,
                            default=mul, help='multiplier (before taking '
@@ -963,9 +962,10 @@ class StackSpectrogramProcessor(Processor):
     Stack spec & diff.
 
     """
-    def __init__(self, frame_sizes, fps=100, online=False, bands=BANDS,
-                 fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG,
-                 mul=MUL, add=ADD, diff_ratio=DIFF_RATIO, **kwargs):
+    def __init__(self, frame_sizes, fps=100, online=False,
+                 filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
+                 norm_filters=NORM_FILTERS, log=LOG, mul=MUL, add=ADD,
+                 diff_ratio=DIFF_RATIO, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 
@@ -982,6 +982,8 @@ class StackSpectrogramProcessor(Processor):
 
         Filterbank parameters:
 
+        :param filterbank:    filter the magnitude spectrogram with a
+                              filterbank of this type [None or Filterbank]
         :param bands:         use N bands per octave [int]
         :param fmin:          minimum frequency of the filterbank [float]
         :param fmax:          maximum frequency of the filterbank [float]
@@ -1003,7 +1005,7 @@ class StackSpectrogramProcessor(Processor):
         """
         from .signal import FramedSignalProcessor
         # use the same spec for all frame sizes
-        sp = SpectrogramProcessor(filterbank=LogarithmicFilterbank,
+        sp = SpectrogramProcessor(filterbank=filterbank,
                                   bands=bands, fmin=fmin, fmax=fmax,
                                   norm_filters=norm_filters, log=log,
                                   mul=mul, add=add, diff_ratio=diff_ratio,

@@ -149,10 +149,6 @@ class TempoEvaluation(object):
         self.acc2 = tempo_evaluation(detections, annotations, strengths,
                                      tolerance)[1]
 
-    def __len__(self):
-        # just use the length of any of the arrays
-        return len(self._pscore)
-
     def print_errors(self, indent='', tex=False):
         """
         Print errors.
@@ -191,6 +187,10 @@ class MeanTempoEvaluation(TempoEvaluation):
         self._all = np.zeros(0, dtype=bool)
         self._acc1 = np.zeros(0, dtype=bool)
         self._acc2 = np.zeros(0, dtype=bool)
+
+    def __len__(self):
+        # just use the length of any of the arrays
+        return len(self._pscore)
 
     # for adding another TempoEvaluation object
     def append(self, other):

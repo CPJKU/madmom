@@ -45,7 +45,7 @@ def main():
     SpectralBeatTracking.add_diff_arguments(p, diff_ratio=0.5)
     SpectralBeatTracking.add_multi_band_arguments(p,
                                                   crossover_frequencies=[270])
-    DownbeatTracking.add_arguments(p)
+    DownbeatTracking.add_arguments(p, num_beats=None)
     # parse arguments
     args = p.parse_args()
     # print arguments

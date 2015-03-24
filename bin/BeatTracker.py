@@ -32,7 +32,7 @@ def main():
     p.add_argument('--version', action='version', version='BeatTracker.2014')
     # add arguments
     io_arguments(p)
-    RNNBeatTracking.add_activation_arguments(p)
+    RNNBeatTracking.add_activations_arguments(p)
     RNNBeatTracking.add_rnn_arguments(p)
     BeatTracking.add_tempo_arguments(p)
     BeatTracking.add_arguments(p, look_ahead=10)

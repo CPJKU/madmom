@@ -31,7 +31,7 @@ def main():
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # add arguments
     io_arguments(p)
-    RNNBeatTracking.add_activation_arguments(p)
+    RNNBeatTracking.add_activations_arguments(p)
     RNNBeatTracking.add_rnn_arguments(p)
     DBNBeatTracking.add_arguments(p)
     # parse arguments

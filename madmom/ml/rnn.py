@@ -487,7 +487,7 @@ class RecurrentNeuralNetwork(Processor):
     @classmethod
     def load(cls, filename):
         """
-        Load the RecurrentNeuralNetwork model from a .npz file.
+        Instantiate a RecurrentNeuralNetwork from a .npz model file.
 
         :param filename: name of the .npz file with the RNN model
         :return:         RecurrentNeuralNetwork instance
@@ -618,7 +618,7 @@ def average_predictions(predictions):
     """
     Returns the average of all predictions from the list.
 
-    :param predictions: list with predictions (beat activation functions)
+    :param predictions: list with predictions (i.e. NN activation functions)
     :return:            averaged prediction
 
     """
