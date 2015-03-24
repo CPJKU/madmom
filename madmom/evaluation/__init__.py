@@ -649,7 +649,7 @@ class MultiClassEvaluation(Evaluation):
         return ret
 
 
-def evaluation_io(parser, ann_suffix, det_suffix):
+def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
     Add evaluation related arguments to an existing parser object.
 
@@ -666,9 +666,17 @@ def evaluation_io(parser, ann_suffix, det_suffix):
                         default=ann_suffix,
                         help='suffix of the annotation files '
                              '[default: %(default)s]')
+    parser.add_argument('--ann_dir', action='store',
+                        default=ann_dir,
+                        help='search only this directory for annotation files '
+                             '[default: %(default)s]')
     parser.add_argument('-d', dest='det_suffix', action='store',
                         default=det_suffix,
                         help='suffix of the detection files '
+                             '[default: %(default)s]')
+    parser.add_argument('--det_dir', action='store',
+                        default=det_dir,
+                        help='search only this directory for detection files '
                              '[default: %(default)s]')
     # output options
     g = parser.add_argument_group('formatting arguments')
