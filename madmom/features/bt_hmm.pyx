@@ -47,7 +47,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         # compute the position and tempo mapping
         self.position_mapping, self.tempo_mapping = self.compute_mapping()
         # compute the transitions
-        transitions = self.make_sparse(*self.compute_transitions())
+        transitions = TransitionModel.make_sparse(*self.compute_transitions())
         # instantiate a BeatTrackingTransitionModel with the transitions
         super(BeatTrackingTransitionModel, self).__init__(*transitions)
 
@@ -269,14 +269,12 @@ class BeatTrackingObservationModel(ObservationModel):
         tm = transition_model
         # compute observation pointers
         # always point to the non-beat densities
-        self.pointers = np.ones(tm.num_states, dtype=np.uint32)
+        pointers = np.ones(tm.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
         beat_idx = tm.position(np.arange(tm.num_states, dtype=np.int)) < border
-        self.pointers[beat_idx] = 0
-        # instantiate an ObservationModel
-        # FIXME: we don't have log_densities for instantiation yet...
-        # super(BeatTrackingObservationModel, self).__init__(None, pointers)
+        pointers[beat_idx] = 0
+        super(BeatTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -382,7 +380,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                                             tm.num_states)))
         # instantiate a TransitionModel with the transitions
         super(DownBeatTrackingTransitionModel, self).__init__(
-            states, pointers, log_probabilities)
+              states, pointers, log_probabilities)
 
     @property
     def num_tempo_states(self):
@@ -445,7 +443,7 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         self.transition_model = transition_model
         self.norm_observations = norm_observations
         # define the pointers of the log densities
-        self.pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
+        pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
         states = np.arange(self.transition_model.num_states)
         pattern = self.transition_model.pattern(states)
         position = self.transition_model.position(states)
@@ -457,10 +455,12 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
             # uniformly across the entire state space (for this pattern)
             # Note: the densities of all GMMs are just stacked on top of each
             #       other, so we have to add an offset
-            self.pointers[pattern == p] = (position[pattern == p] * num_gmms +
+            pointers[pattern == p] = (position[pattern == p] * num_gmms +
                                            densities_idx_offset)
             # increase the offset by the number of GMMs
             densities_idx_offset += num_gmms
+
+        super(GMMDownBeatTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)

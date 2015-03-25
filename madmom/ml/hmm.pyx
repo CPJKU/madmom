@@ -12,6 +12,7 @@ If you want to change this module and use it interactively, use pyximport.
 
 """
 
+import abc
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -24,7 +25,6 @@ cdef extern from "math.h":
     float INFINITY
 
 
-# transition_model stuff
 class TransitionModel(object):
     """
     Transition model class for a HMM.
@@ -69,8 +69,8 @@ class TransitionModel(object):
         """Number of transitions."""
         return len(self.log_probabilities)
 
-    @classmethod
-    def make_sparse(cls, states, prev_states, log_probabilities):
+    @staticmethod
+    def make_sparse(states, prev_states, log_probabilities):
         """
         Return a sparse representation of dense transitions.
 
@@ -99,7 +99,6 @@ class TransitionModel(object):
         return states, pointers, log_probabilities
 
 
-# observation stuff
 class ObservationModel(object):
     """
     Observation model class for a DBN.
@@ -116,28 +115,31 @@ class ObservationModel(object):
     of the 'log_densities' array. The type must be np.uint32.
 
     """
+    __metaclass__ = abc.ABCMeta
 
-    def __init__(self, log_densities, pointers=None):
+    def __init__(self, pointers):
         """
         Construct a ObservationModel instance for a DBN.
 
-        :param log_densities: observation log densities [numpy array]
-        :param pointers:      pointers from DBN states to the correct densities
+        :param pointers:      pointers from HMM states to the correct densities
                               column [numpy array]
-
-        If `log_densities` are 1D, they are converted to a 2D representation
-        with only 1 column.
-        If `pointers` is 'None', a pointers vector of the same length as the
-        `log_densities` is created pointing always to the first column.
-
         """
-        # convert the densities to a 2d numpy array if needed
-        if log_densities.ndim == 1:
-            log_densities = np.atleast_2d(log_densities).T
-        self.log_densities = np.asarray(log_densities, dtype=np.float)
-        # construct a pointers vector if needed
-        if pointers is None:
-            self.pointers = np.zeros(len(log_densities), dtype=np.uint32)
+
+        self.pointers = pointers
+
+    @abc.abstractmethod
+    def log_densities(self, observations):
+        """
+        Compute the log densities (or, probabilities) of the observations for
+        each state.
+
+        :param observations: observations (list, numpy array, ...)
+        :return: log densities as a 2D numpy array with the number of rows being
+                 equal to the number of observations and the columns
+                 representing the different observation log probability
+                 densities. The type must be np.float.
+        """
+        return
 
 
 # inline function to determine the best previous state
@@ -197,7 +199,7 @@ cdef inline void _best_prev_state(int state, int frame,
             # update the back tracking pointers
             pointers[frame, state] = prev_state
 
-# HMM stuff
+
 class HiddenMarkovModel(object):
     """
     Hidden Markov Model
