@@ -308,7 +308,7 @@ def main():
     ann_files = search_files(args.ann_dir, args.ann_suffix)
 
     # quit if no files are found
-    if len(det_files) == 0:
+    if len(ann_files) == 0:
         print "no files to evaluate. exiting."
         exit()
 
