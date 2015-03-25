@@ -656,6 +656,8 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
     :param det_suffix: suffix for the detection files
+    :param ann_dir:    use only annotations from this folder (+ sub-folders)
+    :param det_dir:    use only detections from this folder (+ sub-folders)
     :return:           audio argument parser group object
 
     """
@@ -668,16 +670,16 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                              '[default: %(default)s]')
     parser.add_argument('--ann_dir', action='store',
                         default=ann_dir,
-                        help='search only this directory for annotation files '
-                             '[default: %(default)s]')
+                        help='search only this directory (recursively) for '
+                             'annotation files [default: %(default)s]')
     parser.add_argument('-d', dest='det_suffix', action='store',
                         default=det_suffix,
                         help='suffix of the detection files '
                              '[default: %(default)s]')
     parser.add_argument('--det_dir', action='store',
                         default=det_dir,
-                        help='search only this directory for detection files '
-                             '[default: %(default)s]')
+                        help='search only this directory (recursively) for '
+                             'detection files [default: %(default)s]')
     # output options
     g = parser.add_argument_group('formatting arguments')
     g.add_argument('--tex', action='store_true',
