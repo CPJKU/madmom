@@ -707,7 +707,7 @@ class CRFBeatDetection(BeatTracking):
 def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
     """
     Convert the timing information to beat states usable for transition models
-    of a dynamic Bayesian network.
+    of a Hidden Markov Model.
 
     :param min_bpm:          minimum tempo to model one cycle [float]
     :param max_bpm:          maximum tempo to model one cycle [float]
@@ -746,15 +746,6 @@ class DBNBeatTracking(Processor):
     NORM_OBSERVATIONS = False
     MIN_BPM = 55
     MAX_BPM = 215
-
-    try:
-        from .dbn import (DynamicBayesianNetwork as DBN,
-                          BeatTrackingTransitionModel as TM,
-                          BeatTrackingObservationModel as OM)
-    except ImportError:
-        import warnings
-        warnings.warn('MMBeatTracking only works if you build the dbn '
-                      'module with cython!')
 
     def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
@@ -797,14 +788,19 @@ class DBNBeatTracking(Processor):
         TODO: add reference
 
         """
+
+        from .dbn import (HiddenMarkovModel as Hmm,
+                          BeatTrackingTransitionModel as Tm,
+                          BeatTrackingObservationModel as Om)
+
         # convert timing information to beat space
         beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
         # transition model
-        self.tm = self.TM(beat_space, transition_lambda)
+        self.tm = Tm(beat_space, transition_lambda)
         # observation model
-        self.om = self.OM(self.tm, observation_lambda, norm_observations)
-        # instantiate a DBN
-        self.dbn = self.DBN(self.tm, self.om, None, num_threads=1)
+        self.om = Om(self.tm, observation_lambda, norm_observations)
+        # instantiate a HMM
+        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
         # save variables
         self.fps = fps
         self.correct = correct
@@ -820,7 +816,7 @@ class DBNBeatTracking(Processor):
         # first compute the observation model's log_densities
         self.om.compute_densities(activations)
         # then get the best state path by calling the viterbi algorithm
-        path, _ = self.dbn.viterbi()
+        path, _ = self.hmm.viterbi()
         # correct the beat positions if needed
         if self.correct:
             beats = []
@@ -861,7 +857,7 @@ class DBNBeatTracking(Processor):
                       observation_lambda=OBSERVATION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
-        Add DBN related arguments to an existing parser object.
+        Add HMM related arguments to an existing parser object.
 
         :param parser: existing argparse parser object
 
@@ -940,8 +936,8 @@ class DBNBeatTracking(Processor):
 # class for beat tracking
 class DownbeatTracking(Processor):
     """
-    Class for tracking beats and downbeats with a Hidden Markov Model (HMM)
-    according to
+    Class for tracking beats and downbeats with a Dynamic Bayesian Network (DBN)
+    approximated by a Hidden Markov Model (HMM) according to
 
     """
     MIN_BPM = [55, 60]
@@ -951,15 +947,6 @@ class DownbeatTracking(Processor):
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
     GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
-
-    try:
-        from .dbn import (DynamicBayesianNetwork as DBN,
-                          DownBeatTrackingTransitionModel as TM,
-                          GMMDownBeatTrackingObservationModel as OM)
-    except ImportError:
-        import warnings
-        warnings.warn('Downbeat tracking only works if you build the dbn '
-                      'module with cython!')
 
     def __init__(self, gmm_file=GMM_FILE, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
@@ -1009,6 +996,11 @@ class DownbeatTracking(Processor):
         TODO: add reference
 
         """
+
+        from .dbn import (HiddenMarkovModel as Hmm,
+                          DownBeatTrackingTransitionModel as Tm,
+                          GMMDownBeatTrackingObservationModel as Om)
+
         # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
             num_tempo_states = [num_tempo_states] * len(num_tempo_states)
@@ -1037,11 +1029,11 @@ class DownbeatTracking(Processor):
                                           fps * num_beats[pattern],
                                           num_tempo_states[pattern]))
         # transition model
-        self.tm = self.TM(beat_space, transition_lambda)
+        self.tm = Tm(beat_space, transition_lambda)
         # observation model
-        self.om = self.OM(gmms, self.tm, norm_observations)
-        # instantiate a DBN
-        self.dbn = self.DBN(self.tm, self.om, None, num_threads=1)
+        self.om = Om(gmms, self.tm, norm_observations)
+        # instantiate a HMM
+        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
 
     def process(self, activations):
         """
@@ -1054,7 +1046,7 @@ class DownbeatTracking(Processor):
         # first compute the observation model's log_densities
         self.om.compute_densities(activations)
         # then get the best state path by calling the viterbi algorithm
-        path, _ = self.dbn.viterbi()
+        path, _ = self.hmm.viterbi()
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
         pattern = self.tm.pattern(path[0])
@@ -1080,7 +1072,7 @@ class DownbeatTracking(Processor):
                       transition_lambda=TRANSITION_LAMBDA,
                       num_beats=NUM_BEATS, norm_observations=NORM_OBSERVATIONS):
         """
-        Add DBN related arguments to an existing parser.
+        Add HMM related arguments to an existing parser.
 
         :param parser:            existing argparse parser
 
@@ -1107,7 +1099,7 @@ class DownbeatTracking(Processor):
         :return:                  downbeat argument parser group
 
         """
-        # add DBN parser group
+        # add HMM parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         from madmom.utils import OverrideDefaultTypedListAction
         g.add_argument('--min_bpm', action=OverrideDefaultTypedListAction,
@@ -1144,11 +1136,11 @@ class DownbeatTracking(Processor):
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
-                           help='do not normalize the observations of the DBN')
+                           help='do not normalize the observations of the HMM')
         else:
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
-                           help='normalize the observations of the DBN')
+                           help='normalize the observations of the HMM')
         # add output format stuff
         g = parser.add_argument_group('output arguments')
         g.add_argument('--downbeats', action='store_true', default=False,

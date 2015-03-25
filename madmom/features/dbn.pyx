@@ -28,7 +28,7 @@ cdef extern from "math.h":
 # transition_model stuff
 class TransitionModel(object):
     """
-    Transition model class for a DBN.
+    Transition model class for a HMM.
 
     The transition model is defined similar to a scipy compressed sparse row
     matrix and holds all transition log probabilities from one state to an
@@ -86,7 +86,7 @@ class TransitionModel(object):
         :param log_probabilities: transition log probabilities
 
         This method removes all duplicate states and thus allows for parallel
-        processing of the Viterbi of the DBN.
+        processing of the Viterbi of the HMM.
 
         """
         from scipy.sparse import csr_matrix
@@ -198,10 +198,10 @@ cdef inline void _best_prev_state(int state, int frame,
             # update the back tracking pointers
             pointers[frame, state] = prev_state
 
-# DBN stuff
-class DynamicBayesianNetwork(object):
+# HMM stuff
+class HiddenMarkovModel(object):
     """
-    Dynamic Bayesian network.
+    Hidden Markov Model
 
     To search for the best path through the state space with the Viterbi
     algorithm, a `transition_model`, `observation_model` and
@@ -212,7 +212,7 @@ class DynamicBayesianNetwork(object):
     def __init__(self, transition_model, observation_model,
                  initial_distribution=None, num_threads=NUM_THREADS):
         """
-        Construct a new Dynamic Bayesian network.
+        Construct a new Hidden Markov Model.
 
         :param transition_model:     transition model [TransitionModel]
         :param observation_model:    observation model [ObservationModel]
@@ -535,7 +535,7 @@ class BeatTrackingTransitionModel(TransitionModel):
 
 class BeatTrackingObservationModel(ObservationModel):
     """
-    Observation model for beat tracking with a DBN.
+    Observation model for beat tracking with a HMM.
 
     """
 
@@ -582,7 +582,7 @@ class BeatTrackingObservationModel(ObservationModel):
         :return:             log_densities
 
         Note: this method must be called prior to calling the viterbi() method
-              of the DBN.
+              of the HMM.
 
         """
         # init variables
@@ -605,7 +605,7 @@ class BeatTrackingObservationModel(ObservationModel):
 # down-beat tracking stuff
 class DownBeatTrackingTransitionModel(TransitionModel):
     """
-    Transition model for down-beat tracking with a DBN.
+    Transition model for down-beat tracking with a HMM.
 
     """
     def __init__(self, beat_states, transition_lambda):
@@ -721,7 +721,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
 
 class GMMDownBeatTrackingObservationModel(ObservationModel):
     """
-    Observation model for GMM based beat tracking with a DBN.
+    Observation model for GMM based beat tracking with a HMM.
 
     """
 
