@@ -9,6 +9,7 @@ This file contains all beat tracking related functionality.
 
 import sys
 import glob
+
 import numpy as np
 
 from madmom import MODELS_PATH, Processor, IOProcessor, SequentialProcessor
@@ -20,6 +21,7 @@ from madmom.audio.spectrogram import (SpectrogramProcessor,
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.utils import write_events
 from madmom.features import ActivationsProcessor
+
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
@@ -789,9 +791,9 @@ class DBNBeatTracking(Processor):
 
         """
 
-        from .dbn import (HiddenMarkovModel as Hmm,
-                          BeatTrackingTransitionModel as Tm,
-                          BeatTrackingObservationModel as Om)
+        from madmom.ml.hmm import HiddenMarkovModel as Hmm
+        from .bt_hmm import (BeatTrackingTransitionModel as Tm,
+                             BeatTrackingObservationModel as Om)
 
         # convert timing information to beat space
         beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
@@ -997,9 +999,9 @@ class DownbeatTracking(Processor):
 
         """
 
-        from .dbn import (HiddenMarkovModel as Hmm,
-                          DownBeatTrackingTransitionModel as Tm,
-                          GMMDownBeatTrackingObservationModel as Om)
+        from madmom.ml.hmm import HiddenMarkovModel as Hmm
+        from .bt_hmm import (DownBeatTrackingTransitionModel as Tm,
+                             GMMDownBeatTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
