@@ -128,7 +128,7 @@ class ObservationModel(object):
         self.pointers = pointers
 
     @abc.abstractmethod
-    def log_densities(self, observations):
+    def compute_log_densities(self, observations):
         """
         Compute the log densities (or, probabilities) of the observations for
         each state.
@@ -238,10 +238,11 @@ class HiddenMarkovModel(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def viterbi(self):
+    def viterbi(self, observations):
         """
         Determine the best path with the Viterbi algorithm.
 
+        :param observations: Observations to decode the optimal path for
         :return: best state-space path sequence and its log probability
 
         """
@@ -254,7 +255,7 @@ class HiddenMarkovModel(object):
 
         # observation model stuff
         om = self.observation_model
-        cdef double [:, ::1] om_densities = om.log_densities
+        cdef double [:, ::1] om_densities = om.compute_log_densities(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
         cdef unsigned int num_observations = len(om.log_densities)
 

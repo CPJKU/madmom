@@ -792,8 +792,8 @@ class DBNBeatTracking(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .bt_hmm import (BeatTrackingTransitionModel as Tm,
-                             BeatTrackingObservationModel as Om)
+        from .beats_hmm import (BeatTrackingTransitionModel as Tm,
+                                BeatTrackingObservationModel as Om)
 
         # convert timing information to beat space
         beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
@@ -815,10 +815,8 @@ class DBNBeatTracking(Processor):
         :return:            detected beat positions
 
         """
-        # first compute the observation model's log_densities
-        self.om.compute_densities(activations)
         # then get the best state path by calling the viterbi algorithm
-        path, _ = self.hmm.viterbi()
+        path, _ = self.hmm.viterbi(activations)
         # correct the beat positions if needed
         if self.correct:
             beats = []
@@ -1000,8 +998,8 @@ class DownbeatTracking(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .bt_hmm import (DownBeatTrackingTransitionModel as Tm,
-                             GMMDownBeatTrackingObservationModel as Om)
+        from .beats_hmm import (DownBeatTrackingTransitionModel as Tm,
+                                GMMDownBeatTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
@@ -1045,10 +1043,8 @@ class DownbeatTracking(Processor):
         :return:            detected beat positions
 
         """
-        # first compute the observation model's log_densities
-        self.om.compute_densities(activations)
         # then get the best state path by calling the viterbi algorithm
-        path, _ = self.hmm.viterbi()
+        path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
         pattern = self.tm.pattern(path[0])

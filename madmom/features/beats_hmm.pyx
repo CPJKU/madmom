@@ -279,7 +279,7 @@ class BeatTrackingObservationModel(ObservationModel):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def compute_densities(self, float [::1] observations):
+    def compute_log_densities(self, float [::1] observations):
         """
         Compute the observation log densities and save them.
 
@@ -465,7 +465,7 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def compute_densities(self, observations):
+    def compute_log_densities(self, observations):
         """
         Compute the observation log densities using (a) GMM(s).
 
