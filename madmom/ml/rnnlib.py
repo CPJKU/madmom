@@ -1408,6 +1408,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             tags['diff_max_bins'] = diff_max_bins
         if shift:
             tags['shift'] = shift
+        if spread:
+            tags['spread'] = spread
         # .nc file name
         if out_dir:
             nc_file = "%s/%s" % (out_dir, os.path.basename(f))
