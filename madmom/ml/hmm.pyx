@@ -19,7 +19,6 @@ cimport cython
 
 # parallel processing stuff
 from cython.parallel cimport prange
-NUM_THREADS = 1
 
 cdef extern from "math.h":
     float INFINITY
@@ -41,7 +40,7 @@ class TransitionModel(object):
     This allows for a parallel computation of the viterbi path.
 
     This class should be either used for loading saved transition models or
-    being sub-classed to define a new transition model.
+    being sub-classed to define a specific transition model.
 
     """
 
@@ -101,17 +100,17 @@ class TransitionModel(object):
 
 class ObservationModel(object):
     """
-    Observation model class for a DBN.
+    Observation model class for a HMM.
 
     The observation model is defined as two plain numpy arrays, log_densities
     and pointers.
 
     The 'log_densities' is a 2D numpy array with the number of rows being equal
-    to the length of the observation_model and the columns representing the
+    to the length of the observations and the columns representing the
     different observation log probability densities. The type must be np.float.
 
     The 'pointers' is a 1D numpy array and has a length equal to the number of
-    states of the DBN and points from each state to the corresponding column
+    states of the HMM and points from each state to the corresponding column
     of the 'log_densities' array. The type must be np.uint32.
 
     """
@@ -121,8 +120,8 @@ class ObservationModel(object):
         """
         Construct a ObservationModel instance for a DBN.
 
-        :param pointers:      pointers from HMM states to the correct densities
-                              column [numpy array]
+        :param pointers: pointers from HMM states to the correct densities
+                         column [numpy array]
         """
 
         self.pointers = pointers
@@ -134,10 +133,11 @@ class ObservationModel(object):
         each state.
 
         :param observations: observations (list, numpy array, ...)
-        :return: log densities as a 2D numpy array with the number of rows being
-                 equal to the number of observations and the columns
-                 representing the different observation log probability
-                 densities. The type must be np.float.
+        :return:             log densities as a 2D numpy array with the number
+                             of rows being equal to the number of observations
+                             and the columns representing the different
+                             observation log probability densities. The type
+                             must be np.float.
         """
         return
 
@@ -146,15 +146,15 @@ class ObservationModel(object):
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void _best_prev_state(int state, int frame,
-                                  double [::1] current_viterbi,
-                                  double [::1] previous_viterbi,
-                                  double [:, ::1] om_densities,
-                                  unsigned int [::1] om_pointers,
-                                  unsigned int [::1] tm_states,
-                                  unsigned int [::1] tm_pointers,
-                                  double [::1] tm_probabilities,
-                                  unsigned int [:, ::1] pointers) nogil:
+cdef inline void best_prev_state(int state, int frame,
+                                 double [::1] current_viterbi,
+                                 double [::1] previous_viterbi,
+                                 double [:, ::1] om_densities,
+                                 unsigned int [::1] om_pointers,
+                                 unsigned int [::1] tm_states,
+                                 unsigned int [::1] tm_pointers,
+                                 double [::1] tm_probabilities,
+                                 unsigned int [:, ::1] pointers) nogil:
     """
     Inline function to determine the best previous state.
 
@@ -211,7 +211,7 @@ class HiddenMarkovModel(object):
     """
 
     def __init__(self, transition_model, observation_model,
-                 initial_distribution=None, num_threads=NUM_THREADS):
+                 initial_distribution=None, num_threads=None):
         """
         Construct a new Hidden Markov Model.
 
@@ -231,8 +231,10 @@ class HiddenMarkovModel(object):
                                                   dtype=np.float) /
                                           transition_model.num_states)
         self.initial_distribution = initial_distribution
+        # Note: use this weird construct to be able to pass None and still
+        #       have a valid number of threads
         if num_threads is None:
-            num_threads = NUM_THREADS
+            num_threads = 1
         self.num_threads = num_threads
 
     @cython.cdivision(True)
@@ -242,8 +244,9 @@ class HiddenMarkovModel(object):
         """
         Determine the best path with the Viterbi algorithm.
 
-        :param observations: Observations to decode the optimal path for
-        :return: best state-space path sequence and its log probability
+        :param observations: observations to decode the optimal path for
+        :return:             tuple with best state-space path sequence and its
+                             log probability
 
         """
         # transition model stuff
@@ -255,9 +258,10 @@ class HiddenMarkovModel(object):
 
         # observation model stuff
         om = self.observation_model
-        cdef double [:, ::1] om_densities = om.compute_log_densities(observations)
+        cdef unsigned int num_observations = len(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
-        cdef unsigned int num_observations = len(om.log_densities)
+        cdef double [:, ::1] om_densities = \
+            om.compute_log_densities(observations)
 
         # current viterbi variables
         cdef double [::1] current_viterbi = np.empty(num_states,
@@ -275,24 +279,23 @@ class HiddenMarkovModel(object):
         cdef unsigned int prev_state, pointer, num_threads = self.num_threads
         cdef double obs, transition_prob
 
-        # iterate over all observation_model
+        # iterate over all observations
         for frame in range(num_observations):
-            # range() is faster than prange() for 1 thread
+            # search for the best transition (in parallel)
             if num_threads == 1:
-                # search for best transition_model sequentially
+                # range() is faster than prange() for 1 thread
                 for state in range(num_states):
-                    _best_prev_state(state, frame, current_viterbi,
-                                          previous_viterbi, om_densities,
-                                          om_pointers, tm_states, tm_pointers,
-                                          tm_probabilities, bt_pointers)
+                    best_prev_state(state, frame, current_viterbi,
+                                    previous_viterbi, om_densities,
+                                    om_pointers, tm_states, tm_pointers,
+                                    tm_probabilities, bt_pointers)
             else:
-                # search for best transition_model in parallel
                 for state in prange(num_states, nogil=True, schedule='static',
                                     num_threads=num_threads):
-                    _best_prev_state(state, frame, current_viterbi,
-                                          previous_viterbi, om_densities,
-                                          om_pointers, tm_states, tm_pointers,
-                                          tm_probabilities, bt_pointers)
+                    best_prev_state(state, frame, current_viterbi,
+                                    previous_viterbi, om_densities,
+                                    om_pointers, tm_states, tm_pointers,
+                                    tm_probabilities, bt_pointers)
 
             # overwrite the old states with the current ones
             previous_viterbi[:] = current_viterbi
@@ -304,7 +307,7 @@ class HiddenMarkovModel(object):
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_observations, dtype=np.uint32)
         # track the path backwards, start with the last frame and do not
-        # include the pointer for frame 0, since it includes the transition_model
+        # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
         for frame in range(num_observations -1, -1, -1):
             # save the state in the path

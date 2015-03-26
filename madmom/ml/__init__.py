@@ -3,4 +3,4 @@
 Machine learning package.
 
 """
-from . import rnn, hmm
+from . import rnn, hmm, gmm

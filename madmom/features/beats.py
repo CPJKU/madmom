@@ -737,7 +737,7 @@ def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
 # class for beat tracking
 class DBNBeatTracking(Processor):
     """
-    Beat tracking with RNNs and a DBN.
+    Beat tracking with RNNs and a dynamic Bayesian network (DBN).
 
     """
     # some default values
@@ -755,7 +755,8 @@ class DBNBeatTracking(Processor):
                  observation_lambda=OBSERVATION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
         """
-        Track the beats with a dynamic Bayesian network.
+        Track the beats with a dynamic Bayesian network (DBN) approximated
+        by a Hidden Markov Model (HMM).
 
         :param correct:            correct the beats (i.e. align them
                                    to the nearest peak of the beat
@@ -834,7 +835,7 @@ class DBNBeatTracking(Processor):
                 idx = np.r_[idx, beat_range.size]
             # iterate over all regions
             for left, right in idx.reshape((-1, 2)):
-                # pick the frame with the highest observation_model value
+                # pick the frame with the highest activations value
                 beats.append(np.argmax(activations[left:right]) + left)
             beats = np.asarray(beats)
         else:
@@ -936,8 +937,7 @@ class DBNBeatTracking(Processor):
 # class for beat tracking
 class DownbeatTracking(Processor):
     """
-    Class for tracking beats and downbeats with a Dynamic Bayesian Network (DBN)
-    approximated by a Hidden Markov Model (HMM) according to
+    Beat and downbeat tracking with a dynamic Bayesian network (DBN).
 
     """
     MIN_BPM = [55, 60]
@@ -954,6 +954,9 @@ class DownbeatTracking(Processor):
                  norm_observations=NORM_OBSERVATIONS, downbeats=False,
                  fps=None, **kwargs):
         """
+
+        Track the beats and downbeats with a Dynamic Bayesian Network (DBN)
+        approximated by a Hidden Markov Model (HMM).
 
         :param gmm_file:          load the fitted GMMs from this file
 
@@ -973,8 +976,8 @@ class DownbeatTracking(Processor):
                                   tempo change distribution (higher values
                                   prefer a constant tempo over a tempo change
                                   from one beat to the next one). If a single
-                                  value is given, the same value is assumed for
-                                  all patterns.
+                                  value is given, the same value is assumed
+                                  for all patterns.
         :param num_beats:         list with number of beats per bar
 
         Parameters for the observation model:
@@ -1010,8 +1013,8 @@ class DownbeatTracking(Processor):
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
                 len(transition_lambda) == len(num_beats)):
             raise ValueError("'min_bpm', 'max_bpm', 'num_tempo_states', "
-                             "'transition_lambda' and 'num_beats' must have the same "
-                             "length")
+                             "'transition_lambda' and 'num_beats' must have "
+                             "the same length")
         self.fps = fps
         self.num_beats = num_beats
         self.downbeats = downbeats
@@ -1043,7 +1046,7 @@ class DownbeatTracking(Processor):
         :return:            detected beat positions
 
         """
-        # then get the best state path by calling the viterbi algorithm
+        # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)

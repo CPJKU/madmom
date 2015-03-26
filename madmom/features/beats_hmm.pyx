@@ -25,7 +25,6 @@ class BeatTrackingTransitionModel(TransitionModel):
     Transition model for beat tracking with a HMM.
 
     """
-
     def __init__(self, beat_states, transition_lambda):
         """
         Construct a new BeatTrackingTransitionModel.
@@ -47,8 +46,8 @@ class BeatTrackingTransitionModel(TransitionModel):
         # compute the position and tempo mapping
         self.position_mapping, self.tempo_mapping = self.compute_mapping()
         # compute the transitions
-        transitions = TransitionModel.make_sparse(*self.compute_transitions())
-        # instantiate a BeatTrackingTransitionModel with the transitions
+        transitions = self.make_sparse(*self.compute_transitions())
+        # instantiate a TransitionModel with the transitions
         super(BeatTrackingTransitionModel, self).__init__(*transitions)
 
     @property
@@ -251,10 +250,11 @@ class BeatTrackingObservationModel(ObservationModel):
         """
         Construct a new BeatTrackingDynamicObservationModel.
 
-        :param observation_lambda:       split one beat period into N parts,
-                                         the first representing beat states
-                                         and the remaining non-beat states
-        :param norm_observations:        normalize the observation_model
+        :param transition_model:   BeatTrackingTransitionModel instance
+        :param observation_lambda: split one beat period into N parts, the
+                                   first representing beat states and the
+                                   remaining non-beat states
+        :param norm_observations:  normalize the observations
 
         "A multi-model approach to beat tracking considering heterogeneous
          music styles"
@@ -274,6 +274,7 @@ class BeatTrackingObservationModel(ObservationModel):
         border = 1. / observation_lambda
         beat_idx = tm.position(np.arange(tm.num_states, dtype=np.int)) < border
         pointers[beat_idx] = 0
+        # instantiate a ObservationModel with the pointers
         super(BeatTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
@@ -284,7 +285,7 @@ class BeatTrackingObservationModel(ObservationModel):
         Compute the observation log densities and save them.
 
         :param observations: observations (i.e. activations of the NN)
-        :return:             log_densities
+        :return:             log densities of the observations
 
         Note: this method must be called prior to calling the viterbi() method
               of the HMM.
@@ -302,9 +303,8 @@ class BeatTrackingObservationModel(ObservationModel):
             log_densities[i, 0] = log(observations[i])
             log_densities[i, 1] = log((1. - observations[i]) /
                                       (observation_lambda - 1))
-        # save the densities and return them
-        self.log_densities = np.asarray(log_densities)
-        return self.log_densities
+        # return the densities
+        return np.asarray(log_densities)
 
 
 class DownBeatTrackingTransitionModel(TransitionModel):
@@ -435,8 +435,14 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
 
         :param gmms:              list with fitted GMM(s), one entry per
                                   rhythmic pattern
-        :param transition_model:  transition model
+        :param transition_model:  DownBeatTrackingTransitionModel instance
         :param norm_observations: normalize the observations
+
+        "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
+         Audio"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 15th International Society for Music Information
+        Retrieval Conference (ISMIR), 2013
 
         """
         self.gmms = gmms
@@ -447,19 +453,20 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         states = np.arange(self.transition_model.num_states)
         pattern = self.transition_model.pattern(states)
         position = self.transition_model.position(states)
+        # Note: the densities of all GMMs are just stacked on top of each
+        #       other, so we have to to keep track of the total number of GMMs
         densities_idx_offset = 0
         for p in range(len(gmms)):
             # number of fitted GMMs for this pattern
             num_gmms = len(gmms[p])
             # distribute the observation densities defined by the GMMs
             # uniformly across the entire state space (for this pattern)
-            # Note: the densities of all GMMs are just stacked on top of each
-            #       other, so we have to add an offset
+            # since the densities are just stacked, add the offset
             pointers[pattern == p] = (position[pattern == p] * num_gmms +
-                                           densities_idx_offset)
+                                      densities_idx_offset)
             # increase the offset by the number of GMMs
             densities_idx_offset += num_gmms
-
+        # instantiate a ObservationModel with the pointers
         super(GMMDownBeatTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
@@ -470,7 +477,7 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         Compute the observation log densities using (a) GMM(s).
 
         :param observations: observations (i.e. activations of the NN)
-        :return:             log_densities
+        :return:             log densities of the observations
 
         """
         # counter, etc.
@@ -490,6 +497,5 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
                 # get the predictions of each GMM for the observations
                 log_densities[:, c] = self.gmms[i][j].score(observations)
                 c += 1
-        # save the densities and return them
-        self.log_densities = log_densities
-        return self.log_densities
+        # return the densities
+        return log_densities
