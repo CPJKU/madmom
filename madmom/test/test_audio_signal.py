@@ -112,8 +112,8 @@ class TestAttenuateFunction(unittest.TestCase):
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = attenuate(signal, 0)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_values_1d(self):
@@ -172,8 +172,8 @@ class TestNormalizeFunction(unittest.TestCase):
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = normalize(signal)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
 
     def test_values_1d(self):
@@ -228,15 +228,15 @@ class TestDownmixFunction(unittest.TestCase):
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = downmix(signal)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_types_stereo_signal(self):
         signal = Signal(DATA_PATH + '/stereo_sample.wav')
         result = downmix(signal)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_values_1d(self):
@@ -268,8 +268,8 @@ class TestTrimFunction(unittest.TestCase):
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = trim(signal)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_values_1d(self):
@@ -290,7 +290,7 @@ class TestRootMeanSquareFunction(unittest.TestCase):
 
     def test_types_1d(self):
         result = root_mean_square(sig_1d)
-        self.assertTrue(isinstance(result, float))
+        self.assertIsInstance(result, float)
 
     def test_values_1d(self):
         result = root_mean_square(sig_1d)
@@ -312,7 +312,7 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
 
     def test_types_1d(self):
         result = sound_pressure_level(sig_1d)
-        self.assertTrue(isinstance(result, float))
+        self.assertIsInstance(result, float)
 
     def test_values_1d(self):
         result = sound_pressure_level(sig_1d)
@@ -334,20 +334,20 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_types(self):
         signal, sample_rate = load_audio_file(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(signal, np.ndarray))
+        self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
 
     def test_file_handle(self):
         file_handle = __builtin__.open(DATA_PATH + '/sample.wav')
         signal, sample_rate = load_audio_file(file_handle)
-        self.assertTrue(isinstance(signal, np.ndarray))
+        self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         file_handle.close()
 
         signal, sample_rate = load_audio_file(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(signal, np.ndarray))
+        self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
 
@@ -376,8 +376,8 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(signal.shape == (182919, ))
 
     def test_stereo_two_channels_wav(self):
-        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.wav',
-                                              num_channels=2)
+        f = DATA_PATH + '/stereo_sample.wav'
+        signal, sample_rate = load_audio_file(f, num_channels=2)
         self.assertTrue(np.allclose(signal[:4],
                                     [[33, 38], [35, 36], [29, 34], [36, 31]]))
         self.assertTrue(len(signal) == 182919)
@@ -385,8 +385,8 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(signal.shape == (182919, 2))
 
     def test_stereo_downmix_flac(self):
-        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.flac',
-                                              num_channels=1)
+        f = DATA_PATH + '/stereo_sample.flac'
+        signal, sample_rate = load_audio_file(f, num_channels=1)
         # TODO: is it a problemm that the results are rounded differently?
         self.assertTrue(np.allclose(signal[:5], [36, 36, 32, 34, 34]))
         self.assertTrue(len(signal) == 182919)
@@ -394,8 +394,9 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(signal.shape == (182919, ))
 
     def test_stereo_resample_downmix_wav(self):
-        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.wav',
-                                              sample_rate=22050, num_channels=1)
+        f = DATA_PATH + '/stereo_sample.wav'
+        signal, sample_rate = load_audio_file(f, sample_rate=22050,
+                                              num_channels=1)
         self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33]))
         self.assertTrue(len(signal) == 91460)
         self.assertTrue(sample_rate == 22050)
@@ -407,28 +408,28 @@ class TestSignalClass(unittest.TestCase):
 
     def test_types_array(self):
         result = Signal(sig_1d)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
-        self.assertTrue(isinstance(result.num_samples, int))
-        self.assertTrue(isinstance(result.sample_rate, type(None)))
-        self.assertTrue(isinstance(result.num_channels, int))
-        self.assertTrue(isinstance(result.length, type(None)))
+        self.assertIsInstance(result.num_samples, int)
+        self.assertIsInstance(result.sample_rate, type(None))
+        self.assertIsInstance(result.num_channels, int)
+        self.assertIsInstance(result.length, type(None))
 
     def test_types_array_with_sample_rate(self):
         result = Signal(sig_1d, 1)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
-        self.assertTrue(isinstance(result.num_samples, int))
-        self.assertTrue(isinstance(result.sample_rate, float))
-        self.assertTrue(isinstance(result.num_channels, int))
-        self.assertTrue(isinstance(result.length, float))
+        self.assertIsInstance(result.num_samples, int)
+        self.assertIsInstance(result.sample_rate, float)
+        self.assertIsInstance(result.num_channels, int)
+        self.assertIsInstance(result.length, float)
 
     def test_types_file(self):
         result = Signal(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_values_1d(self):
@@ -473,49 +474,49 @@ class TestSignalProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = SignalProcessor()
-        self.assertTrue(isinstance(processor, SignalProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, SignalProcessor)
+        self.assertIsInstance(processor, Processor)
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_types_mono(self):
         processor = SignalProcessor(num_channels=1)
-        self.assertTrue(isinstance(processor, SignalProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, SignalProcessor)
+        self.assertIsInstance(processor, Processor)
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
         result = processor.process(DATA_PATH + '/stereo_sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_types_norm(self):
         processor = SignalProcessor(norm=True)
-        self.assertTrue(isinstance(processor, SignalProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, SignalProcessor)
+        self.assertIsInstance(processor, Processor)
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
 
     def test_types_att(self):
         processor = SignalProcessor(att=10)
-        self.assertTrue(isinstance(processor, SignalProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, SignalProcessor)
+        self.assertIsInstance(processor, Processor)
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_constant_types(self):
-        self.assertTrue(isinstance(SignalProcessor.SAMPLE_RATE, type(None)))
-        self.assertTrue(isinstance(SignalProcessor.NUM_CHANNELS, type(None)))
-        self.assertTrue(isinstance(SignalProcessor.NORM, bool))
-        self.assertTrue(isinstance(SignalProcessor.ATT, float))
+        self.assertIsInstance(SignalProcessor.SAMPLE_RATE, type(None))
+        self.assertIsInstance(SignalProcessor.NUM_CHANNELS, type(None))
+        self.assertIsInstance(SignalProcessor.NORM, bool)
+        self.assertIsInstance(SignalProcessor.ATT, float)
 
     def test_constant_values(self):
         self.assertEqual(SignalProcessor.SAMPLE_RATE, None)
@@ -576,15 +577,15 @@ class TestSignalFrameFunction(unittest.TestCase):
 
     def test_types(self):
         result = signal_frame(np.arange(10), 0, 4, 2)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int)
         result = signal_frame(np.arange(10, dtype=np.float), 0, 4, 2)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
         signal = Signal(DATA_PATH + '/sample.wav')
         result = signal_frame(signal, 0, 4, 2)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_short_input_length(self):
@@ -633,14 +634,14 @@ class TestSegmentAxisFunction(unittest.TestCase):
 
     def test_types(self):
         result = segment_axis(np.arange(10), 4, 2)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int)
         result = segment_axis(np.arange(10, dtype=np.float), 4, 2)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
         signal = Signal(DATA_PATH + '/sample.wav')
         result = segment_axis(signal, 4, 2)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
 
     def test_errors(self):
@@ -676,85 +677,85 @@ class TestFramedSignalClass(unittest.TestCase):
 
     def test_types(self):
         result = FramedSignal(np.arange(10), 4, 2)
-        self.assertTrue(isinstance(result, FramedSignal))
-        self.assertTrue(isinstance(result.signal, Signal))
-        self.assertTrue(isinstance(result.frame_size, int))
-        self.assertTrue(isinstance(result.hop_size, float))
-        self.assertTrue(isinstance(result.origin, int))
-        self.assertTrue(isinstance(result.start, int))
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result[0], Signal))
+        self.assertIsInstance(result, FramedSignal)
+        self.assertIsInstance(result.signal, Signal)
+        self.assertIsInstance(result.frame_size, int)
+        self.assertIsInstance(result.hop_size, float)
+        self.assertIsInstance(result.origin, int)
+        self.assertIsInstance(result.start, int)
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result[0], Signal)
         # properties
-        self.assertTrue(isinstance(result.frame_rate, type(None)))
-        self.assertTrue(isinstance(result.fps, type(None)))
-        self.assertTrue(isinstance(result.overlap_factor, float))
-        self.assertTrue(isinstance(result.shape, tuple))
+        self.assertIsInstance(result.frame_rate, type(None))
+        self.assertIsInstance(result.fps, type(None))
+        self.assertIsInstance(result.overlap_factor, float)
+        self.assertIsInstance(result.shape, tuple)
 
     def test_types_slice(self):
         # get a slice of a FramedSignal
         result = FramedSignal(np.arange(10), 4, 2)[:2]
-        self.assertTrue(isinstance(result, FramedSignal))
-        self.assertTrue(isinstance(result.signal, Signal))
-        self.assertTrue(isinstance(result.frame_size, int))
-        self.assertTrue(isinstance(result.hop_size, float))
-        self.assertTrue(isinstance(result.origin, int))
-        self.assertTrue(isinstance(result.start, int))
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result[0], Signal))
+        self.assertIsInstance(result, FramedSignal)
+        self.assertIsInstance(result.signal, Signal)
+        self.assertIsInstance(result.frame_size, int)
+        self.assertIsInstance(result.hop_size, float)
+        self.assertIsInstance(result.origin, int)
+        self.assertIsInstance(result.start, int)
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result[0], Signal)
         # properties
-        self.assertTrue(isinstance(result.frame_rate, type(None)))
-        self.assertTrue(isinstance(result.fps, type(None)))
-        self.assertTrue(isinstance(result.overlap_factor, float))
-        self.assertTrue(isinstance(result.shape, tuple))
+        self.assertIsInstance(result.frame_rate, type(None))
+        self.assertIsInstance(result.fps, type(None))
+        self.assertIsInstance(result.overlap_factor, float)
+        self.assertIsInstance(result.shape, tuple)
 
     def test_types_with_sample_rate(self):
         result = FramedSignal(np.arange(10), 4, 2, sample_rate=1)
-        self.assertTrue(isinstance(result, FramedSignal))
-        self.assertTrue(isinstance(result.signal, Signal))
-        self.assertTrue(isinstance(result.frame_size, int))
-        self.assertTrue(isinstance(result.hop_size, float))
-        self.assertTrue(isinstance(result.origin, int))
-        self.assertTrue(isinstance(result.start, int))
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result[0], Signal))
+        self.assertIsInstance(result, FramedSignal)
+        self.assertIsInstance(result.signal, Signal)
+        self.assertIsInstance(result.frame_size, int)
+        self.assertIsInstance(result.hop_size, float)
+        self.assertIsInstance(result.origin, int)
+        self.assertIsInstance(result.start, int)
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result[0], Signal)
         # properties
-        self.assertTrue(isinstance(result.frame_rate, float))
-        self.assertTrue(isinstance(result.fps, float))
-        self.assertTrue(isinstance(result.overlap_factor, float))
-        self.assertTrue(isinstance(result.shape, tuple))
+        self.assertIsInstance(result.frame_rate, float)
+        self.assertIsInstance(result.fps, float)
+        self.assertIsInstance(result.overlap_factor, float)
+        self.assertIsInstance(result.shape, tuple)
 
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = FramedSignal(signal)
-        self.assertTrue(isinstance(result, FramedSignal))
-        self.assertTrue(isinstance(result.signal, Signal))
-        self.assertTrue(isinstance(result.frame_size, int))
-        self.assertTrue(isinstance(result.hop_size, float))
-        self.assertTrue(isinstance(result.origin, int))
-        self.assertTrue(isinstance(result.start, int))
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result[0], Signal))
+        self.assertIsInstance(result, FramedSignal)
+        self.assertIsInstance(result.signal, Signal)
+        self.assertIsInstance(result.frame_size, int)
+        self.assertIsInstance(result.hop_size, float)
+        self.assertIsInstance(result.origin, int)
+        self.assertIsInstance(result.start, int)
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result[0], Signal)
         # properties
-        self.assertTrue(isinstance(result.frame_rate, float))
-        self.assertTrue(isinstance(result.fps, float))
-        self.assertTrue(isinstance(result.overlap_factor, float))
-        self.assertTrue(isinstance(result.shape, tuple))
+        self.assertIsInstance(result.frame_rate, float)
+        self.assertIsInstance(result.fps, float)
+        self.assertIsInstance(result.overlap_factor, float)
+        self.assertIsInstance(result.shape, tuple)
 
     def test_types_file(self):
         result = FramedSignal(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, FramedSignal))
-        self.assertTrue(isinstance(result.signal, Signal))
-        self.assertTrue(isinstance(result.frame_size, int))
-        self.assertTrue(isinstance(result.hop_size, float))
-        self.assertTrue(isinstance(result.origin, int))
-        self.assertTrue(isinstance(result.start, int))
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result[0], Signal))
+        self.assertIsInstance(result, FramedSignal)
+        self.assertIsInstance(result.signal, Signal)
+        self.assertIsInstance(result.frame_size, int)
+        self.assertIsInstance(result.hop_size, float)
+        self.assertIsInstance(result.origin, int)
+        self.assertIsInstance(result.start, int)
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result[0], Signal)
         # properties
-        self.assertTrue(isinstance(result.frame_rate, float))
-        self.assertTrue(isinstance(result.fps, float))
-        self.assertTrue(isinstance(result.overlap_factor, float))
-        self.assertTrue(isinstance(result.shape, tuple))
+        self.assertIsInstance(result.frame_rate, float)
+        self.assertIsInstance(result.fps, float)
+        self.assertIsInstance(result.overlap_factor, float)
+        self.assertIsInstance(result.shape, tuple)
 
     def test_values_array(self):
         result = FramedSignal(np.arange(10), 4, 2)
@@ -852,10 +853,10 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = FramedSignalProcessor()
-        self.assertTrue(isinstance(processor, FramedSignalProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, FramedSignalProcessor)
+        self.assertIsInstance(processor, Processor)
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, FramedSignal))
+        self.assertIsInstance(result, FramedSignal)
 
     def test_values(self):
         processor = FramedSignalProcessor()
@@ -938,12 +939,12 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
             processor.process(DATA_PATH + '/sample.wav')
 
     def test_constant_types(self):
-        self.assertTrue(isinstance(FramedSignalProcessor.FRAME_SIZE, int))
-        self.assertTrue(isinstance(FramedSignalProcessor.HOP_SIZE, float))
-        self.assertTrue(isinstance(FramedSignalProcessor.FPS, float))
-        self.assertTrue(isinstance(FramedSignalProcessor.ONLINE, bool))
-        self.assertTrue(isinstance(FramedSignalProcessor.START, int))
-        self.assertTrue(isinstance(FramedSignalProcessor.END_OF_SIGNAL, str))
+        self.assertIsInstance(FramedSignalProcessor.FRAME_SIZE, int)
+        self.assertIsInstance(FramedSignalProcessor.HOP_SIZE, float)
+        self.assertIsInstance(FramedSignalProcessor.FPS, float)
+        self.assertIsInstance(FramedSignalProcessor.ONLINE, bool)
+        self.assertIsInstance(FramedSignalProcessor.START, int)
+        self.assertIsInstance(FramedSignalProcessor.END_OF_SIGNAL, str)
 
     def test_constant_values(self):
         self.assertEqual(FramedSignalProcessor.FRAME_SIZE, 2048)

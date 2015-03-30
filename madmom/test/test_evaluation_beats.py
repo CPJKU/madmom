@@ -10,6 +10,8 @@ This file contains tests for the madmom.evaluation.beats module.
 import unittest
 
 from madmom.evaluation.beats import *
+from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
+                                     _information_gain, _entropy)
 
 ANNOTATIONS = np.asarray([1., 2, 3, 4, 5, 6, 7, 8, 9, 10])
 DOUBLE_ANNOTATIONS = np.asarray([1., 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6,
@@ -500,6 +502,129 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertEqual(scores, (0., 0., 0.5, 0.7))
 
 
+class TestHistogramBinsHelperFunction(unittest.TestCase):
+
+    def test_types(self):
+        bins = _histogram_bins(40)
+        self.assertIsInstance(bins, np.ndarray)
+        self.assertTrue(bins.dtype == np.float)
+
+    def test_values(self):
+        # bins must be even and greater or equal than 2
+        with self.assertRaises(ValueError):
+            _histogram_bins(1)
+        with self.assertRaises(ValueError):
+            _histogram_bins(2.1)
+        with self.assertRaises(ValueError):
+            _histogram_bins(5)
+        # test some well defined situations
+        bins = _histogram_bins(2)
+        # the bins must be 0.5 wide and centered around 0
+        self.assertTrue(np.allclose(bins, [-0.75, -0.25, 0.25, 0.75]))
+        bins = _histogram_bins(4)
+        # the bins must be 0.25 wide and centered around 0
+        self.assertTrue(np.allclose(bins, [-0.625, -0.375, -0.125, 0.125,
+                                           0.375, 0.625]))
+
+
+class TestErrorHistogramHelperFunction(unittest.TestCase):
+
+    def test_types(self):
+        bins = _histogram_bins(4)
+        hist = _error_histogram(DETECTIONS, ANNOTATIONS, bins)
+        self.assertIsInstance(hist, np.ndarray)
+        self.assertTrue(hist.dtype == np.float)
+
+    def test_values(self):
+        # first bin maps the ±0.5 interval error, the second the 0
+        bins = _histogram_bins(2)
+        ann = np.asarray([0, 1, 2, 3])
+        # A) identical detections map to the 0 error bin
+        hist = _error_histogram(np.asarray([0, 1, 2, 3]), ann, bins)
+        self.assertTrue(np.allclose(hist, [0, 4]))
+        # bins maps the ±0.5, -0.25, 0, 0.25 interval errors
+        bins = _histogram_bins(4)
+        # B) identical detections map to the 0 error bin
+        hist = _error_histogram(ann, ann, bins)
+        self.assertTrue(np.allclose(hist, [0, 0, 4, 0]))
+        # C) offbeat detections map to the ±0.5 error bin
+        hist = _error_histogram(np.asarray([0.5, 1.5, 2.5, 3.5]), ann, bins)
+        self.assertTrue(np.allclose(hist, [4, 0, 0, 0]))
+        # D) smaller deviations mapping to the 0 and 0.125 error bins
+        hist = _error_histogram(np.asarray([0.125, 0.875, 2.1, 3]), ann, bins)
+        self.assertTrue(np.allclose(hist, [0, 0, 3, 1]))
+        # E) default annotations and detections with 40 bins
+        bins = _histogram_bins(40)
+        hist = _error_histogram(DETECTIONS, ANNOTATIONS, bins)
+        self.assertTrue(np.allclose(hist, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           0, 0, 0, 0, 0, 0, 1, 0, 8, 0, 0, 0,
+                                           1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                           0, 0, 0, 0]))
+
+
+class TestEntropyHelperFunction(unittest.TestCase):
+
+    def test_types(self):
+        entropy = _entropy(np.zeros(6))
+        self.assertIsInstance(entropy, float)
+        entropy = _entropy(np.ones(6))
+        self.assertIsInstance(entropy, float)
+
+    def test_values(self):
+        # uniform histogram
+        self.assertTrue(_entropy([1, 1, 1]) == np.log2(3))
+        # use the examples of the TestErrorHistogramHelperFunction test above
+        # A)
+        hist = [0, 4]
+        self.assertTrue(_entropy(hist) == 0)
+        # B)
+        hist = [0, 0, 4, 0]
+        self.assertTrue(_entropy(hist) == 0)
+        # C)
+        hist = [4, 0, 0, 0]
+        self.assertTrue(_entropy(hist) == 0)
+        # D)
+        hist = [0, 0, 3, 1]
+        self.assertTrue(np.allclose(_entropy(hist), 0.811278124459))
+        # E)
+        hist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                8, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.assertTrue(np.allclose(_entropy(hist), 0.921928094887))
+
+
+class TestInformationGainHelperFunction(unittest.TestCase):
+
+    def test_types(self):
+        bins = _histogram_bins(4)
+        hist = _error_histogram(DETECTIONS, ANNOTATIONS, bins)
+        ig = _information_gain(hist)
+        self.assertIsInstance(ig, float)
+
+    def test_values(self):
+        # information gain is np.log2(len(histogram)) - entropy(histogram)
+        # histogram with zeros
+        self.assertTrue(_information_gain([0, 0, 0]) == np.log2(3))
+        # uniform histogram
+        self.assertTrue(_information_gain([1, 1, 1]) == 0)
+        # use the examples of the TestErrorHistogramHelperFunction test above
+        # A)
+        hist = [0, 4]
+        self.assertTrue(_information_gain(hist) == np.log2(2))
+        # B)
+        hist = [0, 0, 4, 0]
+        self.assertTrue(_information_gain(hist) == np.log2(4))
+        # C)
+        hist = [4, 0, 0, 0]
+        self.assertTrue(_information_gain(hist) == np.log2(4))
+        # D)
+        hist = [0, 0, 3, 1]
+        self.assertTrue(np.allclose(_information_gain(hist), 1.18872187554))
+        # E)
+        hist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                8, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.assertTrue(_information_gain(hist) == 4.4)
+
+
 class TestInformationGainFunction(unittest.TestCase):
 
     def test_types(self):
@@ -528,16 +653,6 @@ class TestInformationGainFunction(unittest.TestCase):
         self.assertIsInstance(histogram, np.ndarray)
 
     def test_values(self):
-        # bins must be even and greater or equal than 2, independently of the
-        # length of detections
-        with self.assertRaises(ValueError):
-            information_gain(DETECTIONS, ANNOTATIONS, 1)
-        with self.assertRaises(ValueError):
-            information_gain([], [], 1)
-        with self.assertRaises(ValueError):
-            information_gain(DETECTIONS, ANNOTATIONS, 2.1)
-        with self.assertRaises(ValueError):
-            information_gain(DETECTIONS, ANNOTATIONS, 5)
         # empty sequences should return max score and a zero histogram
         ig, histogram = information_gain([], [], 4)
         self.assertEqual(ig, np.log2(4))

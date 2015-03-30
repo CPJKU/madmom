@@ -511,6 +511,102 @@ def continuity(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERAN
     return cmlc, cmlt, amlc, amlt
 
 
+def _histogram_bins(num_bins):
+    """
+    Helper function to generate the histogram bins used to calculate the error
+    histogram of the information gain.
+
+    :param num_bins: number of bins
+    :return:         histogram bin edges
+
+    Note: This functions returns the bin edges for a histogram with one more
+          bin than the requested number of bins, because the fist and last bins
+          are added together (to make the histogram circular) later on. Because
+          of the same reason, the first and the last bin are only half as wide
+          as the others.
+
+    """
+    # allow only even numbers and require at least 2 bins
+    if num_bins % 2 != 0 or num_bins < 2:
+        # Note: because of the implementation details of the histogram, the
+        #       easiest way to make sure the an error of 0 is always mapped
+        #       to the centre bin is to enforce an even number of bins
+        raise ValueError("Number of error histogram bins must be even and "
+                         "greater than 0")
+    # since np.histogram accepts a sequence of bin edges we just increase the
+    # number of bins by 1, but we need to apply offset
+    offset = 0.5 / num_bins
+    # because the histogram is made circular by adding the last bin to the
+    # first one before being removed, increase the number of bins by 2
+    return np.linspace(-0.5 - offset, 0.5 + offset, num_bins + 2)
+
+
+def _error_histogram(detections, annotations, histogram_bins):
+    """
+    Helper function to calculate the relative errors of the given detections
+    and annotations and map them to an histogram with the given bins edges.
+
+    :param detections:     numpy array with the detected beats [float, seconds]
+    :param annotations:    numpy array with the annotated beats
+                           [float, seconds]
+    :param histogram_bins: histogram bin edges for mapping
+    :return:               error histogram
+
+    Note: The returned error histogram is circular, i.e. it contains 1 bin less
+          than a histogram built normally with the given histogram bin edges.
+          The values of the last and first bin are summed and mapped to the
+          first bin.
+
+    """
+    # get the relative errors of the detections to the annotations
+    errors = calc_relative_errors(detections, annotations)
+    # map the relative beat errors to the range of -0.5..0.5
+    errors = np.mod(errors + 0.5, -1) + 0.5
+    # get bin counts for the given errors over the distribution
+    histogram = np.histogram(errors, histogram_bins)[0].astype(np.float)
+    # make the histogram circular by adding the last bin to the first one
+    histogram[0] = histogram[0] + histogram[-1]
+    # return the histogram without the last bin
+    return histogram[:-1]
+
+
+def _entropy(error_histogram):
+    """
+    Helper function to calculate the entropy of the given error histogram.
+
+    :param error_histogram: error histogram
+    :return:                entropy
+
+    """
+    # copy the error_histogram, because it must not be altered
+    histogram = np.copy(error_histogram).astype(np.float)
+    # normalize the histogram
+    histogram /= np.sum(histogram)
+    # set 0 values to 1, to make entropy calculation well-behaved
+    histogram[histogram == 0] = 1.
+    # calculate entropy
+    return - np.sum(histogram * np.log2(histogram))
+
+
+def _information_gain(error_histogram):
+    """
+    Helper function to calculate the information gain of the given error
+    histogram.
+
+    :param error_histogram: error histogram
+    :return:                information gain
+
+    """
+    # calculate the entropy of th error histogram
+    if np.asarray(error_histogram).any():
+        entropy = _entropy(error_histogram)
+    else:
+        # an empty error histogram has an entropy of 0
+        entropy = 0.
+    # return information gain
+    return np.log2(len(error_histogram)) - entropy
+
+
 def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     """
     Calculate information gain for the given detections and annotations.
@@ -526,15 +622,6 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     IEEE Signal Processing Letters, vol. 18, vo. 3, 2011
 
     """
-    # allow only even numbers and require at least 2 bins
-    if num_bins % 2 != 0 or num_bins < 2:
-        # Note: because of the implementation details of the histogram (see
-        #       the comments below) the easiest way to make sure the an error
-        #       of 0 is always mapped to the centre bin is to enforce an even
-        #       number of bins
-        raise ValueError("Number of error histogram bins must be even and "
-                         "greater than 0")
-
     # neither detections nor annotations are given
     if len(detections) == 0 and len(annotations) == 0:
         # return a max. information gain and an empty error histogram
@@ -554,22 +641,14 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
         warnings.warn("Not enough beat annotations (%d) for %d histogram bins."
                       % (len(annotations), num_bins))
 
-    # create bins for the error histogram that cover the range from -0.5 to 0.5
-    # make the first and last bin half as wide as the others, so that they can
-    # be added together (to make the histogram circular)
-
-    # since np.histogram accepts a sequence of bin edges we just increase the
-    # number of bins by 1, but we need to apply offset
-    offset = 0.5 / num_bins
-    # because the histogram is made circular by adding the last bin to the
-    # first one before being removed, increase the number of bins by 2
-    histogram_bins = np.linspace(-0.5 - offset, 0.5 + offset, num_bins + 2)
+    # create bins edges for the error histogram
+    histogram_bins = _histogram_bins(num_bins)
 
     # evaluate detections against annotations
     fwd_histogram = _error_histogram(detections, annotations, histogram_bins)
     fwd_ig = _information_gain(fwd_histogram)
 
-    # in case of only few (but correct) detections, the errors could be small
+    # in only a few (but correct) beats are detected, the errors could be small
     # thus evaluate also the annotations against the detections, i.e. simulate
     # a lot of false positive detections
     bwd_histogram = _error_histogram(annotations, detections, histogram_bins)
@@ -580,66 +659,6 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
         return fwd_ig, fwd_histogram
     else:
         return bwd_ig, bwd_histogram
-
-
-def _error_histogram(detections, annotations, histogram_bins):
-    """
-    Helper function to calculate the relative errors of the given detections
-    and annotations and map them to an error histogram with the given bins.
-
-    :param detections:     numpy array with the detected beats [float, seconds]
-    :param annotations:    numpy array with the annotated beats
-                           [float, seconds]
-    :param histogram_bins: sequence of histogram bin edges for mapping
-    :return:               error histogram
-
-    Note: The returned error histogram is circular, i.e. it contains 1 bin less
-          than indicated with the values of the last and first bin added and
-          mapped to the first bin.
-
-    """
-    # get the relative errors of the detections to the annotations
-    errors = calc_relative_errors(detections, annotations)
-    # map the relative beat errors to the range of -0.5..0.5
-    errors = np.mod(errors + 0.5, -1) + 0.5
-    # get bin counts for the given errors over the distribution
-    histogram = np.histogram(errors, histogram_bins)[0].astype(np.float)
-    # make the histogram circular by adding the last bin to the first one
-    histogram[0] = histogram[0] + histogram[-1]
-    # then remove the last bin
-    histogram = histogram[:-1]
-    # return error histogram
-    return histogram
-
-
-def _information_gain(error_histogram):
-    """
-    Helper function to calculate the information gain from the given error
-    histogram.
-
-    :param error_histogram: error histogram
-    :return:                information gain
-
-    """
-    # return a perfect score in case of an empty histogram
-    if np.sum(error_histogram) == 0:
-        return np.log2(len(error_histogram))
-    # copy the error_histogram, because it must not be altered
-    histogram = np.copy(error_histogram)
-    # if all bins are 0, make a uniform distribution with values != 0
-    if not histogram.any():
-        # Note: this is needed, otherwise a histogram with all bins = 0 would
-        #       return the maximum possible information gain because the
-        #       normalization in the next step would fail
-        histogram += 1.
-    # normalize the histogram
-    histogram /= np.sum(histogram)
-    # set 0 values to 1, to make entropy calculation well-behaved
-    histogram[histogram == 0] = 1.
-    # calculate entropy
-    entropy = - np.sum(histogram * np.log2(histogram))
-    # return information gain
-    return np.log2(len(histogram)) - entropy
 
 
 # beat evaluation class

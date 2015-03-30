@@ -321,9 +321,9 @@ class TestFilterClass(unittest.TestCase):
 
     def test_types(self):
         filt = Filter(np.arange(5))
-        self.assertTrue(isinstance(filt, Filter))
-        self.assertTrue(isinstance(filt.start, int))
-        self.assertTrue(isinstance(filt.stop, int))
+        self.assertIsInstance(filt, Filter)
+        self.assertIsInstance(filt.start, int)
+        self.assertIsInstance(filt.stop, int)
 
     def test_conversion(self):
         with self.assertRaises(TypeError):
@@ -356,10 +356,10 @@ class TestTriangularFilterClass(unittest.TestCase):
 
     def test_types(self):
         filt = TriangularFilter(0, 1, 2, False)
-        self.assertTrue(isinstance(filt, TriangularFilter))
+        self.assertIsInstance(filt, TriangularFilter)
         self.assertTrue(filt.dtype == np.float)
-        self.assertTrue(isinstance(filt.band_bins(np.arange(8)),
-                                   types.GeneratorType))
+        self.assertIsInstance(filt.band_bins(np.arange(8)),
+                              types.GeneratorType)
 
     def test_errors(self):
         # integers bin numbers
@@ -499,10 +499,10 @@ class TestRectangularFilterClass(unittest.TestCase):
 
     def test_types(self):
         filt = RectangularFilter(0, 1, False)
-        self.assertTrue(isinstance(filt, RectangularFilter))
+        self.assertIsInstance(filt, RectangularFilter)
         self.assertTrue(filt.dtype == np.float)
-        self.assertTrue(isinstance(filt.band_bins(np.arange(8)),
-                                   types.GeneratorType))
+        self.assertIsInstance(filt.band_bins(np.arange(8)),
+                              types.GeneratorType)
 
     def test_errors(self):
         # TODO: why is this error not raised? it does not really matter, though
@@ -619,12 +619,12 @@ class TestRectangularFilterClass(unittest.TestCase):
 class TestConstantsClass(unittest.TestCase):
 
     def test_types(self):
-        self.assertTrue(isinstance(FMIN, float))
-        self.assertTrue(isinstance(FMAX, float))
-        self.assertTrue(isinstance(BANDS, int))
-        self.assertTrue(isinstance(NORM_FILTERS, bool))
-        self.assertTrue(isinstance(DUPLICATE_FILTERS, bool))
-        self.assertTrue(isinstance(OVERLAP_FILTERS, bool))
+        self.assertIsInstance(FMIN, float)
+        self.assertIsInstance(FMAX, float)
+        self.assertIsInstance(BANDS, int)
+        self.assertIsInstance(NORM_FILTERS, bool)
+        self.assertIsInstance(DUPLICATE_FILTERS, bool)
+        self.assertIsInstance(OVERLAP_FILTERS, bool)
 
     def test_values(self):
         self.assertEqual(FMIN, 30.)
@@ -649,7 +649,7 @@ class TestFilterbankClass(unittest.TestCase):
 
     def test_types(self):
         filt = Filterbank(np.zeros((100, 10)), np.arange(100))
-        self.assertTrue(isinstance(filt, Filterbank))
+        self.assertIsInstance(filt, Filterbank)
         self.assertTrue(filt.dtype == np.float)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
@@ -681,7 +681,7 @@ class TestFilterbankClass(unittest.TestCase):
 
     def test_from_filters_function(self):
         filt = Filterbank.from_filters(self.rect_filters, np.arange(100))
-        self.assertTrue(isinstance(filt, Filterbank))
+        self.assertIsInstance(filt, Filterbank)
         self.assertTrue(filt.dtype == np.float)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
@@ -714,16 +714,16 @@ class TestMelFilterbankClass(unittest.TestCase):
 
     def test_types(self):
         filt = MelFilterbank(np.arange(20000))
-        self.assertTrue(isinstance(filt, MelFilterbank))
+        self.assertIsInstance(filt, MelFilterbank)
         self.assertTrue(filt.dtype == np.float)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
-        self.assertTrue(isinstance(MelFilterbank.FMIN, float))
-        self.assertTrue(isinstance(MelFilterbank.FMAX, float))
-        self.assertTrue(isinstance(MelFilterbank.BANDS, int))
-        self.assertTrue(isinstance(MelFilterbank.NORM_FILTERS, bool))
-        self.assertTrue(isinstance(MelFilterbank.DUPLICATE_FILTERS, bool))
+        self.assertIsInstance(MelFilterbank.FMIN, float)
+        self.assertIsInstance(MelFilterbank.FMAX, float)
+        self.assertIsInstance(MelFilterbank.BANDS, int)
+        self.assertIsInstance(MelFilterbank.NORM_FILTERS, bool)
+        self.assertIsInstance(MelFilterbank.DUPLICATE_FILTERS, bool)
 
     def test_constant_values(self):
         self.assertEqual(MelFilterbank.FMIN, 20.)
@@ -787,16 +787,16 @@ class TestBarkFilterbankClass(unittest.TestCase):
 
     def test_types(self):
         filt = BarkFilterbank(np.arange(20000))
-        self.assertTrue(isinstance(filt, BarkFilterbank))
+        self.assertIsInstance(filt, BarkFilterbank)
         self.assertTrue(filt.dtype == np.float)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
-        self.assertTrue(isinstance(BarkFilterbank.FMIN, float))
-        self.assertTrue(isinstance(BarkFilterbank.FMAX, float))
-        self.assertTrue(isinstance(BarkFilterbank.BANDS, str))
-        self.assertTrue(isinstance(BarkFilterbank.NORM_FILTERS, bool))
-        self.assertTrue(isinstance(BarkFilterbank.DUPLICATE_FILTERS, bool))
+        self.assertIsInstance(BarkFilterbank.FMIN, float)
+        self.assertIsInstance(BarkFilterbank.FMAX, float)
+        self.assertIsInstance(BarkFilterbank.BANDS, str)
+        self.assertIsInstance(BarkFilterbank.NORM_FILTERS, bool)
+        self.assertIsInstance(BarkFilterbank.DUPLICATE_FILTERS, bool)
 
     def test_constant_values(self):
         self.assertEqual(BarkFilterbank.FMIN, 20.)
@@ -837,17 +837,17 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
 
     def test_types(self):
         filt = LogarithmicFilterbank(np.arange(20000))
-        self.assertTrue(isinstance(filt, LogarithmicFilterbank))
+        self.assertIsInstance(filt, LogarithmicFilterbank)
         self.assertTrue(filt.dtype == np.float)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
         # TODO: why can't we test the inherited constants? it does not matter
-        # self.assertTrue(isinstance(LogarithmicFilterbank.FMIN, float))
-        # self.assertTrue(isinstance(LogarithmicFilterbank.FMAX, float))
-        self.assertTrue(isinstance(LogarithmicFilterbank.BANDS_PER_OCTAVE, int))
-        # self.assertTrue(isinstance(LogarithmicFilterbank.NORM_FILTERS, bool))
-        # self.assertTrue(isinstance(LogarithmicFilterbank.DUPLICATE_FILTERS, bool))
+        # self.assertIsInstance(LogarithmicFilterbank.FMIN, float))
+        # self.assertIsInstance(LogarithmicFilterbank.FMAX, float))
+        self.assertIsInstance(LogarithmicFilterbank.BANDS_PER_OCTAVE, int)
+        # self.assertIsInstance(LogarithmicFilterbank.NORM_FILTERS, bool))
+        # self.assertIsInstance(LogarithmicFilterbank.DUPLICATE_FILTERS, bool))
 
     def test_constant_values(self):
         # self.assertEqual(LogarithmicFilterbank.FMIN, 30.)
@@ -971,7 +971,7 @@ class TestFeedForwardFilterFunction(unittest.TestCase):
 
     def test_types(self):
         result = feed_forward_comb_filter(sig_1d, 2, 0.5)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values(self):
@@ -989,7 +989,7 @@ class TestFeedBackwardFilterFunction(unittest.TestCase):
 
     def test_types(self):
         result = feed_forward_comb_filter(sig_1d, 2, 0.5)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values(self):
@@ -1007,7 +1007,7 @@ class TestFeedBackwardFilterFallbackFunction(unittest.TestCase):
 
     def test_types(self):
         result = feed_forward_comb_filter(sig_1d, 2, 0.5)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values(self):
@@ -1027,11 +1027,11 @@ class TestCombFilterFunction(unittest.TestCase):
     def test_types(self):
         function = feed_backward_comb_filter
         result = comb_filter(sig_1d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
         function = feed_forward_comb_filter
         result = comb_filter(sig_1d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values_backward(self):
@@ -1055,8 +1055,8 @@ class TestCombFilterbankClass(unittest.TestCase):
         # backward function
         processor = CombFilterbank(feed_backward_comb_filter,
                                    [2, 3], [0.5, 0.5])
-        self.assertTrue(isinstance(processor, CombFilterbank))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, CombFilterbank)
+        self.assertIsInstance(processor, Processor)
         self.assertTrue(processor.comb_filter_function ==
                         feed_backward_comb_filter)
         processor = CombFilterbank('backward', [2, 3], [0.5, 0.5])
