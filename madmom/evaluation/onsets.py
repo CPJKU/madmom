@@ -20,6 +20,8 @@ from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection
+# TODO: find a better name, this is misleading since it does not evaluate the
+#       detections against the annotations per se
 def onset_evaluation(detections, annotations, window):
     """
     Determine the true/false positive/negative detections.
@@ -27,14 +29,13 @@ def onset_evaluation(detections, annotations, window):
     :param detections:  array with detected onsets [seconds]
     :param annotations: array with annotated onsets [seconds]
     :param window:      detection window [seconds]
-    :return:            tuple of tp, fp, tn, fn numpy arrays
+    :return:            tuple of lists (tp, fp, tn, fn)
+                        tp: list with true positive detections
+                        fp: list with false positive detections
+                        tn: list with true negative detections
+                        fn: list with false negative detections
 
-    tp: array with true positive detections
-    fp: array with false positive detections
-    tn: array with true negative detections (this one is empty!)
-    fn: array with false negative detections
-
-    Note: The true negative array is empty, because we are not interested in
+    Note: The true negative list is empty, because we are not interested in
           this class, since it is ~20 times as big as the onset class.
 
     """

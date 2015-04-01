@@ -42,7 +42,7 @@ def main():
         names = ['offbeat', 'double', 'half_odd', 'half_even', 'triple',
                  'third_first', 'third_second', 'third_third']
         # create the sequence variations
-        sequences = variations(annotations)
+        sequences = variations(annotations, True, True, True, True, True)
         # if no variations are created, create fake ones
         if len(sequences) == 0:
             # TODO: this is super hack-ish, do it properly
