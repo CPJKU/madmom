@@ -45,7 +45,7 @@ class TransitionModel(object):
     """
     def __init__(self, states, pointers, probabilities):
         """
-        Construct a TransitionModel instance for DBNs.
+        Construct a TransitionModel instance for HMMs.
 
         :param states:        state indices
         :param pointers:      corresponding pointers
@@ -147,7 +147,7 @@ class ObservationModel(object):
 
     def __init__(self, pointers):
         """
-        Construct a ObservationModel instance for a DBN.
+        Construct a ObservationModel instance for a HMM.
 
         :param pointers: pointers from HMM states to the correct densities
                          column [numpy array]
@@ -345,3 +345,6 @@ class HiddenMarkovModel(object):
             state = bt_pointers[frame, state]
         # return the tracked path and its probability
         return path, log_probability
+
+# alias
+HMM = HiddenMarkovModel
