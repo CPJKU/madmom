@@ -84,7 +84,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         cdef unsigned int num_tempo_states = len(beat_states)
         cdef unsigned int num_states = np.sum(beat_states)
         # counters etc.
-        cdef unsigned int state, prev_state, tempo_state, from_tempo
+        cdef unsigned int state, prev_state, old_tempo, new_tempo
         cdef double ratio, u, prob, prob_sum
         cdef double threshold = np.spacing(1)
 
@@ -94,34 +94,33 @@ class BeatTrackingTransitionModel(TransitionModel):
 
         # tempo changes can only occur at the beginning of a beat
         # transition matrix for the tempo changes
-        trans_prob_ = np.zeros((num_tempo_states, num_tempo_states),
-                               dtype=np.float)
-        cdef double [:, ::1] trans_prob = trans_prob_
+        cdef double [:, ::1] trans_prob = np.zeros((num_tempo_states,
+                                                    num_tempo_states),
+                                                   dtype=np.float)
         # iterate over all tempo states
-        for from_tempo in range(num_tempo_states):
+        for old_tempo in range(num_tempo_states):
             # reset probability sum
             prob_sum = 0
             # compute transition probabilities to all other tempo states
-            for tempo_state in range(num_tempo_states):
+            for new_tempo in range(num_tempo_states):
                 # compute the ratio of the two tempi
-                ratio = beat_states[tempo_state] / \
-                        float(beat_states[from_tempo])
+                ratio = beat_states[new_tempo] / float(beat_states[old_tempo])
                 # compute the probability for the tempo change following an
                 # exponential distribution
                 prob = exp(-transition_lambda * abs(ratio - 1))
                 # keep only transition probabilities > threshold
                 if prob > threshold:
                     # save the probability
-                    trans_prob[from_tempo, tempo_state] = prob
+                    trans_prob[old_tempo, new_tempo] = prob
                     # collect normalization data
                     prob_sum += prob
-            # normalize the tempo transitions
-            for tempo_state in range(num_tempo_states):
-                trans_prob[from_tempo, tempo_state] /= prob_sum
+            # normalize the tempo transitions to other tempi
+            for new_tempo in range(num_tempo_states):
+                trans_prob[old_tempo, new_tempo] /= prob_sum
 
         # number of tempo transitions (= non-zero probabilities)
         cdef unsigned int num_tempo_transitions = \
-            len(np.nonzero(trans_prob_)[0])
+            len(np.nonzero(trans_prob)[0])
 
         # apart from the very beginning of a beat, the tempo stays the same,
         # thus the number of transitions is equal to the total number of states
@@ -147,20 +146,20 @@ class BeatTrackingTransitionModel(TransitionModel):
         # state counter
         cdef int i = 0
         # loop over all tempi
-        for tempo_state in range(num_tempo_states):
+        for new_tempo in range(num_tempo_states):
             # generate all transitions from other tempi
-            for from_tempo in range(num_tempo_states):
+            for old_tempo in range(num_tempo_states):
                 # but only if it is a probable transition
-                if trans_prob[from_tempo, tempo_state] != 0:
+                if trans_prob[old_tempo, new_tempo] != 0:
                     # generate a transition
-                    prev_states[i] = last_beat_positions[from_tempo]
-                    states[i] = first_beat_positions[tempo_state]
-                    probabilities[i] = trans_prob[from_tempo, tempo_state]
+                    prev_states[i] = last_beat_positions[old_tempo]
+                    states[i] = first_beat_positions[new_tempo]
+                    probabilities[i] = trans_prob[old_tempo, new_tempo]
                     # increase counter
                     i += 1
             # transitions within the same tempo
-            for prev_state in range(first_beat_positions[tempo_state],
-                                    last_beat_positions[tempo_state]):
+            for prev_state in range(first_beat_positions[new_tempo],
+                                    last_beat_positions[new_tempo]):
                 # generate a transition with probability 1
                 prev_states[i] = prev_state
                 states[i] = prev_state + 1
