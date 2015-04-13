@@ -134,13 +134,15 @@ class ObservationModel(object):
     The observation model is defined as two plain numpy arrays, log_densities
     and pointers.
 
+    The observation model must have an attribute 'pointers' containing a plain
+    1D numpy array of length equal to the number of states of the HMM and
+    pointing from each state to the corresponding column of the 'log_densities'
+    array, which gets returned by the 'compute_log_densities()' method with the
+    observations as an argument. The 'pointers' type must be np.uint32.
+
     The 'log_densities' is a 2D numpy array with the number of rows being equal
     to the length of the observations and the columns representing the
     different observation log probability densities. The type must be np.float.
-
-    The 'pointers' is a 1D numpy array and has a length equal to the number of
-    states of the HMM and points from each state to the corresponding column
-    of the 'log_densities' array. The type must be np.uint32.
 
     """
     __metaclass__ = abc.ABCMeta
