@@ -29,34 +29,33 @@ class TransitionModel(object):
     Transition model class for a HMM.
 
     The transition model is defined similar to a scipy compressed sparse row
-    matrix and holds all transition log probabilities from one state to an
-    other.
+    matrix and holds all transition probabilities from one state to an other.
 
-    All state indices for row state s are stored in
+    All states transitioning to state s are stored in:
     states[pointers[s]:pointers[s+1]]
-    and their corresponding log probabilities are stored in
-    log_probabilities[pointers[s]:pointers[s+1]].
 
-    This allows for a parallel computation of the viterbi path.
+    and their corresponding transition are stored in:
+    probabilities[pointers[s]:pointers[s+1]].
+
+    This allows for a parallel computation of the Viterbi path.
 
     This class should be either used for loading saved transition models or
     being sub-classed to define a specific transition model.
 
     """
-
-    def __init__(self, states, pointers, log_probabilities):
+    def __init__(self, states, pointers, probabilities):
         """
         Construct a TransitionModel instance for DBNs.
 
-        :param states:            state indices
-        :param pointers:          corresponding pointers
-        :param log_probabilities: and log probabilities
+        :param states:        state indices
+        :param pointers:      corresponding pointers
+        :param probabilities: and probabilities
 
         """
         # init some variables
         self.states = states
         self.pointers = pointers
-        self.log_probabilities = log_probabilities
+        self.probabilities = probabilities
 
     @property
     def num_states(self):
@@ -66,36 +65,66 @@ class TransitionModel(object):
     @property
     def num_transitions(self):
         """Number of transitions."""
-        return len(self.log_probabilities)
+        return len(self.probabilities)
+
+    @property
+    def log_probabilities(self):
+        """Transition log probabilities."""
+        return np.log(self.probabilities)
 
     @staticmethod
-    def make_sparse(states, prev_states, log_probabilities):
+    def make_sparse(states, prev_states, probabilities):
         """
         Return a sparse representation of dense transitions.
 
         Three 1D numpy arrays of same length must be given. The indices
         correspond to each other, i.e. the first entry of all three arrays
         define the transition from the state defined prev_states[0] to that
-        defined in states[0] with the log probability defined in
-        log_probabilities[0].
+        defined in states[0] with the probability defined in probabilities[0].
 
-        :param states:            corresponding states
-        :param prev_states:       corresponding previous states
-        :param log_probabilities: transition log probabilities
+        :param states:        corresponding states
+        :param prev_states:   corresponding previous states
+        :param probabilities: transition probabilities
+        :return:              tuple (states, pointers, probabilities)
 
         This method removes all duplicate states and thus allows for parallel
-        processing of the Viterbi of the HMM.
+        Viterbi decoding of the HMM.
 
         """
         from scipy.sparse import csr_matrix
+        # check for a proper probability distribution, i.e. the emission
+        # probabilities of each prev_state must sum to 1
+        if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
+            raise ValueError('Not a probability distribution.')
         # convert everything into a sparse CSR matrix
-        transitions = csr_matrix((log_probabilities, (states, prev_states)))
+        transitions = csr_matrix((probabilities, (states, prev_states)))
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
-        log_probabilities = transitions.data.astype(dtype=np.float)
+        probabilities = transitions.data.astype(dtype=np.float)
+        # return them
+        return states, pointers, probabilities
+
+    @classmethod
+    def from_dense(cls, states, prev_states, probabilities):
+        """
+        Instantiate a TransitionModel from dense transitions.
+
+        Three 1D numpy arrays of same length must be given. The indices
+        correspond to each other, i.e. the first entry of all three arrays
+        define the transition from the state defined prev_states[0] to that
+        defined in states[0] with the probability defined in probabilities[0].
+
+        :param states:        corresponding states
+        :param prev_states:   corresponding previous states
+        :param probabilities: transition probabilities
+        :return:              TransitionModel instance
+
+        """
+        # get a sparse representation of the transitions
+        transitions = cls.make_sparse(states, prev_states, probabilities)
         # instantiate a new TransitionModel and return it
-        return states, pointers, log_probabilities
+        return cls(*transitions)
 
 
 class ObservationModel(object):

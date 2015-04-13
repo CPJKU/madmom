@@ -70,11 +70,11 @@ class BeatTrackingTransitionModel(TransitionModel):
     @cython.wraparound(False)
     def compute_transitions(self):
         """
-        Compute the transitions (i.e. the log probabilities to move from any
-        states to another one) and return them in a format understood by
+        Compute the transitions (i.e. the probabilities to move from any state
+        to another one) and return them in a dense format understood by
         'make_sparse()'.
 
-        :return: tuple with (states, prev_states, log_probabilities)
+        :return: tuple with (states, prev_states, probabilities)
 
         """
         # cache variables
@@ -98,13 +98,12 @@ class BeatTrackingTransitionModel(TransitionModel):
                                dtype=np.float)
         cdef double [:, ::1] trans_prob = trans_prob_
         # iterate over all tempo states
-        for tempo_state in range(num_tempo_states):
+        for from_tempo in range(num_tempo_states):
             # reset probability sum
             prob_sum = 0
             # compute transition probabilities to all other tempo states
-            for from_tempo in range(num_tempo_states):
-                # compute the ratio of the number of beat states between the
-                # two tempi
+            for tempo_state in range(num_tempo_states):
+                # compute the ratio of the two tempi
                 ratio = beat_states[tempo_state] / \
                         float(beat_states[from_tempo])
                 # compute the probability for the tempo change following an
@@ -117,7 +116,7 @@ class BeatTrackingTransitionModel(TransitionModel):
                     # collect normalization data
                     prob_sum += prob
             # normalize the tempo transitions
-            for from_tempo in range(num_tempo_states):
+            for tempo_state in range(num_tempo_states):
                 trans_prob[from_tempo, tempo_state] /= prob_sum
 
         # number of tempo transitions (= non-zero probabilities)
@@ -135,10 +134,10 @@ class BeatTrackingTransitionModel(TransitionModel):
             np.empty(num_transitions, dtype=np.uint32)
         cdef unsigned int [::1] prev_states = \
             np.empty(num_transitions, dtype=np.uint32)
-        # init the log_probabilities with zeros (log(1) = 0), so we have to
-        # care only about the probabilities of the tempo transitions
-        cdef double [::1] log_probabilities = \
-            np.zeros(num_transitions, dtype=np.float)
+        # init the probabilities with ones, so we have to care only about the
+        # probabilities of the tempo transitions
+        cdef double [::1] probabilities = \
+            np.ones(num_transitions, dtype=np.float)
 
         # cache first and last positions
         cdef unsigned int [::1] first_beat_positions = \
@@ -156,22 +155,21 @@ class BeatTrackingTransitionModel(TransitionModel):
                     # generate a transition
                     prev_states[i] = last_beat_positions[from_tempo]
                     states[i] = first_beat_positions[tempo_state]
-                    log_probabilities[i] = log(trans_prob[from_tempo,
-                                                          tempo_state])
+                    probabilities[i] = trans_prob[from_tempo, tempo_state]
                     # increase counter
                     i += 1
             # transitions within the same tempo
             for prev_state in range(first_beat_positions[tempo_state],
                                     last_beat_positions[tempo_state]):
-                # generate a transition with log(1) = 0 probability
+                # generate a transition with probability 1
                 prev_states[i] = prev_state
                 states[i] = prev_state + 1
-                # Note: skip setting the probability here, since
-                #       log_probabilities was initialised with 0
+                # Note: skip setting the probability here, since they were
+                #       initialised with 1
                 # increase counter
                 i += 1
         # return the arrays
-        return states, prev_states, log_probabilities
+        return states, prev_states, probabilities
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -287,9 +285,6 @@ class BeatTrackingObservationModel(ObservationModel):
         :param observations: observations (i.e. activations of the NN)
         :return:             log densities of the observations
 
-        Note: this method must be called prior to calling the viterbi() method
-              of the HMM.
-
         """
         # init variables
         cdef unsigned int i
@@ -357,7 +352,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                 # set TM arrays
                 states = tm.states
                 pointers = tm.pointers
-                log_probabilities = tm.log_probabilities
+                probabilities = tm.probabilities
                 # internal mapping arrays
                 self.position_mapping = tm.position(seq)
                 self.tempo_mapping = tm.tempo(seq)
@@ -368,8 +363,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                     tm.states + len(pointers) - 1))
                 pointers = np.hstack((pointers,
                                       tm.pointers[1:] + max(pointers)))
-                log_probabilities = np.hstack((log_probabilities,
-                                               tm.log_probabilities))
+                probabilities = np.hstack((probabilities, tm.probabilities))
                 # update internal mapping arrays
                 self.position_mapping = np.hstack((self.position_mapping,
                                                    tm.position(seq)))
@@ -380,7 +374,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                                             tm.num_states)))
         # instantiate a TransitionModel with the transitions
         super(DownBeatTrackingTransitionModel, self).__init__(
-              states, pointers, log_probabilities)
+              states, pointers, probabilities)
 
     @property
     def num_tempo_states(self):
