@@ -848,11 +848,12 @@ class RNNOnsetDetection(IOProcessor):
         # input processor chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
-        stack = StackSpectrogramProcessor(frame_sizes=frame_sizes,
+        stack = StackSpectrogramProcessor(frame_size=frame_sizes,
                                           online=online, bands=6,
                                           norm_filters=True,
                                           log=True, mul=5, add=1,
-                                          diff_ratio=0.25, **kwargs)
+                                          diff_ratio=0.25, stack_diffs=True,
+                                          **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,

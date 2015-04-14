@@ -1311,11 +1311,14 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                           algorithm 3 `max_bins` are used together with a 24
                           band logarithmic filterbank)
 
-    Other parameters:
+    Target parameters:
 
     :param shift:         shift the targets N seconds
     :param spread:        spread the targets N seconds
     :param split:         split the files into parts with N frames length
+
+    Other parameters:
+
     :param verbose:       be verbose
 
     """
@@ -1326,16 +1329,19 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
 
+    # stack diffs only if needed
+    stack_diffs = True if diff_ratio or diff_frames else False
     # define processing chain
     sig = SignalProcessor(num_channels=1, norm=norm, att=att)
-    stack = StackSpectrogramProcessor(frame_sizes=frame_size, online=online,
+    stack = StackSpectrogramProcessor(frame_size=frame_size, online=online,
                                       fps=fps, filterbank=filterbank,
                                       bands=bands, fmin=fmin, fmax=fmax,
                                       norm_filters=norm_filters,
                                       log=log, mul=mul, add=add,
                                       diff_ratio=diff_ratio,
                                       diff_frames=diff_frames,
-                                      diff_max_bins=diff_max_bins)
+                                      diff_max_bins=diff_max_bins,
+                                      stack_diffs=stack_diffs)
     processor = SequentialProcessor([sig, stack])
 
     # treat all files as annotation files
