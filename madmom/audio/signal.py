@@ -93,23 +93,36 @@ def normalize(signal):
     return np.asanyarray(signal.astype(np.float) / np.max(signal))
 
 
-def downmix(signal):
+def remix(signal, num_channels):
     """
-    Down-mix the signal to mono.
+    Remix the signal to have the desired number of channels.
 
-    :param signal: signal [numpy array]
-    :return:       mono signal
+    :param signal:       signal [numpy array]
+    :param num_channels: desired number of channels
+    :return:             remixed signal (with same dtype)
 
-    Note: The signal is returned with the same type, thus in case of integer
-          dtypes, rounding errors may occur.
+    Note: This function does not support arbitrary channel number conversions.
+          Only down-mixing to mono and up-mixing from mono signals is supported.
+          The signal is returned with the same dtype, thus in case of
+          down-mixing signals with integer dtypes, rounding errors may occur.
 
     """
-    # down-mix the signal and keep the original dtype if wanted
-    # Note: np.asanyarray returns the signal's ndarray subclass
-    if signal.ndim > 1:
-        return np.mean(signal, axis=-1, dtype=signal.dtype)
-    else:
+    # convert to the desired number of channels
+    if num_channels == signal.ndim or num_channels is None:
+        # return as many channels as there are
         return signal
+    elif num_channels == 1 and signal.ndim > 1:
+        # down-mix to mono (keep the original dtype)
+        # TODO: add weighted mixing
+        return np.mean(signal, axis=-1, dtype=signal.dtype)
+    elif num_channels > 1 and signal.ndim == 1:
+        # up-mix a mono signal simply by copying channels
+        return np.tile(signal[:, np.newaxis], num_channels)
+    else:
+        # any other channel conversion is not supported
+        raise NotImplementedError("Requested %d channels, but got %d channels "
+                                  "and channel conversion is not implemented."
+                                  % (num_channels, signal.shape[1]))
 
 
 def trim(signal):
@@ -179,7 +192,7 @@ def sound_pressure_level(signal, p_ref=1.0):
 def load_wave_file(filename, sample_rate=None, num_channels=None):
     """
     Load the audio data from the given file and return it as a numpy array.
-    Only supports wave files, does not support resampling, and does not support
+    Only supports wave files, does not support re-sampling, and does not support
     arbitrary channel number conversions. Reads the data as a memory-mapped
     file with copy-on-write semantics to defer I/O costs until needed.
 
@@ -199,21 +212,10 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
                                   "Hz and resampling is not implemented." %
                                   (sample_rate, file_sample_rate))
     sample_rate = file_sample_rate
-    # down-mix if needed
-    if num_channels == 1:
-        # down-mix to mono
-        signal = downmix(signal)
-    elif num_channels is None:
-        # return as many channels as there are
-        pass
-    elif signal.ndim == 1:
-        # upmix a mono signal simply by copying channels
-        signal = np.tile(signal[:, np.newaxis], num_channels)
-    elif signal.shape[1] != num_channels:
-        # any other channel conversion is not supported
-        raise NotImplementedError("Requested %d channels, but got %d channels "
-                                  "and channel conversion is not implemented." %
-                                  (num_channels, signal.shape[1]))
+    # up-/down-mix if needed
+    if num_channels is not None:
+        signal = remix(signal, num_channels)
+    # return the signal
     return signal, sample_rate
 
 
@@ -231,8 +233,8 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
     :param dtype:        numpy dtype to return the signal in (supports signed
-                         and unsigned 8/16/32-bit integers, and single and double
-                         precision floats, each in little- or big-endian)
+                         and unsigned 8/16/32-bit integers, and single and
+                         double precision floats, each in little or big endian)
     :return:             tuple (signal, sample_rate)
     """
     from .ffmpeg import decode_to_memory, get_file_info
@@ -320,10 +322,12 @@ class Signal(np.ndarray):
         :param num_channels: number of channels [int]
 
         Note: `sample_rate` or `num_channels` can be used to set the desired
-              sample rate and number of channels if the audio is read from file.
-              If set to 'None' the audio signal is used as is, i.e. the sample
-              rate and number of channels are determined directly from the
-              audio file.
+              sample rate and number of channels if the audio is read from
+              file. If set to 'None' the audio signal is used as is, i.e. the
+              sample rate and number of channels are determined directly from
+              the audio file.
+              If the `data` is a numpy array, the `sample_rate` is set to the
+              given value and
 
         """
         # try to load an audio file if the data is not a numpy array
@@ -693,8 +697,8 @@ class FramedSignal(object):
         Note: We do not use the `frame_size` for the calculation of the number
               of frames in order to be able to stack multiple frames obtained
               with different frame sizes. Thus it is not guaranteed that every
-              sample of the signal is returned in a frame if the `origin` is
-              not 'right' or 'future'.
+              sample of the signal is returned in a frame unless the `origin`
+              is either 'right' or 'future'.
 
         """
         # signal handling
@@ -748,8 +752,8 @@ class FramedSignal(object):
         """
         This makes the FramedSignalProcessor class indexable and/or iterable.
 
-        The signal is split into frames (of length 'frame_size') automatically.
-        Two frames are located 'hop_size' samples apart. 'hop_size' can be
+        The signal is split into frames (of length `frame_size`) automatically.
+        Two frames are located `hop_size` samples apart. If `hop_size` is a
         float, normal rounding applies.
 
         Note: Index -1 refers NOT to the last frame, but to the frame directly
@@ -781,7 +785,7 @@ class FramedSignal(object):
             num_frames = stop - start
             # determine the start sample
             start_sample = self.start + self.hop_size * start
-            # return a new FramedSignalProcessor instance covering the requested frames
+            # return a new FramedSignal instance covering the requested frames
             return FramedSignal(self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=self.origin,
                                 start=start_sample, num_frames=num_frames)
