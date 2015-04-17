@@ -197,63 +197,84 @@ class TestNormalizeFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, sig_2d))
 
 
-class TestDownmixFunction(unittest.TestCase):
+class TestMixFunction(unittest.TestCase):
 
     mono_2d = np.asarray([0.5, 0, 1, 0, 0.5, 0.5, 0.5, 0, 1], dtype=np.float)
 
     def test_types_1d(self):
-        result = downmix(sig_1d)
+        result = remix(sig_1d, 1)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == sig_1d.dtype)
+        result = remix(sig_1d, 2)
+        self.assertTrue(len(result) == len(sig_1d))
+        self.assertTrue(result.shape == (len(sig_1d), 2))
+        self.assertTrue(result.dtype == sig_1d.dtype)
+        result = remix(sig_1d, 3)
+        self.assertTrue(len(result) == len(sig_1d))
+        self.assertTrue(result.shape == (len(sig_1d), 3))
+        self.assertTrue(result.dtype == sig_1d.dtype)
 
     def test_types_2d(self):
-        result = downmix(sig_2d)
+        result = remix(sig_2d, 1)
         self.assertTrue(len(result) == len(sig_2d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == sig_2d.dtype)
+        result = remix(sig_2d, 2)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        with self.assertRaises(NotImplementedError):
+            remix(sig_2d, 3)
 
     def test_types_1d_int_dtype(self):
-        result = downmix(sig_1d.astype(np.int))
+        result = remix(sig_1d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == np.int)
+        result = remix(sig_1d.astype(np.int), 2)
+        self.assertTrue(len(result) == len(sig_1d))
+        self.assertTrue(result.shape == (len(sig_1d), 2))
+        self.assertTrue(result.dtype == np.int)
 
     def test_types_2d_int_dtype(self):
-        result = downmix(sig_2d.astype(np.int))
+        result = remix(sig_2d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_2d))
         self.assertTrue(result.shape == sig_1d.shape)
+        self.assertTrue(result.dtype == np.int)
+        result = remix(sig_2d.astype(np.int), 2)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
         self.assertTrue(result.dtype == np.int)
 
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
-        result = downmix(signal)
-        self.assertIsInstance(result, Signal)
-        self.assertIsInstance(result, np.ndarray)
+        result = remix(signal, 1)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.dtype == np.int16)
 
     def test_types_stereo_signal(self):
         signal = Signal(DATA_PATH + '/stereo_sample.wav')
-        result = downmix(signal)
-        self.assertIsInstance(result, Signal)
-        self.assertIsInstance(result, np.ndarray)
+        result = remix(signal, 1)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
         self.assertTrue(result.dtype == np.int16)
 
     def test_values_1d(self):
-        result = downmix(sig_1d)
+        result = remix(sig_1d, 1)
         self.assertTrue(np.allclose(result, sig_1d))
 
     def test_values_2d(self):
-        result = downmix(sig_2d)
+        result = remix(sig_2d, 1)
         self.assertTrue(np.allclose(result, self.mono_2d))
 
     def test_values_2d_int_dtype(self):
-        result = downmix(sig_2d.astype(np.int))
+        result = remix(sig_2d.astype(np.int), 1)
         self.assertTrue(np.allclose(result, self.mono_2d.astype(np.int)))
 
     def test_values_2d_double_range(self):
-        result = downmix(2 * sig_2d.astype(np.int))
-        print result, self.mono_2d
+        result = remix(2 * sig_2d.astype(np.int), 1)
         self.assertTrue(np.allclose(result, 2 * self.mono_2d))
 
 

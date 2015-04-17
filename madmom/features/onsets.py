@@ -206,7 +206,7 @@ class PeakPicking(Processor):
                     combined_note_onsets = note_onsets[1:][
                         np.diff(note_onsets) > self.combine]
                     # zip the onsets with the MIDI note number and add them to
-                    # the list of detections2
+                    # the list of detections
                     detections.extend(zip(combined_note_onsets,
                                           [note] * len(combined_note_onsets)))
             else:
