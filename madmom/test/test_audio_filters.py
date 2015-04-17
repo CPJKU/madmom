@@ -9,6 +9,8 @@ This file contains tests for the madmom.audio.filters module.
 
 import unittest
 import types
+import cPickle
+import tempfile
 
 from madmom.audio.filters import *
 
@@ -345,6 +347,15 @@ class TestFilterClass(unittest.TestCase):
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 6)
 
+    def test_pickling(self):
+        f, filename = tempfile.mkstemp()
+        filt = Filter(np.arange(5))
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.start, filt_.start))
+
     def test_filters_method(self):
         with self.assertRaises(NotImplementedError):
             Filter(np.arange(5)).filters(3)
@@ -373,23 +384,39 @@ class TestTriangularFilterClass(unittest.TestCase):
         filt = TriangularFilter(0, 1, 2, False)
         self.assertTrue(np.allclose(filt, [0, 1]))
         self.assertTrue(filt.start == 0)
+        self.assertTrue(filt.center == 1)
         self.assertTrue(filt.stop == 2)
         filt = TriangularFilter(1, 2, 3, True)
         self.assertTrue(np.allclose(filt, [0, 1]))
         self.assertTrue(filt.start == 1)
+        self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 3)
         filt = TriangularFilter(1, 2, 4, False)
         self.assertTrue(np.allclose(filt, [0, 1, 0.5]))
         self.assertTrue(filt.start == 1)
+        self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 4)
         filt = TriangularFilter(1, 2, 4, True)
         self.assertTrue(np.allclose(filt, [0, 0.66667, 0.33333]))
         self.assertTrue(filt.start == 1)
+        self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 4)
         filt = TriangularFilter(4, 6, 9, True)
         self.assertTrue(np.allclose(filt, [0, 0.2, 0.4, 0.266667, 0.133333]))
         self.assertTrue(filt.start == 4)
+        self.assertTrue(filt.center == 6)
         self.assertTrue(filt.stop == 9)
+
+    def test_pickling(self):
+        f, filename = tempfile.mkstemp()
+        filt = TriangularFilter(1, 4, 10)
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.start, filt_.start))
+        self.assertTrue(np.allclose(filt.stop, filt_.stop))
+        self.assertTrue(np.allclose(filt.center, filt_.center))
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
@@ -534,6 +561,16 @@ class TestRectangularFilterClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt, [0.2, 0.2, 0.2, 0.2, 0.2]))
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.stop == 9)
+
+    def test_pickling(self):
+        f, filename = tempfile.mkstemp()
+        filt = RectangularFilter(5, 10)
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.start, filt_.start))
+        self.assertTrue(np.allclose(filt.stop, filt_.stop))
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
@@ -709,6 +746,16 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt.center_frequencies,
                                     [6, 15, 25, 50]))
 
+    def test_pickling(self):
+        filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    filt_.bin_frequencies))
+
 
 class TestMelFilterbankClass(unittest.TestCase):
 
@@ -746,6 +793,16 @@ class TestMelFilterbankClass(unittest.TestCase):
                                      [1040, 2360], [1620, 3400], [2400, 4800],
                                      [3440, 6680], [4840, 9160], [6720, 12500],
                                      [9200, 16980]]))
+
+    def test_pickling(self):
+        filt = MelFilterbank(np.arange(1000) * 20, 10)
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    filt_.bin_frequencies))
 
     def test_default_values(self):
         filt = MelFilterbank(np.fft.fftfreq(2048, 1. / 44100)[:1024])
@@ -805,6 +862,16 @@ class TestBarkFilterbankClass(unittest.TestCase):
         self.assertEqual(BarkFilterbank.NORM_FILTERS, True)
         self.assertEqual(BarkFilterbank.DUPLICATE_FILTERS, False)
 
+    def test_pickling(self):
+        filt = BarkFilterbank(FFT_FREQS_1024)
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    filt_.bin_frequencies))
+
     def test_default_values(self):
         filt = BarkFilterbank(FFT_FREQS_1024)
         center = [43.066406, 129.199218, 236.865234, 344.53125, 452.197265,
@@ -855,6 +922,18 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         self.assertEqual(LogarithmicFilterbank.BANDS_PER_OCTAVE, 12)
         # self.assertEqual(LogarithmicFilterbank.NORM_FILTERS, True)
         # self.assertEqual(LogarithmicFilterbank.DUPLICATE_FILTERS, False)
+
+    def test_pickling(self):
+        filt = LogarithmicFilterbank(FFT_FREQS_1024)
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    filt_.bin_frequencies))
+        self.assertTrue(filt.bands_per_octave == filt_.bands_per_octave)
+        self.assertTrue(filt.fref == filt_.fref)
 
     def test_default_values(self):
         filt = LogarithmicFilterbank(FFT_FREQS_1024)
