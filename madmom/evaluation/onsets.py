@@ -20,6 +20,8 @@ from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
 
 
 # evaluation function for onset detection
+# TODO: find a better name, this is misleading since it does not evaluate the
+#       detections against the annotations per se
 def onset_evaluation(detections, annotations, window):
     """
     Determine the true/false positive/negative detections.
@@ -27,14 +29,13 @@ def onset_evaluation(detections, annotations, window):
     :param detections:  array with detected onsets [seconds]
     :param annotations: array with annotated onsets [seconds]
     :param window:      detection window [seconds]
-    :return:            tuple of tp, fp, tn, fn numpy arrays
+    :return:            tuple of lists (tp, fp, tn, fn)
+                        tp: list with true positive detections
+                        fp: list with false positive detections
+                        tn: list with true negative detections
+                        fn: list with false negative detections
 
-    tp: array with true positive detections
-    fp: array with false positive detections
-    tn: array with true negative detections (this one is empty!)
-    fn: array with false negative detections
-
-    Note: The true negative array is empty, because we are not interested in
+    Note: The true negative list is empty, because we are not interested in
           this class, since it is ~20 times as big as the onset class.
 
     """
@@ -164,16 +165,21 @@ def main():
     Simple onset evaluation.
 
     """
-    from madmom.utils import search_files, match_file, load_events, combine_events
+    from madmom.utils import (search_files, match_file, load_events,
+                              combine_events)
 
     # parse arguments
     args = parser()
 
     # get detection and annotation files
-    det_files = search_files(args.files, args.det_suffix)
-    ann_files = search_files(args.files, args.ann_suffix)
+    if args.det_dir is None:
+        args.det_dir = args.files
+    if args.ann_dir is None:
+        args.ann_dir = args.files
+    det_files = search_files(args.det_dir, args.det_suffix)
+    ann_files = search_files(args.ann_dir, args.ann_suffix)
     # quit if no files are found
-    if len(det_files) == 0:
+    if len(ann_files) == 0:
         print "no files to evaluate. exiting."
         exit()
 

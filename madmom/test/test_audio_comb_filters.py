@@ -43,7 +43,7 @@ class TestFeedBackwardFilter1DFunction(unittest.TestCase):
 
     def test_types(self):
         result = feed_backward_comb_filter_1d(sig_1d, 2, 0.5)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values(self):
@@ -61,7 +61,7 @@ class TestFeedBackwardFilter2DFunction(unittest.TestCase):
 
     def test_types(self):
         result = feed_backward_comb_filter_2d(sig_2d, 2, 0.5)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(type(result), float)
 
     def test_values(self):

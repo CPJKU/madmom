@@ -125,7 +125,7 @@ class TestStatisticalSpectrumDescriptorsFunction(unittest.TestCase):
 
     def test_types(self):
         result = statistical_spectrum_descriptors(np.random.rand(10))
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertTrue(result['mean'].dtype == np.float)
         self.assertTrue(result['median'].dtype == np.float)
         self.assertTrue(result['variance'].dtype == np.float)
@@ -134,7 +134,7 @@ class TestStatisticalSpectrumDescriptorsFunction(unittest.TestCase):
         self.assertTrue(result['min'].dtype == np.float)
         self.assertTrue(result['max'].dtype == np.float)
         result = statistical_spectrum_descriptors(np.random.rand(10, 2))
-        self.assertTrue(isinstance(result, dict))
+        self.assertIsInstance(result, dict)
         self.assertTrue(result['mean'].dtype == np.float)
         self.assertTrue(result['median'].dtype == np.float)
         self.assertTrue(result['variance'].dtype == np.float)
@@ -177,36 +177,36 @@ class TestSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
         result = Spectrogram(DATA_PATH + '/sample.wav')
-        self.assertTrue(isinstance(result, Spectrogram))
-        self.assertTrue(isinstance(result.frames, FramedSignal))
-        self.assertTrue(isinstance(result.window, np.ndarray))
-        self.assertTrue(isinstance(result.fft_size, int))
-        self.assertTrue(isinstance(result.fft_window, np.ndarray))
-        self.assertTrue(isinstance(result.block_size, int))
-        self.assertTrue(isinstance(result.filterbank, type(None)))
-        self.assertTrue(isinstance(result.log, bool))
-        self.assertTrue(isinstance(result.mul, float))
-        self.assertTrue(isinstance(result.add, float))
-        self.assertTrue(isinstance(result.num_diff_frames, int))
-        self.assertTrue(isinstance(result.diff_max_bins, int))
-        self.assertTrue(isinstance(result.positive_diff, bool))
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.window, np.ndarray)
+        self.assertIsInstance(result.fft_size, int)
+        self.assertIsInstance(result.fft_window, np.ndarray)
+        self.assertIsInstance(result.block_size, int)
+        self.assertIsInstance(result.filterbank, type(None))
+        self.assertIsInstance(result.log, bool)
+        self.assertIsInstance(result.mul, float)
+        self.assertIsInstance(result.add, float)
+        self.assertIsInstance(result.num_diff_frames, int)
+        self.assertIsInstance(result.diff_max_bins, int)
+        self.assertIsInstance(result.positive_diff, bool)
         # properties
-        self.assertTrue(isinstance(result.num_frames, int))
-        self.assertTrue(isinstance(result.fft_freqs, np.ndarray))
-        self.assertTrue(isinstance(result.num_fft_bins, int))
-        self.assertTrue(isinstance(result.num_bins, int))
-        self.assertTrue(isinstance(result.stft, np.ndarray))
-        self.assertTrue(isinstance(result.spec, np.ndarray))
-        self.assertTrue(isinstance(result.magnitude, np.ndarray))
-        self.assertTrue(isinstance(result.phase, np.ndarray))
-        self.assertTrue(isinstance(result.lgd, np.ndarray))
-        self.assertTrue(isinstance(result.diff, np.ndarray))
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.fft_freqs, np.ndarray)
+        self.assertIsInstance(result.num_fft_bins, int)
+        self.assertIsInstance(result.num_bins, int)
+        self.assertIsInstance(result.stft, np.ndarray)
+        self.assertIsInstance(result.spec, np.ndarray)
+        self.assertIsInstance(result.magnitude, np.ndarray)
+        self.assertIsInstance(result.phase, np.ndarray)
+        self.assertIsInstance(result.lgd, np.ndarray)
+        self.assertIsInstance(result.diff, np.ndarray)
 
     def test_types_filterbank(self):
         result = Spectrogram(DATA_PATH + '/sample.wav',
                              filterbank=LogarithmicFilterbank)
-        self.assertTrue(isinstance(result, Spectrogram))
-        self.assertTrue(isinstance(result.filterbank, Filterbank))
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.filterbank, Filterbank)
 
     def test_values(self):
         result = Spectrogram(DATA_PATH + '/sample.wav')
@@ -270,25 +270,25 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = SpectrogramProcessor()
-        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertIsInstance(processor, SpectrogramProcessor)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
-        self.assertTrue(isinstance(processor.bands, int))
-        self.assertTrue(isinstance(processor.fmin, float))
-        self.assertTrue(isinstance(processor.fmax, float))
-        self.assertTrue(isinstance(processor.log, bool))
-        self.assertTrue(isinstance(processor.mul, float))
-        self.assertTrue(isinstance(processor.add, float))
-        self.assertTrue(isinstance(processor.diff_ratio, float))
-        self.assertTrue(isinstance(processor.diff_frames, type(None)))
-        self.assertTrue(isinstance(processor.diff_max_bins, int))
+        self.assertIsInstance(processor.bands, int)
+        self.assertIsInstance(processor.fmin, float)
+        self.assertIsInstance(processor.fmax, float)
+        self.assertIsInstance(processor.log, bool)
+        self.assertIsInstance(processor.mul, float)
+        self.assertIsInstance(processor.add, float)
+        self.assertIsInstance(processor.diff_ratio, float)
+        self.assertIsInstance(processor.diff_frames, type(None))
+        self.assertIsInstance(processor.diff_max_bins, int)
 
     def test_types_filterbank(self):
         processor = SpectrogramProcessor(filterbank=True)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
         processor = SpectrogramProcessor(filterbank=False)
-        self.assertTrue(isinstance(processor.filterbank, type(None)))
+        self.assertIsInstance(processor.filterbank, type(None))
 
     def test_values(self):
         processor = SpectrogramProcessor()
@@ -352,8 +352,8 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = SuperFluxProcessor()
-        self.assertTrue(isinstance(processor, SuperFluxProcessor))
-        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertIsInstance(processor, SuperFluxProcessor)
+        self.assertIsInstance(processor, SpectrogramProcessor)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
 
@@ -385,8 +385,8 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = MultiBandSpectrogramProcessor([200, 1000])
-        self.assertTrue(isinstance(processor, MultiBandSpectrogramProcessor))
-        self.assertTrue(isinstance(processor, SpectrogramProcessor))
+        self.assertIsInstance(processor, MultiBandSpectrogramProcessor)
+        self.assertIsInstance(processor, SpectrogramProcessor)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
         self.assertTrue(type(processor.crossover_frequencies) == list)
@@ -416,8 +416,8 @@ class TestStackSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types(self):
         processor = StackSpectrogramProcessor([512, 1024, 2048])
-        self.assertTrue(isinstance(processor, StackSpectrogramProcessor))
-        self.assertTrue(isinstance(processor, Processor))
+        self.assertIsInstance(processor, StackSpectrogramProcessor)
+        self.assertIsInstance(processor, Processor)
 
     def test_values(self):
         processor = StackSpectrogramProcessor([512])
