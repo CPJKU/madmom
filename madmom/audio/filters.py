@@ -303,6 +303,24 @@ class Filter(np.ndarray):
         # return the object
         return obj
 
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(Filter, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.start, self.stop,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.start = state[-2]
+        self.stop = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(Filter, self).__setstate__(state[0:-2])
+
     @classmethod
     def band_bins(cls, bins, **kwargs):
         """
@@ -374,6 +392,23 @@ class TriangularFilter(Filter):
         obj.center = start + center
         # return the filter
         return obj
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(TriangularFilter, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.center,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.center = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(TriangularFilter, self).__setstate__(state[0:-1])
 
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
@@ -546,6 +581,23 @@ class Filterbank(np.ndarray):
             return
         # set default values here
         self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(Filterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.bin_frequencies,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.bin_frequencies = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(Filterbank, self).__setstate__(state[0:-1])
 
     @classmethod
     def _put_filter(cls, filt, band):
@@ -872,6 +924,24 @@ class LogarithmicFilterbank(Filterbank):
                                         self.BANDS_PER_OCTAVE)
         self.fref = getattr(obj, 'fref', A4)
 
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(LogarithmicFilterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.bands_per_octave, self.fref,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.bands_per_octave = state[-2]
+        self.fref = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(LogarithmicFilterbank, self).__setstate__(state[0:-2])
+
 
 # alias
 LogFilterbank = LogarithmicFilterbank
@@ -929,6 +999,23 @@ class SimpleChromaFilterbank(Filterbank):
             return
         # set default values here
         self.fref = getattr(obj, 'fref', A4)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(SimpleChromaFilterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.fref,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.fref = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(SimpleChromaFilterbank, self).__setstate__(state[0:-1])
 
 
 class HarmonicFilterbank(Filterbank):
@@ -1001,6 +1088,23 @@ class PitchClassProfileFilterbank(Filterbank):
         # set default values here
         self.fref = getattr(obj, 'fref', A4)
 
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(PitchClassProfileFilterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.fref,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.fref = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(PitchClassProfileFilterbank, self).__setstate__(state[0:-1])
+
 
 class HarmonicPitchClassProfileFilterbank(Filterbank):
     """
@@ -1064,6 +1168,25 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
             return
         # set default values here
         self.fref = getattr(obj, 'fref', A4)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(HarmonicPitchClassProfileFilterbank,
+                              self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.fref,)
+        # return a tuple that replaces the parent's __setstate__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the sample_rate
+        self.fref = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(HarmonicPitchClassProfileFilterbank,
+              self).__setstate__(state[0:-1])
 
 
 # comb filters
