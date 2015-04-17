@@ -87,38 +87,30 @@ class TestMatchFileFunction(unittest.TestCase):
 
 class TestLoadEventsFunction(unittest.TestCase):
 
-    def test_read_events_from_closed_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'w')
-        self.assertRaises(IOError, load_events, file_handle)
-
     def test_read_events_from_file(self):
-        annotations = load_events(DATA_PATH + 'events.txt')
-        self.assertIsInstance(annotations, np.ndarray)
+        events = load_events(DATA_PATH + 'events.txt')
+        self.assertIsInstance(events, np.ndarray)
 
     def test_read_events_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'r')
-        annotations = load_events(file_handle)
-        self.assertIsInstance(annotations, np.ndarray)
+        file_handle = __builtin__.open(DATA_PATH + 'events.txt')
+        events = load_events(file_handle)
+        self.assertIsInstance(events, np.ndarray)
         file_handle.close()
 
     def test_read_onset_annotations(self):
-        annotations = load_events(DATA_PATH + 'sample.onsets')
-        self.assertTrue(np.array_equal(annotations, ANNOTATIONS))
+        events = load_events(DATA_PATH + 'sample.onsets')
+        self.assertTrue(np.array_equal(events, ANNOTATIONS))
 
     def test_read_file_without_comments(self):
         events = load_events(DATA_PATH + 'sample.onsets.txt')
         self.assertTrue(events.any())
 
-    def test_load_file_with_comments(self):
+    def test_load_file_with_comments_and_empty_lines(self):
         events = load_events(DATA_PATH + 'commented_txt')
         self.assertTrue(events.any())
 
 
 class TestWriteEventsFunction(unittest.TestCase):
-
-    def test_write_events_to_closed_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'r')
-        self.assertRaises(IOError, write_events, EVENTS, file_handle)
 
     def test_write_events_to_file(self):
         result = write_events(EVENTS, DATA_PATH + 'events.txt')

@@ -299,7 +299,7 @@ class HiddenMarkovModel(object):
                                                      dtype=np.float)
 
         # previous viterbi variables, init with the initial state distribution
-        cdef double [::1] previous_viterbi = self.initial_distribution
+        cdef double [::1] previous_viterbi = self.initial_distribution.copy()
 
         # back-tracking pointers
         cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,

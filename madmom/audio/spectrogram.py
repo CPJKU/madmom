@@ -69,7 +69,7 @@ def stft(signal, window, hop_size, fft_size=None, correct_phase=False):
 
     :param signal:        signal [1D numpy array]
     :param window:        window function [1D numpy array]
-    :param hop_size:      hop_size between adjacent frames [float]
+    :param hop_size:      hop size between adjacent frames [float]
     :param fft_size:      use given size for FFT [int, should be a power of 2]
     :param correct_phase: circular shift for correct phase [bool]
     :return:              the complex STFT of the signal

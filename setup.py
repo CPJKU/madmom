@@ -61,7 +61,7 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 setup(name='madmom',
-      version='0.8.1',
+      version='0.8.2',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '
