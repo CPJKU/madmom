@@ -139,14 +139,17 @@ def load_events(filename):
     :param filename: name of the file or file handle
     :return:         numpy array of events
 
-    Note: Comments (i.e. lines tarting with '#') are ignored.
+    Note: Comments (i.e. lines tarting with '#') and additional columns are
+          ignored (i.e. only the first column is returned).
 
     """
     with open(filename, 'rb') as f:
         # read in the events, one per line
+        events = np.loadtxt(f)
         # 1st column is the event's time, the rest is ignored
-        return np.fromiter((float(line.split(None, 1)[0]) for line in f
-                            if not line.startswith('#')), dtype=np.float)
+        if events.ndim > 1:
+            return events[:, 0]
+        return events
 
 
 def write_events(events, filename):
