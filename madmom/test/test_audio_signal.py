@@ -490,6 +490,17 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.num_channels == 1)
         self.assertTrue(np.allclose(result.length, 2.8))
 
+    def test_pickling(self):
+        import cPickle
+        import tempfile
+        result = Signal(DATA_PATH + '/sample.wav')
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(result, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        result_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(result, result_))
+        self.assertTrue(result.sample_rate == result_.sample_rate)
+
 
 class TestSignalProcessorClass(unittest.TestCase):
 
