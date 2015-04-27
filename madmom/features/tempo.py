@@ -80,12 +80,27 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
         max_tau = len(activations) - min_tau
     # get the range of taus
     taus = np.arange(min_tau, max_tau + 1)
-    # apply a bank of comb filters
-    cfb = CombFilterbank('backward', taus, alpha).process(activations)
-    # determine the tau with the highest value for each time step
-    # sum up the maxima to yield the histogram bin values
-    histogram_bins = np.sum(cfb * (cfb == np.max(cfb, axis=0)), axis=1)
-    # return histogram
+    # activations = np.minimum(0.9, activations)
+    if activations.ndim == 1:
+        # apply a bank of comb filters
+        cfb = CombFilterbank('backward', taus, alpha).process(activations)
+        # determine the tau with the highest value for each time step
+        # sum up the maxima to yield the histogram bin values
+        histogram_bins = np.sum(cfb * (cfb == np.max(cfb, axis=0)), axis=1)
+    elif activations.ndim == 2:
+        histogram_bins = np.zeros_like(taus)
+        # do the same as above for all bands
+        for i in range(activations.shape[1]):
+            # apply a bank of comb filters
+            cfb = CombFilterbank('backward', taus, alpha).process(activations[:, i])
+            # determine the tau with the highest value for each time step
+            # sum up the maxima to yield the histogram bin values
+            histogram_bins += np.sum(cfb * (cfb == np.max(cfb, axis=0)),
+                                     axis=1)
+    else:
+        raise NotImplementedError('too many dimensions for comb filter tempo '
+                                  'detection.')
+    # return the histogram
     return histogram_bins, taus
 
 
@@ -128,12 +143,13 @@ def detect_tempo(histogram, fps):
     if len(peaks) == 0:
         # a flat histogram has no peaks, use the center bin
         if len(bins):
-            return np.asarray([tempi[len(bins) / 2], 1.])
-        # otherwise: no peaks, no tempo
-        return np.asarray([NO_TEMPO, 0.])
+            ret = np.asarray([tempi[len(bins) / 2], 1.])
+        else:
+            # otherwise: no peaks, no tempo
+            ret = np.asarray([NO_TEMPO, 0.])
     elif len(peaks) == 1:
         # report only the strongest tempo
-        return np.asarray([tempi[peaks[0]], 1.])
+        ret = np.asarray([tempi[peaks[0]], 1.])
     else:
         # sort the peaks in descending order of bin heights
         sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
@@ -141,7 +157,9 @@ def detect_tempo(histogram, fps):
         strengths = bins[sorted_peaks]
         strengths /= np.sum(strengths)
         # return the tempi and their normalized strengths
-        return np.asarray(zip(tempi[sorted_peaks], strengths))
+        ret = np.asarray(zip(tempi[sorted_peaks], strengths))
+    # return the tempi
+    return np.atleast_2d(ret)
 
 
 # tempo estimation processor class
@@ -204,7 +222,7 @@ class TempoEstimation(Processor):
         act_smooth = int(round(self.fps * self.act_smooth))
         activations = smooth_signal(activations, act_smooth)
         # generate a histogram of beat intervals
-        histogram = self.interval_histogram(activations)
+        histogram = self.interval_histogram(activations.astype(np.float))
         # smooth the histogram
         histogram = smooth_histogram(histogram, self.hist_smooth)
         # detect the tempi and return them
@@ -226,6 +244,26 @@ class TempoEstimation(Processor):
             return interval_histogram_comb(activations, self.alpha,
                                            self.min_interval,
                                            self.max_interval)
+        elif self.method == 'dbn':
+            from .beats import DBNBeatTracking
+            # track with the DBN tracker
+            dbn = DBNBeatTracking(min_bpm=self.min_bpm, max_bpm=self.max_bpm,
+                                  num_tempo_states=40, fps=self.fps)
+            # get the tempo states from the DBN
+            # first compute the observation model's log_densities
+            dbn.om.compute_densities(activations.astype(np.float32))
+            # then get the best state path by calling the viterbi algorithm
+            path, _ = dbn.dbn.viterbi()
+            intervals = dbn.tm.tempo(path)
+            # add the minimum of the beat space
+            intervals += dbn.tm.beat_states.min()
+            # get the counts of the bins
+            bins = np.bincount(intervals,
+                               minlength=dbn.tm.beat_states.max() + 1)
+            # truncate everything below the minimum of the beat space
+            bins = bins[dbn.tm.beat_states.min():]
+            # build a histogram together with the TM beat states and return it
+            return bins, dbn.tm.beat_states
         else:
             raise ValueError('tempo estimation method unknown')
 
@@ -248,7 +286,7 @@ class TempoEstimation(Processor):
         Add tempo estimation related arguments to an existing parser.
 
         :param parser:      existing argparse parser
-        :param method:      either 'acf' or 'comb'.
+        :param method:      {'acf', 'comb', 'dbn'}
         :param min_bpm:     minimum tempo [bpm]
         :param max_bpm:     maximum tempo [bpm]
         :param act_smooth:  smooth the activations over N seconds
@@ -261,7 +299,7 @@ class TempoEstimation(Processor):
         g = parser.add_argument_group('tempo estimation arguments')
         if method is not None:
             g.add_argument('--method', action='store', type=str,
-                           default=method, choices=['acf', 'comb'],
+                           default=method, choices=['acf', 'comb', 'dbn'],
                            help="which method to use [default=%(default)s]")
         if min_bpm is not None:
             g.add_argument('--min_bpm', action='store', type=float,
@@ -295,7 +333,7 @@ def write_tempo(tempi, filename, mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
-    :param tempi:    tempi present
+    :param tempi:    array with the detected tempi and their strengths
     :param filename: output file name or file handle
     :param mirex:    report the lower tempo first (as required by MIREX)
     :return:         the most dominant tempi and the relative strength
@@ -308,10 +346,11 @@ def write_tempo(tempi, filename, mirex=False):
     if len(tempi) == 1:
         t1 = tempi[0][0]
         # generate a fake second tempo
-        if t1 > 120:
-            t2 = t1 / 2.
-        else:
+        # the boundary of 68 bpm is taken from Tzanetakis 2013 ICASSP paper
+        if t1 < 68:
             t2 = t1 * 2.
+        else:
+            t2 = t1 / 2.
     # consider only the two strongest tempi and strengths
     elif len(tempi) > 1:
         t1, t2 = tempi[:2, 0]
@@ -335,16 +374,17 @@ write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
 # RNN tempo estimation processor class
 class RNNTempoEstimation(IOProcessor):
     """
-    Tempo Estimation Processor class.
+    Class for tempo estimation based on the activations of a RNN.
 
     """
     def __init__(self, tempo_format=None, load=False, save=False, **kwargs):
         """
         Estimates the tempo of the signal.
 
-        :param output_format: output format for the detected tempi
-        :param load:          load the NN beat activations from file
-        :param save:          save the NN beat activations to file
+        :param tempo_format: output format for the detected tempi
+                             {None, 'mirex', 'raw', 'all'} (see below)
+        :param load:         load the NN beat activations from file
+        :param save:         save the NN beat activations to file
 
         """
         # use the RNN Beat processor as input processing

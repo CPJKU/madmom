@@ -139,7 +139,7 @@ def load_events(filename):
     :param filename: name of the file or file handle
     :return:         numpy array of events
 
-    Note: Comments (i.e. lines tarting with '#') and additional columns are
+    Note: Comments (i.e. lines starting with '#') and additional columns are
           ignored (i.e. only the first column is returned).
 
     """

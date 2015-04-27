@@ -46,7 +46,7 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
     if tau <= 0:
         raise ValueError('tau must be greater than 0')
     # type definitions
-    cdef np.ndarray[np.float_t, ndim=1] y = np.copy(signal)
+    cdef np.ndarray[np.float_t, ndim=1] y = signal.copy()
     cdef unsigned int n
     # loop over the complete signal
     for n in range(tau, len(signal)):
@@ -54,7 +54,7 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
         #       accurate tempo predictions...
         #       y[n] = (1. - alpha) * x[n] + alpha * y[n - tau]
         # add a delayed version of the output signal
-        y[n] = signal[n] + alpha * y[n - tau]
+        y[n] += alpha * y[n - tau]
     # return
     return y
 
@@ -75,16 +75,13 @@ def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
     if tau <= 0:
         raise ValueError('tau must be greater than 0')
     # type definitions
-    cdef np.ndarray[np.float_t, ndim=2] y = np.copy(signal)
+    cdef np.ndarray[np.float_t, ndim=2] y = signal.copy()
     cdef unsigned int d, n
     # loop over the dimensions
     for d in range(2):
         # loop over the complete signal
         for n in range(tau, len(signal)):
-            # Note: saw this formula somewhere, but it seems to produce less
-            #       accurate tempo predictions...
-            #       y[n, d] = (1. - alpha) * x[n, d] + alpha * y[n - tau, d]
             # add a delayed version of the output signal
-            y[n, d] = signal[n, d] + alpha * y[n - tau, d]
+            y[n, d] += alpha * y[n - tau, d]
     # return
     return y

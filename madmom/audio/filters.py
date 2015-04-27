@@ -611,7 +611,8 @@ class Filterbank(np.ndarray):
               `filt` is put in, given the position of the filter.
               Out of range filters are truncated.
               If there are non-zero values in the filter band at the respective
-              positions, the maximum value of the `band` and the `filt` is used.
+              positions, the maximum value of the `band` and the `filt` is
+              used.
 
         """
         if not isinstance(filt, Filter):
@@ -1223,13 +1224,16 @@ def _feed_backward_comb_filter(signal, tau, alpha):
 
     """
     # y[n] = x[n] + α * y[n - τ]
+    # Note: saw this formula somewhere, but it seems to produce less accurate
+    #       tempo predictions...
+    #       y[n, d] = (1. - alpha) * x[n, d] + alpha * y[n - tau, d]
     if tau <= 0:
         raise ValueError('tau must be greater than 0')
     y = np.copy(signal)
     # loop over the complete signal
     for n in range(tau, len(signal)):
         # add a delayed version of the output signal
-        y[n] = signal[n] + alpha * y[n - tau]
+        y[n] += alpha * y[n - tau]
     # return
     return y
 
