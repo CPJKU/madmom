@@ -26,6 +26,13 @@ def main():
     Proceedings of the 14th International Conference on Digital Audio Effects
     (DAFx), 2011.
 
+    Instead of using the originally proposed auto-correlation method to build
+    a tempo histogram, a new method based on comb filters is used:
+
+    TODO: add reference!
+
+    The old behaviour can be restored by using the `--method acf` switch.
+
     ''')
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')

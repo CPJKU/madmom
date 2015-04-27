@@ -182,7 +182,7 @@ class TempoEstimation(Processor):
         """
         Estimates the tempo of the signal.
 
-        :param method:      either 'acf' or 'comb'.
+        :param method:      method used for tempo estimation {'acf', 'comb'}.
         :param min_bpm:     minimum tempo to detect
         :param max_bpm:     maximum tempo to detect
         :param act_smooth:  smooth the activation function over N seconds
