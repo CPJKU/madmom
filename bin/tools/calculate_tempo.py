@@ -7,6 +7,7 @@ Script for calculating the tempo from beat ground truth annotations.
 
 """
 
+import os
 import numpy as np
 import argparse
 from scipy.cluster.vq import kmeans
@@ -32,6 +33,10 @@ def main():
                    help='files (or folder) to be corrected')
     p.add_argument('-o', dest='output', default=None,
                    help='output directory')
+    p.add_argument('--ext', dest='extension', default='.bpm',
+                   help='append the given file extension')
+    p.add_argument('--strip', dest='strip', action='store_true', default=False,
+                   help='strip off the extension')
     p.add_argument('-c', dest='cluster', action='store_true', default=False,
                    help='build tempo cluster (instead of median tempo '
                         'calculation)')
@@ -101,7 +106,15 @@ def main():
             output = '%.2f\n' % bpm
 
         # write the tempo file
-        with open("%s.bpm" % strip_suffix(in_file, '.beats'), 'wb') as o:
+        if args.output:
+            out_file = "%s/%s" % (args.output, os.path.basename(in_file))
+        else:
+            out_file = in_file
+        if args.strip:
+            out_file = strip_suffix(out_file, '.beats')
+        if args.extension:
+            out_file += args.extension
+        with open(out_file, 'wb') as o:
             o.write(output)
 
 if __name__ == '__main__':
