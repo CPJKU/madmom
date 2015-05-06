@@ -147,8 +147,9 @@ class TempoEvaluation(object):
         self.pscore, self.any, self.all = results
         self.acc1 = self.any
         # also evaluate with double / half and triple / third tempo
+        annotations_ = annotations.copy()
         if double:
-            annotations_ = np.hstack((annotations, annotations * 2.,
+            annotations_ = np.hstack((annotations_, annotations * 2.,
                                      annotations / 2.))
         if triple:
             annotations_ = np.hstack((annotations_, annotations * 3.,

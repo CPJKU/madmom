@@ -80,22 +80,24 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
         max_tau = len(activations) - min_tau
     # get the range of taus
     taus = np.arange(min_tau, max_tau + 1)
+    # create a comb filter bank instance
+    cfb = CombFilterbank('backward', taus, alpha)
     # activations = np.minimum(0.9, activations)
     if activations.ndim == 1:
         # apply a bank of comb filters
-        cfb = CombFilterbank('backward', taus, alpha).process(activations)
+        act = cfb.process(activations)
         # determine the tau with the highest value for each time step
         # sum up the maxima to yield the histogram bin values
-        histogram_bins = np.sum(cfb * (cfb == np.max(cfb, axis=0)), axis=1)
+        histogram_bins = np.sum(act * (act == np.max(act, axis=0)), axis=1)
     elif activations.ndim == 2:
         histogram_bins = np.zeros_like(taus)
         # do the same as above for all bands
         for i in range(activations.shape[1]):
             # apply a bank of comb filters
-            cfb = CombFilterbank('backward', taus, alpha).process(activations[:, i])
+            act = cfb.process(activations[:, i])
             # determine the tau with the highest value for each time step
             # sum up the maxima to yield the histogram bin values
-            histogram_bins += np.sum(cfb * (cfb == np.max(cfb, axis=0)),
+            histogram_bins += np.sum(act * (act == np.max(act, axis=0)),
                                      axis=1)
     else:
         raise NotImplementedError('too many dimensions for comb filter tempo '
