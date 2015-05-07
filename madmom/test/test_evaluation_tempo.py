@@ -131,12 +131,66 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.acc2, True)
 
     def test_results(self):
+        # two detections / annotations
         e = TempoEvaluation([120, 60], [60, 30], [0.7, 0.3])
         self.assertEqual(e.pscore, 0.7)
         self.assertEqual(e.any, True)
         self.assertEqual(e.all, False)
         self.assertEqual(e.acc1, True)
         self.assertEqual(e.acc2, True)
+        # two detections / annotations
+        e = TempoEvaluation([120, 60], [180, 60], [0.7, 0.3])
+        self.assertEqual(e.pscore, 0.3)
+        self.assertEqual(e.any, True)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, True)
+        self.assertEqual(e.acc2, True)
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [30], [1])
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, True)
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [180], [1])
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, True)
+
+    def test_results_no_double(self):
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [30], [1], double=False)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, False)
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [180], [1], double=False)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, True)
+
+    def test_results_no_triple(self):
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [30], [1], triple=False)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, True)
+        # only 1 annotations
+        e = TempoEvaluation([120, 60], [180], [1], triple=False)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, False)
 
 
 class TestMeanTempoEvaluationClass(unittest.TestCase):
