@@ -113,7 +113,9 @@ def tempo_evaluation(detections, annotations, strengths, tolerance):
     return np.sum(strengths[correct]), correct.any(), correct.all()
 
 
-TOLERANCE = 0.08
+TOLERANCE = 0.04
+DOUBLE = True
+TRIPLE = True
 
 
 # basic tempo evaluation
@@ -123,7 +125,7 @@ class TempoEvaluation(object):
 
     """
     def __init__(self, detections, annotations, strengths,
-                 tolerance=TOLERANCE):
+                 tolerance=TOLERANCE, double=DOUBLE, triple=TRIPLE):
         """
         Evaluate the given detection and annotation sequences.
 
@@ -131,6 +133,8 @@ class TempoEvaluation(object):
         :param annotations: array with the annotated tempi [bpm]
         :param strengths:   array with the relative strengths of the tempi
         :param tolerance:   allowed tempo deviation
+        :param double:      also evaluate double/half tempo [bool]
+        :param triple:      also evaluate triple/third tempo [bool]
 
         """
         # convert the detections and annotations
@@ -142,11 +146,18 @@ class TempoEvaluation(object):
                                    tolerance)
         self.pscore, self.any, self.all = results
         self.acc1 = self.any
-        # also evaluate with double / half tempo
-        annotations = np.hstack((annotations, annotations * 2.,
-                                 annotations / 2.))
-        strengths = np.hstack((strengths, strengths, strengths))
-        self.acc2 = tempo_evaluation(detections, annotations, strengths,
+        # also evaluate with double / half and triple / third tempo
+        annotations_ = annotations.copy()
+        if double:
+            annotations_ = np.hstack((annotations_, annotations * 2.,
+                                     annotations / 2.))
+        if triple:
+            annotations_ = np.hstack((annotations_, annotations * 3.,
+                                      annotations / 3.))
+        # we need to tile the strengths; in case of no strengths, divide by 1
+        len_strengths = max(1, len(strengths))
+        strengths = np.tile(strengths, len(annotations_) / len_strengths)
+        self.acc2 = tempo_evaluation(detections, annotations_, strengths,
                                      tolerance)[1]
 
     def print_errors(self, indent='', tex=False):
@@ -280,6 +291,15 @@ def parser():
     g.add_argument('--all', action='store_true', default=False,
                    help='evaluate all detections, even if only 1 annotation '
                         'is given')
+    g.add_argument('--one', action='store_true', default=False,
+                   help='evaluate only the first detection, even if multiple '
+                        'annotation are given')
+    g.add_argument('--no_double', dest='double', action='store_false',
+                   default=DOUBLE,
+                   help='do not include double/half tempo evaluation')
+    g.add_argument('--no_triple', dest='triple', action='store_false',
+                   default=TRIPLE,
+                   help='do not include triple/third tempo evaluation')
     # parse the arguments
     args = p.parse_args()
     # print the args
@@ -338,8 +358,12 @@ def main():
         if not args.all:
             detections = detections[:len(annotations)]
             strengths = strengths[:len(annotations)]
+        if args.one:
+            # only use the first (i.e. strongest) detection
+            detections = [detections[0]]
         # add the Evaluation to mean evaluation
-        e = TempoEvaluation(detections, annotations, strengths, args.tolerance)
+        e = TempoEvaluation(detections, annotations, strengths, args.tolerance,
+                            double=args.double, triple=args.triple)
         # print stats for each file
         if args.verbose:
             print e.print_errors('%s\n  ' % ann_file)

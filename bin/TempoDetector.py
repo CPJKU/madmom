@@ -26,11 +26,18 @@ def main():
     Proceedings of the 14th International Conference on Digital Audio Effects
     (DAFx), 2011.
 
+    Instead of using the originally proposed auto-correlation method to build
+    a tempo histogram, a new method based on comb filters is used:
+
+    TODO: add reference!
+
+    The old behaviour can be restored by using the `--method acf` switch.
+
     ''')
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
-    io_arguments(p, suffix='.tempo.txt')
+    io_arguments(p, suffix='.bpm.txt')
     RNNTempoEstimation.add_activation_arguments(p)
     RNNTempoEstimation.add_rnn_arguments(p)
     RNNTempoEstimation.add_arguments(p)

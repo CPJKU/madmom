@@ -1034,4 +1034,5 @@ class StackSpectrogramProcessor(Processor):
         stack = []
         for s in specs:
             stack.extend([s.spec, s.diff])
+        # return stacked data
         return np.hstack(stack)
