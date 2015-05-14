@@ -16,9 +16,47 @@ Please see the README for further details of this module.
 """
 import os
 import abc
+import contextlib
 
 
 MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
+
+
+# decorator to suppress warnings
+def suppress_warnings(function):
+    def decorator_function(*args, **kwargs):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return function(*args, **kwargs)
+    return decorator_function
+
+
+# overwrite the built-in open() to transparently apply some magic file handling
+@contextlib.contextmanager
+def open(filename, mode='r'):
+    """
+    Context manager which yields an open file or handle with the given mode
+    and closes it if needed afterwards.
+
+    :param filename: file name or open file handle
+    :param mode:     mode in which to open the file
+    :return:         an open file handle
+
+    """
+    import __builtin__
+    # check if we need to open the file
+    if isinstance(filename, basestring):
+        f = fid = __builtin__.open(filename, mode)
+    else:
+        f = filename
+        fid = None
+    # TODO: include automatic (un-)zipping here?
+    # yield an open file handle
+    yield f
+    # close the file if needed
+    if fid:
+        fid.close()
 
 
 class Processor(object):

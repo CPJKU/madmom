@@ -8,38 +8,11 @@ import os
 import sys
 import glob
 import fnmatch
-import contextlib
-import __builtin__
 import argparse
 import multiprocessing as mp
-
 import numpy as np
 
-
-# overwrite the built-in open() to transparently apply some magic file handling
-@contextlib.contextmanager
-def open(filename, mode='r'):
-    """
-    Context manager which yields an open file or handle with the given mode
-    and closes it if needed afterwards.
-
-    :param filename: file name or open file handle
-    :param mode:     mode in which to open the file
-    :return:         an open file handle
-
-    """
-    # check if we need to open the file
-    if isinstance(filename, basestring):
-        f = fid = __builtin__.open(filename, mode)
-    else:
-        f = filename
-        fid = None
-    # TODO: include automatic (un-)zipping here?
-    # yield an open file handle
-    yield f
-    # close the file if needed
-    if fid:
-        fid.close()
+from madmom import open, suppress_warnings
 
 
 def search_files(path, suffix=None):
@@ -132,6 +105,7 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     return matches
 
 
+@suppress_warnings
 def load_events(filename):
     """
     Load a list of events from a text file, one floating point number per line.

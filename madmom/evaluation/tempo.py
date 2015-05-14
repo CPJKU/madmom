@@ -9,7 +9,7 @@ This file contains tempo evaluation functionality.
 
 import numpy as np
 
-from madmom.utils import open
+from madmom import open
 
 
 def load_tempo(filename, split_value=1.):
