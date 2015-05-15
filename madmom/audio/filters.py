@@ -310,12 +310,12 @@ class Filter(np.ndarray):
         pickled_state = super(Filter, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.start, self.stop,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the start and stop bins
         self.start = state[-2]
         self.stop = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -400,12 +400,12 @@ class TriangularFilter(Filter):
         pickled_state = super(TriangularFilter, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.center,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # in addition to the start and stop bins, also set the center bin
         self.center = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(TriangularFilter, self).__setstate__(state[0:-1])
@@ -589,12 +589,12 @@ class Filterbank(np.ndarray):
         pickled_state = super(Filterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.bin_frequencies,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the bin frequencies
         self.bin_frequencies = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(Filterbank, self).__setstate__(state[0:-1])
@@ -932,12 +932,12 @@ class LogarithmicFilterbank(Filterbank):
         pickled_state = super(LogarithmicFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.bands_per_octave, self.fref,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the number of bands per octave and reference frequency
         self.bands_per_octave = state[-2]
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -1008,12 +1008,12 @@ class SimpleChromaFilterbank(Filterbank):
         pickled_state = super(SimpleChromaFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.fref,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(SimpleChromaFilterbank, self).__setstate__(state[0:-1])
@@ -1096,12 +1096,12 @@ class PitchClassProfileFilterbank(Filterbank):
         pickled_state = super(PitchClassProfileFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.fref,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(PitchClassProfileFilterbank, self).__setstate__(state[0:-1])
@@ -1178,12 +1178,12 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
                               self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.fref,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce____ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
-        # set the sample_rate
+        # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(HarmonicPitchClassProfileFilterbank,

@@ -354,7 +354,7 @@ class Signal(np.ndarray):
         pickled_state = super(Signal, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.sample_rate,)
-        # return a tuple that replaces the parent's __setstate__ tuple
+        # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
