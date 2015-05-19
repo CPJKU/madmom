@@ -150,7 +150,6 @@ class EventRegistry(type):
     Class for automatically registering usable Events.
 
     """
-
     Events = {}
     MetaEvents = {}
 
@@ -858,6 +857,7 @@ class MIDITrack(object):
     MIDI Track.
 
     """
+
     def __init__(self, events=None, relative_timing=True):
         """
         Instantiate a new MIDI track instance.
@@ -1059,6 +1059,7 @@ class MIDIFile(object):
     MIDI File.
 
     """
+
     def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0,
                  note_time_unit='s'):
         """

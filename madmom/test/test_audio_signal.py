@@ -380,7 +380,8 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
 
     def test_stereo(self):
-        signal, sample_rate = load_audio_file(DATA_PATH + '/stereo_sample.flac')
+        signal, sample_rate = load_audio_file(DATA_PATH +
+                                              '/stereo_sample.flac')
         self.assertTrue(np.allclose(signal[:4],
                                     [[33, 38], [35, 36], [29, 34], [36, 31]]))
         self.assertTrue(len(signal) == 182919)

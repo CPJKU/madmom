@@ -121,6 +121,7 @@ class SimpleEvaluation(object):
     Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
+
     def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
         Creates a new SimpleEvaluation instance.
@@ -322,6 +323,7 @@ class MeanEvaluation(SimpleEvaluation):
     Simple evaluation class for averaging Precision, Recall and F-measure.
 
     """
+
     def __init__(self):
         """
         Creates a new MeanEvaluation instance.
@@ -471,6 +473,7 @@ class Evaluation(SimpleEvaluation):
     numpy arrays or lists with true/false positive/negative detections.
 
     """
+
     def __init__(self, tp=None, fp=None, tn=None, fn=None):
         """
         Creates a new Evaluation instance.
@@ -585,6 +588,7 @@ class MultiClassEvaluation(Evaluation):
     2D numpy arrays with true/false positive/negative detections.
 
     """
+
     def print_errors(self, indent='', tex=False, verbose=True):
         """
         Print errors.

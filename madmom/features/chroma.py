@@ -44,6 +44,7 @@ class PitchClassProfile(object):
     Beijing, China
 
     """
+
     def __init__(self, spectrogram, num_classes=PCP.CLASSES, fmin=PCP.FMIN,
                  fmax=PCP.FMAX, fref=None, filterbank=None, *args, **kwargs):
         """
@@ -123,6 +124,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
+
     def __init__(self, spectrogram, num_classes=HPCP.CLASSES, fmin=HPCP.FMIN,
                  fmax=HPCP.FMAX, fref=None, window=HPCP.WINDOW,
                  filterbank=None, *args, **kwargs):

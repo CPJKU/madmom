@@ -102,7 +102,7 @@ def remix(signal, num_channels):
     :return:             remixed signal (with same dtype)
 
     Note: This function does not support arbitrary channel number conversions.
-          Only down-mixing to mono and up-mixing from mono signals is supported.
+          Only down-mixing to and up-mixing from mono signals is supported.
           The signal is returned with the same dtype, thus in case of
           down-mixing signals with integer dtypes, rounding errors may occur.
 
@@ -192,9 +192,9 @@ def sound_pressure_level(signal, p_ref=1.0):
 def load_wave_file(filename, sample_rate=None, num_channels=None):
     """
     Load the audio data from the given file and return it as a numpy array.
-    Only supports wave files, does not support re-sampling, and does not support
-    arbitrary channel number conversions. Reads the data as a memory-mapped
-    file with copy-on-write semantics to defer I/O costs until needed.
+    Only supports wave files, does not support re-sampling or arbitrary
+    channel number conversions. Reads the data as a memory-mapped file with
+    copy-on-write semantics to defer I/O costs until needed.
 
     :param filename:     name of the file
     :param sample_rate:  desired sample rate of the signal in Hz [int], or
@@ -332,7 +332,8 @@ class Signal(np.ndarray):
         """
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
-            data, sample_rate = load_audio_file(data, sample_rate, num_channels)
+            data, sample_rate = load_audio_file(data, sample_rate,
+                                                num_channels)
         # cast as Signal
         obj = np.asarray(data).view(cls)
         if sample_rate is not None:
@@ -393,7 +394,6 @@ class SignalProcessor(Processor):
     SignalProcessor is a basic signal processor.
 
     """
-    # default values
     SAMPLE_RATE = None
     NUM_CHANNELS = None
     NORM = False
@@ -463,7 +463,8 @@ class SignalProcessor(Processor):
         if sample_rate is not None:
             g.add_argument('--sample_rate', action='store_true',
                            default=sample_rate,
-                           help='re-sample the signal to this sample rate [Hz]')
+                           help='re-sample the signal to this sample rate '
+                                '[Hz]')
         if mono is not None:
             g.add_argument('--mono', dest='num_channels', action='store_const',
                            const=1,
@@ -843,7 +844,6 @@ class FramedSignalProcessor(Processor):
     Slice a Signal into frames.
 
     """
-    # default values for splitting a signal into overlapping frames
     FRAME_SIZE = 2048
     HOP_SIZE = 441.
     FPS = 100.
@@ -931,7 +931,8 @@ class FramedSignalProcessor(Processor):
             if isinstance(frame_size, int):
                 g.add_argument('--frame_size', action='store', type=int,
                                default=frame_size,
-                               help='frame size [samples, default=%(default)i]')
+                               help='frame size [samples, '
+                                    'default=%(default)i]')
             elif isinstance(frame_size, list):
                 from madmom.utils import OverrideDefaultListAction
                 g.add_argument('--frame_size', type=int, default=frame_size,

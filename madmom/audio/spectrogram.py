@@ -230,6 +230,7 @@ class Spectrogram(object):
     Spectrogram Class.
 
     """
+
     def __init__(self, frames, window=np.hanning, fft_size=None,
                  block_size=2048, filterbank=None, bands=BANDS,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
@@ -467,9 +468,12 @@ class Spectrogram(object):
                 end_of_block = (f + 1) % block_size == 0
                 end_of_signal = (f + 1) == num_frames
                 if end_of_block or end_of_signal:
+                    # start of the block within the whole data
                     start = f // block_size * block_size
-                    self._spec[start:f + 1] = np.dot(block[:f % block_size + 1],
-                                                     self.filterbank)
+                    # slice of the block (processing can end before the block
+                    # is filled completely)
+                    block_ = block[:f % block_size + 1]
+                    self._spec[start:f + 1] = np.dot(block_, self.filterbank)
 
         # take the logarithm of the magnitude spectrogram if needed (inplace)
         if self.log:
@@ -561,9 +565,9 @@ class SpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
-                 norm_filters=NORM_FILTERS, log=LOG, mul=MUL, add=ADD,
-                 diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
+    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+                 fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
+                 add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, **kwargs):
         """
         Creates a new SpectrogramProcessor instance.
@@ -803,12 +807,13 @@ class SpectrogramProcessor(Processor):
                            default=diff_ratio,
                            help='calculate the difference to the frame at '
                                 'which the window of the STFT have this ratio '
-                                'of the maximum height [default=%(default).1f]')
+                                'of the maximum height '
+                                '[default=%(default).1f]')
         if diff_ratio is not None or diff_frames:
             g.add_argument('--diff_frames', action='store', type=int,
                            default=diff_frames,
-                           help='calculate the difference to the N-th previous '
-                                'frame (this overrides the value calculated '
+                           help='calculate the difference to the N-th previous'
+                                ' frame (this overrides the value calculated '
                                 'with `diff_ratio`) [default=%(default)s]')
         if diff_max_bins is not None:
             g.add_argument('--diff_max_bins', action='store', type=int,
@@ -962,6 +967,7 @@ class StackSpectrogramProcessor(Processor):
     Stack spec & diff.
 
     """
+
     def __init__(self, frame_sizes, fps=100, online=False,
                  filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
                  norm_filters=NORM_FILTERS, log=LOG, mul=MUL, add=ADD,

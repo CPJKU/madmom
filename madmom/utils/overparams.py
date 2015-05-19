@@ -78,6 +78,7 @@ from collections import OrderedDict
 class OrderedDictYAMLLoader(yaml.Loader):
     """
     A YAML loader that loads mappings into ordered dictionaries.
+
     """
 
     def __init__(self, *args, **kwargs):
@@ -126,6 +127,7 @@ class OverridableParameters(object):
     :param description:     optional description of the argument parser
 
     """
+
     def __init__(self, config_filename='config.yaml', section_names=None,
                  description=''):
 

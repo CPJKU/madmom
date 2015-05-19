@@ -16,6 +16,7 @@ class Activations(np.ndarray):
     attribute.
 
     """
+
     def __new__(cls, data, fps=None, sep=None):
         """
         Instantiate a new Activations object.
@@ -125,6 +126,7 @@ class ActivationsProcessor(Processor):
     ActivationsProcessor processes a file and returns an Activations instance.
 
     """
+
     def __init__(self, mode, fps=None, sep=None, **kwargs):
         """
 

@@ -379,6 +379,7 @@ class RNNTempoEstimation(IOProcessor):
     Class for tempo estimation based on the activations of a RNN.
 
     """
+
     def __init__(self, tempo_format=None, load=False, save=False, **kwargs):
         """
         Estimates the tempo of the signal.

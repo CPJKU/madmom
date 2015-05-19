@@ -124,6 +124,7 @@ class TempoEvaluation(object):
     Tempo evaluation class.
 
     """
+
     def __init__(self, detections, annotations, strengths,
                  tolerance=TOLERANCE, double=DOUBLE, triple=TRIPLE):
         """
@@ -187,6 +188,7 @@ class MeanTempoEvaluation(TempoEvaluation):
 
     """
     # we just want to inherit the print_errors() function
+
     def __init__(self):
         """
         Class for averaging tempo evaluation scores.

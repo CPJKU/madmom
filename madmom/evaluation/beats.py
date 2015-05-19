@@ -35,6 +35,7 @@ class BeatIntervalError(Exception):
     Exception to be raised whenever an interval cannot be computed.
 
     """
+
     def __init__(self, value=None):
         if value is None:
             value = "At least two beats must be present to be able to " \
@@ -753,6 +754,7 @@ class BeatEvaluation(OnsetEvaluation):
     Beat evaluation class.
 
     """
+
     def __init__(self, detections, annotations,
                  fmeasure_window=FMEASURE_WINDOW,
                  pscore_tolerance=PSCORE_TOLERANCE,
@@ -854,6 +856,7 @@ class MeanBeatEvaluation(BeatEvaluation):
 
     """
     # we just want to inherit the print_errors() function
+
     def __init__(self):
         """
         Class for averaging beat evaluation scores.

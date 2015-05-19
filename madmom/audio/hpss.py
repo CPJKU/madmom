@@ -24,7 +24,6 @@ class HarmonicPercussiveSourceSeparation(Processor):
     (DAFx-10), Graz, Austria, September 2010.
 
     """
-    # defaults
     MASKING = 'binary'
     HARMONIC_FILTER = (15, 1)
     PERCUSSIVE_FILTER = (1, 15)

@@ -23,7 +23,6 @@ from madmom.utils import write_events
 from madmom.features import ActivationsProcessor
 
 
-
 # classes for obtaining beat activation functions from (multiple) RNNs
 class MultiModelSelector(Processor):
     """
@@ -506,7 +505,8 @@ class CRFBeatDetection(BeatTracking):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS, **kwargs):
+    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS,
+                 **kwargs):
         """
         Track the beats according to the previously determined global tempo
         using a conditional random field model.
@@ -740,7 +740,6 @@ class DBNBeatTracking(Processor):
     Beat tracking with RNNs and a dynamic Bayesian network (DBN).
 
     """
-    # some default values
     CORRECT = True
     NUM_TEMPO_STATES = 40
     TRANSITION_LAMBDA = 100
@@ -1071,7 +1070,8 @@ class DownbeatTracking(Processor):
     def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempo_states=NUM_TEMPO_STATES,
                       transition_lambda=TRANSITION_LAMBDA,
-                      num_beats=NUM_BEATS, norm_observations=NORM_OBSERVATIONS):
+                      num_beats=NUM_BEATS,
+                      norm_observations=NORM_OBSERVATIONS):
         """
         Add HMM related arguments to an existing parser.
 
@@ -1116,8 +1116,8 @@ class DownbeatTracking(Processor):
                        default=num_tempo_states, list_type=int,
                        help='limit the number of tempo states; if set, align '
                             'them with a log spacing, otherwise linearly '
-                            '(comma separated list with one value per pattern) '
-                            '[default=%(default)s]')
+                            '(comma separated list with one value per pattern)'
+                            ' [default=%(default)s]')
         g.add_argument('--transition_lambda',
                        action=OverrideDefaultTypedListAction,
                        default=transition_lambda, list_type=float,

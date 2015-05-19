@@ -881,8 +881,8 @@ class LogarithmicFilterbank(Filterbank):
     """
     BANDS_PER_OCTAVE = 12
 
-    def __new__(cls, bin_frequencies, bands=BANDS_PER_OCTAVE,
-                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+    def __new__(cls, bin_frequencies, bands=BANDS_PER_OCTAVE, fmin=FMIN,
+                fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new LogarithmicFilterbank instance.
@@ -1047,7 +1047,6 @@ class PitchClassProfileFilterbank(Filterbank):
     Beijing, China
 
     """
-    # default values
     CLASSES = 12
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES,
@@ -1116,7 +1115,6 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
-    # default values
     FMIN = 100
     FMAX = 5000
     CLASSES = 36

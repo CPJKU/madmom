@@ -221,8 +221,8 @@ class PeakPicking(Processor):
             # shift if necessary
             if self.delay != 0:
                 detections += self.delay
-            # always use the first detection and all others if none was reported
-            # within the last `combine` seconds
+            # always use the first detection and all others if none was
+            # reported within the last `combine` seconds
             if detections.size > 1:
                 # filter all detections which occur within `combine` seconds
                 combined_detections = detections[1:][np.diff(detections) >

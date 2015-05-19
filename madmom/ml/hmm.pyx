@@ -43,6 +43,7 @@ class TransitionModel(object):
     being sub-classed to define a specific transition model.
 
     """
+
     def __init__(self, states, pointers, probabilities):
         """
         Construct a TransitionModel instance for HMMs.

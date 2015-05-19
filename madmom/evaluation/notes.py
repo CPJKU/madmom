@@ -105,6 +105,7 @@ class NoteEvaluation(Evaluation):
     Evaluation class for measuring Precision, Recall and F-measure of notes.
 
     """
+
     def __init__(self, detections, annotations, window=WINDOW):
         super(NoteEvaluation, self).__init__()
         self.detections = detections

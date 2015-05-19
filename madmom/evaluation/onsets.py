@@ -104,6 +104,7 @@ class OnsetEvaluation(Evaluation):
     Simple class for measuring Precision, Recall and F-measure.
 
     """
+
     def __init__(self, detections, annotations, window=WINDOW):
         # convert the detections and annotations
         detections = np.asarray(sorted(detections), dtype=np.float)

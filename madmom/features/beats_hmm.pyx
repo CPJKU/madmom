@@ -25,6 +25,7 @@ class BeatTrackingTransitionModel(TransitionModel):
     Transition model for beat tracking with a HMM.
 
     """
+
     def __init__(self, beat_states, transition_lambda):
         """
         Construct a new BeatTrackingTransitionModel.
@@ -306,6 +307,7 @@ class DownBeatTrackingTransitionModel(TransitionModel):
     Transition model for down-beat tracking with a HMM.
 
     """
+
     def __init__(self, beat_states, transition_lambda):
         """
         Construct a new DownBeatTrackingTransitionModel.

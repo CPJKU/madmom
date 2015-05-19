@@ -20,6 +20,7 @@ class Cepstrogram(Processor):
     a DCT) on a spectrogram.
 
     """
+
     def __init__(self, transform=dct, **kwargs):
         """
         Creates a new Cepstrogram instance for the given spectrogram.
@@ -48,6 +49,7 @@ class MFCC(SequentialProcessor):
     a discrete cosine transform afterwards.
 
     """
+
     def __init__(self, mel_bands=30, fmin=40, fmax=15000, norm_filters=True,
                  mul=1, add=0, transform=dct, **kwargs):
         """

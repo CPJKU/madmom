@@ -40,6 +40,7 @@ class RnnlibActivations(np.ndarray):
     Class for reading in activations as written by RNNLIB.
 
     """
+
     def __new__(cls, filename, fps=None):
         # default is only one label
         labels = [1]
@@ -136,6 +137,7 @@ class NetCDF(object):
     with RNNLIB.
 
     """
+
     def __init__(self, filename, mode):
         """
         Creates a new NetCDF object.
@@ -400,8 +402,8 @@ class NetCDF(object):
             self.num_time_steps = np.shape(inputs)[0]
         if not self.input_pattern_size:
             self.input_pattern_size = np.shape(inputs)[1]
-        var = self.nc.createVariable('inputs', 'f', ('numTimesteps',
-                                                     'inputPattSize'))
+        var = self.nc.createVariable('inputs', 'f',
+                                     ('numTimesteps', 'inputPattSize'))
         var[:] = inputs.astype(np.float32)
 
     @property
@@ -578,8 +580,8 @@ class NetCDF(object):
             self.max_sequence_tag_length = max_len(sequence_tags) + 1
         # all seqTags must be the same length and null-terminated
         sequence_tags = expand_and_terminate(sequence_tags)
-        var = self.nc.createVariable('seqTags', 'c', ('numSeqs',
-                                                      'maxSeqTagLength'))
+        var = self.nc.createVariable('seqTags', 'c',
+                                     ('numSeqs', 'maxSeqTagLength'))
         var[:] = sequence_tags
 
 
@@ -636,6 +638,7 @@ class TestThread(Thread):
     work to multiple threads.
 
     """
+
     def __init__(self, work_queue, return_queue, verbose=2):
         """
         Test a file against multiple neural networks.
@@ -1092,6 +1095,7 @@ class RnnlibConfig(object):
         # also convert to .npz
         if npz:
             from .io import convert_model
+
             convert_model(filename)
 
 
@@ -1255,11 +1259,11 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
 
 
 def create_nc_files(files, annotations, out_dir, norm=False, att=0,
-                    frame_size=2048, online=False, fps=100,
-                    filterbank=None, bands=6, fmin=30, fmax=17000,
-                    norm_filters=True, log=True, mul=1, add=0, diff_ratio=0.5,
-                    diff_frames=None, diff_max_bins=1, shift=0, spread=0,
-                    split=None, verbose=False):
+                    frame_size=2048, online=False, fps=100, filterbank=None,
+                    bands=6, fmin=30, fmax=17000, norm_filters=True, log=True,
+                    mul=1, add=0, diff_ratio=0.5, diff_frames=None,
+                    diff_max_bins=1, shift=0, spread=0, split=None,
+                    verbose=False):
     """
     Create .nc files for the given .wav and annotation files.
 
@@ -1291,7 +1295,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Logarithmic magnitude parameters:
 
-    :param log:           scale the magnitude spectrogram logarithmically [bool]
+    :param log:           scale the magnitude spectrogram logarithmically
+                          [bool]
     :param mul:           multiply the magnitude spectrogram with this factor
                           before taking the logarithm [float]
     :param add:           add this value before taking the logarithm of the
@@ -1331,9 +1336,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     stack = StackSpectrogramProcessor(frame_sizes=frame_size, online=online,
                                       fps=fps, filterbank=filterbank,
                                       bands=bands, fmin=fmin, fmax=fmax,
-                                      norm_filters=norm_filters,
-                                      log=log, mul=mul, add=add,
-                                      diff_ratio=diff_ratio,
+                                      norm_filters=norm_filters, log=log,
+                                      mul=mul, add=add, diff_ratio=diff_ratio,
                                       diff_frames=diff_frames,
                                       diff_max_bins=diff_max_bins)
     processor = SequentialProcessor([sig, stack])
@@ -1389,8 +1393,6 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             targets = quantize_events(targets, fps, length=len(nc_data),
                                       shift=shift)
         # tags
-        # tags = ("file=%s | fps=%s | frame_size=%s | online=%s" %
-        #         (f, fps, frame_size, online))
         tags = {'file': f, 'fps': fps, 'frame_size': frame_size,
                 'online': online, 'filterbank': filterbank, 'log': log}
         if filterbank:

@@ -120,6 +120,7 @@ class BidirectionalLayer(Layer):
     Bidirectional network layer.
 
     """
+
     def __init__(self, fwd_layer, bwd_layer):
         """
         Create a new BidirectionalLayer.
@@ -170,6 +171,7 @@ class FeedForwardLayer(Layer):
     Feed-forward network layer.
 
     """
+
     def __init__(self, transfer_fn, weights, bias):
         """
         Create a new Layer.
@@ -219,6 +221,7 @@ class RecurrentLayer(FeedForwardLayer):
     Recurrent network layer.
 
     """
+
     def __init__(self, transfer_fn, weights, bias, recurrent_weights=None):
         """
         Create a new Layer.
@@ -274,6 +277,7 @@ class LinearLayer(RecurrentLayer):
     Recurrent network layer with linear transfer function.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights=None):
         """
         Create a new LinearLayer.
@@ -292,6 +296,7 @@ class TanhLayer(RecurrentLayer):
     Recurrent network layer with tanh transfer function.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights=None):
         """
         Create a new TanhLayer.
@@ -310,6 +315,7 @@ class SigmoidLayer(RecurrentLayer):
     Recurrent network layer with sigmoid transfer function.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights=None):
         """
         Create a new SigmoidLayer.
@@ -329,6 +335,7 @@ class Cell(object):
     Cell as used by LSTM units.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights, transfer_fn=tanh):
         """
         Create a new cell as used by LSTM units.
@@ -384,6 +391,7 @@ class Gate(Cell):
     Gate as used by LSTM units.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights, peephole_weights):
         """
         Create a new {input, forget, output} Gate as used by LSTM units.
@@ -403,6 +411,7 @@ class LSTMLayer(object):
     Recurrent network layer with Long Short-Term Memory units.
 
     """
+
     def __init__(self, weights, bias, recurrent_weights, peephole_weights):
         """
         Create a new LSTMLayer.
@@ -475,6 +484,7 @@ class RecurrentNeuralNetwork(Processor):
     Recurrent Neural Network (RNN) class.
 
     """
+
     def __init__(self, layers=None):
         """
         Create a new RecurrentNeuralNetwork object.
@@ -578,6 +588,7 @@ class RNNProcessor(ParallelProcessor):
     Recurrent Neural Network (RNN) processor class.
 
     """
+
     def __init__(self, nn_files, num_threads=None, **kwargs):
         """
         Instantiates a RNNProcessor, which loads the models from files.
