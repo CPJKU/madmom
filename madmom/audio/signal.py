@@ -327,7 +327,8 @@ class Signal(np.ndarray):
               sample rate and number of channels are determined directly from
               the audio file.
               If the `data` is a numpy array, the `sample_rate` is set to the
-              given value and
+              given value and `num_channels` is set to the number of columns
+              of the array.
 
         """
         # try to load an audio file if the data is not a numpy array
