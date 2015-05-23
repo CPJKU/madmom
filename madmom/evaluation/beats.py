@@ -1111,7 +1111,6 @@ def main():
             raise SystemExit("multiple detections for %s found." % ann_file)
         elif len(matches) == 0:
             # output a warning if no detections were found
-            import warnings
             warnings.warn(" can't find detections for %s." % ann_file)
             # but continue and assume no detections
             detections = np.zeros(0)

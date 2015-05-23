@@ -10,9 +10,7 @@ This file contains note transcription related functionality.
 import glob
 import numpy as np
 
-from madmom import MODELS_PATH, IOProcessor
-from madmom.utils import open
-
+from madmom import MODELS_PATH, IOProcessor, open, suppress_warnings
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import PeakPicking
 from madmom.audio.signal import SignalProcessor
@@ -20,6 +18,7 @@ from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
 
 
+@suppress_warnings
 def load_notes(filename):
     """
     Load the target notes from a file.
