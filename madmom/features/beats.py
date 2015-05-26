@@ -741,7 +741,7 @@ class DBNBeatTracking(Processor):
 
     """
     CORRECT = True
-    NUM_TEMPO_STATES = 40
+    NUM_TEMPO_STATES = None
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
@@ -802,7 +802,7 @@ class DBNBeatTracking(Processor):
         # observation model
         self.om = Om(self.tm, observation_lambda, norm_observations)
         # instantiate a HMM
-        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
+        self.hmm = Hmm(self.tm, self.om, None)
         # save variables
         self.fps = fps
         self.correct = correct
@@ -941,7 +941,7 @@ class DownbeatTracking(Processor):
     """
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_TEMPO_STATES = [55, 55]
+    NUM_TEMPO_STATES = [None, None]
     TRANSITION_LAMBDA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
@@ -1035,7 +1035,7 @@ class DownbeatTracking(Processor):
         # observation model
         self.om = Om(gmms, self.tm, norm_observations)
         # instantiate a HMM
-        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
+        self.hmm = Hmm(self.tm, self.om, None)
 
     def process(self, activations):
         """
