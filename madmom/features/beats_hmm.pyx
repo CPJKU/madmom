@@ -290,6 +290,9 @@ class BeatTrackingObservationModel(ObservationModel):
         cdef unsigned int i
         cdef unsigned int num_observations = len(observations)
         cdef float observation_lambda = self.observation_lambda
+        # norm observations
+        if self.norm_observations:
+            observations /= np.max(observations)
         # init densities
         cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
                                                       dtype=np.float)
@@ -480,6 +483,9 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         cdef unsigned int num_observations = len(observations)
         cdef unsigned int num_patterns = len(self.gmms)
         cdef unsigned int num_gmms = 0
+        # norm observations
+        if self.norm_observations:
+            observations /= np.max(observations)
         # maximum number of GMMs of all patterns
         for i in range(num_patterns):
             num_gmms += len(self.gmms[i])

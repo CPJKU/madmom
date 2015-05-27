@@ -907,8 +907,7 @@ class DBNBeatTracking(Processor):
         g.add_argument('--num_tempo_states', action='store', type=int,
                        default=num_tempo_states,
                        help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
-                            '[default=%(default)d]')
+                            'them with a log spacing, otherwise linearly')
         g.add_argument('--transition_lambda', action='store',
                        type=float, default=transition_lambda,
                        help='lambda of the tempo transition distribution; '
@@ -1115,9 +1114,8 @@ class DownbeatTracking(Processor):
                        action=OverrideDefaultTypedListAction,
                        default=num_tempo_states, list_type=int,
                        help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
-                            '(comma separated list with one value per pattern)'
-                            ' [default=%(default)s]')
+                            'them with a log spacing, otherwise linearly ('
+                            'comma separated list with one value per pattern)')
         g.add_argument('--transition_lambda',
                        action=OverrideDefaultTypedListAction,
                        default=transition_lambda, list_type=float,
