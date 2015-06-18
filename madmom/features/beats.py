@@ -493,7 +493,7 @@ class CRFBeatDetection(BeatTracking):
     INTERVAL_SIGMA = 0.18
     USE_FACTORS = False
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
-    NUM_TEMPI = 5
+    NUM_INTERVALS = 5
     # tempo defaults
     MIN_BPM = 20
     MAX_BPM = 240
@@ -508,17 +508,19 @@ class CRFBeatDetection(BeatTracking):
                       'module with cython!')
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
-                 num_tempi=NUM_TEMPI, factors=FACTORS, **kwargs):
+                 num_intervals=NUM_INTERVALS, factors=FACTORS, **kwargs):
         """
         Track the beats according to the previously determined global tempo
         using a conditional random field model.
 
         :param interval_sigma: allowed deviation from the dominant beat
                                interval per beat [float]
-        :param num_tempi:      maximum number of tempi to try. if None,
-                               try the dominant tempo with factors [int]
-        :param factors:        factors of the dominant interval to try, if
-                               num_tempi is None [list of floats]
+        :param use_factors:    use dominant interval multiplied by factors
+                               instead of intervals estimated by
+                               tempo estimator.
+        :param num_intervals:  max number of estimated intervals to try. [int]
+        :param factors:        factors of the dominant interval to try
+                               [list of floats]
 
         This method is based on the following work with some improvements:
 
@@ -533,11 +535,11 @@ class CRFBeatDetection(BeatTracking):
         # save variables
         self.interval_sigma = interval_sigma
         self.use_factors = use_factors
-        self.num_tempi = num_tempi
+        self.num_intervals = num_intervals
         self.factors = factors
 
         # get num_threads from kwargs
-        num_threads = min(len(factors) if use_factors is None else num_tempi,
+        num_threads = min(len(factors) if use_factors else num_intervals,
                           kwargs.get('num_threads', 1))
         # init a pool of workers (if needed)
         self.map = map
@@ -546,25 +548,25 @@ class CRFBeatDetection(BeatTracking):
             self.map = mp.Pool(num_threads).map
 
     @staticmethod
-    def initial_distribution(num_states, dominant_interval):
+    def initial_distribution(num_states, interval):
         """
         Compute the initial distribution.
 
         :param num_states:        number of states in the model
-        :param dominant_interval: dominant interval of the piece [frames]
+        :param interval:          beat interval of the piece [frames]
         :return:                  initial distribution of the model
 
         """
-        init_dist = np.ones(num_states, dtype=np.float32) / dominant_interval
-        init_dist[dominant_interval:] = 0
+        init_dist = np.ones(num_states, dtype=np.float32) / interval
+        init_dist[interval:] = 0
         return init_dist
 
     @staticmethod
-    def transition_distribution(dominant_interval, interval_sigma):
+    def transition_distribution(interval, interval_sigma):
         """
         Compute the transition distribution between beats.
 
-        :param dominant_interval: dominant interval of the piece [frames]
+        :param interval:          interval of the piece [frames]
         :param interval_sigma:    allowed deviation from the dominant interval
                                   per beat
         :return:                  transition distribution between beats
@@ -572,12 +574,12 @@ class CRFBeatDetection(BeatTracking):
         """
         from scipy.stats import norm
 
-        move_range = np.arange(dominant_interval * 2, dtype=np.float)
+        move_range = np.arange(interval * 2, dtype=np.float)
         # to avoid floating point hell due to np.log2(0)
         move_range[0] = 0.000001
 
         trans_dist = norm.pdf(np.log2(move_range),
-                              loc=np.log2(dominant_interval),
+                              loc=np.log2(interval),
                               scale=interval_sigma)
         trans_dist /= trans_dist.sum()
         return trans_dist.astype(np.float32)
@@ -598,24 +600,24 @@ class CRFBeatDetection(BeatTracking):
                            origin=-int(transition_distribution.shape[0] / 2))
 
     @classmethod
-    def best_sequence(cls, activations, dominant_interval, interval_sigma):
+    def best_sequence(cls, activations, interval, interval_sigma):
         """
         Extract the best beat sequence for a piece.
 
         :param activations:       activations
-        :param dominant_interval: dominant interval of the piece.
+        :param interval:          beat interval of the piece.
         :param interval_sigma:    allowed deviation from the dominant interval
                                   per beat
         :return:                  tuple with extracted beat positions [frames]
                                   and log probability of beat sequence
         """
         init = cls.initial_distribution(activations.shape[0],
-                                        dominant_interval)
-        trans = cls.transition_distribution(dominant_interval, interval_sigma)
+                                        interval)
+        trans = cls.transition_distribution(interval, interval_sigma)
         norm_fact = cls.normalisation_factors(activations, trans)
 
         return cls.crf_viterbi(init, trans, norm_fact, activations,
-                               dominant_interval)
+                               interval)
 
     def process(self, activations):
         """
@@ -640,7 +642,7 @@ class CRFBeatDetection(BeatTracking):
                                   self.tempo_estimator.min_interval]
         else:
             # take the top n intervals from the tempo estimator
-            possible_intervals = intervals[:self.num_tempi]
+            possible_intervals = intervals[:self.num_intervals]
 
         # sort and start from the greatest interval
         possible_intervals.sort()
@@ -669,7 +671,7 @@ class CRFBeatDetection(BeatTracking):
 
     @classmethod
     def add_arguments(cls, parser, interval_sigma=INTERVAL_SIGMA,
-                      use_factors=USE_FACTORS, num_tempi=NUM_TEMPI,
+                      use_factors=USE_FACTORS, num_intervals=NUM_INTERVALS,
                       factors=FACTORS):
         """
         Add CRFBeatDetection related arguments to an existing parser.
@@ -677,7 +679,12 @@ class CRFBeatDetection(BeatTracking):
         :param parser:         existing argparse parser
         :param interval_sigma: allowed deviation from the dominant interval per
                                beat
+        :param use_factors:    use dominant interval multiplied by factors
+                               instead of intervals estimated by
+                               tempo estimator.
+        :param num_intervals:  max number of estimated intervals to try. [int]
         :param factors:        factors of the dominant interval to try
+                               [list of floats]
         :return:               beat argument parser group
 
         """
@@ -693,8 +700,8 @@ class CRFBeatDetection(BeatTracking):
                             'instead of multiple estimated intervals. '
                             '[default=%(default)s]')
 
-        g.add_argument('--num_tempi', action='store', type=int,
-                       default=num_tempi, dest='num_tempi',
+        g.add_argument('--num_intervals', action='store', type=int,
+                       default=num_intervals, dest='num_intervals',
                        help='number of estimated intervals to try. '
                             '[default=%(default)s]')
         from madmom.utils import OverrideDefaultListAction
