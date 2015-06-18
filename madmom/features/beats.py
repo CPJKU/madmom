@@ -491,7 +491,9 @@ class CRFBeatDetection(BeatTracking):
 
     """
     INTERVAL_SIGMA = 0.18
+    USE_FACTORS = False
     FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
+    NUM_TEMPI = 5
     # tempo defaults
     MIN_BPM = 20
     MAX_BPM = 240
@@ -505,15 +507,20 @@ class CRFBeatDetection(BeatTracking):
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
 
-    def __init__(self, interval_sigma=INTERVAL_SIGMA, factors=FACTORS,
-                 **kwargs):
+    def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
+                 num_tempi=NUM_TEMPI, factors=FACTORS, **kwargs):
         """
         Track the beats according to the previously determined global tempo
         using a conditional random field model.
 
         :param interval_sigma: allowed deviation from the dominant beat
-                               interval per beat
-        :param factors:        factors of the dominant interval to try
+                               interval per beat [float]
+        :param num_tempi:      maximum number of tempi to try. if None,
+                               try the dominant tempo with factors [int]
+        :param factors:        factors of the dominant interval to try, if
+                               num_tempi is None [list of floats]
+
+        This method is based on the following work with some improvements:
 
         "Probabilistic extraction of beat positions from a beat activation
          function"
@@ -525,11 +532,13 @@ class CRFBeatDetection(BeatTracking):
         super(CRFBeatDetection, self).__init__(**kwargs)
         # save variables
         self.interval_sigma = interval_sigma
+        self.use_factors = use_factors
+        self.num_tempi = num_tempi
         self.factors = factors
+
         # get num_threads from kwargs
-        num_threads = min(len(self.factors), kwargs.get('num_threads', 1))
-        # TODO: implement comb filter stuff and remove this...
-        self.tempo_estimator.method = 'acf'
+        num_threads = min(len(factors) if use_factors is None else num_tempi,
+                          kwargs.get('num_threads', 1))
         # init a pool of workers (if needed)
         self.map = map
         if num_threads != 1:
@@ -617,27 +626,29 @@ class CRFBeatDetection(BeatTracking):
 
         """
         import itertools as it
-        # convert timing information to frames and set default values
-        act_smooth = int(self.fps * self.tempo_estimator.act_smooth)
-        # smooth activations
-        activations = smooth_signal(activations, act_smooth)
-        # TODO: refactor interval stuff to use TempoEstimation
-        # create a interval histogram
-        histogram = self.tempo_estimator.interval_histogram(activations)
-        # get the dominant interval
-        interval = self.tempo_estimator.dominant_interval(histogram)
 
-        # TODO: use the tempi returned by the TempoEstimation instead
-        # create variations of the dominant interval to check
-        possible_intervals = [int(interval * f) for f in self.factors]
-        # remove all intervals outside the allowed range
-        possible_intervals = [i for i in possible_intervals
-                              if self.tempo_estimator.max_interval >= i >=
-                              self.tempo_estimator.min_interval]
-        # sort the intervals
+        # estimate the tempo
+        tempi = self.tempo_estimator.process(activations)
+        intervals = self.fps * 60. / tempi[:, 0]
+
+        # compute possible intervals
+        if self.use_factors:
+            # use the dominant interval with different factors
+            possible_intervals = [int(intervals[0] * f) for f in self.factors]
+            possible_intervals = [i for i in possible_intervals
+                                  if self.tempo_estimator.max_interval >= i >=
+                                  self.tempo_estimator.min_interval]
+        else:
+            # take the top n intervals from the tempo estimator
+            possible_intervals = intervals[:self.num_tempi]
+
+        # sort and start from the greatest interval
         possible_intervals.sort()
-        # put the greatest first so that it get processed first
-        possible_intervals.reverse()
+        possible_intervals = possible_intervals[::-1]
+
+        # smooth activations
+        act_smooth = int(self.fps * self.tempo_estimator.act_smooth)
+        activations = smooth_signal(activations, act_smooth)
 
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
@@ -652,11 +663,13 @@ class CRFBeatDetection(BeatTracking):
                                                  for r in results])
         # pick the best one
         best_seq = results[normalized_seq_probabilities.argmax()][0]
+
         # convert the detected beat positions to seconds and return them
         return best_seq.astype(np.float) / self.fps
 
     @classmethod
     def add_arguments(cls, parser, interval_sigma=INTERVAL_SIGMA,
+                      use_factors=USE_FACTORS, num_tempi=NUM_TEMPI,
                       factors=FACTORS):
         """
         Add CRFBeatDetection related arguments to an existing parser.
@@ -674,6 +687,16 @@ class CRFBeatDetection(BeatTracking):
                        default=interval_sigma,
                        help='allowed deviation from the dominant interval '
                             '[default=%(default).2f]')
+
+        g.add_argument('--use_factors', action='store_true', default=use_factors,
+                       help='use dominant interval multiplied with factors '
+                            'instead of multiple estimated intervals. '
+                            '[default=%(default)s]')
+
+        g.add_argument('--num_tempi', action='store', type=int,
+                       default=num_tempi, dest='num_tempi',
+                       help='number of estimated intervals to try. '
+                            '[default=%(default)s]')
         from madmom.utils import OverrideDefaultListAction
         g.add_argument('-f', '--factor', action=OverrideDefaultListAction,
                        type=float, default=factors, dest='factors',
