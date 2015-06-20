@@ -10,7 +10,8 @@ LogFiltSpecFlux onset detection algorithm.
 import argparse
 
 from madmom.utils import io_arguments
-from madmom.features.onsets import SpectralOnsetDetection as LogFiltSpecFlux
+from madmom.features.onsets import SpectralOnsetDetectionProcessor as \
+    LogFiltSpecFlux
 
 
 def main():

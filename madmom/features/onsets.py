@@ -14,7 +14,7 @@ from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
 from madmom import MODELS_PATH, IOProcessor, SequentialProcessor, Processor
-from madmom.utils import write_events, search_files
+from madmom.utils import write_events
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
                                  smooth as smooth_signal)
@@ -99,7 +99,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         raise ValueError('activations must be either 1D or 2D')
 
 
-class PeakPicking(Processor):
+class PeakPickingProcessor(Processor):
     """
     This class implements the onset peak-picking functionality which can be
     used universally. It transparently converts the chosen values from seconds
@@ -298,7 +298,7 @@ class PeakPicking(Processor):
         return g
 
 
-class NNPeakPicking(SequentialProcessor):
+class NNPeakPickingProcessor(SequentialProcessor):
     """
     Class for peak-picking with neural networks.
 
@@ -331,11 +331,11 @@ class NNPeakPicking(SequentialProcessor):
         # first perform RNN processing and averaging, then onset peak-picking
         rnn = RNNProcessor(nn_files=nn_files, num_threads=1)
         avg = average_predictions
-        pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,
-                         post_max=1. / fps, combine=combine, delay=delay,
-                         fps=fps)
+        pp = PeakPickingProcessor(threshold=threshold, smooth=smooth,
+                                  pre_max=1. / fps, post_max=1. / fps,
+                                  combine=combine, delay=delay, fps=fps)
         # make this an SequentialProcessor by defining the processing chain
-        super(NNPeakPicking, self).__init__([rnn, avg, pp])
+        super(NNPeakPickingProcessor, self).__init__([rnn, avg, pp])
 
     @classmethod
     def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
@@ -354,8 +354,9 @@ class NNPeakPicking(SequentialProcessor):
         """
         # add RNN parser arguments (but without number of threads)
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        PeakPicking.add_arguments(parser, threshold=threshold, smooth=smooth,
-                                  combine=combine, delay=delay)
+        PeakPickingProcessor.add_arguments(parser, threshold=threshold,
+                                           smooth=smooth, combine=combine,
+                                           delay=delay)
 
 
 # onset detection helper functions
@@ -732,7 +733,7 @@ def rectified_complex_domain(spectrogram):
 
 
 # TODO: split the classes similar to madmom.features.beats?
-class SpectralOnsetDetection(IOProcessor):
+class SpectralOnsetDetectionProcessor(IOProcessor):
     """
     The SpectralOnsetDetection class implements most of the common onset
     detection functions based on the magnitude or phase information of a
@@ -770,9 +771,9 @@ class SpectralOnsetDetection(IOProcessor):
         # define input and output processors
         in_processor = [sig, frames, spec, globals()[onset_method]]
         if peak_picking_method in (None, 'normal'):
-            out_processor = [PeakPicking(**kwargs), write_events]
+            out_processor = [PeakPickingProcessor(**kwargs), write_events]
         elif peak_picking_method in ('nn', 'neural_network'):
-            out_processor = [NNPeakPicking(**kwargs), write_events]
+            out_processor = [NNPeakPickingProcessor(**kwargs), write_events]
         else:
             raise ValueError('unknown `peak_picking_method`: %s' %
                              peak_picking_method)
@@ -782,8 +783,8 @@ class SpectralOnsetDetection(IOProcessor):
         if save:
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
-        super(SpectralOnsetDetection, self).__init__(in_processor,
-                                                     out_processor)
+        super(SpectralOnsetDetectionProcessor, self).__init__(in_processor,
+                                                              out_processor)
         self.method = onset_method
 
     @classmethod
@@ -813,10 +814,10 @@ class SpectralOnsetDetection(IOProcessor):
     add_filter_arguments = SpectrogramProcessor.add_filter_arguments
     add_log_arguments = SpectrogramProcessor.add_log_arguments
     add_diff_arguments = SpectrogramProcessor.add_diff_arguments
-    add_peak_picking_arguments = PeakPicking.add_arguments
+    add_peak_picking_arguments = PeakPickingProcessor.add_arguments
 
 
-class RNNOnsetDetection(IOProcessor):
+class RNNOnsetDetectionProcessor(IOProcessor):
     """
     Class for detecting onsets with a recurrent neural network (RNN).
 
@@ -856,8 +857,9 @@ class RNNOnsetDetection(IOProcessor):
                                           **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
-        pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,
-                         post_max=1. / fps, online=online, **kwargs)
+        pp = PeakPickingProcessor(threshold=threshold, smooth=smooth,
+                                  pre_max=1. / fps, post_max=1. / fps,
+                                  online=online, **kwargs)
         # define input and output processors
         in_processor = [sig, stack, rnn, avg]
         out_processor = [pp, write_events]
@@ -867,7 +869,8 @@ class RNNOnsetDetection(IOProcessor):
         if save:
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
-        super(RNNOnsetDetection, self).__init__(in_processor, out_processor)
+        super(RNNOnsetDetectionProcessor, self).__init__(in_processor,
+                                                         out_processor)
 
     @classmethod
     def add_arguments(cls, parser, online=ONLINE, threshold=THRESHOLD,
@@ -895,4 +898,5 @@ class RNNOnsetDetection(IOProcessor):
         # add rnn processing arguments
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
         # add peak picking arguments
-        PeakPicking.add_arguments(parser, threshold=threshold, smooth=smooth)
+        PeakPickingProcessor.add_arguments(parser, threshold=threshold,
+                                           smooth=smooth)

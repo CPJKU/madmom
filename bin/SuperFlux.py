@@ -10,7 +10,7 @@ SuperFlux onset detection algorithm.
 import argparse
 
 from madmom.utils import io_arguments
-from madmom.features.onsets import SpectralOnsetDetection as SuperFlux
+from madmom.features.onsets import SpectralOnsetDetectionProcessor as SuperFlux
 
 
 def main():

@@ -24,7 +24,7 @@ from madmom.features import ActivationsProcessor
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
-class MultiModelSelector(Processor):
+class MultiModelSelectionProcessor(Processor):
     """
     Class for selecting the most suitable model (i.e. the predictions thereof)
     from a multiple models (i.e. the predictions thereof).
@@ -88,7 +88,7 @@ class MultiModelSelector(Processor):
         return best_prediction.ravel()
 
 
-class RNNBeatProcessing(SequentialProcessor):
+class RNNBeatProcessor(SequentialProcessor):
     """
     Class for tracking beats with a recurrent neural network (RNN).
 
@@ -144,13 +144,13 @@ class RNNBeatProcessing(SequentialProcessor):
                 # redefine the list of files to be tested
                 nn_files = nn_ref_files + nn_files
             # define the selector
-            selector = MultiModelSelector(num_ref_predictions)
+            selector = MultiModelSelectionProcessor(num_ref_predictions)
         else:
             # use simple averaging
             selector = average_predictions
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         # sequentially process everything
-        super(RNNBeatProcessing, self).__init__([sig, stack, rnn, selector])
+        super(RNNBeatProcessor, self).__init__([sig, stack, rnn, selector])
 
     @classmethod
     def add_arguments(cls, parser, nn_files=NN_FILES,
@@ -261,7 +261,7 @@ def detect_beats(activations, interval, look_aside=0.2):
 
 
 # classes for detecting/tracking of beat inside a beat activation function
-class BeatTracking(Processor):
+class BeatTrackingProcessor(Processor):
     """
     Class for tracking beats with a simple tempo estimation and beat aligning.
 
@@ -305,13 +305,13 @@ class BeatTracking(Processor):
 
         """
         # import the TempoEstimation here otherwise we have a loop
-        from madmom.features.tempo import TempoEstimation
+        from madmom.features.tempo import TempoEstimationProcessor
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
         self.fps = fps
         # tempo estimator
-        self.tempo_estimator = TempoEstimation(fps=fps, **kwargs)
+        self.tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
 
     def process(self, activations):
         """
@@ -432,13 +432,13 @@ class BeatTracking(Processor):
         # TODO: import the TempoEstimation here otherwise we have a
         #       loop. This is super ugly, but right now I can't think of a
         #       better solution...
-        from madmom.features.tempo import TempoEstimation as tempo
-        return tempo.add_arguments(parser, method=method, min_bpm=min_bpm,
+        from madmom.features.tempo import TempoEstimationProcessor as Tempo
+        return Tempo.add_arguments(parser, method=method, min_bpm=min_bpm,
                                    max_bpm=max_bpm, act_smooth=act_smooth,
                                    hist_smooth=hist_smooth, alpha=alpha)
 
 
-class BeatDetection(BeatTracking):
+class BeatDetectionProcessor(BeatTrackingProcessor):
     """
     Class for detecting beats with a simple tempo estimation and beat aligning.
 
@@ -464,8 +464,9 @@ class BeatDetection(BeatTracking):
         the `tempo_method` parameter.
 
         """
-        super(BeatDetection, self).__init__(look_aside=look_aside,
-                                            look_ahead=None, fps=fps, **kwargs)
+        super(BeatDetectionProcessor, self).__init__(look_aside=look_aside,
+                                                     look_ahead=None, fps=fps,
+                                                     **kwargs)
 
 
 # TODO: refactor the whole CRF Viterbi stuff as a .pyx class including the
@@ -482,10 +483,10 @@ def _process_crf(process_tuple):
 
     """
     # activations, dominant_interval, interval_sigma = process_tuple
-    return CRFBeatDetection.best_sequence(*process_tuple)
+    return CRFBeatDetectionProcessor.best_sequence(*process_tuple)
 
 
-class CRFBeatDetection(BeatTracking):
+class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     """
     Conditional Random Field Beat Detection.
 
@@ -531,7 +532,7 @@ class CRFBeatDetection(BeatTracking):
         Retrieval Conference (ISMIR), 2014.
 
         """
-        super(CRFBeatDetection, self).__init__(**kwargs)
+        super(CRFBeatDetectionProcessor, self).__init__(**kwargs)
         # save variables
         self.interval_sigma = interval_sigma
         self.use_factors = use_factors
@@ -634,8 +635,8 @@ class CRFBeatDetection(BeatTracking):
         if self.use_factors:
             # use the dominant interval with different factors
             possible_intervals = [int(intervals[0] * f) for f in self.factors]
-            possible_intervals = [i for i in possible_intervals
-                                  if self.tempo_estimator.max_interval >= i >=
+            possible_intervals = [i for i in possible_intervals if
+                                  self.tempo_estimator.max_interval >= i >=
                                   self.tempo_estimator.min_interval]
         else:
             # take the top n intervals from the tempo estimator
@@ -692,7 +693,8 @@ class CRFBeatDetection(BeatTracking):
                        help='allowed deviation from the dominant interval '
                             '[default=%(default).2f]')
 
-        g.add_argument('--use_factors', action='store_true', default=use_factors,
+        g.add_argument('--use_factors', action='store_true',
+                       default=use_factors,
                        help='use dominant interval multiplied with factors '
                             'instead of multiple estimated intervals '
                             '[default=%(default)s]')
@@ -725,7 +727,7 @@ class CRFBeatDetection(BeatTracking):
         # TODO: import the TempoEstimation here otherwise we have a
         #       loop. This is super ugly, but right now I can't think of a
         #       better solution...
-        from madmom.features.tempo import TempoEstimation as tempo
+        from madmom.features.tempo import TempoEstimationProcessor as tempo
         tempo.add_arguments(parser, method=None, min_bpm=min_bpm,
                             max_bpm=max_bpm, act_smooth=act_smooth,
                             hist_smooth=hist_smooth, alpha=None)
@@ -761,7 +763,7 @@ def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
 
 
 # class for beat tracking
-class DBNBeatTracking(Processor):
+class DBNBeatTrackingProcessor(Processor):
     """
     Beat tracking with RNNs and a dynamic Bayesian network (DBN).
 
@@ -960,7 +962,7 @@ class DBNBeatTracking(Processor):
 
 
 # class for beat tracking
-class DownbeatTracking(Processor):
+class DownbeatTrackingProcessor(Processor):
     """
     Beat and downbeat tracking with a dynamic Bayesian network (DBN).
 
@@ -1178,7 +1180,7 @@ class DownbeatTracking(Processor):
 
 # class for tracking beats with based on spectral features with any
 # post-processing method
-class SpectralBeatTracking(IOProcessor):
+class SpectralBeatTrackingProcessor(IOProcessor):
     """
     The SpectralBeatTracking class implements (down-)beat tracking based on the
     magnitude spectrogram.
@@ -1198,15 +1200,16 @@ class SpectralBeatTracking(IOProcessor):
         in_processor = [sig, frames, spec]
         if downbeats:
             write_beats = write_events
-        out_processor = [DownbeatTracking(downbeats=downbeats, **kwargs),
-                         write_beats]
+        out_processor = [DownbeatTrackingProcessor(downbeats=downbeats,
+                                                   **kwargs), write_beats]
         # swap in/out processors if needed
         if load:
             in_processor = ActivationsProcessor(mode='r', **kwargs)
         if save:
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
-        super(SpectralBeatTracking, self).__init__(in_processor, out_processor)
+        super(SpectralBeatTrackingProcessor, self).__init__(in_processor,
+                                                            out_processor)
 
     # add aliases to other argument parsers
     add_activation_arguments = ActivationsProcessor.add_arguments
@@ -1215,18 +1218,17 @@ class SpectralBeatTracking(IOProcessor):
     add_filter_arguments = SpectrogramProcessor.add_filter_arguments
     add_log_arguments = SpectrogramProcessor.add_log_arguments
     add_diff_arguments = SpectrogramProcessor.add_diff_arguments
-    add_multi_band_arguments = \
-        MultiBandSpectrogramProcessor.add_multi_band_arguments
+    add_multi_band_arguments = MultiBandSpectrogramProcessor.add_arguments
 
 
 # class for tracking beats with RNNs and any post-processing method
-class RNNBeatTracking(IOProcessor):
+class RNNBeatTrackingProcessor(IOProcessor):
     """
     Class for detecting/tracking beats with recurrent neural networks (RNN)
     and different post-processing methods.
 
     """
-    NN_FILES = RNNBeatProcessing.NN_FILES
+    NN_FILES = RNNBeatProcessor.NN_FILES
 
     def __init__(self, beat_method='DBNBeatTracking', multi_model=False,
                  nn_files=NN_FILES, load=False, save=False, **kwargs):
@@ -1250,15 +1252,16 @@ class RNNBeatTracking(IOProcessor):
         if load:
             in_processor = ActivationsProcessor(mode='r', **kwargs)
         else:
-            in_processor = RNNBeatProcessing(nn_files, nn_ref_files, **kwargs)
+            in_processor = RNNBeatProcessor(nn_files, nn_ref_files, **kwargs)
         # set output processor
         if save:
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         else:
             out_processor = [globals()[beat_method](**kwargs), write_events]
         # make this an IOProcessor by defining input and output processors
-        super(RNNBeatTracking, self).__init__(in_processor, out_processor)
+        super(RNNBeatTrackingProcessor, self).__init__(in_processor,
+                                                       out_processor)
 
     # add aliases to argument parsers
     add_activation_arguments = ActivationsProcessor.add_arguments
-    add_rnn_arguments = RNNBeatProcessing.add_arguments
+    add_rnn_arguments = RNNBeatProcessor.add_arguments

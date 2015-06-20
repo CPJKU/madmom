@@ -351,14 +351,14 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
 class TestSuperFluxProcessorClass(unittest.TestCase):
 
     def test_types(self):
-        processor = SuperFluxProcessor()
-        self.assertIsInstance(processor, SuperFluxProcessor)
+        processor = SuperFluxSpectrogramProcessor()
+        self.assertIsInstance(processor, SuperFluxSpectrogramProcessor)
         self.assertIsInstance(processor, SpectrogramProcessor)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
 
     def test_values(self):
-        processor = SuperFluxProcessor()
+        processor = SuperFluxSpectrogramProcessor()
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
         self.assertTrue(processor.bands == 24)

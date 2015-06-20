@@ -12,7 +12,7 @@ import numpy as np
 
 from madmom import MODELS_PATH, IOProcessor, open, suppress_warnings
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import PeakPicking
+from madmom.features.onsets import PeakPickingProcessor
 from madmom.audio.signal import SignalProcessor
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
@@ -146,7 +146,7 @@ class RNNNoteTranscription(IOProcessor):
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         reshape = note_reshaper
-        pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,
+        pp = PeakPickingProcessor(threshold=threshold, smooth=smooth, pre_max=1. / fps,
                          post_max=1. / fps, combine=combine)
         # define input and output processors
         in_processor = [sig, stack, rnn, avg, reshape]

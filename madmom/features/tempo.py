@@ -13,7 +13,7 @@ from scipy.signal import argrelmax
 from madmom import Processor, IOProcessor
 from madmom.audio.signal import smooth as smooth_signal
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessing
+from madmom.features.beats import RNNBeatProcessor
 
 
 NO_TEMPO = np.nan
@@ -165,7 +165,7 @@ def detect_tempo(histogram, fps):
 
 
 # tempo estimation processor class
-class TempoEstimation(Processor):
+class TempoEstimationProcessor(Processor):
     """
     Tempo Estimation Processor class.
 
@@ -247,10 +247,11 @@ class TempoEstimation(Processor):
                                            self.min_interval,
                                            self.max_interval)
         elif self.method == 'dbn':
-            from .beats import DBNBeatTracking
+            from .beats import DBNBeatTrackingProcessor
             # track with the DBN tracker
-            dbn = DBNBeatTracking(min_bpm=self.min_bpm, max_bpm=self.max_bpm,
-                                  num_tempo_states=40, fps=self.fps)
+            dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                           max_bpm=self.max_bpm,
+                                           num_tempo_states=None, fps=self.fps)
             # get the tempo states from the DBN
             # first compute the observation model's log_densities
             dbn.om.compute_densities(activations.astype(np.float32))
@@ -374,7 +375,7 @@ write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
 
 
 # RNN tempo estimation processor class
-class RNNTempoEstimation(IOProcessor):
+class RNNTempoEstimationProcessor(IOProcessor):
     """
     Class for tempo estimation based on the activations of a RNN.
 
@@ -391,7 +392,7 @@ class RNNTempoEstimation(IOProcessor):
 
         """
         # use the RNN Beat processor as input processing
-        in_processor = RNNBeatProcessing(**kwargs)
+        in_processor = RNNBeatProcessor(**kwargs)
         self.fps = kwargs['fps'] = in_processor.fps
         # output processor
         writer = write_tempo
@@ -400,16 +401,17 @@ class RNNTempoEstimation(IOProcessor):
         elif tempo_format in ('raw', 'all'):
             # borrow the note writer for outputting multiple values
             from madmom.features.notes import write_notes as writer
-        out_processor = [TempoEstimation(**kwargs), writer]
+        out_processor = [TempoEstimationProcessor(**kwargs), writer]
         # swap in/out processors if needed
         if load:
             in_processor = ActivationsProcessor(mode='r', **kwargs)
         if save:
             out_processor = ActivationsProcessor(mode='w', **kwargs)
         # make this an IOProcessor by defining input and output processors
-        super(RNNTempoEstimation, self).__init__(in_processor, out_processor)
+        super(RNNTempoEstimationProcessor, self).__init__(in_processor,
+                                                          out_processor)
 
     # add aliases to argument parsers
-    add_arguments = TempoEstimation.add_arguments
+    add_arguments = TempoEstimationProcessor.add_arguments
     add_activation_arguments = ActivationsProcessor.add_arguments
-    add_rnn_arguments = RNNBeatProcessing.add_arguments
+    add_rnn_arguments = RNNBeatProcessor.add_arguments

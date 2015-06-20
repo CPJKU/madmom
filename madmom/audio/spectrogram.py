@@ -850,7 +850,7 @@ class SpectrogramProcessor(Processor):
         return g
 
 
-class SuperFluxProcessor(SpectrogramProcessor):
+class SuperFluxSpectrogramProcessor(SpectrogramProcessor):
     """
     Spectrogram processor which sets the default values suitable for the
     SuperFlux algorithm.
@@ -873,7 +873,7 @@ class SuperFluxProcessor(SpectrogramProcessor):
         diff_ratio = kwargs.pop('diff_ratio', 0.5)
         diff_max_bins = kwargs.pop('diff_max_bins', 3)
         # instantiate SpectrogramProcessor
-        super(SuperFluxProcessor, self).__init__(
+        super(SuperFluxSpectrogramProcessor, self).__init__(
             filterbank=filterbank, bands=bands, norm_filters=norm_filters,
             log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins,
             **kwargs)
@@ -952,7 +952,7 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
             return np.dot(data.spec, fb)
 
     @classmethod
-    def add_multi_band_arguments(cls, parser, crossover_frequencies=None,
+    def add_arguments(cls, parser, crossover_frequencies=None,
                                  norm_bands=None):
         """
         Add multi-band spectrogram related arguments to an existing parser.

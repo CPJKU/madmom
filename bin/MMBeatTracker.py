@@ -8,7 +8,8 @@
 import argparse
 
 from madmom.utils import io_arguments
-from madmom.features.beats import RNNBeatTracking, DBNBeatTracking
+from madmom.features.beats import (RNNBeatTrackingProcessor,
+                                   DBNBeatTrackingProcessor)
 
 
 def main():
@@ -31,9 +32,9 @@ def main():
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
-    RNNBeatTracking.add_activation_arguments(p)
-    RNNBeatTracking.add_rnn_arguments(p)
-    DBNBeatTracking.add_arguments(p)
+    RNNBeatTrackingProcessor.add_activation_arguments(p)
+    RNNBeatTrackingProcessor.add_rnn_arguments(p)
+    DBNBeatTrackingProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -41,7 +42,7 @@ def main():
         print args
 
     # create a processor
-    processor = RNNBeatTracking(beat_method='DBNBeatTracking',
+    processor = RNNBeatTrackingProcessor(beat_method='DBNBeatTracking',
                                 multi_model=True, **vars(args))
     # and call the processing function
     args.func(processor, **vars(args))

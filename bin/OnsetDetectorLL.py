@@ -8,7 +8,7 @@
 import argparse
 
 from madmom.utils import io_arguments
-from madmom.features.onsets import RNNOnsetDetection
+from madmom.features.onsets import RNNOnsetDetectionProcessor
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
     p.add_argument('--version', action='version', version='OnsetDetector.2013')
     # add arguments
     io_arguments(p, suffix='.onsets.txt')
-    RNNOnsetDetection.add_arguments(p, online=True)
+    RNNOnsetDetectionProcessor.add_arguments(p, online=True)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -51,7 +51,7 @@ def main():
         print args
 
     # create a processor
-    processor = RNNOnsetDetection(online=True, **vars(args))
+    processor = RNNOnsetDetectionProcessor(online=True, **vars(args))
     # and call the processing function
     args.func(processor, **vars(args))
 

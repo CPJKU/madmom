@@ -8,7 +8,7 @@
 import argparse
 
 from madmom.utils import io_arguments
-from madmom.features.tempo import RNNTempoEstimation
+from madmom.features.tempo import RNNTempoEstimationProcessor
 
 
 def main():
@@ -38,9 +38,9 @@ def main():
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
     io_arguments(p, suffix='.bpm.txt')
-    RNNTempoEstimation.add_activation_arguments(p)
-    RNNTempoEstimation.add_rnn_arguments(p)
-    RNNTempoEstimation.add_arguments(p)
+    RNNTempoEstimationProcessor.add_activation_arguments(p)
+    RNNTempoEstimationProcessor.add_rnn_arguments(p)
+    RNNTempoEstimationProcessor.add_arguments(p)
     # mirex stuff
     g = p.add_mutually_exclusive_group()
     g.add_argument('--mirex', dest='tempo_format',
@@ -57,7 +57,7 @@ def main():
         print args
 
     # create a processor
-    processor = RNNTempoEstimation(**vars(args))
+    processor = RNNTempoEstimationProcessor(**vars(args))
     # and call the processing function
     args.func(processor, **vars(args))
 
