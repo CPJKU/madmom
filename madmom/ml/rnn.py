@@ -73,9 +73,13 @@ try:
     # we need a recent version of scipy, older have a bug in expit
     # https://github.com/scipy/scipy/issues/3385
     if LooseVersion(scipy_version) < LooseVersion("0.14"):
-        raise ImportError
+        # Note: Raising an AttributeError might not be the best idea ever
+        #       (i.e. ImportError would be more appropriate), but older
+        #       versions of scipy not having the expit function raise the same
+        #       error. In some cases this check fails, don't know why...
+        raise AttributeError
     from scipy.special import expit as sigmoid
-except ImportError:
+except AttributeError:
     sigmoid = _sigmoid
 
 
