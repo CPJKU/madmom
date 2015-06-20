@@ -138,10 +138,11 @@ class RNNNoteTranscription(IOProcessor):
         kwargs['fps'] = fps = 100
         # input processor chain
         sig = SignalProcessor(num_channels=1, **kwargs)
-        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
+        stack = StackSpectrogramProcessor(frame_size=[1024, 2048, 4096],
                                           bands=12, online=False,
                                           norm_filters=True, log=True, mul=5,
-                                          add=1, diff_ratio=0.5, **kwargs)
+                                          add=1, diff_ratio=0.5,
+                                          stack_diffs=True, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         reshape = note_reshaper

@@ -120,7 +120,6 @@ class RNNBeatProcessing(SequentialProcessor):
         If `nn_ref_files` are the same as `ref_files`, the averaged predictions
         of the `ref_files` are used as a reference.
 
-
         """
         # FIXME: remove this hack of setting fps here
         #        all information should be stored in the nn_files or in a
@@ -129,10 +128,11 @@ class RNNBeatProcessing(SequentialProcessor):
         kwargs['fps'] = self.fps = 100
         # define processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        stack = StackSpectrogramProcessor(frame_sizes=[1024, 2048, 4096],
+        stack = StackSpectrogramProcessor(frame_size=[1024, 2048, 4096],
                                           online=False, bands=3,
                                           norm_filters=True, log=True, mul=1,
-                                          add=1, diff_ratio=0.5, **kwargs)
+                                          add=1, diff_ratio=0.5,
+                                          stack_diffs=True, **kwargs)
         if nn_ref_files is not None:
             if nn_ref_files == nn_files:
                 # if we don't have nn_ref_files given or they are the same as

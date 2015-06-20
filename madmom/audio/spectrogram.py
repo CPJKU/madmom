@@ -566,7 +566,8 @@ class SpectrogramProcessor(Processor):
     """
 
     def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
-                 fmax=FMAX, norm_filters=NORM_FILTERS, log=LOG, mul=MUL,
+                 fmax=FMAX, norm_filters=NORM_FILTERS,
+                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
                  add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, **kwargs):
         """
@@ -574,34 +575,38 @@ class SpectrogramProcessor(Processor):
 
         Magnitude spectrogram filtering parameters:
 
-        :param filterbank:    filter the magnitude spectrogram with a
-                              filterbank of this type [None or Filterbank]
-        :param bands:         use N bands (per octave) [int]
-        :param fmin:          minimum frequency of the filterbank [float]
-        :param fmax:          maximum frequency of the filterbank [float]
-        :param norm_filters:  normalize the filter to area 1 [bool]
+        :param filterbank:        filter the magnitude spectrogram with a
+                                  filterbank of this type [None or Filterbank]
+        :param bands:             use N bands (per octave) [int]
+        :param fmin:              minimum frequency of the filterbank [float]
+        :param fmax:              maximum frequency of the filterbank [float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
 
-        Magnitude spectrogram scaling parameters:
+        Magnitude spectrogram scaling paramete    rs:
 
-        :param log:           take the logarithm of the magnitude [bool]
-        :param mul:           multiply the spectrogram with this factor before
-                              taking the logarithm of the magnitudes [float]
-        :param add:           add this value before taking the logarithm of
-                              the magnitudes [float]
+        :param log:               take the logarithm of the magnitude [bool]
+        :param mul:               multiply the spectrogram with this factor
+                                  before taking the logarithm of the magnitudes
+                                  [float]
+        :param add:               add this value before taking the logarithm of
+                                  the magnitudes [float]
 
         Magnitude spectrogram difference parameters:
 
-        :param diff_ratio:    calculate the difference to the frame at which
-                              the window used for the STFT yields this ratio
-                              of the maximum height [float]
-        :param diff_frames:   calculate the difference to the N-th previous
-                              frame [int] (if set, this overrides the value
-                              calculated from the `diff_ratio`)
-        :param diff_max_bins: apply a maximum filter with this width (in bins
-                              in frequency dimension) before calculating the
-                              diff; (e.g. for the difference spectrogram of
-                              the SuperFlux algorithm 3 `max_bins` are used
-                              together with a 24 band logarithmic filterbank)
+        :param diff_ratio:        calculate the difference to the frame at
+                                  which the window used for the STFT yields
+                                  this ratio of the maximum height [float]
+        :param diff_frames:       calculate the difference to the N-th previous
+                                  frame [int] (if set, this overrides the value
+                                  calculated from the `diff_ratio`)
+        :param diff_max_bins:     apply a maximum filter with this width (in
+                                  bins in frequency dimension) before
+                                  calculating the diff; (e.g. for the
+                                  difference spectrogram of the SuperFlux
+                                  algorithm 3 `max_bins` are used together with
+                                  a 24 band logarithmic filterbank)
 
         Note: `filterbank` also accepts the boolean values 'False' and 'True'
               which get translated to no filterbank or a filterbank of the
@@ -619,6 +624,7 @@ class SpectrogramProcessor(Processor):
         self.fmin = fmin
         self.fmax = fmax
         self.norm_filters = norm_filters
+        self.duplicate_filters = duplicate_filters
         # log stuff
         self.log = log
         self.mul = mul
@@ -640,6 +646,7 @@ class SpectrogramProcessor(Processor):
         return Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
                            fmin=self.fmin, fmax=self.fmax,
                            norm_filters=self.norm_filters,
+                           duplicate_filters=self.duplicate_filters,
                            log=self.log, mul=self.mul, add=self.add,
                            diff_ratio=self.diff_ratio,
                            diff_frames=self.diff_frames,
@@ -674,18 +681,22 @@ class SpectrogramProcessor(Processor):
 
     @classmethod
     def add_filter_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
-                             fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS):
+                             fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
+                             duplicate_filters=DUPLICATE_FILTERS):
         """
         Add spectrogram filtering related arguments to an existing parser.
 
-        :param parser:       existing argparse parser
-        :param filterbank:   filter the magnitude spectrogram with a
-                             logarithmic filterbank [bool]
-        :param bands:        use N bands per octave [int]
-        :param fmin:         minimum frequency of the filterbank [float]
-        :param fmax:         maximum frequency of the filterbank [float]
-        :param norm_filters: normalize the filter to area 1 [bool]
-        :return:             spectrogram filtering argument parser group
+        :param parser:            existing argparse parser
+        :param filterbank:        filter the magnitude spectrogram with a
+                                  logarithmic filterbank [bool]
+        :param bands:             use N bands per octave [int]
+        :param fmin:              minimum frequency of the filterbank [float]
+        :param fmax:              maximum frequency of the filterbank [float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
+                                  [bool]
+        :return:                  spectrogram filtering argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
@@ -731,6 +742,20 @@ class SpectrogramProcessor(Processor):
                                action='store_true', default=norm_filters,
                                help='normalize the filter to area 1 '
                                     '[default=False]')
+        if duplicate_filters is not None:
+            if duplicate_filters:
+                g.add_argument('--no_duplicate_filters',
+                               dest='duplicate_filters',
+                               action='store_false', default=duplicate_filters,
+                               help='do not keep duplicate filters resulting '
+                                    'from insufficient resolution of low '
+                                    'frequencies [default=True]')
+            else:
+                g.add_argument('--duplicate_filters', dest='duplicate_filters',
+                               action='store_true', default=duplicate_filters,
+                               help='keep duplicate filters resulting from '
+                                    'insufficient resolution of low '
+                                    'frequencies [default=False]')
         # return the group
         return g
 
@@ -964,14 +989,16 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
 
 class StackSpectrogramProcessor(Processor):
     """
-    Stack spec & diff.
+    Class to stack multiple spectrograms (and their differences) in a certain
+    dimension.
 
     """
-
-    def __init__(self, frame_sizes, fps=100, online=False,
+    def __init__(self, frame_size, fps=100, online=False,
                  filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
-                 norm_filters=NORM_FILTERS, log=LOG, mul=MUL, add=ADD,
-                 diff_ratio=DIFF_RATIO, **kwargs):
+                 norm_filters=NORM_FILTERS,
+                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
+                 add=ADD, diff_ratio=DIFF_RATIO, stack=np.hstack,
+                 stack_diffs=False, **kwargs):
         """
         Creates a new StackSpectrogramProcessor instance.
 
@@ -981,45 +1008,85 @@ class StackSpectrogramProcessor(Processor):
 
         Framing parameters:
 
-        :param frame_sizes:   include spectrogram with these frame sizes
-                              [list of int]
-        :param fps:           frames per second [float]
-        :param online:        online mode [bool]
+        :param frame_size:        include spectrogram with these frame sizes
+                                  [list of int]
+        :param fps:               frames per second [float]
+        :param online:            online mode [bool]
 
         Filterbank parameters:
 
-        :param filterbank:    filter the magnitude spectrogram with a
-                              filterbank of this type [None or Filterbank]
-        :param bands:         use N bands per octave [int]
-        :param fmin:          minimum frequency of the filterbank [float]
-        :param fmax:          maximum frequency of the filterbank [float]
-        :param norm_filters:  normalize the filter to area 1 [bool]
+        :param filterbank:        filter the magnitude spectrogram with a
+                                  filterbank of this type [None or Filterbank]
+        :param bands:             use N bands per octave [int]
+        :param fmin:              minimum frequency of the filterbank [float]
+        :param fmax:              maximum frequency of the filterbank [float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
 
         Logarithmic magnitude parameters:
 
-        :param mul:           multiply the spectrogram with this factor before
-                              taking the logarithm of the magnitudes [float]
-        :param add:           add this value before taking the logarithm of
-                              the magnitudes [float]
+        :param mul:               multiply the spectrogram with this factor
+                                  before taking the logarithm of the magnitudes
+                                  [float]
+        :param add:               add this value before taking the logarithm of
+                                  the magnitudes [float]
 
         Difference parameters:
 
-        :param diff_ratio:    calculate the difference to the frame at which
-                              the window used for the STFT yields this ratio
-                              of the maximum height [float]
+        :param diff_ratio:        calculate the difference to the frame at
+                                  which the window used for the STFT yields
+                                  this ratio of the maximum height [float]
+
+        Stacking parameters:
+
+        :param stack:             stacking function for stacking the
+                                  spectrograms (and their differences)
+                                  - 'np.vstack' stack multiple spectrograms
+                                    vertically, i.e. stack in time dimension
+                                  - 'np.hstack' stack multiple spectrograms
+                                    horizontally, i.e. stack in the frequency
+                                    dimension
+                                  - 'np.dstack' stacks them in depth, i.e.
+                                    returns them as a 3D representation
+                                  Additionally, the literal values {'time',
+                                  'freq' | 'frequency', 'depth'} are supported
+        :param stack_diffs:       also stack the differences [bool]
+
+        Note: To be able to stack filtered spectrograms in depth (i.e. use
+              'np.dstack' as a stacking function), `duplicate_filters` must be
+              set to 'True', otherwise they differ in dimensionality.
 
         """
         from .signal import FramedSignalProcessor
+        # stacking parameters
+        if stack == 'time':
+            stack = np.vstack
+        elif stack in ('freq', 'frequency'):
+            stack = np.hstack
+        elif stack == 'depth':
+            stack = np.dstack
+        self.stack = stack
+        self.stack_diffs = stack_diffs
+        # set the duplicate filters
+        if self.stack == np.dstack and filterbank is not None:
+            if not duplicate_filters:
+                import warnings
+                warnings.warn("Set 'duplicate_filters' to 'True', otherwise "
+                              "the spectrograms can not be stacked in depth.")
+            duplicate_filters = True
+
         # use the same spec for all frame sizes
         sp = SpectrogramProcessor(filterbank=filterbank,
                                   bands=bands, fmin=fmin, fmax=fmax,
                                   norm_filters=norm_filters, log=log,
                                   mul=mul, add=add, diff_ratio=diff_ratio,
+                                  duplicate_filters=duplicate_filters,
                                   **kwargs)
         # multiple framing & spec processors
         processor = []
-        for frame_size in frame_sizes:
-            fs = FramedSignalProcessor(frame_size=frame_size, fps=fps,
+        for frame_size_ in frame_size:
+            fs = FramedSignalProcessor(frame_size=frame_size_, fps=fps,
                                        online=online, **kwargs)
             processor.append(SequentialProcessor([fs, sp]))
         # process all specs in parallel
@@ -1028,10 +1095,10 @@ class StackSpectrogramProcessor(Processor):
 
     def process(self, data):
         """
-        Stack the spectrograms and stack their magnitudes and differences.
+        Stack the magnitudes spectrograms (and their differences).
 
         :param data: Signal instance [Signal]
-        :return:     stacked specs and diffs
+        :return:     stacked specs (and diffs)
 
         """
         # process everything
@@ -1039,6 +1106,43 @@ class StackSpectrogramProcessor(Processor):
         # stack everything (a list of Spectrogram instances was returned)
         stack = []
         for s in specs:
-            stack.extend([s.spec, s.diff])
-        # return stacked data
-        return np.hstack(stack)
+            # always append the spec
+            stack.append(s.spec)
+            # and the differences only if needed
+            if self.stack_diffs:
+                stack.append(s.diff)
+        # stack them in the given direction and return them
+        return self.stack(stack)
+
+    @classmethod
+    def add_arguments(cls, parser, stack='freq', stack_diffs=False):
+        """
+        Add stacking related arguments to an existing parser.
+
+        :param parser:      existing argparse parser
+        :param stack:       stacking direction {'time', 'freq', 'depth'}
+        :param stack_diffs: also stack the differences [bool]
+        :return:            stacking argument parser group
+
+
+        """
+        # add diff related options to the existing parser
+        g = parser.add_argument_group('stacking arguments')
+        if stack is not None:
+            g.add_argument('--stack', action='store', type=str,
+                           default=stack,
+                           help="stacking direction {'time', 'freq', 'depth'} "
+                                "[default=%(default)s]")
+        if stack_diffs is not None:
+            if stack_diffs:
+                g.add_argument('--no_stack_diffs', dest='stack_diffs',
+                               action='store_false', default=stack_diffs,
+                               help='no not stack the differences of the '
+                                    'spectrograms')
+            else:
+                g.add_argument('--stack_diffs', action='store_true',
+                               default=-stack_diffs,
+                               help='in addition to the spectrograms, also '
+                                    'stack their differences')
+        # return the group
+        return g

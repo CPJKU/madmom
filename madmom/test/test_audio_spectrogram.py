@@ -419,16 +419,48 @@ class TestStackSpectrogramProcessorClass(unittest.TestCase):
         self.assertIsInstance(processor, StackSpectrogramProcessor)
         self.assertIsInstance(processor, Processor)
 
-    def test_values(self):
+    def test_stack_specs(self):
+        # stack only the specs
         processor = StackSpectrogramProcessor([512])
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 116))
+        self.assertTrue(result.shape == (281, 58))
         processor = StackSpectrogramProcessor([1024])
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 138))
+        self.assertTrue(result.shape == (281, 69))
         processor = StackSpectrogramProcessor([2048])
         result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 162))
+        self.assertTrue(result.shape == (281, 81))
         processor = StackSpectrogramProcessor([512, 1024, 2048])
         result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 58 + 69 + 81))
+
+    def test_stack_diffs(self):
+        # also include the differences
+        processor = StackSpectrogramProcessor([512], stack_diffs=True)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 116))
+        processor = StackSpectrogramProcessor([1024], stack_diffs=True)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 138))
+        processor = StackSpectrogramProcessor([2048], stack_diffs=True)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 162))
+        processor = StackSpectrogramProcessor([512, 1024, 2048],
+                                              stack_diffs=True)
+        result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 116 + 138 + 162))
+
+    def test_stack_depth(self):
+        # stack in depth
+        processor = StackSpectrogramProcessor([512], stack='depth')
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 108, 1))
+        processor = StackSpectrogramProcessor([1024], stack='depth')
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 108, 1))
+        processor = StackSpectrogramProcessor([2048], stack='depth')
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 108, 1))
+        processor = StackSpectrogramProcessor([512, 1024, 2048], stack='depth')
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 108, 3))
