@@ -318,7 +318,7 @@ class BeatTracking(Processor):
         Detect the beats in the given activation function.
 
         :param activations: beat activation function
-        :return:            detected beat positions
+        :return:            detected beat positions [seconds]
 
         """
         # smooth activations
@@ -552,9 +552,9 @@ class CRFBeatDetection(BeatTracking):
         """
         Compute the initial distribution.
 
-        :param num_states:        number of states in the model
-        :param interval:          beat interval of the piece [frames]
-        :return:                  initial distribution of the model
+        :param num_states: number of states in the model
+        :param interval:   beat interval of the piece [frames]
+        :return:           initial distribution of the model
 
         """
         init_dist = np.ones(num_states, dtype=np.float32) / interval
@@ -566,10 +566,9 @@ class CRFBeatDetection(BeatTracking):
         """
         Compute the transition distribution between beats.
 
-        :param interval:          interval of the piece [frames]
-        :param interval_sigma:    allowed deviation from the dominant interval
-                                  per beat
-        :return:                  transition distribution between beats
+        :param interval:       interval of the piece [frames]
+        :param interval_sigma: allowed deviation from the interval per beat
+        :return:               transition distribution between beats
 
         """
         from scipy.stats import norm
@@ -589,7 +588,7 @@ class CRFBeatDetection(BeatTracking):
         """
         Compute normalisation factors for model.
 
-        :param activations:             activations of the piece
+        :param activations:             beat activation function of the piece
         :param transition_distribution: transition distribution of the model
         :return:                        normalisation factors for model
 
@@ -604,27 +603,25 @@ class CRFBeatDetection(BeatTracking):
         """
         Extract the best beat sequence for a piece.
 
-        :param activations:       activations
-        :param interval:          beat interval of the piece.
-        :param interval_sigma:    allowed deviation from the dominant interval
-                                  per beat
-        :return:                  tuple with extracted beat positions [frames]
-                                  and log probability of beat sequence
+        :param activations:    beat activation function
+        :param interval:       beat interval of the piece
+        :param interval_sigma: allowed deviation from the interval per beat
+        :return:               tuple with extracted beat positions [frames]
+                               and log probability of beat sequence
         """
         init = cls.initial_distribution(activations.shape[0],
                                         interval)
         trans = cls.transition_distribution(interval, interval_sigma)
         norm_fact = cls.normalisation_factors(activations, trans)
 
-        return cls.crf_viterbi(init, trans, norm_fact, activations,
-                               interval)
+        return cls.crf_viterbi(init, trans, norm_fact, activations, interval)
 
     def process(self, activations):
         """
         Detect the beats in the given activation function.
 
         :param activations: beat activation function
-        :return:            detected beat positions
+        :return:            detected beat positions [seconds]
 
         """
         import itertools as it
@@ -697,19 +694,18 @@ class CRFBeatDetection(BeatTracking):
 
         g.add_argument('--use_factors', action='store_true', default=use_factors,
                        help='use dominant interval multiplied with factors '
-                            'instead of multiple estimated intervals. '
+                            'instead of multiple estimated intervals '
                             '[default=%(default)s]')
 
         g.add_argument('--num_intervals', action='store', type=int,
                        default=num_intervals, dest='num_intervals',
-                       help='number of estimated intervals to try. '
+                       help='number of estimated intervals to try '
                             '[default=%(default)s]')
-        from madmom.utils import OverrideDefaultListAction
-        g.add_argument('-f', '--factor', action=OverrideDefaultListAction,
-                       type=float, default=factors, dest='factors',
-                       help='factors of dominant interval to try. '
-                            'multiple factors can be given, one factor per '
-                            'argument. [default=%(default)s]')
+        from madmom.utils import OverrideDefaultTypedListAction
+        g.add_argument('-f', '--factors', list_type=float, default=factors,
+                       action=OverrideDefaultTypedListAction,
+                       help='(comma separated) list with factors of dominant '
+                            'interval to try [default=%(default)s]')
         return g
 
     @classmethod
@@ -842,7 +838,7 @@ class DBNBeatTracking(Processor):
         Detect the beats in the given activation function.
 
         :param activations: beat activation function
-        :return:            detected beat positions
+        :return:            detected beat positions [seconds]
 
         """
         # then get the best state path by calling the viterbi algorithm
@@ -1072,7 +1068,7 @@ class DownbeatTracking(Processor):
         Detect the beats in the given activation function.
 
         :param activations: beat activation function
-        :return:            detected beat positions
+        :return:            detected beat positions [seconds]
 
         """
         # get the best state path by calling the viterbi algorithm
