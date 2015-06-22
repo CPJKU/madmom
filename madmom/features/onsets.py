@@ -13,14 +13,13 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom import MODELS_PATH, IOProcessor, SequentialProcessor, Processor
+from madmom import MODELS_PATH, SequentialProcessor, Processor
 from madmom.utils import write_events
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
                                  smooth as smooth_signal)
 from madmom.audio.spectrogram import (SpectrogramProcessor,
                                       StackSpectrogramProcessor)
-from madmom.features import ActivationsProcessor
 
 EPSILON = 1e-6
 
@@ -256,7 +255,7 @@ class PeakPickingProcessor(Processor):
 
         """
         # add onset peak-picking related options to the existing parser
-        g = parser.add_argument_group('onset peak-picking arguments')
+        g = parser.add_argument_group('peak-picking arguments')
         g.add_argument('-t', dest='threshold', action='store', type=float,
                        default=threshold,
                        help='detection threshold [default=%(default).2f]')
@@ -491,7 +490,7 @@ def superflux(spectrogram):
           the difference.
 
     """
-    # TODO: should we warn about miscornfigurations here or build its own class
+    # TODO: should we warn about misconfigurations here or build its own class
     #       for SuperfFlux and ComplexFlux?
     if spectrogram.diff_max_bins <= 1:
         import warnings
@@ -673,6 +672,7 @@ def _complex_domain(spectrogram):
     :return:            complex domain
 
     Note: we use the simple implementation presented in:
+
     "Onset Detection Revisited"
     Simon Dixon
     Proceedings of the 9th International Conference on Digital Audio Effects
@@ -733,9 +733,9 @@ def rectified_complex_domain(spectrogram):
 
 
 # TODO: split the classes similar to madmom.features.beats?
-class SpectralOnsetDetectionProcessor(IOProcessor):
+class SpectralOnsetProcessor(Processor):
     """
-    The SpectralOnsetDetection class implements most of the common onset
+    The SpectralOnsetProcessor class implements most of the common onset
     detection functions based on the magnitude or phase information of a
     spectrogram.
 
@@ -753,39 +753,24 @@ class SpectralOnsetDetectionProcessor(IOProcessor):
                'normalized_weighted_phase_deviation', 'complex_domain',
                'rectified_complex_domain']
 
-    def __init__(self, onset_method='superflux', peak_picking_method=None,
-                 load=False, save=True, **kwargs):
+    def __init__(self, onset_method='superflux', **kwargs):
         """
         Creates a new SpectralOnsetDetection instance.
 
         :param onset_method:        onset detection function
-        :param peak_picking_method: peak picking method
-        :param load:                load the onset detection function from file
-        :param save:                save the onset detection function to file
 
         """
-        # processor chain
-        sig = SignalProcessor(num_channels=1, **kwargs)
-        frames = FramedSignalProcessor(**kwargs)
-        spec = SpectrogramProcessor(**kwargs)
-        # define input and output processors
-        in_processor = [sig, frames, spec, globals()[onset_method]]
-        if peak_picking_method in (None, 'normal'):
-            out_processor = [PeakPickingProcessor(**kwargs), write_events]
-        elif peak_picking_method in ('nn', 'neural_network'):
-            out_processor = [NNPeakPickingProcessor(**kwargs), write_events]
-        else:
-            raise ValueError('unknown `peak_picking_method`: %s' %
-                             peak_picking_method)
-        # swap in/out processors if needed
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        # make this an IOProcessor by defining input and output processors
-        super(SpectralOnsetDetectionProcessor, self).__init__(in_processor,
-                                                              out_processor)
         self.method = onset_method
+
+    def process(self, spectrogram):
+        """
+        Detect the onsets in the given activation function.
+
+        :param spectrogram: Spectrogram instance
+        :return:            onsets detection function
+
+        """
+        return globals()[self.method](spectrogram)
 
     @classmethod
     def add_arguments(cls, parser, onset_method=None):
@@ -807,46 +792,30 @@ class SpectralOnsetDetectionProcessor(IOProcessor):
         # return the argument group so it can be modified if needed
         return g
 
-    # add aliases to other argument parsers
-    add_activation_arguments = ActivationsProcessor.add_arguments
-    add_signal_arguments = SignalProcessor.add_arguments
-    add_framing_arguments = FramedSignalProcessor.add_arguments
-    add_filter_arguments = SpectrogramProcessor.add_filter_arguments
-    add_log_arguments = SpectrogramProcessor.add_log_arguments
-    add_diff_arguments = SpectrogramProcessor.add_diff_arguments
-    add_peak_picking_arguments = PeakPickingProcessor.add_arguments
 
-
-class RNNOnsetDetectionProcessor(IOProcessor):
+class RNNOnsetProcessor(SequentialProcessor):
     """
-    Class for detecting onsets with a recurrent neural network (RNN).
+    Class for predicting onsets with a recurrent neural network (RNN).
 
     """
     BI_FILES = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
     UNI_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
     ONLINE = False
-    THRESHOLD = 0.3
-    SMOOTH = 0.07
 
-    def __init__(self, nn_files=BI_FILES, online=ONLINE, threshold=THRESHOLD,
-                 smooth=SMOOTH, load=False, save=False, **kwargs):
+    def __init__(self, nn_files=BI_FILES, online=ONLINE, **kwargs):
         """
         Processor for finding possible onset positions in a signal.
 
         :param nn_files:  list of RNN model files
         :param online:    use online mode
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the onset activations over N seconds
-        :param load:      load the NN onset activations from file
-        :param save:      save the NN onset activations to file
 
         """
-        # FIXME: remove this hack of setting fps here
+        # FIXME: remove this hack of setting fps and the other stuff here!
         #        all information should be stored in the nn_files or in a
         #        pickled Processor (including information about spectrograms,
         #        mul, add & diff_ratio and so on)
-        kwargs['fps'] = fps = 100
-        # input processor chain
+        kwargs['fps'] = self.fps = 100
+        # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
         stack = StackSpectrogramProcessor(frame_size=frame_sizes,
@@ -857,46 +826,25 @@ class RNNOnsetDetectionProcessor(IOProcessor):
                                           **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
-        pp = PeakPickingProcessor(threshold=threshold, smooth=smooth,
-                                  pre_max=1. / fps, post_max=1. / fps,
-                                  online=online, **kwargs)
-        # define input and output processors
-        in_processor = [sig, stack, rnn, avg]
-        out_processor = [pp, write_events]
-        # swap in/out processors if needed
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        # make this an IOProcessor by defining input and output processors
-        super(RNNOnsetDetectionProcessor, self).__init__(in_processor,
-                                                         out_processor)
+        # sequentially process everything
+        super(RNNOnsetProcessor, self).__init__([sig, stack, rnn, avg])
 
     @classmethod
-    def add_arguments(cls, parser, online=ONLINE, threshold=THRESHOLD,
-                      smooth=SMOOTH):
+    def add_arguments(cls, parser, online=ONLINE):
         """
         Add RNN onset detection related arguments to an existing parser.
 
         :param parser:    existing argparse parser
         :param online:    settings for online mode (OnsetDetectorLL)
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
 
         """
         if online:
             nn_files = cls.UNI_FILES
             norm = None
-            smooth = None
         else:
             nn_files = cls.BI_FILES
             norm = False
-        # add activations arguments
-        ActivationsProcessor.add_arguments(parser)
         # add signal processing arguments
         SignalProcessor.add_arguments(parser, norm=norm, att=0)
-        # add rnn processing arguments
+        # add RNN processing arguments
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        # add peak picking arguments
-        PeakPickingProcessor.add_arguments(parser, threshold=threshold,
-                                           smooth=smooth)

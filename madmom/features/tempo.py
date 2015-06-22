@@ -12,8 +12,6 @@ from scipy.signal import argrelmax
 
 from madmom import Processor, IOProcessor
 from madmom.audio.signal import smooth as smooth_signal
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor
 
 
 NO_TEMPO = np.nan
@@ -366,52 +364,3 @@ def write_tempo(tempi, filename, mirex=False):
         f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
     # also return the tempi & strength
     return t1, t2, strength
-
-
-# wrapper function to be used as output of TempoEstimation
-from functools import partial
-write_tempo_mirex = partial(write_tempo, mirex=True)
-write_tempo_mirex.__doc__ = 'write_tempo(tempo, filename, mirex=True)'
-
-
-# RNN tempo estimation processor class
-class RNNTempoEstimationProcessor(IOProcessor):
-    """
-    Class for tempo estimation based on the activations of a RNN.
-
-    """
-
-    def __init__(self, tempo_format=None, load=False, save=False, **kwargs):
-        """
-        Estimates the tempo of the signal.
-
-        :param tempo_format: output format for the detected tempi
-                             {None, 'mirex', 'raw', 'all'} (see below)
-        :param load:         load the NN beat activations from file
-        :param save:         save the NN beat activations to file
-
-        """
-        # use the RNN Beat processor as input processing
-        in_processor = RNNBeatProcessor(**kwargs)
-        self.fps = kwargs['fps'] = in_processor.fps
-        # output processor
-        writer = write_tempo
-        if tempo_format == 'mirex':
-            writer = write_tempo_mirex
-        elif tempo_format in ('raw', 'all'):
-            # borrow the note writer for outputting multiple values
-            from madmom.features.notes import write_notes as writer
-        out_processor = [TempoEstimationProcessor(**kwargs), writer]
-        # swap in/out processors if needed
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        # make this an IOProcessor by defining input and output processors
-        super(RNNTempoEstimationProcessor, self).__init__(in_processor,
-                                                          out_processor)
-
-    # add aliases to argument parsers
-    add_arguments = TempoEstimationProcessor.add_arguments
-    add_activation_arguments = ActivationsProcessor.add_arguments
-    add_rnn_arguments = RNNBeatProcessor.add_arguments

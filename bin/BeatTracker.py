@@ -6,9 +6,9 @@
 """
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.beats import (RNNBeatTrackingProcessor,
-                                   BeatTrackingProcessor)
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessor, BeatTrackingProcessor
 
 
 def main():
@@ -33,8 +33,8 @@ def main():
     p.add_argument('--version', action='version', version='BeatTracker.2014')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
-    RNNBeatTrackingProcessor.add_activation_arguments(p)
-    RNNBeatTrackingProcessor.add_rnn_arguments(p)
+    ActivationsProcessor.add_arguments(p)
+    RNNBeatProcessor.add_arguments(p)
     BeatTrackingProcessor.add_tempo_arguments(p)
     BeatTrackingProcessor.add_arguments(p, look_ahead=10)
     # parse arguments
@@ -43,9 +43,30 @@ def main():
     if args.verbose:
         print args
 
-    # create a processor
-    processor = RNNBeatTrackingProcessor(beat_method='BeatTracking',
-                                         **vars(args))
+    # TODO: remove this hack!
+    args.fps = 100
+
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # process the signal with a RNN tp predict the beats
+        in_processor = RNNBeatProcessor(**vars(args))
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # track the beats in the activation function
+        beat_processor = BeatTrackingProcessor(**vars(args))
+        # output handler
+        from madmom.utils import write_events as writer
+        # sequentially process them
+        out_processor = [beat_processor, writer]
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

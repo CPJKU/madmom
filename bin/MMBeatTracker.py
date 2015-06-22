@@ -7,9 +7,10 @@
 
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.beats import (RNNBeatTrackingProcessor,
-                                   DBNBeatTrackingProcessor)
+
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
 
 
 def main():
@@ -32,18 +33,42 @@ def main():
     p.add_argument('--version', action='version', version='MMBeatTracker')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
-    RNNBeatTrackingProcessor.add_activation_arguments(p)
-    RNNBeatTrackingProcessor.add_rnn_arguments(p)
+    ActivationsProcessor.add_arguments(p)
+    # TODO: replace this hack nn_ref_files=True hack with a proper solution
+    RNNBeatProcessor.add_arguments(p, nn_ref_files=True)
     DBNBeatTrackingProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
+
     # print arguments
     if args.verbose:
         print args
 
-    # create a processor
-    processor = RNNBeatTrackingProcessor(beat_method='DBNBeatTracking',
-                                multi_model=True, **vars(args))
+    # TODO: remove this hack!
+    args.fps = 100
+
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # process the signal with a RNN tp predict the beats
+        # Note: this also includes the multi-model extension
+        in_processor = RNNBeatProcessor(**vars(args))
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # track the beats with a DBN
+        beat_processor = DBNBeatTrackingProcessor(**vars(args))
+        # output handler
+        from madmom.utils import write_events as writer
+        # sequentially process them
+        out_processor = [beat_processor, writer]
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

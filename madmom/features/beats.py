@@ -12,15 +12,15 @@ import glob
 
 import numpy as np
 
-from madmom import MODELS_PATH, Processor, IOProcessor, SequentialProcessor
+from madmom import MODELS_PATH, Processor, SequentialProcessor
 from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
                                  smooth as smooth_signal)
 from madmom.audio.spectrogram import (SpectrogramProcessor,
                                       StackSpectrogramProcessor,
                                       MultiBandSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
-from madmom.utils import write_events
-from madmom.features import ActivationsProcessor
+
+
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
@@ -90,7 +90,7 @@ class MultiModelSelectionProcessor(Processor):
 
 class RNNBeatProcessor(SequentialProcessor):
     """
-    Class for tracking beats with a recurrent neural network (RNN).
+    Class for predicting beats with a recurrent neural network (RNN).
 
     """
     NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
@@ -117,16 +117,17 @@ class RNNBeatProcessor(SequentialProcessor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
 
-        If `nn_ref_files` are the same as `ref_files`, the averaged predictions
-        of the `ref_files` are used as a reference.
+        If `nn_ref_files` is 'True' or identical to `ref_files`, the averaged
+        predictions of the `ref_files` are used as the reference the individual
+        predictions are compared to.
 
         """
-        # FIXME: remove this hack of setting fps here
+        # FIXME: remove this hack of setting fps and the other stuff here!
         #        all information should be stored in the nn_files or in a
         #        pickled Processor (including information about spectrograms,
         #        mul, add & diff_ratio and so on)
         kwargs['fps'] = self.fps = 100
-        # define processing chain
+        # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         stack = StackSpectrogramProcessor(frame_size=[1024, 2048, 4096],
                                           online=False, bands=3,
@@ -134,6 +135,11 @@ class RNNBeatProcessor(SequentialProcessor):
                                           add=1, diff_ratio=0.5,
                                           stack_diffs=True, **kwargs)
         if nn_ref_files is not None:
+            if nn_ref_files is True:
+                # FIXME: this is kind of hackish, but being able to simply set
+                #        the nn_ref_files to 'True' makes the arguments stuff
+                #        for the MMBeatTracker much simpler
+                nn_ref_files = nn_files
             if nn_ref_files == nn_files:
                 # if we don't have nn_ref_files given or they are the same as
                 # the nn_files, set num_ref_predictions to 0
@@ -166,7 +172,7 @@ class RNNBeatProcessor(SequentialProcessor):
         """
         # add signal processing arguments
         SignalProcessor.add_arguments(parser, norm=False, att=0)
-        # add rnn processing arguments
+        # add RNN processing arguments
         g = RNNProcessor.add_arguments(parser, nn_files=nn_files)
         # add option for the reference files
         if nn_ref_files is not None:
@@ -1176,92 +1182,3 @@ class DownbeatTrackingProcessor(Processor):
                        help='output only the downbeats')
         # return the argument group so it can be modified if needed
         return g
-
-
-# class for tracking beats with based on spectral features with any
-# post-processing method
-class SpectralBeatTrackingProcessor(IOProcessor):
-    """
-    The SpectralBeatTracking class implements (down-)beat tracking based on the
-    magnitude spectrogram.
-
-    """
-
-    def __init__(self, downbeats=False, load=False, save=False, **kwargs):
-        """
-        Creates a new SpectralBeatTracking instance.
-
-        """
-        from madmom.features.notes import write_notes as write_beats
-        # define input and output processors
-        sig = SignalProcessor(mono=True, **kwargs)
-        frames = FramedSignalProcessor(**kwargs)
-        spec = MultiBandSpectrogramProcessor(diff=True, **kwargs)
-        in_processor = [sig, frames, spec]
-        if downbeats:
-            write_beats = write_events
-        out_processor = [DownbeatTrackingProcessor(downbeats=downbeats,
-                                                   **kwargs), write_beats]
-        # swap in/out processors if needed
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        # make this an IOProcessor by defining input and output processors
-        super(SpectralBeatTrackingProcessor, self).__init__(in_processor,
-                                                            out_processor)
-
-    # add aliases to other argument parsers
-    add_activation_arguments = ActivationsProcessor.add_arguments
-    add_signal_arguments = SignalProcessor.add_arguments
-    add_framing_arguments = FramedSignalProcessor.add_arguments
-    add_filter_arguments = SpectrogramProcessor.add_filter_arguments
-    add_log_arguments = SpectrogramProcessor.add_log_arguments
-    add_diff_arguments = SpectrogramProcessor.add_diff_arguments
-    add_multi_band_arguments = MultiBandSpectrogramProcessor.add_arguments
-
-
-# class for tracking beats with RNNs and any post-processing method
-class RNNBeatTrackingProcessor(IOProcessor):
-    """
-    Class for detecting/tracking beats with recurrent neural networks (RNN)
-    and different post-processing methods.
-
-    """
-    NN_FILES = RNNBeatProcessor.NN_FILES
-
-    def __init__(self, beat_method='DBNBeatTracking', multi_model=False,
-                 nn_files=NN_FILES, load=False, save=False, **kwargs):
-        """
-        Detecting/tracking beats with multiple recurrent neural networks (RNN)
-        and different post-processing methods.
-
-        :param beat_method: method for tracking the beats
-        :param multi_model: use a multi-model approach to select the most
-                            suitable RNN model
-        :param nn_files:    list of NN model files
-        :param load:        load the NN beat activations from file
-        :param save:        save the NN beat activations to file
-
-        """
-        # set the reference model files
-        nn_ref_files = nn_files if multi_model else None
-        # TODO: remove this fps hack!
-        kwargs['fps'] = 100
-        # set input processor
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        else:
-            in_processor = RNNBeatProcessor(nn_files, nn_ref_files, **kwargs)
-        # set output processor
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        else:
-            out_processor = [globals()[beat_method](**kwargs), write_events]
-        # make this an IOProcessor by defining input and output processors
-        super(RNNBeatTrackingProcessor, self).__init__(in_processor,
-                                                       out_processor)
-
-    # add aliases to argument parsers
-    add_activation_arguments = ActivationsProcessor.add_arguments
-    add_rnn_arguments = RNNBeatProcessor.add_arguments
