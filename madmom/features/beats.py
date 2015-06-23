@@ -207,51 +207,54 @@ def detect_beats(activations, interval, look_aside=0.2):
     """
     # TODO: make this faster!
     sys.setrecursionlimit(len(activations))
-    # look for which starting beat the sum gets maximized
-    sums = np.zeros(interval)
-    positions = []
     # always look at least 1 frame to each side
     frames_look_aside = max(1, int(interval * look_aside))
     win = np.hamming(2 * frames_look_aside)
+
+    # list to be filled with beat positions from inside the recursive function
+    positions = []
+
+    def recursive(position):
+        """
+        Recursively detect the next beat.
+
+        :param position: start at this position
+
+        """
+        # detect the nearest beat around the actual position
+        start = position - frames_look_aside
+        end = position + frames_look_aside
+        if start < 0:
+            # pad with zeros
+            act = np.append(np.zeros(-start), activations[0:end])
+        elif end > len(activations):
+            # append zeros accordingly
+            zeros = np.zeros(end - len(activations))
+            act = np.append(activations[start:], zeros)
+        else:
+            act = activations[start:end]
+        # apply a filtering window to prefer beats closer to the centre
+        act_ = np.multiply(act, win)
+        # search max
+        if np.argmax(act_) > 0:
+            # maximum found, take that position
+            position = np.argmax(act_) + start
+        # add the found position
+        positions.append(position)
+        # go to the next beat, until end is reached
+        if position + interval < len(activations):
+            recursive(position + interval)
+        else:
+            return
+
+    # calculate the beats for each start position (up to the interval length)
+    sums = np.zeros(interval)
     for i in range(interval):
-        # TODO: threads?
-        def recursive(position):
-            """
-            Recursively detect the next beat.
-
-            :param position: start at this position
-            :return:         the next beat position
-
-            """
-            # detect the nearest beat around the actual position
-            start = position - frames_look_aside
-            end = position + frames_look_aside
-            if start < 0:
-                # pad with zeros
-                act = np.append(np.zeros(-start), activations[0:end])
-            elif end > len(activations):
-                # append zeros accordingly
-                zeros = np.zeros(end - len(activations))
-                act = np.append(activations[start:], zeros)
-            else:
-                act = activations[start:end]
-            # apply a filtering window to prefer beats closer to the centre
-            act_ = np.multiply(act, win)
-            # search max
-            if np.argmax(act_) > 0:
-                # maximum found, take that position
-                position = np.argmax(act_) + start
-            # add the found position
-            positions.append(position)
-            # add the activation at that position
-            sums[i] += activations[position]
-            # go to the next beat, until end is reached
-            if position + interval < len(activations):
-                recursive(position + interval)
-            else:
-                return
-        # start at initial position
+        positions = []
+        # detect the beats for this start position
         recursive(i)
+        # calculate the sum of the activations at the beat positions
+        sums[i] = np.sum(activations[positions])
     # take the winning start position
     start_position = np.argmax(sums)
     # and calc the beats for this start position

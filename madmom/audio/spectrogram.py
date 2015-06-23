@@ -931,7 +931,7 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         #       frequencies (data.bin_freqs) to generate a rectangular filter
         # create an empty filterbank
         fb = np.zeros((data.num_bins, len(self.crossover_frequencies) + 1))
-        # get the closest cross over bins
+        # get the closest crossover bins
         freq_distance = (data.bin_freqs -
                          np.asarray(self.crossover_frequencies)[:, np.newaxis])
         crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
