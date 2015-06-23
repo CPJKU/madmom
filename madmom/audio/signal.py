@@ -299,7 +299,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
         pass
     try:
         return load_ffmpeg_file(filename, sample_rate, num_channels,
-                                'avconv', 'avprobe')
+                                cmd_decode='avconv', cmd_probe='avprobe')
     except Exception:
         pass
     raise RuntimeError("All attempts to load audio file %r failed." % filename)
