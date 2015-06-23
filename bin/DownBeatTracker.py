@@ -6,8 +6,12 @@
 """
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.beats import DownbeatTracking, SpectralBeatTracking
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      MultiBandSpectrogramProcessor)
+from madmom.features.beats import DownbeatTrackingProcessor
 
 
 def main():
@@ -39,24 +43,51 @@ def main():
                    version='DownBeatTracker.2015')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
-    SpectralBeatTracking.add_activation_arguments(p)
-    SpectralBeatTracking.add_signal_arguments(p, norm=False, att=0)
-    SpectralBeatTracking.add_framing_arguments(p, fps=50, online=False)
-    SpectralBeatTracking.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
+    ActivationsProcessor.add_arguments(p)
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=50, online=False)
+    SpectrogramProcessor.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
                                               norm_filters=False)
-    SpectralBeatTracking.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectralBeatTracking.add_diff_arguments(p, diff_ratio=0.5)
-    SpectralBeatTracking.add_multi_band_arguments(p,
-                                                  crossover_frequencies=[270])
-    DownbeatTracking.add_arguments(p, num_beats=None)
+    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
+    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5)
+    MultiBandSpectrogramProcessor.add_arguments(p, crossover_frequencies=[270])
+    DownbeatTrackingProcessor.add_arguments(p, num_beats=None)
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
 
-    # create a processor
-    processor = SpectralBeatTracking(**vars(args))
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # define an input processor
+        sig = SignalProcessor(mono=True, **vars(args))
+        frames = FramedSignalProcessor(**vars(args))
+        spec = MultiBandSpectrogramProcessor(diff=True, **vars(args))
+        in_processor = [sig, frames, spec]
+
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # downbeat processor
+        downbeat_processor = DownbeatTrackingProcessor(**vars(args))
+        if args.downbeats:
+            # simply write the timestamps
+            from madmom.utils import write_events as writer
+        else:
+            # borrow the note writer for outputting timestamps + beat numbers
+            from madmom.features.notes import write_notes as writer
+        # sequentially process them
+        out_processor = [downbeat_processor, writer]
+
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

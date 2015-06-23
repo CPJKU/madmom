@@ -850,7 +850,7 @@ class SpectrogramProcessor(Processor):
         return g
 
 
-class SuperFluxProcessor(SpectrogramProcessor):
+class SuperFluxSpectrogramProcessor(SpectrogramProcessor):
     """
     Spectrogram processor which sets the default values suitable for the
     SuperFlux algorithm.
@@ -873,7 +873,7 @@ class SuperFluxProcessor(SpectrogramProcessor):
         diff_ratio = kwargs.pop('diff_ratio', 0.5)
         diff_max_bins = kwargs.pop('diff_max_bins', 3)
         # instantiate SpectrogramProcessor
-        super(SuperFluxProcessor, self).__init__(
+        super(SuperFluxSpectrogramProcessor, self).__init__(
             filterbank=filterbank, bands=bands, norm_filters=norm_filters,
             log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins,
             **kwargs)
@@ -931,7 +931,7 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         #       frequencies (data.bin_freqs) to generate a rectangular filter
         # create an empty filterbank
         fb = np.zeros((data.num_bins, len(self.crossover_frequencies) + 1))
-        # get the closest cross over bins
+        # get the closest crossover bins
         freq_distance = (data.bin_freqs -
                          np.asarray(self.crossover_frequencies)[:, np.newaxis])
         crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
@@ -952,8 +952,8 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
             return np.dot(data.spec, fb)
 
     @classmethod
-    def add_multi_band_arguments(cls, parser, crossover_frequencies=None,
-                                 norm_bands=None):
+    def add_arguments(cls, parser, crossover_frequencies=None,
+                      norm_bands=None):
         """
         Add multi-band spectrogram related arguments to an existing parser.
 
@@ -968,9 +968,9 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('multi-band spectrogram arguments')
         if crossover_frequencies is not None:
-            from madmom.utils import OverrideDefaultTypedListAction
-            g.add_argument('--crossover_frequencies', list_type=float,
-                           action=OverrideDefaultTypedListAction,
+            from madmom.utils import OverrideDefaultListAction
+            g.add_argument('--crossover_frequencies', type=float, sep=',',
+                           action=OverrideDefaultListAction,
                            default=crossover_frequencies,
                            help='(comma separated) list with crossover '
                                 'frequencies [Hz, default=%(default)s]')

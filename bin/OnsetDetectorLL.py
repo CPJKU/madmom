@@ -7,8 +7,9 @@
 
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.onsets import RNNOnsetDetection
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.onsets import RNNOnsetProcessor, PeakPickingProcessor
 
 
 def main():
@@ -40,18 +41,48 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
+    p.add_argument('--version', action='version',
+                   version='OnsetDetectorLL.2013')
     # add arguments
     io_arguments(p, suffix='.onsets.txt')
-    RNNOnsetDetection.add_arguments(p, online=True)
+    ActivationsProcessor.add_arguments(p)
+    RNNOnsetProcessor.add_arguments(p, online=True)
+    PeakPickingProcessor.add_arguments(p, threshold=0.23)
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
 
-    # create a processor
-    processor = RNNOnsetDetection(online=True, **vars(args))
+    # TODO: remove this hack!
+    args.fps = 100
+    args.online = True
+
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # use the RNN Beat processor
+        in_processor = RNNOnsetProcessor(**vars(args))
+
+    # output processor
+    if args.save:
+        # save the RNN onset activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # perform peak picking on the onset activations
+        peak_picking = PeakPickingProcessor(pre_max=1. / args.fps,
+                                            post_max=0, post_avg=0,
+                                            **vars(args))
+        # output handler
+        from madmom.utils import write_events as writer
+        # sequentially process them
+        out_processor = [peak_picking, writer]
+
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

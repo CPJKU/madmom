@@ -7,8 +7,9 @@
 
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.beats import RNNBeatTracking, BeatDetection
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import RNNBeatProcessor, BeatDetectionProcessor
 
 
 def main():
@@ -39,18 +40,42 @@ def main():
     p.add_argument('--version', action='version', version='BeatDetector.2014')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
-    RNNBeatTracking.add_activation_arguments(p)
-    RNNBeatTracking.add_rnn_arguments(p)
-    BeatDetection.add_tempo_arguments(p)
-    BeatDetection.add_arguments(p, look_ahead=None)
+    ActivationsProcessor.add_arguments(p)
+    RNNBeatProcessor.add_arguments(p)
+    BeatDetectionProcessor.add_tempo_arguments(p)
+    BeatDetectionProcessor.add_arguments(p, look_ahead=None)
     # parse arguments
     args = p.parse_args()
     # print arguments
     if args.verbose:
         print args
 
-    # create a processor
-    processor = RNNBeatTracking(beat_method='BeatDetection', **vars(args))
+    # TODO: remove this hack!
+    args.fps = 100
+
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # process the signal with a RNN tp predict the beats
+        in_processor = RNNBeatProcessor(**vars(args))
+
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # detect the beats in the activation function
+        beat_processor = BeatDetectionProcessor(**vars(args))
+        # output handler
+        from madmom.utils import write_events as writer
+        # sequentially process them
+        out_processor = [beat_processor, writer]
+
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

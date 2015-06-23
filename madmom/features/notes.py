@@ -10,9 +10,7 @@ This file contains note transcription related functionality.
 import glob
 import numpy as np
 
-from madmom import MODELS_PATH, IOProcessor, open, suppress_warnings
-from madmom.features import ActivationsProcessor
-from madmom.features.onsets import PeakPicking
+from madmom import MODELS_PATH, SequentialProcessor, open, suppress_warnings
 from madmom.audio.signal import SignalProcessor
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
@@ -105,26 +103,15 @@ def note_reshaper(notes):
     return notes.reshape(-1, 88)
 
 
-# TODO: These do not seem to be used anywhere
-FMIN = 27.5
-FMAX = 18000
-
-
-class RNNNoteTranscription(IOProcessor):
+class RNNNoteProcessor(SequentialProcessor):
     """
-    Class for detecting onsets with a recurrent neural network (RNN).
+    Class for detecting notes with a recurrent neural network (RNN).
 
     """
     # NN model files
     NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
-    # default values for note peak-picking
-    THRESHOLD = 0.35
-    SMOOTH = 0.09
-    COMBINE = 0.05
 
-    def __init__(self, nn_files=NN_FILES, threshold=THRESHOLD, smooth=SMOOTH,
-                 combine=COMBINE, output_format=None, load=False, save=False,
-                 **kwargs):
+    def __init__(self, nn_files=NN_FILES, **kwargs):
         """
         Processor for finding possible onset positions in a signal.
 
@@ -135,8 +122,8 @@ class RNNNoteTranscription(IOProcessor):
         #        all information should be stored in the nn_files or in a
         #        pickled Processor (including information about spectrograms,
         #        mul, add & diff_ratio and so on)
-        kwargs['fps'] = fps = 100
-        # input processor chain
+        kwargs['fps'] = self.fps = 100
+        # processing chain
         sig = SignalProcessor(num_channels=1, **kwargs)
         stack = StackSpectrogramProcessor(frame_size=[1024, 2048, 4096],
                                           bands=12, online=False,
@@ -146,55 +133,18 @@ class RNNNoteTranscription(IOProcessor):
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         reshape = note_reshaper
-        pp = PeakPicking(threshold=threshold, smooth=smooth, pre_max=1. / fps,
-                         post_max=1. / fps, combine=combine)
-        # define input and output processors
-        in_processor = [sig, stack, rnn, avg, reshape]
-        if output_format is None:
-            output = write_notes
-        elif output_format == 'midi':
-            output = write_midi
-        elif output_format == 'mirex':
-            output = write_frequencies
-        else:
-            raise ValueError('unknown `output_format`: %s' % output_format)
-        out_processor = [pp, output]
-        # swap in/out processors if needed
-        if load:
-            in_processor = ActivationsProcessor(mode='r', **kwargs)
-        if save:
-            out_processor = ActivationsProcessor(mode='w', **kwargs)
-        # make this an IOProcessor by defining input and output processors
-        super(RNNNoteTranscription, self).__init__(in_processor, out_processor)
+        # sequentially process everything
+        super(RNNNoteProcessor, self).__init__([sig, stack, rnn, avg, reshape])
 
     @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
-                      smooth=SMOOTH, combine=COMBINE):
+    def add_arguments(cls, parser, nn_files=NN_FILES):
         """
         Add note transcription related arguments to an existing parser.
 
         :param parser:    existing argparse parser
         :param nn_files:  list with files of NN models
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the note activations over N seconds
-        :param combine:   only report one note within N seconds and pitch
         :return:          note argument parser group
 
         """
-        # add Activations parser
-        ActivationsProcessor.add_arguments(parser)
-        # add RNNEventDetection arguments
+        # add RNN processing arguments
         RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        # add note transcription related options to the existing parser
-        g = parser.add_argument_group('note transcription arguments')
-        g.add_argument('-t', dest='threshold', action='store', type=float,
-                       default=threshold, help='detection threshold '
-                       '[default=%(default)s]')
-        g.add_argument('--smooth', action='store', type=float, default=smooth,
-                       help='smooth the note activations over N seconds '
-                       '[default=%(default).2f]')
-        g.add_argument('--combine', action='store', type=float,
-                       default=combine, help='combine notes within N seconds '
-                       '(per pitch) [default=%(default).2f]')
-        # return the argument group so it can be modified if needed
-        return g

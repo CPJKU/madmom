@@ -9,8 +9,11 @@ LogFiltSpecFlux onset detection algorithm.
 
 import argparse
 
-from madmom.utils import io_arguments
-from madmom.features.onsets import SpectralOnsetDetection as LogFiltSpecFlux
+from madmom import IOProcessor, io_arguments
+from madmom.features import ActivationsProcessor
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import SpectrogramProcessor
+from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
 def main():
@@ -33,17 +36,16 @@ def main():
                    version='LogFiltSpecFlux.2014')
     # add arguments
     io_arguments(p, suffix='.onsets.txt')
-    LogFiltSpecFlux.add_activation_arguments(p)
-    LogFiltSpecFlux.add_signal_arguments(p, norm=False, att=0)
-    LogFiltSpecFlux.add_framing_arguments(p, fps=100, online=False)
-    LogFiltSpecFlux.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
-                                         norm_filters=False)
-    LogFiltSpecFlux.add_log_arguments(p, log=True, mul=1, add=1)
-    LogFiltSpecFlux.add_diff_arguments(p, diff_ratio=0.5)
-    LogFiltSpecFlux.add_peak_picking_arguments(p, threshold=1.6, pre_max=0.01,
-                                               post_max=0.05, pre_avg=0.15,
-                                               post_avg=0, combine=0.03,
-                                               delay=0)
+    ActivationsProcessor.add_arguments(p)
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
+    SpectrogramProcessor.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
+                                              norm_filters=False)
+    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
+    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5)
+    PeakPickingProcessor.add_arguments(p, threshold=1.6, pre_max=0.01,
+                                       post_max=0.05, pre_avg=0.15, post_avg=0,
+                                       combine=0.03, delay=0)
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -53,8 +55,33 @@ def main():
     if args.verbose:
         print args
 
-    # create a processor
-    processor = LogFiltSpecFlux(onset_method='spectral_flux', **vars(args))
+    # input processor
+    if args.load:
+        # load the activations from file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        # define processing chain
+        sig = SignalProcessor(num_channels=1, **vars(args))
+        frames = FramedSignalProcessor(**vars(args))
+        spec = SpectrogramProcessor(**vars(args))
+        odf = SpectralOnsetProcessor(onset_method='spectral_flux',
+                                     **vars(args))
+        in_processor = [sig, frames, spec, odf]
+
+    # output processor
+    if args.save:
+        # save the onset activations to file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # perform peak picking of the onset function
+        peak_picking = PeakPickingProcessor(**vars(args))
+        from madmom.utils import write_events as writer
+        # sequentially process them
+        out_processor = [peak_picking, writer]
+
+    # create an IOProcessor
+    processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 
