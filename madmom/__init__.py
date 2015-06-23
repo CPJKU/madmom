@@ -128,7 +128,7 @@ class Processor(object):
         return data
 
     def __call__(self, *args):
-        """This magic method makes an instance callable."""
+        """This magic method makes a Processor instance callable."""
         return self.process(*args)
 
 
@@ -166,15 +166,11 @@ def _process(process_tuple):
     Note: This must be a top-level function to be pickle-able.
 
     """
-    # just call whatever we got here, since every Processor is callable
     if process_tuple[0] is None:
-        # return the data unaltered
+        # do not process the data, if the first item (i.e. Processor) is None
         return process_tuple[1]
-    elif isinstance(process_tuple[0], Processor):
-        # call the process function
-        return process_tuple[0].process(process_tuple[1])
     else:
-        # just call the function
+        # just call whatever we got here (every Processor is callable)
         return process_tuple[0](process_tuple[1])
 
 
