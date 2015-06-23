@@ -215,50 +215,30 @@ class OverrideDefaultListAction(argparse.Action):
     The default value is deleted when a new value is specified. The 'append'
     action would append the new value to the default.
 
+    Multiple values can be parsed from a list with the specified separator.
+
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, sep=None, *args, **kwargs):
         super(OverrideDefaultListAction, self).__init__(*args, **kwargs)
         self.set_to_default = True
-
-    def __call__(self, parser, namespace, value, option_string=None):
-        if self.set_to_default:
-            setattr(namespace, self.dest, [])
-            self.set_to_default = False
-        cur_values = getattr(namespace, self.dest)
-        cur_values.append(value)
-
-
-class OverrideDefaultTypedListAction(argparse.Action):
-    """
-    OverrideDefaultTypedListAction
-
-    An argparse action that works similarly to the regular 'append' action.
-    The default value is deleted when a new value is specified. Multiple values
-    can be parsed from a list with the specified separator.
-
-    """
-    def __init__(self, list_type, sep=',', *args, **kwargs):
-        """
-        Create a OverrideDefaultTypedListAction instance.
-
-        When called, the given values (separated by `sep`) are parsed as a list
-        of items of the specified type.
-
-        :param list_type: type of the list
-        :param sep:       separator between values.
-
-        """
-        self.list_type = list_type
+        # save the type as the type for the list
+        self.list_type = self.type
+        if sep is not None:
+            # if multiple values (separated by the given separator) should be
+            # parsed we need to fake the type of the argument to be a string
+            self.type = str
         self.sep = sep
-        super(OverrideDefaultTypedListAction, self).__init__(*args, **kwargs)
-        self.set_to_default = True
 
     def __call__(self, parser, namespace, value, option_string=None):
+        # if this Action is called for the first time, remove the defaults
         if self.set_to_default:
             setattr(namespace, self.dest, [])
             self.set_to_default = False
+        # get the current values
         cur_values = getattr(namespace, self.dest)
+        # convert to correct type and append the newly parsed values
         cur_values.extend([self.list_type(v) for v in value.split(self.sep)])
+
 
 # finally import the submodules
 from . import midi

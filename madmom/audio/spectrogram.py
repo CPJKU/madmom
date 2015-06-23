@@ -953,7 +953,7 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
 
     @classmethod
     def add_arguments(cls, parser, crossover_frequencies=None,
-                                 norm_bands=None):
+                      norm_bands=None):
         """
         Add multi-band spectrogram related arguments to an existing parser.
 
@@ -968,9 +968,9 @@ class MultiBandSpectrogramProcessor(SpectrogramProcessor):
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('multi-band spectrogram arguments')
         if crossover_frequencies is not None:
-            from madmom.utils import OverrideDefaultTypedListAction
-            g.add_argument('--crossover_frequencies', list_type=float,
-                           action=OverrideDefaultTypedListAction,
+            from madmom.utils import OverrideDefaultListAction
+            g.add_argument('--crossover_frequencies', type=float, sep=',',
+                           action=OverrideDefaultListAction,
                            default=crossover_frequencies,
                            help='(comma separated) list with crossover '
                                 'frequencies [Hz, default=%(default)s]')

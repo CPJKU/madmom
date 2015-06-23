@@ -65,6 +65,7 @@ def main():
         spec = SpectrogramProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='superflux', **vars(args))
         in_processor = [sig, frames, spec, odf]
+
     # output processor
     if args.save:
         # save the onset activations to file

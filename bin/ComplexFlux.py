@@ -66,6 +66,7 @@ def main():
         spec = SpectrogramProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='complex_flux', **vars(args))
         in_processor = [sig, frames, spec, odf]
+
     # output processor
     if args.save:
         # save the onset activations to file
@@ -79,6 +80,7 @@ def main():
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
+
     # and call the processing function
     args.func(processor, **vars(args))
 

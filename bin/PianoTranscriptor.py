@@ -38,7 +38,8 @@ def main():
     io_arguments(p, suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)
     RNNNoteProcessor.add_arguments(p)
-    PeakPickingProcessor.add_arguments(p, threshold=0.3, smooth=0.07)
+    PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
+                                       combine=0.05)
     # midi arguments
     # import madmom.utils.midi as midi
     # midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
@@ -67,6 +68,7 @@ def main():
     else:
         # use the RNN Beat processor
         in_processor = RNNNoteProcessor(**vars(args))
+
     # output processor
     if args.save:
         # save the RNN note activations to file

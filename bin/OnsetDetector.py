@@ -44,6 +44,7 @@ def main():
     else:
         # use the RNN Beat processor
         in_processor = RNNOnsetProcessor(**vars(args))
+
     # output processor
     if args.save:
         # save the RNN onset activations to file
@@ -57,6 +58,7 @@ def main():
         from madmom.utils import write_events as writer
         # sequentially process them
         out_processor = [peak_picking, writer]
+
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
 

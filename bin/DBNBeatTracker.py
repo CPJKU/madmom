@@ -62,6 +62,7 @@ def main():
     else:
         # process the signal with a RNN tp predict the beats
         in_processor = RNNBeatProcessor(**vars(args))
+
     # output processor
     if args.save:
         # save the RNN beat activations to file
@@ -73,6 +74,7 @@ def main():
         from madmom.utils import write_events as writer
         # sequentially process them
         out_processor = [beat_processor, writer]
+
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
 

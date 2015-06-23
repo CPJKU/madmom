@@ -67,6 +67,7 @@ def main():
         odf = SpectralOnsetProcessor(onset_method='spectral_flux',
                                      **vars(args))
         in_processor = [sig, frames, spec, odf]
+
     # output processor
     if args.save:
         # save the onset activations to file

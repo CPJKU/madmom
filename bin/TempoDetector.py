@@ -74,6 +74,7 @@ def main():
     else:
         # use the RNN Beat processor
         in_processor = RNNBeatProcessor(**vars(args))
+
     # output processor
     if args.save:
         # save the RNN beat activations to file
@@ -93,6 +94,7 @@ def main():
             writer = write_tempo
         # sequentially process them
         out_processor = [tempo_estimator, writer]
+
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
 

@@ -5,7 +5,7 @@ bin/name_of_script.py single INFILE [OUTFILE]
 
 or in batch mode:
 
-bin/name_of_script.py batch LIST OF INFILES
+bin/name_of_script.py batch LIST OF INPUT FILES
 
 There should be an `--help` option which describes all the other options.
 Please note that both the script and the single/batch mode have their own help
@@ -24,7 +24,7 @@ version tag) of the software.
 
 Since some of the scripts are used directly for the annual MIREX evaluation,
 tagged branches reflecting the settings of these submitted algorithms should be
-created. 
+created.
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
 ATLAS instead of Apple's own Accelerate framework or use the '-j 1' switch.

@@ -65,6 +65,7 @@ def main():
         frames = FramedSignalProcessor(**vars(args))
         spec = MultiBandSpectrogramProcessor(diff=True, **vars(args))
         in_processor = [sig, frames, spec]
+
     # output processor
     if args.save:
         # save the RNN beat activations to file

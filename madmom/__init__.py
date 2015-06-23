@@ -339,7 +339,7 @@ class IOProcessor(OutputProcessor):
             self.in_processor = SequentialProcessor(in_processor)
         else:
             self.in_processor = in_processor
-        # wrap the output processor in an IOProcessor is needed
+        # wrap the output processor in an IOProcessor if needed
         if isinstance(out_processor, list):
             if len(out_processor) >= 2:
                 # use the last processor as output and all others as input

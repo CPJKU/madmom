@@ -13,14 +13,9 @@ import glob
 import numpy as np
 
 from madmom import MODELS_PATH, Processor, SequentialProcessor
-from madmom.audio.signal import (SignalProcessor, FramedSignalProcessor,
-                                 smooth as smooth_signal)
-from madmom.audio.spectrogram import (SpectrogramProcessor,
-                                      StackSpectrogramProcessor,
-                                      MultiBandSpectrogramProcessor)
+from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
+from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
-
-
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
@@ -692,6 +687,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         :return:               beat argument parser group
 
         """
+        from madmom.utils import OverrideDefaultListAction
         # add CRF related arguments
         g = parser.add_argument_group('conditional random field arguments')
         g.add_argument('--interval_sigma', action='store', type=float,
@@ -709,9 +705,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                        default=num_intervals, dest='num_intervals',
                        help='number of estimated intervals to try '
                             '[default=%(default)s]')
-        from madmom.utils import OverrideDefaultTypedListAction
-        g.add_argument('-f', '--factors', list_type=float, default=factors,
-                       action=OverrideDefaultTypedListAction,
+        g.add_argument('-f', '--factors', action=OverrideDefaultListAction,
+                       default=factors, type=float, sep=',',
                        help='(comma separated) list with factors of dominant '
                             'interval to try [default=%(default)s]')
         return g
@@ -1134,36 +1129,33 @@ class DownbeatTrackingProcessor(Processor):
         :return:                  downbeat argument parser group
 
         """
+        from madmom.utils import OverrideDefaultListAction
         # add HMM parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        from madmom.utils import OverrideDefaultTypedListAction
-        g.add_argument('--min_bpm', action=OverrideDefaultTypedListAction,
-                       default=min_bpm, list_type=float,
+        g.add_argument('--min_bpm', action=OverrideDefaultListAction,
+                       default=min_bpm, type=float, sep=',',
                        help='minimum tempo (comma separated list with one '
                             'value per pattern) [bpm, default=%(default)s]')
-        g.add_argument('--max_bpm', action=OverrideDefaultTypedListAction,
-                       default=max_bpm, list_type=float,
+        g.add_argument('--max_bpm', action=OverrideDefaultListAction,
+                       default=max_bpm, type=float, sep=',',
                        help='maximum tempo (comma separated list with one '
                             'value per pattern) [bpm, default=%(default)s]')
-        g.add_argument('--num_tempo_states',
-                       action=OverrideDefaultTypedListAction,
-                       default=num_tempo_states, list_type=int,
+        g.add_argument('--num_tempo_states', action=OverrideDefaultListAction,
+                       default=num_tempo_states, type=int, sep=',',
                        help='limit the number of tempo states; if set, align '
                             'them with a log spacing, otherwise linearly '
                             '(comma separated list with one value per pattern)'
                             ' [default=%(default)s]')
-        g.add_argument('--transition_lambda',
-                       action=OverrideDefaultTypedListAction,
-                       default=transition_lambda, list_type=float,
+        g.add_argument('--transition_lambda', action=OverrideDefaultListAction,
+                       default=transition_lambda, type=float, sep=',',
                        help='lambda of the tempo transition distribution; '
                             'higher values prefer a constant tempo over a '
                             'tempo change from one bar to the next one (comma '
                             'separated list with one value per pattern) '
                             '[default=%(default)s]')
         if num_beats is not None:
-            g.add_argument('--num_beats',
-                           action=OverrideDefaultTypedListAction,
-                           default=num_beats, list_type=int,
+            g.add_argument('--num_beats', action=OverrideDefaultListAction,
+                           default=num_beats, type=int, sep=',',
                            help='number of beats per par (comma separated '
                                 'list with one value per pattern) '
                                 '[default=%(default)s]')

@@ -10,7 +10,7 @@ This file contains tempo related functionality.
 import numpy as np
 from scipy.signal import argrelmax
 
-from madmom import Processor, IOProcessor
+from madmom import Processor
 from madmom.audio.signal import smooth as smooth_signal
 
 
