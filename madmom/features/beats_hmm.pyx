@@ -38,7 +38,10 @@ class BeatTrackingTransitionModel(TransitionModel):
                                   constant tempo over a tempo change from one
                                   beat to the next one)
 
-        TODO: add reference!
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
         # compute transitions
@@ -332,7 +335,10 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                   If a single value is given, the same value
                                   is assumed for all patterns.
 
-        TODO: add reference!
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
         # expand the transition lambda to a list if needed, i.e. use the same

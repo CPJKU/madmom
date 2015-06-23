@@ -24,8 +24,14 @@ def main():
     Proceedings of the 14th International Conference on Digital Audio Effects
     (DAFx), 2011.
 
-    A new comb filter method is used for tempo estimation (instead of the old
-    auto-correlation based one).
+    Instead of using the originally proposed auto-correlation method to build
+    a tempo histogram, a new method based on comb filters is used:
+
+    "Accurate Tempo Estimation based on Recurrent Neural Networks and
+     Resonating Comb Filters"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
 
     ''')
     # version

@@ -29,7 +29,11 @@ def main():
     Instead of using the originally proposed auto-correlation method to build
     a tempo histogram, a new method based on comb filters is used:
 
-    TODO: add reference!
+    "Accurate Tempo Estimation based on Recurrent Neural Networks and
+     Resonating Comb Filters"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
 
     The old behaviour can be restored by using the `--method acf` switch.
 
