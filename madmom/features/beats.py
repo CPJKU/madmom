@@ -767,7 +767,7 @@ class DBNBeatTracking(Processor):
 
     """
     CORRECT = True
-    NUM_TEMPO_STATES = 40
+    NUM_TEMPO_STATES = None
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
@@ -812,8 +812,13 @@ class DBNBeatTracking(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
 
-        Instead of the original proposed transition model, this one is used:
-        TODO: add reference
+        Instead of the originally proposed transition model for the DBN, the
+        following is used:
+
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
 
@@ -828,7 +833,7 @@ class DBNBeatTracking(Processor):
         # observation model
         self.om = Om(self.tm, observation_lambda, norm_observations)
         # instantiate a HMM
-        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
+        self.hmm = Hmm(self.tm, self.om, None)
         # save variables
         self.fps = fps
         self.correct = correct
@@ -933,8 +938,7 @@ class DBNBeatTracking(Processor):
         g.add_argument('--num_tempo_states', action='store', type=int,
                        default=num_tempo_states,
                        help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
-                            '[default=%(default)d]')
+                            'them with a log spacing, otherwise linearly')
         g.add_argument('--transition_lambda', action='store',
                        type=float, default=transition_lambda,
                        help='lambda of the tempo transition distribution; '
@@ -967,7 +971,7 @@ class DownbeatTracking(Processor):
     """
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_TEMPO_STATES = [55, 55]
+    NUM_TEMPO_STATES = [None, None]
     TRANSITION_LAMBDA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
@@ -1020,8 +1024,13 @@ class DownbeatTracking(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2013
 
-        Instead of the original proposed transition model, this one is used:
-        TODO: add reference
+        Instead of the originally proposed transition model for the DBN, the
+        following is used:
+
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
 
@@ -1061,7 +1070,7 @@ class DownbeatTracking(Processor):
         # observation model
         self.om = Om(gmms, self.tm, norm_observations)
         # instantiate a HMM
-        self.hmm = Hmm(self.tm, self.om, None, num_threads=1)
+        self.hmm = Hmm(self.tm, self.om, None)
 
     def process(self, activations):
         """
@@ -1141,9 +1150,8 @@ class DownbeatTracking(Processor):
                        action=OverrideDefaultTypedListAction,
                        default=num_tempo_states, list_type=int,
                        help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
-                            '(comma separated list with one value per pattern)'
-                            ' [default=%(default)s]')
+                            'them with a log spacing, otherwise linearly ('
+                            'comma separated list with one value per pattern)')
         g.add_argument('--transition_lambda',
                        action=OverrideDefaultTypedListAction,
                        default=transition_lambda, list_type=float,

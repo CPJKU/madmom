@@ -47,6 +47,11 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     :param max_tau:     maximal delta for correlation function [frames]
     :return:            histogram
 
+    "Enhanced Beat Tracking with Context-Aware Neural Networks"
+    Sebastian Böck and Markus Schedl
+    Proceedings of the 14th International Conference on Digital Audio
+    Effects (DAFx), 2011
+
     """
     # set the maximum delay
     if max_tau is None:
@@ -71,6 +76,12 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
     :param min_tau:     minimal delta for correlation function [frames]
     :param max_tau:     maximal delta for correlation function [frames]
     :return:            histogram
+
+    "Accurate Tempo Estimation based on Recurrent Neural Networks and
+     Resonating Comb Filters"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
 
     """
     # import comb filter

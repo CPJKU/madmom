@@ -38,7 +38,10 @@ class BeatTrackingTransitionModel(TransitionModel):
                                   constant tempo over a tempo change from one
                                   beat to the next one)
 
-        TODO: add reference!
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
         # compute transitions
@@ -290,6 +293,9 @@ class BeatTrackingObservationModel(ObservationModel):
         cdef unsigned int i
         cdef unsigned int num_observations = len(observations)
         cdef float observation_lambda = self.observation_lambda
+        # norm observations
+        if self.norm_observations:
+            observations /= np.max(observations)
         # init densities
         cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
                                                       dtype=np.float)
@@ -329,7 +335,10 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                                   If a single value is given, the same value
                                   is assumed for all patterns.
 
-        TODO: add reference!
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
 
         """
         # expand the transition lambda to a list if needed, i.e. use the same
@@ -480,6 +489,9 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         cdef unsigned int num_observations = len(observations)
         cdef unsigned int num_patterns = len(self.gmms)
         cdef unsigned int num_gmms = 0
+        # norm observations
+        if self.norm_observations:
+            observations /= np.max(observations)
         # maximum number of GMMs of all patterns
         for i in range(num_patterns):
             num_gmms += len(self.gmms[i])

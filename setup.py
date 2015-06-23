@@ -48,9 +48,7 @@ extensions = [Extension('madmom.ml.rnn',
                         include_dirs=[np.get_include()]),
               Extension('madmom.ml.hmm',
                         ['madmom/ml/hmm.pyx'],
-                        include_dirs=[np.get_include()],
-                        extra_compile_args=['-fopenmp'],
-                        extra_link_args=['-fopenmp'])]
+                        include_dirs=[np.get_include()])]
 
 classifiers = ['Development Status :: 3 - Alpha',
                'Programming Language :: Python :: 2.7',
@@ -61,7 +59,7 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 setup(name='madmom',
-      version='0.8.2',
+      version='0.8.3',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '

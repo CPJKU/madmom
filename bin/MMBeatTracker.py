@@ -26,9 +26,17 @@ def main():
     Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
 
+    Instead of the originally proposed transition model for the DBN, the
+    following is used:
+
+    "An efficient state space model for joint tempo and meter tracking"
+    Florian Krebs, Sebastian Böck and Gerhard Widmer
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='MMBeatTracker')
+    p.add_argument('--version', action='version', version='MMBeatTracker.2015')
     # add arguments
     io_arguments(p, suffix='.beats.txt')
     RNNBeatTracking.add_activation_arguments(p)

@@ -26,6 +26,16 @@ def main():
     In Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
 
+    Instead of using the auto-correlation method to determine the dominant
+    interval, a new method based on comb filters is used to get multiple tempo
+    hypotheses.
+
+    "Accurate Tempo Estimation based on Recurrent Neural Networks and
+     Resonating Comb Filters"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
+
     ''')
     # version
     p.add_argument('--version', action='version', version='CRFBeatDetector')

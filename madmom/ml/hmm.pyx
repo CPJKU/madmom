@@ -17,8 +17,6 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
-# parallel processing stuff
-from cython.parallel cimport prange
 
 cdef extern from "math.h":
     float INFINITY
@@ -174,64 +172,6 @@ class ObservationModel(object):
         return
 
 
-# inline function to determine the best previous state
-@cython.cdivision(True)
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef inline void best_prev_state(int state, int frame,
-                                 double [::1] current_viterbi,
-                                 double [::1] previous_viterbi,
-                                 double [:, ::1] om_densities,
-                                 unsigned int [::1] om_pointers,
-                                 unsigned int [::1] tm_states,
-                                 unsigned int [::1] tm_pointers,
-                                 double [::1] tm_probabilities,
-                                 unsigned int [:, ::1] pointers) nogil:
-    """
-    Inline function to determine the best previous state.
-
-    :param state:            current state
-    :param frame:            current frame
-    :param current_viterbi:  current viterbi variables
-    :param previous_viterbi: previous viterbi variables
-    :param om_densities:     observation model densities
-    :param om_pointers:      observation model pointers
-    :param tm_states:        transition model states
-    :param tm_pointers:      transition model pointers
-    :param tm_probabilities: transition model probabilities
-    :param pointers:         back tracking pointers
-
-    """
-    # define variables
-    cdef unsigned int prev_state, pointer
-    cdef double density, transition_prob
-    # reset the current viterbi variable
-    current_viterbi[state] = -INFINITY
-    # get the observation model probability density value
-    # the om_pointers array holds pointers to the correct observation
-    # probability density value for the actual state (i.e. column in the
-    # om_densities array)
-    # Note: defining density here gives a 5% speed-up!?
-    density = om_densities[frame, om_pointers[state]]
-    # iterate over all possible previous states
-    # the tm_pointers array holds pointers to the states which are
-    # stored in the tm_states array
-    for pointer in range(tm_pointers[state], tm_pointers[state + 1]):
-        # get the previous state
-        prev_state = tm_states[pointer]
-        # weight the previous state with the transition probability
-        # and the current observation probability density
-        transition_prob = previous_viterbi[prev_state] + \
-                          tm_probabilities[pointer] + density
-        # if this transition probability is greater than the current one,
-        # overwrite it and save the previous state in the current pointers
-        if transition_prob > current_viterbi[state]:
-            # update the transition probability
-            current_viterbi[state] = transition_prob
-            # update the back tracking pointers
-            pointers[frame, state] = prev_state
-
-
 class HiddenMarkovModel(object):
     """
     Hidden Markov Model
@@ -243,7 +183,7 @@ class HiddenMarkovModel(object):
     """
 
     def __init__(self, transition_model, observation_model,
-                 initial_distribution=None, num_threads=None):
+                 initial_distribution=None):
         """
         Construct a new Hidden Markov Model.
 
@@ -252,8 +192,6 @@ class HiddenMarkovModel(object):
         :param initial_distribution: initial state distribution [numpy array];
                                      if 'None' is given a uniform distribution
                                      is assumed
-        :param num_threads:          number of threads for parallel Viterbi
-                                     decoding [int]
 
         """
         self.transition_model = transition_model
@@ -263,11 +201,6 @@ class HiddenMarkovModel(object):
                                                   dtype=np.float) /
                                           transition_model.num_states)
         self.initial_distribution = initial_distribution
-        # Note: use this weird construct to be able to pass None and still
-        #       have a valid number of threads
-        if num_threads is None:
-            num_threads = 1
-        self.num_threads = num_threads
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -307,27 +240,40 @@ class HiddenMarkovModel(object):
                                                            num_states),
                                                           dtype=np.uint32)
         # define counters etc.
-        cdef int state, frame
-        cdef unsigned int prev_state, pointer, num_threads = self.num_threads
-        cdef double obs, transition_prob
+        cdef unsigned int state, frame, prev_state, pointer
+        cdef double density, transition_prob
 
         # iterate over all observations
         for frame in range(num_observations):
-            # search for the best transition (in parallel)
-            if num_threads == 1:
-                # range() is faster than prange() for 1 thread
-                for state in range(num_states):
-                    best_prev_state(state, frame, current_viterbi,
-                                    previous_viterbi, om_densities,
-                                    om_pointers, tm_states, tm_pointers,
-                                    tm_probabilities, bt_pointers)
-            else:
-                for state in prange(num_states, nogil=True, schedule='static',
-                                    num_threads=num_threads):
-                    best_prev_state(state, frame, current_viterbi,
-                                    previous_viterbi, om_densities,
-                                    om_pointers, tm_states, tm_pointers,
-                                    tm_probabilities, bt_pointers)
+            # search for the best transition
+            for state in range(num_states):
+                # reset the current viterbi variable
+                current_viterbi[state] = -INFINITY
+                # get the observation model probability density value
+                # the om_pointers array holds pointers to the correct
+                # observation probability density value for the actual state
+                # (i.e. column in the om_densities array)
+                # Note: defining density here gives a 5% speed-up!?
+                density = om_densities[frame, om_pointers[state]]
+                # iterate over all possible previous states
+                # the tm_pointers array holds pointers to the states which are
+                # stored in the tm_states array
+                for pointer in range(tm_pointers[state],
+                                     tm_pointers[state + 1]):
+                    # get the previous state
+                    prev_state = tm_states[pointer]
+                    # weight the previous state with the transition probability
+                    # and the current observation probability density
+                    transition_prob = previous_viterbi[prev_state] + \
+                                      tm_probabilities[pointer] + density
+                    # if this transition probability is greater than the
+                    # current one, overwrite it and save the previous state
+                    # in the back tracking pointers
+                    if transition_prob > current_viterbi[state]:
+                        # update the transition probability
+                        current_viterbi[state] = transition_prob
+                        # update the back tracking pointers
+                        bt_pointers[frame, state] = prev_state
 
             # overwrite the old states with the current ones
             previous_viterbi[:] = current_viterbi
