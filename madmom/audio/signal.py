@@ -267,7 +267,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None, start=None,
     signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
-                                            skip=start, max_len=stop,
+                                            skip=start, max_len=stop - start,
                                             cmd=cmd_decode),
                            dtype=dtype)
     # get the needed information from the file
@@ -903,7 +903,7 @@ class FramedSignalProcessor(Processor):
         :param fps:        use frames per second (compute the needed `hop_size`
                            instead of using the given `hop_size` value) [float]
         :param online:     operate in online mode (see below) [bool]
-        :param end: end of signal handling (see below)
+        :param end:        end of signal handling (see below)
 
         The location of the window relative to its reference sample can be set
         with the `online` parameter:
