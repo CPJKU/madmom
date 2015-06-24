@@ -237,7 +237,11 @@ class OverrideDefaultListAction(argparse.Action):
         # get the current values
         cur_values = getattr(namespace, self.dest)
         # convert to correct type and append the newly parsed values
-        cur_values.extend([self.list_type(v) for v in value.split(self.sep)])
+        try:
+            cur_values.extend([self.list_type(v)
+                               for v in value.split(self.sep)])
+        except ValueError, e:
+            raise argparse.ArgumentError(self, e)
 
 
 # finally import the submodules
