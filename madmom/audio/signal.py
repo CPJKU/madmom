@@ -189,7 +189,8 @@ def sound_pressure_level(signal, p_ref=1.0):
         return 20.0 * np.log10(rms / p_ref)
 
 
-def load_wave_file(filename, sample_rate=None, num_channels=None):
+def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
+                   stop=None):
     """
     Load the audio data from the given file and return it as a numpy array.
     Only supports wave files, does not support re-sampling or arbitrary
@@ -201,6 +202,8 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
+    :param start:        start position (seconds) [float]
+    :param stop:         stop position (seconds) [float]
     :return:             tuple (signal, sample_rate)
 
     """
@@ -211,27 +214,36 @@ def load_wave_file(filename, sample_rate=None, num_channels=None):
         raise NotImplementedError("Requested sample rate of %f Hz, but got %f "
                                   "Hz and resampling is not implemented." %
                                   (sample_rate, file_sample_rate))
-    sample_rate = file_sample_rate
+    # only request the desired part of the signal
+    if start is not None:
+        start = int(start * file_sample_rate)
+    if stop is not None:
+        stop = min(len(signal), int(stop * file_sample_rate))
+    if start is not None or stop is not None:
+        signal = signal[start: stop]
     # up-/down-mix if needed
     if num_channels is not None:
         signal = remix(signal, num_channels)
     # return the signal
-    return signal, sample_rate
+    return signal, file_sample_rate
 
 
-def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
-                     dtype=np.int16, cmd_decode='ffmpeg', cmd_probe='ffprobe'):
+def load_ffmpeg_file(filename, sample_rate=None, num_channels=None, start=None,
+                     stop=None, dtype=np.int16, cmd_decode='ffmpeg',
+                     cmd_probe='ffprobe'):
     """
     Load the audio data from the given file and return it as a numpy array.
     This uses ffmpeg (or avconv) and thus supports a lot of different file
     formats, resampling and channel conversions. The file will be fully decoded
-    into memory.
+    into memory if no start and stop positions are given.
 
     :param filename:     name of the file
     :param sample_rate:  desired sample rate of the signal in Hz [int], or
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
+    :param start:        start position (seconds) [float]
+    :param stop:         stop position (seconds) [float]
     :param dtype:        numpy dtype to return the signal in (supports signed
                          and unsigned 8/16/32-bit integers, and single and
                          double precision floats, each in little or big endian)
@@ -251,10 +263,17 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
         sample_type += sys.byteorder[0] + 'e'
     else:
         sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    # start and stop position
+    if start is None:
+        start = 0
+    max_len = None
+    if stop is not None:
+        max_len = stop - start
     # convert the audio signal using ffmpeg
     signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
+                                            skip=start, max_len=max_len,
                                             cmd=cmd_decode),
                            dtype=dtype)
     # get the needed information from the file
@@ -271,7 +290,8 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
 
 
 # function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None, num_channels=None):
+def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
+                    stop=None):
     """
     Load the audio data from the given file and return it as a numpy array.
     This tries load_wave_file and load_ffmpeg_file (for ffmpeg and avconv).
@@ -281,6 +301,8 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
                          `None` to return the signal in its original rate
     :param num_channels: reduce or expand the signal to N channels [int], or
                          `None` to return the signal with its original channels
+    :param start:        start position (seconds) [float]
+    :param stop:         stop position (seconds) [float]
     :return:             tuple (signal, sample_rate)
 
     """
@@ -290,16 +312,22 @@ def load_audio_file(filename, sample_rate=None, num_channels=None):
         filename = filename.name
     # try reading as a wave file, ffmpeg or avconv (in this order)
     try:
-        return load_wave_file(filename, sample_rate, num_channels)
+        return load_wave_file(filename, sample_rate=sample_rate,
+                              num_channels=num_channels, start=start,
+                              stop=stop)
     except Exception:
         pass
     try:
-        return load_ffmpeg_file(filename, sample_rate, num_channels)
+        return load_ffmpeg_file(filename, sample_rate=sample_rate,
+                                num_channels=num_channels, start=start,
+                                stop=stop)
     except Exception:
         pass
     try:
-        return load_ffmpeg_file(filename, sample_rate, num_channels,
-                                cmd_decode='avconv', cmd_probe='avprobe')
+        return load_ffmpeg_file(filename, sample_rate=sample_rate,
+                                num_channels=num_channels, start=start,
+                                stop=stop, cmd_decode='avconv',
+                                cmd_probe='avprobe')
     except Exception:
         pass
     raise RuntimeError("All attempts to load audio file %r failed." % filename)
@@ -313,13 +341,16 @@ class Signal(np.ndarray):
 
     """
 
-    def __new__(cls, data, sample_rate=None, num_channels=None):
+    def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
+                stop=None):
         """
         Creates a new Signal instance.
 
         :param data:         numpy array or audio file name or file handle
         :param sample_rate:  sample rate of the signal [int]
         :param num_channels: number of channels [int]
+        :param start:        start position (seconds) [float]
+        :param stop:         stop position (seconds) [float]
 
         Note: `sample_rate` or `num_channels` can be used to set the desired
               sample rate and number of channels if the audio is read from
@@ -333,8 +364,9 @@ class Signal(np.ndarray):
         """
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
-            data, sample_rate = load_audio_file(data, sample_rate,
-                                                num_channels)
+            data, sample_rate = load_audio_file(data, sample_rate=sample_rate,
+                                                num_channels=num_channels,
+                                                start=start, stop=stop)
         # cast as Signal
         obj = np.asarray(data).view(cls)
         if sample_rate is not None:
@@ -397,16 +429,20 @@ class SignalProcessor(Processor):
     """
     SAMPLE_RATE = None
     NUM_CHANNELS = None
+    START = None
+    STOP = None
     NORM = False
     ATT = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 norm=NORM, att=ATT, **kwargs):
+                 start=START, stop=STOP, norm=NORM, att=ATT, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
         :param sample_rate:  sample rate of the signal [Hz]
         :param num_channels: reduce the signal to N channels [int]
+        :param start:        start position (seconds) [float]
+        :param stop:         stop position (seconds) [float]
         :param norm:         normalize the signal [bool]
         :param att:          attenuate the signal [dB]
 
@@ -444,14 +480,16 @@ class SignalProcessor(Processor):
         return data
 
     @classmethod
-    def add_arguments(cls, parser, sample_rate=None, mono=None, norm=None,
-                      att=None):
+    def add_arguments(cls, parser, sample_rate=None, mono=None, start=None,
+                      stop=None, norm=None, att=None):
         """
         Add signal processing related arguments to an existing parser.
 
         :param parser:      existing argparse parser object
         :param sample_rate: re-sample the signal to this sample rate [Hz]
         :param mono:        down-mix the signal to mono [bool]
+        :param start:       start position (seconds) [float]
+        :param stop:        stop position (seconds) [float]
         :param norm:        normalize the signal [bool]
         :param att:         attenuate the signal [dB, float]
         :return:            signal processing argument parser group
@@ -470,6 +508,12 @@ class SignalProcessor(Processor):
             g.add_argument('--mono', dest='num_channels', action='store_const',
                            const=1,
                            help='down-mix the signal to mono')
+        if start is not None:
+            g.add_argument('--start', action='store', type=float,
+                           help='start position of the signal [seconds]')
+        if stop is not None:
+            g.add_argument('--stop', action='store', type=float,
+                           help='stop position of the signal [seconds]')
         if norm is not None:
             g.add_argument('--norm', action='store_true', default=norm,
                            help='normalize the signal [default=%(default)s]')
@@ -494,8 +538,9 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
                        position [int]
     :return:           the requested frame of the signal
 
-    The first frame (index == 0) refers to the first sample of the signal, and
-    each following frame is placed `hop_size` samples after the previous one.
+    The reference sample of the first frame (index == 0) refers to the first
+    sample of the signal, and each following frame is placed `hop_size` samples
+    after the previous one.
 
     The window is always centered around this reference sample. Its location
     relative to the reference sample can be set with the `origin` parameter.
@@ -515,30 +560,30 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     # seek to the correct position in the audio signal
     ref_sample = int(index * hop_size)
     # position the window
-    start = ref_sample - frame_size // 2 + int(origin)
+    start = ref_sample - frame_size // 2 - int(origin)
     stop = start + frame_size
     # return the requested portion of the signal
     # Note: usually np.zeros_like(signal[:frame_size]) is exactly what we want
-    #       (i.e. zeros of frame_size length and the same type as the signal),
-    #       but since we have no guarantee that the signal is that long, we
-    #       have to use the workaround of np.repeat(signal[:1] * 0, frame_size)
+    #       (i.e. zeros of frame_size length and the same type/class as the
+    #       signal and not just the dtype), but since we have no guarantee that
+    #       the signal is that long, we have to use the np.repeat workaround
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         return frame
     elif (start < 0) and (stop > num_samples):
         # window surrounds the actual signal, position signal accordingly
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[-start:num_samples - start] = signal
         return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[-start:] = signal[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[:num_samples - start] = signal[start:]
         return frame
     else:
@@ -664,7 +709,7 @@ class FramedSignal(object):
     """
 
     def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
-                 origin=0, start=0, end='extend', **kwargs):
+                 origin=0, end='extend', num_frames=None, **kwargs):
         """
         Creates a new FramedSignal instance.
 
@@ -672,12 +717,12 @@ class FramedSignal(object):
                            instantiated from)
         :param frame_size: size of one frame [int]
         :param hop_size:   progress N samples between adjacent frames [float]
-        :param fps:        use given frames per second (if set, this overwrites
-                           the given `hop_size` value) [float]
-        :param origin:     location of the window relative to the signal
-                           position [int]
-        :param start:      start sample [int]
+        :param fps:        use given frames per second (if set, this
+                           overwrites the given `hop_size` value) [float]
+        :param origin:     location of the window relative to the reference
+                           sample of a frame [int]
         :param end:        end of signal handling (see below)
+        :param num_frames: number of frames to return [int]
 
         If no Signal instance was given, one is instantiated and these
         arguments are passed:
@@ -685,16 +730,19 @@ class FramedSignal(object):
         :param args:       additional arguments passed to Signal()
         :param kwargs:     additional keyword arguments passed to Signal()
 
-        The FramedSignal class is implemented as an iterator. It splits
-        the given Signal automatically into frames of `frame_size` length
-        with `hop_size` samples (can be float, normal rounding applies)
-        between the frames.
+        The FramedSignal class is implemented as an iterator. It splits the
+        given Signal automatically into frames of `frame_size` length with
+        `hop_size` samples (can be float, normal rounding applies) between the
+        frames. The reference sample of the first frame refers to the first
+        sample of the signal
 
-        The location of the window relative to its reference sample can be set
-        with the `origin` parameter. Arbitrary integer values can be given
+        The location of the window relative to the reference sample of a frame
+        can be set with the `origin` parameter. Arbitrary integer values can
+        be given:
           - zero centers the window on its reference sample
           - negative values shift the window to the right
           - positive values shift the window to the left
+
         Additionally, it can have the following literal values:
           - 'center', 'offline':      the window is centered on its reference
                                       sample
@@ -704,14 +752,15 @@ class FramedSignal(object):
           - 'right', 'future':        the window is located to the right of its
                                       reference sample
 
-        If only a certain part of the Signal is wanted, `start` (in samples)
-        and `end` (in frames) can be used to set the range accordingly.
-        Additionally, the `end` parameter can have the following literal
-        values:
+        The `end` parameter is used to handle the end of signal behaviour and
+        can have these values:
           - 'normal': stop as soon as the whole signal got covered by at least
                       one frame, i.e. pad maximally one frame
           - 'extend': frames are returned as long as part of the frame overlaps
                       with the signal to cover the whole signal
+
+        Alternatively, `num_frames` can be used to retrieve a fixed number of
+        frames.
 
         Note: We do not use the `frame_size` for the calculation of the number
               of frames in order to be able to stack multiple frames obtained
@@ -752,24 +801,24 @@ class FramedSignal(object):
             origin = -(frame_size / 2)
         self.origin = int(origin)
 
-        # start position of the signal (in samples)
-        self.start = int(start)
-
         # number of frames determination
-        if end == 'extend':
-            # return frames as long as a frame covers any signal
-            num_frames = np.floor(len(self.signal) / float(self.hop_size) + 1)
-        elif end == 'normal':
-            # return frames as long as the origin sample covers the signal
-            num_frames = np.ceil(len(self.signal) / float(self.hop_size))
-        else:
-            num_frames = end
+        if num_frames is None:
+            if end == 'extend':
+                # return frames as long as a frame covers any signal
+                num_frames = np.floor(len(self.signal) /
+                                      float(self.hop_size) + 1)
+            elif end == 'normal':
+                # return frames as long as the origin sample covers the signal
+                num_frames = np.ceil(len(self.signal) / float(self.hop_size))
+            else:
+                raise ValueError("end of signal handling '%s' unknown" %
+                                 end)
         self.num_frames = int(num_frames)
 
-    # make the Object indexable / iterable
+    # make the object indexable / iterable
     def __getitem__(self, index):
         """
-        This makes the FramedSignalProcessor class indexable and/or iterable.
+        This makes the FramedSignal class indexable and/or iterable.
 
         The signal is split into frames (of length `frame_size`) automatically.
         Two frames are located `hop_size` samples apart. If `hop_size` is a
@@ -786,11 +835,9 @@ class FramedSignal(object):
             # return a single frame
             if index < self.num_frames:
                 # return the frame at this index
-                # subtract the origin from the start position and use as offset
                 return signal_frame(self.signal, index,
                                     frame_size=self.frame_size,
-                                    hop_size=self.hop_size,
-                                    origin=(self.start - self.origin))
+                                    hop_size=self.hop_size, origin=self.origin)
             # otherwise raise an error to indicate the end of signal
             raise IndexError("end of signal reached")
         # a slice is given
@@ -802,12 +849,12 @@ class FramedSignal(object):
                 raise ValueError('only slices with a step size of 1 supported')
             # determine the number of frames
             num_frames = stop - start
-            # determine the start sample
-            start_sample = self.start + self.hop_size * start
+            # determine the new origin, i.e. start position
+            origin = self.origin + self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
             return FramedSignal(self.signal, frame_size=self.frame_size,
-                                hop_size=self.hop_size, origin=self.origin,
-                                start=start_sample, num_frames=num_frames)
+                                hop_size=self.hop_size, origin=origin,
+                                num_frames=num_frames)
         # other index types are invalid
         else:
             raise TypeError("frame indices must be slices or integers")
@@ -884,22 +931,18 @@ class FramedSignalProcessor(Processor):
         self.online = online
         self.end = end
 
-    def process(self, data, start=0, num_frames=None):
+    def process(self, data, num_frames=None):
         """
         Slice the signal into (overlapping) frames.
 
         :param data:       signal to be sliced into frames [Signal]
-        :param start:      start sample [int]
         :param num_frames: limit the number of frames to be returned [int]
         :return:           FramedSignal instance
 
         Note: If `num_frames` is 'None', the length of the returned signal is
-              determined by the `end_of_signal` setting.
+              determined by the `end` setting.
 
         """
-        # how many frames to process?
-        if num_frames is None:
-            num_frames = self.end
         # translate online / offline mode
         if self.online:
             origin = 'online'
@@ -908,7 +951,7 @@ class FramedSignalProcessor(Processor):
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, frame_size=self.frame_size,
                             hop_size=self.hop_size, fps=self.fps,
-                            origin=origin, start=start, end=num_frames)
+                            origin=origin, end=self.end, num_frames=num_frames)
 
     @classmethod
     def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,

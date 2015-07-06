@@ -643,6 +643,21 @@ class TestSignalFrameFunction(unittest.TestCase):
         result = signal_frame(np.arange(10), 5, 4, 2)
         self.assertTrue(np.allclose(result, [8, 9, 0, 0]))
 
+    def test_stereo_values(self):
+        signal = np.tile(np.arange(10)[:, np.newaxis], 2)
+        result = signal_frame(signal, 0, 4, 2)
+        self.assertTrue(np.allclose(result, [[0, 0], [0, 0], [0, 0], [1, 1]]))
+        result = signal_frame(signal, 1, 4, 2)
+        self.assertTrue(np.allclose(result, [[0, 0], [1, 1], [2, 2], [3, 3]]))
+        result = signal_frame(signal, 2, 4, 2)
+        self.assertTrue(np.allclose(result, [[2, 2], [3, 3], [4, 4], [5, 5]]))
+        result = signal_frame(signal, 3, 4, 2)
+        self.assertTrue(np.allclose(result, [[4, 4], [5, 5], [6, 6], [7, 7]]))
+        result = signal_frame(signal, 4, 4, 2)
+        self.assertTrue(np.allclose(result, [[6, 6], [7, 7], [8, 8], [9, 9]]))
+        result = signal_frame(signal, 5, 4, 2)
+        self.assertTrue(np.allclose(result, [[8, 8], [9, 9], [0, 0], [0, 0]]))
+
     def test_float_hop_size(self):
         result = signal_frame(np.arange(10), 0, 3.5, 2)
         self.assertTrue(np.allclose(result, [0, 0, 1]))
@@ -652,16 +667,20 @@ class TestSignalFrameFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, [3, 4, 5]))
 
     def test_origin(self):
+        result = signal_frame(np.arange(10), 0, 4, 2)
+        self.assertTrue(np.allclose(result, [0, 0, 0, 1]))
+        # positive values shift to the left
         result = signal_frame(np.arange(10), 0, 4, 2, 1)
-        self.assertTrue(np.allclose(result, [0, 0, 1, 2]))
-        result = signal_frame(np.arange(10), 0, 4, 2, -1)
         self.assertTrue(np.allclose(result, [0, 0, 0, 0]))
-        result = signal_frame(np.arange(10), 0, 4, 2, 2)
+        # negative values shift to the right
+        result = signal_frame(np.arange(10), 0, 4, 2, -1)
+        self.assertTrue(np.allclose(result, [0, 0, 1, 2]))
+        result = signal_frame(np.arange(10), 0, 4, 2, -2)
         self.assertTrue(np.allclose(result, [0, 1, 2, 3]))
-        result = signal_frame(np.arange(10), 0, 4, 2, 4)
+        result = signal_frame(np.arange(10), 0, 4, 2, -4)
         self.assertTrue(np.allclose(result, [2, 3, 4, 5]))
         # test with float origin with half the size of the frame size
-        result = signal_frame(np.arange(10), 0, 5, 2, 2.5)
+        result = signal_frame(np.arange(10), 0, 5, 2, -2.5)
         self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
 
 
@@ -717,7 +736,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.frame_size, int)
         self.assertIsInstance(result.hop_size, float)
         self.assertIsInstance(result.origin, int)
-        self.assertIsInstance(result.start, int)
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result[0], Signal)
         # properties
@@ -734,7 +752,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.frame_size, int)
         self.assertIsInstance(result.hop_size, float)
         self.assertIsInstance(result.origin, int)
-        self.assertIsInstance(result.start, int)
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result[0], Signal)
         # properties
@@ -750,7 +767,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.frame_size, int)
         self.assertIsInstance(result.hop_size, float)
         self.assertIsInstance(result.origin, int)
-        self.assertIsInstance(result.start, int)
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result[0], Signal)
         # properties
@@ -767,7 +783,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.frame_size, int)
         self.assertIsInstance(result.hop_size, float)
         self.assertIsInstance(result.origin, int)
-        self.assertIsInstance(result.start, int)
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result[0], Signal)
         # properties
@@ -783,7 +798,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.frame_size, int)
         self.assertIsInstance(result.hop_size, float)
         self.assertIsInstance(result.origin, int)
-        self.assertIsInstance(result.start, int)
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result[0], Signal)
         # properties
@@ -797,7 +811,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.frame_size == 4)
         self.assertTrue(result.hop_size == 2.)
         self.assertTrue(result.origin == 0)
-        self.assertTrue(result.start == 0)
         self.assertTrue(result.num_frames == 6)
         self.assertTrue(np.allclose(result[0], [0, 0, 0, 1]))
         self.assertTrue(result.frame_rate is None)
@@ -816,7 +829,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.frame_size == 4)
         self.assertTrue(result.hop_size == 2.)
         self.assertTrue(result.origin == 0)
-        self.assertTrue(result.start == 0)
         self.assertTrue(result.num_frames == 6)
         self.assertTrue(np.allclose(result[0], [0, 0, 0, 1]))
         self.assertTrue(result.frame_rate == 2)
@@ -830,7 +842,6 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 441.)
         self.assertTrue(result.origin == 0)
-        self.assertTrue(result.start == 0)
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(np.allclose(result[0][:5], [0, 0, 0, 0, 0]))
         # 3rd frame should start at 3 * 441 - 2048 / 2 = 299
@@ -867,10 +878,9 @@ class TestFramedSignalClass(unittest.TestCase):
 
     def test_values_file_start(self):
         signal = Signal(DATA_PATH + '/sample.wav')
-        result = FramedSignal(DATA_PATH + '/sample.wav', start=10)
+        result = FramedSignal(DATA_PATH + '/sample.wav', origin=-10)
         # start sample shifted to the right
-        self.assertTrue(result.origin == 0)
-        self.assertTrue(result.start == 10)
+        self.assertTrue(result.origin == -10)
         self.assertTrue(result.num_frames == 281)
         # 3rd frame should start at 3 * 441 - 2048 / 2 + 10 = 309
         self.assertTrue(np.allclose(result[3], signal[309: 309 + 2048]))
