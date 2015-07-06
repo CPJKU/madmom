@@ -263,11 +263,17 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None, start=None,
         sample_type += sys.byteorder[0] + 'e'
     else:
         sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    # start and stop position
+    if start is None:
+        start = 0
+    max_len = None
+    if stop is not None:
+        max_len = stop - start
     # convert the audio signal using ffmpeg
     signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
-                                            skip=start, max_len=stop - start,
+                                            skip=start, max_len=max_len,
                                             cmd=cmd_decode),
                            dtype=dtype)
     # get the needed information from the file
