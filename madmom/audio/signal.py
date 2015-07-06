@@ -564,26 +564,26 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     stop = start + frame_size
     # return the requested portion of the signal
     # Note: usually np.zeros_like(signal[:frame_size]) is exactly what we want
-    #       (i.e. zeros of frame_size length and the same type as the signal),
-    #       but since we have no guarantee that the signal is that long, we
-    #       have to use the workaround of np.repeat(signal[:1] * 0, frame_size)
+    #       (i.e. zeros of frame_size length and the same type/class as the
+    #       signal and not just the dtype), but since we have no guarantee that
+    #       the signal is that long, we have to use the np.repeat workaround
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         return frame
     elif (start < 0) and (stop > num_samples):
         # window surrounds the actual signal, position signal accordingly
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[-start:num_samples - start] = signal
         return frame
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[-start:] = signal[:stop]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
-        frame = np.repeat(signal[:1] * 0, frame_size)
+        frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[:num_samples - start] = signal[start:]
         return frame
     else:
@@ -815,10 +815,10 @@ class FramedSignal(object):
                                  end)
         self.num_frames = int(num_frames)
 
-    # make the Object indexable / iterable
+    # make the object indexable / iterable
     def __getitem__(self, index):
         """
-        This makes the FramedSignalProcessor class indexable and/or iterable.
+        This makes the FramedSignal class indexable and/or iterable.
 
         The signal is split into frames (of length `frame_size`) automatically.
         Two frames are located `hop_size` samples apart. If `hop_size` is a

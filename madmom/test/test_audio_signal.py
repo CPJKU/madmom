@@ -643,6 +643,21 @@ class TestSignalFrameFunction(unittest.TestCase):
         result = signal_frame(np.arange(10), 5, 4, 2)
         self.assertTrue(np.allclose(result, [8, 9, 0, 0]))
 
+    def test_stereo_values(self):
+        signal = np.tile(np.arange(10)[:, np.newaxis], 2)
+        result = signal_frame(signal, 0, 4, 2)
+        self.assertTrue(np.allclose(result, [[0, 0], [0, 0], [0, 0], [1, 1]]))
+        result = signal_frame(signal, 1, 4, 2)
+        self.assertTrue(np.allclose(result, [[0, 0], [1, 1], [2, 2], [3, 3]]))
+        result = signal_frame(signal, 2, 4, 2)
+        self.assertTrue(np.allclose(result, [[2, 2], [3, 3], [4, 4], [5, 5]]))
+        result = signal_frame(signal, 3, 4, 2)
+        self.assertTrue(np.allclose(result, [[4, 4], [5, 5], [6, 6], [7, 7]]))
+        result = signal_frame(signal, 4, 4, 2)
+        self.assertTrue(np.allclose(result, [[6, 6], [7, 7], [8, 8], [9, 9]]))
+        result = signal_frame(signal, 5, 4, 2)
+        self.assertTrue(np.allclose(result, [[8, 8], [9, 9], [0, 0], [0, 0]]))
+
     def test_float_hop_size(self):
         result = signal_frame(np.arange(10), 0, 3.5, 2)
         self.assertTrue(np.allclose(result, [0, 0, 1]))
