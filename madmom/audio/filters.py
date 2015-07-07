@@ -11,7 +11,7 @@ import numpy as np
 
 from madmom.processors import Processor
 
-A4 = 440
+A4 = 440.
 
 
 # Mel frequency scale
@@ -557,8 +557,8 @@ class Filterbank(np.ndarray):
         Creates a new Filterbank instance.
 
         :param data:            2D numpy array (num_bins x num_bands)
-        :param bin_frequencies: frequencies of the bins (must be of length
-                                num_bins)
+        :param bin_frequencies: frequencies of the bins (must be the same as
+                                the first dimension of the given data)
 
         """
         # input is an numpy ndarray instance
@@ -648,7 +648,7 @@ class Filterbank(np.ndarray):
 
         """
         # create filterbank
-        fb = np.zeros((len(bin_frequencies), len(filters)))
+        fb = np.zeros((len(bin_frequencies), len(filters)), np.float32)
         # iterate over all filters
         for band_id, band_filter in enumerate(filters):
             # get the band's corresponding slice of the filterbank
@@ -1281,15 +1281,15 @@ def comb_filter(signal, filter_function, tau, alpha):
     return y
 
 
-class CombFilterbank(Processor):
+class CombFilterbankProcessor(Processor):
     """
-    CombFilterbank class.
+    CombFilterbankProcessor class.
 
     """
 
     def __init__(self, filter_function, tau, alpha):
         """
-        Creates a new CombFilterbank.
+        Creates a new CombFilterbankProcessor.
 
         :param filter_function: comb filter function to use (either a function
                                 or one of the literals {'forward', 'backward'})
@@ -1324,13 +1324,12 @@ class CombFilterbank(Processor):
 
     def process(self, data):
         """
-        Filter the given data with the CombFilterbank.
+        Filter the given data with the comb filter.
 
         :param data: data to be filtered
         :return:     comb filtered data with the different taus aligned
                      along the (new) first dimension
 
         """
-        # this method makes the Filterbank act as a Processor
-        return comb_filter(data, self.comb_filter_function,
-                           self.tau, self.alpha)
+        return comb_filter(data, self.comb_filter_function, self.tau,
+                           self.alpha)

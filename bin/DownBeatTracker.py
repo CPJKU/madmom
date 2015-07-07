@@ -11,6 +11,9 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
                                       MultiBandSpectrogramProcessor)
 from madmom.features.beats import DownbeatTrackingProcessor
 
@@ -47,10 +50,11 @@ def main():
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=50, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
-                                              norm_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5)
+    FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30,
+                                               fmax=17000, norm_filters=False)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 positive_diffs=True)
     MultiBandSpectrogramProcessor.add_arguments(p, crossover_frequencies=[270])
     DownbeatTrackingProcessor.add_arguments(p, num_beats=None)
     # parse arguments
@@ -67,8 +71,11 @@ def main():
         # define an input processor
         sig = SignalProcessor(mono=True, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
-        spec = MultiBandSpectrogramProcessor(diff=True, **vars(args))
-        in_processor = [sig, frames, spec]
+        filt = FilteredSpectrogramProcessor(**vars(args))
+        log = LogarithmicSpectrogramProcessor(**vars(args))
+        diff = SpectrogramDifferenceProcessor(**vars(args))
+        mb = MultiBandSpectrogramProcessor(**vars(args))
+        in_processor = [sig, frames, filt, log, diff, mb]
 
     # output processor
     if args.save:

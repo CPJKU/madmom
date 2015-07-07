@@ -591,6 +591,38 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         return signal[start:stop]
 
 
+def framed_signal_generator(signal, frame_size, hop_size, origin=0,
+                            end='extend', num_frames=None):
+    # translate literal window location values to numeric origin
+    if origin in ('center', 'offline'):
+        # the current position is the center of the frame
+        origin = 0
+    elif origin in ('left', 'past', 'online'):
+        # the current position is the right edge of the frame
+        # this is usually used when simulating online mode, where only past
+        # information of the audio signal can be used
+        origin = (frame_size - 1) / 2
+    elif origin in ('right', 'future'):
+        # the current position is the left edge of the frame
+        origin = -(frame_size / 2)
+    origin = int(origin)
+    # number of frames determination
+    if num_frames is None:
+        if end == 'extend':
+            # return frames as long as a frame covers any signal
+            num_frames = np.floor(len(signal) / float(hop_size) + 1)
+        elif end == 'normal':
+            # return frames as long as the origin sample covers the signal
+            num_frames = np.ceil(len(signal) / float(hop_size))
+        else:
+            raise ValueError("end of signal handling '%s' unknown" % end)
+    # yield frames as long as there is a signal
+    index = 0
+    while index < num_frames:
+         yield signal_frame(signal, index, frame_size, hop_size, origin)
+         index += 1
+
+
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
 def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
                  end_value=0):
@@ -711,7 +743,7 @@ class FramedSignal(object):
     def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
                  origin=0, end='extend', num_frames=None, **kwargs):
         """
-        Creates a new FramedSignal instance.
+        Creates a new FramedSignal instance from the given Signal.
 
         :param signal:     Signal instance (or anything a Signal can be
                            instantiated from)
@@ -770,12 +802,11 @@ class FramedSignal(object):
 
         """
         # signal handling
-        if isinstance(signal, Signal):
-            # already a signal
-            self.signal = signal
-        else:
+        if not isinstance(signal, Signal):
             # try to instantiate a Signal
-            self.signal = Signal(signal, **kwargs)
+            signal = Signal(signal, **kwargs)
+        # save the signal
+        self.signal = signal
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -842,7 +873,7 @@ class FramedSignal(object):
             raise IndexError("end of signal reached")
         # a slice is given
         elif isinstance(index, slice):
-            # determine the frames to return
+            # determine the frames to return (limited to the number of frames)
             start, stop, step = index.indices(self.num_frames)
             # allow only normal steps
             if step != 1:

@@ -573,6 +573,10 @@ class RecurrentNeuralNetwork(Processor):
         :return:     network predictions for this data
 
         """
+        # Note: we need all data, hence the [:] construct (data can be
+        #       a data class instance returned by a Processor and [:] returns
+        #       all data)
+        data = data[:]
         # check the dimensions of the data
         if data.ndim == 1:
             data = np.atleast_2d(data).T

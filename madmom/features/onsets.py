@@ -160,7 +160,7 @@ def superflux(spectrogram):
         import warnings
         warnings.warn('no maximum filtering will be applied')
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(spectrogram.diff, axis=1)
+    return np.sum(spectrogram, axis=1)
 
 
 # TODO: as above, should this be its own class so that we can set the filter
@@ -300,7 +300,7 @@ def weighted_phase_deviation(spectrogram):
     # make sure the spectrogram is not filtered before
     if np.shape(spectrogram.phase) != np.shape(spectrogram.spec):
         raise ValueError('spectrogram and phase must be of same shape')
-    # weighted_phase_deviation = spec * phase_deviation
+    # weighted_phase_deviation = spectrogram * phase_deviation
     return np.mean(np.abs(_phase_deviation(spectrogram.phase) *
                           spectrogram.spec), axis=1)
 
@@ -434,6 +434,10 @@ class SpectralOnsetProcessor(Processor):
         :return:            onsets detection function
 
         """
+        # Note: we need all data, hence the [:] construct (spectrogram can be
+        #       a data class instance returned by a Processor and [:] returns
+        #       all data)
+        spectrogram = spectrogram[:]
         return globals()[self.method](spectrogram)
 
     @classmethod
@@ -664,6 +668,10 @@ class PeakPickingProcessor(Processor):
         :return:            detected onsets
 
         """
+        # Note: we need all data, hence the [:] construct (activations can be
+        #       a data class instance returned by a Processor and [:] returns
+        #       all data)
+        activations = activations[:]
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         smooth = int(round(self.fps * self.smooth))

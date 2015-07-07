@@ -718,7 +718,7 @@ class TestFilterbankClass(unittest.TestCase):
     def test_from_filters_function(self):
         filt = Filterbank.from_filters(self.rect_filters, np.arange(100))
         self.assertIsInstance(filt, Filterbank)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == np.float32)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_values_rectangular(self):
@@ -761,7 +761,7 @@ class TestMelFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = MelFilterbank(np.arange(20000))
         self.assertIsInstance(filt, MelFilterbank)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == np.float32)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
@@ -844,7 +844,7 @@ class TestBarkFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = BarkFilterbank(np.arange(20000))
         self.assertIsInstance(filt, BarkFilterbank)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == np.float32)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
@@ -904,7 +904,7 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = LogarithmicFilterbank(np.arange(20000))
         self.assertIsInstance(filt, LogarithmicFilterbank)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == np.float32)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
@@ -1131,39 +1131,39 @@ class TestCombFilterbankClass(unittest.TestCase):
 
     def test_types(self):
         # backward function
-        processor = CombFilterbank(feed_backward_comb_filter,
-                                   [2, 3], [0.5, 0.5])
-        self.assertIsInstance(processor, CombFilterbank)
+        processor = CombFilterbankProcessor(feed_backward_comb_filter,
+                                            [2, 3], [0.5, 0.5])
+        self.assertIsInstance(processor, CombFilterbankProcessor)
         self.assertIsInstance(processor, Processor)
         self.assertTrue(processor.comb_filter_function ==
                         feed_backward_comb_filter)
-        processor = CombFilterbank('backward', [2, 3], [0.5, 0.5])
+        processor = CombFilterbankProcessor('backward', [2, 3], [0.5, 0.5])
         self.assertTrue(processor.comb_filter_function ==
                         feed_backward_comb_filter)
         # forward function
-        processor = CombFilterbank(feed_forward_comb_filter,
-                                   [2, 3], [0.5, 0.5])
+        processor = CombFilterbankProcessor(feed_forward_comb_filter,
+                                            [2, 3], [0.5, 0.5])
         self.assertTrue(processor.comb_filter_function ==
                         feed_forward_comb_filter)
-        processor = CombFilterbank('forward', [2, 3], [0.5, 0.5])
+        processor = CombFilterbankProcessor('forward', [2, 3], [0.5, 0.5])
         self.assertTrue(processor.comb_filter_function ==
                         feed_forward_comb_filter)
 
     def test_errors(self):
         with self.assertRaises(ValueError):
-            CombFilterbank('xyz', [2, 3], [0.5, 0.5])
+            CombFilterbankProcessor('xyz', [2, 3], [0.5, 0.5])
 
     def test_values_backward(self):
-        processor = CombFilterbank(feed_backward_comb_filter,
-                                   [2, 3], [0.5, 0.5])
+        processor = CombFilterbankProcessor(feed_backward_comb_filter,
+                                            [2, 3], [0.5, 0.5])
         result = processor.process(sig_1d)
         self.assertTrue(np.allclose(result, [res_1d_bw_2, res_1d_bw_3]))
         result = processor.process(sig_2d)
         self.assertTrue(np.allclose(result, [res_2d_bw_2, res_2d_bw_3]))
 
     def test_values_forward(self):
-        processor = CombFilterbank(feed_forward_comb_filter,
-                                   [2, 3], [0.5, 0.5])
+        processor = CombFilterbankProcessor(feed_forward_comb_filter,
+                                            [2, 3], [0.5, 0.5])
         result = processor.process(sig_1d)
         self.assertTrue(np.allclose(result, [res_1d_fw_2, res_1d_fw_3]))
         result = processor.process(sig_2d)

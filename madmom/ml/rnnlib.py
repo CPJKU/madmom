@@ -1412,7 +1412,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         if diff_ratio or diff_frames:
             tags['diff_ratio'] = diff_ratio
             tags['diff_frames'] = diff_frames
-            tags['diff_max_bins'] = diff_max_bins
+            tags['max_bins'] = diff_max_bins
         if shift:
             tags['shift'] = shift
         if spread:

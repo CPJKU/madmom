@@ -11,21 +11,8 @@ import numpy as np
 import scipy.fftpack as fft
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-
-
-# filter defaults
-from madmom.audio.filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,
-                                  A4, NORM_FILTERS, DUPLICATE_FILTERS)
-FILTERBANK = LogarithmicFilterbank
-# log defaults
-LOG = True
-MUL = 1.
-ADD = 1.
-# diff defaults
-DIFF_RATIO = 0.5
-DIFF_FRAMES = None
-DIFF_MAX_BINS = 1
-POSITIVE_DIFF = True
+from .filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX, A4,
+                      NORM_FILTERS, DUPLICATE_FILTERS)
 
 
 def fft_frequencies(num_fft_bins, sample_rate):
@@ -41,21 +28,21 @@ def fft_frequencies(num_fft_bins, sample_rate):
 
 
 # functions
-def dft(signal, window, fft_size=None, correct_phase=False):
+def dft(signal, window, fft_size, circular_shift=False):
     """
     Calculates the discrete Fourier transform (DFT) of the given signal.
 
-    :param signal:        discrete signal [1D numpy array]
-    :param window:        window function [1D numpy array]
-    :param fft_size:      use given size for FFT [int, should be a power of 2]
-    :param correct_phase: circular shift for correct phase [bool]
-    :return:              the complex DFT of the signal
+    :param signal:         discrete signal [1D numpy array]
+    :param window:         window function [1D numpy array]
+    :param fft_size:       use this size for FFT [int, should be a power of 2]
+    :param circular_shift: circular shift for correct phase [bool]
+    :return:               the complex DFT of the signal
 
     """
     # multiply the signal frame with the window function
     signal = np.multiply(signal, window)
     # only shift and perform complex DFT if needed
-    if correct_phase:
+    if circular_shift:
         # circular shift the signal (needed for correct phase)
         shift = len(window) >> 1
         signal = np.concatenate((signal[shift:], signal[:shift]))
@@ -63,36 +50,31 @@ def dft(signal, window, fft_size=None, correct_phase=False):
     return fft.fft(signal, fft_size)[:fft_size >> 1]
 
 
-def stft(signal, window, hop_size, fft_size=None, correct_phase=False):
+def stft(frames, window, fft_size=None, circular_shift=False):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
-    signal.
+    framed signal.
 
-    :param signal:        signal [1D numpy array]
-    :param window:        window function [1D numpy array]
-    :param hop_size:      hop size between adjacent frames [float]
-    :param fft_size:      use given size for FFT [int, should be a power of 2]
-    :param correct_phase: circular shift for correct phase [bool]
-    :return:              the complex STFT of the signal
+    :param frames:         framed signal [2D numpy array or iterable]
+    :param window:         window function [1D numpy array]
+    :param fft_size:       use this size for FFT [int, should be a power of 2]
+    :param circular_shift: circular shift for correct phase [bool]
+    :return:               the complex STFT of the signal
 
-    Note: the window is centered around the current sample and the total length
+    Note: The window is centered around the current sample and the total length
           of the STFT is calculated such that the last frame still covers some
           signal.
 
     """
-    from .signal import FramedSignal
-    # slice the signal into frames
-    frames = FramedSignal(signal, len(window), hop_size)
     # number of FFT bins
     if fft_size is None:
-        num_fft_bins = len(window) >> 1
-    else:
-        num_fft_bins = fft_size >> 1
+        fft_size = len(window)
+    num_fft_bins = fft_size >> 1
     # init STFT matrix
-    stft = np.empty((len(frames), num_fft_bins), np.complex)
+    stft = np.empty((len(frames), num_fft_bins), np.complex64)
     for f, frame in enumerate(frames):
         # perform DFT
-        stft[f] = dft(frame, window, fft_size, correct_phase)
+        stft[f] = dft(frame, window, fft_size, circular_shift)
     # return STFT
     return stft
 
@@ -225,449 +207,220 @@ def tuning_frequency(spec, bin_frequencies, num_hist_bins=15, fref=A4):
     return fref * 2. ** (dev / 12.)
 
 
-# Spectrogram class
-class Spectrogram(object):
-    """
-    Spectrogram Class.
-
-    """
-
-    def __init__(self, frames, window=np.hanning, fft_size=None,
-                 block_size=2048, filterbank=None, bands=BANDS,
-                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, log=False, mul=MUL,
-                 add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
-                 diff_max_bins=DIFF_MAX_BINS, positive_diff=POSITIVE_DIFF,
-                 **kwargs):
-        """
-        Creates a new Spectrogram instance of the given audio.
-
-        :param frames:            FramedSignal instance (or anything a
-                                  FramedSignal can be instantiated from)
-
-        FFT parameters:
-
-        :param window:            window function [numpy ufunc or numpy array]
-        :param fft_size:          use this size for FFT [int, power of 2]
-        :param block_size:        perform some operations (e.g. filtering) in
-                                  blocks of this size [int, power of 2]
-
-        Filterbank parameters:
-
-        :param filterbank:        filterbank type [Filterbank]
-        :param bands:             number of filter bands (per octave, depending
-                                  on the type of the filterbank)
-        :param fmin:              the minimum frequency [Hz]
-        :param fmax:              the maximum frequency [Hz]
-        :param fref:              tuning frequency [Hz]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters [bool]
-
-        Logarithmic magnitude parameters:
-
-        :param log:               scale the magnitude spectrogram
-                                  logarithmically [bool]
-        :param mul:               multiply the magnitude spectrogram with this
-                                  factor before taking the logarithm [float]
-        :param add:               add this value before taking the logarithm
-                                  of the magnitudes [float]
-
-        Difference parameters:
-
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-        :param diff_frames:       calculate the difference to the N-th previous
-                                  frame [int] (if set, this overrides the value
-                                  calculated from the `diff_ratio`)
-        :param diff_max_bins:     apply a maximum filter with this width (in
-                                  bins in frequency dimension) before
-                                  calculating the diff; (e.g. for the
-                                  difference spectrogram of the SuperFlux
-                                  algorithm 3 `max_bins` are used together
-                                  with a 24 band logarithmic filterbank)
-        :param positive_diff:     keep only the positive differences,
-                                  i.e. set all diff values < 0 to 0.
-
-        If no FramedSignal instance was given, one is instantiated and these
-        arguments are passed:
-
-        :param args:              arguments passed to FramedSignal
-        :param kwargs:            keyword arguments passed to FramedSignal
-
-        Note: `fft_size` and `block_size` should be a power of 2.
-
-        """
-        from .signal import FramedSignal
-
-        # framed signal stuff
-        if isinstance(frames, FramedSignal):
-            # already a FramedSignal
-            self.frames = frames
-        else:
-            # try to instantiate a FramedSignal object
-            self.frames = FramedSignal(frames, **kwargs)
-
-        # FFT stuff
-        # determine which window to use
-        if hasattr(window, '__call__'):
-            # if only function is given, use the size to the audio frame size
-            self.window = window(self.frames.frame_size)
-        elif isinstance(window, np.ndarray):
-            # otherwise use the given window directly
-            self.window = window
-            if self.window.size != self.frames.frame_size:
-                raise ValueError('Window must have the same size as the audio '
-                                 'frames.')
-        else:
-            # other types are not supported
-            raise TypeError("Invalid window type.")
-        # window used for DFT
-        try:
-            # the audio signal is not scaled, scale the window accordingly
-            max_range = np.iinfo(self.frames.signal.dtype).max
-            self.fft_window = self.window / max_range
-        except ValueError:
-            self.fft_window = self.window
-        # DFT size
-        if fft_size is None:
-            self.fft_size = self.window.size
-        else:
-            self.fft_size = fft_size
-        # perform some calculations (e.g. filtering) in blocks of that size
-        self.block_size = block_size
-
-        # filterbank stuff
-        # TODO: add option to automatically calculate `fref`
-        if filterbank is not None:
-            # create a filterbank of the given type
-            filterbank = filterbank(self.fft_freqs, bands=bands, fmin=fmin,
-                                    fmax=fmax, fref=fref,
-                                    norm_filters=norm_filters,
-                                    duplicate_filters=duplicate_filters)
-        # save the filterbank so it gets used when calculating the STFT
-        self.filterbank = filterbank
-
-        # log stuff
-        self.log = log
-        self.mul = mul
-        self.add = add
-
-        # diff stuff
-        # calculate the number of diff frames to use
-        if not diff_frames:
-            # calculate on basis of the diff_ratio
-            # get the first sample with a higher magnitude than given ratio
-            sample = np.argmax(self.window > diff_ratio * max(self.window))
-            diff_samples = self.window.size / 2 - sample
-            # convert to frames
-            diff_frames = int(round(diff_samples / self.frames.hop_size))
-        # always set the minimum to 1
-        if diff_frames < 1:
-            diff_frames = 1
-        self.num_diff_frames = diff_frames
-        # bins for maximum filter
-        self.diff_max_bins = diff_max_bins
-        # keep only the positive differences?
-        self.positive_diff = positive_diff
-
-        # init hidden variables
-        self._spec = None
-        self._stft = None
-        self._phase = None
-        self._lgd = None
-        self._diff = None
+# mixin for some basic properties of all classes
+class _PropertyMixin(object):
 
     @property
     def num_frames(self):
         """Number of frames."""
-        return len(self.frames)
-
-    @property
-    def num_fft_bins(self):
-        """Number of FFT bins."""
-        return self.fft_size >> 1
+        return len(self)
 
     @property
     def num_bins(self):
-        """Number of bins of the spectrogram."""
-        if self.filterbank is None:
-            return self.num_fft_bins
-        else:
-            return self.filterbank.shape[1]
+        """Number of bins."""
+        return self.shape[1]
 
-    @property
-    def fft_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_fft_bins,
-                               self.frames.signal.sample_rate)
 
-    @property
-    def bin_freqs(self):
-        """Frequencies of the spectrogram bins."""
-        if self.filterbank is None:
-            return self.fft_freqs
-        else:
-            return self.filterbank.center_frequencies
+# short-time Fourier transform classes
+class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
+    """
+    ShortTimeFourierTransform class.
 
-    def compute_stft(self, complex_stft=False, block_size=None):
+    """
+
+    # inherit from Spectrogram, because it is easier to add attributes than to
+    # remove them (as it would be for the other direction)
+    def __new__(cls, frames, window=np.hanning, fft_size=None,
+                circular_shift=False, **kwargs):
         """
-        This is a memory saving method to batch-compute different spectrograms.
+        Creates a new ShortTimeFourierTransform instance from the given
+        FramedSignal.
 
-        :param complex_stft: save the complex_stft STFT to the "stft" attribute
-        :param block_size:   perform some operations (e.g. filtering) in blocks
-                             of this size [int, should be a power of 2]
+        :param frames:         FramedSignal instance (or anything a
+                               FramedSignal can be instantiated from)
+
+        FFT parameters:
+
+        :param window:         window function [numpy ufunc or numpy array]
+        :param fft_size:       use this size for the FFT [int, power of 2]
+        :param circular_shift: circular shift the signal before performing the
+                               FFT; needed for correct phase
+
+        If no FramedSignal instance was given, one is instantiated and these
+        arguments are passed:
+
+        :param args:           arguments passed to FramedSignal
+        :param kwargs:         keyword arguments passed to FramedSignal
 
         """
-        # cache variables
-        num_frames = self.num_frames
-        fft_size = self.fft_size
-        fft_window = self.fft_window
-        fft_shift = len(fft_window) >> 1
-        num_fft_bins = self.num_fft_bins
-        num_bins = self.num_bins
+        from .signal import FramedSignal
 
-        # init STFT matrix
-        if complex_stft:
-            self._stft = np.empty((num_frames, num_fft_bins), np.complex64)
-        # init spectrogram matrix
-        self._spec = np.empty((num_frames, num_bins), np.float32)
+        # take the FramedSignal from the given STFT
+        if isinstance(frames, ShortTimeFourierTransform):
+            # already a STFT
+            frames = frames.frames
+        # instantiate a FramedSignal if needed
+        if not isinstance(frames, FramedSignal):
+            frames = FramedSignal(frames, **kwargs)
 
-        # process in blocks
-        if self.filterbank is not None:
-            if block_size is None:
-                block_size = self.block_size
-            if not block_size or block_size > num_frames:
-                block_size = num_frames
-            # init a matrix of that size
-            block = np.zeros([block_size, num_fft_bins])
+        # check if the Signal is mono
+        if frames.signal.num_channels > 1:
+            raise ValueError('please implement multi-channel support')
 
-        # calculate DFT for all frames
-        for f, frame in enumerate(self.frames):
+        # determine which window to use
+        if hasattr(window, '__call__'):
+            # if only function is given, use the size to the audio frame size
+            window = window(frames.frame_size)
+            # # multi-channel window
+            # if frames.signal.num_channels > 1:
+            #     window = np.tile(window[:, np.newaxis],
+            #                      frames.signal.num_channels)
+        elif isinstance(window, np.ndarray):
+            # otherwise use the given window directly
+            if len(window) != frames.frame_size:
+                raise ValueError('Window size must be equal to frame size.')
+        else:
+            # other types are not supported
+            raise TypeError("Invalid window type.")
+        # window used for FFT
+        try:
+            # the audio signal is not scaled, scale the window accordingly
+            max_range = np.iinfo(frames.signal.dtype).max
+            fft_window = window / max_range
+        except ValueError:
+            fft_window = window
+        # circular shift the window for correct phase
+        if circular_shift:
+            fft_shift = len(fft_window) >> 1
+
+        # FFT size to use
+        if fft_size is None:
+            fft_size = len(window)
+        # number of FFT bins to store
+        fft_bins = fft_size >> 1
+
+        # create an empty object
+        data = np.empty((frames.num_frames, fft_bins), np.complex64)
+        # iterate over all frames
+        for f, frame in enumerate(frames):
             # multiply the signal frame with the window function
             signal = np.multiply(frame, fft_window)
             # only shift and perform complex DFT if needed
-            if complex_stft:
+            if circular_shift:
                 # circular shift the signal (needed for correct phase)
                 signal = np.concatenate((signal[fft_shift:],
                                          signal[:fft_shift]))
             # perform DFT and return the signal
-            dft_signal = fft.fft(signal, fft_size)[:num_fft_bins]
+            data[f] = fft.fft(signal, fft_size, axis=0)[:fft_bins]
 
-            # save the complex STFT
-            if complex_stft:
-                self._stft[f] = dft_signal
+        # cast as ShortTimeFourierTransform
+        obj = np.asarray(data).view(cls)
+        # save the other parameters
+        obj.frames = frames
+        obj.window = window
+        obj.fft_window = fft_window
+        obj.fft_size = fft_size
+        obj.circular_shift = circular_shift
+        # return the object
+        return obj
 
-            # is block wise processing needed?
-            if self.filterbank is None:
-                # no filtering needed, thus no block wise processing needed
-                self._spec[f] = np.abs(dft_signal)
-            else:
-                # filter the magnitude spectrogram in blocks
-                block[f % block_size] = np.abs(dft_signal)
-                # if the end of a block or end of the signal is reached
-                end_of_block = (f + 1) % block_size == 0
-                end_of_signal = (f + 1) == num_frames
-                if end_of_block or end_of_signal:
-                    # start of the block within the whole data
-                    start = f // block_size * block_size
-                    # slice of the block (processing can end before the block
-                    # is filled completely)
-                    block_ = block[:f % block_size + 1]
-                    self._spec[start:f + 1] = np.dot(block_, self.filterbank)
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.frames = getattr(obj, 'frames', None)
+        self.window = getattr(obj, 'window', np.hanning)
+        self.fft_window = getattr(obj, 'fft_window', None)
+        self.fft_size = getattr(obj, 'fft_size', None)
+        self.circular_shift = getattr(obj, 'circular_shift', False)
 
-        # take the logarithm of the magnitude spectrogram if needed (inplace)
-        if self.log:
-            np.log10(self.mul * self._spec + self.add, out=self._spec)
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(ShortTimeFourierTransform, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.window, self.fft_window,
+                                        self.fft_size, self.circular_shift)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
 
-    @property
-    def stft(self):
-        """Short Time Fourier Transform of the signal."""
-        # TODO: this is highly inefficient if other properties depending on the
-        #       STFT were accessed previously; better call compute_stft() with
-        #       appropriate parameters.
-        # compute STFT if needed
-        if self._stft is None:
-            self.compute_stft(complex_stft=True)
-        return self._stft
-
-    @property
-    def phase(self):
-        """Phase of the STFT."""
-        # compute phase if needed
-        if self._phase is None:
-            # TODO: this also stores the STFT, which might not be needed
-            self._phase = phase(self.stft).astype(np.float32)
-        # return phase
-        return self._phase
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the attributes
+        self.window = state[-4]
+        self.fft_window = state[-3]
+        self.fft_size = state[-2]
+        self.circular_shift = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(ShortTimeFourierTransform, self).__setstate__(state[0:-4])
 
     @property
-    def lgd(self):
-        """Local group delay of the STFT."""
-        # compute the local group delay if needed
-        if self._lgd is None:
-            # TODO: this also stores the phase, which might not be needed
-            self._lgd = local_group_delay(self.phase).astype(np.float32)
-        # return lgd
-        return self._lgd
+    def bin_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_frequencies(self.num_bins, self.frames.signal.sample_rate)
 
-    @property
-    def spec(self):
-        """Magnitude spectrogram of the STFT."""
-        # compute spec if needed
-        if self._spec is None:
-            # check if STFT was computed already
-            if self._stft is not None:
-                # use it
-                self._spec = np.abs(self._stft)
-                # filter if needed
-                if self.filterbank is not None:
-                    self._spec = np.dot(self._spec, self.filterbank)
-                # take the logarithm
-                if self.log:
-                    self._spec = np.log10(self.mul * self._spec + self.add)
-            else:
-                # compute the spec
-                self.compute_stft()
-        # return spec
-        return self._spec
+    def spec(self, **kwargs):
+        """Magnitude spectrogram"""
+        return Spectrogram(self, **kwargs)
 
-    # alias
-    magnitude = spec
-
-    @property
-    def diff(self):
-        """Differences of the magnitude spectrogram."""
-        if self._diff is None:
-            # init array
-            self._diff = np.zeros_like(self.spec)
-            # apply a maximum filter if needed
-            if self.diff_max_bins > 1:
-                from scipy.ndimage.filters import maximum_filter
-                # widen the spectrogram in frequency dimension by `max_bins`
-                max_spec = maximum_filter(self.spec,
-                                          size=[1, self.diff_max_bins])
-            else:
-                max_spec = self.spec
-            # calculate the diff
-            df = self.num_diff_frames
-            self._diff[df:] = self.spec[df:] - max_spec[:-df]
-            # positive differences only?
-            if self.positive_diff:
-                np.maximum(self._diff, 0, self._diff)
-        # return diff
-        return self._diff
+    def phase(self, **kwargs):
+        """Phase spectrogram"""
+        return Phase(self, **kwargs)
 
 
-# Spectrogram Processor class
-class SpectrogramProcessor(Processor):
+STFT = ShortTimeFourierTransform
+
+
+class ShortTimeFourierTransformProcessor(Processor):
     """
-    Spectrogram Processor Class.
+    ShortTimeFourierTransformProcessor class.
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
-                 fmax=FMAX, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
-                 add=ADD, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
-                 diff_max_bins=DIFF_MAX_BINS, **kwargs):
+    def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
+                 **kwargs):
         """
-        Creates a new SpectrogramProcessor instance.
+        Creates a new ShortTimeFourierTransformProcessor instance.
 
-        Magnitude spectrogram filtering parameters:
-
-        :param filterbank:        filter the magnitude spectrogram with a
-                                  filterbank of this type [None or Filterbank]
-        :param bands:             use N bands (per octave) [int]
-        :param fmin:              minimum frequency of the filterbank [float]
-        :param fmax:              maximum frequency of the filterbank [float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
-
-        Magnitude spectrogram scaling paramete    rs:
-
-        :param log:               take the logarithm of the magnitude [bool]
-        :param mul:               multiply the spectrogram with this factor
-                                  before taking the logarithm of the magnitudes
-                                  [float]
-        :param add:               add this value before taking the logarithm of
-                                  the magnitudes [float]
-
-        Magnitude spectrogram difference parameters:
-
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-        :param diff_frames:       calculate the difference to the N-th previous
-                                  frame [int] (if set, this overrides the value
-                                  calculated from the `diff_ratio`)
-        :param diff_max_bins:     apply a maximum filter with this width (in
-                                  bins in frequency dimension) before
-                                  calculating the diff; (e.g. for the
-                                  difference spectrogram of the SuperFlux
-                                  algorithm 3 `max_bins` are used together with
-                                  a 24 band logarithmic filterbank)
-
-        Note: `filterbank` also accepts the boolean values 'False' and 'True'
-              which get translated to no filterbank or a filterbank of the
-              default type ('LogarithmicFilterbank').
+        :param window:         window function [numpy ufunc or numpy array]
+        :param fft_size:       use this size for the FFT [int, power of 2]
+        :param circular_shift: circular shift the signal before performing the
+                               FFT; needed for correct phase
 
         """
-        # filterbank stuff
-        # TODO: add literal values?
-        if filterbank is True:
-            filterbank = LogarithmicFilterbank
-        elif filterbank is False:
-            filterbank = None
-        self.filterbank = filterbank
-        self.bands = bands
-        self.fmin = fmin
-        self.fmax = fmax
-        self.norm_filters = norm_filters
-        self.duplicate_filters = duplicate_filters
-        # log stuff
-        self.log = log
-        self.mul = mul
-        self.add = add
-        # diff stuff
-        self.diff_ratio = diff_ratio
-        self.diff_frames = diff_frames
-        self.diff_max_bins = diff_max_bins
+        self.window = window
+        self.fft_size = fft_size
+        self.circular_shift = circular_shift
 
     def process(self, data):
         """
-        Perform FFT on a framed signal and return the spectrogram.
+        Perform FFT on a framed signal and return the STFT.
 
-        :param data: frames to be processed [FramedSignal]
-        :return:     Spectrogram instance
+        :param data: data to be processed
+        :return:     ShortTimeFourierTransform instance
 
         """
-        # instantiate a Spectrogram
-        return Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
-                           fmin=self.fmin, fmax=self.fmax,
-                           norm_filters=self.norm_filters,
-                           duplicate_filters=self.duplicate_filters,
-                           log=self.log, mul=self.mul, add=self.add,
-                           diff_ratio=self.diff_ratio,
-                           diff_frames=self.diff_frames,
-                           diff_max_bins=self.diff_max_bins)
+        # instantiate a STFT
+        return ShortTimeFourierTransform(data, window=self.window,
+                                         fft_size=self.fft_size,
+                                         circular_shift=self.circular_shift)
 
     @classmethod
-    def add_fft_arguments(cls, parser, window=None, fft_size=None):
+    def add_arguments(cls, parser, window=None, fft_size=None):
         """
-        Add spectrogram related arguments to an existing parser.
+        Add STFT related arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param window:      window function
-        :param fft_size:    use this size for FFT [int, should be a power of 2]
-        :return:            spectrogram argument parser group
+        :param parser:   existing argparse parser
+        :param window:   window function
+        :param fft_size: use this size for FFT [int, should be a power of 2]
+        :return:         STFT argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
         """
         # add filterbank related options to the existing parser
-        g = parser.add_argument_group('spectrogram arguments')
+        g = parser.add_argument_group('short-time Fourier transform arguments')
         if window is not None:
             g.add_argument('--window', dest='window',
                            action='store', default=window,
@@ -680,16 +433,390 @@ class SpectrogramProcessor(Processor):
         # return the group
         return g
 
+
+STFTProcessor = ShortTimeFourierTransformProcessor
+
+
+# phase of STFT
+class Phase(np.ndarray):
+    """
+    Phase class.
+
+    """
+
+    def __new__(cls, stft, **kwargs):
+        """
+        Creates a new Phase instance from the given ShortTimeFourierTransform.
+
+        :param stft:   ShortTimeFourierTransform instance (or anything a
+                       ShortTimeFourierTransform can be instantiated from)
+
+        If no ShortTimeFourierTransform instance was given, one is instantiated
+        and these arguments are passed:
+
+        :param args:   arguments passed to ShortTimeFourierTransform
+        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
+
+        """
+
+        # take the STFT
+        if isinstance(stft, Phase):
+            stft = stft.stft
+        # instantiate a ShortTimeFourierTransform object if needed
+        if not isinstance(stft, ShortTimeFourierTransform):
+            stft = ShortTimeFourierTransform(stft, circular_shift=True,
+                                             **kwargs)
+        # TODO: just recalculate with circular_shift set?
+        if not stft.circular_shift:
+            import warnings
+            warnings.warn("`circular_shift` of the STFT must be set to 'True' "
+                          "for correct phase")
+        # take the abs of the stft
+        data = np.angle(stft)
+        # cast as Spectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.stft = stft
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_frequencies(self.num_bins,
+                               self.stft.frames.signal.sample_rate)
+
+    def local_group_delay(self, **kwargs):
+        """Local group delay."""
+        return LocalGroupDelay(self, **kwargs)
+
+
+# local group delay of STFT
+class LocalGroupDelay(_PropertyMixin, Phase):
+    """
+    Phase class.
+
+    """
+
+    def __new__(cls, phase, **kwargs):
+        """
+        Creates a new LocalGroupDelay instance from the given
+        ShortTimeFourierTransform.
+
+        :param stft:   ShortTimeFourierTransform instance (or anything a
+                       ShortTimeFourierTransform can be instantiated from)
+
+        If no ShortTimeFourierTransform instance was given, one is instantiated
+        and these arguments are passed:
+
+        :param args:   arguments passed to ShortTimeFourierTransform
+        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
+
+        """
+        #
+        if not isinstance(stft, Phase):
+            # try to instantiate a ShortTimeFourierTransform object
+            phase = Phase(phase, circular_shift=True, **kwargs)
+        if not phase.stft.circular_shift:
+            import warnings
+            warnings.warn("`circular_shift` of the STFT must be set to 'True' "
+                          "for correct local group delay")
+        # unwrap phase
+        data = np.unwrap(phase)
+        # local group delay is the derivative over frequency
+        data[:, :-1] -= data[:, 1:]
+        # set the highest frequency to 0
+        data[:, -1] = 0
+        # cast as Spectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.phase = phase
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.phase = getattr(obj, 'phase', None)
+
+
+# magnitude spectrogram of STFT
+class Spectrogram(_PropertyMixin, np.ndarray):
+    """
+    Spectrogram class.
+
+    """
+
+    def __new__(cls, stft, **kwargs):
+        """
+        Creates a new Spectrogram instance from the given
+        ShortTimeFourierTransform.
+
+        :param stft:   ShortTimeFourierTransform instance (or anything a
+                       ShortTimeFourierTransform can be instantiated from)
+
+        If no ShortTimeFourierTransform instance was given, one is instantiated
+        and these arguments are passed:
+
+        :param args:   arguments passed to ShortTimeFourierTransform
+        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
+
+        """
+        if isinstance(stft, Spectrogram):
+            # already a Spectrogram
+            data = stft
+        elif isinstance(stft, ShortTimeFourierTransform):
+            # take the abs of the STFT
+            data = np.abs(stft)
+        else:
+            # try to instantiate a ShortTimeFourierTransform
+            stft = ShortTimeFourierTransform(stft, **kwargs)
+            # take the abs of the STFT
+            data = np.abs(stft)
+        # cast as Spectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.stft = stft
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_frequencies(self.num_bins,
+                               self.stft.frames.signal.sample_rate)
+
+    def diff(self, **kwargs):
+        """Difference of spectrogram."""
+        return SpectrogramDifference(self, **kwargs)
+
+    def filter(self, **kwargs):
+        """Filtered spectrogram."""
+        return FilteredSpectrogram(self, **kwargs)
+
+    def log(self, **kwargs):
+        """Logarithmic spectrogram."""
+        return LogarithmicSpectrogram(self, **kwargs)
+
+
+class SpectrogramProcessor(Processor):
+    """
+    SpectrogramProcessor class.
+
+    """
+
+    def process(self, data):
+        """
+        Create a Spectrogram from the given data.
+
+        :param data: data to be processed
+        :return:     Spectrogram instance
+
+        """
+        return Spectrogram(data)
+
+
+# filtered spectrogram stuff
+FILTERBANK = LogarithmicFilterbank
+
+
+class FilteredSpectrogram(Spectrogram):
+    """
+    FilteredSpectrogram class.
+
+    """
+
+    # we just want to inherit some properties from Spectrogram
+    def __new__(cls, spectrogram, filterbank=FILTERBANK, bands=BANDS,
+                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                duplicate_filters=DUPLICATE_FILTERS, block_size=2048,
+                **kwargs):
+        """
+        Creates a new FilteredSpectrogram instance from the given Spectrogram.
+
+        :param spectrogram:       Spectrogram instance (or anything a
+                                  Spectrogram can be instantiated from)
+
+        Filterbank parameters:
+
+        :param filterbank:        Filterbank type or instance [Filterbank]
+
+        If a Filterbank type is given rather than a Filterbank instance, one
+        will be created with the given type and these parameters:
+
+        :param bands:             number of filter bands (per octave, depending
+                                  on the type of the filterbank) [int]
+        :param fmin:              the minimum frequency [Hz, float]
+        :param fmax:              the maximum frequency [Hz, float]
+        :param fref:              tuning frequency [Hz, float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters [bool]
+
+        Other filtering options:
+
+        :param block_size:        perform filtering in blocks of this size
+                                  [int, power of 2]
+
+        If no Spectrogram instance was given, one is instantiated and
+        these arguments are passed:
+
+        :param args:              arguments passed to Spectrogram
+        :param kwargs:            keyword arguments passed to Spectrogram
+
+        """
+        from .filters import Filterbank
+        # instantiate a Spectrogram if needed
+        if not isinstance(spectrogram, Spectrogram):
+            # try to instantiate a Spectrogram object
+            spectrogram = Spectrogram(spectrogram, **kwargs)
+
+        # instantiate a Filterbank if needed
+        if issubclass(filterbank, Filterbank):
+            # create a filterbank of the given type
+            filterbank = filterbank(spectrogram.bin_freqs, bands=bands,
+                                    fmin=fmin, fmax=fmax, fref=fref,
+                                    norm_filters=norm_filters,
+                                    duplicate_filters=duplicate_filters)
+        if not isinstance(filterbank, Filterbank):
+            raise ValueError('not a Filterbank type or instance: %s' %
+                             filterbank)
+
+        # TODO: reactivate this or move this whole block/batch processing to
+        #       the processors?
+        # # init the return matrix
+        # num_frames = spectrogram.num_frames
+        # data = np.empty((num_frames, filterbank.num_bands), np.float32)
+        # # process in blocks of this size
+        # if block_size is None:
+        #     block_size = spectrogram.num_frames
+        # # iterate over the STFT in blocks of the given size
+        # for b, start in enumerate(range(0, num_frames, block_size)):
+        #     # determine stop index of the block
+        #     stop = min(start + block_size, num_frames)
+        #     # get the block
+        #     block = spectrogram[start: stop]
+        #     # determine the position inside the data to be returned
+        #     start = b * block_size
+        #     stop = start + len(block)
+        #     # filter it and put it in the return spectrogram
+        #     data[start: stop] = np.dot(block, filterbank)
+
+        # filter the spectrogram
+        data = np.dot(spectrogram, filterbank)
+        # cast as FilteredSpectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.stft = spectrogram.stft
+        obj.filterbank = filterbank
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.frames = getattr(obj, 'frames', None)
+        self.filterbank = getattr(obj, 'filterbank', None)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(FilteredSpectrogram, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.filterbank,)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the attributes
+        self.filterbank = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(FilteredSpectrogram, self).__setstate__(state[0:-1])
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the spectrogram bins."""
+        # overwrite with the filterbank center frequencies
+        return self.filterbank.center_frequencies
+
+
+class FilteredSpectrogramProcessor(Processor):
+    """
+    FilteredSpectrogramProcessor class.
+
+    """
+
+    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 duplicate_filters=DUPLICATE_FILTERS, **kwargs):
+        """
+        Creates a new FilteredSpectrogramProcessor instance.
+
+        Magnitude spectrogram filtering parameters:
+
+        :param filterbank:        filter the magnitude spectrogram with a
+                                  filterbank of this type [None or Filterbank]
+        :param bands:             use N bands (per octave) [int]
+        :param fmin:              minimum frequency of the filterbank [float]
+        :param fmax:              maximum frequency of the filterbank [float]
+        :param fref:              tuning frequency [Hz, float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
+
+        """
+        self.filterbank = filterbank
+        self.bands = bands
+        self.fmin = fmin
+        self.fmax = fmax
+        self.fref = fref
+        self.norm_filters = norm_filters
+        self.duplicate_filters = duplicate_filters
+
+    def process(self, data, block_size=None):
+        """
+        Perform filtering of a spectrogram.
+
+        :param data:       data to be processed
+        :param block_size: perform processing in blocks of this size [int]
+        :return:           Spectrogram instance
+
+        Note: If `block_size` is 'None', all data is processed in a single
+              chunk, if set its value should be a power of 2.
+
+        """
+        # instantiate a FilteredSpectrogram and return it
+        return FilteredSpectrogram(data, filterbank=self.filterbank,
+                                   bands=self.bands, fmin=self.fmin,
+                                   fmax=self.fmax, fref=self.fref,
+                                   norm_filters=self.norm_filters,
+                                   duplicate_filters=self.duplicate_filters)
+
     @classmethod
-    def add_filter_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
-                             fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
-                             duplicate_filters=DUPLICATE_FILTERS):
+    def add_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
+                      fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
+                      duplicate_filters=DUPLICATE_FILTERS):
         """
         Add spectrogram filtering related arguments to an existing parser.
 
         :param parser:            existing argparse parser
         :param filterbank:        filter the magnitude spectrogram with a
-                                  logarithmic filterbank [bool]
+                                  logarithmic filterbank [Filterbank or bool]
         :param bands:             use N bands per octave [int]
         :param fmin:              minimum frequency of the filterbank [float]
         :param fmax:              maximum frequency of the filterbank [float]
@@ -709,7 +836,7 @@ class SpectrogramProcessor(Processor):
             if filterbank:
                 g.add_argument('--no_filter', dest='filterbank',
                                action='store_false',
-                               default=LogarithmicFilterbank,
+                               default=filterbank,
                                help='do not filter the spectrogram with a '
                                     'filterbank [default=True]')
             else:
@@ -760,8 +887,119 @@ class SpectrogramProcessor(Processor):
         # return the group
         return g
 
+
+# logarithmic spectrogram stuff
+LOG = True
+MUL = 1.
+ADD = 1.
+
+
+class LogarithmicSpectrogram(Spectrogram):
+    """
+    LogarithmicSpectrogram class.
+
+    """
+
+    # we just want to inherit some properties from Spectrogram
+    def __new__(cls, spectrogram, mul=MUL, add=ADD, **kwargs):
+        """
+        Creates a new LogarithmicSpectrogram instance from the given
+        Spectrogram.
+
+        :param spectrogram: Spectrogram instance (or anything a Spectrogram
+                            can be instantiated from)
+
+        Logarithmic magnitude parameters:
+
+        :param mul:         multiply the magnitude spectrogram with this factor
+                            before taking the logarithm [float]
+        :param add:         add this value before taking the logarithm of the
+                            magnitudes [float]
+
+        If no Spectrogram instance was given, one is instantiated and these
+        arguments are passed:
+
+        :param args:   arguments passed to Spectrogram
+        :param kwargs: keyword arguments passed to Spectrogram
+
+        """
+        # instantiate a Spectrogram if needed
+        if not isinstance(spectrogram, Spectrogram):
+            # try to instantiate a Spectrogram object
+            spectrogram = Spectrogram(spectrogram, **kwargs)
+
+        # filter the spectrogram
+        data = np.log10(mul * spectrogram + add)
+        # cast as FilteredSpectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.stft = spectrogram.stft
+        obj.mul = mul
+        obj.add = add
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+        self.mul = getattr(obj, 'mul', MUL)
+        self.add = getattr(obj, 'add', ADD)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(LogarithmicSpectrogram, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.mul, self.add,)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the attributes
+        self.mul = state[-2]
+        self.add = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(LogarithmicSpectrogram, self).__setstate__(state[0:-2])
+
+
+class LogarithmicSpectrogramProcessor(Processor):
+    """
+    Logarithmic Spectrogram Processor class.
+
+    """
+
+    def __init__(self, mul=MUL, add=ADD, **kwargs):
+        """
+        Creates a new LogarithmicSpectrogramProcessor instance.
+
+        Magnitude spectrogram scaling parameters:
+
+        :param mul: multiply the spectrogram with this factor before taking
+                    the logarithm of the magnitudes [float]
+        :param add: add this value before taking the logarithm of the
+                    magnitudes [float]
+
+        """
+        self.mul = mul
+        self.add = add
+
+    def process(self, data):
+        """
+        Perform logarithmic scaling of a spectrogram.
+
+        :param data: data to be processed
+        :return:     LogarithmicSpectrogram instance
+
+        """
+        # instantiate a LogarithmicSpectrogram
+        return LogarithmicSpectrogram(data, mul=self.mul, add=self.add)
+
     @classmethod
-    def add_log_arguments(cls, parser, log=None, mul=None, add=None):
+    def add_arguments(cls, parser, log=None, mul=None, add=None):
         """
         Add logarithmic spectrogram scaling related arguments to an existing
         parser.
@@ -773,8 +1011,6 @@ class SpectrogramProcessor(Processor):
         :param add:    add this value before taking the logarithm of the
                        magnitudes [float]
         :return:       logarithmic spectrogram scaling argument parser group
-
-        Parameters are included in the group only if they are not 'None'.
 
         Parameters are included in the group only if they are not 'None'.
 
@@ -801,25 +1037,268 @@ class SpectrogramProcessor(Processor):
         # return the groups
         return g
 
+
+# logarithmic filtered spectrogram class
+class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
+    """
+    LogarithmicFilteredSpectrogram class.
+
+    """
+
+    def __new__(cls, spectrogram, **kwargs):
+        """
+        Creates a new LogarithmicFilteredSpectrogram instance of the given
+        FilteredSpectrogram.
+
+        :param spectrogram: FilteredSpectrogram instance (or anything a
+                            FilteredSpectrogram can be instantiated from)
+
+        If no FilteredSpectrogram instance was given, one is instantiated and
+        logarithmically scaled afterwards. These arguments are passed:
+
+        :param args:        arguments passed to FilteredSpectrogram and
+                            LogarithmicSpectrogram
+        :param kwargs:      keyword arguments passed to FilteredSpectrogram and
+                            LogarithmicSpectrogram
+
+        """
+        # instantiate a FilteredSpectrogram if needed
+        if not isinstance(spectrogram, FilteredSpectrogram):
+            spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
+        # take the logarithm
+        data = LogarithmicSpectrogram(spectrogram, **kwargs)
+        # cast as LogarithmicFilteredSpectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.stft = spectrogram.stft
+        obj.filterbank = spectrogram.filterbank
+        obj.mul = data.mul
+        obj.add = data.add
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+        self.filterbank = getattr(obj, 'filterbank', None)
+        self.mul = getattr(obj, 'mul', MUL)
+        self.add = getattr(obj, 'add', ADD)
+
+    def __reduce__(self):
+        # get the parent's __reduce__ tuple
+        pickled_state = super(LogarithmicFilteredSpectrogram, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        # Note: we only need to save the filterbank, mul & add are handled by
+        #       the parent's class
+        new_state = pickled_state[2] + (self.filterbank,)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # Note: we only need to set the filterbank, mul & add are handled by
+        #       the parent's class
+        self.filterbank = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(LogarithmicFilteredSpectrogram, self).__setstate__(state[0:-1])
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the spectrogram bins."""
+        # overwrite with the filterbank center frequencies
+        return self.filterbank.center_frequencies
+
+
+# spectrogram difference stuff
+DIFF_RATIO = 0.5
+DIFF_FRAMES = None
+DIFF_MAX_BINS = None
+POSITIVE_DIFFS = False
+
+
+class SpectrogramDifference(Spectrogram):
+    """
+    SpectrogramDifference class.
+
+    """
+
+    # we just want to inherit some properties from Spectrogram
+    def __new__(cls, spectrogram, diff_ratio=DIFF_RATIO,
+                diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
+                positive_diffs=POSITIVE_DIFFS, **kwargs):
+        """
+        Creates a new SpectrogramDifference instance from the given
+        spectrogram.
+
+        :param spectrogram:       Spectrogram instance (or anything a
+                                  Spectrogram can be instantiated from)
+
+        Difference parameters:
+
+        :param diff_ratio:        calculate the difference to the frame at
+                                  which the window used for the STFT yields
+                                  this ratio of the maximum height [float]
+        :param diff_frames:       calculate the difference to the N-th previous
+                                  frame (if set, this overrides the value
+                                  calculated from the `diff_ratio`) [int]
+        :param diff_max_bins:     apply a maximum filter with this width (in
+                                  bins in frequency dimension) [int]
+        :param positive_diffs:    keep only the positive differences, i.e. set
+                                  all diff values < 0 to 0. [bool]
+
+        If no Spectrogram instance was given, one is instantiated and these
+        arguments are passed:
+
+        :param args:              arguments passed to Spectrogram
+        :param kwargs:            keyword arguments passed to Spectrogram
+
+        Note: The SuperFlux algorithm uses a maximum filtered spectrogram with
+              3 `max_bins` together with a 24 band logarithmic filterbank to
+              calculate the difference spectrogram.
+
+        """
+        # instantiate a Spectrogram if needed
+        if not isinstance(spectrogram, Spectrogram):
+            # try to instantiate a Spectrogram object
+            spectrogram = Spectrogram(spectrogram, **kwargs)
+
+        # calculate the number of diff frames to use
+        if not diff_frames:
+            # calculate the number of diff_frames on basis of the diff_ratio
+            # get the first sample with a higher magnitude than given ratio
+            window = spectrogram.stft.window
+            sample = np.argmax(window > diff_ratio * max(window))
+            diff_samples = len(spectrogram.stft.window) / 2 - sample
+            # convert to frames
+            hop_size = spectrogram.stft.frames.hop_size
+            diff_frames = int(round(diff_samples / hop_size))
+        # always set the minimum to 1
+        if diff_frames < 1:
+            diff_frames = 1
+
+        # init matrix
+        diff = np.zeros_like(spectrogram)
+
+        # apply a maximum filter to diff_spec if needed
+        if diff_max_bins > 1:
+            from scipy.ndimage.filters import maximum_filter
+            # widen the spectrogram in frequency dimension
+            diff_spec = maximum_filter(spectrogram, size=[1, diff_max_bins])
+        else:
+            diff_spec = spectrogram
+        # calculate the diff
+        diff[diff_frames:] = (spectrogram[diff_frames:] -
+                              diff_spec[: -diff_frames])
+        # positive differences only?
+        if positive_diffs:
+            np.maximum(diff, 0, diff)
+
+        # cast as FilteredSpectrogram
+        obj = np.asarray(diff).view(cls)
+        obj.stft = spectrogram.stft
+        obj.diff_ratio = diff_ratio
+        obj.diff_frames = diff_frames
+        obj.diff_max_bins = diff_max_bins
+        obj.positive_diffs = positive_diffs
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+        self.diff_ratio = getattr(obj, 'diff_ratio', 0.5)
+        self.diff_frames = getattr(obj, 'diff_frames', None)
+        self.diff_max_bins = getattr(obj, 'diff_max_bins', None)
+        self.positive_diffs = getattr(obj, 'positive_diffs', False)
+
+    def __reduce__(self):
+        # get the parent's __reduce__ tuple
+        pickled_state = super(SpectrogramDifference, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.diff_ratio, self.diff_frames,
+                                        self.diif_max_bins,
+                                        self.positive_diffs)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # set the attributes
+        self.diff_ratio = state[-4]
+        self.diff_frames = state[-3]
+        self.diff_max_bins = state[-2]
+        self.positive_diffs = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(SpectrogramDifference, self).__setstate__(state[0:-4])
+
+    def positive_diff(self):
+        """Positive diff."""
+        return np.maximum(self, 0)
+
+
+class SpectrogramDifferenceProcessor(Processor):
+    """
+    Difference Spectrogram Processor class.
+
+    """
+
+    def __init__(self, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
+                 diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
+                 **kwargs):
+        """
+        Spectrogram difference parameters:
+
+        :param diff_ratio:        calculate the difference to the frame at
+                                  which the window used for the STFT yields
+                                  this ratio of the maximum height [float]
+        :param diff_frames:       calculate the difference to the N-th previous
+                                  frame [int] (if set, this overrides the value
+                                  calculated from the `diff_ratio`)
+        :param diff_max_bins:     apply a maximum filter with this width (in
+                                  bins in frequency dimension) [int]
+        :param positive_diffs:    keep only the positive differences, i.e. set
+                                  all diff values < 0 to 0
+
+        """
+        self.diff_ratio = diff_ratio
+        self.diff_frames = diff_frames
+        self.diff_max_bins = diff_max_bins
+        self.positive_diffs = positive_diffs
+
+    def process(self, data):
+        """
+        Perform a temporal difference calculation on the given data.
+
+        :param data: data to calculate the difference on
+        :return:     temporal diff of the data
+
+        """
+        # instantiate a SpectrogramDifference and return it
+        return SpectrogramDifference(data, diff_ratio=self.diff_ratio,
+                                     diff_frames=self.diff_frames,
+                                     diff_max_bins=self.diff_max_bins,
+                                     positive_diffs=self.positive_diffs)
+
     @classmethod
-    def add_diff_arguments(cls, parser, diff_ratio=None,
-                           diff_frames=None, diff_max_bins=None):
+    def add_arguments(cls, parser, diff_ratio=None, diff_frames=None,
+                      diff_max_bins=None, positive_diffs=None):
         """
         Add spectrogram difference related arguments to an existing parser.
 
-        :param parser:        existing argparse parser
-        :param diff_ratio:    calculate the difference to the frame at which
-                              the window of the STFT have this ratio of the
-                              maximum height [float]
-        :param diff_frames:   calculate the difference to the N-th previous
-                              frame [int] (if set, this overrides the value
-                              calculated from the `diff_ratio`)
-        :param diff_max_bins: apply a maximum filter with this width (in bins
-                              in frequency dimension) before calculating the
-                              diff; (e.g. for the difference spectrogram of
-                              the SuperFlux algorithm 3 `max_bins` are used
-                              together with a 24 band logarithmic filterbank)
-        :return:              spectrogram difference argument parser group
+        :param parser:            existing argparse parser
+        :param diff_ratio:        calculate the difference to the frame at
+                                  which the window used for the STFT yields
+                                  this ratio of the maximum height [float]
+        :param diff_frames:       calculate the difference to the N-th previous
+                                  frame [int] (if set, this overrides the value
+                                  calculated from the `diff_ratio`)
+        :param diff_max_bins:     apply a maximum filter with this width (in
+                                  bins in frequency dimension) [int]
+        :param positive_diffs:    keep only the positive differences, i.e. set
+                                  all diff values < 0 to 0
+        :return:                  spectrogram difference argument parser group
 
         Parameters are included in the group only if they are not 'None'.
         Only the `diff_frames` parameter behaves differently, it is included
@@ -841,17 +1320,27 @@ class SpectrogramProcessor(Processor):
                            help='calculate the difference to the N-th previous'
                                 ' frame (this overrides the value calculated '
                                 'with `diff_ratio`) [default=%(default)s]')
+        if positive_diffs is not None:
+            if positive_diffs:
+                g.add_argument('--all_diffs', dest='positive_diffs',
+                               action='store_false', default=positive_diffs,
+                               help='keep both positive and negative diffs')
+            else:
+                g.add_argument('--positive_diffs', action='store_true',
+                               default=-positive_diffs,
+                               help='keep only positive and diffs')
+        # add maximum filter related options to the existing parser
         if diff_max_bins is not None:
-            g.add_argument('--diff_max_bins', action='store', type=int,
-                           default=diff_max_bins,
-                           help='apply a maximum filter with this width '
-                                '(in frequency bins) before calculating the '
-                                'diff [default=%(default)d]')
+            g.add_argument('--max_bins', action='store', type=int,
+                           dest='diff_max_bins', default=diff_max_bins,
+                           help='apply a maximum filter with this width (in '
+                                'frequency bins) [default=%(default)d]')
+
         # return the group
         return g
 
 
-class SuperFluxSpectrogramProcessor(SpectrogramProcessor):
+class SuperFluxProcessor(SequentialProcessor):
     """
     Spectrogram processor which sets the default values suitable for the
     SuperFlux algorithm.
@@ -865,92 +1354,114 @@ class SuperFluxSpectrogramProcessor(SpectrogramProcessor):
         """
         # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
-        filterbank = kwargs.pop('filterbank', LogarithmicFilterbank)
+        filterbank = kwargs.pop('filterbank', FILTERBANK)
         bands = kwargs.pop('bands', 24)
         norm_filters = kwargs.pop('norm_filters', False)
-        # log magnitudes
-        log = kwargs.pop('log', True)
         # we want max filtered diffs
         diff_ratio = kwargs.pop('diff_ratio', 0.5)
         diff_max_bins = kwargs.pop('diff_max_bins', 3)
-        # instantiate SpectrogramProcessor
-        super(SuperFluxSpectrogramProcessor, self).__init__(
-            filterbank=filterbank, bands=bands, norm_filters=norm_filters,
-            log=log, diff_ratio=diff_ratio, diff_max_bins=diff_max_bins,
-            **kwargs)
+        # processing chain
+        stft = ShortTimeFourierTransformProcessor(**kwargs)
+        spec = FilteredSpectrogramProcessor(filterbank=filterbank, bands=bands,
+                                            norm_filters=norm_filters,
+                                            **kwargs)
+        lfs = LogarithmicSpectrogramProcessor(**kwargs)
+        diff = SpectrogramDifferenceProcessor(diff_ratio=diff_ratio,
+                                              diff_max_bins=diff_max_bins,
+                                              **kwargs)
+        # sequentially process everything
+        super(SuperFluxProcessor, self).__init__([stft, spec, lfs, diff])
 
 
-class MultiBandSpectrogramProcessor(SpectrogramProcessor):
+class MultiBandSpectrogram(FilteredSpectrogram):
     """
-    Spectrogram processor which combines the differences of a log filtered
-    spectrogram into multiple bands.
+    MultiBandSpectrogram class.
 
     """
 
-    def __init__(self, crossover_frequencies, norm_bands=False, diff=True,
+    def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
                  **kwargs):
         """
+        Creates a new MultiBandSpectrogram instance from the given
+        Spectrogram.
+
+        :param spectrogram:           Spectrogram instance (or anything a
+                                      FilteredSpectrogram be instantiated from)
+
+        Multi-band parameters:
 
         :param crossover_frequencies: list of crossover frequencies at which
                                       the spectrogram is split into bands
         :param norm_bands:            normalize the bands [bool]
-        :param diff:                  use the differences of the magnitude
-                                      spectrogram [bool] (see below)
 
-        The combination of the spectrogram magnitudes or differences into
-        multiple bands can be controlled with the `diff` parameter. It can
-        have these values:
-            - 'False':    do not use the differences, combine the spectrogram
-            - 'True':     combine only the differences, not the magnitudes
+        If no Spectrogram instance was given, a FilteredSpectrogram is
+        instantiated and these arguments are passed:
 
-        """
-        # instantiate SpectrogramProcessor
-        super(MultiBandSpectrogramProcessor, self).__init__(**kwargs)
-        self.crossover_frequencies = crossover_frequencies
-        self.norm_bands = norm_bands
-        self.diff = diff
-
-    def process(self, data):
-        """
-        Perform FFT on a framed signal and return the a multi-band
-        representation of either the magnitude spectrogram or the differences
-        thereof.
-
-        :param data: frames to be processed [FramedSignal]
-        :return:     Spectrogram instance
+        :param args:                  arguments passed to FilteredSpectrogram
+        :param kwargs:                keyword arguments passed to
+                                      FilteredSpectrogram
 
         """
-        # instantiate a Spectrogram
-        data = Spectrogram(data, filterbank=self.filterbank, bands=self.bands,
-                           fmin=self.fmin, fmax=self.fmax,
-                           norm_filters=self.norm_filters,
-                           log=self.log, mul=self.mul, add=self.add,
-                           diff_ratio=self.diff_ratio,
-                           diff_frames=self.diff_frames,
-                           diff_max_bins=self.diff_max_bins)
+        from .filters import Filterbank
+        # instantiate a FilteredSpectrogram if needed
+        if not isinstance(spectrogram, Spectrogram):
+            spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
         # TODO: move this to filterbank and make it accept a list of bin
         #       frequencies (data.bin_freqs) to generate a rectangular filter
-        # create an empty filterbank
-        fb = np.zeros((data.num_bins, len(self.crossover_frequencies) + 1))
-        # get the closest crossover bins
-        freq_distance = (data.bin_freqs -
-                         np.asarray(self.crossover_frequencies)[:, np.newaxis])
+
+        # create a filterbank
+        fb = np.zeros((spectrogram.num_bins, len(crossover_frequencies) + 1))
+        # get the closest spectrogram bins to the requested crossover bins
+        freq_distance = (spectrogram.bin_freqs -
+                         np.asarray(crossover_frequencies)[:, np.newaxis])
         crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
         # prepend index 0 and append length of the filterbank
         crossover_bins = np.r_[0, crossover_bins, len(fb)]
         # map the spectrogram bins to the filterbank bands
         for i in range(fb.shape[1]):
             fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
-        # normalize it
-        if self.norm_bands:
+        # normalize the filterbank
+        if norm_bands:
             fb /= np.sum(fb, axis=0)
-        # filter the spec or the diff a second time
-        # TODO: should this class always act on just the differences? filtering
-        #       the spec a second time is not the most meaningful thing...
-        if self.diff:
-            return np.dot(data.diff, fb)
-        else:
-            return np.dot(data.spec, fb)
+        # wrap it as a Filterbank
+        fb = Filterbank(fb, spectrogram.bin_freqs)
+        # instantiate a FilteredSpectrogram with this filterbank
+        super(MultiBandSpectrogram, self).__init__(spectrogram, filterbank=fb)
+        # save the arguments
+        self.crossover_frequencies = crossover_frequencies
+        self.norm_bands = norm_bands
+
+
+class MultiBandSpectrogramProcessor(Processor):
+    """
+    Spectrogram processor which combines the differences of a log filtered
+    spectrogram into multiple bands.
+
+    """
+
+    def __init__(self, crossover_frequencies, norm_bands=False, **kwargs):
+        """
+
+        :param crossover_frequencies: list of crossover frequencies at which
+                                      the spectrogram is split into bands
+        :param norm_bands:            normalize the bands [bool]
+
+        """
+        self.crossover_frequencies = crossover_frequencies
+        self.norm_bands = norm_bands
+
+    def process(self, data):
+        """
+        Return the a multi-band representation of the given spectrogram.
+
+        :param data: spectrogram to be processed [Spectrogram]
+        :return:     Spectrogram instance
+
+        """
+        # instantiate a MultiBandSpectrogram
+        return MultiBandSpectrogram(
+            data, crossover_frequencies=self.crossover_frequencies,
+            norm_bands=self.norm_bands)
 
     @classmethod
     def add_arguments(cls, parser, crossover_frequencies=None,
@@ -1077,14 +1588,14 @@ class StackSpectrogramProcessor(Processor):
                               "the spectrograms can not be stacked in depth.")
             duplicate_filters = True
 
-        # use the same spec for all frame sizes
+        # use the same spectrogram for all frame sizes
         sp = SpectrogramProcessor(filterbank=filterbank,
                                   bands=bands, fmin=fmin, fmax=fmax,
                                   norm_filters=norm_filters, log=log,
                                   mul=mul, add=add, diff_ratio=diff_ratio,
                                   duplicate_filters=duplicate_filters,
                                   **kwargs)
-        # multiple framing & spec processors
+        # multiple framing & spectrogram processors
         processor = []
         for frame_size_ in frame_size:
             fs = FramedSignalProcessor(frame_size=frame_size_, fps=fps,
@@ -1107,7 +1618,7 @@ class StackSpectrogramProcessor(Processor):
         # stack everything (a list of Spectrogram instances was returned)
         stack = []
         for s in specs:
-            # always append the spec
+            # always append the spectrogram
             stack.append(s.spec)
             # and the differences only if needed
             if self.stack_diffs:
