@@ -228,8 +228,6 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
 
     """
 
-    # inherit from Spectrogram, because it is easier to add attributes than to
-    # remove them (as it would be for the other direction)
     def __new__(cls, frames, window=np.hanning, fft_size=None,
                 circular_shift=False, **kwargs):
         """
@@ -393,18 +391,20 @@ class ShortTimeFourierTransformProcessor(Processor):
         self.fft_size = fft_size
         self.circular_shift = circular_shift
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Perform FFT on a framed signal and return the STFT.
 
-        :param data: data to be processed
-        :return:     ShortTimeFourierTransform instance
+        :param data:   data to be processed
+        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
+        :return:       ShortTimeFourierTransform instance
 
         """
         # instantiate a STFT
         return ShortTimeFourierTransform(data, window=self.window,
                                          fft_size=self.fft_size,
-                                         circular_shift=self.circular_shift)
+                                         circular_shift=self.circular_shift,
+                                         **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, window=None, fft_size=None):
@@ -618,7 +618,7 @@ class SpectrogramProcessor(Processor):
 
     """
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Create a Spectrogram from the given data.
 
@@ -626,7 +626,7 @@ class SpectrogramProcessor(Processor):
         :return:     Spectrogram instance
 
         """
-        return Spectrogram(data)
+        return Spectrogram(data, **kwargs)
 
 
 # filtered spectrogram stuff
@@ -788,7 +788,7 @@ class FilteredSpectrogramProcessor(Processor):
         self.norm_filters = norm_filters
         self.duplicate_filters = duplicate_filters
 
-    def process(self, data, block_size=None):
+    def process(self, data, **kwargs):
         """
         Perform filtering of a spectrogram.
 
@@ -805,7 +805,8 @@ class FilteredSpectrogramProcessor(Processor):
                                    bands=self.bands, fmin=self.fmin,
                                    fmax=self.fmax, fref=self.fref,
                                    norm_filters=self.norm_filters,
-                                   duplicate_filters=self.duplicate_filters)
+                                   duplicate_filters=self.duplicate_filters,
+                                   **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
@@ -987,7 +988,7 @@ class LogarithmicSpectrogramProcessor(Processor):
         self.mul = mul
         self.add = add
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Perform logarithmic scaling of a spectrogram.
 
@@ -996,7 +997,8 @@ class LogarithmicSpectrogramProcessor(Processor):
 
         """
         # instantiate a LogarithmicSpectrogram
-        return LogarithmicSpectrogram(data, mul=self.mul, add=self.add)
+        return LogarithmicSpectrogram(data, mul=self.mul, add=self.add,
+                                      **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, log=None, mul=None, add=None):
@@ -1267,7 +1269,7 @@ class SpectrogramDifferenceProcessor(Processor):
         self.diff_max_bins = diff_max_bins
         self.positive_diffs = positive_diffs
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Perform a temporal difference calculation on the given data.
 
@@ -1279,7 +1281,8 @@ class SpectrogramDifferenceProcessor(Processor):
         return SpectrogramDifference(data, diff_ratio=self.diff_ratio,
                                      diff_frames=self.diff_frames,
                                      diff_max_bins=self.diff_max_bins,
-                                     positive_diffs=self.positive_diffs)
+                                     positive_diffs=self.positive_diffs,
+                                     **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, diff_ratio=None, diff_frames=None,
@@ -1450,7 +1453,7 @@ class MultiBandSpectrogramProcessor(Processor):
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Return the a multi-band representation of the given spectrogram.
 
@@ -1461,7 +1464,7 @@ class MultiBandSpectrogramProcessor(Processor):
         # instantiate a MultiBandSpectrogram
         return MultiBandSpectrogram(
             data, crossover_frequencies=self.crossover_frequencies,
-            norm_bands=self.norm_bands)
+            norm_bands=self.norm_bands, **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, crossover_frequencies=None,
@@ -1605,7 +1608,7 @@ class StackSpectrogramProcessor(Processor):
         # FIXME: this does not work with more than 1 threads!
         self.processor = ParallelProcessor(processor, num_threads=1)
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Stack the magnitudes spectrograms (and their differences).
 
@@ -1614,7 +1617,7 @@ class StackSpectrogramProcessor(Processor):
 
         """
         # process everything
-        specs = self.processor.process(data)
+        specs = self.processor.process(data, **kwargs)
         # stack everything (a list of Spectrogram instances was returned)
         stack = []
         for s in specs:

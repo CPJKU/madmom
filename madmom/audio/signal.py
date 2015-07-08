@@ -459,16 +459,17 @@ class SignalProcessor(Processor):
         self.norm = norm
         self.att = att
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Processes the given audio file.
 
-        :param data: file name or handle
-        :return:     Signal instance with processed signal
+        :param data:   file name or handle
+        :param kwargs: keyword arguments passed to Signal
+        :return:       Signal instance with processed signal
 
         """
         # instantiate a Signal (with the given sample rate if set)
-        data = Signal(data, self.sample_rate, self.num_channels)
+        data = Signal(data, self.sample_rate, self.num_channels, **kwargs)
         # process it if needed
         if self.norm:
             # normalize signal
@@ -962,13 +963,13 @@ class FramedSignalProcessor(Processor):
         self.online = online
         self.end = end
 
-    def process(self, data, num_frames=None):
+    def process(self, data, **kwargs):
         """
         Slice the signal into (overlapping) frames.
 
-        :param data:       signal to be sliced into frames [Signal]
-        :param num_frames: limit the number of frames to be returned [int]
-        :return:           FramedSignal instance
+        :param data:   signal to be sliced into frames [Signal]
+        :param kwargs: keyword arguments passed to FramedSignal
+        :return:       FramedSignal instance
 
         Note: If `num_frames` is 'None', the length of the returned signal is
               determined by the `end` setting.
@@ -982,7 +983,7 @@ class FramedSignalProcessor(Processor):
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, frame_size=self.frame_size,
                             hop_size=self.hop_size, fps=self.fps,
-                            origin=origin, end=self.end, num_frames=num_frames)
+                            origin=origin, end=self.end, **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,
