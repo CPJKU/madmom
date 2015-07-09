@@ -572,7 +572,7 @@ class Filterbank(np.ndarray):
         if len(bin_frequencies) != obj.shape[0]:
             raise ValueError("'bin_frequencies' must have the same length as "
                              "the first dimension of 'data'.")
-        obj.bin_frequencies = np.asarray(bin_frequencies, dtype=np.float)
+        obj.bin_frequencies = np.asarray(bin_frequencies)
         # return the object
         return obj
 
@@ -946,6 +946,60 @@ class LogarithmicFilterbank(Filterbank):
 
 # alias
 LogFilterbank = LogarithmicFilterbank
+
+
+class RectangularFilterbank(Filterbank):
+    """
+    Rectangular filterbank class.
+
+    """
+
+    def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS):
+        """
+        Creates a new LogarithmicFilterbank instance.
+
+        :param bin_frequencies:       frequencies of the bins [Hz]
+        :param crossover_frequencies: crossover frequencies of the bands [Hz]
+        :param fmin:                  the minimum frequency [Hz]
+        :param fmax:                  the maximum frequency [Hz]
+        :param norm_filters:          normalize the filters to area 1
+
+        """
+        # create an empty filterbank
+        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
+                      dtype=np.float32)
+        crossover_frequencies = np.r_[fmin, crossover_frequencies, fmax]
+        # get the crossover bins
+        crossover_bins = np.searchsorted(bin_frequencies,
+                                         crossover_frequencies)
+        # map the bins to the filterbank bands
+        for i in range(len(crossover_bins) - 1):
+            fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
+        # normalize the filterbank
+        if norm_filters:
+            fb /= np.sum(fb, axis=0)
+        # cast as RectangularFilterbank
+        obj = fb.view(cls)
+        # set additional attributes
+        obj.bin_frequencies = np.asarray(bin_frequencies)
+        obj.crossover_frequencies = crossover_frequencies
+        # return the object
+        return obj
+
+    def __reduce__(self):
+        # get the parent's __reduce__ tuple
+        pickled_state = super(RectangularFilterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.crossover_frequencies, )
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # set the additional attributes
+        self.crossover_frequencies = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(RectangularFilterbank, self).__setstate__(state[0:-1])
 
 
 # chroma / harmonic filterbanks

@@ -1483,29 +1483,14 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
         """
 
-        from .filters import Filterbank
+        from .filters import RectangularFilterbank
         # instantiate a FilteredSpectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
-        # TODO: move this to filterbank and make it accept a list of bin
-        #       frequencies (data.bin_freqs) to generate a rectangular filter
-
-        # create a filterbank
-        fb = np.zeros((spectrogram.num_bins, len(crossover_frequencies) + 1))
-        # get the closest spectrogram bins to the requested crossover bins
-        freq_distance = (spectrogram.bin_freqs -
-                         np.asarray(crossover_frequencies)[:, np.newaxis])
-        crossover_bins = np.argmin(np.abs(freq_distance), axis=1)
-        # prepend index 0 and append length of the filterbank
-        crossover_bins = np.r_[0, crossover_bins, len(fb)]
-        # map the spectrogram bins to the filterbank bands
-        for i in range(fb.shape[1]):
-            fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
-        # normalize the filterbank
-        if norm_bands:
-            fb /= np.sum(fb, axis=0)
-        # wrap it as a Filterbank
-        filterbank = Filterbank(fb, spectrogram.bin_freqs)
+        # create a rectangular filterbank
+        filterbank = RectangularFilterbank(spectrogram.bin_freqs,
+                                           crossover_frequencies,
+                                           norm_filters=norm_bands)
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as FilteredSpectrogram
