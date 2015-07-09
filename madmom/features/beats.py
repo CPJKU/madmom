@@ -15,7 +15,8 @@ import numpy as np
 from madmom import MODELS_PATH
 from madmom.processors import Processor, SequentialProcessor
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import StackSpectrogramProcessor
+from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
+                                      StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 
 
@@ -125,11 +126,15 @@ class RNNBeatProcessor(SequentialProcessor):
         kwargs['fps'] = self.fps = 100
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        stack = StackSpectrogramProcessor(frame_size=[1024, 2048, 4096],
-                                          online=False, bands=3,
-                                          norm_filters=True, log=True, mul=1,
-                                          add=1, diff_ratio=0.5,
-                                          stack_diffs=True, **kwargs)
+        # we need to define which specs should be stacked
+        spec = LogarithmicFilteredSpectrogramProcessor(bands=3,
+                                                       norm_filters=True,
+                                                       mul=1, add=1)
+        # stack specs with the given frame sizes
+        stack = StackedSpectrogramProcessor(frame_size=[1024, 2048, 4096],
+                                            spectrogram=spec, stack_diffs=True,
+                                            diff_ratio=0.5,
+                                            positive_diffs=True, **kwargs)
         if nn_ref_files is not None:
             if nn_ref_files is True:
                 # FIXME: this is kind of hackish, but being able to simply set

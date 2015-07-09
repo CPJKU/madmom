@@ -217,7 +217,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_freqs, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
-        self.assertIsInstance(result[:], np.ndarray)
+        self.assertIsInstance(result, np.ndarray)
 
     def test_values(self):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
@@ -230,7 +230,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertTrue(np.allclose(result.bin_freqs,
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result[:].shape == (281, 1024))
+        self.assertTrue(result.shape == (281, 1024))
 
 
 class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
@@ -254,7 +254,7 @@ class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result.bin_freqs,
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result[:].shape == (281, 1024))
+        self.assertTrue(result.shape == (281, 1024))
 
 
 class TestFilteredSpectrogramClass(unittest.TestCase):
@@ -320,7 +320,7 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         # properties
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result[:].shape == (281, 1024))
+        self.assertTrue(result.shape == (281, 1024))
         # test other values
         result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav',
                                         mul=2, add=2)
@@ -527,21 +527,10 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
     def test_values(self):
         processor = SuperFluxProcessor()
         result = processor.process(DATA_PATH + '/sample.wav')
-        # result is the SpectrogramDifference
         self.assertIsInstance(result, SpectrogramDifference)
         self.assertTrue(result.num_bins == 140)
         self.assertTrue(result.num_frames == 281)
-        # result.spectrogram is the LogarithmicSpectrogram
-        self.assertIsInstance(result.spectrogram, LogarithmicSpectrogram)
-        self.assertTrue(result.spectrogram.mul == 1)
-        self.assertTrue(result.spectrogram.add == 1)
-        self.assertTrue(result.spectrogram[:].shape == (281, 140))
-        # result.spectrogram.spectrogram is the FilteredSpectrogram
-        self.assertIsInstance(result.spectrogram.spectrogram,
-                              FilteredSpectrogram)
-        self.assertIsInstance(result.spectrogram.spectrogram.filterbank,
-                              Filterbank)
-        self.assertTrue(result.spectrogram.spectrogram[:].shape == (281, 140))
+        self.assertTrue(result.shape == (281, 140))
 
 
 class TestMultiBandSpectrogramClass(unittest.TestCase):
@@ -558,11 +547,10 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
 
     def test_values(self):
         result = MultiBandSpectrogram(DATA_PATH + '/sample.wav', [200, 1000])
-        self.assertTrue(isinstance(result.spectrogram.filterbank,
-                                   Filterbank))
+        self.assertTrue(isinstance(result.filterbank, Filterbank))
         self.assertTrue(result.crossover_frequencies == [200, 1000])
         self.assertTrue(result.norm_bands is False)
-        self.assertTrue(result[:].shape == (281, 3))
+        self.assertTrue(result.shape == (281, 3))
         # properties
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 3)
@@ -584,7 +572,7 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(processor.norm_bands is True)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertIsInstance(result, MultiBandSpectrogram)
-        self.assertTrue(result[:].shape == (281, 3))
+        self.assertTrue(result.shape == (281, 3))
         # properties
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 3)
@@ -594,62 +582,78 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(processor.norm_bands is False)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertIsInstance(result, MultiBandSpectrogram)
-        self.assertTrue(result[:].shape == (281, 2))
+        self.assertTrue(result.shape == (281, 2))
         # properties
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 2)
 
 
 
-class TestStackSpectrogramProcessorClass(unittest.TestCase):
+class TestStackedSpectrogramProcessorClass(unittest.TestCase):
 
     def test_types(self):
-        processor = StackSpectrogramProcessor([512, 1024, 2048])
-        self.assertIsInstance(processor, StackSpectrogramProcessor)
+        frame_sizes = [512, 1024, 2048]
+        spec_processor = SpectrogramProcessor()
+        processor = StackedSpectrogramProcessor(frame_sizes, spec_processor)
+        self.assertIsInstance(processor, StackedSpectrogramProcessor)
         self.assertIsInstance(processor, Processor)
 
     def test_stack_specs(self):
         # stack only the specs
-        processor = StackSpectrogramProcessor([512])
+        spec_processor = LogarithmicFilteredSpectrogramProcessor()
+        processor = StackedSpectrogramProcessor([512], spec_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 58))
-        processor = StackSpectrogramProcessor([1024])
+        processor = StackedSpectrogramProcessor([1024], spec_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 69))
-        processor = StackSpectrogramProcessor([2048])
+        processor = StackedSpectrogramProcessor([2048], spec_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 81))
-        processor = StackSpectrogramProcessor([512, 1024, 2048])
+        processor = StackedSpectrogramProcessor([512, 1024, 2048],
+                                                spec_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 58 + 69 + 81))
 
     def test_stack_diffs(self):
         # also include the differences
-        processor = StackSpectrogramProcessor([512], stack_diffs=True)
+        spec_processor = LogarithmicFilteredSpectrogramProcessor()
+        processor = StackedSpectrogramProcessor([512], spec_processor,
+                                                stack_diffs=True)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 116))
-        processor = StackSpectrogramProcessor([1024], stack_diffs=True)
+        processor = StackedSpectrogramProcessor([1024], spec_processor,
+                                                stack_diffs=True)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 138))
-        processor = StackSpectrogramProcessor([2048], stack_diffs=True)
+        processor = StackedSpectrogramProcessor([2048], spec_processor,
+                                                stack_diffs=True)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 162))
-        processor = StackSpectrogramProcessor([512, 1024, 2048],
-                                              stack_diffs=True)
+        processor = StackedSpectrogramProcessor([512, 1024, 2048],
+                                                spec_processor,
+                                                stack_diffs=True)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 116 + 138 + 162))
 
     def test_stack_depth(self):
         # stack in depth
-        processor = StackSpectrogramProcessor([512], stack='depth')
+        spec_processor = LogarithmicFilteredSpectrogramProcessor(
+            duplicate_filters=True)
+        processor = StackedSpectrogramProcessor([512], spec_processor,
+                                                stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackSpectrogramProcessor([1024], stack='depth')
+        processor = StackedSpectrogramProcessor([1024], spec_processor,
+                                                stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackSpectrogramProcessor([2048], stack='depth')
+        processor = StackedSpectrogramProcessor([2048], spec_processor,
+                                                stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackSpectrogramProcessor([512, 1024, 2048], stack='depth')
+        processor = StackedSpectrogramProcessor([512, 1024, 2048],
+                                                spec_processor,
+                                                stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 108, 3))

@@ -593,7 +593,23 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
 
 
 def framed_signal_generator(signal, frame_size, hop_size, origin=0,
-                            end='extend', num_frames=None):
+                            end='extend', num_frames=None, batch_size=1):
+    """
+
+    :param signal:     signal [Signal or numpy array]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   hop size in samples between adjacent frames [float]
+    :param origin:     location of the window center relative to the signal
+                       position [int]
+    :param end:        end of signal behaviour (see `FramedSignal`)
+    :param num_frames: yield this number of frames [int]
+    :param batch_size: yield batches of this size [int]
+    :return:           generator which yields the signal chopped into frames
+
+    """
+    # TODO: implement batch processing and set to a sensible default
+    if batch_size != 1:
+        raise ValueError('please implement batch processing')
     # translate literal window location values to numeric origin
     if origin in ('center', 'offline'):
         # the current position is the center of the frame
@@ -621,7 +637,7 @@ def framed_signal_generator(signal, frame_size, hop_size, origin=0,
     index = 0
     while index < num_frames:
          yield signal_frame(signal, index, frame_size, hop_size, origin)
-         index += 1
+         index += batch_size
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
@@ -760,7 +776,6 @@ class FramedSignal(object):
         If no Signal instance was given, one is instantiated and these
         arguments are passed:
 
-        :param args:       additional arguments passed to Signal()
         :param kwargs:     additional keyword arguments passed to Signal()
 
         The FramedSignal class is implemented as an iterator. It splits the
@@ -970,9 +985,6 @@ class FramedSignalProcessor(Processor):
         :param data:   signal to be sliced into frames [Signal]
         :param kwargs: keyword arguments passed to FramedSignal
         :return:       FramedSignal instance
-
-        Note: If `num_frames` is 'None', the length of the returned signal is
-              determined by the `end` setting.
 
         """
         # translate online / offline mode

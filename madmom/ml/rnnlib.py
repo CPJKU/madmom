@@ -1328,7 +1328,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     """
     from madmom.processors import SequentialProcessor
     from madmom.audio.signal import SignalProcessor
-    from madmom.audio.spectrogram import StackSpectrogramProcessor
+    from madmom.audio.spectrogram import StackedSpectrogramProcessor
 
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
@@ -1337,7 +1337,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     stack_diffs = True if diff_ratio or diff_frames else False
     # define processing chain
     sig = SignalProcessor(num_channels=1, norm=norm, att=att)
-    stack = StackSpectrogramProcessor(frame_size=frame_size, online=online,
+    stack = StackedSpectrogramProcessor(frame_size=frame_size, online=online,
                                       fps=fps, filterbank=filterbank,
                                       bands=bands, fmin=fmin, fmax=fmax,
                                       norm_filters=norm_filters, log=log,

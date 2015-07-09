@@ -252,7 +252,6 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         If no FramedSignal instance was given, one is instantiated and these
         arguments are passed:
 
-        :param args:           arguments passed to FramedSignal
         :param kwargs:         keyword arguments passed to FramedSignal
 
         """
@@ -454,7 +453,6 @@ class Phase(np.ndarray):
         If no ShortTimeFourierTransform instance was given, one is instantiated
         and these arguments are passed:
 
-        :param args:   arguments passed to ShortTimeFourierTransform
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
@@ -513,7 +511,6 @@ class LocalGroupDelay(_PropertyMixin, Phase):
         If no ShortTimeFourierTransform instance was given, one is instantiated
         and these arguments are passed:
 
-        :param args:   arguments passed to ShortTimeFourierTransform
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
@@ -570,7 +567,6 @@ class Spectrogram(_PropertyMixin, np.ndarray):
         If no ShortTimeFourierTransform instance was given, one is instantiated
         and these arguments are passed:
 
-        :param args:   arguments passed to ShortTimeFourierTransform
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
@@ -674,7 +670,6 @@ class FilteredSpectrogram(Spectrogram):
         If no Spectrogram instance was given, one is instantiated and
         these arguments are passed:
 
-        :param args:              arguments passed to Spectrogram
         :param kwargs:            keyword arguments passed to Spectrogram
 
         """
@@ -923,7 +918,6 @@ class LogarithmicSpectrogram(Spectrogram):
         If no Spectrogram instance was given, one is instantiated and these
         arguments are passed:
 
-        :param args:   arguments passed to Spectrogram
         :param kwargs: keyword arguments passed to Spectrogram
 
         """
@@ -1046,7 +1040,7 @@ class LogarithmicSpectrogramProcessor(Processor):
 
 
 # logarithmic filtered spectrogram class
-class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
+class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram, FilteredSpectrogram):
     """
     LogarithmicFilteredSpectrogram class.
 
@@ -1063,17 +1057,18 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
         If no FilteredSpectrogram instance was given, one is instantiated and
         logarithmically scaled afterwards. These arguments are passed:
 
-        :param args:        arguments passed to FilteredSpectrogram and
-                            LogarithmicSpectrogram
         :param kwargs:      keyword arguments passed to FilteredSpectrogram and
                             LogarithmicSpectrogram
 
         """
+        # get the log args
+        mul = kwargs.pop('mul', MUL)
+        add = kwargs.pop('add', ADD)
         # instantiate a FilteredSpectrogram if needed
         if not isinstance(spectrogram, FilteredSpectrogram):
             spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
         # take the logarithm
-        data = LogarithmicSpectrogram(spectrogram, **kwargs)
+        data = LogarithmicSpectrogram(spectrogram, mul=mul, add=add, **kwargs)
         # cast as LogarithmicFilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
@@ -1095,28 +1090,103 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
         self.stft = getattr(obj, 'stft', None)
         self.frames = getattr(obj, 'frames', None)
 
-    def __reduce__(self):
-        # get the parent's __reduce__ tuple
-        pickled_state = super(LogarithmicFilteredSpectrogram, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        # Note: we only need to save the filterbank, mul & add are handled by
-        #       the parent's class
-        new_state = pickled_state[2] + (self.filterbank,)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
 
-    def __setstate__(self, state):
-        # Note: we only need to set the filterbank, mul & add are handled by
-        #       the parent's class
-        self.filterbank = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(LogarithmicFilteredSpectrogram, self).__setstate__(state[0:-1])
+class LogarithmicFilteredSpectrogramProcessor(Processor):
+    """
+    Logarithmic Filtered Spectrogram Processor class.
 
-    @property
-    def bin_freqs(self):
-        """Frequencies of the spectrogram bins."""
-        # overwrite with the filterbank center frequencies
-        return self.filterbank.center_frequencies
+    """
+
+    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 duplicate_filters=DUPLICATE_FILTERS, mul=MUL, add=ADD,
+                 **kwargs):
+        """
+        Creates a new LogarithmicFilteredSpectrogramProcessor instance.
+
+        Magnitude spectrogram filtering parameters:
+
+        :param filterbank:        filter the magnitude spectrogram with a
+                                  filterbank of this type [None or Filterbank]
+        :param bands:             use N bands (per octave) [int]
+        :param fmin:              minimum frequency of the filterbank [float]
+        :param fmax:              maximum frequency of the filterbank [float]
+        :param fref:              tuning frequency [Hz, float]
+        :param norm_filters:      normalize the filter to area 1 [bool]
+        :param duplicate_filters: keep duplicate filters resulting from
+                                  insufficient resolution of low frequencies
+
+        Magnitude spectrogram scaling parameters:
+
+        :param mul: multiply the spectrogram with this factor before taking
+                    the logarithm of the magnitudes [float]
+        :param add: add this value before taking the logarithm of the
+                    magnitudes [float]
+
+        """
+        self.filterbank = filterbank
+        self.bands = bands
+        self.fmin = fmin
+        self.fmax = fmax
+        self.fref = fref
+        self.norm_filters = norm_filters
+        self.duplicate_filters = duplicate_filters
+        self.mul = mul
+        self.add = add
+
+    def process(self, data, **kwargs):
+        """
+        Perform logarithmic scaling of a spectrogram.
+
+        :param data: data to be processed
+        :return:     LogarithmicSpectrogram instance
+
+        """
+        # instantiate a LogarithmicSpectrogram
+        return LogarithmicFilteredSpectrogram(
+            data, filterbank=self.filterbank, bands=self.bands, fmin=self.fmin,
+            fmax=self.fmax, fref=self.fref, norm_filters=self.norm_filters,
+            duplicate_filters=self.duplicate_filters, mul=self.mul,
+            add=self.add, **kwargs)
+
+    @classmethod
+    def add_arguments(cls, parser, log=None, mul=None, add=None):
+        """
+        Add logarithmic spectrogram scaling related arguments to an existing
+        parser.
+
+        :param parser: existing argparse parser
+        :param log:    take the logarithm of the magnitude [bool]
+        :param mul:    multiply the spectrogram with this factor before
+                       taking the logarithm of the magnitudes [float]
+        :param add:    add this value before taking the logarithm of the
+                       magnitudes [float]
+        :return:       logarithmic spectrogram scaling argument parser group
+
+        Parameters are included in the group only if they are not 'None'.
+
+        """
+        # add log related options to the existing parser
+        g = parser.add_argument_group('logarithmic magnitude arguments')
+        if log is not None:
+            if log:
+                g.add_argument('--no_log', dest='log',
+                               action='store_false', default=log,
+                               help='linear magnitudes [default=logarithmic]')
+            else:
+                g.add_argument('--log', action='store_true',
+                               default=-log,
+                               help='logarithmic magnitudes [default=linear]')
+        if mul is not None:
+            g.add_argument('--mul', action='store', type=float,
+                           default=mul, help='multiplier (before taking '
+                           'the log) [default=%(default)i]')
+        if add is not None:
+            g.add_argument('--add', action='store', type=float,
+                           default=add, help='value added (before taking '
+                           'the log) [default=%(default)i]')
+        # return the groups
+        return g
 
 
 # spectrogram difference stuff
@@ -1159,7 +1229,6 @@ class SpectrogramDifference(Spectrogram):
         If no Spectrogram instance was given, one is instantiated and these
         arguments are passed:
 
-        :param args:              arguments passed to Spectrogram
         :param kwargs:            keyword arguments passed to Spectrogram
 
         Note: The SuperFlux algorithm uses a maximum filtered spectrogram with
@@ -1391,8 +1460,8 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
     """
 
-    def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
-                 **kwargs):
+    def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
+                **kwargs):
         """
         Creates a new MultiBandSpectrogram instance from the given
         Spectrogram.
@@ -1409,11 +1478,11 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         If no Spectrogram instance was given, a FilteredSpectrogram is
         instantiated and these arguments are passed:
 
-        :param args:                  arguments passed to FilteredSpectrogram
         :param kwargs:                keyword arguments passed to
                                       FilteredSpectrogram
 
         """
+
         from .filters import Filterbank
         # instantiate a FilteredSpectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
@@ -1436,12 +1505,57 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         if norm_bands:
             fb /= np.sum(fb, axis=0)
         # wrap it as a Filterbank
-        fb = Filterbank(fb, spectrogram.bin_freqs)
-        # instantiate a FilteredSpectrogram with this filterbank
-        super(MultiBandSpectrogram, self).__init__(spectrogram, filterbank=fb)
-        # save the arguments
-        self.crossover_frequencies = crossover_frequencies
-        self.norm_bands = norm_bands
+        filterbank = Filterbank(fb, spectrogram.bin_freqs)
+        # filter the spectrogram
+        data = np.dot(spectrogram, filterbank)
+        # cast as FilteredSpectrogram
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.filterbank = filterbank
+        obj.crossover_frequencies = crossover_frequencies
+        obj.norm_bands = norm_bands
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
+        # return the object
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.crossover_frequencies = getattr(obj, 'crossover_frequencies',
+                                             None)
+        self.norm_bands = getattr(obj, 'norm_bands', False)
+        self.filterbank = getattr(obj, 'norm_bands', None)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(FilteredSpectrogram, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.filterbank,
+                                        self.crossover_frequencies,
+                                        self.norm_bands)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the attributes
+        self.filterbank = state[-3]
+        self.crossover_frequencies = state[-2]
+        self.norm_bands = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(FilteredSpectrogram, self).__setstate__(state[0:-3])
+
+    @property
+    def bin_freqs(self):
+        """Frequencies of the spectrogram bins."""
+        # overwrite with the filterbank center frequencies
+        return self.filterbank.center_frequencies
 
 
 class MultiBandSpectrogramProcessor(Processor):
@@ -1511,78 +1625,46 @@ class MultiBandSpectrogramProcessor(Processor):
         return g
 
 
-class StackSpectrogramProcessor(Processor):
+class StackedSpectrogramProcessor(ParallelProcessor):
     """
     Class to stack multiple spectrograms (and their differences) in a certain
     dimension.
 
     """
-    def __init__(self, frame_size, fps=100, online=False,
-                 filterbank=FILTERBANK, bands=BANDS, fmin=FMIN, fmax=FMAX,
-                 norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, log=LOG, mul=MUL,
-                 add=ADD, diff_ratio=DIFF_RATIO, stack=np.hstack,
+    def __init__(self, frame_size, spectrogram, stack=np.hstack,
                  stack_diffs=False, **kwargs):
         """
-        Creates a new StackSpectrogramProcessor instance.
+        Creates a new StackedSpectrogramProcessor instance.
 
-        Multiple magnitude spectra (with different FFT sizes) are filtered and
-        logarithmically scaled before being stacked together with their first
-        order differences.
+        :param frame_size:  list with frame sizes [list of int]
+        :param spectrogram: list with Spectrogram processor instances
+        :param stack:       stacking function to be used
+                            - 'np.vstack' stack multiple spectrograms
+                              vertically, i.e. stack in time dimension
+                            - 'np.hstack' stack multiple spectrograms
+                              horizontally, i.e. stack in the frequency
+                              dimension
+                            - 'np.dstack' stacks them in depth, i.e.
+                              returns them as a 3D representation
+                            Additionally, the literal values {'time',
+                            'freq' | 'frequency', 'depth'} are supported
+        :param stack_diffs: also stack the differences [bool]
 
-        Framing parameters:
-
-        :param frame_size:        include spectrogram with these frame sizes
-                                  [list of int]
-        :param fps:               frames per second [float]
-        :param online:            online mode [bool]
-
-        Filterbank parameters:
-
-        :param filterbank:        filter the magnitude spectrogram with a
-                                  filterbank of this type [None or Filterbank]
-        :param bands:             use N bands per octave [int]
-        :param fmin:              minimum frequency of the filterbank [float]
-        :param fmax:              maximum frequency of the filterbank [float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
-
-        Logarithmic magnitude parameters:
-
-        :param mul:               multiply the spectrogram with this factor
-                                  before taking the logarithm of the magnitudes
-                                  [float]
-        :param add:               add this value before taking the logarithm of
-                                  the magnitudes [float]
-
-        Difference parameters:
-
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-
-        Stacking parameters:
-
-        :param stack:             stacking function for stacking the
-                                  spectrograms (and their differences)
-                                  - 'np.vstack' stack multiple spectrograms
-                                    vertically, i.e. stack in time dimension
-                                  - 'np.hstack' stack multiple spectrograms
-                                    horizontally, i.e. stack in the frequency
-                                    dimension
-                                  - 'np.dstack' stacks them in depth, i.e.
-                                    returns them as a 3D representation
-                                  Additionally, the literal values {'time',
-                                  'freq' | 'frequency', 'depth'} are supported
-        :param stack_diffs:       also stack the differences [bool]
-
-        Note: To be able to stack filtered spectrograms in depth (i.e. use
-              'np.dstack' as a stacking function), `duplicate_filters` must be
-              set to 'True', otherwise they differ in dimensionality.
+        Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
+              as a stacking function), they must have the same frequency
+              dimensionality. If filtered spectrograms are used,
+              `duplicate_filters` must be set to 'True'.
 
         """
         from .signal import FramedSignalProcessor
+        # use the same spectrogram processor for all frame sizes, but use
+        # different FramedSignal processors
+        processors = []
+        for frame_size_ in frame_size:
+            fs = FramedSignalProcessor(frame_size=frame_size_, **kwargs)
+            processors.append(SequentialProcessor([fs, spectrogram]))
+        # FIXME: works only with a single thread
+        super(StackedSpectrogramProcessor, self).__init__(processors, 1)
         # stacking parameters
         if stack == 'time':
             stack = np.vstack
@@ -1591,31 +1673,10 @@ class StackSpectrogramProcessor(Processor):
         elif stack == 'depth':
             stack = np.dstack
         self.stack = stack
+        # TODO: this is a bit hacky to define another processor here
         self.stack_diffs = stack_diffs
-        # set the duplicate filters
-        if self.stack == np.dstack and filterbank is not None:
-            if not duplicate_filters:
-                import warnings
-                warnings.warn("Set 'duplicate_filters' to 'True', otherwise "
-                              "the spectrograms can not be stacked in depth.")
-            duplicate_filters = True
-
-        # use the same spectrogram for all frame sizes
-        sp = SpectrogramProcessor(filterbank=filterbank,
-                                  bands=bands, fmin=fmin, fmax=fmax,
-                                  norm_filters=norm_filters, log=log,
-                                  mul=mul, add=add, diff_ratio=diff_ratio,
-                                  duplicate_filters=duplicate_filters,
-                                  **kwargs)
-        # multiple framing & spectrogram processors
-        processor = []
-        for frame_size_ in frame_size:
-            fs = FramedSignalProcessor(frame_size=frame_size_, fps=fps,
-                                       online=online, **kwargs)
-            processor.append(SequentialProcessor([fs, sp]))
-        # process all specs in parallel
-        # FIXME: this does not work with more than 1 threads!
-        self.processor = ParallelProcessor(processor, num_threads=1)
+        if stack_diffs:
+            self.stack_processor = SpectrogramDifferenceProcessor(**kwargs)
 
     def process(self, data, **kwargs):
         """
@@ -1626,20 +1687,20 @@ class StackSpectrogramProcessor(Processor):
 
         """
         # process everything
-        specs = self.processor.process(data, **kwargs)
+        specs = super(StackedSpectrogramProcessor, self).process(data)
         # stack everything (a list of Spectrogram instances was returned)
         stack = []
         for s in specs:
-            # always append the spectrogram
-            stack.append(s.spec)
-            # and the differences only if needed
+            # always append the spec
+            stack.append(s)
+            # # and the differences only if needed
             if self.stack_diffs:
-                stack.append(s.diff)
+                stack.append(self.stack_processor.process(s))
         # stack them in the given direction and return them
         return self.stack(stack)
 
     @classmethod
-    def add_arguments(cls, parser, stack='freq', stack_diffs=False):
+    def add_arguments(cls, parser, stack='freq', stack_diffs=None):
         """
         Add stacking related arguments to an existing parser.
 
@@ -1654,9 +1715,8 @@ class StackSpectrogramProcessor(Processor):
         g = parser.add_argument_group('stacking arguments')
         if stack is not None:
             g.add_argument('--stack', action='store', type=str,
-                           default=stack,
-                           help="stacking direction {'time', 'freq', 'depth'} "
-                                "[default=%(default)s]")
+                           default=stack, choices=['time', 'freq', 'depth'],
+                           help="stacking direction [default=%(default)s]")
         if stack_diffs is not None:
             if stack_diffs:
                 g.add_argument('--no_stack_diffs', dest='stack_diffs',
