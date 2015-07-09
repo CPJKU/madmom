@@ -220,6 +220,11 @@ class _PropertyMixin(object):
         """Number of bins."""
         return self.shape[1]
 
+    @property
+    def bin_freqs(self):
+        """Frequencies of the FFT bins."""
+        return fft_frequencies(self.num_bins, self.frames.signal.sample_rate)
+
 
 # short-time Fourier transform classes
 class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
@@ -353,11 +358,6 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         # call the parent's __setstate__ with the other tuple elements
         super(ShortTimeFourierTransform, self).__setstate__(state[0:-4])
 
-    @property
-    def bin_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_bins, self.frames.signal.sample_rate)
-
     def spec(self, **kwargs):
         """Magnitude spectrogram"""
         return Spectrogram(self, **kwargs)
@@ -477,6 +477,7 @@ class Phase(np.ndarray):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.stft = stft
+        obj.frames = stft.frames
         # return the object
         return obj
 
@@ -485,16 +486,13 @@ class Phase(np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-
-    @property
-    def bin_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_bins,
-                               self.stft.frames.signal.sample_rate)
+        self.frames = getattr(obj, 'frames', None)
 
     def local_group_delay(self, **kwargs):
         """Local group delay."""
         return LocalGroupDelay(self, **kwargs)
+
+    lgd = local_group_delay
 
 
 # local group delay of STFT
@@ -537,6 +535,8 @@ class LocalGroupDelay(_PropertyMixin, Phase):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.phase = phase
+        obj.stft = phase.stft
+        obj.frames = phase.stft.frames
         # return the object
         return obj
 
@@ -545,6 +545,11 @@ class LocalGroupDelay(_PropertyMixin, Phase):
             return
         # set default values here, also needed for views
         self.phase = getattr(obj, 'phase', None)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
+
+
+LGD = LocalGroupDelay
 
 
 # magnitude spectrogram of STFT
@@ -584,6 +589,7 @@ class Spectrogram(_PropertyMixin, np.ndarray):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.stft = stft
+        obj.frames = stft.frames
         # return the object
         return obj
 
@@ -592,12 +598,7 @@ class Spectrogram(_PropertyMixin, np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-
-    @property
-    def bin_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_bins,
-                               self.stft.frames.signal.sample_rate)
+        self.frames = getattr(obj, 'frames', None)
 
     def diff(self, **kwargs):
         """Difference of spectrogram."""
@@ -719,8 +720,9 @@ class FilteredSpectrogram(Spectrogram):
         # cast as FilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
-        obj.stft = spectrogram.stft
         obj.filterbank = filterbank
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
 
@@ -728,8 +730,9 @@ class FilteredSpectrogram(Spectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.frames = getattr(obj, 'frames', None)
         self.filterbank = getattr(obj, 'filterbank', None)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
 
     def __reduce__(self):
         # needed for correct pickling
@@ -934,9 +937,10 @@ class LogarithmicSpectrogram(Spectrogram):
         # cast as FilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
-        obj.stft = spectrogram.stft
         obj.mul = mul
         obj.add = add
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
 
@@ -944,9 +948,10 @@ class LogarithmicSpectrogram(Spectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.stft = getattr(obj, 'stft', None)
         self.mul = getattr(obj, 'mul', MUL)
         self.add = getattr(obj, 'add', ADD)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
 
     def __reduce__(self):
         # needed for correct pickling
@@ -1072,10 +1077,11 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
         # cast as LogarithmicFilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
-        obj.stft = spectrogram.stft
         obj.filterbank = spectrogram.filterbank
         obj.mul = data.mul
         obj.add = data.add
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
 
@@ -1083,10 +1089,11 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.stft = getattr(obj, 'stft', None)
         self.filterbank = getattr(obj, 'filterbank', None)
         self.mul = getattr(obj, 'mul', MUL)
         self.add = getattr(obj, 'add', ADD)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
 
     def __reduce__(self):
         # get the parent's __reduce__ tuple
@@ -1198,11 +1205,12 @@ class SpectrogramDifference(Spectrogram):
 
         # cast as FilteredSpectrogram
         obj = np.asarray(diff).view(cls)
-        obj.stft = spectrogram.stft
         obj.diff_ratio = diff_ratio
         obj.diff_frames = diff_frames
         obj.diff_max_bins = diff_max_bins
         obj.positive_diffs = positive_diffs
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
 
@@ -1210,18 +1218,19 @@ class SpectrogramDifference(Spectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.stft = getattr(obj, 'stft', None)
         self.diff_ratio = getattr(obj, 'diff_ratio', 0.5)
         self.diff_frames = getattr(obj, 'diff_frames', None)
         self.diff_max_bins = getattr(obj, 'diff_max_bins', None)
         self.positive_diffs = getattr(obj, 'positive_diffs', False)
+        self.stft = getattr(obj, 'stft', None)
+        self.frames = getattr(obj, 'frames', None)
 
     def __reduce__(self):
         # get the parent's __reduce__ tuple
         pickled_state = super(SpectrogramDifference, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.diff_ratio, self.diff_frames,
-                                        self.diif_max_bins,
+                                        self.diff_max_bins,
                                         self.positive_diffs)
         # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
