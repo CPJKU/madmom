@@ -572,7 +572,7 @@ class Filterbank(np.ndarray):
         if len(bin_frequencies) != obj.shape[0]:
             raise ValueError("'bin_frequencies' must have the same length as "
                              "the first dimension of 'data'.")
-        obj.bin_frequencies = np.asarray(bin_frequencies)
+        obj.bin_frequencies = np.asarray(bin_frequencies, dtype=np.float)
         # return the object
         return obj
 
