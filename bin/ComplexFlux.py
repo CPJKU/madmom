@@ -12,7 +12,11 @@ import argparse
 from madmom.processors import IOProcessor, io_arguments
 from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import SpectrogramProcessor
+from madmom.audio.spectrogram import (ShortTimeFourierTransformProcessor,
+                                      FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      LogarithmicFilteredSpectrogramProcessor)
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
@@ -39,10 +43,11 @@ def main():
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=200, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
-                                              norm_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
+    FilteredSpectrogramProcessor.add_arguments(p, bands=24, fmin=30,
+                                               fmax=17000, norm_filters=False)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 diff_max_bins=3)
     PeakPickingProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
                                        post_max=0.05, pre_avg=0.15, post_avg=0,
                                        combine=0.03, delay=0)
@@ -63,9 +68,13 @@ def main():
         # define processing chain
         sig = SignalProcessor(num_channels=1, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
-        spec = SpectrogramProcessor(**vars(args))
+        # add a STFT processor so that we can set the circular shift needed for
+        # correct phase and local group delay
+        stft = ShortTimeFourierTransformProcessor(circular_shift=True,
+                                                  **vars(args))
+        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='complex_flux', **vars(args))
-        in_processor = [sig, frames, spec, odf]
+        in_processor = [sig, frames, stft, spec, odf]
 
     # output processor
     if args.save:
