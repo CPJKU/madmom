@@ -47,7 +47,8 @@ def main():
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
-                                                 diff_max_bins=3)
+                                                 diff_max_bins=3,
+                                                 positive_diffs=True)
     NNPeakPickingProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFluxNN')
@@ -67,7 +68,7 @@ def main():
         frames = FramedSignalProcessor(**vars(args))
         spec = SuperFluxProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='superflux', **vars(args))
-        in_processor = [sig, frames, spec, odf]
+        in_processor = [sig, frames, spec, diff, odf]
 
     # output processor
     if args.save:

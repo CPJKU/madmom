@@ -17,7 +17,8 @@ from madmom import MODELS_PATH
 from madmom.processors import Processor, SequentialProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
+from madmom.audio.spectrogram import (Spectrogram, SpectrogramDifference,
+                                      LogarithmicFilteredSpectrogramProcessor,
                                       StackedSpectrogramProcessor)
 
 EPSILON = 1e-6
@@ -115,8 +116,11 @@ def spectral_diff(spectrogram, diff_frames=None):
     (DAFx), 2002.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # Spectral diff is the sum of all squared positive 1st order differences
-    return np.sum(spectrogram.diff(diff_frames=diff_frames) ** 2, axis=1)
+    return np.sum(spectrogram ** 2, axis=1)
 
 
 def spectral_flux(spectrogram, diff_frames=None):
@@ -132,8 +136,11 @@ def spectral_flux(spectrogram, diff_frames=None):
     PhD thesis, University of Bristol, 1996.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # Spectral flux is the sum of all positive 1st order differences
-    return np.sum(spectrogram.diff(diff_frames=diff_frames), axis=1)
+    return np.sum(spectrogram, axis=1)
 
 
 def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
@@ -159,13 +166,16 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
           the difference.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames,
+                                       diff_max_bins=diff_max_bins,
+                                       positive_diffs=True)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(spectrogram.diff(diff_frames=diff_frames,
-                                   diff_max_bins=diff_max_bins,
-                                   positive_diffs=True), axis=1)
+    return np.sum(spectrogram, axis=1)
 
 
-# TODO: as above, should this be its own class so that we can set the filter
+# TODO: should this be its own class so that we can set the filter
 #       sizes in seconds instead of frames?
 def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
                  temporal_origin=0):
@@ -244,8 +254,8 @@ def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
     if epsilon <= 0:
         raise ValueError("a positive value must be added before division")
     mkl = np.zeros_like(spectrogram)
-    mkl[diff_frames:] = (spectrogram.spec[diff_frames:] /
-                         (spectrogram.spec[:-diff_frames] + epsilon))
+    mkl[diff_frames:] = (spectrogram[diff_frames:] /
+                         (spectrogram[:-diff_frames] + epsilon))
     # note: the original MKL uses sum instead of mean,
     # but the range of mean is much more suitable
     return np.mean(np.log(1 + mkl), axis=1)
@@ -299,12 +309,13 @@ def weighted_phase_deviation(spectrogram):
     (DAFx), 2006.
 
     """
+    # cache phase
+    phase = spectrogram.stft.phase()
     # make sure the spectrogram is not filtered before
-    if np.shape(spectrogram.phase) != np.shape(spectrogram.spec):
+    if np.shape(phase) != np.shape(spectrogram):
         raise ValueError('spectrogram and phase must be of same shape')
     # weighted_phase_deviation = spectrogram * phase_deviation
-    return np.mean(np.abs(_phase_deviation(spectrogram.stft.phase()) *
-                          spectrogram), axis=1)
+    return np.mean(np.abs(_phase_deviation(phase) * spectrogram), axis=1)
 
 
 def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
@@ -345,10 +356,12 @@ def _complex_domain(spectrogram):
     (DAFx), 2006.
 
     """
-    if np.shape(spectrogram.phase) != np.shape(spectrogram.spec):
+    # cache phase
+    phase = spectrogram.stft.phase()
+    # make sure the spectrogram is not filtered before
+    if np.shape(phase) != np.shape(spectrogram):
         raise ValueError('spectrogram and phase must be of same shape')
     # expected spectrogram
-    phase = spectrogram.stft.phase()
     cd_target = np.zeros_like(phase)
     # assume constant phase change
     cd_target[1:] = 2 * phase[1:] - phase[:-1]
@@ -391,10 +404,13 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
     (DAFx), 2006.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # rectified complex domain
     rcd = _complex_domain(spectrogram)
     # only keep values where the magnitude rises
-    rcd *= spectrogram.diff(diff_frames=diff_frames)
+    rcd *= spectrogram
     # take the sum of the absolute changes
     return np.sum(np.abs(rcd), axis=1)
 
@@ -456,7 +472,7 @@ class SpectralOnsetProcessor(Processor):
         # add onset detection method arguments to the existing parser
         g = parser.add_argument_group('spectral onset detection arguments')
         if onset_method is not None:
-            g.add_argument('-o', '--odf', dest='onset_method',
+            g.add_argument('--odf', dest='onset_method',
                            default=onset_method, choices=cls.METHODS,
                            help='use this onset detection function '
                                 '[default=%(default)s]')

@@ -45,7 +45,8 @@ def main():
     FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30,
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 positive_diffs=True)
     PeakPickingProcessor.add_arguments(p, threshold=1.6, pre_max=0.01,
                                        post_max=0.05, pre_avg=0.15, post_avg=0,
                                        combine=0.03, delay=0)
@@ -67,9 +68,10 @@ def main():
         sig = SignalProcessor(num_channels=1, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
         spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+        diff = SpectrogramDifferenceProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='spectral_flux',
                                      **vars(args))
-        in_processor = [sig, frames, spec, odf]
+        in_processor = [sig, frames, spec, diff, odf]
 
     # output processor
     if args.save:

@@ -358,11 +358,23 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         super(ShortTimeFourierTransform, self).__setstate__(state[0:-4])
 
     def spec(self, **kwargs):
-        """Magnitude spectrogram"""
+        """
+        Compute the magnitude spectrogram of the STFT.
+
+        :param kwargs: keyword arguments passed to Spectrogram
+        :return:       Spectrogram instance
+
+        """
         return Spectrogram(self, **kwargs)
 
     def phase(self, **kwargs):
-        """Phase spectrogram"""
+        """
+        Compute the phase of the STFT.
+
+        :param kwargs: keyword arguments passed to Phase
+        :return:       Phase instance
+
+        """
         return Phase(self, **kwargs)
 
 
@@ -487,7 +499,13 @@ class Phase(np.ndarray):
         self.frames = getattr(obj, 'frames', None)
 
     def local_group_delay(self, **kwargs):
-        """Local group delay."""
+        """
+        Compute the local group delay of the phase.
+
+        :param kwargs: keyword arguments passed to LocalGroupDelay
+        :return:       LocalGroupDelay instance
+
+        """
         return LocalGroupDelay(self, **kwargs)
 
     lgd = local_group_delay
@@ -505,13 +523,13 @@ class LocalGroupDelay(_PropertyMixin, Phase):
         Creates a new LocalGroupDelay instance from the given
         ShortTimeFourierTransform.
 
-        :param stft:   ShortTimeFourierTransform instance (or anything a
-                       ShortTimeFourierTransform can be instantiated from)
+        :param stft:   Phase instance (or anything a Phase can be instantiated
+                       from)
 
-        If no ShortTimeFourierTransform instance was given, one is instantiated
-        and these arguments are passed:
+        If no Phase instance was given, one is instantiated and these arguments
+        are passed:
 
-        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
+        :param kwargs: keyword arguments passed to Phase
 
         """
         #
@@ -597,15 +615,33 @@ class Spectrogram(_PropertyMixin, np.ndarray):
         self.frames = getattr(obj, 'frames', None)
 
     def diff(self, **kwargs):
-        """Difference of spectrogram."""
+        """
+        Compute the difference of the magnitude spectrogram.
+
+        :param kwargs: keyword arguments passed to SpectrogramDifference
+        :return:       SpectrogramDifference instance
+
+        """
         return SpectrogramDifference(self, **kwargs)
 
     def filter(self, **kwargs):
-        """Filtered spectrogram."""
+        """
+        Compute a filtered version of the magnitude spectrogram.
+
+        :param kwargs: keyword arguments passed to FilteredSpectrogram
+        :return:       FilteredSpectrogram instance
+
+        """
         return FilteredSpectrogram(self, **kwargs)
 
     def log(self, **kwargs):
-        """Logarithmic spectrogram."""
+        """
+        Compute a logarithmically scaled version of the magnitude spectrogram.
+
+        :param kwargs: keyword arguments passed to LogarithmicSpectrogram
+        :return:       LogarithmicSpectrogram instance
+
+        """
         return LogarithmicSpectrogram(self, **kwargs)
 
 
@@ -614,13 +650,20 @@ class SpectrogramProcessor(Processor):
     SpectrogramProcessor class.
 
     """
+    def __init__(self, **kwargs):
+        """
+        Creates a new SpectrogramProcessor instance.
+
+        """
+        pass
 
     def process(self, data, **kwargs):
         """
         Create a Spectrogram from the given data.
 
-        :param data: data to be processed
-        :return:     Spectrogram instance
+        :param data:   data to be processed
+        :param kwargs: keyword arguments passed to Spectrogram
+        :return:       Spectrogram instance
 
         """
         return Spectrogram(data, **kwargs)
@@ -790,12 +833,9 @@ class FilteredSpectrogramProcessor(Processor):
         """
         Perform filtering of a spectrogram.
 
-        :param data:       data to be processed
-        :param block_size: perform processing in blocks of this size [int]
-        :return:           Spectrogram instance
-
-        Note: If `block_size` is 'None', all data is processed in a single
-              chunk, if set its value should be a power of 2.
+        :param data:   data to be processed
+        :param kwargs: keyword arguments passed to FilteredSpectrogram
+        :return:       FilteredSpectrogram instance
 
         """
         # instantiate a FilteredSpectrogram and return it
@@ -815,7 +855,7 @@ class FilteredSpectrogramProcessor(Processor):
 
         :param parser:            existing argparse parser
         :param filterbank:        filter the magnitude spectrogram with a
-                                  logarithmic filterbank [Filterbank or bool]
+                                  filterbank of that type [Filterbank or bool]
         :param bands:             use N bands per octave [int]
         :param fmin:              minimum frequency of the filterbank [float]
         :param fmax:              maximum frequency of the filterbank [float]
@@ -837,7 +877,7 @@ class FilteredSpectrogramProcessor(Processor):
                                action='store_false',
                                default=filterbank,
                                help='do not filter the spectrogram with a '
-                                    'filterbank [default=True]')
+                                    'filterbank [default=%(default)s]')
             else:
                 g.add_argument('--filter', action='store_true', default=None,
                                help='filter the spectrogram with a '
@@ -918,7 +958,7 @@ class LogarithmicSpectrogram(Spectrogram):
         If no Spectrogram instance was given, one is instantiated and these
         arguments are passed:
 
-        :param kwargs: keyword arguments passed to Spectrogram
+        :param kwargs:      keyword arguments passed to Spectrogram
 
         """
         # instantiate a Spectrogram if needed
@@ -991,8 +1031,9 @@ class LogarithmicSpectrogramProcessor(Processor):
         """
         Perform logarithmic scaling of a spectrogram.
 
-        :param data: data to be processed
-        :return:     LogarithmicSpectrogram instance
+        :param data:   data to be processed
+        :param kwargs: keyword arguments passed to LogarithmicSpectrogram
+        :return:       LogarithmicSpectrogram instance
 
         """
         # instantiate a LogarithmicSpectrogram
@@ -1006,7 +1047,7 @@ class LogarithmicSpectrogramProcessor(Processor):
         parser.
 
         :param parser: existing argparse parser
-        :param log:    take the logarithm of the magnitude [bool]
+        :param log:    take the logarithm of the spectrogram [bool]
         :param mul:    multiply the spectrogram with this factor before
                        taking the logarithm of the magnitudes [float]
         :param add:    add this value before taking the logarithm of the
@@ -1118,10 +1159,11 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
         Magnitude spectrogram scaling parameters:
 
-        :param mul: multiply the spectrogram with this factor before taking
-                    the logarithm of the magnitudes [float]
-        :param add: add this value before taking the logarithm of the
-                    magnitudes [float]
+        :param mul:               multiply the spectrogram with this factor
+                                  before taking the logarithm of the magnitudes
+                                  [float]
+        :param add:               add this value before taking the logarithm of
+                                  the magnitudes [float]
 
         """
         self.filterbank = filterbank
@@ -1136,13 +1178,15 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
     def process(self, data, **kwargs):
         """
-        Perform logarithmic scaling of a spectrogram.
+        Perform logarithmic scaling of a filtered spectrogram.
 
-        :param data: data to be processed
-        :return:     LogarithmicSpectrogram instance
+        :param data:   data to be processed
+        :param kwargs: keyword arguments passed to
+                       LogarithmicFilteredSpectrogram
+        :return:       LogarithmicFilteredSpectrogram instance
 
         """
-        # instantiate a LogarithmicSpectrogram
+        # instantiate a LogarithmicFilteredSpectrogram
         return LogarithmicFilteredSpectrogram(
             data, filterbank=self.filterbank, bands=self.bands, fmin=self.fmin,
             fmax=self.fmax, fref=self.fref, norm_filters=self.norm_filters,
@@ -1342,6 +1386,7 @@ class SpectrogramDifferenceProcessor(Processor):
                                   all diff values < 0 to 0
 
         """
+        print diff_ratio, diff_frames, diff_max_bins, positive_diffs
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
@@ -1351,8 +1396,9 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         Perform a temporal difference calculation on the given data.
 
-        :param data: data to calculate the difference on
-        :return:     temporal diff of the data
+        :param data:   data to calculate the difference on
+        :param kwargs: keyword arguments passed to SpectrogramDifference
+        :return:       SpectrogramDifference instance
 
         """
         # instantiate a SpectrogramDifference and return it
@@ -1363,12 +1409,14 @@ class SpectrogramDifferenceProcessor(Processor):
                                      **kwargs)
 
     @classmethod
-    def add_arguments(cls, parser, diff_ratio=None, diff_frames=None,
-                      diff_max_bins=None, positive_diffs=None):
+    def add_arguments(cls, parser, diff=True, diff_ratio=None,
+                      diff_frames=None, diff_max_bins=None,
+                      positive_diffs=None):
         """
         Add spectrogram difference related arguments to an existing parser.
 
         :param parser:            existing argparse parser
+        :param diff:              take the difference of the spectrogram [bool]
         :param diff_ratio:        calculate the difference to the frame at
                                   which the window used for the STFT yields
                                   this ratio of the maximum height [float]
@@ -1388,6 +1436,17 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         # add diff related options to the existing parser
         g = parser.add_argument_group('spectrogram difference arguments')
+        if diff is not None:
+            if diff:
+                g.add_argument('--no_diff', dest='diff',
+                               action='store_false', default=diff,
+                               help='use the spectrogram [default=differences '
+                                    'of the spectrogram]')
+            else:
+                g.add_argument('--diff', action='store_true',
+                               default=-diff,
+                               help='use the differences of the spectrogram '
+                                    '[default=spectrogram]')
         if diff_ratio is not None:
             g.add_argument('--diff_ratio', action='store', type=float,
                            default=diff_ratio,
@@ -1441,17 +1500,20 @@ class SuperFluxProcessor(SequentialProcessor):
         # we want max filtered diffs
         diff_ratio = kwargs.pop('diff_ratio', 0.5)
         diff_max_bins = kwargs.pop('diff_max_bins', 3)
+        positive_diffs = kwargs.pop('positive_diffs', True)
         # processing chain
         stft = ShortTimeFourierTransformProcessor(**kwargs)
-        spec = FilteredSpectrogramProcessor(filterbank=filterbank, bands=bands,
+        spec = SpectrogramProcessor(**kwargs)
+        filt = FilteredSpectrogramProcessor(filterbank=filterbank, bands=bands,
                                             norm_filters=norm_filters,
                                             **kwargs)
-        lfs = LogarithmicSpectrogramProcessor(**kwargs)
+        log = LogarithmicSpectrogramProcessor(**kwargs)
         diff = SpectrogramDifferenceProcessor(diff_ratio=diff_ratio,
                                               diff_max_bins=diff_max_bins,
+                                              positive_diffs=positive_diffs,
                                               **kwargs)
         # sequentially process everything
-        super(SuperFluxProcessor, self).__init__([stft, spec, lfs, diff])
+        super(SuperFluxProcessor, self).__init__([stft, spec, filt, log, diff])
 
 
 class MultiBandSpectrogram(FilteredSpectrogram):
@@ -1467,7 +1529,7 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         Spectrogram.
 
         :param spectrogram:           Spectrogram instance (or anything a
-                                      FilteredSpectrogram be instantiated from)
+                                      Spectrogram can be instantiated from)
 
         Multi-band parameters:
 
@@ -1565,8 +1627,9 @@ class MultiBandSpectrogramProcessor(Processor):
         """
         Return the a multi-band representation of the given spectrogram.
 
-        :param data: spectrogram to be processed [Spectrogram]
-        :return:     Spectrogram instance
+        :param data:   spectrogram to be processed [Spectrogram]
+        :param kwargs: keyword arguments passed to MultiBandSpectrogram
+        :return:       MultiBandSpectrogram instance
 
         """
         # instantiate a MultiBandSpectrogram
@@ -1622,7 +1685,7 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         Creates a new StackedSpectrogramProcessor instance.
 
         :param frame_size:  list with frame sizes [list of int]
-        :param spectrogram: list with Spectrogram processor instances
+        :param spectrogram: Spectrogram processor instance
         :param stack:       stacking function to be used
                             - 'np.vstack' stack multiple spectrograms
                               vertically, i.e. stack in time dimension
@@ -1634,6 +1697,10 @@ class StackedSpectrogramProcessor(ParallelProcessor):
                             Additionally, the literal values {'time',
                             'freq' | 'frequency', 'depth'} are supported
         :param stack_diffs: also stack the differences [bool]
+                            If set, a `SpectrogramDifferenceProcessor` will be
+                            instantiated and any additional keywords will be
+                            passed to it.
+
 
         Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
               as a stacking function), they must have the same frequency
@@ -1658,17 +1725,17 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         elif stack == 'depth':
             stack = np.dstack
         self.stack = stack
-        # TODO: this is a bit hacky to define another processor here
+        # TODO: it is a bit hackish to define another processor here
         self.stack_diffs = stack_diffs
         if stack_diffs:
             self.stack_processor = SpectrogramDifferenceProcessor(**kwargs)
 
-    def process(self, data, **kwargs):
+    def process(self, data):
         """
         Stack the magnitudes spectrograms (and their differences).
 
         :param data: Signal instance [Signal]
-        :return:     stacked specs (and diffs)
+        :return:     stacked specs (and diffs) [numpy array]
 
         """
         # process everything
