@@ -69,7 +69,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # define an input processor
-        sig = SignalProcessor(mono=True, **vars(args))
+        sig = SignalProcessor(num_channels=1, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
         filt = FilteredSpectrogramProcessor(**vars(args))
         log = LogarithmicSpectrogramProcessor(**vars(args))

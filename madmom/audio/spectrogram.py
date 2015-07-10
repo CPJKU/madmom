@@ -1386,7 +1386,6 @@ class SpectrogramDifferenceProcessor(Processor):
                                   all diff values < 0 to 0
 
         """
-        print diff_ratio, diff_frames, diff_max_bins, positive_diffs
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
