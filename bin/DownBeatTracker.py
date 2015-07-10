@@ -10,8 +10,7 @@ import argparse
 from madmom.processors import IOProcessor, io_arguments
 from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (SpectrogramProcessor,
-                                      FilteredSpectrogramProcessor,
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       MultiBandSpectrogramProcessor)

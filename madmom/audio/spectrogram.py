@@ -222,8 +222,12 @@ class _PropertyMixin(object):
 
     @property
     def bin_freqs(self):
-        """Frequencies of the FFT bins."""
-        return fft_frequencies(self.num_bins, self.frames.signal.sample_rate)
+        """Frequencies of the bins."""
+        try:
+            return self.filterbank.center_frequencies
+        except AttributeError:
+            return fft_frequencies(self.num_bins,
+                                   self.frames.signal.sample_rate)
 
 
 # short-time Fourier transform classes
@@ -613,6 +617,9 @@ class Spectrogram(_PropertyMixin, np.ndarray):
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
         self.frames = getattr(obj, 'frames', None)
+        self.filterbank = getattr(obj, 'filterbank', None)
+        self.mul = getattr(obj, 'mul', None)
+        self.add = getattr(obj, 'add', None)
 
     def diff(self, **kwargs):
         """
@@ -759,8 +766,11 @@ class FilteredSpectrogram(Spectrogram):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.filterbank = filterbank
+        # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.frames = spectrogram.stft.frames
+        obj.mul = spectrogram.mul
+        obj.add = spectrogram.add
         # return the object
         return obj
 
@@ -769,8 +779,7 @@ class FilteredSpectrogram(Spectrogram):
             return
         # set default values here, also needed for views
         self.filterbank = getattr(obj, 'filterbank', None)
-        self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        super(FilteredSpectrogram, self).__array_finalize__(obj)
 
     def __reduce__(self):
         # needed for correct pickling
@@ -788,12 +797,6 @@ class FilteredSpectrogram(Spectrogram):
         self.filterbank = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(FilteredSpectrogram, self).__setstate__(state[0:-1])
-
-    @property
-    def bin_freqs(self):
-        """Frequencies of the spectrogram bins."""
-        # overwrite with the filterbank center frequencies
-        return self.filterbank.center_frequencies
 
 
 class FilteredSpectrogramProcessor(Processor):
@@ -973,8 +976,10 @@ class LogarithmicSpectrogram(Spectrogram):
         # save additional attributes
         obj.mul = mul
         obj.add = add
+        # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.frames = spectrogram.stft.frames
+        obj.filterbank = spectrogram.filterbank
         # return the object
         return obj
 
@@ -984,8 +989,7 @@ class LogarithmicSpectrogram(Spectrogram):
         # set default values here, also needed for views
         self.mul = getattr(obj, 'mul', MUL)
         self.add = getattr(obj, 'add', ADD)
-        self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        super(LogarithmicSpectrogram, self).__array_finalize__(obj)
 
     def __reduce__(self):
         # needed for correct pickling
@@ -1116,6 +1120,7 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram, FilteredSpectrogram
         obj.filterbank = spectrogram.filterbank
         obj.mul = data.mul
         obj.add = data.add
+        # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.frames = spectrogram.stft.frames
         # return the object
@@ -1128,8 +1133,7 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram, FilteredSpectrogram
         self.filterbank = getattr(obj, 'filterbank', None)
         self.mul = getattr(obj, 'mul', MUL)
         self.add = getattr(obj, 'add', ADD)
-        self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        super(LogarithmicFilteredSpectrogram, self).__array_finalize__(obj)
 
 
 class LogarithmicFilteredSpectrogramProcessor(Processor):
@@ -1318,12 +1322,17 @@ class SpectrogramDifference(Spectrogram):
 
         # cast as FilteredSpectrogram
         obj = np.asarray(diff).view(cls)
+        # save additional attributes
         obj.diff_ratio = diff_ratio
         obj.diff_frames = diff_frames
         obj.diff_max_bins = diff_max_bins
         obj.positive_diffs = positive_diffs
+        # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.frames = spectrogram.stft.frames
+        obj.filterbank = spectrogram.filterbank
+        obj.mul = spectrogram.mul
+        obj.add = spectrogram.add
         # return the object
         return obj
 
@@ -1335,8 +1344,7 @@ class SpectrogramDifference(Spectrogram):
         self.diff_frames = getattr(obj, 'diff_frames', None)
         self.diff_max_bins = getattr(obj, 'diff_max_bins', None)
         self.positive_diffs = getattr(obj, 'positive_diffs', False)
-        self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        super(SpectrogramDifference, self).__array_finalize__(obj)
 
     def __reduce__(self):
         # get the parent's __reduce__ tuple
@@ -1543,7 +1551,6 @@ class MultiBandSpectrogram(FilteredSpectrogram):
                                       FilteredSpectrogram
 
         """
-
         from .filters import RectangularFilterbank
         # instantiate a FilteredSpectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
