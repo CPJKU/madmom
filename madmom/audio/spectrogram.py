@@ -453,7 +453,7 @@ STFTProcessor = ShortTimeFourierTransformProcessor
 
 
 # phase of STFT
-class Phase(np.ndarray):
+class Phase(_PropertyMixin, np.ndarray):
     """
     Phase class.
 
@@ -472,13 +472,14 @@ class Phase(np.ndarray):
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
-
+        circular_shift = kwargs.pop('circular_shift', True)
         # take the STFT
         if isinstance(stft, Phase):
             stft = stft.stft
         # instantiate a ShortTimeFourierTransform object if needed
         if not isinstance(stft, ShortTimeFourierTransform):
-            stft = ShortTimeFourierTransform(stft, circular_shift=True,
+            stft = ShortTimeFourierTransform(stft,
+                                             circular_shift=circular_shift,
                                              **kwargs)
         # TODO: just recalculate with circular_shift set?
         if not stft.circular_shift:
@@ -516,16 +517,15 @@ class Phase(np.ndarray):
 
 
 # local group delay of STFT
-class LocalGroupDelay(_PropertyMixin, Phase):
+class LocalGroupDelay(_PropertyMixin, np.ndarray):
     """
-    Phase class.
+    Local Group Delay class.
 
     """
 
     def __new__(cls, phase, **kwargs):
         """
-        Creates a new LocalGroupDelay instance from the given
-        ShortTimeFourierTransform.
+        Creates a new LocalGroupDelay instance from the given Phase.
 
         :param stft:   Phase instance (or anything a Phase can be instantiated
                        from)
@@ -538,7 +538,7 @@ class LocalGroupDelay(_PropertyMixin, Phase):
         """
         #
         if not isinstance(stft, Phase):
-            # try to instantiate a ShortTimeFourierTransform object
+            # try to instantiate a Phase object
             phase = Phase(phase, circular_shift=True, **kwargs)
         if not phase.stft.circular_shift:
             import warnings
@@ -674,6 +674,8 @@ class SpectrogramProcessor(Processor):
 
         """
         return Spectrogram(data, **kwargs)
+
+    add_arguments = ShortTimeFourierTransformProcessor.add_arguments
 
 
 # filtered spectrogram stuff

@@ -8,6 +8,7 @@ This file contains tests for the madmom.audio.spectrogram module.
 # pylint: skip-file
 
 import unittest
+import cPickle
 
 from . import DATA_PATH
 from madmom.audio.spectrogram import *
@@ -172,52 +173,21 @@ class TestTuningFrequencyFunction(unittest.TestCase):
 
 
 # test classes
-class TestSpectrogramClass(unittest.TestCase):
-
-    def test_types(self):
-        result = Spectrogram(DATA_PATH + '/sample.wav')
-        self.assertIsInstance(result, Spectrogram)
-        self.assertIsInstance(result.frames, FramedSignal)
-        # properties
-        self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_frequencies, np.ndarray)
-        self.assertIsInstance(result.num_bins, int)
-
-    def test_values(self):
-        result = Spectrogram(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 1024))
-        self.assertTrue(result.num_frames == 281)
-        self.assertTrue(result.num_bins == 1024)
-
-
-class TestSpectrogramProcessorClass(unittest.TestCase):
-
-    def test_types(self):
-        processor = SpectrogramProcessor()
-        self.assertIsInstance(processor, SpectrogramProcessor)
-
-    def test_values(self):
-        processor = SpectrogramProcessor()
-        result = processor.process(DATA_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 1024))
-        self.assertTrue(result.num_frames == 281)
-        self.assertTrue(result.num_bins == 1024)
-
-
 class ShortTimeFourierTransformClass(unittest.TestCase):
 
     def test_types(self):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
         self.assertIsInstance(result, ShortTimeFourierTransform)
+        self.assertIsInstance(result, np.ndarray)
         self.assertIsInstance(result.frames, FramedSignal)
         self.assertIsInstance(result.window, np.ndarray)
-        self.assertIsInstance(result.fft_size, int)
         self.assertIsInstance(result.fft_window, np.ndarray)
+        self.assertIsInstance(result.fft_size, int)
+        self.assertIsInstance(result.circular_shift, bool)
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
-        self.assertIsInstance(result, np.ndarray)
 
     def test_values(self):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
@@ -231,6 +201,25 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
         self.assertTrue(result.shape == (281, 1024))
+
+    def test_pickle(self):
+        # test with non-default values
+        result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav',
+                                           window=np.hamming, fft_size=4096,
+                                           circular_shift=True)
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        # additional attributes
+        self.assertTrue(np.allclose(result.window, dump.window))
+        self.assertTrue(np.allclose(result.fft_window, dump.fft_window))
+        self.assertTrue(result.fft_size == dump.fft_size)
+        self.assertTrue(result.circular_shift == dump.circular_shift)
+
+    def test_methods(self):
+        result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result.spec(), Spectrogram)
+        self.assertIsInstance(result.phase(), Phase)
 
 
 class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
@@ -257,22 +246,161 @@ class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
         self.assertTrue(result.shape == (281, 1024))
 
 
-class TestFilteredSpectrogramClass(unittest.TestCase):
+class PhaseClass(unittest.TestCase):
 
     def test_types(self):
-        result = FilteredSpectrogram(DATA_PATH + '/sample.wav')
-        self.assertIsInstance(result, FilteredSpectrogram)
+        result = Phase(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, Phase)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
         self.assertIsInstance(result.frames, FramedSignal)
-        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
+        result = Phase(DATA_PATH + '/sample.wav')
+        # properties
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(np.allclose(result.bin_frequencies,
+                                    fft_frequencies(1024, 44100)))
+        self.assertTrue(result.num_bins == 1024)
+        self.assertTrue(result.shape == (281, 1024))
+
+    def test_pickle(self):
+        result = Phase(DATA_PATH + '/sample.wav')
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+
+    def test_methods(self):
+        result = Phase(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result.local_group_delay(), LocalGroupDelay)
+        self.assertIsInstance(result.lgd(), LocalGroupDelay)
+
+    def test_warnings(self):
+        # TODO: write a test which catches the warning about the circular_shift
+        pass
+
+
+class LocalGroupDelayClass(unittest.TestCase):
+
+    def test_types(self):
+        result = LocalGroupDelay(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, LocalGroupDelay)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertIsInstance(result.phase, Phase)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        self.assertIsInstance(result.frames, FramedSignal)
+        # properties
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        self.assertIsInstance(result.num_bins, int)
+
+    def test_values(self):
+        result = LocalGroupDelay(DATA_PATH + '/sample.wav')
+        # properties
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(np.allclose(result.bin_frequencies,
+                                    fft_frequencies(1024, 44100)))
+        self.assertTrue(result.num_bins == 1024)
+        self.assertTrue(result.shape == (281, 1024))
+
+    def test_pickle(self):
+        result = LocalGroupDelay(DATA_PATH + '/sample.wav')
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+
+
+class TestSpectrogramClass(unittest.TestCase):
+
+    def test_types(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        # properties
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        self.assertIsInstance(result.num_bins, int)
+        # other faked attributes
+        self.assertTrue(result.filterbank is None)
+        self.assertTrue(result.mul is None)
+        self.assertTrue(result.add is None)
+
+    def test_values(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 1024))
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(result.num_bins == 1024)
+
+    def test_pickle(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+
+    def test_methods(self):
+        result = Spectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result.diff(), SpectrogramDifference)
+        self.assertIsInstance(result.filter(), FilteredSpectrogram)
+        self.assertIsInstance(result.log(), LogarithmicSpectrogram)
+
+
+class TestSpectrogramProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = SpectrogramProcessor()
+        self.assertIsInstance(processor, SpectrogramProcessor)
+
+    def test_values(self):
+        processor = SpectrogramProcessor()
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 1024))
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(result.num_bins == 1024)
+
+
+class TestFilteredSpectrogramClass(unittest.TestCase):
+
+    def test_types(self):
+        result = FilteredSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, FilteredSpectrogram)
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
+        # properties
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        self.assertIsInstance(result.num_bins, int)
+        # other faked attributes
+        self.assertTrue(result.mul is None)
+        self.assertTrue(result.add is None)
+
+    def test_values(self):
         result = FilteredSpectrogram(DATA_PATH + '/sample.wav')
         self.assertTrue(result.num_bins == 81)
         self.assertTrue(result.num_frames == 281)
+
+    def test_pickle(self):
+        # test with non-default values
+        from madmom.audio.filters import MelFilterbank
+        result = FilteredSpectrogram(DATA_PATH + '/sample.wav',
+                                     filterbank=MelFilterbank)
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        # additional attributes
+        self.assertTrue(np.allclose(result.filterbank, dump.filterbank))
+
+    def test_methods(self):
+        result = FilteredSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result.diff(), SpectrogramDifference)
+        # TODO: should we return a LogarithmicFilteredSpectrogram?
+        self.assertIsInstance(result.log(), LogarithmicSpectrogram)
 
 
 class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
@@ -305,6 +433,8 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
     def test_types(self):
         result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav')
         self.assertIsInstance(result, LogarithmicSpectrogram)
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
         self.assertIsInstance(result.frames, FramedSignal)
         self.assertIsInstance(result.mul, float)
         self.assertIsInstance(result.add, float)
@@ -312,6 +442,8 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
+        # other faked attributes
+        self.assertTrue(result.filterbank is None)
 
     def test_values(self):
         result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav')
@@ -326,6 +458,21 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
                                         mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
+
+    def test_pickle(self):
+        # test with non-default values
+        result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav',
+                                        mul=2, add=2)
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(result.mul == dump.mul)
+        self.assertTrue(result.add == dump.add)
+
+    def test_methods(self):
+        result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result.diff(), SpectrogramDifference)
+        self.assertIsInstance(result.filter(), FilteredSpectrogram)
 
 
 class TestLogarithmicSpectrogramProcessorClass(unittest.TestCase):
@@ -344,6 +491,145 @@ class TestLogarithmicSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(result.shape == (281, 1024))
 
 
+class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
+
+    def test_types(self):
+        result = LogarithmicFilteredSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, LogarithmicFilteredSpectrogram)
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.filterbank, Filterbank)
+        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
+        self.assertIsInstance(result.mul, float)
+        self.assertIsInstance(result.add, float)
+        # properties
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        self.assertIsInstance(result.num_bins, int)
+
+    def test_values(self):
+        result = LogarithmicFilteredSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.mul == 1)
+        self.assertTrue(result.add == 1)
+        # properties
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(result.num_bins == 81)
+        self.assertTrue(result.shape == (281, 81))
+        # test other values
+        result = LogarithmicFilteredSpectrogram(DATA_PATH + '/sample.wav',
+                                                mul=2, add=2)
+        self.assertTrue(result.mul == 2)
+        self.assertTrue(result.add == 2)
+
+    def test_pickle(self):
+        # test with non-default values
+        result = LogarithmicFilteredSpectrogram(DATA_PATH + '/sample.wav',
+                                                mul=2, add=2)
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(np.allclose(result.filterbank, dump.filterbank))
+        self.assertTrue(result.mul == dump.mul)
+        self.assertTrue(result.add == dump.add)
+
+
+class TestLogarithmicFilteredSpectrogramProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = LogarithmicFilteredSpectrogramProcessor()
+        self.assertIsInstance(processor,
+                              LogarithmicFilteredSpectrogramProcessor)
+        self.assertTrue(processor.filterbank == LogarithmicFilterbank)
+        self.assertIsInstance(processor.num_bands, int)
+        self.assertIsInstance(processor.fmin, float)
+        self.assertIsInstance(processor.fmax, float)
+        self.assertIsInstance(processor.fref, float)
+        self.assertIsInstance(processor.norm_filters, bool)
+        self.assertIsInstance(processor.duplicate_filters, bool)
+        self.assertIsInstance(processor.mul, float)
+        self.assertIsInstance(processor.add, float)
+
+    def test_values(self):
+        processor = LogarithmicFilteredSpectrogramProcessor()
+        self.assertTrue(processor.mul == 1)
+        self.assertTrue(processor.add == 1)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 81))
+
+
+class TestSpectrogramDifferenceClass(unittest.TestCase):
+
+    def test_types(self):
+        result = SpectrogramDifference(DATA_PATH + '/sample.wav')
+        self.assertIsInstance(result, SpectrogramDifference)
+        self.assertIsInstance(result, Spectrogram)
+        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.diff_ratio, float)
+        self.assertIsInstance(result.diff_frames, int)
+        self.assertTrue(result.diff_max_bins is None)
+        self.assertIsInstance(result.positive_diffs, bool)
+        # properties
+        self.assertIsInstance(result.num_frames, int)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        self.assertIsInstance(result.num_bins, int)
+        # other faked attributes
+        self.assertTrue(result.filterbank is None)
+        self.assertTrue(result.mul is None)
+        self.assertTrue(result.add is None)
+
+    def test_values(self):
+        result = SpectrogramDifference(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.diff_ratio == 0.5)
+        self.assertTrue(result.diff_frames == 1)
+        self.assertTrue(result.diff_max_bins is None)
+        self.assertTrue(result.positive_diffs is False)
+        # properties
+        self.assertTrue(result.num_frames == 281)
+        self.assertTrue(result.num_bins == 1024)
+        self.assertTrue(result.shape == (281, 1024))
+
+    def test_pickle(self):
+        # test with non-default values
+        result = SpectrogramDifference(DATA_PATH + '/sample.wav',
+                                       diff_ratio=0.7, diff_frames=3,
+                                       diff_max_bins=2, positive_diffs=True)
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(result.diff_ratio == dump.diff_ratio)
+        self.assertTrue(result.diff_frames == dump.diff_frames)
+        self.assertTrue(result.diff_max_bins == dump.diff_max_bins)
+        self.assertTrue(result.positive_diffs == dump.positive_diffs)
+
+
+class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
+
+    def test_types(self):
+        processor = SpectrogramDifferenceProcessor()
+        self.assertIsInstance(processor, SpectrogramDifferenceProcessor)
+        self.assertIsInstance(processor.diff_ratio, float)
+        self.assertTrue(processor.diff_frames is None)
+        self.assertTrue(processor.diff_max_bins is None)
+        self.assertIsInstance(processor.positive_diffs, bool)
+
+    def test_values(self):
+        processor = SpectrogramDifferenceProcessor(diff_frames=2,
+                                                   diff_max_bins=3)
+        self.assertTrue(processor.diff_ratio == 0.5)
+        self.assertTrue(processor.diff_frames == 2)
+        self.assertTrue(processor.diff_max_bins == 3)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 1024))
+        self.assertTrue(np.sum(result[:2]) == 0)
+        self.assertTrue(np.min(result) <= 0)
+        # positive diffs
+        processor = SpectrogramDifferenceProcessor(positive_diffs=True)
+        result = processor.process(DATA_PATH + '/sample.wav')
+        self.assertTrue(np.min(result) >= 0)
+
+
 class TestSuperFluxProcessorClass(unittest.TestCase):
 
     def test_types(self):
@@ -357,6 +643,16 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_bins == 140)
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.shape == (281, 140))
+        # filterbank stuff
+        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
+        self.assertTrue(result.filterbank.bands_per_octave == 24)
+        # log stuff
+        self.assertTrue(result.mul == 1)
+        self.assertTrue(result.add == 1)
+        # diff stuff
+        self.assertTrue(result.diff_ratio == 0.5)
+        self.assertTrue(result.diff_max_bins == 3)
+        self.assertTrue(result.positive_diffs is True)
 
 
 class TestMultiBandSpectrogramClass(unittest.TestCase):

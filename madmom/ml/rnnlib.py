@@ -1410,7 +1410,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                 'online': online, 'filterbank': filterbank, 'log': log}
         if filterbank:
             tags['filterbank'] = filterbank.__name__
-            tags['bands'] = bands
+            tags['num_bands'] = num_bands
             tags['fmin'] = fmin
             tags['fmax'] = fmax
             tags['norm_filters'] = norm_filters
@@ -1420,7 +1420,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         if diff_ratio or diff_frames:
             tags['diff_ratio'] = diff_ratio
             tags['diff_frames'] = diff_frames
-            tags['max_bins'] = diff_max_bins
+            tags['diff_max_bins'] = diff_max_bins
         if shift:
             tags['shift'] = shift
         if spread:

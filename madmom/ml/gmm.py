@@ -108,9 +108,9 @@ def log_multivariate_normal_density(x, means, covars, covariance_type='diag'):
     covars : array_like
         List of n_components covariance parameters for each Gaussian. The shape
         depends on `covariance_type`:
-            (n_components, n_features)      if 'spherical',
-            (n_features, n_features)    if 'tied',
-            (n_components, n_features)    if 'diag',
+            (n_components, n_features)             if 'spherical',
+            (n_features, n_features)               if 'tied',
+            (n_components, n_features)             if 'diag',
             (n_components, n_features, n_features) if 'full'
 
     covariance_type : string
