@@ -11,7 +11,8 @@ from scipy.fftpack import dct
 
 from madmom.processors import Processor, SequentialProcessor
 from madmom.audio.filters import MelFilterbank
-from madmom.audio.spectrogram import Spectrogram, SpectrogramProcessor
+from madmom.audio.spectrogram import (Spectrogram,
+                                      LogarithmicFilteredSpectrogramProcessor)
 
 
 class Cepstrogram(Processor):
@@ -50,14 +51,14 @@ class MFCC(SequentialProcessor):
 
     """
 
-    def __init__(self, mel_bands=30, fmin=40, fmax=15000, norm_filters=True,
+    def __init__(self, num_bands=30, fmin=40, fmax=15000, norm_filters=True,
                  mul=1, add=0, transform=dct, **kwargs):
         """
         Creates a new MFCC processor.
 
         A Mel filterbank with these parameters:
 
-        :param mel_bands:    number of filter bands per octave
+        :param num_bands:    number of Mel filter bands
         :param fmin:         the minimum frequency [Hz]
         :param fmax:         the maximum frequency [Hz]
         :param norm_filters: normalize filter area to 1
@@ -86,9 +87,9 @@ class MFCC(SequentialProcessor):
         # 4) Take the discrete cosine transform of the list of mel log powers,
         #    as if it were a signal.
         # 5) The MFCCs are the amplitudes of the resulting spectrum
-        spec = SpectrogramProcessor(filterbank=MelFilterbank, bands=mel_bands,
-                                    fmin=fmin, fmax=fmax,
-                                    norm_filters=norm_filters, log=True,
-                                    mul=mul, add=add, **kwargs)
-        # make it a SequentialProcessor([1-3, 4])
+        # Note: 1) to 4) is handled by LogarithmicFilteredSpectrogramProcessor
+        spec = LogarithmicFilteredSpectrogramProcessor(
+            filterbank=MelFilterbank, num_bands=num_bands, fmin=fmin,
+            fmax=fmax, norm_filters=norm_filters, mul=mul, add=add, **kwargs)
+        # make it a SequentialProcessor([1-4, 5])
         super(MFCC, self).__init__([spec, Cepstrogram(transform=transform)])

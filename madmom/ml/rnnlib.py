@@ -1259,10 +1259,10 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
 
 def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                     frame_size=2048, online=False, fps=100, filterbank=None,
-                    bands=6, fmin=30, fmax=17000, norm_filters=True, log=True,
-                    mul=1, add=0, diff=True, diff_ratio=0.5, diff_frames=None,
-                    diff_max_bins=1, shift=0, spread=0, split=None,
-                    verbose=False):
+                    num_bands=6, fmin=30, fmax=17000, norm_filters=True,
+                    log=True, mul=1, add=0, diff=True, diff_ratio=0.5,
+                    diff_frames=None, diff_max_bins=1, shift=0, spread=0,
+                    split=None, verbose=False):
     """
     Create .nc files for the given .wav and annotation files.
 
@@ -1286,7 +1286,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     Filterbank parameters:
 
     :param filterbank:    filterbank type [Filterbank]
-    :param bands:         number of filter bands (per octave, depending on the
+    :param num_bands:     number of filter bands (per octave, depending on the
                           type of the filterbank)
     :param fmin:          the minimum frequency [Hz]
     :param fmax:          the maximum frequency [Hz]
@@ -1337,16 +1337,13 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
 
-    # stack diffs only if needed
-    stack_diffs = True if diff_ratio or diff_frames else False
     # define processing chain
     sig = SignalProcessor(num_channels=1, norm=norm, att=att)
 
     # we need to define which specs should be stacked
-    print filterbank
     spec = LogarithmicFilteredSpectrogramProcessor(filterbank=filterbank,
-                                                   bands=bands, fmin=fmin,
-                                                   fmax=fmax,
+                                                   num_bands=num_bands,
+                                                   fmin=fmin, fmax=fmax,
                                                    norm_filters=norm_filters,
                                                    log=log, mul=mul, add=add,
                                                    diff_ratio=diff_ratio,
@@ -1355,8 +1352,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     # stack specs with the given frame sizes
     stack = StackedSpectrogramProcessor(frame_size=frame_size,
                                         spectrogram=spec, online=online,
-                                        fps=fps,
-                                        stack_diffs=stack_diffs)
+                                        fps=fps, stack_diffs=diff)
     processor = SequentialProcessor([sig, stack])
 
     # treat all files as annotation files

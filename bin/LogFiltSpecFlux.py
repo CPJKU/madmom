@@ -42,7 +42,7 @@ def main():
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=100, online=False)
-    FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30,
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,

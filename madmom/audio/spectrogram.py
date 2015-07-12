@@ -221,7 +221,7 @@ class _PropertyMixin(object):
         return self.shape[1]
 
     @property
-    def bin_freqs(self):
+    def bin_frequencies(self):
         """Frequencies of the bins."""
         try:
             return self.filterbank.center_frequencies
@@ -687,7 +687,7 @@ class FilteredSpectrogram(Spectrogram):
     """
 
     # we just want to inherit some properties from Spectrogram
-    def __new__(cls, spectrogram, filterbank=FILTERBANK, bands=BANDS,
+    def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 duplicate_filters=DUPLICATE_FILTERS, block_size=2048,
                 **kwargs):
@@ -704,7 +704,7 @@ class FilteredSpectrogram(Spectrogram):
         If a Filterbank type is given rather than a Filterbank instance, one
         will be created with the given type and these parameters:
 
-        :param bands:             number of filter bands (per octave, depending
+        :param num_bands:         number of filter bands (per octave, depending
                                   on the type of the filterbank) [int]
         :param fmin:              the minimum frequency [Hz, float]
         :param fmax:              the maximum frequency [Hz, float]
@@ -732,9 +732,9 @@ class FilteredSpectrogram(Spectrogram):
         # instantiate a Filterbank if needed
         if issubclass(filterbank, Filterbank):
             # create a filterbank of the given type
-            filterbank = filterbank(spectrogram.bin_freqs, bands=bands,
-                                    fmin=fmin, fmax=fmax, fref=fref,
-                                    norm_filters=norm_filters,
+            filterbank = filterbank(spectrogram.bin_frequencies,
+                                    num_bands=num_bands, fmin=fmin, fmax=fmax,
+                                    fref=fref, norm_filters=norm_filters,
                                     duplicate_filters=duplicate_filters)
         if not isinstance(filterbank, Filterbank):
             raise ValueError('not a Filterbank type or instance: %s' %
@@ -805,7 +805,7 @@ class FilteredSpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=FILTERBANK, num_bands=BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  duplicate_filters=DUPLICATE_FILTERS, **kwargs):
         """
@@ -815,7 +815,7 @@ class FilteredSpectrogramProcessor(Processor):
 
         :param filterbank:        filter the magnitude spectrogram with a
                                   filterbank of this type [None or Filterbank]
-        :param bands:             use N bands (per octave) [int]
+        :param num_bands:         number of filter bands (per octave) [int]
         :param fmin:              minimum frequency of the filterbank [float]
         :param fmax:              maximum frequency of the filterbank [float]
         :param fref:              tuning frequency [Hz, float]
@@ -825,7 +825,7 @@ class FilteredSpectrogramProcessor(Processor):
 
         """
         self.filterbank = filterbank
-        self.bands = bands
+        self.num_bands = num_bands
         self.fmin = fmin
         self.fmax = fmax
         self.fref = fref
@@ -843,14 +843,14 @@ class FilteredSpectrogramProcessor(Processor):
         """
         # instantiate a FilteredSpectrogram and return it
         return FilteredSpectrogram(data, filterbank=self.filterbank,
-                                   bands=self.bands, fmin=self.fmin,
+                                   num_bands=self.num_bands, fmin=self.fmin,
                                    fmax=self.fmax, fref=self.fref,
                                    norm_filters=self.norm_filters,
                                    duplicate_filters=self.duplicate_filters,
                                    **kwargs)
 
     @classmethod
-    def add_arguments(cls, parser, filterbank=FILTERBANK, bands=BANDS,
+    def add_arguments(cls, parser, filterbank=FILTERBANK, num_bands=BANDS,
                       fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
                       duplicate_filters=DUPLICATE_FILTERS):
         """
@@ -859,7 +859,7 @@ class FilteredSpectrogramProcessor(Processor):
         :param parser:            existing argparse parser
         :param filterbank:        filter the magnitude spectrogram with a
                                   filterbank of that type [Filterbank or bool]
-        :param bands:             use N bands per octave [int]
+        :param num_bands:         number of filter bands (per octave) [int]
         :param fmin:              minimum frequency of the filterbank [float]
         :param fmax:              maximum frequency of the filterbank [float]
         :param norm_filters:      normalize the filter to area 1 [bool]
@@ -885,10 +885,10 @@ class FilteredSpectrogramProcessor(Processor):
                 g.add_argument('--filter', action='store_true', default=None,
                                help='filter the spectrogram with a filterbank '
                                     'of this type')
-        if bands is not None:
-            g.add_argument('--bands', action='store', type=int,
-                           default=bands,
-                           help='use a filterbank with N bands (per octave) '
+        if num_bands is not None:
+            g.add_argument('--num_bands', action='store', type=int,
+                           default=num_bands,
+                           help='number of filter bands (per octave) '
                                 '[default=%(default)i]')
         if fmin is not None:
             g.add_argument('--fmin', action='store', type=float,
@@ -1142,7 +1142,7 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=FILTERBANK, num_bands=BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  duplicate_filters=DUPLICATE_FILTERS, mul=MUL, add=ADD,
                  **kwargs):
@@ -1153,7 +1153,7 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
         :param filterbank:        filter the magnitude spectrogram with a
                                   filterbank of this type [None or Filterbank]
-        :param bands:             use N bands (per octave) [int]
+        :param num_bands:         number of filter bands (per octave) [int]
         :param fmin:              minimum frequency of the filterbank [float]
         :param fmax:              maximum frequency of the filterbank [float]
         :param fref:              tuning frequency [Hz, float]
@@ -1171,7 +1171,7 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
         """
         self.filterbank = filterbank
-        self.bands = bands
+        self.num_bands = num_bands
         self.fmin = fmin
         self.fmax = fmax
         self.fref = fref
@@ -1192,8 +1192,9 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
         """
         # instantiate a LogarithmicFilteredSpectrogram
         return LogarithmicFilteredSpectrogram(
-            data, filterbank=self.filterbank, bands=self.bands, fmin=self.fmin,
-            fmax=self.fmax, fref=self.fref, norm_filters=self.norm_filters,
+            data, filterbank=self.filterbank, num_bands=self.num_bands,
+            fmin=self.fmin, fmax=self.fmax, fref=self.fref,
+            norm_filters=self.norm_filters,
             duplicate_filters=self.duplicate_filters, mul=self.mul,
             add=self.add, **kwargs)
 
@@ -1502,7 +1503,7 @@ class SuperFluxProcessor(SequentialProcessor):
         # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
         filterbank = kwargs.pop('filterbank', FILTERBANK)
-        bands = kwargs.pop('bands', 24)
+        num_bands = kwargs.pop('num_bands', 24)
         norm_filters = kwargs.pop('norm_filters', False)
         # we want max filtered diffs
         diff_ratio = kwargs.pop('diff_ratio', 0.5)
@@ -1511,7 +1512,8 @@ class SuperFluxProcessor(SequentialProcessor):
         # processing chain
         stft = ShortTimeFourierTransformProcessor(**kwargs)
         spec = SpectrogramProcessor(**kwargs)
-        filt = FilteredSpectrogramProcessor(filterbank=filterbank, bands=bands,
+        filt = FilteredSpectrogramProcessor(filterbank=filterbank,
+                                            num_bands=num_bands,
                                             norm_filters=norm_filters,
                                             **kwargs)
         log = LogarithmicSpectrogramProcessor(**kwargs)
@@ -1556,7 +1558,7 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
         # create a rectangular filterbank
-        filterbank = RectangularFilterbank(spectrogram.bin_freqs,
+        filterbank = RectangularFilterbank(spectrogram.bin_frequencies,
                                            crossover_frequencies,
                                            norm_filters=norm_bands)
         # filter the spectrogram
@@ -1605,7 +1607,7 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         super(FilteredSpectrogram, self).__setstate__(state[0:-3])
 
     @property
-    def bin_freqs(self):
+    def bin_frequencies(self):
         """Frequencies of the spectrogram bins."""
         # overwrite with the filterbank center frequencies
         return self.filterbank.center_frequencies

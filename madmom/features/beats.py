@@ -127,7 +127,7 @@ class RNNBeatProcessor(SequentialProcessor):
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         # we need to define which specs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(bands=3,
+        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=3,
                                                        norm_filters=True,
                                                        mul=1, add=1)
         # stack specs with the given frame sizes

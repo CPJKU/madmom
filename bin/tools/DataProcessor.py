@@ -46,7 +46,7 @@ def main():
     SignalProcessor.add_arguments(p, sample_rate=44100, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, frame_size=[1024, 2048, 4096],
                                         fps=100, online=False)
-    FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30,
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
                                                fmax=17000, norm_filters=True,
                                                duplicate_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)

@@ -180,7 +180,7 @@ class TestSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.frames, FramedSignal)
         # properties
         self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_freqs, np.ndarray)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
@@ -215,7 +215,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertIsInstance(result.fft_window, np.ndarray)
         # properties
         self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_freqs, np.ndarray)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
         self.assertIsInstance(result, np.ndarray)
 
@@ -227,7 +227,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
                                     np.hanning(2048) / 32767))
         # properties
         self.assertTrue(result.num_frames == 281)
-        self.assertTrue(np.allclose(result.bin_freqs,
+        self.assertTrue(np.allclose(result.bin_frequencies,
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
         self.assertTrue(result.shape == (281, 1024))
@@ -251,7 +251,7 @@ class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
                                     np.hanning(2048) / 32767))
         # properties
         self.assertTrue(result.num_frames == 281)
-        self.assertTrue(np.allclose(result.bin_freqs,
+        self.assertTrue(np.allclose(result.bin_frequencies,
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
         self.assertTrue(result.shape == (281, 1024))
@@ -266,7 +266,7 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
         # properties
         self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_freqs, np.ndarray)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
@@ -310,7 +310,7 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.add, float)
         # properties
         self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_freqs, np.ndarray)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
@@ -368,7 +368,7 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
         self.assertTrue(type(result.norm_bands) == bool)
         # properties
         self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_freqs, np.ndarray)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
@@ -380,7 +380,7 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
         # properties
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 3)
-        # self.assertTrue(result.bin_freqs == [])
+        # self.assertTrue(result.bin_frequencies == [])
 
 
 class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):

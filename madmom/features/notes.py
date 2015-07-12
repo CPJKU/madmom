@@ -130,7 +130,7 @@ class RNNNoteProcessor(SequentialProcessor):
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
         # we need to define which specs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(bands=12,
+        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=12,
                                                        norm_filters=True,
                                                        mul=5, add=1)
         # stack specs with the given frame sizes
