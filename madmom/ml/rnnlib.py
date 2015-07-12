@@ -1260,7 +1260,7 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
 def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                     frame_size=2048, online=False, fps=100, filterbank=None,
                     bands=6, fmin=30, fmax=17000, norm_filters=True, log=True,
-                    mul=1, add=0, diff_ratio=0.5, diff_frames=None,
+                    mul=1, add=0, diff=True, diff_ratio=0.5, diff_frames=None,
                     diff_max_bins=1, shift=0, spread=0, split=None,
                     verbose=False):
     """
@@ -1303,6 +1303,9 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Difference parameters:
 
+    :param diff:          calculate the difference of the spectrogram [bool]
+                          if the spectrograms are stacked, the differences
+                          will be stacked, too
     :param diff_ratio:    calculate the difference to the frame at
                           which the window used for the STFT yields
                           this ratio of the maximum height [float]
@@ -1328,7 +1331,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     """
     from madmom.processors import SequentialProcessor
     from madmom.audio.signal import SignalProcessor
-    from madmom.audio.spectrogram import StackedSpectrogramProcessor
+    from madmom.audio.spectrogram import (
+        LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor)
 
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
@@ -1337,14 +1341,22 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     stack_diffs = True if diff_ratio or diff_frames else False
     # define processing chain
     sig = SignalProcessor(num_channels=1, norm=norm, att=att)
-    stack = StackedSpectrogramProcessor(frame_size=frame_size, online=online,
-                                      fps=fps, filterbank=filterbank,
-                                      bands=bands, fmin=fmin, fmax=fmax,
-                                      norm_filters=norm_filters, log=log,
-                                      mul=mul, add=add, diff_ratio=diff_ratio,
-                                      diff_frames=diff_frames,
-                                      diff_max_bins=diff_max_bins,
-                                      stack_diffs=stack_diffs)
+
+    # we need to define which specs should be stacked
+    print filterbank
+    spec = LogarithmicFilteredSpectrogramProcessor(filterbank=filterbank,
+                                                   bands=bands, fmin=fmin,
+                                                   fmax=fmax,
+                                                   norm_filters=norm_filters,
+                                                   log=log, mul=mul, add=add,
+                                                   diff_ratio=diff_ratio,
+                                                   diff_frames=diff_frames,
+                                                   diff_max_bins=diff_max_bins)
+    # stack specs with the given frame sizes
+    stack = StackedSpectrogramProcessor(frame_size=frame_size,
+                                        spectrogram=spec, online=online,
+                                        fps=fps,
+                                        stack_diffs=stack_diffs)
     processor = SequentialProcessor([sig, stack])
 
     # treat all files as annotation files
@@ -1457,7 +1469,9 @@ def main():
 
     from madmom.utils import OverrideDefaultListAction
     from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-    from madmom.audio.spectrogram import SpectrogramProcessor
+    from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                          LogarithmicSpectrogramProcessor,
+                                          SpectrogramDifferenceProcessor)
 
     # define parser
     p = argparse.ArgumentParser(
@@ -1529,11 +1543,13 @@ def main():
     SignalProcessor.add_arguments(sp, norm=False, att=0)
     FramedSignalProcessor.add_arguments(sp, online=False,
                                         frame_size=[1024, 2048, 4096])
-    SpectrogramProcessor.add_filter_arguments(sp, filterbank=True,
-                                              norm_filters=True)
-    SpectrogramProcessor.add_log_arguments(sp, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(sp, diff_ratio=0.5,
-                                            diff_max_bins=1)
+    from madmom.audio.filters import LogarithmicFilterbank as filterbank
+    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=filterbank,
+                                               norm_filters=True,
+                                               duplicate_filters=None)
+    LogarithmicSpectrogramProcessor.add_arguments(sp, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(sp, diff_ratio=0.5,
+                                                 diff_max_bins=1)
     sp.add_argument('--split', default=None, type=float,
                     help='split files every N seconds')
     sp.add_argument('--shift', default=None, type=float,

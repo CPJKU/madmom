@@ -435,14 +435,12 @@ class SignalProcessor(Processor):
     ATT = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=START, stop=STOP, norm=NORM, att=ATT, **kwargs):
+                 norm=NORM, att=ATT, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
         :param sample_rate:  sample rate of the signal [Hz]
         :param num_channels: reduce the signal to N channels [int]
-        :param start:        start position (seconds) [float]
-        :param stop:         stop position (seconds) [float]
         :param norm:         normalize the signal [bool]
         :param att:          attenuate the signal [dB]
 
@@ -459,17 +457,20 @@ class SignalProcessor(Processor):
         self.norm = norm
         self.att = att
 
-    def process(self, data, **kwargs):
+    def process(self, data, start=None, stop=None, **kwargs):
         """
         Processes the given audio file.
 
         :param data:   file name or handle
+        :param start:  start position (seconds) [float]
+        :param stop:   stop position (seconds) [float]
         :param kwargs: keyword arguments passed to Signal
         :return:       Signal instance with processed signal
 
         """
         # instantiate a Signal (with the given sample rate if set)
-        data = Signal(data, self.sample_rate, self.num_channels, **kwargs)
+        data = Signal(data, self.sample_rate, self.num_channels,
+                      start=start, stop=stop, **kwargs)
         # process it if needed
         if self.norm:
             # normalize signal
@@ -636,8 +637,8 @@ def framed_signal_generator(signal, frame_size, hop_size, origin=0,
     # yield frames as long as there is a signal
     index = 0
     while index < num_frames:
-         yield signal_frame(signal, index, frame_size, hop_size, origin)
-         index += batch_size
+        yield signal_frame(signal, index, frame_size, hop_size, origin)
+        index += batch_size
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis

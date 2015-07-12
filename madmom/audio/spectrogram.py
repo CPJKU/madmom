@@ -883,9 +883,8 @@ class FilteredSpectrogramProcessor(Processor):
                                     'filterbank [default=%(default)s]')
             else:
                 g.add_argument('--filter', action='store_true', default=None,
-                               help='filter the spectrogram with a '
-                                    'logarithmically spaced filterbank '
-                                    '[default=False]')
+                               help='filter the spectrogram with a filterbank '
+                                    'of this type')
         if bands is not None:
             g.add_argument('--bands', action='store', type=int,
                            default=bands,
@@ -1085,7 +1084,8 @@ class LogarithmicSpectrogramProcessor(Processor):
 
 
 # logarithmic filtered spectrogram class
-class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram, FilteredSpectrogram):
+class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
+                                     FilteredSpectrogram):
     """
     LogarithmicFilteredSpectrogram class.
 
@@ -1685,6 +1685,9 @@ class StackedSpectrogramProcessor(ParallelProcessor):
     dimension.
 
     """
+    # Note: `frame_size` is used instead of the more meaningful `frame_sizes`,
+    #       this way the existing argument from `FramedSignal` can be reused
+    # TODO: use `axis` and `np.concatenate` instead?
     def __init__(self, frame_size, spectrogram, stack=np.hstack,
                  stack_diffs=False, **kwargs):
         """
@@ -1706,7 +1709,6 @@ class StackedSpectrogramProcessor(ParallelProcessor):
                             If set, a `SpectrogramDifferenceProcessor` will be
                             instantiated and any additional keywords will be
                             passed to it.
-
 
         Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
               as a stacking function), they must have the same frequency

@@ -17,6 +17,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 
+
 def writer(data, outfile):
     """
     Wrapper around np.save which swaps the arguments to the correct position.
@@ -45,8 +46,8 @@ def main():
     SignalProcessor.add_arguments(p, sample_rate=44100, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, frame_size=[1024, 2048, 4096],
                                         fps=100, online=False)
-    FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30, fmax=17000,
-                                               norm_filters=True,
+    FilteredSpectrogramProcessor.add_arguments(p, bands=12, fmin=30,
+                                               fmax=17000, norm_filters=True,
                                                duplicate_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
