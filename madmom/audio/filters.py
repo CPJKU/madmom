@@ -9,7 +9,7 @@ This file contains filter and filterbank related functionality.
 
 import numpy as np
 
-from madmom import Processor
+from madmom.processors import Processor
 
 A4 = 440
 

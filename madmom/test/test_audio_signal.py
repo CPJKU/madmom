@@ -10,10 +10,9 @@ This file contains tests for the madmom.audio.signal module.
 import unittest
 import __builtin__
 
-from madmom.audio.signal import *
-
 from . import DATA_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
+from madmom.audio.signal import *
 
 
 # test signal functions

@@ -8,7 +8,7 @@
 import cPickle
 import argparse
 
-from madmom import io_arguments
+from madmom.processors import io_arguments
 
 
 def main():

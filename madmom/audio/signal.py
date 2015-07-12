@@ -9,7 +9,7 @@ This file contains basic signal processing functionality.
 
 import numpy as np
 
-from madmom import Processor
+from madmom.processors import Processor
 
 
 # signal functions

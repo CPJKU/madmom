@@ -9,7 +9,7 @@ This file contains all cepstrogram related functionality.
 
 from scipy.fftpack import dct
 
-from madmom import Processor, SequentialProcessor
+from madmom.processors import Processor, SequentialProcessor
 from madmom.audio.filters import MelFilterbank
 from madmom.audio.spectrogram import Spectrogram, SpectrogramProcessor
 

@@ -7,7 +7,7 @@ vary, but all "lower" level features can be found the `audio` package.
 
 import numpy as np
 
-from madmom import Processor
+from madmom.processors import Processor
 
 
 class Activations(np.ndarray):

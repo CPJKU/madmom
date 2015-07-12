@@ -4,16 +4,50 @@ Utility package.
 
 """
 
-import os
-import glob
-import fnmatch
 import argparse
+import contextlib
 
 import numpy as np
 
-from madmom import open, suppress_warnings
+
+# decorator to suppress warnings
+def suppress_warnings(function):
+    def decorator_function(*args, **kwargs):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return function(*args, **kwargs)
+    return decorator_function
 
 
+# overwrite the built-in open() to transparently apply some magic file handling
+@contextlib.contextmanager
+def open(filename, mode='r'):
+    """
+    Context manager which yields an open file or handle with the given mode
+    and closes it if needed afterwards.
+
+    :param filename: file name or open file handle
+    :param mode:     mode in which to open the file
+    :return:         an open file handle
+
+    """
+    import __builtin__
+    # check if we need to open the file
+    if isinstance(filename, basestring):
+        f = fid = __builtin__.open(filename, mode)
+    else:
+        f = filename
+        fid = None
+    # TODO: include automatic (un-)zipping here?
+    # yield an open file handle
+    yield f
+    # close the file if needed
+    if fid:
+        fid.close()
+
+
+# file handling routines
 def search_files(path, suffix=None):
     """
     Returns a list of files in path matching the given suffix or filters
@@ -24,6 +58,9 @@ def search_files(path, suffix=None):
     :return:       list of files
 
     """
+    import os
+    import glob
+
     # determine the files
     if type(path) == list:
         # a list of files or paths is given
@@ -87,6 +124,9 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     :return:             list of matched files
 
     """
+    import os
+    import fnmatch
+
     # get the base name without the path
     basename = os.path.basename(strip_suffix(filename, suffix))
     # init return list
@@ -243,6 +283,9 @@ class OverrideDefaultListAction(argparse.Action):
         except ValueError, e:
             raise argparse.ArgumentError(self, e)
 
+
+# keep namespace clean
+del argparse, contextlib
 
 # finally import the submodules
 from . import midi
