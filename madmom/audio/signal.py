@@ -594,7 +594,7 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
 
 
 def framed_signal_generator(signal, frame_size, hop_size, origin=0,
-                            end='extend', num_frames=None, batch_size=1):
+                            end='normal', num_frames=None, batch_size=1):
     """
 
     :param signal:     signal [Signal or numpy array]
@@ -759,7 +759,7 @@ class FramedSignal(object):
     """
 
     def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
-                 origin=0, end='extend', num_frames=None, **kwargs):
+                 origin=0, end='normal', num_frames=None, **kwargs):
         """
         Creates a new FramedSignal instance from the given Signal.
 
@@ -945,7 +945,7 @@ class FramedSignalProcessor(Processor):
     FPS = 100.
     ONLINE = False
     START = 0
-    END_OF_SIGNAL = 'extend'
+    END_OF_SIGNAL = 'normal'
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
                  online=ONLINE, end=END_OF_SIGNAL, **kwargs):
@@ -969,8 +969,9 @@ class FramedSignalProcessor(Processor):
         The end of the signal handling can be set with the `end` parameter,
         it accepts the following literal values:
           - 'normal': the origin of the last frame has to be within the signal
+                      [default]
           - 'extend': frames are returned as long as part of the frame overlaps
-                      with the signal [default]
+                      with the signal
 
         """
         self.frame_size = frame_size

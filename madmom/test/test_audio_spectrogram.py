@@ -282,7 +282,7 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
         self.assertIsInstance(processor, FilteredSpectrogramProcessor)
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
-        self.assertIsInstance(processor.bands, int)
+        self.assertIsInstance(processor.num_bands, int)
         self.assertIsInstance(processor.fmin, float)
         self.assertIsInstance(processor.fmax, float)
         self.assertIsInstance(processor.fref, float)
@@ -291,7 +291,7 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
         processor = FilteredSpectrogramProcessor()
         self.assertTrue(issubclass(processor.filterbank,
                                    LogarithmicFilterbank))
-        self.assertTrue(processor.bands == 12)
+        self.assertTrue(processor.num_bands == 12)
         self.assertTrue(processor.fmin == 30)
         self.assertTrue(processor.fmax == 17000)
         self.assertTrue(processor.fref == 440)

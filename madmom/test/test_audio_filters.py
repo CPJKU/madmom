@@ -857,7 +857,7 @@ class TestBarkFilterbankClass(unittest.TestCase):
     def test_constant_values(self):
         self.assertEqual(BarkFilterbank.FMIN, 20.)
         self.assertEqual(BarkFilterbank.FMAX, 15500.)
-        self.assertEqual(BarkFilterbank.BANDS, 'simple')
+        self.assertEqual(BarkFilterbank.BANDS, 'normal')
         self.assertEqual(BarkFilterbank.NORM_FILTERS, True)
         self.assertEqual(BarkFilterbank.DUPLICATE_FILTERS, False)
 
