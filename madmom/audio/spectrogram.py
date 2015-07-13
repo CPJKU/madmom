@@ -1200,45 +1200,6 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
             duplicate_filters=self.duplicate_filters, mul=self.mul,
             add=self.add, **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, log=None, mul=None, add=None):
-        """
-        Add logarithmic spectrogram scaling related arguments to an existing
-        parser.
-
-        :param parser: existing argparse parser
-        :param log:    take the logarithm of the magnitude [bool]
-        :param mul:    multiply the spectrogram with this factor before
-                       taking the logarithm of the magnitudes [float]
-        :param add:    add this value before taking the logarithm of the
-                       magnitudes [float]
-        :return:       logarithmic spectrogram scaling argument parser group
-
-        Parameters are included in the group only if they are not 'None'.
-
-        """
-        # add log related options to the existing parser
-        g = parser.add_argument_group('logarithmic magnitude arguments')
-        if log is not None:
-            if log:
-                g.add_argument('--no_log', dest='log',
-                               action='store_false', default=log,
-                               help='linear magnitudes [default=logarithmic]')
-            else:
-                g.add_argument('--log', action='store_true',
-                               default=-log,
-                               help='logarithmic magnitudes [default=linear]')
-        if mul is not None:
-            g.add_argument('--mul', action='store', type=float,
-                           default=mul, help='multiplier (before taking '
-                           'the log) [default=%(default)i]')
-        if add is not None:
-            g.add_argument('--add', action='store', type=float,
-                           default=add, help='value added (before taking '
-                           'the log) [default=%(default)i]')
-        # return the groups
-        return g
-
 
 # spectrogram difference stuff
 DIFF_RATIO = 0.5

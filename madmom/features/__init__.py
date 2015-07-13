@@ -158,10 +158,7 @@ class ActivationsProcessor(Processor):
         if self.mode in ('r', 'in', 'load'):
             return Activations.load(data, fps=self.fps, sep=self.sep)
         if self.mode in ('w', 'out', 'save'):
-            # Note: we need all data, hence the [:] construct (data can be a
-            #       data class instance returned by a Processor and [:] returns
-            #       all data)
-            Activations(data[:], fps=self.fps).save(output, sep=self.sep)
+            Activations(data, fps=self.fps).save(output, sep=self.sep)
         else:
             raise ValueError("wrong mode %s; choose {'r', 'w', 'in', 'out', "
                              "'load', 'save'}")

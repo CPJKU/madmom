@@ -453,10 +453,6 @@ class SpectralOnsetProcessor(Processor):
         :return:            onsets detection function
 
         """
-        # Note: we need all data, hence the [:] construct (spectrogram can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        spectrogram = spectrogram[:]
         return globals()[self.method](spectrogram)
 
     @classmethod
@@ -691,10 +687,6 @@ class PeakPickingProcessor(Processor):
         :return:            detected onsets
 
         """
-        # Note: we need all data, hence the [:] construct (activations can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        activations = activations[:]
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
         smooth = int(round(self.fps * self.smooth))

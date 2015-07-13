@@ -331,10 +331,6 @@ class BeatTrackingProcessor(Processor):
         :return:            detected beat positions [seconds]
 
         """
-        # Note: we need all data, hence the [:] construct (activations can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        activations = activations[:]
         # smooth activations
         act_smooth = int(self.fps * self.tempo_estimator.act_smooth)
         activations = smooth_signal(activations, act_smooth)
@@ -640,10 +636,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
         """
         import itertools as it
-        # Note: we need all data, hence the [:] construct (activations can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        activations = activations[:]
         # estimate the tempo
         tempi = self.tempo_estimator.process(activations)
         intervals = self.fps * 60. / tempi[:, 0]
@@ -865,10 +857,6 @@ class DBNBeatTrackingProcessor(Processor):
         :return:            detected beat positions [seconds]
 
         """
-        # Note: we need all data, hence the [:] construct (activations can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        activations = activations[:]
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
         # correct the beat positions if needed
@@ -1103,10 +1091,6 @@ class DownbeatTrackingProcessor(Processor):
         :return:            detected beat positions [seconds]
 
         """
-        # Note: we need all data, hence the [:] construct (activations can be
-        #       a data class instance returned by a Processor and [:] returns
-        #       all data)
-        activations = activations[:]
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
