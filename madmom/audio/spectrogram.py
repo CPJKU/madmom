@@ -10,7 +10,8 @@ This file contains spectrogram related functionality.
 import numpy as np
 import scipy.fftpack as fft
 
-from madmom import Processor, SequentialProcessor, ParallelProcessor
+from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
+
 
 # filter defaults
 from madmom.audio.filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX,

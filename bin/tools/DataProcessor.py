@@ -6,9 +6,10 @@
 """
 
 import argparse
+
 import numpy as np
 
-from madmom import IOProcessor, io_arguments
+from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (SpectrogramProcessor,
                                       StackSpectrogramProcessor)

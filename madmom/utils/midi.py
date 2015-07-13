@@ -37,7 +37,7 @@ import math
 import struct
 import numpy as np
 
-from madmom import open
+from ..utils import open
 
 # constants
 OCTAVE_MAX_VALUE = 12

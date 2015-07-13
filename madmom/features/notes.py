@@ -8,9 +8,12 @@ This file contains note transcription related functionality.
 """
 
 import glob
+
 import numpy as np
 
-from madmom import MODELS_PATH, SequentialProcessor, open, suppress_warnings
+from madmom import MODELS_PATH
+from madmom.utils import suppress_warnings, open
+from madmom.processors import SequentialProcessor
 from madmom.audio.signal import SignalProcessor
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions

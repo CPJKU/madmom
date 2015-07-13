@@ -10,7 +10,6 @@ This file contains tests for the madmom.audio.spectrogram module.
 import unittest
 
 from . import DATA_PATH
-
 from madmom.audio.spectrogram import *
 from madmom.audio.signal import FramedSignal
 from madmom.audio.filters import Filterbank, LogarithmicFilterbank

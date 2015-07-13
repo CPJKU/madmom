@@ -7,9 +7,9 @@ This file contains all harmonic/percussive source separation functionality.
 
 """
 
-from madmom import Processor
-
 import numpy as np
+
+from madmom.processors import Processor
 
 
 class HarmonicPercussiveSourceSeparation(Processor):

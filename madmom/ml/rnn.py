@@ -18,9 +18,11 @@ other stuff.
 
 """
 import abc
+
 import numpy as np
 
-from madmom import Processor, ParallelProcessor
+from ..processors import Processor, ParallelProcessor
+
 
 # naming infix for bidirectional layer
 REVERSE = 'reverse'

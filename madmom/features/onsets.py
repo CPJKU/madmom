@@ -13,7 +13,8 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom import MODELS_PATH, SequentialProcessor, Processor
+from madmom import MODELS_PATH
+from madmom.processors import Processor, SequentialProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
 from madmom.audio.spectrogram import StackSpectrogramProcessor

@@ -9,7 +9,7 @@ This file contains note evaluation functionality.
 
 import numpy as np
 
-from madmom import suppress_warnings
+from ..utils import suppress_warnings
 from . import calc_errors, Evaluation, MultiClassEvaluation, MeanEvaluation
 from .onsets import onset_evaluation
 

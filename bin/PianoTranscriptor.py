@@ -7,7 +7,7 @@
 
 import argparse
 
-from madmom import IOProcessor, io_arguments
+from madmom.processors import IOProcessor, io_arguments
 from madmom.features import ActivationsProcessor
 from madmom.features.notes import (RNNNoteProcessor, write_midi, write_notes,
                                    write_frequencies)

@@ -14,7 +14,6 @@ import tempfile
 
 from madmom.audio.filters import *
 
-
 # Mel frequency scale
 HZ = np.asarray([20, 258.7484, 576.6645, 1000])
 MEL = np.asarray([31.749, 354.5, 677.25, 1000])

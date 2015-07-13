@@ -12,7 +12,8 @@ import glob
 
 import numpy as np
 
-from madmom import MODELS_PATH, Processor, SequentialProcessor
+from madmom import MODELS_PATH
+from madmom.processors import Processor, SequentialProcessor
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
 from madmom.audio.spectrogram import StackSpectrogramProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions

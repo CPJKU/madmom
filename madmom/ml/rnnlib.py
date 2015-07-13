@@ -17,17 +17,16 @@ Note: RNNLIB is rather slow, madmom.ml.rnn serves as a (faster) purely Python
 
 """
 
-import numpy as np
-
 import os.path
 import re
 import shutil
 import tempfile
-
 from Queue import Queue
 from threading import Thread
 import multiprocessing
 import subprocess
+
+import numpy as np
 
 from madmom.features import Activations
 
@@ -1327,7 +1326,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     :param verbose:       be verbose
 
     """
-    from madmom import SequentialProcessor
+    from madmom.processors import SequentialProcessor
     from madmom.audio.signal import SignalProcessor
     from madmom.audio.spectrogram import StackSpectrogramProcessor
 
