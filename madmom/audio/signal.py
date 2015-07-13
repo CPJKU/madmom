@@ -435,14 +435,12 @@ class SignalProcessor(Processor):
     ATT = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=START, stop=STOP, norm=NORM, att=ATT, **kwargs):
+                 norm=NORM, att=ATT, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
         :param sample_rate:  sample rate of the signal [Hz]
         :param num_channels: reduce the signal to N channels [int]
-        :param start:        start position (seconds) [float]
-        :param stop:         stop position (seconds) [float]
         :param norm:         normalize the signal [bool]
         :param att:          attenuate the signal [dB]
 
@@ -459,16 +457,20 @@ class SignalProcessor(Processor):
         self.norm = norm
         self.att = att
 
-    def process(self, data):
+    def process(self, data, start=None, stop=None, **kwargs):
         """
         Processes the given audio file.
 
-        :param data: file name or handle
-        :return:     Signal instance with processed signal
+        :param data:   file name or handle
+        :param start:  start position (seconds) [float]
+        :param stop:   stop position (seconds) [float]
+        :param kwargs: keyword arguments passed to Signal
+        :return:       Signal instance with processed signal
 
         """
         # instantiate a Signal (with the given sample rate if set)
-        data = Signal(data, self.sample_rate, self.num_channels)
+        data = Signal(data, self.sample_rate, self.num_channels,
+                      start=start, stop=stop, **kwargs)
         # process it if needed
         if self.norm:
             # normalize signal
@@ -591,6 +593,54 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         return signal[start:stop]
 
 
+def framed_signal_generator(signal, frame_size, hop_size, origin=0,
+                            end='normal', num_frames=None, batch_size=1):
+    """
+
+    :param signal:     signal [Signal or numpy array]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   hop size in samples between adjacent frames [float]
+    :param origin:     location of the window center relative to the signal
+                       position [int]
+    :param end:        end of signal behaviour (see `FramedSignal`)
+    :param num_frames: yield this number of frames [int]
+    :param batch_size: yield batches of this size [int]
+    :return:           generator which yields the signal chopped into frames
+
+    """
+    # TODO: implement batch processing and set to a sensible default
+    if batch_size != 1:
+        raise ValueError('please implement batch processing')
+    # translate literal window location values to numeric origin
+    if origin in ('center', 'offline'):
+        # the current position is the center of the frame
+        origin = 0
+    elif origin in ('left', 'past', 'online'):
+        # the current position is the right edge of the frame
+        # this is usually used when simulating online mode, where only past
+        # information of the audio signal can be used
+        origin = (frame_size - 1) / 2
+    elif origin in ('right', 'future'):
+        # the current position is the left edge of the frame
+        origin = -(frame_size / 2)
+    origin = int(origin)
+    # number of frames determination
+    if num_frames is None:
+        if end == 'extend':
+            # return frames as long as a frame covers any signal
+            num_frames = np.floor(len(signal) / float(hop_size) + 1)
+        elif end == 'normal':
+            # return frames as long as the origin sample covers the signal
+            num_frames = np.ceil(len(signal) / float(hop_size))
+        else:
+            raise ValueError("end of signal handling '%s' unknown" % end)
+    # yield frames as long as there is a signal
+    index = 0
+    while index < num_frames:
+        yield signal_frame(signal, index, frame_size, hop_size, origin)
+        index += batch_size
+
+
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
 def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
                  end_value=0):
@@ -709,9 +759,9 @@ class FramedSignal(object):
     """
 
     def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
-                 origin=0, end='extend', num_frames=None, **kwargs):
+                 origin=0, end='normal', num_frames=None, **kwargs):
         """
-        Creates a new FramedSignal instance.
+        Creates a new FramedSignal instance from the given Signal.
 
         :param signal:     Signal instance (or anything a Signal can be
                            instantiated from)
@@ -727,7 +777,6 @@ class FramedSignal(object):
         If no Signal instance was given, one is instantiated and these
         arguments are passed:
 
-        :param args:       additional arguments passed to Signal()
         :param kwargs:     additional keyword arguments passed to Signal()
 
         The FramedSignal class is implemented as an iterator. It splits the
@@ -770,12 +819,11 @@ class FramedSignal(object):
 
         """
         # signal handling
-        if isinstance(signal, Signal):
-            # already a signal
-            self.signal = signal
-        else:
+        if not isinstance(signal, Signal):
             # try to instantiate a Signal
-            self.signal = Signal(signal, **kwargs)
+            signal = Signal(signal, **kwargs)
+        # save the signal
+        self.signal = signal
 
         # arguments for splitting the signal into frames
         if frame_size:
@@ -842,7 +890,7 @@ class FramedSignal(object):
             raise IndexError("end of signal reached")
         # a slice is given
         elif isinstance(index, slice):
-            # determine the frames to return
+            # determine the frames to return (limited to the number of frames)
             start, stop, step = index.indices(self.num_frames)
             # allow only normal steps
             if step != 1:
@@ -897,7 +945,7 @@ class FramedSignalProcessor(Processor):
     FPS = 100.
     ONLINE = False
     START = 0
-    END_OF_SIGNAL = 'extend'
+    END_OF_SIGNAL = 'normal'
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
                  online=ONLINE, end=END_OF_SIGNAL, **kwargs):
@@ -921,8 +969,9 @@ class FramedSignalProcessor(Processor):
         The end of the signal handling can be set with the `end` parameter,
         it accepts the following literal values:
           - 'normal': the origin of the last frame has to be within the signal
+                      [default]
           - 'extend': frames are returned as long as part of the frame overlaps
-                      with the signal [default]
+                      with the signal
 
         """
         self.frame_size = frame_size
@@ -931,16 +980,13 @@ class FramedSignalProcessor(Processor):
         self.online = online
         self.end = end
 
-    def process(self, data, num_frames=None):
+    def process(self, data, **kwargs):
         """
         Slice the signal into (overlapping) frames.
 
-        :param data:       signal to be sliced into frames [Signal]
-        :param num_frames: limit the number of frames to be returned [int]
-        :return:           FramedSignal instance
-
-        Note: If `num_frames` is 'None', the length of the returned signal is
-              determined by the `end` setting.
+        :param data:   signal to be sliced into frames [Signal]
+        :param kwargs: keyword arguments passed to FramedSignal
+        :return:       FramedSignal instance
 
         """
         # translate online / offline mode
@@ -951,7 +997,7 @@ class FramedSignalProcessor(Processor):
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, frame_size=self.frame_size,
                             hop_size=self.hop_size, fps=self.fps,
-                            origin=origin, end=self.end, num_frames=num_frames)
+                            origin=origin, end=self.end, **kwargs)
 
     @classmethod
     def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,

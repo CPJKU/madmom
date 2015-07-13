@@ -12,7 +12,10 @@ import argparse
 from madmom.processors import IOProcessor, io_arguments
 from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import SpectrogramProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      SuperFluxProcessor)
 from madmom.features.onsets import (SpectralOnsetProcessor,
                                     NNPeakPickingProcessor)
 
@@ -39,11 +42,13 @@ def main():
     io_arguments(p, suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=24, fmin=30, fmax=17000,
-                                              norm_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=3)
+    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=24, fmin=30,
+                                               fmax=17000, norm_filters=False)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 diff_max_bins=3,
+                                                 positive_diffs=True)
     NNPeakPickingProcessor.add_arguments(p)
     # version
     p.add_argument('--version', action='version', version='SuperFluxNN')
@@ -61,7 +66,7 @@ def main():
         # define processing chain
         sig = SignalProcessor(num_channels=1, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
-        spec = SpectrogramProcessor(**vars(args))
+        spec = SuperFluxProcessor(**vars(args))
         odf = SpectralOnsetProcessor(onset_method='superflux', **vars(args))
         in_processor = [sig, frames, spec, odf]
 

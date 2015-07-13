@@ -11,8 +11,11 @@ import numpy as np
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (SpectrogramProcessor,
-                                      StackSpectrogramProcessor)
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      StackedSpectrogramProcessor)
 
 
 def writer(data, outfile):
@@ -40,15 +43,17 @@ def main():
     p.add_argument('--version', action='version', version='DataProcessor')
     # add arguments
     io_arguments(p, suffix='.npy')
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, sample_rate=44100, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, frame_size=[1024, 2048, 4096],
                                         fps=100, online=False)
-    SpectrogramProcessor.add_filter_arguments(p, bands=12, fmin=30, fmax=17000,
-                                              norm_filters=True,
-                                              duplicate_filters=False)
-    SpectrogramProcessor.add_log_arguments(p, log=True, mul=1, add=1)
-    SpectrogramProcessor.add_diff_arguments(p, diff_ratio=0.5, diff_max_bins=1)
-    StackSpectrogramProcessor.add_arguments(p)
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
+                                               fmax=17000, norm_filters=True,
+                                               duplicate_filters=False)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 diff_max_bins=1,
+                                                 positive_diffs=False)
+    StackedSpectrogramProcessor.add_arguments(p, stack_diffs=True)
     # parse arguments
     args = p.parse_args()
     # switch to offline mode
@@ -60,9 +65,13 @@ def main():
 
     # TODO: add default settings for onsets/beats/etc.?
 
-    # create a processor
+    # processing chain
     sig = SignalProcessor(num_channels=1, **vars(args))
-    stack = StackSpectrogramProcessor(**vars(args))
+    # we need to define which specs should be stacked
+    spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+    # stack specs with the given frame sizes
+    stack = StackedSpectrogramProcessor(spectrogram=spec, **vars(args))
+
     processor = IOProcessor([sig, stack], writer)
     # and call the processing function
     args.func(processor, **vars(args))

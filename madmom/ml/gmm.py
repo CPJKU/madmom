@@ -11,6 +11,9 @@ under the BSD license and was written by these authors:
   Fabian Pedregosa <fabian.pedregosa@inria.fr>
   Bertrand Thirion <bertrand.thirion@inria.fr>
 
+This version works with sklearn v0.16 an onwards.
+All commits until 0650d5502e01e6b4245ce99729fc8e7a71aacff3 are incorporated.
+
 """
 
 import numpy as np
@@ -19,7 +22,8 @@ from scipy import linalg
 
 # the following code is copied from sklearn
 def logsumexp(arr, axis=0):
-    """Computes the sum of arr assuming arr is in the log domain.
+    """
+    Computes the sum of arr assuming arr is in the log domain.
 
     Returns log(sum(exp(arr))) while minimizing the possibility of
     over/underflow.
@@ -37,7 +41,8 @@ def logsumexp(arr, axis=0):
 
 
 def pinvh(a, cond=None, rcond=None, lower=True):
-    """Compute the (Moore-Penrose) pseudo-inverse of a hermetian matrix.
+    """
+    Compute the (Moore-Penrose) pseudo-inverse of a hermetian matrix.
 
     Calculate a generalized inverse of a symmetric matrix using its
     eigenvalue decomposition and including all 'large' eigenvalues.
@@ -86,24 +91,28 @@ def pinvh(a, cond=None, rcond=None, lower=True):
     return np.dot(u * psigma_diag, np.conjugate(u).T)
 
 
-def log_multivariate_normal_density(X, means, covars, covariance_type='diag'):
-    """Compute the log probability under a multivariate Gaussian distribution.
+def log_multivariate_normal_density(x, means, covars, covariance_type='diag'):
+    """
+    Compute the log probability under a multivariate Gaussian distribution.
 
     Parameters
     ----------
-    X : array_like, shape (n_samples, n_features)
+    x : array_like, shape (n_samples, n_features)
         List of n_features-dimensional data points.  Each row corresponds to a
         single data point.
+
     means : array_like, shape (n_components, n_features)
         List of n_features-dimensional mean vectors for n_components Gaussians.
         Each row corresponds to a single mean vector.
+
     covars : array_like
         List of n_components covariance parameters for each Gaussian. The shape
         depends on `covariance_type`:
-            (n_components, n_features)      if 'spherical',
-            (n_features, n_features)    if 'tied',
-            (n_components, n_features)    if 'diag',
+            (n_components, n_features)             if 'spherical',
+            (n_features, n_features)               if 'tied',
+            (n_components, n_features)             if 'diag',
             (n_components, n_features, n_features) if 'full'
+
     covariance_type : string
         Type of the covariance parameters.  Must be one of
         'spherical', 'tied', 'diag', 'full'.  Defaults to 'diag'.
@@ -112,7 +121,7 @@ def log_multivariate_normal_density(X, means, covars, covariance_type='diag'):
     -------
     lpr : array_like, shape (n_samples, n_components)
         Array containing the log probabilities of each data point in
-        X under each of the n_components multivariate Gaussian distributions.
+        x under each of the n_components multivariate Gaussian distributions.
     """
     log_multivariate_normal_density_dict = {
         'spherical': _log_multivariate_normal_density_spherical,
@@ -120,44 +129,38 @@ def log_multivariate_normal_density(X, means, covars, covariance_type='diag'):
         'diag': _log_multivariate_normal_density_diag,
         'full': _log_multivariate_normal_density_full}
     return log_multivariate_normal_density_dict[covariance_type](
-        X, means, covars)
+        x, means, covars)
 
 
-def _log_multivariate_normal_density_diag(X, means, covars):
-    """Compute Gaussian log-density at X for a diagonal model"""
-    n_samples, n_dim = X.shape
+def _log_multivariate_normal_density_diag(x, means, covars):
+    """Compute Gaussian log-density at x for a diagonal model."""
+    n_samples, n_dim = x.shape
     lpr = -0.5 * (n_dim * np.log(2 * np.pi) + np.sum(np.log(covars), 1)
                   + np.sum((means ** 2) / covars, 1)
-                  - 2 * np.dot(X, (means / covars).T)
-                  + np.dot(X ** 2, (1.0 / covars).T))
+                  - 2 * np.dot(x, (means / covars).T)
+                  + np.dot(x ** 2, (1.0 / covars).T))
     return lpr
 
 
-def _log_multivariate_normal_density_spherical(X, means, covars):
-    """Compute Gaussian log-density at X for a spherical model"""
+def _log_multivariate_normal_density_spherical(x, means, covars):
+    """Compute Gaussian log-density at x for a spherical model."""
     cv = covars.copy()
     if covars.ndim == 1:
         cv = cv[:, np.newaxis]
     if covars.shape[1] == 1:
-        cv = np.tile(cv, (1, X.shape[-1]))
-    return _log_multivariate_normal_density_diag(X, means, cv)
+        cv = np.tile(cv, (1, x.shape[-1]))
+    return _log_multivariate_normal_density_diag(x, means, cv)
 
 
-def _log_multivariate_normal_density_tied(X, means, covars):
+def _log_multivariate_normal_density_tied(x, means, covars):
     """Compute Gaussian log-density at X for a tied model"""
-    n_samples, n_dim = X.shape
-    icv = pinvh(covars)
-    lpr = -0.5 * (n_dim * np.log(2 * np.pi) + np.log(linalg.det(covars) + 0.1)
-                  + np.sum(X * np.dot(X, icv), 1)[:, np.newaxis]
-                  - 2 * np.dot(np.dot(X, icv), means.T)
-                  + np.sum(means * np.dot(means, icv), 1))
-    return lpr
+    cv = np.tile(covars, (means.shape[0], 1, 1))
+    return _log_multivariate_normal_density_full(x, means, cv)
 
 
-def _log_multivariate_normal_density_full(X, means, covars, min_covar=1.e-7):
-    """Log probability for full covariance matrices.
-    """
-    n_samples, n_dim = X.shape
+def _log_multivariate_normal_density_full(x, means, covars, min_covar=1.e-7):
+    """Log probability for full covariance matrices."""
+    n_samples, n_dim = x.shape
     nmix = len(means)
     log_prob = np.empty((n_samples, nmix))
     for c, (mu, cv) in enumerate(zip(means, covars)):
@@ -166,10 +169,15 @@ def _log_multivariate_normal_density_full(X, means, covars, min_covar=1.e-7):
         except linalg.LinAlgError:
             # The model is most probably stuck in a component with too
             # few observations, we need to reinitialize this components
-            cv_chol = linalg.cholesky(cv + min_covar * np.eye(n_dim),
-                                      lower=True)
+            try:
+                cv_chol = linalg.cholesky(cv + min_covar * np.eye(n_dim),
+                                          lower=True)
+            except linalg.LinAlgError:
+                raise ValueError("'covars' must be symmetric, "
+                                 "positive-definite")
+
         cv_log_det = 2 * np.sum(np.log(np.diagonal(cv_chol)))
-        cv_sol = linalg.solve_triangular(cv_chol, (X - mu).T, lower=True).T
+        cv_sol = linalg.solve_triangular(cv_chol, (x - mu).T, lower=True).T
         log_prob[:, c] = - .5 * (np.sum(cv_sol ** 2, axis=1) +
                                  n_dim * np.log(2 * np.pi) + cv_log_det)
 
@@ -178,7 +186,8 @@ def _log_multivariate_normal_density_full(X, means, covars, min_covar=1.e-7):
 
 # provide a basic GMM implementation which has the score() method implemented
 class GMM(object):
-    """Gaussian Mixture Model
+    """
+    Gaussian Mixture Model
 
     Representation of a Gaussian mixture model probability distribution.
     This class allows for easy evaluation of, sampling from, and
@@ -232,65 +241,68 @@ class GMM(object):
         self.weights_ = np.ones(self.n_components) / self.n_components
         self.means_ = None
         self.covars_ = None
+        self.converged_ = False
 
-    def score_samples(self, X):
-        """Return the per-sample likelihood of the data under the model.
+    def score_samples(self, x):
+        """
+        Return the per-sample likelihood of the data under the model.
 
-        Compute the log probability of X under the model and
+        Compute the log probability of x under the model and
         return the posterior distribution (responsibilities) of each
-        mixture component for each element of X.
+        mixture component for each element of x.
 
         Parameters
         ----------
-        X: array_like, shape (n_samples, n_features)
+        x: array_like, shape (n_samples, n_features)
             List of n_features-dimensional data points. Each row
             corresponds to a single data point.
 
         Returns
         -------
         logprob : array_like, shape (n_samples,)
-            Log probabilities of each data point in X.
+            Log probabilities of each data point in x.
 
         responsibilities : array_like, shape (n_samples, n_components)
             Posterior probabilities of each mixture component for each
             observation
         """
-        X = np.asarray(X)
-        if X.ndim == 1:
-            X = X[:, np.newaxis]
-        if X.size == 0:
+        x = np.asarray(x)
+        if x.ndim == 1:
+            x = x[:, np.newaxis]
+        if x.size == 0:
             return np.array([]), np.empty((0, self.n_components))
-        if X.shape[1] != self.means_.shape[1]:
-            raise ValueError('The shape of X  is not compatible with self')
+        if x.shape[1] != self.means_.shape[1]:
+            raise ValueError('The shape of x is not compatible with self')
 
-        lpr = (log_multivariate_normal_density(X, self.means_, self.covars_,
-                                               self.covariance_type)
-               + np.log(self.weights_))
+        lpr = (log_multivariate_normal_density(x, self.means_, self.covars_,
+                                               self.covariance_type) +
+               np.log(self.weights_))
         logprob = logsumexp(lpr, axis=1)
         responsibilities = np.exp(lpr - logprob[:, np.newaxis])
         return logprob, responsibilities
 
-    def score(self, X):
-        """Compute the log probability under the model.
+    def score(self, x):
+        """
+        Compute the log probability under the model.
 
         Parameters
         ----------
-        X : array_like, shape (n_samples, n_features)
+        x : array_like, shape (n_samples, n_features)
             List of n_features-dimensional data points.  Each row
             corresponds to a single data point.
 
         Returns
         -------
         logprob : array_like, shape (n_samples,)
-            Log probabilities of each data point in X
+            Log probabilities of each data point in x
         """
-        logprob, _ = self.score_samples(X)
+        logprob, _ = self.score_samples(x)
         return logprob
 
-    def fit(self, X, random_state=None, thresh=1e-2, min_covar=1e-3,
+    def fit(self, x, random_state=None, tol=1e-3, min_covar=1e-3,
             n_iter=100, n_init=1, params='wmc', init_params='wmc'):
-        """Estimate model parameters with the expectation-maximization
-        algorithm.
+        """
+        Estimate model parameters with the expectation-maximization algorithm.
 
         A initialization step is performed before entering the em
         algorithm. If you want to avoid this step, set the keyword
@@ -300,7 +312,7 @@ class GMM(object):
 
         Parameters
         ----------
-        X : array_like, shape (n, n_features)
+        x : array_like, shape (n, n_features)
             List of n_features-dimensional data points.  Each row
             corresponds to a single data point.
 
@@ -311,8 +323,9 @@ class GMM(object):
             Floor on the diagonal of the covariance matrix to prevent
             overfitting.  Defaults to 1e-3.
 
-        thresh : float, optional
-            Convergence threshold.
+        tol : float, optional
+            Convergence threshold. EM iterations will stop when average
+            gain in log-likelihood is below this threshold.  Defaults to 1e-3.
 
         n_iter : int, optional
             Number of EM iterations to perform.
@@ -329,18 +342,19 @@ class GMM(object):
             Controls which parameters are updated in the initialization
             process.  Can contain any combination of 'w' for weights,
             'm' for means, and 'c' for covars.  Defaults to 'wmc'.
+
         """
         import sklearn.mixture
         # first initialise a sklearn.mixture.GMM object
         gmm = sklearn.mixture.GMM(n_components=self.n_components,
                                   covariance_type=self.covariance_type,
-                                  random_state=random_state, thresh=thresh,
+                                  random_state=random_state, tol=tol,
                                   min_covar=min_covar, n_iter=n_iter,
                                   n_init=n_init, params=params,
                                   init_params=init_params)
         # fit this GMM
-        gmm.fit(X)
-        # copy the needed information to self
+        gmm.fit(x)
+        # copy the needed information
         self.converged_ = gmm.converged_
         self.covars_ = gmm.covars_
         self.means_ = gmm.means_

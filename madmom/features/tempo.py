@@ -82,14 +82,14 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
 
     """
     # import comb filter
-    from madmom.audio.filters import CombFilterbank
+    from madmom.audio.filters import CombFilterbankProcessor
     # set the maximum delay
     if max_tau is None:
         max_tau = len(activations) - min_tau
     # get the range of taus
     taus = np.arange(min_tau, max_tau + 1)
     # create a comb filter bank instance
-    cfb = CombFilterbank('backward', taus, alpha)
+    cfb = CombFilterbankProcessor('backward', taus, alpha)
     # activations = np.minimum(0.9, activations)
     if activations.ndim == 1:
         # apply a bank of comb filters

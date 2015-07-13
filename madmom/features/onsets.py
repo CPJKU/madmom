@@ -17,7 +17,9 @@ from madmom import MODELS_PATH
 from madmom.processors import Processor, SequentialProcessor
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import StackSpectrogramProcessor
+from madmom.audio.spectrogram import (Spectrogram, SpectrogramDifference,
+                                      LogarithmicFilteredSpectrogramProcessor,
+                                      StackedSpectrogramProcessor)
 
 EPSILON = 1e-6
 
@@ -46,6 +48,10 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     :param diff_bins:   maximum number of bins shifted for correlation
                         calculation
     :return:            (positive) magnitude spectrogram differences
+
+    Note: This function is only because of completeness, it is not intended to
+          be actually used, since it is extremely slow. Please consider the
+          superflux() function, since if performs equally well but much faster.
 
     """
     # init diff matrix
@@ -94,10 +100,10 @@ def high_frequency_content(spectrogram):
     """
     # HFC emphasizes high frequencies by weighting the magnitude spectrogram
     # bins by the their respective "number" (starting at low frequencies)
-    return np.mean(spectrogram.spec * np.arange(spectrogram.num_bins), axis=1)
+    return np.mean(spectrogram * np.arange(spectrogram.num_bins), axis=1)
 
 
-def spectral_diff(spectrogram):
+def spectral_diff(spectrogram, diff_frames=None):
     """
     Spectral Diff.
 
@@ -110,11 +116,14 @@ def spectral_diff(spectrogram):
     (DAFx), 2002.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # Spectral diff is the sum of all squared positive 1st order differences
-    return np.sum(spectrogram.diff ** 2, axis=1)
+    return np.sum(spectrogram ** 2, axis=1)
 
 
-def spectral_flux(spectrogram):
+def spectral_flux(spectrogram, diff_frames=None):
     """
     Spectral Flux.
 
@@ -127,11 +136,14 @@ def spectral_flux(spectrogram):
     PhD thesis, University of Bristol, 1996.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # Spectral flux is the sum of all positive 1st order differences
-    return np.sum(spectrogram.diff, axis=1)
+    return np.sum(spectrogram, axis=1)
 
 
-def superflux(spectrogram):
+def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
     """
     SuperFlux method with a maximum filter vibrato suppression stage.
 
@@ -154,18 +166,19 @@ def superflux(spectrogram):
           the difference.
 
     """
-    # TODO: should we warn about misconfigurations here or build its own class
-    #       for SuperfFlux and ComplexFlux?
-    if spectrogram.diff_max_bins <= 1:
-        import warnings
-        warnings.warn('no maximum filtering will be applied')
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames,
+                                       diff_max_bins=diff_max_bins,
+                                       positive_diffs=True)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(spectrogram.diff, axis=1)
+    return np.sum(spectrogram, axis=1)
 
 
-# TODO: as above, should this be its own class so that we can set the filter
+# TODO: should this be its own class so that we can set the filter
 #       sizes in seconds instead of frames?
-def complex_flux(spectrogram, temporal_filter=3, temporal_origin=0):
+def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
+                 temporal_origin=0):
     """
     Complex Flux with a local group delay based tremolo suppression.
 
@@ -184,7 +197,7 @@ def complex_flux(spectrogram, temporal_filter=3, temporal_origin=0):
     # create a mask based on the local group delay information
     from scipy.ndimage import maximum_filter, minimum_filter
     # take only absolute values of the local group delay and normalize them
-    lgd = np.abs(spectrogram.lgd) / np.pi
+    lgd = np.abs(spectrogram.stft.phase().lgd()) / np.pi
     # maximum filter along the temporal axis
     # TODO: use HPSS instead of simple temporal filtering
     if temporal_filter > 0:
@@ -192,11 +205,11 @@ def complex_flux(spectrogram, temporal_filter=3, temporal_origin=0):
                              origin=temporal_origin)
     # lgd = uniform_filter(lgd, size=[1, 3])  # better for percussive onsets
     # create the weighting mask
-    if spectrogram.filterbank is not None:
+    try:
         # if the magnitude spectrogram was filtered, use the minimum local
         # group delay value of each filterbank (expanded by one frequency
         # bin in both directions) as the mask
-        mask = np.zeros_like(spectrogram.spec)
+        mask = np.zeros_like(spectrogram)
         num_bins = lgd.shape[1]
         for b in range(mask.shape[1]):
             # determine the corner bins for the mask
@@ -211,15 +224,15 @@ def complex_flux(spectrogram, temporal_filter=3, temporal_origin=0):
                 stop_bin = num_bins
             # set mask
             mask[:, b] = np.amin(lgd[:, start_bin: stop_bin], axis=1)
-    else:
+    except AttributeError:
         # if the spectrogram is not filtered, use a simple minimum filter
         # covering only the current bin and its neighbours
         mask = minimum_filter(lgd, size=[1, 3])
     # sum all positive 1st order max. filtered and weighted differences
-    return np.sum(spectrogram.diff * mask, axis=1)
+    return np.sum(spectrogram.diff(diff_frames=diff_frames) * mask, axis=1)
 
 
-def modified_kullback_leibler(spectrogram, epsilon=EPSILON):
+def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
     """
     Modified Kullback-Leibler.
 
@@ -240,10 +253,9 @@ def modified_kullback_leibler(spectrogram, epsilon=EPSILON):
     """
     if epsilon <= 0:
         raise ValueError("a positive value must be added before division")
-    mkl = np.zeros_like(spectrogram.spec)
-    diff_frames = spectrogram.num_diff_frames
-    mkl[diff_frames:] = (spectrogram.spec[diff_frames:] /
-                         (spectrogram.spec[:-diff_frames] + epsilon))
+    mkl = np.zeros_like(spectrogram)
+    mkl[diff_frames:] = (spectrogram[diff_frames:] /
+                         (spectrogram[:-diff_frames] + epsilon))
     # note: the original MKL uses sum instead of mean,
     # but the range of mean is much more suitable
     return np.mean(np.log(1 + mkl), axis=1)
@@ -281,7 +293,7 @@ def phase_deviation(spectrogram):
 
     """
     # take the mean of the absolute changes in instantaneous frequency
-    return np.mean(np.abs(_phase_deviation(spectrogram.phase)), axis=1)
+    return np.mean(np.abs(_phase_deviation(spectrogram.stft.phase())), axis=1)
 
 
 def weighted_phase_deviation(spectrogram):
@@ -297,12 +309,13 @@ def weighted_phase_deviation(spectrogram):
     (DAFx), 2006.
 
     """
+    # cache phase
+    phase = spectrogram.stft.phase()
     # make sure the spectrogram is not filtered before
-    if np.shape(spectrogram.phase) != np.shape(spectrogram.spec):
+    if np.shape(phase) != np.shape(spectrogram):
         raise ValueError('spectrogram and phase must be of same shape')
-    # weighted_phase_deviation = spec * phase_deviation
-    return np.mean(np.abs(_phase_deviation(spectrogram.phase) *
-                          spectrogram.spec), axis=1)
+    # weighted_phase_deviation = spectrogram * phase_deviation
+    return np.mean(np.abs(_phase_deviation(phase) * spectrogram), axis=1)
 
 
 def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
@@ -324,7 +337,7 @@ def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
         raise ValueError("a positive value must be added before division")
     # normalize WPD by the sum of the spectrogram
     # (add a small epsilon so that we don't divide by 0)
-    norm = np.add(np.mean(spectrogram.spec, axis=1), epsilon)
+    norm = np.add(np.mean(spectrogram, axis=1), epsilon)
     return weighted_phase_deviation(spectrogram) / norm
 
 
@@ -343,16 +356,19 @@ def _complex_domain(spectrogram):
     (DAFx), 2006.
 
     """
-    if np.shape(spectrogram.phase) != np.shape(spectrogram.spec):
+    # cache phase
+    phase = spectrogram.stft.phase()
+    # make sure the spectrogram is not filtered before
+    if np.shape(phase) != np.shape(spectrogram):
         raise ValueError('spectrogram and phase must be of same shape')
     # expected spectrogram
-    cd_target = np.zeros_like(spectrogram.phase)
+    cd_target = np.zeros_like(phase)
     # assume constant phase change
-    cd_target[1:] = 2 * spectrogram.phase[1:] - spectrogram.phase[:-1]
+    cd_target[1:] = 2 * phase[1:] - phase[:-1]
     # add magnitude
-    cd_target = spectrogram.spec * np.exp(1j * cd_target)
+    cd_target = spectrogram * np.exp(1j * cd_target)
     # create complex spectrogram
-    cd = spectrogram.spec * np.exp(1j * spectrogram.phase)
+    cd = spectrogram * np.exp(1j * phase)
     # subtract the target values
     cd[1:] -= cd_target[:-1]
     return cd
@@ -375,7 +391,7 @@ def complex_domain(spectrogram):
     return np.sum(np.abs(_complex_domain(spectrogram)), axis=1)
 
 
-def rectified_complex_domain(spectrogram):
+def rectified_complex_domain(spectrogram, diff_frames=None,):
     """
     Rectified Complex Domain.
 
@@ -388,10 +404,13 @@ def rectified_complex_domain(spectrogram):
     (DAFx), 2006.
 
     """
+    # if the diff of a spectrogram is given, do not calculate the diff twice
+    if not isinstance(spectrogram, SpectrogramDifference):
+        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # rectified complex domain
     rcd = _complex_domain(spectrogram)
     # only keep values where the magnitude rises
-    rcd *= spectrogram.diff
+    rcd *= spectrogram
     # take the sum of the absolute changes
     return np.sum(np.abs(rcd), axis=1)
 
@@ -449,7 +468,7 @@ class SpectralOnsetProcessor(Processor):
         # add onset detection method arguments to the existing parser
         g = parser.add_argument_group('spectral onset detection arguments')
         if onset_method is not None:
-            g.add_argument('-o', '--odf', dest='onset_method',
+            g.add_argument('--odf', dest='onset_method',
                            default=onset_method, choices=cls.METHODS,
                            help='use this onset detection function '
                                 '[default=%(default)s]')
@@ -481,13 +500,17 @@ class RNNOnsetProcessor(SequentialProcessor):
         kwargs['fps'] = self.fps = 100
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
+        # we need to define which specs should be stacked
+        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=6,
+                                                       norm_filters=True,
+                                                       mul=5, add=1)
+        # stack specs with the given frame sizes and online mode
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
-        stack = StackSpectrogramProcessor(frame_size=frame_sizes,
-                                          online=online, bands=6,
-                                          norm_filters=True,
-                                          log=True, mul=5, add=1,
-                                          diff_ratio=0.25, stack_diffs=True,
-                                          **kwargs)
+        stack = StackedSpectrogramProcessor(frame_size=frame_sizes,
+                                            spectrogram=spec, stack_diffs=True,
+                                            diff_ratio=0.25,
+                                            positive_diffs=True,
+                                            online=online, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         # sequentially process everything

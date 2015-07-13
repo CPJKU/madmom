@@ -11,7 +11,7 @@ import numpy as np
 
 from madmom.processors import Processor
 
-A4 = 440
+A4 = 440.
 
 
 # Mel frequency scale
@@ -557,8 +557,8 @@ class Filterbank(np.ndarray):
         Creates a new Filterbank instance.
 
         :param data:            2D numpy array (num_bins x num_bands)
-        :param bin_frequencies: frequencies of the bins (must be of length
-                                num_bins)
+        :param bin_frequencies: frequencies of the bins (must be the same as
+                                the first dimension of the given data)
 
         """
         # input is an numpy ndarray instance
@@ -648,7 +648,7 @@ class Filterbank(np.ndarray):
 
         """
         # create filterbank
-        fb = np.zeros((len(bin_frequencies), len(filters)))
+        fb = np.zeros((len(bin_frequencies), len(filters)), np.float32)
         # iterate over all filters
         for band_id, band_filter in enumerate(filters):
             # get the band's corresponding slice of the filterbank
@@ -729,16 +729,16 @@ class Filterbank(np.ndarray):
         return np.dot(data, self)
 
     @staticmethod
-    def add_arguments(parser, filter_type=None, fmin=None, fmax=None,
-                      bands=None, norm_filters=None, duplicate_filters=None):
+    def add_arguments(parser, filter_type=None, num_bands=None, fmin=None,
+                      fmax=None, norm_filters=None, duplicate_filters=None):
         """
         Add filter related arguments to an existing parser.
 
         :param parser:            existing argparse parser
         :param filter_type:       type of filter to be used
+        :param num_bands:         number of filter bands (per octave) [int]
         :param fmin:              the minimum frequency [Hz, float]
         :param fmax:              the maximum frequency [Hz, float]
-        :param bands:             number of filter bands (per octave) [int]
         :param norm_filters:      normalize the area of the filter [bool]
         :param duplicate_filters: keep duplicate filters [bool]
         :return:                  filtering argument parser group
@@ -754,8 +754,9 @@ class Filterbank(np.ndarray):
             g.add_argument('--filter_type', action='store',
                            default=filter_type,
                            help='filter type [default=%(default)s]')
-        if bands is not None:
-            g.add_argument('--bands', action='store', type=int, default=bands,
+        if num_bands is not None:
+            g.add_argument('--num_bands', action='store', type=int,
+                           default=num_bands,
                            help='number of bands (per octave) '
                                 '[default=%(default)i]')
         if fmin is not None:
@@ -799,19 +800,20 @@ class MelFilterbank(Filterbank):
     NORM_FILTERS = True
     DUPLICATE_FILTERS = False
 
-    def __new__(cls, bin_frequencies, bands=BANDS, fmin=FMIN, fmax=FMAX,
+    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN, fmax=FMAX,
                 norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
                 **kwargs):
         """
         Creates a new MelFilterbank instance.
 
-        :param bin_frequencies:   frequencies of the bins [Hz]
-        :param bands:             number of filter bands
-        :param fmin:              the minimum frequency [Hz]
-        :param fmax:              the maximum frequency [Hz]
-        :param norm_filters:      normalize the filters to area 1
+        :param bin_frequencies:   frequencies of the bins [Hz, float array]
+        :param num_bands:         number of filter bands [int]
+        :param fmin:              the minimum frequency [Hz, float]
+        :param fmax:              the maximum frequency [Hz, float]
+        :param norm_filters:      normalize the filters to area 1 [bool]
         :param duplicate_filters: keep duplicate filters resulting from
                                   insufficient resolution of low frequencies
+                                  [bool]
 
         Note: Because of rounding and mapping of frequencies to bins and vice
               versa, the actual minimum, maximum and center frequencies do not
@@ -820,7 +822,7 @@ class MelFilterbank(Filterbank):
         """
         # get a list of frequencies
         # request 2 more bands, because these are the edge frequencies
-        frequencies = mel_frequencies(bands + 2, fmin, fmax)
+        frequencies = mel_frequencies(num_bands + 2, fmin, fmax)
         # convert to bins
         bins = frequencies2bins(frequencies, bin_frequencies)
         # get overlapping triangular filters
@@ -838,18 +840,18 @@ class BarkFilterbank(Filterbank):
     """
     FMIN = 20.
     FMAX = 15500.
-    BANDS = 'simple'
+    BANDS = 'normal'
     NORM_FILTERS = True
     DUPLICATE_FILTERS = False
 
-    def __new__(cls, bin_frequencies, bands=BANDS, fmin=FMIN, fmax=FMAX,
+    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN, fmax=FMAX,
                 norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
                 **kwargs):
         """
         Creates a new BarkFilterbank instance.
 
         :param bin_frequencies:   frequencies of the bins [Hz]
-        :param bands:             number of filter bands
+        :param num_bands:         number of filter bands
         :param fmin:              the minimum frequency [Hz]
         :param fmax:              the maximum frequency [Hz]
         :param norm_filters:      normalize the filters to area 1
@@ -858,12 +860,12 @@ class BarkFilterbank(Filterbank):
 
         """
         # get a list of frequencies
-        if bands == 'simple':
+        if num_bands == 'normal':
             frequencies = bark_frequencies(fmin, fmax)
-        elif bands == 'double':
+        elif num_bands == 'double':
             frequencies = bark_double_frequencies(fmin, fmax)
         else:
-            raise ValueError("bands must be either 'simple' or 'double'")
+            raise ValueError("`num_bands` must be {'normal', 'double'}")
         # convert to bins
         bins = frequencies2bins(frequencies, bin_frequencies)
         # get non-overlapping rectangular filters
@@ -881,14 +883,14 @@ class LogarithmicFilterbank(Filterbank):
     """
     BANDS_PER_OCTAVE = 12
 
-    def __new__(cls, bin_frequencies, bands=BANDS_PER_OCTAVE, fmin=FMIN,
+    def __new__(cls, bin_frequencies, num_bands=BANDS_PER_OCTAVE, fmin=FMIN,
                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new LogarithmicFilterbank instance.
 
         :param bin_frequencies:   frequencies of the bins [Hz]
-        :param bands:             number of filter bands per octave
+        :param num_bands:         number of filter bands per octave
         :param fmin:              the minimum frequency [Hz]
         :param fmax:              the maximum frequency [Hz]
         :param fref:              tuning frequency of the filterbank [Hz]
@@ -896,13 +898,13 @@ class LogarithmicFilterbank(Filterbank):
         :param duplicate_filters: keep duplicate filters resulting from
                                   insufficient resolution of low frequencies
 
-        Note: `bands` sets the number of bands per octave, not the overall
+        Note: `num_bands` sets the number of bands per octave, not the overall
               number of filter bands; if set to 12 it results in a semitone
               filterbank.
 
         """
         # get a list of frequencies
-        frequencies = log_frequencies(bands, fmin, fmax, fref)
+        frequencies = log_frequencies(num_bands, fmin, fmax, fref)
         # convert to bins
         bins = frequencies2bins(frequencies, bin_frequencies)
         # get overlapping triangular filters
@@ -912,7 +914,7 @@ class LogarithmicFilterbank(Filterbank):
         # create a LogarithmicFilterbank from the filters
         obj = cls.from_filters(filters, bin_frequencies)
         # set additional attributes
-        obj.bands_per_octave = bands
+        obj.bands_per_octave = num_bands
         obj.fref = fref
         # return the object
         return obj
@@ -948,6 +950,60 @@ class LogarithmicFilterbank(Filterbank):
 LogFilterbank = LogarithmicFilterbank
 
 
+class RectangularFilterbank(Filterbank):
+    """
+    Rectangular filterbank class.
+
+    """
+
+    def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS):
+        """
+        Creates a new LogarithmicFilterbank instance.
+
+        :param bin_frequencies:       frequencies of the bins [Hz]
+        :param crossover_frequencies: crossover frequencies of the bands [Hz]
+        :param fmin:                  the minimum frequency [Hz]
+        :param fmax:                  the maximum frequency [Hz]
+        :param norm_filters:          normalize the filters to area 1
+
+        """
+        # create an empty filterbank
+        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
+                      dtype=np.float32)
+        crossover_frequencies = np.r_[fmin, crossover_frequencies, fmax]
+        # get the crossover bins
+        crossover_bins = np.searchsorted(bin_frequencies,
+                                         crossover_frequencies)
+        # map the bins to the filterbank bands
+        for i in range(len(crossover_bins) - 1):
+            fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
+        # normalize the filterbank
+        if norm_filters:
+            fb /= np.sum(fb, axis=0)
+        # cast as RectangularFilterbank
+        obj = fb.view(cls)
+        # set additional attributes
+        obj.bin_frequencies = np.asarray(bin_frequencies)
+        obj.crossover_frequencies = crossover_frequencies
+        # return the object
+        return obj
+
+    def __reduce__(self):
+        # get the parent's __reduce__ tuple
+        pickled_state = super(RectangularFilterbank, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.crossover_frequencies, )
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # set the additional attributes
+        self.crossover_frequencies = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(RectangularFilterbank, self).__setstate__(state[0:-1])
+
+
 # chroma / harmonic filterbanks
 class SimpleChromaFilterbank(Filterbank):
     """
@@ -956,14 +1012,14 @@ class SimpleChromaFilterbank(Filterbank):
     """
     BANDS = 12
 
-    def __new__(cls, bin_frequencies, bands=BANDS, fmin=FMIN,
+    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN,
                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 duplicate_filters=DUPLICATE_FILTERS):
         """
         Creates a new SimpleChromaFilterbank instance.
 
         :param bin_frequencies:   frequencies of the bins [Hz]
-        :param bands:             number of filter bands per octave
+        :param num_bands:         number of filter bands per octave
         :param fmin:              the minimum frequency [Hz]
         :param fmax:              the maximum frequency [Hz]
         :param fref:              tuning frequency of the filterbank [Hz]
@@ -975,8 +1031,8 @@ class SimpleChromaFilterbank(Filterbank):
         raise NotImplementedError("please check if produces correct/expected "
                                   "results and enable if yes.")
         # TODO: add comments!
-        stf = LogarithmicFilterbank(bin_frequencies, bands=bands, fmin=fmin,
-                                    fmax=fmax, fref=fref,
+        stf = LogarithmicFilterbank(bin_frequencies, num_bands=num_bands,
+                                    fmin=fmin, fmax=fmax, fref=fref,
                                     norm_filters=norm_filters,
                                     duplicate_filters=duplicate_filters)
         # create an empty filterbank
@@ -1281,15 +1337,15 @@ def comb_filter(signal, filter_function, tau, alpha):
     return y
 
 
-class CombFilterbank(Processor):
+class CombFilterbankProcessor(Processor):
     """
-    CombFilterbank class.
+    CombFilterbankProcessor class.
 
     """
 
     def __init__(self, filter_function, tau, alpha):
         """
-        Creates a new CombFilterbank.
+        Creates a new CombFilterbankProcessor.
 
         :param filter_function: comb filter function to use (either a function
                                 or one of the literals {'forward', 'backward'})
@@ -1324,13 +1380,12 @@ class CombFilterbank(Processor):
 
     def process(self, data):
         """
-        Filter the given data with the CombFilterbank.
+        Filter the given data with the comb filter.
 
         :param data: data to be filtered
         :return:     comb filtered data with the different taus aligned
                      along the (new) first dimension
 
         """
-        # this method makes the Filterbank act as a Processor
-        return comb_filter(data, self.comb_filter_function,
-                           self.tau, self.alpha)
+        return comb_filter(data, self.comb_filter_function, self.tau,
+                           self.alpha)

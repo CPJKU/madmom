@@ -50,8 +50,8 @@ Notes:
 ------
 
 All features can change without prior notice. Do NOT expect these to stay the
-same forever! If you need stable features, create a branch and set the needed
-parameters accordingly.
+same forever! If you need stable features, create a branch, set the parameters
+accordingly and pickle the processors.
 
 If you get segfaults on Mac OS X systems, please check if numpy and scipy use
 ATLAS instead of Apple's own Accelerate framework or use the a single thread

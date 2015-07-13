@@ -5,7 +5,7 @@ Johannes Kepler University, Linz, Austria (http://www.cp.jku.at) and the
 Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 (http://www.ofai.at).
 
-Please see the README for further details of this module.
+Please see the README for further details of this package.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
