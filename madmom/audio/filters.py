@@ -371,15 +371,19 @@ class TriangularFilter(Filter):
 
         """
         # center must be between start & stop
-        if start >= center >= stop:
+        if not start <= center < stop:
             raise ValueError('center must be between start and stop')
         # make center and stop relative
         center -= start
         stop -= start
-        # set the height of the filter, normalized if necessary.
-        # A standard filter is at least 3 bins wide, and stop - start = 2
-        # thus the filter has an area of 1 if normalized this way
-        height = 2. / stop if norm else 1.
+        # set the height of the filter, normalized if necessary
+        if center == 0 and stop == 1:
+            # special case if the filter should be only 2 bins wide
+            height = 1
+        else:
+            # a standard filter is at least 3 bins wide, and stop - start = 2
+            # thus the filter has an area of 1 if normalized this way
+            height = 2. / stop if norm else 1.
         # create filter
         data = np.zeros(stop)
         # rising edge (without the center)

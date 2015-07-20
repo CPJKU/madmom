@@ -934,6 +934,15 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.bands_per_octave == filt_.bands_per_octave)
         self.assertTrue(filt.fref == filt_.fref)
 
+    def test_values_duplicate_filters(self):
+        filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12)
+        self.assertTrue(np.allclose(filt.max(), 1))
+        self.assertEqual(filt.shape, (1000, 81))
+        filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12,
+                                     duplicate_filters=True)
+        self.assertTrue(np.allclose(filt.max(), 1))
+        self.assertEqual(filt.shape, (1000, 108))
+
     def test_default_values(self):
         filt = LogarithmicFilterbank(FFT_FREQS_1024)
         center = [43.066406, 64.5996093, 86.1328125, 107.6660156, 129.199218,
