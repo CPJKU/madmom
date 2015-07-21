@@ -625,6 +625,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         trans = cls.transition_distribution(interval, interval_sigma)
         norm_fact = cls.normalisation_factors(activations, trans)
 
+        # noinspection PyCallByClass, PyTypeChecker
         return cls.crf_viterbi(init, trans, norm_fact, activations, interval)
 
     def process(self, activations):

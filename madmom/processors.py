@@ -208,7 +208,6 @@ class ParallelProcessor(SequentialProcessor):
         #       whereas mp.Pool().map is not.
         self.map = map
         if min(len(processors), max(1, num_threads)) != 1:
-            import multiprocessing as mp
             self.map = mp.Pool(num_threads).map
 
     def process(self, data):
@@ -437,11 +436,12 @@ def pickle_processor(processor, outfile, **kwargs):
 
 
 # generic input/output arguments for scripts
-def io_arguments(parser, suffix='.txt'):
+def io_arguments(parser, output_suffix='.txt'):
     """
     Add input / output related arguments to an existing parser.
 
-    :param parser: existing argparse parser
+    :param parser:        existing argparse parser
+    :param output_suffix: suffix appended to the output files
 
     """
     # add general options
@@ -469,7 +469,7 @@ def io_arguments(parser, suffix='.txt'):
     sp.add_argument('files', nargs='+', help='files to be processed')
     sp.add_argument('-o', dest='output_dir', default=None,
                     help='output directory [default=%(default)s]')
-    sp.add_argument('-s', dest='output_suffix', default=suffix,
+    sp.add_argument('-s', dest='output_suffix', default=output_suffix,
                     help='suffix appended to the files (dot must be included '
                          'if wanted) [default=%(default)s]')
     sp.add_argument('--ext', dest='strip_ext', action='store_false',

@@ -17,6 +17,8 @@ from madmom.audio.filters import Filterbank, LogarithmicFilterbank
 
 
 # test functions
+
+# noinspection PyArgumentList
 class TestBinFrequenciesFunction(unittest.TestCase):
 
     def test_num_arguments(self):
@@ -56,6 +58,7 @@ class TestStftFunction(unittest.TestCase):
         self.assertTrue(True)
 
 
+# noinspection PyArgumentList
 class TestSpecFunction(unittest.TestCase):
 
     def test_types(self):
@@ -82,6 +85,7 @@ class TestSpecFunction(unittest.TestCase):
         self.assertTrue(np.allclose(np.abs(data), spec(data)))
 
 
+# noinspection PyArgumentList,PyArgumentList,PyArgumentList
 class TestPhaseFunction(unittest.TestCase):
 
     def test_types(self):

@@ -247,7 +247,10 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None, start=None,
     :param dtype:        numpy dtype to return the signal in (supports signed
                          and unsigned 8/16/32-bit integers, and single and
                          double precision floats, each in little or big endian)
+    :param cmd_decode:   command used for decoding audio
+    :param cmd_probe:    command used for probing audio (i.e. get file info)
     :return:             tuple (signal, sample_rate)
+
     """
     from .ffmpeg import decode_to_memory, get_file_info
     # convert dtype to sample type
@@ -469,8 +472,8 @@ class SignalProcessor(Processor):
 
         """
         # instantiate a Signal (with the given sample rate if set)
-        data = Signal(data, self.sample_rate, self.num_channels,
-                      start=start, stop=stop, **kwargs)
+        data = Signal(data, sample_rate=self.sample_rate,
+                      num_channels=self.num_channels, start=start, stop=stop)
         # process it if needed
         if self.norm:
             # normalize signal
@@ -734,6 +737,7 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
                    signal.strides[axis + 1:])
 
     try:
+        # noinspection PyArgumentList
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
                                   shape=new_shape, buffer=signal,
                                   dtype=signal.dtype)
@@ -742,9 +746,10 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
         import warnings
         warnings.warn("Problem with ndarray creation forces copy.")
         signal = signal.copy()
-        # Shape doesn't change but strides does
+        # shape doesn't change but strides does
         new_strides = (signal.strides[:axis] + (hop_size * s, s) +
                        signal.strides[axis + 1:])
+        # noinspection PyArgumentList
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
                                   shape=new_shape, buffer=signal,
                                   dtype=signal.dtype)

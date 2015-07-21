@@ -108,6 +108,7 @@ def spectral_diff(spectrogram, diff_frames=None):
     Spectral Diff.
 
     :param spectrogram: Spectrogram instance
+    :param diff_frames: number of frames to calculate the diff to [int]
     :return:            spectral diff onset detection function
 
     "A hybrid approach to musical note onset detection"
@@ -150,8 +151,10 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
     Calculates the difference of bin k of the magnitude spectrogram relative to
     the N-th previous frame with the maximum filtered spectrogram.
 
-    :param spectrogram: Spectrogram instance
-    :return:            SuperFlux onset detection function
+    :param spectrogram:   Spectrogram instance
+    :param diff_frames:   number of frames to calculate the diff to [int]
+    :param diff_max_bins: number of bins used for maximum filter [int]
+    :return:              SuperFlux onset detection function
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
     Sebastian Böck and Gerhard Widmer
@@ -183,6 +186,7 @@ def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
     Complex Flux with a local group delay based tremolo suppression.
 
     :param spectrogram:     Spectrogram instance
+    :param diff_frames:     number of frames to calculate the diff to [int]
     :param temporal_filter: temporal maximum filtering of the local group delay
     :param temporal_origin: origin of the temporal maximum filter
     :return:                complex flux onset detection function
@@ -237,6 +241,7 @@ def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
     Modified Kullback-Leibler.
 
     :param spectrogram: Spectrogram instance
+    :param diff_frames: number of frames to calculate the diff to [int]
     :param epsilon:     add epsilon to avoid division by 0
     :return:            MKL onset detection function
 
@@ -396,6 +401,7 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
     Rectified Complex Domain.
 
     :param spectrogram: Spectrogram instance
+    :param diff_frames: number of frames to calculate the diff to [int]
     :return:            rectified complex domain onset detection function
 
     "Onset Detection Revisited"

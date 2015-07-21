@@ -82,7 +82,7 @@ def bark2hz(z):
     return 1960. / (26.81 / (np.asarray(z) + 0.53) - 1.)
 
 
-def bark_frequencies(fmin=20, fmax=15500):
+def bark_frequencies(fmin=20., fmax=15500.):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
 
@@ -102,7 +102,7 @@ def bark_frequencies(fmin=20, fmax=15500):
     return frequencies
 
 
-def bark_double_frequencies(fmin=20, fmax=15500):
+def bark_double_frequencies(fmin=20., fmax=15500.):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
     The list includes also center frequencies between the corner frequencies.
@@ -334,7 +334,7 @@ class Filter(np.ndarray):
 
         :param bins:   center/crossover bins of filters [list or numpy array]
         :param kwargs: additional parameters
-        :return:       bins and normalisation information for filter creation
+        :return:       bins and normalization information for filter creation
 
         """
         raise NotImplementedError('needs to be implemented by sub-classes')
@@ -492,7 +492,7 @@ class RectangularFilter(Filter):
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=False):
         """
-        Yields start and stop bins and normalisation info for creation of
+        Yields start and stop bins and normalization info for creation of
         rectangular filters.
 
         :param bins:       crossover bins of filters [numpy array]
@@ -500,7 +500,7 @@ class RectangularFilter(Filter):
         :param duplicates: keep duplicate filters resulting from insufficient
                            resolution of low frequencies [bool]
         :param overlap:    filters should overlap [bool]
-        :return:           start and stop bins & normalisation info
+        :return:           start and stop bins & normalization info
 
         Note: If `duplicates` is set, duplicate filter bins are kept as is,
               otherwise they are removed, i.e. any filter bin is included only

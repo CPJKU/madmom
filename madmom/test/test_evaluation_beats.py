@@ -10,6 +10,7 @@ This file contains tests for the madmom.evaluation.beats module.
 import unittest
 
 from madmom.evaluation.beats import *
+# noinspection PyProtectedMember
 from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
                                      _information_gain, _entropy)
 

@@ -12,11 +12,28 @@ import numpy as np
 
 # decorator to suppress warnings
 def suppress_warnings(function):
+    """
+    Decorate the given function to suppress any warnings
+
+    :param function: function to be decorated
+    :return:         decorated function
+
+    """
+
     def decorator_function(*args, **kwargs):
+        """
+        Decorator function to suppress warnings.
+
+        :param args:   arguments passed to function to be decorated
+        :param kwargs: keyword arguments passed to function to be decorated
+        :return:       decorated function
+
+        """
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return function(*args, **kwargs)
+
     return decorator_function
 
 

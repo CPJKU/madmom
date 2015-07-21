@@ -46,7 +46,7 @@ class PitchClassProfile(object):
     """
 
     def __init__(self, spectrogram, num_classes=PCP.CLASSES, fmin=PCP.FMIN,
-                 fmax=PCP.FMAX, fref=None, filterbank=None, *args, **kwargs):
+                 fmax=PCP.FMAX, fref=None, filterbank=None, **kwargs):
         """
         Creates a new PitchClassProfile instance.
 
@@ -69,7 +69,7 @@ class PitchClassProfile(object):
             # assume a file name, try to instantiate a Spectrogram object
             # Note: since the filterbank is a proper argument, the created
             #       Spectrogram will always be unfiltered (what we want)
-            self._spectrogram = Spectrogram(spectrogram, *args, **kwargs)
+            self._spectrogram = Spectrogram(spectrogram, **kwargs)
 
         # the spectrogram must not be filtered
         if self._spectrogram.filterbank:
@@ -127,7 +127,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
 
     def __init__(self, spectrogram, num_classes=HPCP.CLASSES, fmin=HPCP.FMIN,
                  fmax=HPCP.FMAX, fref=None, window=HPCP.WINDOW,
-                 filterbank=None, *args, **kwargs):
+                 filterbank=None, **kwargs):
         """
         Creates a new HarmonicPitchClassProfile instance.
 
@@ -144,8 +144,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         """
         # pass all arguments (but the window) the the PitchClassProfile class
         super(HarmonicPitchClassProfile, self).__init__(
-            spectrogram, num_classes, fmin, fmax, fref, filterbank, *args,
-            **kwargs)
+            spectrogram, num_classes, fmin, fmax, fref, filterbank, **kwargs)
         # set hidden parameters for filterbank creation
         self._filterbank_type = HPCP
         self._parameters['window'] = window
