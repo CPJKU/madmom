@@ -23,6 +23,7 @@ from ..processors import Processor, ParallelProcessor
 
 
 # naming infix for bidirectional layer
+NN_DTYPE = np.float32
 REVERSE = 'reverse'
 
 
@@ -83,6 +84,42 @@ except AttributeError:
     sigmoid = _sigmoid
 
 
+def relu(x, out=None):
+    """
+    Rectified linear (unit) transfer function.
+
+    :param x:   input data
+    :param out: numpy array to hold the output data
+    :return:    rectified linear of input data
+
+    """
+    if out is None:
+        return np.maximum(x, 0)
+    np.maximum(x, 0, out)
+    return out
+
+
+def softmax(x, out=None):
+    """
+
+    :param x:   input data
+    :param out: numpy array to hold the output data
+    :return:    softmax of input data
+
+    """
+    # determine maximum (over classes)
+    tmp = np.amax(x, axis=1, keepdims=True)
+    # exp of the input minus the max
+    if out is None:
+        out = np.exp(x - tmp)
+    else:
+        np.exp(x - tmp, out=out)
+    # normalize by the sum (reusing the tmp variable)
+    np.sum(out, axis=1, keepdims=True, out=tmp)
+    out /= tmp
+    return out
+
+
 # network layer classes
 class Layer(object):
     """
@@ -117,57 +154,6 @@ class Layer(object):
 
         """
         return
-
-
-class BidirectionalLayer(Layer):
-    """
-    Bidirectional network layer.
-
-    """
-
-    def __init__(self, fwd_layer, bwd_layer):
-        """
-        Create a new BidirectionalLayer.
-
-        :param fwd_layer: forward layer
-        :param bwd_layer: backward layer
-
-        """
-        self.fwd_layer = fwd_layer
-        self.bwd_layer = bwd_layer
-
-    def activate(self, data):
-        """
-        Activate the layer.
-
-        :param data: activate with this data
-        :return:     activations for this data
-
-        """
-        # activate in forward direction
-        fwd = self.fwd_layer.activate(data)
-        # also activate with reverse input
-        bwd = self.bwd_layer.activate(data[::-1])
-        # stack data
-        return np.hstack((bwd[::-1], fwd))
-
-    @property
-    def input_size(self):
-        """
-        Input size of the layer.
-
-        """
-        # the input sizes of the forward and backward layer must match
-        assert self.fwd_layer.input_size == self.bwd_layer.input_size
-        return self.fwd_layer.input_size
-
-    @property
-    def output_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.fwd_layer.output_size + self.bwd_layer.output_size
 
 
 class FeedForwardLayer(Layer):
@@ -258,8 +244,8 @@ class RecurrentLayer(FeedForwardLayer):
         size = data.shape[0]
         # FIXME: although everything seems to be ok, np.dot doesn't accept the
         #        format of the output array. Speed is almost the same, though.
-        # out = np.zeros((size, len(self.bias)), dtype=np.float32)
-        # tmp = np.zeros(len(self.bias), dtype=np.float32)
+        # out = np.zeros((size, len(self.bias)), dtype=NN_DTYPE)
+        # tmp = np.zeros(len(self.bias), dtype=NN_DTYPE)
         # np.dot(data, self.weights, out=out)
         out = np.dot(data, self.weights)
         out += self.bias
@@ -276,61 +262,55 @@ class RecurrentLayer(FeedForwardLayer):
         return out
 
 
-class LinearLayer(RecurrentLayer):
+class BidirectionalLayer(Layer):
     """
-    Recurrent network layer with linear transfer function.
-
-    """
-
-    def __init__(self, weights, bias, recurrent_weights=None):
-        """
-        Create a new LinearLayer.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-
-        """
-        super(LinearLayer, self).__init__(linear, weights, bias,
-                                          recurrent_weights)
-
-
-class TanhLayer(RecurrentLayer):
-    """
-    Recurrent network layer with tanh transfer function.
+    Bidirectional network layer.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights=None):
+    def __init__(self, fwd_layer, bwd_layer):
         """
-        Create a new TanhLayer.
+        Create a new BidirectionalLayer.
 
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-
-        """
-        super(TanhLayer, self).__init__(tanh, weights, bias,
-                                        recurrent_weights)
-
-
-class SigmoidLayer(RecurrentLayer):
-    """
-    Recurrent network layer with sigmoid transfer function.
-
-    """
-
-    def __init__(self, weights, bias, recurrent_weights=None):
-        """
-        Create a new SigmoidLayer.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
+        :param fwd_layer: forward layer
+        :param bwd_layer: backward layer
 
         """
-        super(SigmoidLayer, self).__init__(sigmoid, weights, bias,
-                                           recurrent_weights)
+        self.fwd_layer = fwd_layer
+        self.bwd_layer = bwd_layer
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        :param data: activate with this data
+        :return:     activations for this data
+
+        """
+        # activate in forward direction
+        fwd = self.fwd_layer.activate(data)
+        # also activate with reverse input
+        bwd = self.bwd_layer.activate(data[::-1])
+        # stack data
+        return np.hstack((bwd[::-1], fwd))
+
+    @property
+    def input_size(self):
+        """
+        Input size of the layer.
+
+        """
+        # the input sizes of the forward and backward layer must match
+        assert self.fwd_layer.input_size == self.bwd_layer.input_size
+        return self.fwd_layer.input_size
+
+    @property
+    def output_size(self):
+        """
+        Output size of the layer.
+
+        """
+        return self.fwd_layer.output_size + self.bwd_layer.output_size
 
 
 # LSTM stuff
@@ -358,8 +338,8 @@ class Cell(object):
         self.recurrent_weights = np.copy(recurrent_weights)
         self.peephole_weights = None
         self.transfer_fn = transfer_fn
-        self.cell = np.zeros(self.bias.size, dtype=np.float32)
-        self._tmp = np.zeros(self.bias.size, dtype=np.float32)
+        self.cell = np.zeros(self.bias.size, dtype=NN_DTYPE)
+        self._tmp = np.zeros(self.bias.size, dtype=NN_DTYPE)
 
     def activate(self, data, prev, state=None):
         """
@@ -396,7 +376,8 @@ class Gate(Cell):
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, peephole_weights):
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights,
+                 transfer_fn=sigmoid):
         """
         Create a new {input, forget, output} Gate as used by LSTM units.
 
@@ -404,13 +385,15 @@ class Gate(Cell):
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
         :param peephole_weights:  peephole weights (1D vector or scalar)
+        :param transfer_fn:       transfer function
 
         """
-        super(Gate, self).__init__(weights, bias, recurrent_weights, sigmoid)
+        super(Gate, self).__init__(weights, bias, recurrent_weights,
+                                   transfer_fn=transfer_fn)
         self.peephole_weights = peephole_weights.flatten('A')
 
 
-class LSTMLayer(object):
+class LSTMLayer(Layer):
     """
     Recurrent network layer with Long Short-Term Memory units.
 
@@ -439,6 +422,22 @@ class LSTMLayer(object):
                                 recurrent_weights[3::4].T,
                                 peephole_weights[2::3].T)
 
+    @property
+    def input_size(self):
+        """
+        Output size of the layer.
+
+        """
+        return self.cell.weights.shape[0]
+
+    @property
+    def output_size(self):
+        """
+        Output size of the layer.
+
+        """
+        return self.cell.weights.shape[1]
+
     def activate(self, data):
         """
         Activate the layer.
@@ -450,11 +449,11 @@ class LSTMLayer(object):
         # init arrays
         size = len(data)
         # output matrix for the whole sequence
-        out = np.zeros((size, self.cell.bias.size), dtype=np.float32)
+        out = np.zeros((size, self.cell.bias.size), dtype=NN_DTYPE)
         # output (of the previous time step)
-        out_ = np.zeros(self.cell.bias.size, dtype=np.float32)
+        out_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # state (of the previous time step)
-        state_ = np.zeros(self.cell.bias.size, dtype=np.float32)
+        state_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # process the input data
         for i in xrange(size):
             # cache input data
@@ -493,9 +492,17 @@ class RecurrentNeuralNetwork(Processor):
         """
         Create a new RecurrentNeuralNetwork object.
 
-        :param layers: build a RNN object with the given layers
+        :param layers: build a RNN instance with the given layers
 
         """
+        # check if the dimensions of the layers fit together
+        prev_layer = layers[0]
+        if len(layers) > 1:
+            for layer in layers[1:]:
+                if layer.input_size != prev_layer.output_size:
+                    raise ValueError('can not connect layers with sizes %d & '
+                                     '%d' % (prev_layer.output_size,
+                                             layer.input_size))
         self.layers = layers
 
     @classmethod
@@ -527,18 +534,26 @@ class RecurrentNeuralNetwork(Processor):
             bwd_layer = None
             if '%s_type' % REVERSE in params.keys():
                 # pop the parameters needed for the reverse (backward) layer
-                bwd_type = params.pop('%s_type' % REVERSE)
+                bwd_type = str(params.pop('%s_type' % REVERSE)).lower()
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in params.keys() if
                                   k.startswith('%s_' % REVERSE))
                 # construct the layer
-                bwd_layer = globals()["%sLayer" % bwd_type](**bwd_params)
+                if bwd_type == 'lstm':
+                    bwd_layer = LSTMLayer(**bwd_params)
+                else:
+                    transfer_fn = globals()[bwd_type]
+                    bwd_layer = RecurrentLayer(transfer_fn, **bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
-            fwd_type = params.pop('type')
+            fwd_type = str(params.pop('type')).lower()
             fwd_params = params
             # construct the layer
-            fwd_layer = globals()["%sLayer" % fwd_type](**fwd_params)
+            if fwd_type == 'lstm':
+                fwd_layer = LSTMLayer(**fwd_params)
+            else:
+                transfer_fn = globals()[fwd_type]
+                fwd_layer = RecurrentLayer(transfer_fn, **fwd_params)
 
             # return a (bidirectional) layer
             if bwd_layer is not None:
@@ -582,6 +597,7 @@ class RecurrentNeuralNetwork(Processor):
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()
         return data
+
 
 # alias
 RNN = RecurrentNeuralNetwork
