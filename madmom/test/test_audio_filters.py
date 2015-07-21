@@ -405,6 +405,18 @@ class TestTriangularFilterClass(unittest.TestCase):
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.center == 6)
         self.assertTrue(filt.stop == 9)
+        # test small filters (these can occur if a `Filterbank` uses
+        # `TriangularFilter`s and has `duplicate_filters` set to 'True'
+        filt = TriangularFilter(0, 0, 1, True)
+        self.assertTrue(np.allclose(filt, [1]))
+        self.assertTrue(filt.start == 0)
+        self.assertTrue(filt.center == 0)
+        self.assertTrue(filt.stop == 1)
+        filt = TriangularFilter(0, 0, 1, False)
+        self.assertTrue(np.allclose(filt, [1]))
+        self.assertTrue(filt.start == 0)
+        self.assertTrue(filt.center == 0)
+        self.assertTrue(filt.stop == 1)
 
     def test_pickling(self):
         f, filename = tempfile.mkstemp()

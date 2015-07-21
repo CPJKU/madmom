@@ -44,7 +44,7 @@ def mel_frequencies(num_bands, fmin, fmax):
     :param num_bands: number of bands
     :param fmin:      the minimum frequency [Hz]
     :param fmax:      the maximum frequency [Hz]
-    :return:          a list of frequencies
+    :return:          list with Mel frequencies
 
     """
     # convert fmin and fmax to the Mel scale and return an array of frequencies
@@ -57,7 +57,7 @@ def hz2bark(f):
     Convert Hz frequencies to Bark.
 
     :param f: input frequencies [Hz]
-    :return:  frequencies in Bark.
+    :return:  frequencies in Bark
 
     """
     raise NotImplementedError('please check this function, it produces '
@@ -72,7 +72,7 @@ def bark2hz(z):
     Convert Bark frequencies to Hz.
 
     :param z: input frequencies [Bark]
-    :return:  frequencies in Hz.
+    :return:  frequencies in Hz
 
     """
     raise NotImplementedError('please check this function, it produces weird '
@@ -87,7 +87,7 @@ def bark_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :return:     a list of frequencies
+    :return:     list with Bark frequencies
 
     """
     # frequencies aligned to the Bark-scale
@@ -108,7 +108,7 @@ def bark_double_frequencies(fmin=20, fmax=15500):
 
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
-    :return:     a list of frequencies
+    :return:     list with Bark frequencies
 
     """
     # frequencies aligned to the Bark-scale, also includes center frequencies
@@ -134,9 +134,9 @@ def log_frequencies(bands_per_octave, fmin, fmax, fref=A4):
     :param fmin:             the minimum frequency [Hz]
     :param fmax:             the maximum frequency [Hz]
     :param fref:             tuning frequency [Hz]
-    :return:                 a list of frequencies
+    :return:                 list with logarithmically spaced frequencies
 
-    Note: if 12 bands per octave and a4=440 are used, the frequencies are
+    Note: If 12 bands per octave and a4=440 are used, the frequencies are
           equivalent to MIDI notes.
 
     """
@@ -161,7 +161,7 @@ def semitone_frequencies(fmin, fmax, a4=A4):
     :param fmin: the minimum frequency [Hz]
     :param fmax: the maximum frequency [Hz]
     :param a4:   tuning frequency of A4 [Hz]
-    :return:     a list of frequencies of semitones
+    :return:     list with semitones frequencies
 
     """
     # return MIDI frequencies
@@ -238,7 +238,7 @@ def frequencies2bins(frequencies, bin_frequencies):
     """
     Map frequencies to the closest corresponding bins.
 
-    :param frequencies:     a list of frequencies [numpy array, Hz]
+    :param frequencies:     list with frequencies [numpy array, Hz]
     :param bin_frequencies: frequencies of the bins [numpy array, Hz]
     :return:                corresponding bins [numpy array]
 
@@ -277,12 +277,13 @@ class Filter(np.ndarray):
 
     """
 
-    def __new__(cls, data, start=0):
+    def __new__(cls, data, start=0, norm=False):
         """
         Creates a new Filter instance.
 
         :param data:  1D numpy array
         :param start: start position [int]
+        :param norm:  normalize the filter area to 1 [bool]
 
         The start position is mandatory if this Filter should be used for the
         creation of a Filterbank. If not set, a start position of 0 is assumed.
@@ -295,8 +296,11 @@ class Filter(np.ndarray):
         else:
             raise TypeError('wrong input data for Filter, must be np.ndarray')
         # right now, allow only 1D
-        if data.ndim != 1:
+        if obj.ndim != 1:
             raise NotImplementedError('please add multi-dimension support')
+        # normalize
+        if norm:
+            obj /= np.sum(obj)
         # set attributes
         obj.start = int(start)
         obj.stop = int(start + len(data))
@@ -362,12 +366,12 @@ class TriangularFilter(Filter):
         """
         Creates a new TriangularFilter instance.
 
-        :param start:  start bin
-        :param center: center bin (of height 1, unless filter is normalized)
-        :param stop:   stop bin
-        :param norm:   normalize the area of the filter(s) to 1
-        :return:       a triangular shaped filter with length 'stop', height 1
-                       (unless normalized) with indices <= 'start' set to 0
+        :param start:  start bin [int]
+        :param center: center bin [int]
+        :param stop:   stop bin [int]
+        :param norm:   normalize the area of the filter to 1 [bool]
+        :return:       triangular shaped filter with length `stop`, height 1
+                       (unless normalized) with indices <= `start` set to 0
 
         """
         # center must be between start & stop
@@ -376,22 +380,14 @@ class TriangularFilter(Filter):
         # make center and stop relative
         center -= start
         stop -= start
-        # set the height of the filter, normalized if necessary
-        if center == 0 and stop == 1:
-            # special case if the filter should be only 2 bins wide
-            height = 1
-        else:
-            # a standard filter is at least 3 bins wide, and stop - start = 2
-            # thus the filter has an area of 1 if normalized this way
-            height = 2. / stop if norm else 1.
         # create filter
         data = np.zeros(stop)
         # rising edge (without the center)
-        data[:center] = np.linspace(0, height, center, endpoint=False)
+        data[:center] = np.linspace(0, 1, center, endpoint=False)
         # falling edge (including the center, but without the last bin)
-        data[center:] = np.linspace(height, 0, stop - center, endpoint=False)
+        data[center:] = np.linspace(1, 0, stop - center, endpoint=False)
         # cast to TriangularFilter
-        obj = Filter.__new__(cls, data, start)
+        obj = Filter.__new__(cls, data, start, norm)
         # set the center bin
         obj.center = start + center
         # return the filter
@@ -430,7 +426,7 @@ class TriangularFilter(Filter):
         Note: If `duplicates` is set, duplicate filter bins are kept as is,
               otherwise they are removed, i.e. any filter bin is included only
               1 time at most.
-              If `overlap` is 'False', the 'start' and 'stop' bins of the
+              If `overlap` is 'False', the `start` and `stop` bins of the
               filters are interpolated between the centre bins, normal rounding
               applies.
 
@@ -474,11 +470,11 @@ class RectangularFilter(Filter):
         """
         Creates a new RectangularFilter instance.
 
-        :param start: start bin of the filter
-        :param stop:  stop bin of the filter
-        :param norm:  normalize the area of the filter(s) to 1
-        :return:      a rectangular shaped filter with length 'stop', height 1
-                      (unless normalized) with indices <= 'start' set to 0
+        :param start: start bin of the filter [int]
+        :param stop:  stop bin of the filter [int]
+        :param norm:  normalize the area of the filter to 1 [bool]
+        :return:      rectangular shaped filter with length `stop`, height 1
+                      (unless normalized) with indices <= `start` set to 0
 
         """
         # start must be smaller than stop
@@ -486,12 +482,10 @@ class RectangularFilter(Filter):
             raise ValueError('start must be smaller than stop')
         # length of the filter
         length = stop - start
-        # set the height of the filter, normalized if necessary
-        height = 1. / length if norm else 1.
         # create filter
-        data = np.ones(length, dtype=np.float) * height
+        data = np.ones(length, dtype=np.float)
         # cast to RectangularFilter and return it
-        return Filter.__new__(cls, data, start)
+        return Filter.__new__(cls, data, start, norm)
 
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=False):
@@ -561,8 +555,8 @@ class Filterbank(np.ndarray):
         Creates a new Filterbank instance.
 
         :param data:            2D numpy array (num_bins x num_bands)
-        :param bin_frequencies: frequencies of the bins (must be the same as
-                                the first dimension of the given data)
+        :param bin_frequencies: frequencies of the bins (length must be equal
+                                to the first dimension of the given data)
 
         """
         # input is an numpy ndarray instance
@@ -608,7 +602,7 @@ class Filterbank(np.ndarray):
         """
         Puts a filter in the band, internal helper function.
 
-        :param filt: Filter instance
+        :param filt: filter to be put into the band [Filter]
         :param band: band in which the filter should be put [numpy array]
 
         Note: The `band` must be an existing numpy array where the filter
@@ -642,8 +636,8 @@ class Filterbank(np.ndarray):
         """
         Creates a filterbank with possibly multiple filters per band.
 
-        :param filters:         list containing the Filters per band; if
-                                multiple filters per band are desired, they
+        :param filters:         list of Filters (per band)
+                                if multiple filters per band are desired, they
                                 should be also contained in a list, resulting
                                 in a list of lists of Filters
         :param bin_frequencies: frequencies of the bins (needed to determine
