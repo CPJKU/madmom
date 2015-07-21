@@ -346,6 +346,12 @@ class TestFilterClass(unittest.TestCase):
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 6)
 
+    def test_normalization(self):
+        filt = Filter(np.arange(5), norm=True)
+        self.assertTrue(np.allclose(filt, [0, 0.1, 0.2, 0.3, 0.4]))
+        self.assertTrue(filt.start == 0)
+        self.assertTrue(filt.stop == 5)
+
     def test_pickling(self):
         f, filename = tempfile.mkstemp()
         filt = Filter(np.arange(5))
@@ -367,7 +373,7 @@ class TestTriangularFilterClass(unittest.TestCase):
     def test_types(self):
         filt = TriangularFilter(0, 1, 2, False)
         self.assertIsInstance(filt, TriangularFilter)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertIsInstance(filt.band_bins(np.arange(8)),
                               types.GeneratorType)
 
@@ -538,7 +544,7 @@ class TestRectangularFilterClass(unittest.TestCase):
     def test_types(self):
         filt = RectangularFilter(0, 1, False)
         self.assertIsInstance(filt, RectangularFilter)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertIsInstance(filt.band_bins(np.arange(8)),
                               types.GeneratorType)
 
@@ -698,7 +704,7 @@ class TestFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = Filterbank(np.zeros((100, 10)), np.arange(100))
         self.assertIsInstance(filt, Filterbank)
-        self.assertTrue(filt.dtype == np.float)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_errors(self):
@@ -730,7 +736,7 @@ class TestFilterbankClass(unittest.TestCase):
     def test_from_filters_function(self):
         filt = Filterbank.from_filters(self.rect_filters, np.arange(100))
         self.assertIsInstance(filt, Filterbank)
-        self.assertTrue(filt.dtype == np.float32)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_values_rectangular(self):
@@ -773,7 +779,7 @@ class TestMelFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = MelFilterbank(np.arange(20000))
         self.assertIsInstance(filt, MelFilterbank)
-        self.assertTrue(filt.dtype == np.float32)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
@@ -856,7 +862,7 @@ class TestBarkFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = BarkFilterbank(np.arange(20000))
         self.assertIsInstance(filt, BarkFilterbank)
-        self.assertTrue(filt.dtype == np.float32)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):
@@ -916,7 +922,7 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
     def test_types(self):
         filt = LogarithmicFilterbank(np.arange(20000))
         self.assertIsInstance(filt, LogarithmicFilterbank)
-        self.assertTrue(filt.dtype == np.float32)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
 
     def test_constant_types(self):

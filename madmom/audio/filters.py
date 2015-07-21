@@ -11,6 +11,7 @@ import numpy as np
 
 from madmom.processors import Processor
 
+FILTER_DTYPE = np.float32
 A4 = 440.
 
 
@@ -292,7 +293,7 @@ class Filter(np.ndarray):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
             # cast as Filter
-            obj = np.asarray(data).view(cls)
+            obj = np.asarray(data, dtype=FILTER_DTYPE).view(cls)
         else:
             raise TypeError('wrong input data for Filter, must be np.ndarray')
         # right now, allow only 1D
@@ -562,7 +563,7 @@ class Filterbank(np.ndarray):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray) and data.ndim == 2:
             # cast as Filterbank
-            obj = np.asarray(data).view(cls)
+            obj = np.asarray(data, dtype=FILTER_DTYPE).view(cls)
         else:
             raise TypeError('wrong input data for Filterbank, must be a 2D '
                             'np.ndarray')
@@ -646,7 +647,7 @@ class Filterbank(np.ndarray):
 
         """
         # create filterbank
-        fb = np.zeros((len(bin_frequencies), len(filters)), np.float32)
+        fb = np.zeros((len(bin_frequencies), len(filters)))
         # iterate over all filters
         for band_id, band_filter in enumerate(filters):
             # get the band's corresponding slice of the filterbank
@@ -967,8 +968,7 @@ class RectangularFilterbank(Filterbank):
 
         """
         # create an empty filterbank
-        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
-                      dtype=np.float32)
+        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1))
         crossover_frequencies = np.r_[fmin, crossover_frequencies, fmax]
         # get the crossover bins
         crossover_bins = np.searchsorted(bin_frequencies,
