@@ -42,7 +42,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='DataProcessor')
     # add arguments
-    io_arguments(p, suffix='.npy')
+    io_arguments(p, output_suffix='.npy')
     SignalProcessor.add_arguments(p, sample_rate=44100, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, frame_size=[1024, 2048, 4096],
                                         fps=100, online=False)

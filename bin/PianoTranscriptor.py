@@ -35,7 +35,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
     # add arguments
-    io_arguments(p, suffix='.notes.txt')
+    io_arguments(p, output_suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)
     RNNNoteProcessor.add_arguments(p)
     PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,

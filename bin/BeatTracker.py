@@ -38,7 +38,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2014')
     # add arguments
-    io_arguments(p, suffix='.beats.txt')
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     RNNBeatProcessor.add_arguments(p)
     BeatTrackingProcessor.add_tempo_arguments(p)

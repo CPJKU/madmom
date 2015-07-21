@@ -38,7 +38,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='LogFiltSpecFlux.2014')
     # add arguments
-    io_arguments(p, suffix='.onsets.txt')
+    io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=100, online=False)

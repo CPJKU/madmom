@@ -45,7 +45,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='DownBeatTracker.2015')
     # add arguments
-    io_arguments(p, suffix='.beats.txt')
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=50, online=False)

@@ -39,7 +39,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='MMBeatTracker.2015')
     # add arguments
-    io_arguments(p, suffix='.beats.txt')
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # TODO: replace this hack nn_ref_files=True hack with a proper solution
     RNNBeatProcessor.add_arguments(p, nn_ref_files=True)

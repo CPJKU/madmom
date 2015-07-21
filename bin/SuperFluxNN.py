@@ -39,7 +39,7 @@ def main():
 
     ''')
     # add arguments
-    io_arguments(p, suffix='.onsets.txt')
+    io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
     FramedSignalProcessor.add_arguments(p, fps=200, online=False)

@@ -44,7 +44,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='OnsetDetectorLL.2013')
     # add arguments
-    io_arguments(p, suffix='.onsets.txt')
+    io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     RNNOnsetProcessor.add_arguments(p, online=True)
     PeakPickingProcessor.add_arguments(p, threshold=0.23)

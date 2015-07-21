@@ -49,7 +49,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2014')
     # add arguments
-    io_arguments(p, suffix='.bpm.txt')
+    io_arguments(p, output_suffix='.bpm.txt')
     ActivationsProcessor.add_arguments(p)
     RNNBeatProcessor.add_arguments(p)
     TempoEstimationProcessor.add_arguments(p)
