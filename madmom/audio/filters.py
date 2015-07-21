@@ -20,8 +20,8 @@ def hz2mel(f):
     """
     Convert Hz frequencies to Mel.
 
-    :param f: input frequencies [Hz]
-    :return:  frequencies in Mel
+    :param f: input frequencies [Hz, numpy array]
+    :return:  frequencies in Mel [Mel, numpy array]
 
     """
     return 1127.01048 * np.log(np.asarray(f) / 700. + 1.)
@@ -31,8 +31,8 @@ def mel2hz(m):
     """
     Convert Mel frequencies to Hz.
 
-    :param m: input frequencies [Mel]
-    :return:  frequencies in Hz
+    :param m: input frequencies [Mel, numpy array]
+    :return:  frequencies in Hz [Hz, numpy array]
 
     """
     return 700. * (np.exp(np.asarray(m) / 1127.01048) - 1.)
@@ -42,10 +42,10 @@ def mel_frequencies(num_bands, fmin, fmax):
     """
     Generates a list of frequencies aligned on the Mel scale.
 
-    :param num_bands: number of bands
-    :param fmin:      the minimum frequency [Hz]
-    :param fmax:      the maximum frequency [Hz]
-    :return:          list with Mel frequencies
+    :param num_bands: number of bands [int]
+    :param fmin:      the minimum frequency [Hz, float]
+    :param fmax:      the maximum frequency [Hz, float]
+    :return:          frequencies with Mel spacing [Hz, numpy array]
 
     """
     # convert fmin and fmax to the Mel scale and return an array of frequencies
@@ -57,8 +57,8 @@ def hz2bark(f):
     """
     Convert Hz frequencies to Bark.
 
-    :param f: input frequencies [Hz]
-    :return:  frequencies in Bark
+    :param f: input frequencies [Hz, numpy array]
+    :return:  frequencies in Bark [Bark, numpy array]
 
     """
     raise NotImplementedError('please check this function, it produces '
@@ -72,8 +72,8 @@ def bark2hz(z):
     """
     Convert Bark frequencies to Hz.
 
-    :param z: input frequencies [Bark]
-    :return:  frequencies in Hz
+    :param z: input frequencies [Bark, numpy array]
+    :return:  frequencies in Hz [Hz, numpy array]
 
     """
     raise NotImplementedError('please check this function, it produces weird '
@@ -86,9 +86,9 @@ def bark_frequencies(fmin=20, fmax=15500):
     """
     Generates a list of corner frequencies aligned on the Bark-scale.
 
-    :param fmin: the minimum frequency [Hz]
-    :param fmax: the maximum frequency [Hz]
-    :return:     list with Bark frequencies
+    :param fmin: the minimum frequency [Hz, float]
+    :param fmax: the maximum frequency [Hz, float]
+    :return:     frequencies with Bark spacing [Hz, numpy array]
 
     """
     # frequencies aligned to the Bark-scale
@@ -107,9 +107,9 @@ def bark_double_frequencies(fmin=20, fmax=15500):
     Generates a list of corner frequencies aligned on the Bark-scale.
     The list includes also center frequencies between the corner frequencies.
 
-    :param fmin: the minimum frequency [Hz]
-    :param fmax: the maximum frequency [Hz]
-    :return:     list with Bark frequencies
+    :param fmin: the minimum frequency [Hz, float]
+    :param fmax: the maximum frequency [Hz, float]
+    :return:     frequencies with Bark spacing [Hz, numpy array]
 
     """
     # frequencies aligned to the Bark-scale, also includes center frequencies
@@ -131,11 +131,12 @@ def log_frequencies(bands_per_octave, fmin, fmax, fref=A4):
     """
     Generates a list of frequencies aligned on a logarithmic frequency scale.
 
-    :param bands_per_octave: number of filter bands per octave
-    :param fmin:             the minimum frequency [Hz]
-    :param fmax:             the maximum frequency [Hz]
-    :param fref:             tuning frequency [Hz]
-    :return:                 list with logarithmically spaced frequencies
+    :param bands_per_octave: number of filter bands per octave [int]
+    :param fmin:             the minimum frequency [Hz, float]
+    :param fmax:             the maximum frequency [Hz, float]
+    :param fref:             tuning frequency [Hz, float]
+    :return:                 logarithmically spaced frequencies
+                             [Hz, numpy array]
 
     Note: If 12 bands per octave and a4=440 are used, the frequencies are
           equivalent to MIDI notes.
@@ -159,10 +160,10 @@ def semitone_frequencies(fmin, fmax, a4=A4):
     """
     Generates a list of frequencies separated by semitones.
 
-    :param fmin: the minimum frequency [Hz]
-    :param fmax: the maximum frequency [Hz]
-    :param a4:   tuning frequency of A4 [Hz]
-    :return:     list with semitones frequencies
+    :param fmin: the minimum frequency [Hz, float]
+    :param fmax: the maximum frequency [Hz, float]
+    :param a4:   tuning frequency of A4 [Hz, float]
+    :return:     semitones frequencies [Hz, numpy array]
 
     """
     # return MIDI frequencies
@@ -170,27 +171,13 @@ def semitone_frequencies(fmin, fmax, a4=A4):
 
 
 # MIDI
-def midi2hz(m, fref=A4):
+def hz2midi(f, fref=A4):
     """
     Convert frequencies to the corresponding MIDI notes.
 
-    :param m:    input MIDI notes
-    :param fref: tuning frequency of A4 [Hz]
-    :return:     frequencies in Hz
-
-    For details see: http://www.phys.unsw.edu.au/jw/notes.html
-
-    """
-    return 2. ** ((m - 69.) / 12.) * fref
-
-
-def hz2midi(f, fref=A4):
-    """
-    Convert MIDI notes to corresponding frequencies.
-
-    :param f:    input frequencies [Hz]
-    :param fref: tuning frequency of A4 [Hz]
-    :return:     MIDI notes
+    :param f:    input frequencies [Hz, numpy array]
+    :param fref: tuning frequency of A4 [Hz, float]
+    :return:     MIDI notes [numpy array]
 
     For details see: at http://www.phys.unsw.edu.au/jw/notes.html
 
@@ -199,6 +186,20 @@ def hz2midi(f, fref=A4):
 
     """
     return (12. * np.log2(f / float(fref))) + 69.
+
+
+def midi2hz(m, fref=A4):
+    """
+    Convert MIDI notes to corresponding frequencies.
+
+    :param m:    input MIDI notes [numpy array]
+    :param fref: tuning frequency of A4 [Hz, float]
+    :return:     frequencies in Hz [Hz, numpy array]
+
+    For details see: http://www.phys.unsw.edu.au/jw/notes.html
+
+    """
+    return 2. ** ((m - 69.) / 12.) * fref
 
 
 # provide an alias to semitone_frequencies
@@ -210,8 +211,8 @@ def hz2erb(f):
     """
     Convert Hz to ERB.
 
-    :param f: input frequencies [Hz]
-    :return:  frequencies in ERB
+    :param f: input frequencies [Hz, numpy array]
+    :return:  frequencies in ERB [ERB, numpy array]
 
     Information about the ERB scale can be found at:
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
@@ -224,8 +225,8 @@ def erb2hz(e):
     """
     Convert ERB scaled frequencies to Hz.
 
-    :param e: input frequencies [ERB]
-    :return:  frequencies in Hz
+    :param e: input frequencies [ERB, numpy array]
+    :return:  frequencies in Hz [Hz, numpy array]
 
     Information about the ERB scale can be found at:
     https://ccrma.stanford.edu/~jos/bbt/Equivalent_Rectangular_Bandwidth.html
@@ -239,8 +240,8 @@ def frequencies2bins(frequencies, bin_frequencies):
     """
     Map frequencies to the closest corresponding bins.
 
-    :param frequencies:     list with frequencies [numpy array, Hz]
-    :param bin_frequencies: frequencies of the bins [numpy array, Hz]
+    :param frequencies:     list with frequencies [Hz, numpy array]
+    :param bin_frequencies: frequencies of the bins [Hz, numpy array]
     :return:                corresponding bins [numpy array]
 
     """
@@ -262,9 +263,9 @@ def bins2frequencies(bins, bin_frequencies):
     """
     Convert bins to the corresponding frequencies.
 
-    :param bins:            a list of bins [numpy array]
-    :param bin_frequencies: frequencies of the bins [numpy array, Hz]
-    :return:                corresponding frequencies [numpy array, Hz]
+    :param bins:            (a list of) bins [list or numpy array]
+    :param bin_frequencies: frequencies of the bins [Hz, numpy array]
+    :return:                corresponding frequencies [Hz, numpy array]
 
     """
     # map the frequencies to spectrogram bins
@@ -414,15 +415,15 @@ class TriangularFilter(Filter):
     @classmethod
     def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
         """
-        Yields start, center and stop bins and normalisation info for creation
+        Yields start, center and stop bins and normalization info for creation
         of triangular filters.
 
         :param bins:       center bins of filters [list or numpy array]
         :param norm:       normalize the area of the filter(s) to 1 [bool]
         :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies
+                           resolution of low frequencies [bool]
         :param overlap:    filters should overlap [bool]
-        :return:           start, center and stop bins & normalisation info
+        :return:           start, center and stop bins & normalization info
 
         Note: If `duplicates` is set, duplicate filter bins are kept as is,
               otherwise they are removed, i.e. any filter bin is included only
@@ -495,10 +496,10 @@ class RectangularFilter(Filter):
         rectangular filters.
 
         :param bins:       crossover bins of filters [numpy array]
-        :param norm:       normalize the area of the filter(s) to 1
+        :param norm:       normalize the area of the filter(s) to 1 [bool]
         :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies
-        :param overlap:    filters should overlap
+                           resolution of low frequencies [bool]
+        :param overlap:    filters should overlap [bool]
         :return:           start and stop bins & normalisation info
 
         Note: If `duplicates` is set, duplicate filter bins are kept as is,
@@ -556,8 +557,9 @@ class Filterbank(np.ndarray):
         Creates a new Filterbank instance.
 
         :param data:            2D numpy array (num_bins x num_bands)
-        :param bin_frequencies: frequencies of the bins (length must be equal
-                                to the first dimension of the given data)
+        :param bin_frequencies: frequencies of the bins [numpy array]
+                                (length must be equal to the first dimension
+                                 of the given data array)
 
         """
         # input is an numpy ndarray instance
@@ -641,8 +643,9 @@ class Filterbank(np.ndarray):
                                 if multiple filters per band are desired, they
                                 should be also contained in a list, resulting
                                 in a list of lists of Filters
-        :param bin_frequencies: frequencies of the bins (needed to determine
-                                the expected size of the filterbank)
+        :param bin_frequencies: frequencies of the bins [numpy array]
+                                (needed to determine the expected size of the
+                                 filterbank)
         :return:                filterbank with respective filter elements
 
         """
