@@ -86,32 +86,29 @@ def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
     Determines the tuning frequency of the audio signal based on the given
     (peak) magnitude spectrogram.
 
-    :param spectrogram:            (peak) magnitude spectrogram [numpy array]
+    :param spectrogram:     (peak) magnitude spectrogram [numpy array]
     :param bin_frequencies: frequencies of the spectrogram bins [numpy array]
     :param num_hist_bins:   number of histogram bins
     :param fref:            reference tuning frequency [Hz]
     :return:                tuning frequency
 
     """
+    from .filters import hz2midi
     # interval of spectral bins from the reference frequency in semitones
-    semitone_int = 12. * np.log2(bin_frequencies / fref)
-    print "semitone_int", semitone_int
+    semitone_int = hz2midi(bin_frequencies)
     # deviation from the next semitone
     semitone_dev = semitone_int - np.round(semitone_int)
-    print "semitone_dev", semitone_dev
-    # build a histogram
-    hist = np.histogram(semitone_dev * spectrogram,
-                        bins=num_hist_bins, range=(-0.5, 0.5))
-    print "hist", hist
-    # deviation of the bins (calculate the bin centres)
-    dev_bins = (hist[1][:-1] + hist[1][1:]) / 2.
-    print "dev_bins", dev_bins
-    print "hist max", np.argmax(hist[0])
+    # np.histogram accepts bin edges, so we need to apply an offset and use 1
+    # more bin than given to build a histogram
+    offset = 0.5 / num_hist_bins
+    hist_bins = np.linspace(-0.5 - offset, 0.5 + offset, num_hist_bins + 1)
+    histogram = np.histogram(semitone_dev, weights=np.sum(spectrogram, axis=0),
+                             bins=hist_bins)
+    # deviation of the bins (centre of the bins)
+    dev_bins = (histogram[1][:-1] + histogram[1][1:]) / 2.
     # dominant deviation
-    dev = num_hist_bins * dev_bins[np.argmax(hist[0])]
-    print "dev", dev
+    dev = dev_bins[np.argmax(histogram[0])]
     # calculate the tuning frequency
-    print "tuning", fref * 2. ** (dev / 12.)
     return fref * 2. ** (dev / 12.)
 
 
