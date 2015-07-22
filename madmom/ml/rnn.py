@@ -139,22 +139,6 @@ class Layer(object):
         """
         return
 
-    @abc.abstractproperty
-    def input_size(self):
-        """
-        Input size of the layer.
-
-        """
-        return
-
-    @abc.abstractproperty
-    def output_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return
-
 
 class FeedForwardLayer(Layer):
     """
@@ -162,21 +146,20 @@ class FeedForwardLayer(Layer):
 
     """
 
-    def __init__(self, transfer_fn, weights, bias):
+    def __init__(self, weights, bias, transfer_fn):
         """
         Create a new Layer.
 
-        :param transfer_fn: transfer function
         :param weights:     weights (2D matrix)
         :param bias:        bias (1D vector or scalar)
-
-        Note: The transfer function needs to support the numpy ufunc out
-              argument.
+        :param transfer_fn: transfer function [numpy ufunc]
 
         """
-        self.transfer_fn = transfer_fn
         self.weights = np.copy(weights)
         self.bias = bias.flatten('A')
+        # self.weights = weights
+        # self.bias = bias
+        self.transfer_fn = transfer_fn
 
     def activate(self, data):
         """
@@ -189,22 +172,6 @@ class FeedForwardLayer(Layer):
         # weight the data, add bias and apply transfer function
         return self.transfer_fn(np.dot(data, self.weights) + self.bias)
 
-    @property
-    def input_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.weights.shape[0]
-
-    @property
-    def output_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.weights.shape[1]
-
 
 class RecurrentLayer(FeedForwardLayer):
     """
@@ -212,20 +179,19 @@ class RecurrentLayer(FeedForwardLayer):
 
     """
 
-    def __init__(self, transfer_fn, weights, bias, recurrent_weights=None):
+    def __init__(self, weights, bias, recurrent_weights, transfer_fn):
         """
         Create a new Layer.
 
-        :param transfer_fn:       transfer function
         :param weights:           weights (2D matrix)
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
-
-        Note: The transfer function needs to support the numpy ufunc out
-              argument.
+        :param transfer_fn:       transfer function [numpy ufunc]
 
         """
-        super(RecurrentLayer, self).__init__(transfer_fn, weights, bias)
+        super(RecurrentLayer, self).__init__(weights, bias, transfer_fn)
+        # if no recurrent_weights are given, this layer acts like a
+        # FeedForwardLayer
         self.recurrent_weights = None
         if recurrent_weights is not None:
             self.recurrent_weights = np.copy(recurrent_weights)
@@ -294,24 +260,6 @@ class BidirectionalLayer(Layer):
         # stack data
         return np.hstack((bwd[::-1], fwd))
 
-    @property
-    def input_size(self):
-        """
-        Input size of the layer.
-
-        """
-        # the input sizes of the forward and backward layer must match
-        assert self.fwd_layer.input_size == self.bwd_layer.input_size
-        return self.fwd_layer.input_size
-
-    @property
-    def output_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.fwd_layer.output_size + self.bwd_layer.output_size
-
 
 # LSTM stuff
 class Cell(object):
@@ -327,10 +275,7 @@ class Cell(object):
         :param weights:           weights (2D matrix)
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
-        :param transfer_fn:       transfer function
-
-        Note: The transfer function needs to support the numpy ufunc out
-              argument.
+        :param transfer_fn:       transfer function [numpy ufunc]
 
         """
         self.weights = np.copy(weights)
@@ -385,7 +330,7 @@ class Gate(Cell):
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
         :param peephole_weights:  peephole weights (1D vector or scalar)
-        :param transfer_fn:       transfer function
+        :param transfer_fn:       transfer function [numpy ufunc]
 
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights,
@@ -399,7 +344,8 @@ class LSTMLayer(Layer):
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, peephole_weights):
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights,
+                 transfer_fn=tanh):
         """
         Create a new LSTMLayer.
 
@@ -407,6 +353,7 @@ class LSTMLayer(Layer):
         :param bias:              bias (1D vector or scalar)
         :param recurrent_weights: recurrent weights (2D matrix)
         :param peephole_weights:  peephole weights (1D vector or scalar)
+        :param transfer_fn:       transfer function [numpy ufunc]
 
         """
         # init the gates and memory cell
@@ -421,22 +368,7 @@ class LSTMLayer(Layer):
         self.output_gate = Gate(weights[3::4].T, bias[3::4].T,
                                 recurrent_weights[3::4].T,
                                 peephole_weights[2::3].T)
-
-    @property
-    def input_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.cell.weights.shape[0]
-
-    @property
-    def output_size(self):
-        """
-        Output size of the layer.
-
-        """
-        return self.cell.weights.shape[1]
+        self.transfer_fn = transfer_fn
 
     def activate(self, data):
         """
@@ -476,7 +408,7 @@ class LSTMLayer(Layer):
             og = self.output_gate.activate(data_, out_, state_)
             # output:
             # apply transfer function to state and weight by output gate
-            out_ = tanh(state_) * og
+            out_ = self.transfer_fn(state_) * og
             out[i] = out_
         return out
 
@@ -495,14 +427,6 @@ class RecurrentNeuralNetwork(Processor):
         :param layers: build a RNN instance with the given layers
 
         """
-        # check if the dimensions of the layers fit together
-        prev_layer = layers[0]
-        if len(layers) > 1:
-            for layer in layers[1:]:
-                if layer.input_size != prev_layer.output_size:
-                    raise ValueError('can not connect layers with sizes %d & '
-                                     '%d' % (prev_layer.output_size,
-                                             layer.input_size))
         self.layers = layers
 
     @classmethod
@@ -517,6 +441,8 @@ class RecurrentNeuralNetwork(Processor):
         import re
         # native numpy .npz format or pickled dictionary
         data = np.load(filename)
+
+        print data.keys()
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
         num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
                           for k in data.keys() if k.startswith('layer_')])
@@ -538,12 +464,13 @@ class RecurrentNeuralNetwork(Processor):
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in params.keys() if
                                   k.startswith('%s_' % REVERSE))
+                print bwd_params
                 # construct the layer
                 if bwd_type == 'lstm':
                     bwd_layer = LSTMLayer(**bwd_params)
                 else:
                     transfer_fn = globals()[bwd_type]
-                    bwd_layer = RecurrentLayer(transfer_fn, **bwd_params)
+                    bwd_layer = RecurrentLayer(**bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
             fwd_type = str(params.pop('type')).lower()
@@ -553,7 +480,8 @@ class RecurrentNeuralNetwork(Processor):
                 fwd_layer = LSTMLayer(**fwd_params)
             else:
                 transfer_fn = globals()[fwd_type]
-                fwd_layer = RecurrentLayer(transfer_fn, **fwd_params)
+                print fwd_params
+                fwd_layer = RecurrentLayer(**fwd_params)
 
             # return a (bidirectional) layer
             if bwd_layer is not None:

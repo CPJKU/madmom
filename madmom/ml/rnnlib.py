@@ -27,6 +27,9 @@ import subprocess
 import numpy as np
 
 from madmom.features import Activations
+from madmom.ml.rnn import (REVERSE, tanh, linear, sigmoid,
+                           RecurrentNeuralNetwork, FeedForwardLayer,
+                           RecurrentLayer, BidirectionalLayer, LSTMLayer)
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
@@ -823,7 +826,9 @@ class RnnlibConfig(object):
         # open the config file
         f = open(filename, 'r')
         # read in every line
-        for line in f.readlines():
+        lines = f.readlines()
+        # get some general information
+        for line in lines:
             # save the file sets
             if line.startswith('trainFile'):
                 self.train_files = line[:].split()[1].split(',')
@@ -845,14 +850,41 @@ class RnnlibConfig(object):
             # task
             elif line.startswith('task'):
                 self.task = line[:].split()[1]
-            # save the weights
+                # set the output layer type
+                if self.task == 'classification':
+                    self.layer_types.append('sigmoid')
+                elif self.task == 'regression':
+                    self.layer_types.append('linear')
+                else:
+                    raise ValueError('unknown task, cannot set type of output '
+                                     'layer.')
+            # get bidirectional information
+            # unfortunately RNNLIB does not store bidirectional information in
+            # its .save files
             elif line.startswith('weightContainer_'):
                 # line format: weightContainer_bias_to_hidden_0_0_weights \
                 # num_weights weight0 weight1 ...
                 parts = line[:].split()
                 # only use the weights
+                if parts[0].endswith('0_1_weights'):
+                    self.bidirectional = True
+            # append output layer size
+            if line.startswith('weightContainer_bias_to_output_weights'):
+                output_size = int(line[:].split()[1])
+                self.layer_sizes.append(output_size)
+
+        # only process the weights
+        for line in lines:
+            # save the weights
+            if line.startswith('weightContainer_'):
+                # line format: weightContainer_bias_to_hidden_0_0_weights \
+                # num_weights weight0 weight1 ...
+                parts = line[:].split()
+                # only use the weights
                 if parts[0].endswith('_weights'):
-                    # get rid of beginning and end
+                    # get the weights
+                    w = np.array(parts[2:], dtype=np.float32)
+                    # get rid of beginning and end of name
                     name = re.sub('weightContainer_', '', str(parts[0][:]))
                     name = re.sub('_weights', '', name)
                     # alter the name to a more useful schema
@@ -863,17 +895,13 @@ class RnnlibConfig(object):
                     name = re.sub('_output', '_o', name)
                     name = re.sub('gather_._', 'i_', name)
                     name = re.sub('_peepholes', '_peephole_weights', name)
-                    # hidden layer handling
+                    # hidden layer recurrent weights handling
                     for i in range(len(self.layer_sizes)):
-                        # recurrent connections
                         name = re.sub('layer_%s_0_layer_%s_0_delay.*' % (i, i),
                                       'layer_%s_0_recurrent_weights' % i, name)
                         name = re.sub('layer_%s_1_layer_%s_1_delay.*' % (i, i),
                                       'layer_%s_1_recurrent_weights' % i, name)
-                    # set bidirectional mode
-                    if '0_1' in name:
-                        self.bidirectional = True
-                    # start renaming / renumbering
+                    # renaming / renumbering beginning
                     if name.startswith('i_'):
                         # weights
                         name = "%s_weights" % name[2:]
@@ -890,29 +918,50 @@ class RnnlibConfig(object):
                         name = re.sub('layer_%s_1_o' % (num_output_layer - 1),
                                       'layer_%s_1_weights' % num_output_layer,
                                       name)
+                    # rename bidirectional stuff (not for output layer)
+                    for i in range(len(self.layer_sizes)):
+                        if self.bidirectional:
+                            name = re.sub('layer_%s_1' % i, 'layer_%s' % i,
+                                          name)
+                            name = re.sub('layer_%s_0' % i,
+                                          'layer_%s_%s' % (i, REVERSE), name)
+                        else:
+                            name = re.sub('layer_%s_0' % i, 'layer_%s' % i,
+                                          name)
+                    # reshape the weights
+                    # FIXME: evil hack
+                    layer_num = int(name[6])
+                    layer_size = self.layer_sizes[layer_num]
+                    # if we use LSTM units, align weights differently
+                    if self.layer_types[layer_num] == 'lstm':
+                        if 'peephole' in name:
+                            # peephole connections
+                            w = w.reshape(3 * layer_size, -1)
+                        else:
+                            # bias, weights and recurrent connections
+                            w = w.reshape(4 * layer_size, -1)
+                    # output units
+                    # print len(self.layer_sizes)
+                    # elif layer_num == len(self.layer_sizes) - 1:
+                    #     w = w.reshape(layer_size, -1)
+                    # "normal" units
+                    else:
+                        w = w.reshape(layer_size, -1).T
                     # save the weights
-                    self.w[name] = np.array(parts[2:], dtype=np.float32)
-        # append output layer size
-        output_size = self.w['layer_%s_0_bias' % num_output_layer].size
-        self.layer_sizes.append(output_size)
-        # set the output layer type
-        if self.task == 'classification':
-            self.layer_types.append('sigmoid')
-        elif self.task == 'regression':
-            self.layer_types.append('linear')
-        else:
-            raise ValueError('unknown task, cannot set type of output layer.')
-        # stack the output weights
+                    self.w[name] = w
+        # reshape and stack the output weights
         if self.bidirectional:
             num_output = len(self.layer_sizes) - 1
             size_output = self.layer_sizes[num_output]
-            bwd = self.w.pop('layer_%s_0_weights' % num_output)
-            fwd = self.w.pop('layer_%s_1_weights' % num_output)
-            # reshape weights
+            fwd = self.w.pop('layer_%s_weights' % num_output).T
+            bwd = self.w.pop('layer_%s_%s_weights' % (num_output, REVERSE)).T
+            # # reshape weights
             bwd = bwd.reshape((size_output, -1))
             fwd = fwd.reshape((size_output, -1))
-            # stack weights
-            self.w['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
+            self.w['layer_%s_weights' % num_output] = np.hstack((bwd, fwd)).T
+            # rename bias
+            bias = self.w.pop('layer_%s_%s_bias' % (num_output, REVERSE))
+            self.w['layer_%s_bias' % num_output] = bias
         # close the file
         f.close()
 
@@ -1045,7 +1094,6 @@ class RnnlibConfig(object):
             h5_l = h5.create_group('layer')
             # create a subgroup for each layer
             for layer in range(len(self.layer_sizes)):
-                bidirectional = False
                 # create group with layer number
                 grp = h5_l.create_group(str(layer))
                 # iterate over all weights
@@ -1055,52 +1103,90 @@ class RnnlibConfig(object):
                         continue
                     # get the weights
                     w = self.w[key]
-                    name = None
-                    if key.endswith('peephole_weights'):
-                        name = 'peephole_weights'
-                    elif key.endswith('recurrent_weights'):
-                        name = 'recurrent_weights'
-                    elif key.endswith('weights'):
-                        name = 'weights'
-                    elif key.endswith('bias'):
-                        name = 'bias'
-                    else:
-                        ValueError('key %s not understood' % key)
-                    # get the size of the layer to reshape it
-                    layer_size = self.layer_sizes[layer]
-                    # if we use LSTM units, align weights differently
-                    if self.layer_types[layer] == 'lstm':
-                        if 'peephole' in key:
-                            # peephole connections
-                            w = w.reshape(3 * layer_size, -1)
-                        else:
-                            # bias, weights and recurrent connections
-                            w = w.reshape(4 * layer_size, -1)
-                    # "normal" units
-                    else:
-                        w = w.reshape(layer_size, -1).T
-                    # reverse
-                    if key.startswith('layer_%s_0' % layer):
-                        if re.sub('layer_%s_0' % layer, 'layer_%s_1' % layer,
-                                  key) in self.w.keys():
-                            name = '%s_%s' % (REVERSE, name)
-                            bidirectional = True
+                    key = re.sub('layer_%s_' % layer, '', key)
+                    # # get the size of the layer to reshape it
+                    # layer_size = self.layer_sizes[layer]
+                    # # if we use LSTM units, align weights differently
+                    # if self.layer_types[layer] == 'lstm':
+                    #     if 'peephole' in key:
+                    #         # peephole connections
+                    #         w = w.reshape(3 * layer_size, -1)
+                    #     else:
+                    #         # bias, weights and recurrent connections
+                    #         w = w.reshape(4 * layer_size, -1)
+                    # # "normal" units
+                    # else:
+                    #     w = w.reshape(layer_size, -1).T
                     # save the weights
-                    grp.create_dataset(name, data=w.astype(np.float32))
+                    grp.create_dataset(key, data=w.astype(np.float32))
                     # include the layer type as attribute
                     layer_type = self.layer_types[layer].capitalize()
                     if layer_type == 'Lstm':
                         layer_type = 'LSTM'
                     grp.attrs['type'] = str(layer_type)
                     # also for the reverse bidirectional layer if it exists
-                    if bidirectional:
+                    if self.bidirectional:
                         grp.attrs['%s_type' % REVERSE] = str(layer_type)
                 # next layer
         # also convert to .npz
         if npz:
             from .io import convert_model
-
             convert_model(filename)
+
+    def create_rnn(self):
+        """Create a RNN."""
+        # shortcut
+        w = self.w
+        # create layers
+        layers = []
+        for i, layer_type in enumerate(self.layer_types[:-1]):
+            if layer_type == 'lstm':
+                # LSTM units
+                transfer_fn = tanh
+                # create a fwd layer
+                w_ = w['layer_%d_weights' % i]
+                b_ = w['layer_%d_bias' % i]
+                r_ = w['layer_%d_recurrent_weights' % i]
+                p_ = w['layer_%d_peephole_weights' % i]
+                fwd = LSTMLayer(w_, b_, r_, p_, transfer_fn)
+                # create a bwd layer and a bidirectional layer
+                if self.bidirectional:
+                    w_ = w['layer_%d_reverse_weights' % i]
+                    b_ = w['layer_%d_reverse_bias' % i]
+                    r_ = w['layer_%d_reverse_recurrent_weights' % i]
+                    p_ = w['layer_%d_reverse_peephole_weights' % i]
+                    bwd = LSTMLayer(w_, b_, r_, p_, transfer_fn)
+                    layer = BidirectionalLayer(fwd, bwd)
+                else:
+                    layer = fwd
+            else:
+                # "normal" units
+                # transfer function
+                transfer_fn = globals()[layer_type]
+                # create a fwd layer
+                w_ = w['layer_%d_weights' % i]
+                b_ = w['layer_%d_bias' % i]
+                r_ = w['layer_%d_recurrent_weights' % i]
+                fwd = RecurrentLayer(w_, b_, r_, transfer_fn)
+                # create a bwd layer and a bidirectional layer
+                if self.bidirectional:
+                    w_ = w['layer_%d_reverse_weights' % i]
+                    b_ = w['layer_%d_reverse_bias' % i]
+                    r_ = w['layer_%d_reverse_recurrent_weights' % i]
+                    bwd = RecurrentLayer(w_, b_, r_, transfer_fn)
+                    layer = BidirectionalLayer(fwd, bwd)
+                else:
+                    layer = fwd
+            # append the layer
+            layers.append(layer)
+        # create output layer
+        i += 1
+        w_ = w['layer_%d_weights' % i]
+        b_ = w['layer_%d_bias' % i]
+        out = FeedForwardLayer(w_, b_, globals()[self.layer_types[-1]])
+        layers.append(out)
+        # create and return a RNN
+        return RecurrentNeuralNetwork(layers)
 
 
 def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
