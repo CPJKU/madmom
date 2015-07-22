@@ -155,10 +155,8 @@ class FeedForwardLayer(Layer):
         :param transfer_fn: transfer function [numpy ufunc]
 
         """
-        self.weights = np.copy(weights)
-        self.bias = bias.flatten('A')
-        # self.weights = weights
-        # self.bias = bias
+        self.weights = weights.copy()
+        self.bias = bias.flatten()
         self.transfer_fn = transfer_fn
 
     def activate(self, data):
@@ -190,11 +188,7 @@ class RecurrentLayer(FeedForwardLayer):
 
         """
         super(RecurrentLayer, self).__init__(weights, bias, transfer_fn)
-        # if no recurrent_weights are given, this layer acts like a
-        # FeedForwardLayer
-        self.recurrent_weights = None
-        if recurrent_weights is not None:
-            self.recurrent_weights = np.copy(recurrent_weights)
+        self.recurrent_weights = recurrent_weights.copy()
 
     def activate(self, data):
         """
@@ -278,9 +272,9 @@ class Cell(object):
         :param transfer_fn:       transfer function [numpy ufunc]
 
         """
-        self.weights = np.copy(weights)
-        self.bias = bias.flatten('A')
-        self.recurrent_weights = np.copy(recurrent_weights)
+        self.weights = weights.copy()
+        self.bias = bias.flatten()
+        self.recurrent_weights = recurrent_weights.copy()
         self.peephole_weights = None
         self.transfer_fn = transfer_fn
         self.cell = np.zeros(self.bias.size, dtype=NN_DTYPE)
@@ -335,7 +329,7 @@ class Gate(Cell):
         """
         super(Gate, self).__init__(weights, bias, recurrent_weights,
                                    transfer_fn=transfer_fn)
-        self.peephole_weights = peephole_weights.flatten('A')
+        self.peephole_weights = peephole_weights.flatten()
 
 
 class LSTMLayer(Layer):
@@ -442,7 +436,6 @@ class RecurrentNeuralNetwork(Processor):
         # native numpy .npz format or pickled dictionary
         data = np.load(filename)
 
-        print data.keys()
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
         num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
                           for k in data.keys() if k.startswith('layer_')])
@@ -464,7 +457,6 @@ class RecurrentNeuralNetwork(Processor):
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in params.keys() if
                                   k.startswith('%s_' % REVERSE))
-                print bwd_params
                 # construct the layer
                 if bwd_type == 'lstm':
                     bwd_layer = LSTMLayer(**bwd_params)
@@ -480,7 +472,6 @@ class RecurrentNeuralNetwork(Processor):
                 fwd_layer = LSTMLayer(**fwd_params)
             else:
                 transfer_fn = globals()[fwd_type]
-                print fwd_params
                 fwd_layer = RecurrentLayer(**fwd_params)
 
             # return a (bidirectional) layer
