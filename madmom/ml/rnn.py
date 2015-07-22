@@ -252,7 +252,7 @@ class BidirectionalLayer(Layer):
         # also activate with reverse input
         bwd = self.bwd_layer.activate(data[::-1])
         # stack data
-        return np.hstack((bwd[::-1], fwd))
+        return np.hstack((fwd, bwd[::-1]))
 
 
 # LSTM stuff

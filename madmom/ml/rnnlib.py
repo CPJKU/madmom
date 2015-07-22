@@ -870,6 +870,8 @@ class RnnlibConfig(object):
                 output_size = int(line[:].split()[1])
                 self.layer_sizes.append(output_size)
 
+        # number of output layer
+        num_output = len(self.layer_sizes) - 1
         # process the weights
         for line in lines:
             # save the weights
@@ -929,6 +931,13 @@ class RnnlibConfig(object):
                     # FIXME: evil hack
                     layer_num = int(name[6])
                     layer_size = self.layer_sizes[layer_num]
+                    # RNNLIB stacks bwd and fwd layers in a weird way, thus
+                    # swap the weights of the hidden layers if it is
+                    # bidirectional and not the first hidden layer
+                    swap = (layer_num >= 1 and self.bidirectional and
+                            layer_num != num_output and
+                            name.endswith("weights") and
+                            "peephole" not in name and "recurrent" not in name)
                     # if we use LSTM units, align weights differently
                     if self.layer_types[layer_num] == 'lstm':
                         if 'peephole' in name:
@@ -936,18 +945,23 @@ class RnnlibConfig(object):
                             w = w.reshape(3 * layer_size, -1)
                         else:
                             # bias, weights and recurrent connections
+                            if swap:
+                                w = w.reshape(4 * layer_size, 2,
+                                              -1)[:, ::-1, :].ravel()
                             w = w.reshape(4 * layer_size, -1)
                     # "normal" units
                     else:
+                        if swap:
+                            w = w.reshape(layer_size, 2,
+                                          -1)[:, ::-1, :].ravel()
                         w = w.reshape(layer_size, -1).T
                     # save the weights
                     self.w[name] = w
         # stack the output weights
         if self.bidirectional:
-            num_output = len(self.layer_sizes) - 1
             fwd = self.w.pop('layer_%s_weights' % num_output)
             bwd = self.w.pop('layer_%s_%s_weights' % (num_output, REVERSE))
-            self.w['layer_%s_weights' % num_output] = np.vstack((bwd, fwd))
+            self.w['layer_%s_weights' % num_output] = np.vstack((fwd, bwd))
             # rename bias
             bias = self.w.pop('layer_%s_%s_bias' % (num_output, REVERSE))
             self.w['layer_%s_bias' % num_output] = bias
