@@ -1036,6 +1036,8 @@ class PitchClassProfileFilterbank(Filterbank):
 
     """
     CLASSES = 12
+    FMIN = 100
+    FMAX = 5000
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
                 fmax=FMAX, fref=A4):
@@ -1049,13 +1051,11 @@ class PitchClassProfileFilterbank(Filterbank):
         :param fref:            reference frequency for the first PCP bin [Hz]
 
         """
-        raise NotImplementedError("please check if produces correct/expected "
-                                  "results and enable if yes.")
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # log deviation from the reference frequency
         log_dev = np.log2(bin_frequencies / fref)
-        # map the log deviation to the closets pitch class profiles
+        # map the log deviation to the closest pitch class profiles
         num_class = np.round(num_classes * log_dev) % num_classes
         # define the pitch class profile filterbank
         # skip log_dev[0], since it is NaN
@@ -1100,9 +1100,9 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
+    CLASSES = 36
     FMIN = 100
     FMAX = 5000
-    CLASSES = 36
     WINDOW = 4
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES,
