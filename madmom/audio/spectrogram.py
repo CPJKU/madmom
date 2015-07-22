@@ -57,12 +57,12 @@ def adaptive_whitening(spec, floor=0.5, relaxation=10):
     return spec / p
 
 
-def statistical_spectrum_descriptors(spec):
+def statistical_spectrum_descriptors(spectrogram):
     """
     Statistical Spectrum Descriptors of the STFT.
 
-    :param spec: magnitude spectrogram [numpy array]
-    :return:     statistical spectrum descriptors of the spectrogram
+    :param spectrogram: magnitude spectrogram [numpy array]
+    :return:            statistical spectrum descriptors of the spectrogram
 
     "Evaluation of Feature Extractors and Psycho-acoustic Transformations
      for Music Genre Classification."
@@ -72,41 +72,46 @@ def statistical_spectrum_descriptors(spec):
 
     """
     from scipy.stats import skew, kurtosis
-    return {'mean': np.mean(spec, axis=0),
-            'median': np.median(spec, axis=0),
-            'variance': np.var(spec, axis=0),
-            'skewness': skew(spec, axis=0),
-            'kurtosis': kurtosis(spec, axis=0),
-            'min': np.min(spec, axis=0),
-            'max': np.max(spec, axis=0)}
+    return {'mean': np.mean(spectrogram, axis=0),
+            'median': np.median(spectrogram, axis=0),
+            'variance': np.var(spectrogram, axis=0),
+            'skewness': skew(spectrogram, axis=0),
+            'kurtosis': kurtosis(spectrogram, axis=0),
+            'min': np.min(spectrogram, axis=0),
+            'max': np.max(spectrogram, axis=0)}
 
 
-def tuning_frequency(spec, bin_frequencies, num_hist_bins=15, fref=A4):
+def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
     """
     Determines the tuning frequency of the audio signal based on the given
     (peak) magnitude spectrogram.
 
-    :param spec:            (peak) magnitude spectrogram [numpy array]
+    :param spectrogram:            (peak) magnitude spectrogram [numpy array]
     :param bin_frequencies: frequencies of the spectrogram bins [numpy array]
     :param num_hist_bins:   number of histogram bins
     :param fref:            reference tuning frequency [Hz]
     :return:                tuning frequency
 
     """
-    raise NotImplementedError("check if tuning_frequency returns meaningful "
-                              "results")
     # interval of spectral bins from the reference frequency in semitones
     semitone_int = 12. * np.log2(bin_frequencies / fref)
+    print "semitone_int", semitone_int
     # deviation from the next semitone
     semitone_dev = semitone_int - np.round(semitone_int)
+    print "semitone_dev", semitone_dev
     # build a histogram
-    hist = np.histogram(semitone_dev * spec,
+    hist = np.histogram(semitone_dev * spectrogram,
                         bins=num_hist_bins, range=(-0.5, 0.5))
+    print "hist", hist
     # deviation of the bins (calculate the bin centres)
     dev_bins = (hist[1][:-1] + hist[1][1:]) / 2.
+    print "dev_bins", dev_bins
+    print "hist max", np.argmax(hist[0])
     # dominant deviation
     dev = num_hist_bins * dev_bins[np.argmax(hist[0])]
+    print "dev", dev
     # calculate the tuning frequency
+    print "tuning", fref * 2. ** (dev / 12.)
     return fref * 2. ** (dev / 12.)
 
 
@@ -189,6 +194,20 @@ class Spectrogram(PropertyMixin, np.ndarray):
 
         """
         return LogarithmicSpectrogram(self, **kwargs)
+
+    def tuning_frequency(self, **kwargs):
+        """
+        Determines the tuning frequency of the audio signal based on peaks
+        of the spectrogram.
+
+        """
+        from scipy.ndimage.filters import maximum_filter
+        # widen the spectrogram in frequency dimension
+        max_spec = maximum_filter(self, size=[1, 3])
+        # get the peaks of the spectrogram
+        max_spec = self * (self == max_spec)
+        # determine the tuning frequency
+        return tuning_frequency(max_spec, self.bin_frequencies, **kwargs)
 
 
 class SpectrogramProcessor(Processor):

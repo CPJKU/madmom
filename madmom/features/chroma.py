@@ -10,7 +10,8 @@ This file contains chroma related functionality.
 import numpy as np
 
 from madmom.audio.spectrogram import Spectrogram
-from madmom.audio.filters import (PitchClassProfileFilterbank as PCP,
+from madmom.audio.filters import (Filterbank,
+                                  PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
 
 
@@ -32,7 +33,9 @@ def pcp_chord_transcription(pcp):
     raise NotImplementedError
 
 
-class PitchClassProfile(object):
+# we inherit from Spectrogram, since it is the class which is closest related
+# and offers a lot o
+class PitchClassProfile(Spectrogram):
     """
     Simple class for extracting pitch class profiles (PCP), i.e. chroma
     vectors from a spectrogram.
@@ -45,73 +48,56 @@ class PitchClassProfile(object):
 
     """
 
-    def __init__(self, spectrogram, num_classes=PCP.CLASSES, fmin=PCP.FMIN,
-                 fmax=PCP.FMAX, fref=None, filterbank=None, **kwargs):
+    def __new__(cls, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
+                fmin=PCP.FMIN, fmax=PCP.FMAX, fref=None, **kwargs):
         """
         Creates a new PitchClassProfile instance.
 
-        :param spectrogram: a spectrogram to operate on
-        :param num_classes: number of harmonic pitch classes
-        :param fmin:        the minimum frequency [Hz]
-        :param fmax:        the maximum frequency [Hz]
-        :param fref:        reference frequency for the first PCP bin [Hz]
-        :param filterbank:  use this chroma filterbank instead of creating one
+        :param spectrogram: a spectrogram to operate on [Spectrogram]
+        :param filterbank:  Filterbank instance or type [Filterbank]
+        :param num_classes: number of harmonic pitch classes [int]
+        :param fmin:        the minimum frequency [Hz, float]
+        :param fmax:        the maximum frequency [Hz, float]
+        :param fref:        reference frequency of the first PCP bin
+                            [Hz, float]
 
-        Note: If fref is 'None', the reference frequency is estimated on the
+        Note: If fref is 'None', the reference frequency is estimated from the
               given spectrogram.
 
         """
         # check spectrogram type
-        if isinstance(spectrogram, Spectrogram):
-            # already the right format
-            self._spectrogram = spectrogram
-        else:
-            # assume a file name, try to instantiate a Spectrogram object
-            # Note: since the filterbank is a proper argument, the created
-            #       Spectrogram will always be unfiltered (what we want)
-            self._spectrogram = Spectrogram(spectrogram, **kwargs)
-
+        if not isinstance(spectrogram, Spectrogram):
+            spectrogram = Spectrogram(spectrogram, **kwargs)
         # the spectrogram must not be filtered
-        if self._spectrogram.filterbank:
-            raise ValueError('Spectrogram must not be filtered.')
-
+        if spectrogram.filterbank is not None:
+            import warnings
+            warnings.warn('Spectrogram should not be filtered.')
         # reference frequency for the filterbank
         if fref is None:
-            fref = self.spectrogram.tuning_frequency
+            fref = spectrogram.tuning_frequency()
 
         # set filterbank
-        self._filterbank = filterbank
-        # some hidden parameters for filterbank creation
-        self._filterbank_type = PCP
-        self._parameters = {'num_classes': num_classes,
-                            'fmin': fmin,
-                            'fmax': fmax,
-                            'fref': fref}
-        # hidden attributes
-        self._pcp = None
-
-    @property
-    def spectrogram(self):
-        """Spectrogram."""
-        return self._spectrogram
-
-    @property
-    def filterbank(self):
-        """Filterbank."""
-        # create a filterbank if needed
-        if self._filterbank is None:
-            self._filterbank = self._filterbank_type(
-                self.spectrogram.num_fft_bins,
-                self.spectrogram.frames.signal.sample_rate, **self._parameters)
-        return self._filterbank
-
-    @property
-    def pcp(self):
-        """Pitch Class Profile."""
-        if self._pcp is None:
-            # map the spectrogram to pitch classes
-            self._pcp = np.dot(self.spectrogram.spec, self.filterbank)
-        return self._pcp
+        if issubclass(filterbank, Filterbank):
+            filterbank = filterbank(spectrogram.bin_frequencies,
+                                    num_classes=num_classes, fmin=fmin,
+                                    fmax=fmax, fref=fref)
+        if not isinstance(filterbank, Filterbank):
+            raise ValueError('not a Filterbank type or instance: %s' %
+                             filterbank)
+        # filter the spectrogram
+        data = np.dot(spectrogram, filterbank)
+        # cast as PitchClassProfile
+        obj = np.asarray(data).view(cls)
+        # save additional attributes
+        obj.filterbank = filterbank
+        obj.spectrogram = spectrogram
+        # and those from the given spectrogram
+        obj.stft = spectrogram.stft
+        obj.frames = spectrogram.stft.frames
+        obj.mul = spectrogram.mul
+        obj.add = spectrogram.add
+        # return the object
+        return obj
 
 
 class HarmonicPitchClassProfile(PitchClassProfile):
