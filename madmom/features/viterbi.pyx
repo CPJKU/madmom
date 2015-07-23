@@ -9,7 +9,7 @@ This file contains the speed crucial Viterbi functionality.
 import numpy as np
 cimport numpy as np
 cimport cython
-from libc.math cimport log, INFINITY
+from libc.math cimport INFINITY
 
 
 @cython.cdivision(True)
@@ -48,7 +48,7 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # counters etc.
     cdef int k, i, j, next_state
-    cdef double new_prob, path_prob = 0.0
+    cdef double new_prob, path_prob
 
     # init first beat
     for i in range(num_st):
@@ -61,9 +61,7 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
         # find the best transition for each state i
         for i in range(num_st):
-
             # j is the number of frames we look back
-            # at most
             for j in range(min(i, num_tr)):
                 new_prob = v_p[i - j] + transition[j] + activations[i] + \
                            norm_factor[i - j]
