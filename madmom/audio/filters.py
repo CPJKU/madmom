@@ -1118,8 +1118,6 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         :param window:          length of the weighting window [bins]
 
         """
-        raise NotImplementedError("please check if produces correct/expected "
-                                  "results and enable if yes.")
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # log deviation from the reference frequency
