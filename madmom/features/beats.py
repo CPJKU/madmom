@@ -8,6 +8,7 @@ This file contains all beat tracking related functionality.
 """
 
 import sys
+import time
 import glob
 
 import numpy as np
@@ -548,6 +549,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         self.use_factors = use_factors
         self.num_intervals = num_intervals
         self.factors = factors
+        self.proc_time = 0.0
+        self.n_proc_files = 0
 
         # get num_threads from kwargs
         num_threads = min(len(factors) if use_factors else num_intervals,
@@ -626,7 +629,11 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         norm_fact = cls.normalisation_factors(activations, trans)
 
         # noinspection PyCallByClass, PyTypeChecker
-        return cls.crf_viterbi(init, trans, norm_fact, activations, interval)
+        return cls.crf_viterbi(np.log(init),
+                               np.log(trans),
+                               np.log(norm_fact),
+                               np.log(activations),
+                               interval)
 
     def process(self, activations):
         """
@@ -660,6 +667,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         act_smooth = int(self.fps * self.tempo_estimator.act_smooth)
         activations = smooth_signal(activations, act_smooth)
 
+        ts = time.time()
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
         contiguous_act = np.ascontiguousarray(activations, dtype=np.float32)
@@ -673,6 +681,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                                                  for r in results])
         # pick the best one
         best_seq = results[normalized_seq_probabilities.argmax()][0]
+        self.proc_time += time.time() - ts
+        self.n_proc_files += 1
 
         # convert the detected beat positions to seconds and return them
         return best_seq.astype(np.float) / self.fps

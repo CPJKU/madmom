@@ -9,7 +9,7 @@ This file contains the speed crucial Viterbi functionality.
 import numpy as np
 cimport numpy as np
 cimport cython
-from libc.math cimport log
+from libc.math cimport log, INFINITY
 
 
 @cython.cdivision(True)
@@ -48,48 +48,34 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # counters etc.
     cdef int k, i, j, next_state
-    cdef double new_prob, sum_k, path_prob, log_sum = 0.0
+    cdef double new_prob, path_prob = 0.0
 
     # init first beat
     for i in range(num_st):
-        v_p[i] = pi[i] * activations[i]
-        sum_k += v_p[i]
-    for i in range(num_st):
-        v_p[i] = v_p[i] / sum_k
-
-    sum_k = 0
+        v_p[i] = pi[i] + activations[i]
 
     # iterate over all beats; the 1st beat is given by prior
     for k in range(num_x - 1):
         # reset all current viterbi variables
-        for i in range(num_st):
-            v_c[i] = 0.0
+        v_c[:] = -INFINITY
 
-        # find the best transition for each state
+        # find the best transition for each state i
         for i in range(num_st):
-            for j in range(num_tr):
-                if (i - j) < 0:
-                    break
 
-                new_prob = v_p[i - j] * transition[j] * activations[i] * \
+            # j is the number of frames we look back
+            # at most
+            for j in range(min(i, num_tr)):
+                new_prob = v_p[i - j] + transition[j] + activations[i] + \
                            norm_factor[i - j]
 
                 if new_prob > v_c[i]:
                     v_c[i] = new_prob
                     bps[k, i] = i - j
 
-        sum_k = 0.0
-        for i in range(num_st):
-            sum_k += v_c[i]
-        for i in range(num_st):
-            v_c[i] /= sum_k
-
-        log_sum += log(sum_k)
-
         v_p, v_c = v_c, v_p
 
     # add the final best state to the path
-    path_prob = 0.0
+    path_prob = -INFINITY
     for i in range(num_st):
         if v_p[i] > path_prob:
             next_state = i
@@ -102,4 +88,4 @@ def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
         path[i] = next_state
 
     # return the best sequence and its log probability
-    return np.asarray(path), log(path_prob) + log_sum
+    return np.asarray(path), path_prob
