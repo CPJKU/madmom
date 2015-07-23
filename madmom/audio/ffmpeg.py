@@ -163,9 +163,9 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     # infile options
     if skip is not None:
         call.extend(["-ss", str(float(skip))])
+    call.extend(["-i", infile, "-y", "-f", str(fmt)])
     if max_len is not None:
         call.extend(["-t", str(float(max_len))])
-    call.extend(["-i", infile, "-y", "-f", str(fmt)])
     # output options
     if num_channels is not None:
         call.extend(["-ac", str(num_channels)])
