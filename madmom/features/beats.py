@@ -632,6 +632,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         trans = crf.transition_distribution(interval, interval_sigma)
         norm_fact = crf.normalisation_factors(activations, trans)
 
+        # ignore division by zero warnings when taking the logarithm of 0.0,
+        # the result -inf is fine anyways!
         with np.errstate(divide='ignore'):
             init = np.log(init)
             trans = np.log(trans)
