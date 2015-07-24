@@ -82,7 +82,8 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
                     bps[k, i] = i - j
 
             # Add activation and norm_factor, which was added to the
-            # activation vector at the beginning of the function.
+            # activation vector at the beginning of the function. For the
+            # last random variable, we'll substract norm_factor later
             v_c[i] += activations[i]
 
         v_p, v_c = v_c, v_p
