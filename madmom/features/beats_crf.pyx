@@ -90,6 +90,9 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # add the final best state to the path
     path_prob = -INFINITY
     for i in range(num_st):
+        # substract the norm factor because they shouldn't have been added
+        # for the last random variable
+        v_p[i] -= norm_factor[i]
         if v_p[i] > path_prob:
             next_state = i
             path_prob = v_p[i]
