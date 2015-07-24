@@ -571,7 +571,10 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         :return:           initial distribution of the model
 
         """
-        init_dist = np.ones(num_states, dtype=np.float32) / interval
+        # We leave the initial distribution unnormalised because we want the
+        # position of the first beat not to influence the probability of the
+        # beat sequence. Normalising would favour shorter intervals.
+        init_dist = np.ones(num_states, dtype=np.float32)
         init_dist[interval:] = 0
         return init_dist
 
@@ -673,7 +676,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         act_smooth = int(self.fps * self.tempo_estimator.act_smooth)
         activations = smooth_signal(activations, act_smooth)
 
-        ts = time.time()
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
         contiguous_act = np.ascontiguousarray(activations, dtype=np.float32)

@@ -53,9 +53,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # init first beat
     for i in range(num_st):
-        # add normalisation factor to activations (see remark in inner loop)
-        activations[i] += norm_factor[i]
-        v_p[i] = pi[i] + activations[i]
+        v_p[i] = pi[i] + activations[i] + norm_factor[i]
 
     # iterate over all beats; the 1st beat is given by prior
     for k in range(num_x - 1):
@@ -74,17 +72,14 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
                 # the loop, since it does not change with j. Additionally,
                 # if we immediately add the normalisation factor to v_c[i],
                 # we can skip adding norm_factor[i - j] for each v_p[i - j].
-                # For even more speedup, we can add the norm_factors at the
-                # beginning of the function to the activations.
                 new_prob = v_p[i - j] + transition[j]
                 if new_prob > v_c[i]:
                     v_c[i] = new_prob
                     bps[k, i] = i - j
 
-            # Add activation and norm_factor, which was added to the
-            # activation vector at the beginning of the function. For the
-            # last random variable, we'll substract norm_factor later
-            v_c[i] += activations[i]
+            # Add activation and norm_factor. For the last random variable,
+            # we'll substract norm_factor later when searching the maximum
+            v_c[i] += activations[i] + norm_factor[i]
 
         v_p, v_c = v_c, v_p
 
