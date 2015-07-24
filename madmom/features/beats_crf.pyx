@@ -15,7 +15,7 @@ from libc.math cimport INFINITY
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def crf_viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
+def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
                 float [::1] activations, int tau):
     """
     Viterbi algorithm to compute the most likely beat sequence from the

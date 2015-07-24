@@ -513,11 +513,13 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     HIST_SMOOTH = 7
 
     try:
-        from .viterbi import crf_viterbi
+        from .beats_crf import viterbi
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
+        # dummy viterbi function
+        viterbi = lambda x: np.array([]), -np.inf
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
                  num_intervals=NUM_INTERVALS, factors=FACTORS, **kwargs):
@@ -612,8 +614,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                            mode='constant', cval=0,
                            origin=-int(transition_distribution.shape[0] / 2))
 
-    @classmethod
-    def best_sequence(cls, activations, interval, interval_sigma):
+    @staticmethod
+    def best_sequence(activations, interval, interval_sigma):
         """
         Extract the best beat sequence for a piece.
 
@@ -623,17 +625,21 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         :return:               tuple with extracted beat positions [frames]
                                and log probability of beat sequence
         """
-        init = cls.initial_distribution(activations.shape[0],
+        # convenience alias
+        crf = CRFBeatDetectionProcessor
+        init = crf.initial_distribution(activations.shape[0],
                                         interval)
-        trans = cls.transition_distribution(interval, interval_sigma)
-        norm_fact = cls.normalisation_factors(activations, trans)
+        trans = crf.transition_distribution(interval, interval_sigma)
+        norm_fact = crf.normalisation_factors(activations, trans)
+
+        with np.errstate(divide='ignore'):
+            init = np.log(init)
+            trans = np.log(trans)
+            norm_fact = np.log(norm_fact)
+            log_act = np.log(activations)
 
         # noinspection PyCallByClass, PyTypeChecker
-        return cls.crf_viterbi(np.log(init),
-                               np.log(trans),
-                               np.log(norm_fact),
-                               np.log(activations),
-                               interval)
+        return crf.viterbi(init, trans, norm_fact, log_act, interval)
 
     def process(self, activations):
         """
