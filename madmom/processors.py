@@ -478,3 +478,4 @@ def io_arguments(parser, output_suffix='.txt'):
                          'strip it off before appending the output suffix]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
                     help='number of parallel workers [default=%(default)s]')
+    sp.set_defaults(num_threads=1)
