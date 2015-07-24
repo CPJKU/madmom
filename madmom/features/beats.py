@@ -480,12 +480,12 @@ class BeatDetectionProcessor(BeatTrackingProcessor):
                                                      **kwargs)
 
 
-# TODO: refactor the whole CRF Viterbi stuff as a .pyx class including the
-#       initial_distribution and all other functionality, but omit the factors,
-#       they should get replaced by the output of the comb filter stuff
 def _process_crf(process_tuple):
     """
     Extract the best beat sequence for a piece.
+
+    This proxy function is necessary if we want to process different intervals
+    in parallel using the multiprocessing module.
 
     :param process_tuple: tuple with (activations, dominant_interval, allowed
                           deviation from the dominant interval per beat)
@@ -518,7 +518,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
-        # dummy viterbi function
+        # else, use dummy viterbi function
         viterbi = lambda x: np.array([]), -np.inf
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
@@ -551,8 +551,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         self.use_factors = use_factors
         self.num_intervals = num_intervals
         self.factors = factors
-        self.proc_time = 0.0
-        self.n_proc_files = 0
 
         # get num_threads from kwargs
         num_threads = min(len(factors) if use_factors else num_intervals,
@@ -689,8 +687,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                                                  for r in results])
         # pick the best one
         best_seq = results[normalized_seq_probabilities.argmax()][0]
-        self.proc_time += time.time() - ts
-        self.n_proc_files += 1
 
         # convert the detected beat positions to seconds and return them
         return best_seq.astype(np.float) / self.fps

@@ -1,6 +1,7 @@
 # encoding: utf-8
 """
-This file contains the speed crucial Viterbi functionality.
+This file contains the speed crucial Viterbi functionality for the
+CRFBeatDetector.
 
 @author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
@@ -16,7 +17,7 @@ from libc.math cimport INFINITY
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
-                float [::1] activations, int tau):
+            float [::1] activations, int tau):
     """
     Viterbi algorithm to compute the most likely beat sequence from the
     given activations and the dominant interval.
@@ -52,6 +53,8 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # init first beat
     for i in range(num_st):
+        # add normalisation factor to activations (see remark in inner loop)
+        activations[i] += norm_factor[i]
         v_p[i] = pi[i] + activations[i]
 
     # iterate over all beats; the 1st beat is given by prior
@@ -63,12 +66,24 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
         for i in range(num_st):
             # j is the number of frames we look back
             for j in range(min(i, num_tr)):
-                new_prob = v_p[i - j] + transition[j] + activations[i] + \
-                           norm_factor[i - j]
-
+                # Important remark: the actual computation we'd have to do here
+                # is v_p[i - j] + norm_factor[i - j] + transition[j] +
+                # activations[i].
+                #
+                # For speedup, we can add the activation after
+                # the loop, since it does not change with j. Additionally,
+                # if we immediately add the normalisation factor to v_c[i],
+                # we can skip adding norm_factor[i - j] for each v_p[i - j].
+                # For even more speedup, we can add the norm_factors at the
+                # beginning of the function to the activations.
+                new_prob = v_p[i - j] + transition[j]
                 if new_prob > v_c[i]:
                     v_c[i] = new_prob
                     bps[k, i] = i - j
+
+            # Add activation and norm_factor, which was added to the
+            # activation vector at the beginning of the function.
+            v_c[i] += activations[i]
 
         v_p, v_c = v_c, v_p
 
