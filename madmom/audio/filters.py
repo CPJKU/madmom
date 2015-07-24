@@ -1036,8 +1036,8 @@ class PitchClassProfileFilterbank(Filterbank):
 
     """
     CLASSES = 12
-    FMIN = 100
-    FMAX = 5000
+    FMIN = 100.
+    FMAX = 5000.
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
                 fmax=FMAX, fref=A4):
@@ -1053,13 +1053,14 @@ class PitchClassProfileFilterbank(Filterbank):
         """
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
+        # use only positive bin frequencies
+        pos_bin_frequencies = bin_frequencies > 0
         # log deviation from the reference frequency
-        log_dev = np.log2(bin_frequencies / fref)
+        log_dev = np.log2(bin_frequencies[pos_bin_frequencies] / fref)
         # map the log deviation to the closest pitch class profiles
         num_class = np.round(num_classes * log_dev) % num_classes
-        # define the pitch class profile filterbank
-        # skip log_dev[0], since it is NaN
-        fb[np.arange(1, len(bin_frequencies)), num_class.astype(int)[1:]] = 1
+        # define the pitch class profile filterbank, skip all bins which were 0
+        fb[pos_bin_frequencies, num_class.astype(int)] = 1
         # set all bins outside the allowed frequency range to 0
         fb[np.searchsorted(bin_frequencies, fmax, 'right'):] = 0
         fb[:np.searchsorted(bin_frequencies, fmin)] = 0
@@ -1090,8 +1091,18 @@ class PitchClassProfileFilterbank(Filterbank):
         # call the parent's __setstate__ with the other tuple elements
         super(PitchClassProfileFilterbank, self).__setstate__(state[0:-1])
 
+    @property
+    def corner_frequencies(self):
+        """PCP does not have corner frequencies of the filter bands."""
+        return None
 
-class HarmonicPitchClassProfileFilterbank(Filterbank):
+    @property
+    def center_frequencies(self):
+        """PCP does not have center frequencies of the filter bands."""
+        return None
+
+
+class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
     """
     Filterbank for extracting harmonic pitch class profiles (HPCP).
 
@@ -1101,8 +1112,8 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
 
     """
     CLASSES = 36
-    FMIN = 100
-    FMAX = 5000
+    FMIN = 100.
+    FMAX = 5000.
     WINDOW = 4
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES,
@@ -1120,8 +1131,10 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         """
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
+        # use only positive bin frequencies
+        pos_bin_frequencies = np.nonzero(bin_frequencies > 0)[0]
         # log deviation from the reference frequency
-        log_dev = np.log2(bin_frequencies / fref)
+        log_dev = np.log2(bin_frequencies[pos_bin_frequencies] / fref)
         # map the log deviation to pitch class profiles
         num_class = (num_classes * log_dev) % num_classes
         # weight the bins
@@ -1134,7 +1147,9 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
             # get all bins which are within the defined window
             idx = np.abs(distance) < window / 2.
             # apply the weighting function
-            fb[idx, c] = np.cos((num_class[idx] - c) * np.pi / window) ** 2.
+            filt = np.cos((num_class[idx] - c) * np.pi / window) ** 2.
+            # map these indices to the positive bin frequencies
+            fb[pos_bin_frequencies[idx], c] = filt
         # set all bins outside the allowed frequency range to 0
         fb[np.searchsorted(bin_frequencies, fmax, 'right'):] = 0
         fb[:np.searchsorted(bin_frequencies, fmin)] = 0
@@ -1142,6 +1157,7 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         obj = Filterbank.__new__(cls, fb, bin_frequencies)
         # set additional attributes
         obj.fref = fref
+        obj.window = window
         # return the object
         return obj
 
@@ -1150,19 +1166,22 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
             return
         # set default values here
         self.fref = getattr(obj, 'fref', A4)
+        self.window = getattr(obj, 'window', self.WINDOW)
 
     def __reduce__(self):
         # get the parent's __reduce__ tuple
         pickled_state = super(HarmonicPitchClassProfileFilterbank,
                               self).__reduce__()
         # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.fref,)
+        # since we inherit from PitchClassProfileFilterbank, we don't need to
+        # care about fref
+        new_state = pickled_state[2] + (self.window, )
         # return a tuple that replaces the parent's __reduce____ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # set the reference frequency
-        self.fref = state[-1]
+        self.window = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(HarmonicPitchClassProfileFilterbank,
               self).__setstate__(state[0:-1])

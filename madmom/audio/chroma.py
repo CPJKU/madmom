@@ -123,7 +123,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
                             [Hz, float]
         :param window:      length of the weighting window [bins]
 
-        Note: If fref is 'None', the reference frequency is estimated on the
+        Note: If fref is 'None', the reference frequency is estimated from the
               given spectrogram.
 
         """
