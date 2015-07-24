@@ -513,13 +513,13 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     HIST_SMOOTH = 7
 
     try:
-        from .beats_crf import viterbi
+        from .beats_crf import best_sequence
     except ImportError:
         import warnings
         warnings.warn('CRFBeatDetection only works if you build the viterbi '
                       'module with cython!')
-        # else, use dummy viterbi function
-        viterbi = lambda x: np.array([]), -np.inf
+        # else, use dummy function
+        best_sequence = lambda x: np.array([]), -np.inf
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
                  num_intervals=NUM_INTERVALS, factors=FACTORS, **kwargs):
@@ -561,89 +561,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
             import multiprocessing as mp
             self.map = mp.Pool(num_threads).map
 
-    @staticmethod
-    def initial_distribution(num_states, interval):
-        """
-        Compute the initial distribution.
-
-        :param num_states: number of states in the model
-        :param interval:   beat interval of the piece [frames]
-        :return:           initial distribution of the model
-
-        """
-        # We leave the initial distribution unnormalised because we want the
-        # position of the first beat not to influence the probability of the
-        # beat sequence. Normalising would favour shorter intervals.
-        init_dist = np.ones(num_states, dtype=np.float32)
-        init_dist[interval:] = 0
-        return init_dist
-
-    @staticmethod
-    def transition_distribution(interval, interval_sigma):
-        """
-        Compute the transition distribution between beats.
-
-        :param interval:       interval of the piece [frames]
-        :param interval_sigma: allowed deviation from the interval per beat
-        :return:               transition distribution between beats
-
-        """
-        from scipy.stats import norm
-
-        move_range = np.arange(interval * 2, dtype=np.float)
-        # to avoid floating point hell due to np.log2(0)
-        move_range[0] = 0.000001
-
-        trans_dist = norm.pdf(np.log2(move_range),
-                              loc=np.log2(interval),
-                              scale=interval_sigma)
-        trans_dist /= trans_dist.sum()
-        return trans_dist.astype(np.float32)
-
-    @staticmethod
-    def normalisation_factors(activations, transition_distribution):
-        """
-        Compute normalisation factors for model.
-
-        :param activations:             beat activation function of the piece
-        :param transition_distribution: transition distribution of the model
-        :return:                        normalisation factors for model
-
-        """
-        from scipy.ndimage.filters import correlate1d
-        return correlate1d(activations, transition_distribution,
-                           mode='constant', cval=0,
-                           origin=-int(transition_distribution.shape[0] / 2))
-
-    @staticmethod
-    def best_sequence(activations, interval, interval_sigma):
-        """
-        Extract the best beat sequence for a piece.
-
-        :param activations:    beat activation function
-        :param interval:       beat interval of the piece
-        :param interval_sigma: allowed deviation from the interval per beat
-        :return:               tuple with extracted beat positions [frames]
-                               and log probability of beat sequence
-        """
-        # convenience alias
-        crf = CRFBeatDetectionProcessor
-        init = crf.initial_distribution(activations.shape[0],
-                                        interval)
-        trans = crf.transition_distribution(interval, interval_sigma)
-        norm_fact = crf.normalisation_factors(activations, trans)
-
-        # ignore division by zero warnings when taking the logarithm of 0.0,
-        # the result -inf is fine anyways!
-        with np.errstate(divide='ignore'):
-            init = np.log(init)
-            trans = np.log(trans)
-            norm_fact = np.log(norm_fact)
-            log_act = np.log(activations)
-
-        # noinspection PyCallByClass, PyTypeChecker
-        return crf.viterbi(init, trans, norm_fact, log_act, interval)
-
     def process(self, activations):
         """
         Detect the beats in the given activation function.
@@ -670,7 +587,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
         # sort and start from the greatest interval
         possible_intervals.sort()
-        possible_intervals = possible_intervals[::-1]
+        possible_intervals = [int(i) for i in possible_intervals[::-1]]
 
         # smooth activations
         act_smooth = int(self.fps * self.tempo_estimator.act_smooth)

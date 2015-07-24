@@ -1,7 +1,8 @@
 # encoding: utf-8
 """
 This file contains the speed crucial Viterbi functionality for the
-CRFBeatDetector.
+CRFBeatDetector plus some functions computing the distributions and
+normalisation factors...
 
 @author: Filip Korzeniowski <filip.korzeniowski@jku.at>
 
@@ -11,6 +12,87 @@ import numpy as np
 cimport numpy as np
 cimport cython
 from libc.math cimport INFINITY
+
+
+def initial_distribution(num_states, interval):
+    """
+    Compute the initial distribution.
+
+    :param num_states: number of states in the model
+    :param interval:   beat interval of the piece [frames]
+    :return:           initial distribution of the model
+
+    """
+    # We leave the initial distribution unnormalised because we want the
+    # position of the first beat not to influence the probability of the
+    # beat sequence. Normalising would favour shorter intervals.
+    init_dist = np.ones(num_states, dtype=np.float32)
+    init_dist[interval:] = 0
+    return init_dist
+
+
+def transition_distribution(interval, interval_sigma):
+    """
+    Compute the transition distribution between beats.
+
+    :param interval:       interval of the piece [frames]
+    :param interval_sigma: allowed deviation from the interval per beat
+    :return:               transition distribution between beats
+
+    """
+    from scipy.stats import norm
+
+    move_range = np.arange(interval * 2, dtype=np.float)
+    # to avoid floating point hell due to np.log2(0)
+    move_range[0] = 0.000001
+
+    trans_dist = norm.pdf(np.log2(move_range),
+                          loc=np.log2(interval),
+                          scale=interval_sigma)
+    trans_dist /= trans_dist.sum()
+    return trans_dist.astype(np.float32)
+
+
+def normalisation_factors(activations, transition_distribution):
+    """
+    Compute normalisation factors for model.
+
+    :param activations:             beat activation function of the piece
+    :param transition_distribution: transition distribution of the model
+    :return:                        normalisation factors for model
+
+    """
+    from scipy.ndimage.filters import correlate1d
+    return correlate1d(activations, transition_distribution,
+                       mode='constant', cval=0,
+                       origin=-int(transition_distribution.shape[0] / 2))
+
+
+def best_sequence(activations, interval, interval_sigma):
+    """
+    Extract the best beat sequence for a piece.
+
+    :param activations:    beat activation function
+    :param interval:       beat interval of the piece
+    :param interval_sigma: allowed deviation from the interval per beat
+    :return:               tuple with extracted beat positions [frames]
+                           and log probability of beat sequence
+    """
+    init = initial_distribution(activations.shape[0],
+                                    interval)
+    trans = transition_distribution(interval, interval_sigma)
+    norm_fact = normalisation_factors(activations, trans)
+
+    # ignore division by zero warnings when taking the logarithm of 0.0,
+    # the result -inf is fine anyways!
+    with np.errstate(divide='ignore'):
+        init = np.log(init)
+        trans = np.log(trans)
+        norm_fact = np.log(norm_fact)
+        log_act = np.log(activations)
+
+    # noinspection PyCallByClass, PyTypeChecker
+    return viterbi(init, trans, norm_fact, log_act, interval)
 
 
 @cython.cdivision(True)
