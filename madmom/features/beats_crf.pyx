@@ -23,7 +23,7 @@ def initial_distribution(num_states, interval):
     :return:           initial distribution of the model
 
     """
-    # We leave the initial distribution unnormalised because we want the
+    # We leave the initial distribution un-normalised because we want the
     # position of the first beat not to influence the probability of the
     # beat sequence. Normalising would favour shorter intervals.
     init_dist = np.ones(num_states, dtype=np.float32)
@@ -91,7 +91,6 @@ def best_sequence(activations, interval, interval_sigma):
         norm_fact = np.log(norm_fact)
         log_act = np.log(activations)
 
-    # noinspection PyCallByClass, PyTypeChecker
     return viterbi(init, trans, norm_fact, log_act, interval)
 
 
@@ -160,7 +159,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
                     bps[k, i] = i - j
 
             # Add activation and norm_factor. For the last random variable,
-            # we'll substract norm_factor later when searching the maximum
+            # we'll subtract norm_factor later when searching the maximum
             v_c[i] += activations[i] + norm_factor[i]
 
         v_p, v_c = v_c, v_p
@@ -168,7 +167,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # add the final best state to the path
     path_prob = -INFINITY
     for i in range(num_st):
-        # substract the norm factor because they shouldn't have been added
+        # subtract the norm factor because they shouldn't have been added
         # for the last random variable
         v_p[i] -= norm_factor[i]
         if v_p[i] > path_prob:

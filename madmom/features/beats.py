@@ -8,7 +8,6 @@ This file contains all beat tracking related functionality.
 """
 
 import sys
-import time
 import glob
 
 import numpy as np
