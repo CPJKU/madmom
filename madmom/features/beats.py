@@ -686,22 +686,30 @@ def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
     :param fps:              frame rate (frames per second) [float]
     :param num_tempo_states: number of tempo states [int] (if set, limit the
                              number of states and use a log spacing, otherwise
-                             a linear spacing)
+                             use a linear spacing defined by the tempo range)
     :return:                 numpy array with beat states
 
     """
     # convert timing information to beat space
     min_interval = 60. * fps / max_bpm
     max_interval = 60. * fps / min_bpm
-    if num_tempo_states is None:
-        # do not limit the number of tempo states, use a linear spacing
-        states = np.arange(np.round(min_interval), np.round(max_interval) + 1)
-    else:
-        # limit the number of tempo states, thus use a log spacing
-        states = np.logspace(np.log2(min_interval), np.log2(max_interval),
-                             num_tempo_states, base=2)
-    # quantize to integer tempo states
-    return np.unique(np.round(states).astype(np.int))
+    # use a linear spacing as default
+    states = np.arange(np.round(min_interval), np.round(max_interval) + 1,
+                       dtype=np.int)
+    # if num_tempo_states is given (and smaller than the number of states of
+    # the linear spacing) use a log spacing and limit the number of states
+    if num_tempo_states is not None and num_tempo_states < len(states):
+        # we must approach num_tempo_states iteratively
+        num_log_states = num_tempo_states
+        states = []
+        while len(states) < num_tempo_states:
+            states = np.logspace(np.log2(min_interval), np.log2(max_interval),
+                                 num_log_states, base=2)
+            # quantize to integer tempo states
+            states = np.unique(np.round(states).astype(np.int))
+            num_log_states += 1
+    # return the states
+    return states
 
 
 # class for beat tracking
