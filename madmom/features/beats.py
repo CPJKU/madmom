@@ -775,15 +775,18 @@ class DBNBeatTrackingProcessor(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (BeatTrackingTransitionModel as Tm,
+        from .beats_hmm import (BeatTrackingStateSpace as St,
+                                BeatTrackingTransitionModel as Tm,
                                 BeatTrackingObservationModel as Om)
 
-        # convert timing information to beat space
-        beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
+        # convert timing information to construct state space
+        min_interval = 60. * fps / max_bpm
+        max_interval = 60. * fps / min_bpm
+        self.st = St(min_interval, max_interval, num_tempo_states)
         # transition model
-        self.tm = Tm(beat_space, transition_lambda)
+        self.tm = Tm(self.st, transition_lambda)
         # observation model
-        self.om = Om(self.tm, observation_lambda, norm_observations)
+        self.om = Om(self.st, observation_lambda, norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
@@ -823,7 +826,7 @@ class DBNBeatTrackingProcessor(Processor):
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
-            beats = argrelmin(self.tm.position(path),
+            beats = argrelmin(self.st.position(path),
                               mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the pointers
             # of the observation model for that state must be 0

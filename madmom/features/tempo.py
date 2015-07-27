@@ -256,25 +256,22 @@ class TempoEstimationProcessor(Processor):
                                            self.max_interval)
         elif self.method == 'dbn':
             from .beats import DBNBeatTrackingProcessor
-            # track with the DBN tracker
+            # instantiate a DBN for beat tracking
             dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
                                            max_bpm=self.max_bpm,
                                            num_tempo_states=None, fps=self.fps)
-            # get the tempo states from the DBN
-            # first compute the observation model's log_densities
-            dbn.om.compute_densities(activations.astype(np.float32))
-            # then get the best state path by calling the viterbi algorithm
-            path, _ = dbn.dbn.viterbi()
-            intervals = dbn.tm.tempo(path)
-            # add the minimum of the beat space
-            intervals += dbn.tm.beat_states.min()
+            # get the best state path by calling the viterbi algorithm
+            path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
+            intervals = dbn.st.tempo(path)
+            # add the minimum interval of the beat state space
+            intervals += dbn.st.beat_states.min()
             # get the counts of the bins
             bins = np.bincount(intervals,
-                               minlength=dbn.tm.beat_states.max() + 1)
-            # truncate everything below the minimum of the beat space
-            bins = bins[dbn.tm.beat_states.min():]
-            # build a histogram together with the TM beat states and return it
-            return bins, dbn.tm.beat_states
+                               minlength=dbn.st.beat_states.max() + 1)
+            # truncate everything below the minimum interval of the state space
+            bins = bins[dbn.st.beat_states.min():]
+            # build a histogram together with the beat states and return it
+            return bins, dbn.st.beat_states
         else:
             raise ValueError('tempo estimation method unknown')
 
