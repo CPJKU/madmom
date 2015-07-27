@@ -17,7 +17,7 @@ class Activations(np.ndarray):
 
     """
 
-    def __new__(cls, data, fps=None, sep=None):
+    def __new__(cls, data, fps=None, sep=None, dtype=np.float32):
         """
         Instantiate a new Activations object.
 
@@ -39,7 +39,7 @@ class Activations(np.ndarray):
         # check the type of the given data
         if isinstance(data, np.ndarray):
             # cast to Activations
-            obj = np.asarray(data, dtype=np.float32).view(cls)
+            obj = np.asarray(data, dtype=dtype).view(cls)
             obj.fps = fps
         elif isinstance(data, (basestring, file)):
             # read from file or file handle
@@ -57,6 +57,23 @@ class Activations(np.ndarray):
             return
         # set default values here
         self.fps = getattr(obj, 'fps', None)
+
+    def __reduce__(self):
+        # needed for correct pickling
+        # source: http://stackoverflow.com/questions/26598109/
+        # get the parent's __reduce__ tuple
+        pickled_state = super(Activations, self).__reduce__()
+        # create our own tuple to pass to __setstate__
+        new_state = pickled_state[2] + (self.fps,)
+        # return a tuple that replaces the parent's __reduce__ tuple
+        return pickled_state[0], pickled_state[1], new_state
+
+    def __setstate__(self, state):
+        # needed for correct un-pickling
+        # set the attributes
+        self.fps = state[-1]
+        # call the parent's __setstate__ with the other tuple elements
+        super(Activations, self).__setstate__(state[0:-1])
 
     @classmethod
     def load(cls, infile, fps=None, sep=None):
@@ -96,18 +113,28 @@ class Activations(np.ndarray):
         # instantiate a new object
         return cls(data, fps)
 
-    def save(self, outfile, sep=None):
+    def save(self, outfile, sep=None, fmt='%.5f'):
         """
         Save the activations to a file.
 
         :param outfile: output file name or file handle
-        :param sep:     separator between activation values
+        :param sep:     separator between activation values (see below)
+        :param fmt:     format of the values if stored as text file
 
         Note: An undefined or empty (“”) separator means that the file should
               be written as a numpy binary file.
               Only binary files can store the frame rate of the activations.
               Text files should not be used for anything else but manual
               inspection or I/O with other programs.
+              If the activations are a 1d array, its values are interpreted as
+              features of a single time step, i.e. all values are printed in a
+              single line. If you want each value to appear in an individual
+              line, use '\n' as a separator.
+              If the activations are a 2d array, the first axis corresponds to
+              the time dimension, i.e. the features are separated by `sep` and
+              the time steps are printed in separate lines. If you like to swap
+              the dimensions, please use the '.T' operator.
+              Arrays of other dimensions are not supported.
 
         """
         # save the activations
@@ -117,8 +144,13 @@ class Activations(np.ndarray):
                    'fps': self.fps}
             np.savez(outfile, **npz)
         else:
+            if self.ndim >2:
+                raise ValueError('Only 1d and 2d activations can pre saved in '
+                                 'human readable text format.')
             # simple text format
-            np.savetxt(outfile, self, fmt='%.5f', delimiter=sep)
+            header = "FPS:%f" % self.fps
+            np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
+                       header=header)
 
 
 class ActivationsProcessor(Processor):
