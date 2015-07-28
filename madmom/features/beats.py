@@ -675,43 +675,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                             hist_smooth=hist_smooth, alpha=None)
 
 
-# function for converting min & max tempo ranges to beat states
-def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
-    """
-    Convert the timing information to beat states usable for transition models
-    of a Hidden Markov Model.
-
-    :param min_bpm:          minimum tempo to model one cycle [float]
-    :param max_bpm:          maximum tempo to model one cycle [float]
-    :param fps:              frame rate (frames per second) [float]
-    :param num_tempo_states: number of tempo states [int] (if set, limit the
-                             number of states and use a log spacing, otherwise
-                             use a linear spacing defined by the tempo range)
-    :return:                 numpy array with beat states
-
-    """
-    # convert timing information to beat space
-    min_interval = 60. * fps / max_bpm
-    max_interval = 60. * fps / min_bpm
-    # use a linear spacing as default
-    states = np.arange(np.round(min_interval), np.round(max_interval) + 1,
-                       dtype=np.int)
-    # if num_tempo_states is given (and smaller than the number of states of
-    # the linear spacing) use a log spacing and limit the number of states
-    if num_tempo_states is not None and num_tempo_states < len(states):
-        # we must approach num_tempo_states iteratively
-        num_log_states = num_tempo_states
-        states = []
-        while len(states) < num_tempo_states:
-            states = np.logspace(np.log2(min_interval), np.log2(max_interval),
-                                 num_log_states, base=2)
-            # quantize to integer tempo states
-            states = np.unique(np.round(states).astype(np.int))
-            num_log_states += 1
-    # return the states
-    return states
-
-
 # class for beat tracking
 class DBNBeatTrackingProcessor(Processor):
     """
