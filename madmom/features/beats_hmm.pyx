@@ -3,6 +3,9 @@
 This file contains HMM state space, transition and observation models used for
 beat and downbeat tracking.
 
+Please note that (almost) everything within this module is discretised to
+integer values because of performance reasons.
+
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
 If you want to change this module and use it interactively, use pyximport.
@@ -33,7 +36,7 @@ class BeatTrackingStateSpace(object):
 
         :param min_interval:     minimum tempo (i.e. inter beat interval) to
                                  model [float]
-        :param max_interval:     maximum tempo  (i.e. inter beat interval) to
+        :param max_interval:     maximum tempo (i.e. inter beat interval) to
                                  model [float]
         :param num_tempo_states: number of tempo states [int] (if set, limit
                                  the number of states and use a log spacing,
@@ -143,7 +146,7 @@ class BeatTrackingStateSpace(object):
 
     def tempo(self, state):
         """
-        Tempo (i.e. interval) for a given state sequence.
+        Tempo (i.e. inter beat interval) for a given state sequence.
 
         :param state: state (sequence) [int or numpy array]
         :return:      corresponding tempo state sequence
@@ -355,32 +358,25 @@ class BeatTrackingObservationModel(ObservationModel):
         return np.asarray(log_densities)
 
 
-class DownBeatTrackingTransitionModel(TransitionModel):
+class DownBeatTrackingStateSpace(object):
     """
-    Transition model for down-beat tracking with a HMM.
+    State space for down-beat tracking with a HMM.
 
     """
 
-    def __init__(self, beat_states, transition_lambda):
+    def __init__(self, min_intervals, max_intervals, num_tempo_states=None):
         """
-        Construct a new DownBeatTrackingTransitionModel.
+        Construct a new BeatTrackingStateSpace (basically a stack of
+        BeatTrackingStateSpaces).
 
-        Instead of modelling a single pattern (as BeatTrackingTransitionModel),
-        it allows multiple patterns. It basically accepts the same arguments as
-        the BeatTrackingTransitionModel, but everything as lists, with the list
-        entries at the same position corresponding to one (rhythmic) pattern.
-
-        :param beat_states:       list of arrays with beat states (each item
-                                  in the list models a pattern and each item
-                                  in the array is used to model a tempo, its
-                                  values gives the number of states to model
-                                  the complete bar length)
-        :param transition_lambda: list of arrays with lambdas for the
-                                  exponential tempo change distribution
-                                  (higher values prefer a constant tempo over
-                                  a tempo change from one bar to the next one)
-                                  If a single value is given, the same value
-                                  is assumed for all patterns.
+        :param min_intervals:    list or array with minimum tempi (i.e. inter
+                                 beat intervals) to model [float]
+        :param max_intervals:    list or array with maximum tempi (i.e. inter
+                                 beat intervals) to model [float]
+        :param num_tempo_states: list or array with corresponding number of
+                                 tempo states [int] (if set, limit the number
+                                 of states and use a log spacing, otherwise use
+                                 a linear spacing defined by the tempo range)
 
         "An efficient state space model for joint tempo and meter tracking"
         Florian Krebs, Sebastian Böck and Gerhard Widmer
@@ -388,54 +384,35 @@ class DownBeatTrackingTransitionModel(TransitionModel):
         Retrieval Conference (ISMIR), 2015.
 
         """
-        # expand the transition lambda to a list if needed, i.e. use the same
-        # value for all patterns
-        if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * len(transition_lambda)
-        # check if all lists have the same length
-        if not len(beat_states) == len(transition_lambda):
-            raise ValueError("'state_space' and 'transition_lambda' must have "
-                             "the same length")
-        # save the given arguments
-        self.beat_states = beat_states
-        self.transition_lambda = transition_lambda
-        # for each pattern, compute the transitions
-        for pattern, (bs, tl) in enumerate(zip(beat_states, transition_lambda)):
-            # create a BeatTrackingTransitionModel
-            tm = BeatTrackingTransitionModel(bs, tl)
-            seq = np.arange(tm.num_states, dtype=np.int)
-            # set/update the probabilities, states and pointers
-            if pattern == 0:
-                # set TM arrays
-                states = tm.states
-                pointers = tm.pointers
-                probabilities = tm.probabilities
-                # internal mapping arrays
-                self.position_mapping = tm.position(seq)
-                self.tempo_mapping = tm.tempo(seq)
-                self.pattern_mapping = np.repeat(pattern, tm.num_states)
-            else:
-                # update TM array
-                states = np.hstack((states,
-                                    tm.states + len(pointers) - 1))
-                pointers = np.hstack((pointers,
-                                      tm.pointers[1:] + max(pointers)))
-                probabilities = np.hstack((probabilities, tm.probabilities))
-                # update internal mapping arrays
-                self.position_mapping = np.hstack((self.position_mapping,
-                                                   tm.position(seq)))
-                self.tempo_mapping = np.hstack((self.tempo_mapping,
-                                                tm.tempo(seq)))
-                self.pattern_mapping = np.hstack((self.pattern_mapping,
-                                                  np.repeat(pattern,
-                                                            tm.num_states)))
-        # instantiate a TransitionModel with the transitions
-        super(DownBeatTrackingTransitionModel, self).__init__(
-              states, pointers, probabilities)
+        if num_tempo_states is None:
+            num_tempo_states = [None] * len(min_intervals)
+        # for each pattern, compute a beat state space
+        state_spaces = []
+        enum = enumerate(zip(min_intervals, max_intervals, num_tempo_states))
+        for pattern, (min_, max_, num_) in enum:
+            # create a BeatTrackingStateSpace and append it to the list
+            state_spaces.append(BeatTrackingStateSpace(min_, max_, num_))
+        self.pattern_state_spaces = state_spaces
+        # define mappings
+        self.position_mapping = \
+            np.hstack([st.position(np.arange(st.num_states, dtype=np.int))
+                       for st in self.pattern_state_spaces])
+        self.tempo_mapping = \
+            np.hstack([st.tempo(np.arange(st.num_states, dtype=np.int))
+                       for st in self.pattern_state_spaces])
+        self.pattern_mapping = \
+            np.hstack([np.repeat(i, st.num_states)
+                       for i, st in enumerate(self.pattern_state_spaces)])
+        self.beat_states = [st.beat_states for st in self.pattern_state_spaces]
+
+    @property
+    def num_states(self):
+        """Number of states."""
+        return int(sum([st.num_states for st in self.pattern_state_spaces]))
 
     @property
     def num_tempo_states(self):
-        """Number of tempo states."""
+        """Number of tempo states for each pattern."""
         return [len(t) for t in self.beat_states]
 
     @property
@@ -472,6 +449,78 @@ class DownBeatTrackingTransitionModel(TransitionModel):
 
         """
         return self.pattern_mapping[state]
+
+
+class DownBeatTrackingTransitionModel(TransitionModel):
+    """
+    Transition model for down-beat tracking with a HMM.
+
+    """
+
+    def __init__(self, state_space, transition_lambda):
+        """
+        Construct a new DownBeatTrackingTransitionModel.
+
+        Instead of modelling a single pattern (as BeatTrackingTransitionModel),
+        it allows multiple patterns. It basically accepts the same arguments as
+        the BeatTrackingTransitionModel, but everything as lists, with the list
+        entries at the same position corresponding to one (rhythmic) pattern.
+
+        :param state_space:       DownBeatTrackingStateSpace
+        :param transition_lambda: (list with) lambda(s) for the exponential
+                                  tempo change distribution of the patterns
+                                  (higher values prefer a constant tempo over
+                                  a tempo change from one bar to the next one)
+                                  If a single value is given, the same value
+                                  is assumed for all patterns.
+
+        "An efficient state space model for joint tempo and meter tracking"
+        Florian Krebs, Sebastian Böck and Gerhard Widmer
+        Proceedings of the 16th International Society for Music Information
+        Retrieval Conference (ISMIR), 2015.
+
+        """
+        # expand the transition lambda to a list if needed, i.e. use the same
+        # value for all patterns
+        if not isinstance(transition_lambda, list):
+            transition_lambda = [transition_lambda] * state_space.num_patterns
+        # check if all lists have the same length
+        if not state_space.num_patterns == len(transition_lambda):
+            raise ValueError("number of patterns of the 'state_space' and the "
+                             "length 'transition_lambda' must be the same")
+        # save the given arguments
+        self.beat_states = state_space.beat_states
+        self.transition_lambda = transition_lambda
+        # compute the transitions for each pattern and stack them
+        enum = enumerate(zip(state_space.pattern_state_spaces,
+                             transition_lambda))
+        for pattern, (state_space, transition_lambda) in enum:
+            # create a BeatTrackingTransitionModel
+            tm = BeatTrackingTransitionModel(state_space, transition_lambda)
+            seq = np.arange(tm.num_states, dtype=np.int)
+            # set/update the probabilities, states and pointers
+            if pattern == 0:
+                # for the first pattern, just set the TM arrays
+                states = tm.states
+                pointers = tm.pointers
+                probabilities = tm.probabilities
+            else:
+                # for all consecutive patterns, stack the TM arrays after
+                # applying an offset
+                # Note: len(pointers) = len(states) + 1, because of the CSR
+                #       format of the TM (please see ml.hmm.TransitionModel)
+                # states: offset = length of the pointers - 1
+                states = np.hstack((states, tm.states + len(pointers) - 1))
+                # pointers: offset = current maximum of the pointers
+                #           start = tm.pointers[1:]
+                pointers = np.hstack((pointers, tm.pointers[1:] +
+                                      max(pointers)))
+                # probabilities: just stack them
+                probabilities = np.hstack((probabilities, tm.probabilities))
+        # instantiate a TransitionModel with the transition arrays
+        transitions = states, pointers, probabilities
+        super(DownBeatTrackingTransitionModel, self).__init__(*transitions)
+
 
 class GMMDownBeatTrackingObservationModel(ObservationModel):
     """

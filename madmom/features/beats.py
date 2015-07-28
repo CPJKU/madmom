@@ -990,7 +990,8 @@ class DownbeatTrackingProcessor(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (DownBeatTrackingTransitionModel as Tm,
+        from .beats_hmm import (DownBeatTrackingStateSpace as St,
+                                DownBeatTrackingTransitionModel as Tm,
                                 GMMDownBeatTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
@@ -1001,29 +1002,26 @@ class DownbeatTrackingProcessor(Processor):
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
                 len(transition_lambda) == len(num_beats)):
-            raise ValueError("'min_bpm', 'max_bpm', 'num_tempo_states', "
-                             "'transition_lambda' and 'num_beats' must have "
-                             "the same length")
+            raise ValueError("`min_bpm`, `max_bpm`, `num_tempo_states`, "
+                             "`transition_lambda` and `num_beats` must have "
+                             "the same length (one entry for each pattern)")
         self.fps = fps
         self.num_beats = num_beats
         self.downbeats = downbeats
+        # load the fitted GMMs
         import cPickle
         with open(gmm_file, 'r') as f:
-            # load the fitted GMMs
             gmms = cPickle.load(f)
-        # convert timing information to tempo space for each pattern
-        beat_space = []
-        for pattern in range(len(num_tempo_states)):
-            # convert timing information to beat space
-            # Note: we multiply the fps with the number of beats in this
-            #       pattern, since a complete cycle is N times that long
-            beat_space.append(beat_states(min_bpm[pattern], max_bpm[pattern],
-                                          fps * num_beats[pattern],
-                                          num_tempo_states[pattern]))
+        # convert timing information to construct state space
+        # Note: since we model a complete bar, multiply by the number of beats
+        min_interval = 60. * fps / np.asarray(max_bpm) * num_beats
+        max_interval = 60. * fps / np.asarray(min_bpm) * num_beats
+        # state space
+        self.st = St(min_interval, max_interval, num_tempo_states)
         # transition model
-        self.tm = Tm(beat_space, transition_lambda)
+        self.tm = Tm(self.st, transition_lambda)
         # observation model
-        self.om = Om(gmms, self.tm, norm_observations)
+        self.om = Om(gmms, self.st, norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
@@ -1039,9 +1037,9 @@ class DownbeatTrackingProcessor(Processor):
         path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
-        pattern = self.tm.pattern(path[0])
+        pattern = self.st.pattern(path[0])
         # the position inside the pattern
-        position = self.tm.position(path)
+        position = self.st.position(path)
         # beat position (= weighted by number of beats in bar)
         beat_counter = (position * self.num_beats[pattern]).astype(int)
         # transitions are the points where the beat counters change
