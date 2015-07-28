@@ -212,6 +212,9 @@ def main():
             # exit if multiple detections were found
             raise SystemExit("multiple detections for %s found." % ann_file)
         elif len(matches) == 0:
+            # ignore non-existing detections
+            if args.ignore_non_existing:
+                continue
             # print a warning if no detections were found
             import warnings
             warnings.warn(" can't find detections for %s." % ann_file)

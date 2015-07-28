@@ -684,6 +684,10 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                         default=det_dir,
                         help='search only this directory (recursively) for '
                              'detection files [default: %(default)s]')
+    parser.add_argument('--ignore_non_existing', action='store_true',
+                        default=False,
+                        help='ignore non-existing detections [default: raise '
+                             'a warning and assume empty detections]')
     # output options
     g = parser.add_argument_group('formatting arguments')
     g.add_argument('--tex', action='store_true',
