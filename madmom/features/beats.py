@@ -675,43 +675,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                             hist_smooth=hist_smooth, alpha=None)
 
 
-# function for converting min & max tempo ranges to beat states
-def beat_states(min_bpm, max_bpm, fps, num_tempo_states=None):
-    """
-    Convert the timing information to beat states usable for transition models
-    of a Hidden Markov Model.
-
-    :param min_bpm:          minimum tempo to model one cycle [float]
-    :param max_bpm:          maximum tempo to model one cycle [float]
-    :param fps:              frame rate (frames per second) [float]
-    :param num_tempo_states: number of tempo states [int] (if set, limit the
-                             number of states and use a log spacing, otherwise
-                             use a linear spacing defined by the tempo range)
-    :return:                 numpy array with beat states
-
-    """
-    # convert timing information to beat space
-    min_interval = 60. * fps / max_bpm
-    max_interval = 60. * fps / min_bpm
-    # use a linear spacing as default
-    states = np.arange(np.round(min_interval), np.round(max_interval) + 1,
-                       dtype=np.int)
-    # if num_tempo_states is given (and smaller than the number of states of
-    # the linear spacing) use a log spacing and limit the number of states
-    if num_tempo_states is not None and num_tempo_states < len(states):
-        # we must approach num_tempo_states iteratively
-        num_log_states = num_tempo_states
-        states = []
-        while len(states) < num_tempo_states:
-            states = np.logspace(np.log2(min_interval), np.log2(max_interval),
-                                 num_log_states, base=2)
-            # quantize to integer tempo states
-            states = np.unique(np.round(states).astype(np.int))
-            num_log_states += 1
-    # return the states
-    return states
-
-
 # class for beat tracking
 class DBNBeatTrackingProcessor(Processor):
     """
@@ -775,15 +738,18 @@ class DBNBeatTrackingProcessor(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (BeatTrackingTransitionModel as Tm,
+        from .beats_hmm import (BeatTrackingStateSpace as St,
+                                BeatTrackingTransitionModel as Tm,
                                 BeatTrackingObservationModel as Om)
 
-        # convert timing information to beat space
-        beat_space = beat_states(min_bpm, max_bpm, fps, num_tempo_states)
+        # convert timing information to construct state space
+        min_interval = 60. * fps / max_bpm
+        max_interval = 60. * fps / min_bpm
+        self.st = St(min_interval, max_interval, num_tempo_states)
         # transition model
-        self.tm = Tm(beat_space, transition_lambda)
+        self.tm = Tm(self.st, transition_lambda)
         # observation model
-        self.om = Om(self.tm, observation_lambda, norm_observations)
+        self.om = Om(self.st, observation_lambda, norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
@@ -823,7 +789,7 @@ class DBNBeatTrackingProcessor(Processor):
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
-            beats = argrelmin(self.tm.position(path),
+            beats = argrelmin(self.st.position(path),
                               mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the pointers
             # of the observation model for that state must be 0
@@ -987,7 +953,8 @@ class DownbeatTrackingProcessor(Processor):
         """
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (DownBeatTrackingTransitionModel as Tm,
+        from .beats_hmm import (DownBeatTrackingStateSpace as St,
+                                DownBeatTrackingTransitionModel as Tm,
                                 GMMDownBeatTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
@@ -998,29 +965,26 @@ class DownbeatTrackingProcessor(Processor):
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
                 len(transition_lambda) == len(num_beats)):
-            raise ValueError("'min_bpm', 'max_bpm', 'num_tempo_states', "
-                             "'transition_lambda' and 'num_beats' must have "
-                             "the same length")
+            raise ValueError("`min_bpm`, `max_bpm`, `num_tempo_states`, "
+                             "`transition_lambda` and `num_beats` must have "
+                             "the same length (one entry for each pattern)")
         self.fps = fps
         self.num_beats = num_beats
         self.downbeats = downbeats
+        # load the fitted GMMs
         import cPickle
         with open(gmm_file, 'r') as f:
-            # load the fitted GMMs
             gmms = cPickle.load(f)
-        # convert timing information to tempo space for each pattern
-        beat_space = []
-        for pattern in range(len(num_tempo_states)):
-            # convert timing information to beat space
-            # Note: we multiply the fps with the number of beats in this
-            #       pattern, since a complete cycle is N times that long
-            beat_space.append(beat_states(min_bpm[pattern], max_bpm[pattern],
-                                          fps * num_beats[pattern],
-                                          num_tempo_states[pattern]))
+        # convert timing information to construct state space
+        # Note: since we model a complete bar, multiply by the number of beats
+        min_interval = 60. * fps / np.asarray(max_bpm) * num_beats
+        max_interval = 60. * fps / np.asarray(min_bpm) * num_beats
+        # state space
+        self.st = St(min_interval, max_interval, num_tempo_states)
         # transition model
-        self.tm = Tm(beat_space, transition_lambda)
+        self.tm = Tm(self.st, transition_lambda)
         # observation model
-        self.om = Om(gmms, self.tm, norm_observations)
+        self.om = Om(gmms, self.st, norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
@@ -1036,9 +1000,9 @@ class DownbeatTrackingProcessor(Processor):
         path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
-        pattern = self.tm.pattern(path[0])
+        pattern = self.st.pattern(path[0])
         # the position inside the pattern
-        position = self.tm.position(path)
+        position = self.st.position(path)
         # beat position (= weighted by number of beats in bar)
         beat_counter = (position * self.num_beats[pattern]).astype(int)
         # transitions are the points where the beat counters change
