@@ -55,10 +55,6 @@ def load_tempo(filename, split_value=1.):
     # return
     return tempi[sort_idx], strengths[sort_idx]
 
-# def average_tempi(tempi):
-#     # implement the McKinney paper with merging multiple annotations
-#     raise NotImplementedError
-
 
 # this evaluation function can evaluate multiple tempi simultaneously
 def tempo_evaluation(detections, annotations, strengths, tolerance):
@@ -125,8 +121,8 @@ class TempoEvaluation(object):
 
     """
 
-    def __init__(self, detections, annotations, strengths,
-                 tolerance=TOLERANCE, double=DOUBLE, triple=TRIPLE):
+    def __init__(self, detections, annotations, strengths, tolerance=TOLERANCE,
+                 double=DOUBLE, triple=TRIPLE):
         """
         Evaluate the given detection and annotation sequences.
 
@@ -148,18 +144,15 @@ class TempoEvaluation(object):
         self.pscore, self.any, self.all = results
         self.acc1 = self.any
         # also evaluate with double / half and triple / third tempo
-        annotations_ = annotations.copy()
+        ann = annotations.copy()
         if double:
-            annotations_ = np.hstack((annotations_, annotations * 2.,
-                                     annotations / 2.))
+            ann = np.hstack((ann, annotations * 2., annotations / 2.))
         if triple:
-            annotations_ = np.hstack((annotations_, annotations * 3.,
-                                      annotations / 3.))
+            ann = np.hstack((ann, annotations * 3., annotations / 3.))
         # we need to tile the strengths; in case of no strengths, divide by 1
         len_strengths = max(1, len(strengths))
-        strengths = np.tile(strengths, len(annotations_) / len_strengths)
-        self.acc2 = tempo_evaluation(detections, annotations_, strengths,
-                                     tolerance)[1]
+        strengths = np.tile(strengths, len(ann) / len_strengths)
+        self.acc2 = tempo_evaluation(detections, ann, strengths, tolerance)[1]
 
     def print_errors(self, indent='', tex=False):
         """
@@ -347,6 +340,9 @@ def main():
             # exit if multiple detections were found
             raise SystemExit("multiple detections for %s found." % ann_file)
         elif len(matches) == 0:
+            # ignore non-existing detections
+            if args.ignore_non_existing:
+                continue
             # print a warning if no detections were found
             import warnings
             warnings.warn(" can't find detections for %s." % ann_file)
