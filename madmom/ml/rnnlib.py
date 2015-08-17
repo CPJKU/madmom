@@ -1542,7 +1542,7 @@ def main():
     from madmom.audio.filters import LogarithmicFilterbank as filterbank
     FilteredSpectrogramProcessor.add_arguments(sp, filterbank=filterbank,
                                                norm_filters=True,
-                                               duplicate_filters=None)
+                                               unique_filters=None)
     LogarithmicSpectrogramProcessor.add_arguments(sp, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(sp, diff_ratio=0.5,
                                                  diff_max_bins=1)

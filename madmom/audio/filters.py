@@ -236,26 +236,35 @@ def erb2hz(e):
 
 
 # helper functions for filter creation
-def frequencies2bins(frequencies, bin_frequencies):
+def frequencies2bins(frequencies, bin_frequencies, unique_bins=False):
     """
     Map frequencies to the closest corresponding bins.
 
     :param frequencies:     list with frequencies [Hz, numpy array]
     :param bin_frequencies: frequencies of the bins [Hz, numpy array]
-    :return:                corresponding bins [numpy array]
+    :param unique_bins:     return only unique bins, i.e. remove all duplicate
+                            bins resulting from insufficient resolution at low
+                            frequencies [bool]
+    :return:                corresponding (unique) bins [numpy array]
 
     """
     # cast as numpy arrays
     frequencies = np.asarray(frequencies)
     bin_frequencies = np.asarray(bin_frequencies)
-    # map the frequencies to spectrogram bins
+    # map the frequencies to the closest bins
     # solution found at: http://stackoverflow.com/questions/8914491/
     indices = bin_frequencies.searchsorted(frequencies)
     indices = np.clip(indices, 1, len(bin_frequencies) - 1)
     left = bin_frequencies[indices - 1]
     right = bin_frequencies[indices]
     indices -= frequencies - left < right - frequencies
-    # return the indices of the closest matches
+    # only keep unique bins if requested
+    # Note: this can be important to do so, otherwise the lower frequency
+    #       bins can be given too much weight if simply summed up (as in
+    #       the spectral flux)
+    if unique_bins:
+        indices = np.unique(indices)
+    # return the (unique) bin indices of the closest matches
     return indices
 
 
@@ -340,11 +349,12 @@ class Filter(np.ndarray):
         raise NotImplementedError('needs to be implemented by sub-classes')
 
     @classmethod
-    def filters(cls, bins, **kwargs):
+    def filters(cls, bins, norm, **kwargs):
         """
         Creates a list with filters for the the given bins.
 
-        :param bins:   (center/crossover) bins of filters [list or numpy array]
+        :param bins:   center/crossover bins of filters [list or numpy array]
+        :param norm:   normalize the area of the filter(s) to 1 [bool]
         :param kwargs: additional parameters passed to band_bins()
         :return:       list with filters
 
@@ -353,7 +363,7 @@ class Filter(np.ndarray):
         filters = []
         for filter_args in cls.band_bins(bins, **kwargs):
             # create a filter and append it to the list
-            filters.append(cls(*filter_args))
+            filters.append(cls(*filter_args, norm=norm))
         # return the filters
         return filters
 
@@ -413,32 +423,19 @@ class TriangularFilter(Filter):
         super(TriangularFilter, self).__setstate__(state[0:-1])
 
     @classmethod
-    def band_bins(cls, bins, norm=True, duplicates=False, overlap=True):
+    def band_bins(cls, bins, overlap=True):
         """
-        Yields start, center and stop bins and normalization info for creation
-        of triangular filters.
+        Yields start, center and stop bins for creation of triangular filters.
 
-        :param bins:       center bins of filters [list or numpy array]
-        :param norm:       normalize the area of the filter(s) to 1 [bool]
-        :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param overlap:    filters should overlap [bool]
-        :return:           start, center and stop bins & normalization info
+        :param bins:    center bins of filters [list or numpy array]
+        :param overlap: filters should overlap [bool]
+        :return:        start, center and stop bins
 
-        Note: If `duplicates` is set, duplicate filter bins are kept as is,
-              otherwise they are removed, i.e. any filter bin is included only
-              1 time at most.
-              If `overlap` is 'False', the `start` and `stop` bins of the
+        Note: If `overlap` is 'False', the `start` and `stop` bins of the
               filters are interpolated between the centre bins, normal rounding
               applies.
 
         """
-        # only keep unique bins if requested
-        # Note: this can be important to do so, otherwise the lower frequency
-        #       bins can be given too much weight if simply summed up (as in
-        #       the spectral flux)
-        if not duplicates:
-            bins = np.unique(bins)
         # make sure enough bins are given
         if len(bins) < 3:
             raise ValueError('not enough bins to create a TriangularFilter')
@@ -453,11 +450,11 @@ class TriangularFilter(Filter):
                 start = int(round((center + start) / 2.))
                 stop = int(round((center + stop) / 2.))
             # consistently handle too-small filters
-            if duplicates and (stop - start < 2):
+            if stop - start < 2:
                 center = start
                 stop = start + 1
             # yield the bins and continue
-            yield start, center, stop, norm
+            yield start, center, stop
             # increase counter
             index += 1
 
@@ -490,29 +487,16 @@ class RectangularFilter(Filter):
         return Filter.__new__(cls, data, start, norm)
 
     @classmethod
-    def band_bins(cls, bins, norm=True, duplicates=False, overlap=False):
+    def band_bins(cls, bins, overlap=False):
         """
         Yields start and stop bins and normalization info for creation of
         rectangular filters.
 
-        :param bins:       crossover bins of filters [numpy array]
-        :param norm:       normalize the area of the filter(s) to 1 [bool]
-        :param duplicates: keep duplicate filters resulting from insufficient
-                           resolution of low frequencies [bool]
-        :param overlap:    filters should overlap [bool]
-        :return:           start and stop bins & normalization info
-
-        Note: If `duplicates` is set, duplicate filter bins are kept as is,
-              otherwise they are removed, i.e. any filter bin is included only
-              1 time at most.
+        :param bins:    crossover bins of filters [numpy array]
+        :param overlap: filters should overlap [bool]
+        :return:        start and stop bins
 
         """
-        # only keep unique bins if requested
-        # Note: this can be important to do so, otherwise the lower frequency
-        #       bins can be given too much weight if simply summed up (as in
-        #       the spectral flux)
-        if not duplicates:
-            bins = np.unique(bins)
         # make sure enough bins are given
         if len(bins) < 2:
             raise ValueError('not enough bins to create a RectangularFilter')
@@ -525,17 +509,16 @@ class RectangularFilter(Filter):
             # get start and stop bins
             start, stop = bins[index: index + 2]
             # yield the bins and continue
-            yield start, stop, norm
+            yield start, stop
             # increase counter
             index += 1
 
 # default values for filter banks
 FMIN = 30.
 FMAX = 17000.
-BANDS = 12
+NUM_BANDS = 12
 NORM_FILTERS = True
-DUPLICATE_FILTERS = False
-OVERLAP_FILTERS = True
+UNIQUE_FILTERS = True
 
 
 class Filterbank(np.ndarray):
@@ -571,8 +554,8 @@ class Filterbank(np.ndarray):
                             'np.ndarray')
         # set bin frequencies
         if len(bin_frequencies) != obj.shape[0]:
-            raise ValueError("'bin_frequencies' must have the same length as "
-                             "the first dimension of 'data'.")
+            raise ValueError('`bin_frequencies` must have the same length as '
+                             'the first dimension of `data`.')
         obj.bin_frequencies = np.asarray(bin_frequencies, dtype=np.float)
         # return the object
         return obj
@@ -645,7 +628,7 @@ class Filterbank(np.ndarray):
                                 in a list of lists of Filters
         :param bin_frequencies: frequencies of the bins [numpy array]
                                 (needed to determine the expected size of the
-                                 filterbank)
+                                filterbank)
         :return:                filterbank with respective filter elements
 
         """
@@ -732,18 +715,20 @@ class Filterbank(np.ndarray):
 
     @staticmethod
     def add_arguments(parser, filter_type=None, num_bands=None, fmin=None,
-                      fmax=None, norm_filters=None, duplicate_filters=None):
+                      fmax=None, norm_filters=None, unique_filters=None):
         """
         Add filter related arguments to an existing parser.
 
-        :param parser:            existing argparse parser
-        :param filter_type:       type of filter to be used
-        :param num_bands:         number of filter bands (per octave) [int]
-        :param fmin:              the minimum frequency [Hz, float]
-        :param fmax:              the maximum frequency [Hz, float]
-        :param norm_filters:      normalize the area of the filter [bool]
-        :param duplicate_filters: keep duplicate filters [bool]
-        :return:                  filtering argument parser group
+        :param parser:         existing argparse parser
+        :param filter_type:    type of filter to be used
+        :param num_bands:      number of filter bands (per octave) [int]
+        :param fmin:           the minimum frequency [Hz, float]
+        :param fmax:           the maximum frequency [Hz, float]
+        :param norm_filters:   normalize the area of the filter [bool]
+        :param unique_filters: keep only unique filters, i.e. remove duplicate
+                               filters resulting from insufficient resolution
+                               at low frequencies [bool]
+        :return:               filtering argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
@@ -778,14 +763,14 @@ class Filterbank(np.ndarray):
             g.add_argument('--no_norm_filters', dest='norm_filters',
                            action='store_false', default=norm_filters,
                            help='do not equalize filters to have equal area')
-        if duplicate_filters is False:
+        if unique_filters is False:
             # switch to turn it on
-            g.add_argument('--duplicate_filters', action='store_true',
-                           default=duplicate_filters,
+            g.add_argument('--unique_filters', action='store_true',
+                           default=unique_filters,
                            help='keep duplicate filters')
-        elif duplicate_filters is True:
-            g.add_argument('--no_duplicate_filters', dest='norm_filters',
-                           action='store_false', default=duplicate_filters,
+        elif unique_filters is True:
+            g.add_argument('--no_duplicate_filters', dest='unique_filters',
+                           action='store_false', default=unique_filters,
                            help='remove duplicate filters')
         # return the argument group so it can be modified if needed
         return g
@@ -796,40 +781,40 @@ class MelFilterbank(Filterbank):
     Mel filterbank class.
 
     """
-    BANDS = 40
+    NUM_BANDS = 40
     FMIN = 20.
     FMAX = 17000.
     NORM_FILTERS = True
-    DUPLICATE_FILTERS = False
+    UNIQUE_FILTERS = True
 
-    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN, fmax=FMAX,
-                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
-                **kwargs):
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         """
         Creates a new MelFilterbank instance.
 
-        :param bin_frequencies:   frequencies of the bins [Hz, float array]
-        :param num_bands:         number of filter bands [int]
-        :param fmin:              the minimum frequency [Hz, float]
-        :param fmax:              the maximum frequency [Hz, float]
-        :param norm_filters:      normalize the filters to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
-                                  [bool]
+        :param bin_frequencies: frequencies of the bins [Hz, float array]
+        :param num_bands:       number of filter bands [int]
+        :param fmin:            the minimum frequency [Hz, float]
+        :param fmax:            the maximum frequency [Hz, float]
+        :param norm_filters:    normalize the filters to area 1 [bool]
+        :param unique_filters:  keep only unique filters, i.e. remove duplicate
+                                filters resulting from insufficient resolution
+                                at low frequencies [bool]
 
-        Note: Because of rounding and mapping of frequencies to bins and vice
-              versa, the actual minimum, maximum and center frequencies do not
-              necessarily reflect the given parameters.
+        Note: Because of rounding and mapping of frequencies to bins and back
+              to frequencies, the actual minimum, maximum and center
+              frequencies do not necessarily match the arguments given.
 
         """
-        # get a list of frequencies
+        # get a list of frequencies aligned on the Mel scale
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(num_bands + 2, fmin, fmax)
         # convert to bins
-        bins = frequencies2bins(frequencies, bin_frequencies)
+        bins = frequencies2bins(frequencies, bin_frequencies,
+                                unique_bins=unique_filters)
         # get overlapping triangular filters
         filters = TriangularFilter.filters(bins, norm=norm_filters,
-                                           duplicates=duplicate_filters,
                                            overlap=True)
         # create a MelFilterbank from the filters
         return cls.from_filters(filters, bin_frequencies)
@@ -842,23 +827,24 @@ class BarkFilterbank(Filterbank):
     """
     FMIN = 20.
     FMAX = 15500.
-    BANDS = 'normal'
+    NUM_BANDS = 'normal'
     NORM_FILTERS = True
-    DUPLICATE_FILTERS = False
+    UNIQUE_FILTERS = True
 
-    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN, fmax=FMAX,
-                norm_filters=NORM_FILTERS, duplicate_filters=DUPLICATE_FILTERS,
-                **kwargs):
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         """
         Creates a new BarkFilterbank instance.
 
-        :param bin_frequencies:   frequencies of the bins [Hz]
-        :param num_bands:         number of filter bands
-        :param fmin:              the minimum frequency [Hz]
-        :param fmax:              the maximum frequency [Hz]
-        :param norm_filters:      normalize the filters to area 1
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
+        :param bin_frequencies: frequencies of the bins [Hz, float array]
+        :param num_bands:       number of filter bands [int]
+        :param fmin:            the minimum frequency [Hz, float]
+        :param fmax:            the maximum frequency [Hz, float]
+        :param norm_filters:    normalize the filters to area 1 [bool]
+        :param unique_filters:  keep only unique filters, i.e. remove duplicate
+                                filters resulting from insufficient resolution
+                                at low frequencies [bool]
 
         """
         # get a list of frequencies
@@ -869,10 +855,10 @@ class BarkFilterbank(Filterbank):
         else:
             raise ValueError("`num_bands` must be {'normal', 'double'}")
         # convert to bins
-        bins = frequencies2bins(frequencies, bin_frequencies)
+        bins = frequencies2bins(frequencies, bin_frequencies,
+                                unique_bins=-unique_filters)
         # get non-overlapping rectangular filters
         filters = RectangularFilter.filters(bins, norm=norm_filters,
-                                            duplicates=duplicate_filters,
                                             overlap=False)
         # create a BarkFilterbank from the filters
         return cls.from_filters(filters, bin_frequencies)
@@ -883,41 +869,55 @@ class LogarithmicFilterbank(Filterbank):
     Logarithmic filterbank class.
 
     """
-    BANDS_PER_OCTAVE = 12
+    NUM_BANDS_PER_OCTAVE = 12
 
-    def __new__(cls, bin_frequencies, num_bands=BANDS_PER_OCTAVE, fmin=FMIN,
-                fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                duplicate_filters=DUPLICATE_FILTERS):
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
+                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
         """
         Creates a new LogarithmicFilterbank instance.
 
-        :param bin_frequencies:   frequencies of the bins [Hz]
-        :param num_bands:         number of filter bands per octave
-        :param fmin:              the minimum frequency [Hz]
-        :param fmax:              the maximum frequency [Hz]
-        :param fref:              tuning frequency of the filterbank [Hz]
-        :param norm_filters:      normalize the filters to area 1
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
+        :param bin_frequencies:  frequencies of the bins [Hz, float array]
+        :param num_bands:        number of filter bands (per octave) [int]
+        :param fmin:             the minimum frequency [Hz, float]
+        :param fmax:             the maximum frequency [Hz, float]
+        :param fref:             tuning frequency of the filterbank [Hz, float]
+        :param norm_filters:     normalize the filters to area 1 [bool]
+        :param unique_filters:   keep only unique filters, i.e. remove
+                                 duplicate filters resulting from insufficient
+                                 resolution at low frequencies [bool]
+        :param bands_per_octave: indicates whether `num_bands` is given as
+                                 number of bands per octave ('True') or as an
+                                 absolute number of bands ('False') [bool]
 
-        Note: `num_bands` sets the number of bands per octave, not the overall
-              number of filter bands; if set to 12 it results in a semitone
-              filterbank.
+        Note: `num_bands` sets either the number of bands per octave or the
+              total number of bands, depending on the setting of
+              `bands_per_octave`. `num_bands` is used to set also the number of
+              bands per octave to keep the argument for all classes the same.
+              If 12 bands per octave are used, a filterbank with semitone
+              spacing is created.
 
         """
-        # get a list of frequencies
-        frequencies = log_frequencies(num_bands, fmin, fmax, fref)
-        # convert to bins
-        bins = frequencies2bins(frequencies, bin_frequencies)
+        if bands_per_octave:
+            num_bands_per_octave = num_bands
+            # get a list of frequencies with logarithmic scaling
+            frequencies = log_frequencies(num_bands, fmin, fmax, fref)
+            # convert to bins
+            bins = frequencies2bins(frequencies, bin_frequencies,
+                                    unique_bins=unique_filters)
+        else:
+            # iteratively get the number of bands
+            raise NotImplementedError("please implement `num_bands` with "
+                                      "`bands_per_octave` set to 'False' for "
+                                      "LogarithmicFilterbank")
         # get overlapping triangular filters
         filters = TriangularFilter.filters(bins, norm=norm_filters,
-                                           duplicates=duplicate_filters,
                                            overlap=True)
         # create a LogarithmicFilterbank from the filters
         obj = cls.from_filters(filters, bin_frequencies)
         # set additional attributes
-        obj.bands_per_octave = num_bands
         obj.fref = fref
+        obj.num_bands_per_octave = num_bands_per_octave
         # return the object
         return obj
 
@@ -925,8 +925,8 @@ class LogarithmicFilterbank(Filterbank):
         if obj is None:
             return
         # set default values here
-        self.bands_per_octave = getattr(obj, 'bands_per_octave',
-                                        self.BANDS_PER_OCTAVE)
+        self.num_bands_per_octave = getattr(obj, 'num_bands_per_octave',
+                                            self.NUM_BANDS_PER_OCTAVE)
         self.fref = getattr(obj, 'fref', A4)
 
     def __reduce__(self):
@@ -935,14 +935,14 @@ class LogarithmicFilterbank(Filterbank):
         # get the parent's __reduce__ tuple
         pickled_state = super(LogarithmicFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.bands_per_octave, self.fref,)
+        new_state = pickled_state[2] + (self.num_bands_per_octave, self.fref)
         # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for correct un-pickling
         # set the number of bands per octave and reference frequency
-        self.bands_per_octave = state[-2]
+        self.num_bands_per_octave = state[-2]
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(LogarithmicFilterbank, self).__setstate__(state[0:-2])
@@ -959,23 +959,30 @@ class RectangularFilterbank(Filterbank):
     """
 
     def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
-                fmax=FMAX, norm_filters=NORM_FILTERS):
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS):
         """
         Creates a new LogarithmicFilterbank instance.
 
-        :param bin_frequencies:       frequencies of the bins [Hz]
-        :param crossover_frequencies: crossover frequencies of the bands [Hz]
-        :param fmin:                  the minimum frequency [Hz]
-        :param fmax:                  the maximum frequency [Hz]
-        :param norm_filters:          normalize the filters to area 1
+        :param bin_frequencies:       frequencies of the bins [Hz, float array]
+        :param crossover_frequencies: crossover frequencies of the bands
+                                      [Hz, list or array of floats]
+        :param fmin:                  the minimum frequency [Hz, float]
+        :param fmax:                  the maximum frequency [Hz, float]
+        :param norm_filters:          normalize the filters to area 1 [bool]
+        :param unique_filters:        keep only unique filters, i.e. remove
+                                      duplicate filters resulting from
+                                      insufficient resolution at low
+                                      frequencies [bool]
 
         """
         # create an empty filterbank
         fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1))
         crossover_frequencies = np.r_[fmin, crossover_frequencies, fmax]
         # get the crossover bins
-        crossover_bins = np.searchsorted(bin_frequencies,
-                                         crossover_frequencies)
+        crossover_bins = frequencies2bins(crossover_frequencies,
+                                          bin_frequencies,
+                                          unique_bins=unique_filters)
         # map the bins to the filterbank bands
         for i in range(len(crossover_bins) - 1):
             fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
@@ -1011,31 +1018,30 @@ class SimpleChromaFilterbank(Filterbank):
     A simple chroma filterbank based on a (semitone) filterbank.
 
     """
-    BANDS = 12
+    NUM_BANDS = 12
 
-    def __new__(cls, bin_frequencies, num_bands=BANDS, fmin=FMIN,
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                duplicate_filters=DUPLICATE_FILTERS):
+                unique_filters=UNIQUE_FILTERS):
         """
         Creates a new SimpleChromaFilterbank instance.
 
-        :param bin_frequencies:   frequencies of the bins [Hz]
-        :param num_bands:         number of filter bands per octave
-        :param fmin:              the minimum frequency [Hz]
-        :param fmax:              the maximum frequency [Hz]
-        :param fref:              tuning frequency of the filterbank [Hz]
-        :param norm_filters:      normalize the filters to area 1
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
-
+        :param bin_frequencies: frequencies of the bins [Hz, float array]
+        :param num_bands:       number of filter bands per octave [int]
+        :param fmin:            the minimum frequency [Hz, float]
+        :param fmax:            the maximum frequency [Hz, float]
+        :param fref:            tuning frequency of the filterbank [Hz, float]
+        :param norm_filters:    normalize the filters to area 1 [bool]
+        :param unique_filters:  keep only unique filters, i.e. remove duplicate
+                                filters resulting from insufficient resolution
+                                at low frequencies [bool]
         """
         raise NotImplementedError("please check if produces correct/expected "
                                   "results and enable if yes.")
         # TODO: add comments!
-        stf = LogarithmicFilterbank(bin_frequencies, num_bands=num_bands,
-                                    fmin=fmin, fmax=fmax, fref=fref,
-                                    norm_filters=norm_filters,
-                                    duplicate_filters=duplicate_filters)
+        stf = LogFilterbank(bin_frequencies, num_bands=num_bands, fmin=fmin,
+                            fmax=fmax, fref=fref, norm_filters=norm_filters,
+                            unique_filters=unique_filters)
         # create an empty filterbank
         fb = np.empty((stf.shape[0], 12))
         spacing = np.arange(8) * 12
@@ -1106,8 +1112,8 @@ class PitchClassProfileFilterbank(Filterbank):
     """
     CLASSES = 12
 
-    def __new__(cls, bin_frequencies, num_classes=CLASSES,
-                fmin=FMIN, fmax=FMAX, fref=A4):
+    def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
+                fmax=FMAX, fref=A4):
         """
         Creates a new PitchClassProfile (PCP) filterbank instance.
 

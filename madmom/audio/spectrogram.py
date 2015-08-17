@@ -11,8 +11,8 @@ import numpy as np
 import scipy.fftpack as fft
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from .filters import (LogarithmicFilterbank, BANDS, FMIN, FMAX, A4,
-                      NORM_FILTERS, DUPLICATE_FILTERS)
+from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
+                      NORM_FILTERS, UNIQUE_FILTERS)
 
 
 def fft_frequencies(num_fft_bins, sample_rate):
@@ -689,40 +689,42 @@ class FilteredSpectrogram(Spectrogram):
     """
 
     # we just want to inherit some properties from Spectrogram
-    def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=BANDS,
+    def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                duplicate_filters=DUPLICATE_FILTERS, block_size=2048,
+                unique_filters=UNIQUE_FILTERS, block_size=2048,
                 **kwargs):
         """
         Creates a new FilteredSpectrogram instance from the given Spectrogram.
 
-        :param spectrogram:       Spectrogram instance (or anything a
-                                  Spectrogram can be instantiated from)
+        :param spectrogram:    Spectrogram instance (or anything a Spectrogram
+                               can be instantiated from)
 
         Filterbank parameters:
 
-        :param filterbank:        Filterbank type or instance [Filterbank]
+        :param filterbank:     Filterbank type or instance [Filterbank]
 
         If a Filterbank type is given rather than a Filterbank instance, one
         will be created with the given type and these parameters:
 
-        :param num_bands:         number of filter bands (per octave, depending
-                                  on the type of the filterbank) [int]
-        :param fmin:              the minimum frequency [Hz, float]
-        :param fmax:              the maximum frequency [Hz, float]
-        :param fref:              tuning frequency [Hz, float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters [bool]
+        :param num_bands:      number of filter bands (per octave, depending
+                               on the type of the filterbank)
+        :param fmin:           the minimum frequency [Hz, float]
+        :param fmax:           the maximum frequency [Hz, float]
+        :param fref:           tuning frequency [Hz, float]
+        :param norm_filters:   normalize the filter to area 1 [bool]
+        :param unique_filters: keep only unique filters, i.e. remove duplicate
+                               filters resulting from insufficient resolution
+                               at low frequencies [bool]
 
         Other filtering options:
 
-        :param block_size:        perform filtering in blocks of this size
-                                  [int, power of 2]
+        :param block_size:     perform filtering in blocks of this size
+                               [int, power of 2]
 
         If no Spectrogram instance was given, one is instantiated and
         these arguments are passed:
 
-        :param kwargs:            keyword arguments passed to Spectrogram
+        :param kwargs:         keyword arguments passed to Spectrogram
 
         """
         from .filters import Filterbank
@@ -737,7 +739,7 @@ class FilteredSpectrogram(Spectrogram):
             filterbank = filterbank(spectrogram.bin_frequencies,
                                     num_bands=num_bands, fmin=fmin, fmax=fmax,
                                     fref=fref, norm_filters=norm_filters,
-                                    duplicate_filters=duplicate_filters)
+                                    unique_filters=unique_filters)
         if not isinstance(filterbank, Filterbank):
             raise ValueError('not a Filterbank type or instance: %s' %
                              filterbank)
@@ -807,23 +809,24 @@ class FilteredSpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, num_bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=FILTERBANK, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, **kwargs):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         """
         Creates a new FilteredSpectrogramProcessor instance.
 
         Magnitude spectrogram filtering parameters:
 
-        :param filterbank:        filter the magnitude spectrogram with a
-                                  filterbank of this type [None or Filterbank]
-        :param num_bands:         number of filter bands (per octave) [int]
-        :param fmin:              minimum frequency of the filterbank [float]
-        :param fmax:              maximum frequency of the filterbank [float]
-        :param fref:              tuning frequency [Hz, float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
+        :param filterbank:     filter the magnitude spectrogram with a
+                               filterbank of this type [None or Filterbank]
+        :param num_bands:      number of filter bands (per octave) [int]
+        :param fmin:           minimum frequency of the filterbank [Hz, float]
+        :param fmax:           maximum frequency of the filterbank [Hz, float]
+        :param fref:           tuning frequency [Hz, float]
+        :param norm_filters:   normalize the filter to area 1 [bool]
+        :param unique_filters: keep only unique filters, i.e. remove duplicate
+                               filters resulting from insufficient resolution
+                               at low frequencies [bool]
 
         """
         self.filterbank = filterbank
@@ -832,7 +835,7 @@ class FilteredSpectrogramProcessor(Processor):
         self.fmax = fmax
         self.fref = fref
         self.norm_filters = norm_filters
-        self.duplicate_filters = duplicate_filters
+        self.unique_filters = unique_filters
 
     def process(self, data, **kwargs):
         """
@@ -848,27 +851,27 @@ class FilteredSpectrogramProcessor(Processor):
                                    num_bands=self.num_bands, fmin=self.fmin,
                                    fmax=self.fmax, fref=self.fref,
                                    norm_filters=self.norm_filters,
-                                   duplicate_filters=self.duplicate_filters,
+                                   unique_filters=self.unique_filters,
                                    **kwargs)
 
     @classmethod
-    def add_arguments(cls, parser, filterbank=FILTERBANK, num_bands=BANDS,
+    def add_arguments(cls, parser, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                       fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
-                      duplicate_filters=DUPLICATE_FILTERS):
+                      unique_filters=UNIQUE_FILTERS):
         """
         Add spectrogram filtering related arguments to an existing parser.
 
-        :param parser:            existing argparse parser
-        :param filterbank:        filter the magnitude spectrogram with a
-                                  filterbank of that type [Filterbank or bool]
-        :param num_bands:         number of filter bands (per octave) [int]
-        :param fmin:              minimum frequency of the filterbank [float]
-        :param fmax:              maximum frequency of the filterbank [float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
-                                  [bool]
-        :return:                  spectrogram filtering argument parser group
+        :param parser:         existing argparse parser
+        :param filterbank:     filter the magnitude spectrogram with a
+                               filterbank of that type [Filterbank]
+        :param num_bands:      number of filter bands (per octave) [int]
+        :param fmin:           minimum frequency of the filterbank [Hz, float]
+        :param fmax:           maximum frequency of the filterbank [Hz, float]
+        :param norm_filters:   normalize the filter to area 1 [bool]
+        :param unique_filters: keep only unique filters, i.e. remove duplicate
+                               filters resulting from insufficient resolution
+                               at low frequencies [bool]
+        :return:               spectrogram filtering argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
@@ -913,20 +916,21 @@ class FilteredSpectrogramProcessor(Processor):
                                action='store_true', default=norm_filters,
                                help='normalize the filter to area 1 '
                                     '[default=False]')
-        if duplicate_filters is not None:
-            if duplicate_filters:
-                g.add_argument('--no_duplicate_filters',
-                               dest='duplicate_filters',
-                               action='store_false', default=duplicate_filters,
-                               help='do not keep duplicate filters resulting '
-                                    'from insufficient resolution of low '
-                                    'frequencies [default=True]')
-            else:
-                g.add_argument('--duplicate_filters', dest='duplicate_filters',
-                               action='store_true', default=duplicate_filters,
+        if unique_filters is not None:
+            if unique_filters:
+                g.add_argument('--duplicate_filters', dest='unique_filters',
+                               action='store_false', default=unique_filters,
                                help='keep duplicate filters resulting from '
-                                    'insufficient resolution of low '
+                                    'insufficient resolution at low '
                                     'frequencies [default=False]')
+            else:
+                g.add_argument('--unique_filters', action='store_true',
+                               default=unique_filters,
+                               help='keep only unique filters, i.e. remove '
+                                    'duplicate filters resulting from '
+                                    'insufficient resolution at low '
+                                    'frequencies [default=True]')
+
         # return the group
         return g
 
@@ -1144,32 +1148,31 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, filterbank=FILTERBANK, num_bands=BANDS, fmin=FMIN,
+    def __init__(self, filterbank=FILTERBANK, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 duplicate_filters=DUPLICATE_FILTERS, mul=MUL, add=ADD,
-                 **kwargs):
+                 unique_filters=UNIQUE_FILTERS, mul=MUL, add=ADD, **kwargs):
         """
         Creates a new LogarithmicFilteredSpectrogramProcessor instance.
 
         Magnitude spectrogram filtering parameters:
 
-        :param filterbank:        filter the magnitude spectrogram with a
-                                  filterbank of this type [None or Filterbank]
-        :param num_bands:         number of filter bands (per octave) [int]
-        :param fmin:              minimum frequency of the filterbank [float]
-        :param fmax:              maximum frequency of the filterbank [float]
-        :param fref:              tuning frequency [Hz, float]
-        :param norm_filters:      normalize the filter to area 1 [bool]
-        :param duplicate_filters: keep duplicate filters resulting from
-                                  insufficient resolution of low frequencies
+        :param filterbank:     filter the magnitude spectrogram with a
+                               filterbank of this type [None or Filterbank]
+        :param num_bands:      number of filter bands (per octave) [int]
+        :param fmin:           minimum frequency of the filterbank [Hz, float]
+        :param fmax:           maximum frequency of the filterbank [Hz, float]
+        :param fref:           tuning frequency [Hz, float]
+        :param norm_filters:   normalize the filter to area 1 [bool]
+        :param unique_filters: keep only unique filters, i.e. remove duplicate
+                               filters resulting from insufficient resolution
+                               at low frequencies [bool]
 
         Magnitude spectrogram scaling parameters:
 
-        :param mul:               multiply the spectrogram with this factor
-                                  before taking the logarithm of the magnitudes
-                                  [float]
-        :param add:               add this value before taking the logarithm of
-                                  the magnitudes [float]
+        :param mul:            multiply the spectrogram with this factor before
+                               taking the logarithm of the magnitudes [float]
+        :param add:            add this value before taking the logarithm of
+                               the magnitudes [float]
 
         """
         self.filterbank = filterbank
@@ -1178,7 +1181,7 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
         self.fmax = fmax
         self.fref = fref
         self.norm_filters = norm_filters
-        self.duplicate_filters = duplicate_filters
+        self.unique_filters = unique_filters
         self.mul = mul
         self.add = add
 
@@ -1196,9 +1199,8 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
         return LogarithmicFilteredSpectrogram(
             data, filterbank=self.filterbank, num_bands=self.num_bands,
             fmin=self.fmin, fmax=self.fmax, fref=self.fref,
-            norm_filters=self.norm_filters,
-            duplicate_filters=self.duplicate_filters, mul=self.mul,
-            add=self.add, **kwargs)
+            norm_filters=self.norm_filters, unique_filters=self.unique_filters,
+            mul=self.mul, add=self.add, **kwargs)
 
 
 # spectrogram difference stuff
@@ -1678,7 +1680,7 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
               as a stacking function), they must have the same frequency
               dimensionality. If filtered spectrograms are used,
-              `duplicate_filters` must be set to 'True'.
+              `unique_filters` must be set to 'False'.
 
         """
         from .signal import FramedSignalProcessor

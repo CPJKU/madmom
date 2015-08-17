@@ -271,7 +271,7 @@ class TestFrequencies2BinsFunction(unittest.TestCase):
         with self.assertRaises(TypeError):
             frequencies2bins(1)
         with self.assertRaises(TypeError):
-            frequencies2bins(1, 2, 3)
+            frequencies2bins(1, 2, 3, 4)
 
     def test_types(self):
         result = frequencies2bins([0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
@@ -291,6 +291,20 @@ class TestFrequencies2BinsFunction(unittest.TestCase):
         # lower frequencies should be mapped to the first bin
         result = frequencies2bins([-1, 0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
         self.assertTrue(np.allclose(result, [0, 0, 1, 2, 3, 4]))
+
+    def test_unique_bins(self):
+        # duplicate bins should be kept
+        result = frequencies2bins([0, 1, 2, 3, 4, 5], [0, 2, 4])
+        self.assertTrue(np.allclose(result, [0, 1, 1, 2, 2, 2]))
+        # duplicate bins should be removed
+        result = frequencies2bins([0, 1, 2, 3, 4, 5], [0, 2, 4],
+                                  unique_bins=True)
+        self.assertTrue(np.allclose(result, [0, 1, 2]))
+        # duplicated bins at lower frequencies should be mapped to the first
+        # bin and removed
+        result = frequencies2bins([-1, 0, 1, 2, 3, 4], [0, 1, 2, 3, 4],
+                                  unique_bins=True)
+        self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
 
 
 class TestBins2FrequenciesFunction(unittest.TestCase):
@@ -364,12 +378,12 @@ class TestFilterClass(unittest.TestCase):
 
     def test_filters_method(self):
         with self.assertRaises(NotImplementedError):
-            Filter(np.arange(5)).filters(3)
+            Filter(np.arange(5)).filters(3, norm=True)
 
 
 class TestTriangularFilterClass(unittest.TestCase):
 
-    bins = np.asarray([0, 0, 1, 1, 2, 3, 4, 6, 9])
+    bins = np.asarray([0, 1, 2, 3, 4, 6, 9])
 
     def test_types(self):
         filt = TriangularFilter(0, 1, 2, False)
@@ -412,8 +426,7 @@ class TestTriangularFilterClass(unittest.TestCase):
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.center == 6)
         self.assertTrue(filt.stop == 9)
-        # test small filters (these can occur if a `Filterbank` uses
-        # `TriangularFilter`s and has `duplicate_filters` set to 'True'
+        # test small filters
         filt = TriangularFilter(0, 0, 1, True)
         self.assertTrue(np.allclose(filt, [1]))
         self.assertTrue(filt.start == 0)
@@ -444,68 +457,28 @@ class TestTriangularFilterClass(unittest.TestCase):
     def test_band_bins_method_overlap(self):
         # test overlapping
         result = TriangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1, 2, True))
-        self.assertTrue(result.next() == (1, 2, 3, True))
-        self.assertTrue(result.next() == (2, 3, 4, True))
-        self.assertTrue(result.next() == (3, 4, 6, True))
-        self.assertTrue(result.next() == (4, 6, 9, True))
-        with self.assertRaises(StopIteration):
-            result.next()
-
-    def test_band_bins_method_overlap_no_norm(self):
-        # test overlapping without normalization
-        result = TriangularFilter.band_bins(self.bins, norm=False)
-        self.assertTrue(result.next() == (0, 1, 2, False))
-        self.assertTrue(result.next() == (1, 2, 3, False))
-        self.assertTrue(result.next() == (2, 3, 4, False))
-        self.assertTrue(result.next() == (3, 4, 6, False))
-        self.assertTrue(result.next() == (4, 6, 9, False))
+        self.assertTrue(result.next() == (0, 1, 2))
+        self.assertTrue(result.next() == (1, 2, 3))
+        self.assertTrue(result.next() == (2, 3, 4))
+        self.assertTrue(result.next() == (3, 4, 6))
+        self.assertTrue(result.next() == (4, 6, 9))
         with self.assertRaises(StopIteration):
             result.next()
 
     def test_band_bins_method_non_overlap(self):
         # test non-overlapping
         result = TriangularFilter.band_bins(self.bins, overlap=False)
-        self.assertTrue(result.next() == (1, 1, 2, True))
-        self.assertTrue(result.next() == (2, 2, 3, True))
-        self.assertTrue(result.next() == (3, 3, 4, True))
-        self.assertTrue(result.next() == (4, 4, 5, True))
-        self.assertTrue(result.next() == (5, 6, 8, True))
-        with self.assertRaises(StopIteration):
-            result.next()
-
-    def test_band_bins_method_overlap_duplicates(self):
-        # test duplicate & overlapping
-        result = TriangularFilter.band_bins(self.bins, duplicates=True)
-        self.assertTrue(result.next() == (0, 0, 1, True))
-        # if filters are too small, always return start=centre
-        self.assertTrue(result.next() == (0, 0, 1, True))
-        self.assertTrue(result.next() == (1, 1, 2, True))
-        self.assertTrue(result.next() == (1, 2, 3, True))
-        self.assertTrue(result.next() == (2, 3, 4, True))
-        self.assertTrue(result.next() == (3, 4, 6, True))
-        self.assertTrue(result.next() == (4, 6, 9, True))
-        with self.assertRaises(StopIteration):
-            result.next()
-
-    def test_band_bins_method_non_overlap_duplicates(self):
-        # test duplicate & non-overlapping
-        result = TriangularFilter.band_bins(self.bins, overlap=False,
-                                            duplicates=True)
-        self.assertTrue(result.next() == (0, 0, 1, True))
-        self.assertTrue(result.next() == (1, 1, 2, True))
-        # if filters are too small, always return start=centre
-        self.assertTrue(result.next() == (1, 1, 2, True))
-        self.assertTrue(result.next() == (2, 2, 3, True))
-        self.assertTrue(result.next() == (3, 3, 4, True))
-        self.assertTrue(result.next() == (4, 4, 5, True))
-        self.assertTrue(result.next() == (5, 6, 8, True))
+        self.assertTrue(result.next() == (1, 1, 2))
+        self.assertTrue(result.next() == (2, 2, 3))
+        self.assertTrue(result.next() == (3, 3, 4))
+        self.assertTrue(result.next() == (4, 4, 5))
+        self.assertTrue(result.next() == (5, 6, 8))
         with self.assertRaises(StopIteration):
             result.next()
 
     def test_filters_method_normalized(self):
         # normalized filters
-        result = TriangularFilter.filters(self.bins)
+        result = TriangularFilter.filters(self.bins, norm=True)
         filters = np.asarray([[0, 1], [0, 1], [0, 1], [0, 0.66667, 0.33333],
                               [0, 0.2, 0.4, 0.266667, 0.133333]])
         starts = [0, 1, 2, 3, 4]
@@ -540,7 +513,7 @@ class TestTriangularFilterClass(unittest.TestCase):
 
 class TestRectangularFilterClass(unittest.TestCase):
 
-    bins = np.asarray([0, 0, 1, 1, 2, 3, 4, 6, 9])
+    bins = np.asarray([0, 1, 2, 3, 4, 6, 9])
 
     def test_types(self):
         filt = RectangularFilter(0, 1, False)
@@ -600,45 +573,21 @@ class TestRectangularFilterClass(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             result.next()
 
-    def test_band_bins_method_norm(self):
+    def test_band_bins_method(self):
         result = RectangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1, True))
-        self.assertTrue(result.next() == (1, 2, True))
-        self.assertTrue(result.next() == (2, 3, True))
-        self.assertTrue(result.next() == (3, 4, True))
-        self.assertTrue(result.next() == (4, 6, True))
-        self.assertTrue(result.next() == (6, 9, True))
-        with self.assertRaises(StopIteration):
-            result.next()
-
-    def test_band_bins_method_no_norm(self):
-        result = RectangularFilter.band_bins(self.bins, norm=False)
-        self.assertTrue(result.next() == (0, 1, False))
-        self.assertTrue(result.next() == (1, 2, False))
-        self.assertTrue(result.next() == (2, 3, False))
-        self.assertTrue(result.next() == (3, 4, False))
-        self.assertTrue(result.next() == (4, 6, False))
-        self.assertTrue(result.next() == (6, 9, False))
-        with self.assertRaises(StopIteration):
-            result.next()
-
-    def test_band_bins_method_duplicates(self):
-        result = RectangularFilter.band_bins(self.bins, duplicates=True)
-        self.assertTrue(result.next() == (0, 0, True))
-        self.assertTrue(result.next() == (0, 1, True))
-        self.assertTrue(result.next() == (1, 1, True))
-        self.assertTrue(result.next() == (1, 2, True))
-        self.assertTrue(result.next() == (2, 3, True))
-        self.assertTrue(result.next() == (3, 4, True))
-        self.assertTrue(result.next() == (4, 6, True))
-        self.assertTrue(result.next() == (6, 9, True))
+        self.assertTrue(result.next() == (0, 1))
+        self.assertTrue(result.next() == (1, 2))
+        self.assertTrue(result.next() == (2, 3))
+        self.assertTrue(result.next() == (3, 4))
+        self.assertTrue(result.next() == (4, 6))
+        self.assertTrue(result.next() == (6, 9))
         with self.assertRaises(StopIteration):
             result.next()
 
     def test_filters_method_normalized(self):
         # normalized filters
         # resulting bins: [0, 1, 2, 3, 4, 6, 9]
-        result = RectangularFilter.filters(self.bins)
+        result = RectangularFilter.filters(self.bins, norm=True)
         filters = np.asarray([[1], [1], [1], [1], [0.5, 0.5],
                               [0.33333, 0.33333, 0.33333]])
         starts = [0, 1, 2, 3, 4, 6]
@@ -676,18 +625,16 @@ class TestConstantsClass(unittest.TestCase):
     def test_types(self):
         self.assertIsInstance(FMIN, float)
         self.assertIsInstance(FMAX, float)
-        self.assertIsInstance(BANDS, int)
+        self.assertIsInstance(NUM_BANDS, int)
         self.assertIsInstance(NORM_FILTERS, bool)
-        self.assertIsInstance(DUPLICATE_FILTERS, bool)
-        self.assertIsInstance(OVERLAP_FILTERS, bool)
+        self.assertIsInstance(UNIQUE_FILTERS, bool)
 
     def test_values(self):
         self.assertEqual(FMIN, 30.)
         self.assertEqual(FMAX, 17000.)
-        self.assertEqual(BANDS, 12)
+        self.assertEqual(NUM_BANDS, 12)
         self.assertEqual(NORM_FILTERS, True)
-        self.assertEqual(DUPLICATE_FILTERS, False)
-        self.assertEqual(OVERLAP_FILTERS, True)
+        self.assertEqual(UNIQUE_FILTERS, True)
 
 
 class TestFilterbankClass(unittest.TestCase):
@@ -786,16 +733,16 @@ class TestMelFilterbankClass(unittest.TestCase):
     def test_constant_types(self):
         self.assertIsInstance(MelFilterbank.FMIN, float)
         self.assertIsInstance(MelFilterbank.FMAX, float)
-        self.assertIsInstance(MelFilterbank.BANDS, int)
+        self.assertIsInstance(MelFilterbank.NUM_BANDS, int)
         self.assertIsInstance(MelFilterbank.NORM_FILTERS, bool)
-        self.assertIsInstance(MelFilterbank.DUPLICATE_FILTERS, bool)
+        self.assertIsInstance(MelFilterbank.UNIQUE_FILTERS, bool)
 
     def test_constant_values(self):
         self.assertEqual(MelFilterbank.FMIN, 20.)
         self.assertEqual(MelFilterbank.FMAX, 17000.)
-        self.assertEqual(MelFilterbank.BANDS, 40)
+        self.assertEqual(MelFilterbank.NUM_BANDS, 40)
         self.assertEqual(MelFilterbank.NORM_FILTERS, True)
-        self.assertEqual(MelFilterbank.DUPLICATE_FILTERS, False)
+        self.assertEqual(MelFilterbank.UNIQUE_FILTERS, True)
 
     def test_values(self):
         filt = MelFilterbank(np.arange(1000) * 20, 10)
@@ -869,16 +816,16 @@ class TestBarkFilterbankClass(unittest.TestCase):
     def test_constant_types(self):
         self.assertIsInstance(BarkFilterbank.FMIN, float)
         self.assertIsInstance(BarkFilterbank.FMAX, float)
-        self.assertIsInstance(BarkFilterbank.BANDS, str)
+        self.assertIsInstance(BarkFilterbank.NUM_BANDS, str)
         self.assertIsInstance(BarkFilterbank.NORM_FILTERS, bool)
-        self.assertIsInstance(BarkFilterbank.DUPLICATE_FILTERS, bool)
+        self.assertIsInstance(BarkFilterbank.UNIQUE_FILTERS, bool)
 
     def test_constant_values(self):
         self.assertEqual(BarkFilterbank.FMIN, 20.)
         self.assertEqual(BarkFilterbank.FMAX, 15500.)
-        self.assertEqual(BarkFilterbank.BANDS, 'normal')
+        self.assertEqual(BarkFilterbank.NUM_BANDS, 'normal')
         self.assertEqual(BarkFilterbank.NORM_FILTERS, True)
-        self.assertEqual(BarkFilterbank.DUPLICATE_FILTERS, False)
+        self.assertEqual(BarkFilterbank.UNIQUE_FILTERS, True)
 
     def test_pickling(self):
         filt = BarkFilterbank(FFT_FREQS_1024)
@@ -930,16 +877,16 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         # TODO: why can't we test the inherited constants? it does not matter
         # self.assertIsInstance(LogarithmicFilterbank.FMIN, float))
         # self.assertIsInstance(LogarithmicFilterbank.FMAX, float))
-        self.assertIsInstance(LogarithmicFilterbank.BANDS_PER_OCTAVE, int)
+        self.assertIsInstance(LogarithmicFilterbank.NUM_BANDS_PER_OCTAVE, int)
         # self.assertIsInstance(LogarithmicFilterbank.NORM_FILTERS, bool))
-        # self.assertIsInstance(LogarithmicFilterbank.DUPLICATE_FILTERS, bool))
+        # self.assertIsInstance(LogarithmicFilterbank.UNIQUE_FILTERS, bool))
 
     def test_constant_values(self):
         # self.assertEqual(LogarithmicFilterbank.FMIN, 30.)
         # self.assertEqual(LogarithmicFilterbank.FMAX, 17000.)
-        self.assertEqual(LogarithmicFilterbank.BANDS_PER_OCTAVE, 12)
+        self.assertEqual(LogarithmicFilterbank.NUM_BANDS_PER_OCTAVE, 12)
         # self.assertEqual(LogarithmicFilterbank.NORM_FILTERS, True)
-        # self.assertEqual(LogarithmicFilterbank.DUPLICATE_FILTERS, False)
+        # self.assertEqual(LogarithmicFilterbank.UNIQUE_FILTERS, False)
 
     def test_pickling(self):
         filt = LogarithmicFilterbank(FFT_FREQS_1024)
@@ -950,15 +897,16 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
-        self.assertTrue(filt.bands_per_octave == filt_.bands_per_octave)
+        self.assertTrue(filt.num_bands_per_octave ==
+                        filt_.num_bands_per_octave)
         self.assertTrue(filt.fref == filt_.fref)
 
-    def test_values_duplicate_filters(self):
+    def test_values_unique_filters(self):
         filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12)
         self.assertTrue(np.allclose(filt.max(), 1))
         self.assertEqual(filt.shape, (1000, 81))
         filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12,
-                                     duplicate_filters=True)
+                                     unique_filters=False)
         self.assertTrue(np.allclose(filt.max(), 1))
         self.assertEqual(filt.shape, (1000, 108))
 
@@ -1025,7 +973,7 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
                   [13307.519531, 14900.976562], [14104.248046, 15783.837890],
                   [14944.042968, 16731.298828]]
         self.assertTrue(filt.num_bands == 81)
-        self.assertTrue(filt.bands_per_octave == 12)
+        self.assertTrue(filt.num_bands_per_octave == 12)
         self.assertTrue(filt.num_bins == 1024)
         self.assertTrue(np.allclose(filt.fmin, 43.066406))
         self.assertTrue(np.allclose(filt.fmax, 16731.298828))
