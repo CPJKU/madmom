@@ -486,9 +486,9 @@ class Phase(_PropertyMixin, np.ndarray):
             import warnings
             warnings.warn("`circular_shift` of the STFT must be set to 'True' "
                           "for correct phase")
-        # take the abs of the stft
+        # take the angle of the stft
         data = np.angle(stft)
-        # cast as Spectrogram
+        # cast as Phase
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.stft = stft
@@ -550,7 +550,7 @@ class LocalGroupDelay(_PropertyMixin, np.ndarray):
         data[:, :-1] -= data[:, 1:]
         # set the highest frequency to 0
         data[:, -1] = 0
-        # cast as Spectrogram
+        # cast as LocalGroupDelay
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.phase = phase
