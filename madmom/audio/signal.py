@@ -438,7 +438,7 @@ class SignalProcessor(Processor):
     ATT = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 norm=NORM, att=ATT, **kwargs):
+                 norm=NORM, att=ATT, start=None, stop=None, **kwargs):
         """
         Creates a new SignalProcessor instance.
 
@@ -446,6 +446,8 @@ class SignalProcessor(Processor):
         :param num_channels: reduce the signal to N channels [int]
         :param norm:         normalize the signal [bool]
         :param att:          attenuate the signal [dB]
+        :param start:        start position (seconds) [float]
+        :param stop:         stop position (seconds) [float]
 
         Note: If `sample_rate` is set, the signal will be re-sampled to that
               sample rate; if 'None' the sample rate of the audio file will be
@@ -459,6 +461,8 @@ class SignalProcessor(Processor):
         self.num_channels = num_channels
         self.norm = norm
         self.att = att
+        self.start = start
+        self.stop = stop
 
     def process(self, data, start=None, stop=None, **kwargs):
         """
@@ -471,7 +475,12 @@ class SignalProcessor(Processor):
         :return:       Signal instance with processed signal
 
         """
-        # instantiate a Signal (with the given sample rate if set)
+        # overwrite the default start & stop time
+        if start is None:
+            start = self.start
+        if stop is None:
+            stop = self.stop
+        # instantiate a Signal
         data = Signal(data, sample_rate=self.sample_rate,
                       num_channels=self.num_channels, start=start, stop=stop)
         # process it if needed
@@ -500,6 +509,8 @@ class SignalProcessor(Processor):
         :return:            signal processing argument parser group
 
         Parameters are included in the group only if they are not 'None'.
+        To include `start` and `stop` arguments with a default value of 'None',
+        i.e. do not set any start or stop time, set them to 'True'.
 
         """
         # add signal processing options to the existing parser
@@ -1021,20 +1032,19 @@ class FramedSignalProcessor(Processor):
         """
         # add signal framing options to the existing parser
         g = parser.add_argument_group('signal framing arguments')
-        if frame_size is not None:
-            # depending on the type, use different options
-            if isinstance(frame_size, int):
-                g.add_argument('--frame_size', action='store', type=int,
-                               default=frame_size,
-                               help='frame size [samples, '
-                                    'default=%(default)i]')
-            elif isinstance(frame_size, list):
-                from madmom.utils import OverrideDefaultListAction
-                g.add_argument('--frame_size', type=int, default=frame_size,
-                               action=OverrideDefaultListAction,
-                               help='frame size(s) to use, multiple values '
-                                    'be given, one per argument. [samples, '
-                                    'default=%(default)s]')
+        # depending on the type of frame_size, use different options
+        if isinstance(frame_size, int):
+            g.add_argument('--frame_size', action='store', type=int,
+                           default=frame_size,
+                           help='frame size [samples, default=%(default)i]')
+        elif isinstance(frame_size, list):
+            # Note: this option is used for e.g. stacking multiple spectrograms
+            #       with different frame sizes
+            from madmom.utils import OverrideDefaultListAction
+            g.add_argument('--frame_size', type=int, default=frame_size,
+                           action=OverrideDefaultListAction, sep=',',
+                           help='(comma separated list of) frame size(s) to '
+                                'use [samples, default=%(default)s]')
         if fps is not None:
             g.add_argument('--fps', action='store', type=float, default=fps,
                            help='frames per second [default=%(default).1f]')
@@ -1042,7 +1052,6 @@ class FramedSignalProcessor(Processor):
             g.add_argument('--online', dest='online', action='store_true',
                            default=online,
                            help='operate in online mode [default=%(default)s]')
-
         # TODO: include end_of_signal handling!?
         # return the argument group so it can be modified if needed
         return g

@@ -1539,8 +1539,8 @@ def main():
     SignalProcessor.add_arguments(sp, norm=False, att=0)
     FramedSignalProcessor.add_arguments(sp, online=False,
                                         frame_size=[1024, 2048, 4096])
-    from madmom.audio.filters import LogarithmicFilterbank as filterbank
-    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=filterbank,
+    from madmom.audio.filters import LogarithmicFilterbank as Filterbank
+    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=Filterbank,
                                                norm_filters=True,
                                                unique_filters=None)
     LogarithmicSpectrogramProcessor.add_arguments(sp, log=True, mul=1, add=1)

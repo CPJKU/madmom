@@ -867,7 +867,7 @@ class FilteredSpectrogramProcessor(Processor):
         :param num_bands:      number of filter bands (per octave) [int]
         :param fmin:           minimum frequency of the filterbank [Hz, float]
         :param fmax:           maximum frequency of the filterbank [Hz, float]
-        :param norm_filters:   normalize the filter to area 1 [bool]
+        :param norm_filters:   normalize the filters to area 1 [bool]
         :param unique_filters: keep only unique filters, i.e. remove duplicate
                                filters resulting from insufficient resolution
                                at low frequencies [bool]
@@ -876,61 +876,65 @@ class FilteredSpectrogramProcessor(Processor):
         Parameters are included in the group only if they are not 'None'.
 
         """
+        from .filters import Filterbank
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('spectrogram filtering arguments')
-        if filterbank is not None:
-            # TODO: add literal values
-            if filterbank:
-                g.add_argument('--no_filter', dest='filterbank',
-                               action='store_false',
-                               default=filterbank,
-                               help='do not filter the spectrogram with a '
-                                    'filterbank [default=%(default)s]')
-            else:
-                g.add_argument('--filter', action='store_true', default=None,
-                               help='filter the spectrogram with a filterbank '
-                                    'of this type')
+        # filterbank
+        if issubclass(filterbank, Filterbank):
+            g.add_argument('--no_filter', dest='filterbank',
+                           action='store_false',
+                           default=filterbank,
+                           help='do not filter the spectrogram with a '
+                                'filterbank [default=%(default)s]')
+        elif filterbank is not None:
+            # TODO: add filterbank option list?
+            g.add_argument('--filter', action='store_true', default=None,
+                           help='filter the spectrogram with a filterbank '
+                                'of this type')
+        # number of bands
         if num_bands is not None:
             g.add_argument('--num_bands', action='store', type=int,
                            default=num_bands,
                            help='number of filter bands (per octave) '
                                 '[default=%(default)i]')
+        # minimum frequency
         if fmin is not None:
             g.add_argument('--fmin', action='store', type=float,
                            default=fmin,
                            help='minimum frequency of the filterbank '
                                 '[Hz, default=%(default).1f]')
+        # maximum frequency
         if fmax is not None:
             g.add_argument('--fmax', action='store', type=float,
                            default=fmax,
                            help='maximum frequency of the filterbank '
                                 '[Hz, default=%(default).1f]')
-        if norm_filters is not None:
-            if norm_filters:
-                g.add_argument('--no_norm_filters', dest='norm_filters',
-                               action='store_false', default=norm_filters,
-                               help='do not normalize the filter to area 1 '
-                                    '[default=True]')
-            else:
-                g.add_argument('--norm_filters', dest='norm_filters',
-                               action='store_true', default=norm_filters,
-                               help='normalize the filter to area 1 '
-                                    '[default=False]')
-        if unique_filters is not None:
-            if unique_filters:
-                g.add_argument('--duplicate_filters', dest='unique_filters',
-                               action='store_false', default=unique_filters,
-                               help='keep duplicate filters resulting from '
-                                    'insufficient resolution at low '
-                                    'frequencies [default=False]')
-            else:
-                g.add_argument('--unique_filters', action='store_true',
-                               default=unique_filters,
-                               help='keep only unique filters, i.e. remove '
-                                    'duplicate filters resulting from '
-                                    'insufficient resolution at low '
-                                    'frequencies [default=True]')
-
+        # normalize filters
+        if norm_filters is True:
+            g.add_argument('--no_norm_filters', dest='norm_filters',
+                           action='store_false', default=norm_filters,
+                           help='do not normalize the filters to area 1 '
+                                '[default=True]')
+        elif norm_filters is False:
+            g.add_argument('--norm_filters', dest='norm_filters',
+                           action='store_true', default=norm_filters,
+                           help='normalize the filters to area 1 '
+                                '[default=False]')
+        # unique or duplicate filters
+        if unique_filters is True:
+            # add option to keep the duplicate filters
+            g.add_argument('--duplicate_filters', dest='unique_filters',
+                           action='store_false', default=unique_filters,
+                           help='keep duplicate filters resulting from '
+                                'insufficient resolution at low frequencies '
+                                '[default=only unique filters are kept]')
+        elif unique_filters is False:
+            g.add_argument('--unique_filters', action='store_true',
+                           default=unique_filters,
+                           help='keep only unique filters, i.e. remove '
+                                'duplicate filters resulting from '
+                                'insufficient resolution at low frequencies '
+                                '[default=duplicate filters are kept]')
         # return the group
         return g
 
@@ -1052,8 +1056,7 @@ class LogarithmicSpectrogramProcessor(Processor):
     @classmethod
     def add_arguments(cls, parser, log=None, mul=None, add=None):
         """
-        Add logarithmic spectrogram scaling related arguments to an existing
-        parser.
+        Add spectrogram scaling related arguments to an existing parser.
 
         :param parser: existing argparse parser
         :param log:    take the logarithm of the spectrogram [bool]
@@ -1061,31 +1064,32 @@ class LogarithmicSpectrogramProcessor(Processor):
                        taking the logarithm of the magnitudes [float]
         :param add:    add this value before taking the logarithm of the
                        magnitudes [float]
-        :return:       logarithmic spectrogram scaling argument parser group
+        :return:       spectrogram scaling argument parser group
 
         Parameters are included in the group only if they are not 'None'.
 
         """
         # add log related options to the existing parser
-        g = parser.add_argument_group('logarithmic magnitude arguments')
-        if log is not None:
-            if log:
-                g.add_argument('--no_log', dest='log',
-                               action='store_false', default=log,
-                               help='linear magnitudes [default=logarithmic]')
-            else:
-                g.add_argument('--log', action='store_true',
-                               default=-log,
-                               help='logarithmic magnitudes [default=linear]')
+        g = parser.add_argument_group('magnitude scaling arguments')
+        # log
+        if log is True:
+            g.add_argument('--linear', dest='log', action='store_false',
+                           default=log,
+                           help='linear magnitudes [default=logarithmic]')
+        elif log is False:
+            g.add_argument('--log', action='store_true', default=-log,
+                           help='logarithmic magnitudes [default=linear]')
+        # mul
         if mul is not None:
             g.add_argument('--mul', action='store', type=float,
                            default=mul, help='multiplier (before taking '
                            'the log) [default=%(default)i]')
+        # add
         if add is not None:
             g.add_argument('--add', action='store', type=float,
                            default=add, help='value added (before taking '
                            'the log) [default=%(default)i]')
-        # return the groups
+        # return the group
         return g
 
 
@@ -1382,7 +1386,7 @@ class SpectrogramDifferenceProcessor(Processor):
                                      **kwargs)
 
     @classmethod
-    def add_arguments(cls, parser, diff=True, diff_ratio=None,
+    def add_arguments(cls, parser, diff=None, diff_ratio=None,
                       diff_frames=None, diff_max_bins=None,
                       positive_diffs=None):
         """
@@ -1409,17 +1413,16 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         # add diff related options to the existing parser
         g = parser.add_argument_group('spectrogram difference arguments')
-        if diff is not None:
-            if diff:
-                g.add_argument('--no_diff', dest='diff',
-                               action='store_false', default=diff,
-                               help='use the spectrogram [default=differences '
-                                    'of the spectrogram]')
-            else:
-                g.add_argument('--diff', action='store_true',
-                               default=-diff,
-                               help='use the differences of the spectrogram '
-                                    '[default=spectrogram]')
+        # diff
+        if diff is True:
+            g.add_argument('--no_diff', dest='diff', action='store_false',
+                           help='use the spectrogram [default=differences '
+                                'of the spectrogram]')
+        elif diff is False:
+            g.add_argument('--diff', action='store_true',
+                           help='use the differences of the spectrogram '
+                                '[default=spectrogram]')
+        # diff ratio
         if diff_ratio is not None:
             g.add_argument('--diff_ratio', action='store', type=float,
                            default=diff_ratio,
@@ -1427,21 +1430,21 @@ class SpectrogramDifferenceProcessor(Processor):
                                 'which the window of the STFT have this ratio '
                                 'of the maximum height '
                                 '[default=%(default).1f]')
+        # diff frames
         if diff_ratio is not None or diff_frames:
             g.add_argument('--diff_frames', action='store', type=int,
                            default=diff_frames,
                            help='calculate the difference to the N-th previous'
                                 ' frame (this overrides the value calculated '
                                 'with `diff_ratio`) [default=%(default)s]')
-        if positive_diffs is not None:
-            if positive_diffs:
-                g.add_argument('--all_diffs', dest='positive_diffs',
-                               action='store_false', default=positive_diffs,
-                               help='keep both positive and negative diffs')
-            else:
-                g.add_argument('--positive_diffs', action='store_true',
-                               default=-positive_diffs,
-                               help='keep only positive and diffs')
+        # positive diffs
+        if positive_diffs is True:
+            g.add_argument('--all_diffs', dest='positive_diffs',
+                           action='store_false',
+                           help='keep both positive and negative diffs')
+        elif positive_diffs is False:
+            g.add_argument('--positive_diffs', action='store_true',
+                           help='keep only positive diffs')
         # add maximum filter related options to the existing parser
         if diff_max_bins is not None:
             g.add_argument('--max_bins', action='store', type=int,
@@ -1626,6 +1629,7 @@ class MultiBandSpectrogramProcessor(Processor):
         """
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('multi-band spectrogram arguments')
+        # crossover frequencies
         if crossover_frequencies is not None:
             from madmom.utils import OverrideDefaultListAction
             g.add_argument('--crossover_frequencies', type=float, sep=',',
@@ -1633,6 +1637,7 @@ class MultiBandSpectrogramProcessor(Processor):
                            default=crossover_frequencies,
                            help='(comma separated) list with crossover '
                                 'frequencies [Hz, default=%(default)s]')
+        # normalization of bands
         if norm_bands is not None:
             if norm_bands:
                 g.add_argument('--no_norm_bands', dest='norm_bands',
@@ -1740,20 +1745,20 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         """
         # add diff related options to the existing parser
         g = parser.add_argument_group('stacking arguments')
+        # stacking direction
         if stack is not None:
             g.add_argument('--stack', action='store', type=str,
                            default=stack, choices=['time', 'freq', 'depth'],
                            help="stacking direction [default=%(default)s]")
-        if stack_diffs is not None:
-            if stack_diffs:
-                g.add_argument('--no_stack_diffs', dest='stack_diffs',
-                               action='store_false', default=stack_diffs,
-                               help='no not stack the differences of the '
-                                    'spectrograms')
-            else:
-                g.add_argument('--stack_diffs', action='store_true',
-                               default=-stack_diffs,
-                               help='in addition to the spectrograms, also '
-                                    'stack their differences')
+        # stack diffs?
+        if stack_diffs is True:
+            g.add_argument('--no_stack_diffs', dest='stack_diffs',
+                           action='store_false',
+                           help='no not stack the differences of the '
+                                'spectrograms')
+        elif stack_diffs is False:
+            g.add_argument('--stack_diffs', action='store_true',
+                           help='in addition to the spectrograms, also stack '
+                                'their differences')
         # return the group
         return g

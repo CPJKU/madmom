@@ -713,68 +713,6 @@ class Filterbank(np.ndarray):
         #       messed up
         return np.dot(data, self)
 
-    @staticmethod
-    def add_arguments(parser, filter_type=None, num_bands=None, fmin=None,
-                      fmax=None, norm_filters=None, unique_filters=None):
-        """
-        Add filter related arguments to an existing parser.
-
-        :param parser:         existing argparse parser
-        :param filter_type:    type of filter to be used
-        :param num_bands:      number of filter bands (per octave) [int]
-        :param fmin:           the minimum frequency [Hz, float]
-        :param fmax:           the maximum frequency [Hz, float]
-        :param norm_filters:   normalize the area of the filter [bool]
-        :param unique_filters: keep only unique filters, i.e. remove duplicate
-                               filters resulting from insufficient resolution
-                               at low frequencies [bool]
-        :return:               filtering argument parser group
-
-        Parameters are included in the group only if they are not 'None'.
-
-        """
-        # TODO: split this among the individual classes
-        # add filter related options to the existing parser
-        g = parser.add_argument_group('filterbank related arguments')
-        if filter_type is not None:
-            # FIXME: how to handle this option?
-            g.add_argument('--filter_type', action='store',
-                           default=filter_type,
-                           help='filter type [default=%(default)s]')
-        if num_bands is not None:
-            g.add_argument('--num_bands', action='store', type=int,
-                           default=num_bands,
-                           help='number of bands (per octave) '
-                                '[default=%(default)i]')
-        if fmin is not None:
-            g.add_argument('--fmin', action='store', type=float, default=fmin,
-                           help='minimum frequency of filter '
-                                '[Hz, default=%(default).2f]')
-        if fmax is not None:
-            g.add_argument('--fmax', action='store', type=float, default=fmax,
-                           help='maximum frequency of filter '
-                                '[Hz, default=%(default).2f]')
-        if norm_filters is False:
-            # switch to turn it on
-            g.add_argument('--norm_filters', action='store_true',
-                           default=norm_filters,
-                           help='normalize filters to have equal area')
-        elif norm_filters is True:
-            g.add_argument('--no_norm_filters', dest='norm_filters',
-                           action='store_false', default=norm_filters,
-                           help='do not equalize filters to have equal area')
-        if unique_filters is False:
-            # switch to turn it on
-            g.add_argument('--unique_filters', action='store_true',
-                           default=unique_filters,
-                           help='keep duplicate filters')
-        elif unique_filters is True:
-            g.add_argument('--no_duplicate_filters', dest='unique_filters',
-                           action='store_false', default=unique_filters,
-                           help='remove duplicate filters')
-        # return the argument group so it can be modified if needed
-        return g
-
 
 class MelFilterbank(Filterbank):
     """
