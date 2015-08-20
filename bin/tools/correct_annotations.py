@@ -79,10 +79,10 @@ def main():
         # quantize
         quantized = None
         if args.quantize:
-            if isinstance(args.quantize, basestring):
+            try:
                 # load quantisation timestamps
                 quantized = load_events(args.quantize)
-            else:
+            except IOError:
                 quantized = float(args.quantize)
 
         # write the corrected file

@@ -5,4 +5,6 @@ The definition of "lower" may vary, but all "higher" level features
 (e.g. beats, onsets, etc.) can be found in the `features` package.
 
 """
+
+# import the submodules
 from . import signal, ffmpeg, filters, spectrogram
