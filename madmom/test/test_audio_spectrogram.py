@@ -743,21 +743,22 @@ class TestStackedSpectrogramProcessorClass(unittest.TestCase):
     def test_stack_diffs(self):
         # also include the differences
         spec_processor = LogarithmicFilteredSpectrogramProcessor()
+        diff_processor = SpectrogramDifferenceProcessor()
         processor = StackedSpectrogramProcessor([512], spec_processor,
-                                                stack_diffs=True)
+                                                diff_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 116))
         processor = StackedSpectrogramProcessor([1024], spec_processor,
-                                                stack_diffs=True)
+                                                diff_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 138))
         processor = StackedSpectrogramProcessor([2048], spec_processor,
-                                                stack_diffs=True)
+                                                diff_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 162))
         processor = StackedSpectrogramProcessor([512, 1024, 2048],
                                                 spec_processor,
-                                                stack_diffs=True)
+                                                diff_processor)
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 116 + 138 + 162))
 

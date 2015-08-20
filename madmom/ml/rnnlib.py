@@ -1261,8 +1261,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                     frame_size=2048, online=False, fps=100, filterbank=None,
                     num_bands=6, fmin=30, fmax=17000, norm_filters=True,
                     log=True, mul=1, add=0, diff=True, diff_ratio=0.5,
-                    diff_frames=None, diff_max_bins=1, shift=0, spread=0,
-                    split=None, verbose=False):
+                    diff_frames=None, diff_max_bins=1, positive_diffs=True,
+                    shift=0, spread=0, split=None, verbose=False):
     """
     Create .nc files for the given .wav and annotation files.
 
@@ -1303,26 +1303,28 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Difference parameters:
 
-    :param diff:          calculate the difference of the spectrogram [bool]
-                          if the spectrograms are stacked, the differences
-                          will be stacked, too
-    :param diff_ratio:    calculate the difference to the frame at
-                          which the window used for the STFT yields
-                          this ratio of the maximum height [float]
-    :param diff_frames:   calculate the difference to the N-th previous frame
-                          [int] (if set, this overrides the value calculated
-                          from the `diff_ratio`)
-    :param diff_max_bins: apply a maximum filter with this width (in bins in
-                          frequency dimension) before calculating the diff;
-                          (e.g. for the difference spectrogram of the SuperFlux
-                          algorithm 3 `max_bins` are used together with a 24
-                          band logarithmic filterbank)
+    :param diff:           calculate the difference of the spectrogram [bool]
+                           if the spectrograms are stacked, the differences
+                           will be stacked, too
+    :param diff_ratio:     calculate the difference to the frame at
+                           which the window used for the STFT yields
+                           this ratio of the maximum height [float]
+    :param diff_frames:    calculate the difference to the N-th previous frame
+                           [int] (if set, this overrides the value calculated
+                           from the `diff_ratio`)
+    :param diff_max_bins:  apply a maximum filter with this width (in bins in
+                           frequency dimension) before calculating the diff;
+                           (e.g. for the difference spectrogram of the SuperFlux
+                           algorithm 3 `max_bins` are used together with a 24
+                           band logarithmic filterbank)
+    :param positive_diffs: keep only the positive differences, i.e. set all
+                           diff values < 0 to 0
 
     Target parameters:
 
-    :param shift:         shift the targets N seconds
-    :param spread:        spread the targets N seconds
-    :param split:         split the files into parts with N frames length
+    :param shift:          shift the targets N seconds
+    :param spread:         spread the targets N seconds
+    :param split:          split the files into parts with N frames length
 
     Other parameters:
 
@@ -1332,7 +1334,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     from madmom.processors import SequentialProcessor
     from madmom.audio.signal import SignalProcessor
     from madmom.audio.spectrogram import (
-        LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor)
+        LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor,
+        SpectrogramDifferenceProcessor)
 
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
@@ -1345,33 +1348,39 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                                                    num_bands=num_bands,
                                                    fmin=fmin, fmax=fmax,
                                                    norm_filters=norm_filters,
-                                                   log=log, mul=mul, add=add,
-                                                   diff_ratio=diff_ratio,
-                                                   diff_frames=diff_frames,
-                                                   diff_max_bins=diff_max_bins)
+                                                   log=log, mul=mul, add=add)
+    if diff:
+        diff = SpectrogramDifferenceProcessor(diff_ratio=diff_ratio,
+                                              diff_frames=diff_frames,
+                                              diff_max_bins=diff_max_bins,
+                                              positive_diffs=positive_diffs)
     # stack specs with the given frame sizes
     stack = StackedSpectrogramProcessor(frame_size=frame_size,
-                                        spectrogram=spec, online=online,
-                                        fps=fps, stack_diffs=diff)
+                                        spectrogram=spec, difference=diff,
+                                        online=online, fps=fps)
     processor = SequentialProcessor([sig, stack])
 
-    # treat all files as annotation files
+    # get all annotation files
     ann_files = []
     for annotation_suffix in annotations:
         ann_files.extend(search_files(files, annotation_suffix))
+
     # create .nc files
     for f in ann_files:
         # split the extension of the input file
-        annotation = os.path.splitext(f)[1]
-        # get the matching wav file to the input file
-        wav_files = match_file(f, search_files(files), annotation, '.wav')
+        filename, annotation = os.path.splitext(f)
+        # get the matching .wav or .flac file to the input file
+        wav_files = match_file(f, files, annotation, '.wav')
+        # no wav file found, try flac
+        if len(wav_files) < 1:
+            wav_files = match_file(f, files, annotation, '.flac')
         # no wav file found
         if len(wav_files) < 1:
             print "can't find audio file for %s" % f
             exit()
         # print file
         if verbose:
-            print f
+            print f, filename, annotation
 
         # create the data for the .nc file from the .wav file
         nc_data = processor.process(wav_files[0])
@@ -1407,7 +1416,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                                       shift=shift)
         # tags
         tags = {'file': f, 'fps': fps, 'frame_size': frame_size,
-                'online': online, 'filterbank': filterbank, 'log': log}
+                'online': online, 'filterbank': filterbank, 'log': log,
+                'diff': diff}
         if filterbank:
             tags['filterbank'] = filterbank.__name__
             tags['num_bands'] = num_bands
@@ -1417,7 +1427,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         if log:
             tags['mul'] = mul
             tags['add'] = add
-        if diff_ratio or diff_frames:
+        if diff:
+            tags['diff'] = diff.__class__.__name__
             tags['diff_ratio'] = diff_ratio
             tags['diff_frames'] = diff_frames
             tags['diff_max_bins'] = diff_max_bins
@@ -1427,13 +1438,13 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             tags['spread'] = spread
         # .nc file name
         if out_dir:
-            nc_file = "%s/%s" % (out_dir, os.path.basename(f))
+            nc_file = "%s/%s" % (out_dir, os.path.basename(filename))
         else:
-            nc_file = "%s" % os.path.abspath(f)
+            nc_file = "%s" % os.path.abspath(filename)
         # split files
         if split is None:
             # create a .nc file
-            create_nc_file(nc_file + '.nc', nc_data, targets, tags)
+            create_nc_file(nc_file + '.beats.nc', nc_data, targets, tags)
         else:
             # length of one part
             length = int(split * fps)
@@ -1539,13 +1550,14 @@ def main():
     SignalProcessor.add_arguments(sp, norm=False, att=0)
     FramedSignalProcessor.add_arguments(sp, online=False,
                                         frame_size=[1024, 2048, 4096])
-    from madmom.audio.filters import LogarithmicFilterbank as filterbank
-    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=filterbank,
+    from madmom.audio.filters import LogFilterbank
+    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=LogFilterbank,
                                                norm_filters=True,
                                                duplicate_filters=None)
     LogarithmicSpectrogramProcessor.add_arguments(sp, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(sp, diff_ratio=0.5,
-                                                 diff_max_bins=1)
+                                                 diff_max_bins=1,
+                                                 positive_diffs=True)
     sp.add_argument('--split', default=None, type=float,
                     help='split files every N seconds')
     sp.add_argument('--shift', default=None, type=float,

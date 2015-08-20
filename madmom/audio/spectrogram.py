@@ -1346,16 +1346,16 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         Spectrogram difference parameters:
 
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-        :param diff_frames:       calculate the difference to the N-th previous
-                                  frame [int] (if set, this overrides the value
-                                  calculated from the `diff_ratio`)
-        :param diff_max_bins:     apply a maximum filter with this width (in
-                                  bins in frequency dimension) [int]
-        :param positive_diffs:    keep only the positive differences, i.e. set
-                                  all diff values < 0 to 0
+        :param diff_ratio:     calculate the difference to the frame at which
+                               the window used for the STFT yields this ratio
+                               of the maximum height [float]
+        :param diff_frames:    calculate the difference to the N-th previous
+                               frame [int] (if set, this overrides the value
+                               calculated from the `diff_ratio`)
+        :param diff_max_bins:  apply a maximum filter with this width (in bins
+                               in frequency dimension) [int]
+        :param positive_diffs: keep only the positive differences, i.e. set all
+                               diff values < 0 to 0
 
         """
         self.diff_ratio = diff_ratio
@@ -1435,11 +1435,13 @@ class SpectrogramDifferenceProcessor(Processor):
             if positive_diffs:
                 g.add_argument('--all_diffs', dest='positive_diffs',
                                action='store_false', default=positive_diffs,
-                               help='keep both positive and negative diffs')
+                               help='keep both positive and negative diffs '
+                                    '[default=only the positive diffs]')
             else:
                 g.add_argument('--positive_diffs', action='store_true',
                                default=-positive_diffs,
-                               help='keep only positive and diffs')
+                               help='keep only positive and diffs '
+                                    '[default=positive and negative diffs]')
         # add maximum filter related options to the existing parser
         if diff_max_bins is not None:
             g.add_argument('--max_bins', action='store', type=int,
@@ -1653,13 +1655,16 @@ class StackedSpectrogramProcessor(ParallelProcessor):
     # Note: `frame_size` is used instead of the more meaningful `frame_sizes`,
     #       this way the existing argument from `FramedSignal` can be reused
     # TODO: use `axis` and `np.concatenate` instead?
-    def __init__(self, frame_size, spectrogram, stack=np.hstack,
-                 stack_diffs=False, **kwargs):
+    def __init__(self, frame_size, spectrogram, difference=None,
+                 stack=np.hstack, **kwargs):
         """
         Creates a new StackedSpectrogramProcessor instance.
 
         :param frame_size:  list with frame sizes [list of int]
         :param spectrogram: Spectrogram processor instance
+        :param difference:  SpectrogramDifference processor instance; if given
+                            the differences of the spectrogram(s) are stacked
+                            as well
         :param stack:       stacking function to be used
                             - 'np.vstack' stack multiple spectrograms
                               vertically, i.e. stack in time dimension
@@ -1670,10 +1675,6 @@ class StackedSpectrogramProcessor(ParallelProcessor):
                               returns them as a 3D representation
                             Additionally, the literal values {'time',
                             'freq' | 'frequency', 'depth'} are supported
-        :param stack_diffs: also stack the differences [bool]
-                            If set, a `SpectrogramDifferenceProcessor` will be
-                            instantiated and any additional keywords will be
-                            passed to it.
 
         Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
               as a stacking function), they must have the same frequency
@@ -1699,9 +1700,7 @@ class StackedSpectrogramProcessor(ParallelProcessor):
             stack = np.dstack
         self.stack = stack
         # TODO: it is a bit hackish to define another processor here
-        self.stack_diffs = stack_diffs
-        if stack_diffs:
-            self.stack_processor = SpectrogramDifferenceProcessor(**kwargs)
+        self.diff_processor = difference
 
     def process(self, data):
         """
@@ -1718,9 +1717,10 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         for s in specs:
             # always append the spec
             stack.append(s)
-            # # and the differences only if needed
-            if self.stack_diffs:
-                stack.append(self.stack_processor.process(s))
+            # and the differences only if needed
+            if self.diff_processor is not None:
+                diffs = self.diff_processor.process(s)
+                stack.append(diffs)
         # stack them in the given direction and return them
         return self.stack(stack)
 

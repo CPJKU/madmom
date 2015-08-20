@@ -16,6 +16,7 @@ from madmom.utils import suppress_warnings, open
 from madmom.processors import SequentialProcessor
 from madmom.audio.signal import SignalProcessor
 from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 
@@ -129,15 +130,16 @@ class RNNNoteProcessor(SequentialProcessor):
         kwargs['fps'] = self.fps = 100
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        # we need to define which specs should be stacked
+        # we need to define how specs and diffs should be stacked
         spec = LogarithmicFilteredSpectrogramProcessor(num_bands=12,
                                                        norm_filters=True,
                                                        mul=5, add=1)
+        diff = SpectrogramDifferenceProcessor(diff_ratio=0.5,
+                                              positive_diffs=True)
         # stack specs with the given frame sizes
         stack = StackedSpectrogramProcessor(frame_size=[1024, 2048, 4096],
-                                            spectrogram=spec, stack_diffs=True,
-                                            diff_ratio=0.5,
-                                            positive_diffs=True, **kwargs)
+                                            spectrogram=spec, difference=diff,
+                                            **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
         reshape = note_reshaper

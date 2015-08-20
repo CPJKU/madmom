@@ -19,6 +19,7 @@ from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
 from madmom.audio.spectrogram import (Spectrogram, SpectrogramDifference,
                                       LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 
 EPSILON = 1e-6
@@ -506,16 +507,16 @@ class RNNOnsetProcessor(SequentialProcessor):
         kwargs['fps'] = self.fps = 100
         # processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        # we need to define which specs should be stacked
+        # we need to define how specs and diffs should be stacked
         spec = LogarithmicFilteredSpectrogramProcessor(num_bands=6,
                                                        norm_filters=True,
                                                        mul=5, add=1)
+        diff = SpectrogramDifferenceProcessor(diff_ratio=0.25,
+                                              positive_diffs=True)
         # stack specs with the given frame sizes and online mode
         frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
         stack = StackedSpectrogramProcessor(frame_size=frame_sizes,
-                                            spectrogram=spec, stack_diffs=True,
-                                            diff_ratio=0.25,
-                                            positive_diffs=True,
+                                            spectrogram=spec, difference=diff,
                                             online=online, **kwargs)
         rnn = RNNProcessor(nn_files=nn_files, **kwargs)
         avg = average_predictions
