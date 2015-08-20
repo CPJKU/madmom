@@ -25,29 +25,6 @@ def fft_frequencies(num_fft_bins, sample_rate):
     return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
 
 
-# functions
-def dft(signal, window, fft_size, circular_shift=False):
-    """
-    Calculates the discrete Fourier transform (DFT) of the given signal.
-
-    :param signal:         discrete signal [1D numpy array]
-    :param window:         window function [1D numpy array]
-    :param fft_size:       use this size for FFT [int, should be a power of 2]
-    :param circular_shift: circular shift for correct phase [bool]
-    :return:               the complex DFT of the signal
-
-    """
-    # multiply the signal frame with the window function
-    signal = np.multiply(signal, window)
-    # only shift and perform complex DFT if needed
-    if circular_shift:
-        # circular shift the signal (needed for correct phase)
-        shift = len(window) >> 1
-        signal = np.concatenate((signal[shift:], signal[:shift]))
-    # perform DFT and return the signal
-    return fft.fft(signal, fft_size)[:fft_size >> 1]
-
-
 def stft(frames, window, fft_size=None, circular_shift=False):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
@@ -59,22 +36,43 @@ def stft(frames, window, fft_size=None, circular_shift=False):
     :param circular_shift: circular shift for correct phase [bool]
     :return:               the complex STFT of the signal
 
-    Note: The window is centered around the current sample and the total length
-          of the STFT is calculated such that the last frame still covers some
-          signal.
-
     """
-    # number of FFT bins
+    # size of the window
+    window_size = len(window)
+    # size of the FFT circular shift (needed for correct phase)
+    if circular_shift:
+        fft_shift = window_size >> 1
+    # FFT size to use
     if fft_size is None:
-        fft_size = len(window)
+        fft_size = window_size
+    # number of FFT bins to store
     num_fft_bins = fft_size >> 1
-    # init STFT matrix
-    stft = np.empty((len(frames), num_fft_bins), np.complex64)
+
+    # init objects
+    data = np.empty((len(frames), num_fft_bins), np.complex64)
+    signal = np.zeros(window_size)
+    fft_signal = np.zeros(fft_size)
+
+    # iterate over all frames
     for f, frame in enumerate(frames):
-        # perform DFT
-        stft[f] = dft(frame, window, fft_size, circular_shift)
+        # multiply the signal frame with the window and take the DFT
+        if circular_shift:
+            # if we need a circular shift of the signal for correct phase
+            # we first multiply the signal frame with the window
+            np.multiply(frame, window, out=signal)
+            # and then swap the two halves of the windowed signal
+            # if we have a bigger FFT size than frame size, wee need to
+            # pad the additional zeros in between the two halves
+            fft_signal[:fft_shift] = signal[fft_shift:]
+            fft_signal[-fft_shift:] = signal[:fft_shift]
+        else:
+            # just multiply the signal frame with the window and save it
+            # directly in fft_signal (i.e. bypass the signal)
+            np.multiply(frame, window, out=fft_signal[:window_size])
+        # perform DFT and return the signal
+        data[f] = fft.fft(fft_signal, axis=0)[:num_fft_bins]
     # return STFT
-    return stft
+    return data
 
 
 def phase(stft):
@@ -198,29 +196,10 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
             fft_window = window / max_range
         except ValueError:
             fft_window = window
-        # circular shift the window for correct phase
-        if circular_shift:
-            fft_shift = len(fft_window) >> 1
 
-        # FFT size to use
-        if fft_size is None:
-            fft_size = len(window)
-        # number of FFT bins to store
-        fft_bins = fft_size >> 1
-
-        # create an empty object
-        data = np.empty((frames.num_frames, fft_bins), np.complex64)
-        # iterate over all frames
-        for f, frame in enumerate(frames):
-            # multiply the signal frame with the window function
-            signal = np.multiply(frame, fft_window)
-            # only shift and perform complex DFT if needed
-            if circular_shift:
-                # circular shift the signal (needed for correct phase)
-                signal = np.concatenate((signal[fft_shift:],
-                                         signal[:fft_shift]))
-            # perform DFT and return the signal
-            data[f] = fft.fft(signal, fft_size, axis=0)[:fft_bins]
+        # calculate the STFT
+        data = stft(frames, fft_window, fft_size=fft_size,
+                    circular_shift=circular_shift)
 
         # cast as ShortTimeFourierTransform
         obj = np.asarray(data).view(cls)
