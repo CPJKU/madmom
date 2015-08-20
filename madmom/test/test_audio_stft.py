@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-This file contains tests for the madmom.audio.spectrogram module.
+This file contains tests for the madmom.audio.stft module.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -15,8 +15,10 @@ from madmom.audio.stft import *
 from madmom.audio.spectrogram import Spectrogram
 from madmom.audio.signal import FramedSignal
 
+sig_2d = np.array([[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+                   [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
+                   [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])
 
-# test functions
 
 # noinspection PyArgumentList
 class TestBinFrequenciesFunction(unittest.TestCase):
@@ -40,22 +42,33 @@ class TestBinFrequenciesFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
 
 
-class TestDftFunction(unittest.TestCase):
-
-    def test_types(self):
-        self.assertTrue(True)
-
-    def test_values(self):
-        self.assertTrue(True)
-
-
 class TestStftFunction(unittest.TestCase):
 
     def test_types(self):
-        self.assertTrue(True)
+        result = stft(np.arange(10).reshape(5, 2))
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.complex64)
+
+    def test_dimensionality(self):
+        with self.assertRaises(ValueError):
+            stft(np.arange(10))
+        result = stft(np.arange(10).reshape(5, 2))
+        self.assertEqual(result.shape, (5, 1))
 
     def test_value(self):
-        self.assertTrue(True)
+        result = stft(sig_2d)
+        # signal length and FFT size = 12
+        # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
+        # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
+        res = [3.+0.j, 0.+0.j, 0.-0.j, 3+0.j, 0.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[0], res))
+        # [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] every erd bin => 4/12
+        res = [4.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 4.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[1], res))
+        # [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0] every 2nd bin => 6/12
+        # can't resolve any more
+        res = [6.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[2], res))
 
 
 # noinspection PyArgumentList,PyArgumentList,PyArgumentList

@@ -409,12 +409,12 @@ class Signal(np.ndarray):
     @property
     def num_channels(self):
         """Number of channels."""
-        try:
-            # multi channel files
-            return np.shape(self)[1]
-        except IndexError:
-            # catch mono files
+        if self.ndim == 1:
+            # mono file
             return 1
+        else:
+            # multi channel file
+            return np.shape(self)[1]
 
     @property
     def length(self):
@@ -938,6 +938,11 @@ class FramedSignal(object):
     def shape(self):
         """Shape of the FramedSignal (frames x samples)."""
         return self.num_frames, self.frame_size
+
+    @property
+    def ndim(self):
+        """Dimensionality of the FramedSignal."""
+        return 2
 
 
 class FramedSignalProcessor(Processor):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains STFT related functionality.
+This file contains Short-Time Fourier Transform (STFT) related functionality.
 
 @author: Sebastian Böck <sebastian.boeck@jku.at>
 
@@ -11,6 +11,9 @@ import numpy as np
 import scipy.fftpack as fft
 
 from madmom.processors import Processor
+
+
+STFT_DTYPE = np.complex64
 
 
 def fft_frequencies(num_fft_bins, sample_rate):
@@ -25,7 +28,7 @@ def fft_frequencies(num_fft_bins, sample_rate):
     return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
 
 
-def stft(frames, window, fft_size=None, circular_shift=False):
+def stft(frames, window=None, fft_size=None, circular_shift=False):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
     framed signal.
@@ -36,40 +39,60 @@ def stft(frames, window, fft_size=None, circular_shift=False):
     :param circular_shift: circular shift for correct phase [bool]
     :return:               the complex STFT of the signal
 
+    Note: `frames` must be a 2D numpy array or iterable with the time as the
+          first dimension (axis=0). If given, he size of the `window` must
+          match the second dimension of `frames`.
+
     """
-    # size of the window
-    window_size = len(window)
-    # size of the FFT circular shift (needed for correct phase)
-    if circular_shift:
-        fft_shift = window_size >> 1
+    # check for correct shape of input
+    if frames.ndim != 2:
+        raise ValueError('frames must be a 2D array')
+
+    # size of the frames
+    frame_size = frames.shape[1]
+
+    # window size must match frame size
+    if window is not None and len(window) != frame_size:
+        raise ValueError('window size must match frame size')
+
     # FFT size to use
     if fft_size is None:
-        fft_size = window_size
+        fft_size = frame_size
     # number of FFT bins to store
     num_fft_bins = fft_size >> 1
 
+    # size of the FFT circular shift (needed for correct phase)
+    if circular_shift:
+        fft_shift = frame_size >> 1
+
     # init objects
-    data = np.empty((len(frames), num_fft_bins), np.complex64)
-    signal = np.zeros(window_size)
+    data = np.empty((len(frames), num_fft_bins), STFT_DTYPE)
+    signal = np.zeros(frame_size)
     fft_signal = np.zeros(fft_size)
 
     # iterate over all frames
     for f, frame in enumerate(frames):
-        # multiply the signal frame with the window and take the DFT
         if circular_shift:
-            # if we need a circular shift of the signal for correct phase
-            # we first multiply the signal frame with the window
-            np.multiply(frame, window, out=signal)
-            # and then swap the two halves of the windowed signal
-            # if we have a bigger FFT size than frame size, wee need to
-            # pad the additional zeros in between the two halves
+            # if we need to circular shift the signal for correct phase, we
+            # first multiply the signal frame with the window (or just use it
+            # as it is if no window function is given)
+            if window is not None:
+                np.multiply(frame, window, out=signal)
+            else:
+                signal = frame
+            # then swap the two halves of the windowed signal; if the FFT size
+            # is bigger than the frame size, we need to pad the (windowed)
+            # signal with additional zeros in between the two halves
             fft_signal[:fft_shift] = signal[fft_shift:]
             fft_signal[-fft_shift:] = signal[:fft_shift]
         else:
-            # just multiply the signal frame with the window and save it
-            # directly in fft_signal (i.e. bypass the signal)
-            np.multiply(frame, window, out=fft_signal[:window_size])
-        # perform DFT and return the signal
+            # multiply the signal frame with the window and or save it directly
+            # to fft_signal (i.e. bypass the additional copying step above)
+            if window is not None:
+                np.multiply(frame, window, out=fft_signal[:frame_size])
+            else:
+                fft_signal[:frame_size] = frame
+        # perform DFT
         data[f] = fft.fft(fft_signal, axis=0)[:num_fft_bins]
     # return STFT
     return data
@@ -77,7 +100,7 @@ def stft(frames, window, fft_size=None, circular_shift=False):
 
 def phase(stft):
     """
-    Returns the phase of the complex Short Time Fourier Transform of a signal.
+    Returns the phase of the complex STFT of a signal.
 
     :param stft: complex STFT of a signal
     :return:     phase
@@ -88,8 +111,7 @@ def phase(stft):
 
 def local_group_delay(phase):
     """
-    Returns the local group delay of the phase Short Time Fourier Transform of
-    a signal.
+    Returns the local group delay of the phase of a signal.
 
     :param phase: phase of the STFT of a signal
     :return:      local group delay
@@ -110,6 +132,11 @@ lgd = local_group_delay
 
 # mixin for some basic properties of all classes
 class PropertyMixin(object):
+    """
+    Mixin which provides `num_frames`, `num_bins` and `bin_frequencies`
+    properties to classes.
+
+    """
 
     @property
     def num_frames(self):
@@ -159,6 +186,10 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
 
         :param kwargs:         keyword arguments passed to FramedSignal
 
+        Note: If the Signal (wrapped in the FramedSignal) has an integer dtype,
+              it is automatically scaled as if it has a float dtype with the
+              values being in the range [-1, 1].
+
         """
         from .signal import FramedSignal
 
@@ -174,27 +205,25 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         if frames.signal.num_channels > 1:
             raise ValueError('please implement multi-channel support')
 
-        # determine which window to use
+        # size of the frames
+        frame_size = frames.shape[1]
+
+        # if a callable window function is given, use the frame size to create
+        # a window of this size
         if hasattr(window, '__call__'):
-            # if only function is given, use the size to the audio frame size
-            window = window(frames.frame_size)
-            # # multi-channel window
-            # if frames.signal.num_channels > 1:
-            #     window = np.tile(window[:, np.newaxis],
-            #                      frames.signal.num_channels)
-        elif isinstance(window, np.ndarray):
-            # otherwise use the given window directly
-            if len(window) != frames.frame_size:
-                raise ValueError('Window size must be equal to frame size.')
-        else:
-            # other types are not supported
-            raise TypeError("Invalid window type.")
+            window = window(frame_size)
         # window used for FFT
         try:
-            # the audio signal is not scaled, scale the window accordingly
+            # if the audio signal is not scaled, scale the window accordingly
             max_range = np.iinfo(frames.signal.dtype).max
-            fft_window = window / max_range
+            try:
+                # if the window is None, we can't scale it
+                fft_window = window / max_range
+            except TypeError:
+                # create a uniform window and scale it accordingly
+                fft_window = np.ones(frame_size) / max_range
         except ValueError:
+            # no scaling needed, use the window as is (can also be None)
             fft_window = window
 
         # calculate the STFT
@@ -207,7 +236,7 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         obj.frames = frames
         obj.window = window
         obj.fft_window = fft_window
-        obj.fft_size = fft_size
+        obj.fft_size = fft_size if fft_size else frame_size
         obj.circular_shift = circular_shift
         # return the object
         return obj
