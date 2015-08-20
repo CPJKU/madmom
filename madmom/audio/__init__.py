@@ -7,4 +7,4 @@ The definition of "lower" may vary, but all "higher" level features
 """
 
 # import the submodules
-from . import signal, ffmpeg, filters, spectrogram
+from . import signal, ffmpeg, filters, comb_filters, spectrogram
