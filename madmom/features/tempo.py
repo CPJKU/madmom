@@ -82,7 +82,7 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
 
     """
     # import comb filter
-    from madmom.audio.filters import CombFilterbankProcessor
+    from madmom.audio.comb_filters import CombFilterbankProcessor
     # set the maximum delay
     if max_tau is None:
         max_tau = len(activations) - min_tau
