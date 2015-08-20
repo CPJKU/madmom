@@ -95,7 +95,6 @@ def tuning_frequency(spec, bin_frequencies, num_hist_bins=15, fref=A4):
     """
     raise NotImplementedError("check if tuning_frequency returns meaningful "
                               "results")
-    # TODO: make this function accept just a signal?
     # interval of spectral bins from the reference frequency in semitones
     semitone_int = 12. * np.log2(bin_frequencies / fref)
     # deviation from the next semitone

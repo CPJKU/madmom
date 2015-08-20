@@ -46,7 +46,8 @@ def stft(frames, window=None, fft_size=None, circular_shift=False):
     """
     # check for correct shape of input
     if frames.ndim != 2:
-        raise ValueError('frames must be a 2D array')
+        # TODO: add multi-channel support
+        raise ValueError('frames must be a 2D array or iterable')
 
     # size of the frames
     frame_size = frames.shape[1]
@@ -200,10 +201,6 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         # instantiate a FramedSignal if needed
         if not isinstance(frames, FramedSignal):
             frames = FramedSignal(frames, **kwargs)
-
-        # check if the Signal is mono
-        if frames.signal.num_channels > 1:
-            raise ValueError('please implement multi-channel support')
 
         # size of the frames
         frame_size = frames.shape[1]
