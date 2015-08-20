@@ -550,7 +550,7 @@ class TestLogarithmicFilteredSpectrogramProcessorClass(unittest.TestCase):
         self.assertIsInstance(processor.fmax, float)
         self.assertIsInstance(processor.fref, float)
         self.assertIsInstance(processor.norm_filters, bool)
-        self.assertIsInstance(processor.duplicate_filters, bool)
+        self.assertIsInstance(processor.unique_filters, bool)
         self.assertIsInstance(processor.mul, float)
         self.assertIsInstance(processor.add, float)
 
@@ -649,7 +649,7 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertTrue(result.shape == (281, 140))
         # filterbank stuff
         self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
-        self.assertTrue(result.filterbank.bands_per_octave == 24)
+        self.assertTrue(result.filterbank.num_bands_per_octave == 24)
         # log stuff
         self.assertTrue(result.mul == 1)
         self.assertTrue(result.add == 1)
@@ -765,7 +765,7 @@ class TestStackedSpectrogramProcessorClass(unittest.TestCase):
     def test_stack_depth(self):
         # stack in depth
         spec_processor = LogarithmicFilteredSpectrogramProcessor(
-            duplicate_filters=True)
+            unique_filters=False)
         processor = StackedSpectrogramProcessor([512], spec_processor,
                                                 stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
