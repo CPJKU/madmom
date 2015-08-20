@@ -23,7 +23,7 @@ import shutil
 import tempfile
 from Queue import Queue
 from threading import Thread
-import multiprocessing
+import multiprocessing as mp
 import subprocess
 
 import numpy as np
@@ -32,6 +32,7 @@ from madmom.features import Activations
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
+THREADS = mp.cpu_count() / 2
 
 
 class RnnlibActivations(np.ndarray):
@@ -626,7 +627,6 @@ def create_nc_file(filename, data, targets, tags=None):
     # save file
     nc.close()
     # return
-    # TODO: return a tuple (fd + filename)?
     return filename
 
 
@@ -706,7 +706,7 @@ class TestThread(Thread):
                 self.work_queue.task_done()
 
 
-def create_pool(threads=2, verbose=False):
+def create_pool(threads=THREADS, verbose=False):
     """
     Create a pool of working threads.
 
@@ -738,7 +738,7 @@ def test_nc_files(nc_files, nn_files, work_queue, return_queue):
     Test a list of .nc files against multiple neural networks.
 
     :param nc_files:     list with .nc files to be tested
-    :param nn_files:     list with network files
+    :param nn_files:     list with network .save files
     :param work_queue:   a work queue
     :param return_queue: a return queue
     :return:             list with activations
@@ -808,6 +808,8 @@ class RnnlibConfig(object):
         self.momentum = None
         self.optimizer = None
         self.rand_seed = 0
+        self.noise = 0
+        self.weight_noise = 0
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -830,6 +832,8 @@ class RnnlibConfig(object):
             elif line.startswith('valFile'):
                 self.val_files = line[:].split()[1].split(',')
             elif line.startswith('testFile'):
+                self.test_files = line[:].split()[1].split(',')
+            elif line.startswith('#testFile'):
                 self.test_files = line[:].split()[1].split(',')
             # size and type of hidden layers
             elif line.startswith('hiddenSize'):
@@ -936,16 +940,19 @@ class RnnlibConfig(object):
         f.write('momentum %s\n' % str(self.momentum))
         f.write('optimiser %s\n' % str(self.optimizer))
         f.write('randSeed %s\n' % str(self.rand_seed))
+        f.write('inputNoiseDev %s\n' % str(self.noise))
+        f.write('weightDistortion %s\n' % str(self.weight_noise))
         if len(self.train_files) > 0:
             f.write('trainFile %s\n' % ",".join(self.train_files))
         if len(self.val_files) > 0:
             f.write('valFile %s\n' % ",".join(self.val_files))
         if len(self.test_files) > 0:
-            f.write('testFile %s\n' % ",".join(self.test_files))
+            # comment the test files so they are not tested during training
+            f.write('#testFile %s\n' % ",".join(self.test_files))
         f.close()
 
-    def test(self, out_dir=None, file_set='test', threads=2, fps=None,
-             verbose=False):
+    def test(self, out_dir=None, file_set='test', threads=THREADS,
+             fps=None, verbose=False):
         """
         Test the given set of files.
 
@@ -1098,7 +1105,7 @@ class RnnlibConfig(object):
             convert_model(filename)
 
 
-def test_save_files(files, out_dir=None, file_set='test', threads=2,
+def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
                     verbose=False, fps=100):
     """
     Test the given set of files.
@@ -1164,10 +1171,11 @@ def test_save_files(files, out_dir=None, file_set='test', threads=2,
             Activations(activations[0], fps=fps).save(act_file)
 
 
-def cross_validation(files, config, out_dir, folds=8, randomize=False,
-                     bidirectional=True, task='classification',
-                     learn_rate=1e-4, layer_sizes=None, layer_type='lstm',
-                     momentum=0.9, optimizer='steepest', splitting=None):
+def create_config(files, config, out_dir, folds=8, randomize=False,
+                  bidirectional=True, task='classification', learn_rate=1e-5,
+                  layer_sizes=[25, 25, 25], layer_type='lstm', momentum=0.9,
+                  optimizer='steepest', splits=None, noise=0,
+                  weight_noise=0):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
@@ -1175,7 +1183,7 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
     :param config:        common base name for the config files
     :param out_dir:       output directory for config files
     :param folds:         number of folds
-    :param randomize:     shuffle files before splitting
+    :param randomize:     shuffle files before creating splits
     :param bidirectional: use bidirectional neural networks
     :param task:          neural network task
     :param learn_rate:    learn rate to use
@@ -1183,10 +1191,9 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
     :param layer_type:    hidden layer types
     :param momentum:      momentum for steepest descent
     :param optimizer:     which optimizer to use {'steepest, 'rprop'}
-    :param splitting:     use pre-defined splittings
-
-    Note: The `splitting` can be either a dictionary with keys numerated from 1
-          upwards or a list of files which contain one file per line.
+    :param splits:        use pre-defined folds from splits folder
+    :param noise:         add noise to inputs
+    :param weight_noise:  add noise to weights
 
     """
     from madmom.utils import search_files
@@ -1203,50 +1210,54 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
         out_file = '%s/%s' % (out_dir, config)
     else:
         out_file = config
-    # set default layer sizes
-    if not layer_sizes:
-        layer_sizes = [25, 25, 25]
     # shuffle the files
     if randomize:
         import random
         random.shuffle(files)
-    # split into N parts
-    splits = {}
-    if isinstance(splitting, dict):
-        # use the splitting as is
-        splits = splitting
-    if isinstance(splitting, list):
-        from madmom.utils import match_file
-        for fold, split_file in enumerate(splitting):
-            with open(split_file, 'rb') as split:
-                splits[fold] = []
-                for line in split:
-                    line = line.strip()
-                    nc_file = match_file(line, files, match_suffix='.nc')
-                    splits[fold].append(nc_file[0])
+    # splits into N parts
+    splittings = []
+    for n in range(folds):
+        splittings.append([])
+    if isinstance(splits, list):
+        # we got a list of splits folders
+        from madmom.utils import search_files, match_file
+        for split in splits:
+            folds = search_files(split, '.fold')
+            if len(folds) != len(splittings):
+                raise ValueError('number of folds must match.')
+            for fold, fold_file in enumerate(folds):
+                with open(fold_file, 'r') as s:
+                    for line in s:
+                        line = line.strip()
+                        nc_file = match_file(line, files, match_suffix='.nc')
+                        try:
+                            splittings[fold].append(str(nc_file[0]))
+                        except IndexError:
+                            print("can't find .nc file for file: "
+                                             "%s" % line)
     else:
-        # use a standard splitting
+        # use a standard splits
         for fold in range(folds):
-            splits[fold] = [f for i, f in enumerate(files)
-                            if i % folds == fold]
-            if not splits[fold]:
+            splittings[fold] = [f for i, f in enumerate(files)
+                                if i % folds == fold]
+            if not splittings[fold]:
                 raise ValueError('not enough files for %d folds.' % folds)
     # set the number of folds
-    folds = len(splits)
+    folds = len(splittings)
     # create the rnnlib_config files
     if folds < 3:
-        raise ValueError('cannot create split with less than 3 folds.')
+        raise ValueError('cannot create splits with less than 3 folds.')
     for i in range(folds):
         rnnlib_config = RnnlibConfig()
         test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
         val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
         train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
         # assign the sets
-        rnnlib_config.test_files = splits[int(test_fold)]
-        rnnlib_config.val_files = splits[int(val_fold)]
+        rnnlib_config.test_files = splittings[int(test_fold)]
+        rnnlib_config.val_files = splittings[int(val_fold)]
         rnnlib_config.train_files = []
         for j in train_fold.tolist():
-            rnnlib_config.train_files.extend(splits[j])
+            rnnlib_config.train_files.extend(splittings[j])
         rnnlib_config.task = task
         rnnlib_config.bidirectional = bidirectional
         rnnlib_config.learn_rate = learn_rate
@@ -1254,6 +1265,8 @@ def cross_validation(files, config, out_dir, folds=8, randomize=False,
         rnnlib_config.layer_types = [layer_type] * len(layer_sizes)
         rnnlib_config.momentum = momentum
         rnnlib_config.optimizer = optimizer
+        rnnlib_config.noise = noise
+        rnnlib_config.weight_noise = weight_noise
         rnnlib_config.save('%s_%s' % (out_file, i + 1))
 
 
@@ -1261,8 +1274,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                     frame_size=2048, online=False, fps=100, filterbank=None,
                     num_bands=6, fmin=30, fmax=17000, norm_filters=True,
                     log=True, mul=1, add=0, diff=True, diff_ratio=0.5,
-                    diff_frames=None, diff_max_bins=1, shift=0, spread=0,
-                    split=None, verbose=False):
+                    diff_frames=None, diff_max_bins=1, positive_diffs=True,
+                    shift=0, spread=0, split=None, verbose=False):
     """
     Create .nc files for the given .wav and annotation files.
 
@@ -1303,26 +1316,28 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Difference parameters:
 
-    :param diff:          calculate the difference of the spectrogram [bool]
-                          if the spectrograms are stacked, the differences
-                          will be stacked, too
-    :param diff_ratio:    calculate the difference to the frame at
-                          which the window used for the STFT yields
-                          this ratio of the maximum height [float]
-    :param diff_frames:   calculate the difference to the N-th previous frame
-                          [int] (if set, this overrides the value calculated
-                          from the `diff_ratio`)
-    :param diff_max_bins: apply a maximum filter with this width (in bins in
-                          frequency dimension) before calculating the diff;
-                          (e.g. for the difference spectrogram of the SuperFlux
-                          algorithm 3 `max_bins` are used together with a 24
-                          band logarithmic filterbank)
+    :param diff:           calculate the difference of the spectrogram [bool]
+                           if the spectrograms are stacked, the differences
+                           will be stacked, too
+    :param diff_ratio:     calculate the difference to the frame at
+                           which the window used for the STFT yields
+                           this ratio of the maximum height [float]
+    :param diff_frames:    calculate the difference to the N-th previous frame
+                           [int] (if set, this overrides the value calculated
+                           from the `diff_ratio`)
+    :param diff_max_bins:  apply a maximum filter with this width (in bins in
+                           frequency dimension) before calculating the diff;
+                           (e.g. for the difference spectrogram of the SuperFlux
+                           algorithm 3 `max_bins` are used together with a 24
+                           band logarithmic filterbank)
+    :param positive_diffs: keep only the positive differences, i.e. set all
+                           diff values < 0 to 0
 
     Target parameters:
 
-    :param shift:         shift the targets N seconds
-    :param spread:        spread the targets N seconds
-    :param split:         split the files into parts with N frames length
+    :param shift:          shift the targets N seconds
+    :param spread:         spread the targets N seconds
+    :param split:          split the files into parts with N frames length
 
     Other parameters:
 
@@ -1332,7 +1347,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     from madmom.processors import SequentialProcessor
     from madmom.audio.signal import SignalProcessor
     from madmom.audio.spectrogram import (
-        LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor)
+        LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor,
+        SpectrogramDifferenceProcessor)
 
     from madmom.utils import (search_files, match_file, load_events,
                               quantize_events)
@@ -1345,33 +1361,39 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                                                    num_bands=num_bands,
                                                    fmin=fmin, fmax=fmax,
                                                    norm_filters=norm_filters,
-                                                   log=log, mul=mul, add=add,
-                                                   diff_ratio=diff_ratio,
-                                                   diff_frames=diff_frames,
-                                                   diff_max_bins=diff_max_bins)
+                                                   log=log, mul=mul, add=add)
+    if diff:
+        diff = SpectrogramDifferenceProcessor(diff_ratio=diff_ratio,
+                                              diff_frames=diff_frames,
+                                              diff_max_bins=diff_max_bins,
+                                              positive_diffs=positive_diffs)
     # stack specs with the given frame sizes
     stack = StackedSpectrogramProcessor(frame_size=frame_size,
-                                        spectrogram=spec, online=online,
-                                        fps=fps, stack_diffs=diff)
+                                        spectrogram=spec, difference=diff,
+                                        online=online, fps=fps)
     processor = SequentialProcessor([sig, stack])
 
-    # treat all files as annotation files
+    # get all annotation files
     ann_files = []
     for annotation_suffix in annotations:
         ann_files.extend(search_files(files, annotation_suffix))
+
     # create .nc files
     for f in ann_files:
         # split the extension of the input file
-        annotation = os.path.splitext(f)[1]
-        # get the matching wav file to the input file
-        wav_files = match_file(f, search_files(files), annotation, '.wav')
+        filename, annotation = os.path.splitext(f)
+        # get the matching .wav or .flac file to the input file
+        wav_files = match_file(f, files, annotation, '.wav')
+        # no wav file found, try flac
+        if len(wav_files) < 1:
+            wav_files = match_file(f, files, annotation, '.flac')
         # no wav file found
         if len(wav_files) < 1:
             print "can't find audio file for %s" % f
             exit()
         # print file
         if verbose:
-            print f
+            print f, filename, annotation
 
         # create the data for the .nc file from the .wav file
         nc_data = processor.process(wav_files[0])
@@ -1407,7 +1429,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                                       shift=shift)
         # tags
         tags = {'file': f, 'fps': fps, 'frame_size': frame_size,
-                'online': online, 'filterbank': filterbank, 'log': log}
+                'online': online, 'filterbank': filterbank, 'log': log,
+                'diff': diff}
         if filterbank:
             tags['filterbank'] = filterbank.__name__
             tags['num_bands'] = num_bands
@@ -1417,7 +1440,8 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         if log:
             tags['mul'] = mul
             tags['add'] = add
-        if diff_ratio or diff_frames:
+        if diff:
+            tags['diff'] = diff.__class__.__name__
             tags['diff_ratio'] = diff_ratio
             tags['diff_frames'] = diff_frames
             tags['diff_max_bins'] = diff_max_bins
@@ -1427,9 +1451,9 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             tags['spread'] = spread
         # .nc file name
         if out_dir:
-            nc_file = "%s/%s" % (out_dir, os.path.basename(f))
+            nc_file = "%s/%s" % (out_dir, os.path.basename(filename))
         else:
-            nc_file = "%s" % os.path.abspath(f)
+            nc_file = "%s" % os.path.abspath(filename)
         # split files
         if split is None:
             # create a .nc file
@@ -1480,13 +1504,16 @@ def main():
     s = p.add_subparsers()
 
     # .save file testing options
-    sp = s.add_parser('test', help='.save file testing help')
+    sp = s.add_parser('test', help='.save file testing help',
+                      description="""
+    Options for testing RNNLIB .save files.
+    """)
     sp.set_defaults(func=test_save_files)
     sp.add_argument('files', nargs='+', help='.save files to be processed')
     sp.add_argument('-o', dest='out_dir', default=None,
                     help='output directory')
     sp.add_argument('--threads', action='store', type=int,
-                    default=multiprocessing.cpu_count(),
+                    default=THREADS,
                     help='number of threads [default=%(default)i]')
     sp.add_argument('-v', dest='verbose', action='store_true',
                     help='be verbose')
@@ -1496,8 +1523,11 @@ def main():
                          '%(default)s]')
 
     # config file creation options
-    sp = s.add_parser('config', help='config file creation help')
-    sp.set_defaults(func=cross_validation)
+    sp = s.add_parser('config', help='config file creation help',
+                      description="""
+    Options for creating RNNLIB config files.
+    """)
+    sp.set_defaults(func=create_config)
     sp.add_argument('files', nargs='+', help='files to be processed')
     sp.add_argument('-o', dest='out_dir', default=None,
                     help='output directory')
@@ -1505,18 +1535,19 @@ def main():
                     help='config file base name')
     sp.add_argument('--folds', default=8, type=int,
                     help='%(default)s-fold cross validation')
-    sp.add_argument('--splitting', action='append', default=None,
-                    help='use this pre-defined splittings (argument needed '
-                         'multiple times, one per splitting file)')
+    sp.add_argument('--splits', action='append', default=None,
+                    help='use the pre-defined folds from this split folder '
+                         '(argument can be given multiple times)')
     sp.add_argument('--randomize', action='store_true', default=False,
                     help='randomize splitting [default=%(default)s]')
     sp.add_argument('--task', default='classification', type=str,
                     help='learning task [default=%(default)s]')
     sp.add_argument('--bidirectional', action='store_true', default=False,
                     help='bidirectional network [default=%(default)s]')
-    sp.add_argument('--learn_rate', default=1e-4, type=float,
+    sp.add_argument('--learn_rate', default=1e-5, type=float,
                     help='learn rate [default=%(default)s]')
     sp.add_argument('--layer_sizes', default=[25, 25, 25], type=int,
+                    action=OverrideDefaultListAction, sep=',',
                     help='layer sizes [default=%(default)s]')
     sp.add_argument('--layer_type', default='tanh', type=str,
                     help='layer type [default=%(default)s]')
@@ -1524,9 +1555,15 @@ def main():
                     help='momentum for learning [default=%(default)s]')
     sp.add_argument('--optimizer', default='steepest', type=str,
                     help='optimizer [default=%(default)s]')
+    sp.add_argument('--noise', default=0, type=float,
+                    help='add noise to input [default=%(default).2f]')
+    sp.add_argument('--weight_noise', default=0, type=float,
+                    help='add noise to weight [default=%(default).2f]')
 
     # .nc file creation options
-    sp = s.add_parser('create', help='.nc file creation help')
+    sp = s.add_parser('create', help='.nc file creation help', description="""
+    Options for creating .nc files from the given audio and annotation files.
+    """)
     sp.set_defaults(func=create_nc_files)
     sp.add_argument('files', nargs='+', help='files to be processed')
     sp.add_argument('-o', dest='out_dir', default=None,
@@ -1539,13 +1576,14 @@ def main():
     SignalProcessor.add_arguments(sp, norm=False, att=0)
     FramedSignalProcessor.add_arguments(sp, online=False,
                                         frame_size=[1024, 2048, 4096])
-    from madmom.audio.filters import LogarithmicFilterbank as filterbank
-    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=filterbank,
+    from madmom.audio.filters import LogFilterbank
+    FilteredSpectrogramProcessor.add_arguments(sp, filterbank=LogFilterbank,
                                                norm_filters=True,
                                                duplicate_filters=None)
     LogarithmicSpectrogramProcessor.add_arguments(sp, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(sp, diff_ratio=0.5,
-                                                 diff_max_bins=1)
+                                                 diff_max_bins=1,
+                                                 positive_diffs=True)
     sp.add_argument('--split', default=None, type=float,
                     help='split files every N seconds')
     sp.add_argument('--shift', default=None, type=float,

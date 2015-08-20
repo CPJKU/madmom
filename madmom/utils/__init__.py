@@ -258,7 +258,11 @@ def quantize_events(events, fps, length=None, shift=None):
     # set the events
     for event in events:
         idx = int(round(event * float(fps)))
-        quantized[idx] = 1
+        try:
+            quantized[idx] = 1
+        except IndexError:
+            # ignore out of range indices
+            pass
     # return the quantized array
     return quantized
 
