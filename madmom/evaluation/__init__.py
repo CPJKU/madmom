@@ -695,9 +695,12 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     # verbose
     parser.add_argument('-v', dest='verbose', action='count', default=0,
                         help='increase verbosity level')
+    # option to suppress warnings
+    parser.add_argument('--quiet', dest='quiet', action='store_true', default=0,
+                        help='suppress any warnings')
     # return the parser
     return parser
 
 
 # finally import the submodules
-from . import onsets, beats, notes, tempo
+from . import onsets, beats, notes, tempo, alignment

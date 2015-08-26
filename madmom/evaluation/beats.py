@@ -1069,7 +1069,7 @@ def parser():
     # output the args
     if args.verbose >= 2:
         print args
-    if args.verbose == 0:
+    if args.quiet:
         warnings.filterwarnings("ignore")
     # return
     return args

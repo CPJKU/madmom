@@ -14,6 +14,7 @@ Conference (ISMIR), 2012.
 
 """
 
+import warnings
 import numpy as np
 
 from . import calc_errors, Evaluation, SumEvaluation, MeanEvaluation
@@ -157,6 +158,8 @@ def parser():
     # print the args
     if args.verbose >= 2:
         print args
+    if args.quiet:
+        warnings.filterwarnings("ignore")
     # return
     return args
 

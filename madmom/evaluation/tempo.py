@@ -7,6 +7,7 @@ This file contains tempo evaluation functionality.
 
 """
 
+import warnings
 import numpy as np
 
 from ..utils import open
@@ -300,6 +301,8 @@ def parser():
     # print the args
     if args.verbose >= 2:
         print args
+    if args.quiet:
+        warnings.filterwarnings("ignore")
         # return
     return args
 
