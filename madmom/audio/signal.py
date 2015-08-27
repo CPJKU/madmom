@@ -914,7 +914,7 @@ class FramedSignal(object):
             # determine the number of frames
             num_frames = stop - start
             # determine the new origin, i.e. start position
-            origin = self.origin + self.hop_size * start
+            origin = self.origin - self.hop_size * start
             # return a new FramedSignal instance covering the requested frames
             return FramedSignal(self.signal, frame_size=self.frame_size,
                                 hop_size=self.hop_size, origin=origin,
