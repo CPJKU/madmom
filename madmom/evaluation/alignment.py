@@ -21,7 +21,7 @@ _MISSED_NOTE_VAL = np.NaN
 
 # default settings
 TOLERANCE = 0.25
-HISTOGRAM_BINS = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.5, 1.]
+HISTOGRAM_BINS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.]
 
 
 def compute_event_alignment(alignment, ground_truth):
@@ -40,12 +40,11 @@ def compute_event_alignment(alignment, ground_truth):
                          contain the alignment positions for each individual
                          note. In this case, the deviation for each note is
                          taken into account.
+    :return:             2D numpy array of the same size as ground_truth, with
+                         each row representing the alignment of the
+                         corresponding ground truth element.
 
-    :return: 2D numpy array of the same size as ground_truth, with each
-             row representing the alignment of the corresponding ground truth
-             element.
     """
-
     # find the spots where the alignment passes the score
     gt_pos = ground_truth[:, _SCORE_POS]
     al_pos = alignment[:, _SCORE_POS]
@@ -76,31 +75,37 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
     plus an cumulative histogram of absolute errors
 
     :param event_alignment: sequence alignment as computed by the score
-        follower. 2D numpy array, where the first column is the
-        alignment time in seconds and the second column the position in beats.
-        Needs to be the same length as ground_truth, hence for each element in
-        the ground truth the corresponding alignment has to be available. You
-        can use the "compute_event_alignment" function to compute this.
-    :param ground_truth: Ground truth of the aligned performance.
-        2D numpy array, first value is the time in seconds, second value is the
-        beat position. It can contain the alignment positions for each
-        individual note. In this case, the deviation for each note is taken
-        into account.
-    :param tolerance: Tolerance window in seconds. Alignments off less than this
-        amount from the ground truth will be considered correct.
-    :param err_hist_bins: list of error bounds for which the cumulative
-        histogram of absolute error will be computed (e.g. [0.1, 0.3] will give
-        the percentage of events aligned with an error smaller than 0.1 and 0.3)
-
-    :return: A dictionary containing (some) of the metrics described in the
-        paper mentioned above and the error histogram
+                            follower. 2D numpy array, where the first column is
+                            the alignment time in seconds and the second column
+                            the position in beats.
+                            Needs to be the same length as `ground_truth`,
+                            hence for each element in the ground truth the
+                            corresponding alignment has to be available. You
+                            can use the `compute_event_alignment()` function
+                            to compute this.
+    :param ground_truth:    ground truth of the aligned performance.
+                            2D numpy array, first value is the time in seconds,
+                            second value is the beat position. It can contain
+                            the alignment positions for each individual note.
+                            In this case, the deviation for each note is taken
+                            into account.
+    :param tolerance:       tolerance window in seconds. Alignments off less
+                            than this amount from the ground truth will be
+                            considered correct.
+    :param err_hist_bins:   list of error bounds for which the cumulative
+                            histogram of absolute error will be computed (e.g.
+                            [0.1, 0.3] will give the percentage of events
+                            aligned with an error smaller than 0.1 and 0.3)
+    :return:                dictionary containing (some) of the metrics
+                            described in the paper mentioned above and the
+                            error histogram
     """
     abs_error = np.abs(event_alignment[:, _TIME] - ground_truth[:, _TIME])
     missed = np.isnan(abs_error)
     aligned_error = np.ma.array(abs_error, mask=missed)
 
     with np.errstate(invalid='ignore'):
-        # for some numpy versions, the following prints a invalid value warning,
+        # for some numpy versions the following prints a invalid value warning
         # although NaNs are masked - code still works.
         misaligned = aligned_error > tolerance
 
@@ -147,22 +152,23 @@ class AlignmentEvaluation(object):
         """
         Initializes the evaluation with the given data.
 
-        :param alignment: Computed alignment.
-                          List of tuples, 2d numpy array or similar. First
-                          value is the time in seconds, second value is the
-                          beat position.
-        :param ground_truth: Ground truth of the aligned file.
-                          List of tuples, 2d numpy array of similar. First
-                          value is the time in seconds, second value is the
-                          beat position. It can contain the alignment
-                          positions for each individual event. In this case,
-                          the deviation for each event is taken into account.
-        :param tolerance: Tolerance window in seconds. Alignments further apart
-                          than this value will be considered as errors.
+        :param alignment:     computed alignment. List of tuples, 2D numpy
+                              array or similar. First value is the time in
+                              seconds, second value is the beat position.
+        :param ground_truth:  ground truth of the aligned file. List of tuples,
+                              2D numpy array of similar. First value is the
+                              time in seconds, second value is the beat
+                              position. It can contain the alignment positions
+                              for each individual event. In this case, the
+                              deviation for each event is taken into account.
+        :param tolerance:     tolerance window in seconds. Alignments further
+                              apart than this value will be considered as
+                              errors.
         :param err_hist_bins: error bounds for which the cumulative histogram
-                          of absolute errors will be computed (e.g. [0.1, 0.3]
-                          will give the percentage of events aligned with an
-                          error smaller than 0.1 and 0.3)
+                              of absolute errors will be computed (e.g.
+                              [0.1, 0.3] will give the percentage of events
+                              aligned with an error smaller than 0.1 and 0.3)
+
         """
 
         self.alignment = alignment
@@ -309,9 +315,7 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
         super(MeanAlignmentEvaluation, self).__init__(None, None)
 
     def __len__(self):
-        """
-        :return: number of averaged evaluations
-        """
+        """Number of averaged evaluations."""
         return len(self.evals)
 
     def append(self, other):
@@ -319,6 +323,7 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
         Add another evaluation to average.
 
         :param other: AlignmentEvaluation to add
+
         """
         weight = 1.0 if self.piecewise else len(other.ground_truth)
         self.total_weight += weight
@@ -332,6 +337,7 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
         """
         Alignment evaluation metrics averaged over all added individual
         evaluations.
+
         """
         if len(self) == 0:
             raise RuntimeError('Cannot compute mean evaluation on empty object')
@@ -369,7 +375,7 @@ def parse_args():
     `audio_time score_position`
 
     Note that this script enforces the alignment to go monotonically forward,
-    meaning that if a event 'e' is aligned at time t_e, the following events
+    meaning that if a event 'e' is aligned at time 't_e', the following events
     'ef' will be aligned at max(t_e, t_ef).
 
     Lines starting with # are treated as comments and are ignored.
@@ -382,14 +388,12 @@ def parse_args():
 
     g = p.add_argument_group('evaluation arguments')
 
-    g.add_argument('--tolerance', type=float,
-                   help='Tolerance threshold for misaligned notes [s]'
-                        ' [default: %(default)s]',
-                   dest='tolerance', default=TOLERANCE)
+    g.add_argument('--tolerance', type=float, default=TOLERANCE,
+                   help='Tolerance threshold for misaligned notes '
+                        '[seconds, default: %(default)s]')
 
-    g.add_argument('--piecewise', dest='piecewise', action='store_true',
-                   default=False, help='Combine metrics piecewise'
-                   '[default: %(default)s]')
+    g.add_argument('--piecewise', action='store_true',
+                   help='Combine metrics piecewise [default: %(default)s]')
 
     args = p.parse_args()
     # output the args

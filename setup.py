@@ -33,7 +33,8 @@ modules = ['madmom.audio',
            'madmom.evaluation.onsets',
            'madmom.evaluation.beats',
            'madmom.evaluation.notes',
-           'madmom.evaluation.tempo']
+           'madmom.evaluation.tempo',
+           'madmom.evaluation.alignment']
 
 extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
@@ -60,7 +61,7 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 setup(name='madmom',
-      version='0.10.1',
+      version='0.10.2',
       description='Python package used at cp.jku.at and ofai.at',
       long_description=open('README').read(),
       author='Department of Computational Perception, Johannes Kepler '
