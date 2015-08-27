@@ -331,9 +331,9 @@ class BeatTrackingObservationModel(ObservationModel):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def compute_log_densities(self, float [::1] observations):
+    def log_densities(self, float [::1] observations):
         """
-        Compute the observation log densities and save them.
+        Computes the log densities of the observations.
 
         :param observations: observations (i.e. activations of the NN)
         :return:             log densities of the observations
@@ -572,9 +572,9 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def compute_log_densities(self, observations):
+    def log_densities(self, observations):
         """
-        Compute the observation log densities using (a) GMM(s).
+        Computes the log densities of the observations using (a) GMM(s).
 
         :param observations: observations (i.e. activations of the NN)
         :return:             log densities of the observations
