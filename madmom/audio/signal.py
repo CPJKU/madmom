@@ -802,8 +802,8 @@ class FramedSignal(object):
         sample of the signal
 
         The location of the window relative to the reference sample of a frame
-        can be set with the `origin` parameter. Arbitrary integer values can
-        be given:
+        can be set with the `origin` parameter (with the same behaviour as used
+        by `scipy.ndimage` filters). Arbitrary integer values can be given:
           - zero centers the window on its reference sample
           - negative values shift the window to the right
           - positive values shift the window to the left
