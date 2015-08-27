@@ -419,5 +419,83 @@ class HiddenMarkovModel(object):
         # return the forward variables
         return np.asarray(fwd)[1:]
 
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
+    def forward_generator(self, observations, int block_size=2000):
+        """
+        Compute the forward variables at each time step. Instead of computing
+        in the log domain, we normalise at each step, which is faster for
+        the forward algorithm. This function is a generator that yields the
+        forward variables for each time step individually to save memory.
+        The observation densitites are computed blockwise to save Python calls
+        in the inner loops.
+
+        :param observations: observations to compute the forward variables for
+        :param block_size:   block size for the blockwise computation of
+                             observation densities.
+        :returns:            2D numpy array containing the forward variables
+
+        """
+        # transition model stuff
+        tm = self.transition_model
+        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned int [::1] tm_ptrs = tm.pointers
+        cdef double [::1] tm_probabilities = tm.probabilities
+        cdef unsigned int num_states = tm.num_states
+
+        # observation model stuff
+        om = self.observation_model
+        cdef unsigned int num_observations = len(observations)
+        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef double [:, ::1] om_densities
+
+        # forward variables
+        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=np.float)
+        cdef double[::1] fwd_prev = self.initial_distribution.copy()
+
+        # define counters etc.
+        cdef unsigned int prev_pointer, state, obs_start, obs_end, frame
+        cdef double prob_sum, norm_factor
+
+        # keep track which observations om_densitites currently contains
+        # obs_start is the first observation index, obs_end the last one
+        obs_start = 0
+        obs_end = 0
+
+        # iterate over all observations
+        for frame in range(num_observations):
+            # keep track of the normalisation sum
+            prob_sum = 0
+
+            # initialise forward variables
+            fwd_cur[:] = 0.0
+
+            # check if we have to compute another block of observation densities
+            if frame >= obs_end:
+                obs_start = frame
+                obs_end = obs_start + block_size
+                om_densities = om.densities(observations[obs_start:obs_end])
+
+            # iterate over all states
+            for state in range(num_states):
+                # sum ober all possible predecessors
+                for prev_pointer in range(tm_ptrs[state], tm_ptrs[state + 1]):
+                    fwd_cur[state] += fwd_prev[tm_states[prev_pointer]] * \
+                                      tm_probabilities[prev_pointer]
+                # multiply with the observation probability
+                fwd_cur[state] *= om_densities[frame - obs_start, om_pointers[state]]
+                prob_sum += fwd_cur[state]
+            # normalise
+            norm_factor = 1. / prob_sum
+            for state in range(num_states):
+                fwd_cur[state] *= norm_factor
+
+            # yield the current forward variables
+            yield np.asarray(fwd_cur).copy()
+
+            fwd_cur, fwd_prev = fwd_prev, fwd_cur
+
 # alias
 HMM = HiddenMarkovModel
