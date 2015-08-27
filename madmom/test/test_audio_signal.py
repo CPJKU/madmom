@@ -830,10 +830,38 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.origin == 0)
         self.assertTrue(result.num_frames == 5)
         self.assertTrue(np.allclose(result[0], [0, 0, 0, 1]))
+        self.assertTrue(np.allclose(result[1], [0, 1, 2, 3]))
+        self.assertTrue(np.allclose(result[2], [2, 3, 4, 5]))
+        self.assertTrue(np.allclose(result[3], [4, 5, 6, 7]))
+        self.assertTrue(np.allclose(result[4], [6, 7, 8, 9]))
         self.assertTrue(result.frame_rate == 2)
         self.assertTrue(result.fps == 2)
         self.assertTrue(result.overlap_factor == 0.5)
         self.assertTrue(result.shape == (5, 4))
+
+    def test_values_slicing(self):
+        result = FramedSignal(np.arange(10), 4, 2, sample_rate=4)[1:]
+        self.assertTrue(result.frame_size == 4)
+        self.assertTrue(result.hop_size == 2.)
+        self.assertTrue(result.origin == -2)
+        self.assertTrue(result.num_frames == 4)
+        self.assertTrue(result.shape == (4, 4))
+        self.assertTrue(np.allclose(result[0], [0, 1, 2, 3]))
+        self.assertTrue(np.allclose(result[1], [2, 3, 4, 5]))
+        self.assertTrue(np.allclose(result[2], [4, 5, 6, 7]))
+        self.assertTrue(np.allclose(result[3], [6, 7, 8, 9]))
+        self.assertTrue(result.frame_rate == 2)
+        self.assertTrue(result.fps == 2)
+        self.assertTrue(result.overlap_factor == 0.5)
+        # other slice
+        result = FramedSignal(np.arange(10), 4, 2, sample_rate=4)[2:4]
+        self.assertTrue(result.origin == -4)
+        self.assertTrue(result.num_frames == 2)
+        self.assertTrue(result.shape == (2, 4))
+        self.assertTrue(np.allclose(result[0], [2, 3, 4, 5]))
+        self.assertTrue(np.allclose(result[1], [4, 5, 6, 7]))
+        with self.assertRaises(IndexError):
+            result[2]
 
     def test_values_file(self):
         signal = Signal(DATA_PATH + '/sample.wav')
