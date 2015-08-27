@@ -7,6 +7,7 @@ This file contains note evaluation functionality.
 
 """
 
+import warnings
 import numpy as np
 
 from ..utils import suppress_warnings
@@ -172,6 +173,8 @@ def parser():
     # print the args
     if args.verbose >= 2:
         print args
+    if args.quiet:
+        warnings.filterwarnings("ignore")
     # return
     return args
 
@@ -241,6 +244,7 @@ def main():
     # print summary
     print sum_eval.print_errors('sum for %i file(s):\n  ' % len(mean_eval))
     print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+
 
 if __name__ == '__main__':
     main()

@@ -1069,7 +1069,7 @@ def parser():
     # output the args
     if args.verbose >= 2:
         print args
-    if args.verbose == 0:
+    if args.quiet:
         warnings.filterwarnings("ignore")
     # return
     return args
@@ -1146,6 +1146,7 @@ def main():
         mean_eval.append(e)
     # output summary
     print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+
 
 if __name__ == '__main__':
     main()

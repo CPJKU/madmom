@@ -684,7 +684,7 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                         default=det_dir,
                         help='search only this directory (recursively) for '
                              'detection files [default: %(default)s]')
-    parser.add_argument('--ignore_non_existing', action='store_true',
+    parser.add_argument('-i', '--ignore_non_existing', action='store_true',
                         default=False,
                         help='ignore non-existing detections [default: raise '
                              'a warning and assume empty detections]')
@@ -695,9 +695,12 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     # verbose
     parser.add_argument('-v', dest='verbose', action='count', default=0,
                         help='increase verbosity level')
+    # option to suppress warnings
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='suppress any warnings')
     # return the parser
     return parser
 
 
 # finally import the submodules
-from . import onsets, beats, notes, tempo
+from . import onsets, beats, notes, tempo, alignment

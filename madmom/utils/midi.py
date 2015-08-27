@@ -1204,7 +1204,7 @@ class MIDIFile(object):
                     # the old velocity must be greater 0
                     if note_velocities[e.pitch] <= 0:
                         raise AssertionError('note velocity must be positive')
-                    if note_onsets[e.pitch] >= e.tick:
+                    if note_onsets[e.pitch] > e.tick:
                         raise AssertionError('note duration must be positive')
                     # append the note to the list
                     notes.append((note_onsets[e.pitch], e.pitch,
