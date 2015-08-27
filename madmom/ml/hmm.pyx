@@ -367,28 +367,34 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] om_densities = \
             om.compute_densities(observations)
 
+        # forward variables
         cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
                                            dtype=np.float)
 
         cdef unsigned int prev_ptr, frame, state, cur, prev
-        cdef double prob_sum, norm_factor, trans_sum
+        cdef double prob_sum, norm_factor
 
         for i in range(self.initial_distribution.shape[0]):
             fwd[0, i] = self.initial_distribution[i]
 
         for frame in range(num_observations):
+            # indices for current and previous time step
             cur = frame + 1
             prev = frame
+
+            # to keep track of the normalisation sum
             prob_sum = 0
 
             for state in range(num_states):
-                trans_sum = 0
+                # sum over all possible predecessors
                 for prev_ptr in range(tm_ptrs[state], tm_ptrs[state + 1]):
                     fwd[cur, state] += fwd[prev, tm_states[prev_ptr]] * \
                                        tm_probabilities[prev_ptr]
+                # multiply with the observation probability
                 fwd[cur, state] *= om_densities[frame, om_pointers[state]]
                 prob_sum += fwd[cur, state]
 
+            # normalise...
             norm_factor = 1. / prob_sum
             for state in range(num_states):
                 fwd[cur, state] *= norm_factor
