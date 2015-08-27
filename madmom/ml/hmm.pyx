@@ -135,13 +135,13 @@ class ObservationModel(object):
 
     The observation model must have an attribute 'pointers' containing a plain
     1D numpy array of length equal to the number of states of the HMM and
-    pointing from each state to the corresponding column of the 'log_densities'
-    array, which gets returned by the 'compute_log_densities()' method with the
-    observations as an argument. The 'pointers' type must be np.uint32.
+    pointing from each state to the corresponding column of the matrix returned
+    by one of the `log_densities(observations)` or `densities(observations)`
+    methods. The `pointers` type must be np.uint32.
 
-    The 'log_densities' is a 2D numpy array with the number of rows being equal
-    to the length of the observations and the columns representing the
-    different observation log probability densities. The type must be np.float.
+    The returned matrix must be a 2D numpy array with the number of rows being
+    equal to the length of the observations and the columns representing the
+    different observation probability (log) densities. Type must be np.float.
 
     """
     __metaclass__ = abc.ABCMeta
@@ -157,10 +157,9 @@ class ObservationModel(object):
         self.pointers = pointers
 
     @abc.abstractmethod
-    def compute_log_densities(self, observations):
+    def log_densities(self, observations):
         """
-        Compute the log densities (or, probabilities) of the observations for
-        each state.
+        Log densities (or probabilities) of the observations for each state.
 
         :param observations: observations (list, numpy array, ...)
         :return:             log densities as a 2D numpy array with the number
@@ -170,6 +169,65 @@ class ObservationModel(object):
                              must be np.float.
         """
         return
+
+    def densities(self, observations):
+        """
+        Densities (or probabilities) of the observations for each state.
+        This defaults to computing the exp of the `log_densities`.
+        You can provide a special implementation to speed-up everything.
+
+        :param observations: observations (list, numpy array, ...)
+        :return:             densities as a 2D numpy array with the number
+                             of rows being equal to the number of observations
+                             and the columns representing the different
+                             observation probability densities.
+
+        """
+        return np.exp(self.log_densities(observations))
+
+
+class DiscreteObservationModel(ObservationModel):
+    """
+    Simple discrete observation model that takes an observation matrix of the
+    form (num_states x num_observations) containing P(observation | state).
+
+    """
+
+    def __init__(self, observation_probabilities):
+        """
+        :param observation_probabilities: observation probabilities as 2D numpy
+                                          array of the form (num_states x
+                                          num_observations). Has to sum to 1
+                                          over the first axis, since it
+                                          represents P(observation | state).
+        """
+        if not np.allclose(observation_probabilities.sum(axis=1), 1):
+            raise ValueError('Not a probability distribution.')
+        # instantiate an ObservationModel
+        super(DiscreteObservationModel, self).__init__(
+            np.arange(observation_probabilities.shape[0], dtype=np.uint32))
+        # save the observation probabilities
+        self.observation_probabilities = observation_probabilities
+
+    def densities(self, observations):
+        """
+        Densities of the observations.
+
+        :param observations: observations
+        :return:             densities
+
+        """
+        return self.observation_probabilities[:, observations].T
+
+    def log_densities(self, observations):
+        """
+        Log densities of the observations.
+
+        :param observations: observations
+        :return:             log densities
+
+        """
+        return np.log(self.densities(observations))
 
 
 class HiddenMarkovModel(object):
@@ -197,9 +255,12 @@ class HiddenMarkovModel(object):
         self.transition_model = transition_model
         self.observation_model = observation_model
         if initial_distribution is None:
-            initial_distribution = np.log(np.ones(transition_model.num_states,
-                                                  dtype=np.float) /
-                                          transition_model.num_states)
+            initial_distribution = np.ones(transition_model.num_states,
+                                           dtype=np.float) / \
+                                   transition_model.num_states
+        if not np.allclose(initial_distribution.sum(), 1):
+            raise ValueError('Initial distribution is not a probability '
+                             'distribution.')
         self.initial_distribution = initial_distribution
 
     @cython.cdivision(True)
@@ -225,15 +286,14 @@ class HiddenMarkovModel(object):
         om = self.observation_model
         cdef unsigned int num_observations = len(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
-        cdef double [:, ::1] om_densities = \
-            om.compute_log_densities(observations)
+        cdef double [:, ::1] om_densities = om.log_densities(observations)
 
         # current viterbi variables
         cdef double [::1] current_viterbi = np.empty(num_states,
                                                      dtype=np.float)
 
         # previous viterbi variables, init with the initial state distribution
-        cdef double [::1] previous_viterbi = self.initial_distribution.copy()
+        cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
 
         # back-tracking pointers
         cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
@@ -292,8 +352,72 @@ class HiddenMarkovModel(object):
             path[frame] = state
             # fetch the next previous one
             state = bt_pointers[frame, state]
+
         # return the tracked path and its probability
         return path, log_probability
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def forward(self, observations):
+        """
+        Compute the forward variables at each time step. Instead of computing
+        in the log domain, we normalise at each step, which is faster for
+        the forward algorithm.
+
+        :param observations: observations to compute the forward variables for
+        :returns:            2D numpy array containing the forward variables
+
+        """
+
+        # transition model stuff
+        tm = self.transition_model
+        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef double [::1] tm_probabilities = tm.probabilities
+        cdef unsigned int num_states = tm.num_states
+
+        # observation model stuff
+        om = self.observation_model
+        cdef unsigned int num_observations = len(observations)
+        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef double [:, ::1] om_densities = om.densities(observations)
+
+        # forward variables
+        cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
+                                           dtype=np.float)
+        # define counters etc.
+        cdef unsigned int prev_pointer, frame, state, cur, prev
+        cdef double prob_sum, norm_factor
+
+        # init forward variables
+        for state in range(self.initial_distribution.shape[0]):
+            fwd[0, state] = self.initial_distribution[state]
+
+        # iterate over all observations
+        for frame in range(num_observations):
+            # indices for current and previous time step
+            cur = frame + 1
+            prev = frame
+            # keep track of the normalisation sum
+            prob_sum = 0
+            # iterate over all states
+            for state in range(num_states):
+                # sum over all possible predecessors
+                for prev_pointer in range(tm_pointers[state],
+                                          tm_pointers[state + 1]):
+                    fwd[cur, state] += fwd[prev, tm_states[prev_pointer]] * \
+                                       tm_probabilities[prev_pointer]
+                # multiply with the observation probability
+                fwd[cur, state] *= om_densities[frame, om_pointers[state]]
+                prob_sum += fwd[cur, state]
+            # normalise
+            norm_factor = 1. / prob_sum
+            for state in range(num_states):
+                fwd[cur, state] *= norm_factor
+
+        # return the forward variables
+        return np.asarray(fwd)[1:]
 
 # alias
 HMM = HiddenMarkovModel
