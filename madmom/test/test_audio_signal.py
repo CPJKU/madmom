@@ -438,6 +438,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertIsInstance(result.sample_rate, type(None))
         self.assertIsInstance(result.num_channels, int)
         self.assertIsInstance(result.length, type(None))
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_array_with_sample_rate(self):
         result = Signal(sig_1d, 1)
@@ -448,6 +449,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertIsInstance(result.sample_rate, float)
         self.assertIsInstance(result.num_channels, int)
         self.assertIsInstance(result.length, float)
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_file(self):
         result = Signal(DATA_PATH + '/sample.wav')
@@ -481,6 +483,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.sample_rate == 12.3)
         self.assertTrue(result.num_channels == 2)
         self.assertTrue(result.length == 9 / 12.3)
+        self.assertTrue(result.ndim == 2)
 
     def test_values_file(self):
         result = Signal(DATA_PATH + '/sample.wav')
@@ -490,6 +493,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.num_samples == 123481)
         self.assertTrue(result.sample_rate == 44100)
         self.assertTrue(result.num_channels == 1)
+        self.assertTrue(result.ndim == 1)
         self.assertTrue(np.allclose(result.length, 2.8))
 
     def test_pickling(self):
@@ -742,6 +746,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.fps, type(None))
         self.assertIsInstance(result.overlap_factor, float)
         self.assertIsInstance(result.shape, tuple)
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_slice(self):
         # get a slice of a FramedSignal
@@ -758,6 +763,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.fps, type(None))
         self.assertIsInstance(result.overlap_factor, float)
         self.assertIsInstance(result.shape, tuple)
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_with_sample_rate(self):
         result = FramedSignal(np.arange(10), 4, 2, sample_rate=1)
@@ -773,6 +779,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.fps, float)
         self.assertIsInstance(result.overlap_factor, float)
         self.assertIsInstance(result.shape, tuple)
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
@@ -789,6 +796,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.fps, float)
         self.assertIsInstance(result.overlap_factor, float)
         self.assertIsInstance(result.shape, tuple)
+        self.assertIsInstance(result.ndim, int)
 
     def test_types_file(self):
         result = FramedSignal(DATA_PATH + '/sample.wav')
@@ -804,6 +812,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.fps, float)
         self.assertIsInstance(result.overlap_factor, float)
         self.assertIsInstance(result.shape, tuple)
+        self.assertIsInstance(result.ndim, int)
 
     def test_values_array(self):
         result = FramedSignal(np.arange(10), 4, 2)
@@ -816,6 +825,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.fps is None)
         self.assertTrue(result.overlap_factor == 0.5)
         self.assertTrue(result.shape == (5, 4))
+        self.assertTrue(result.ndim, 2)
 
     def test_values_array_end(self):
         result = FramedSignal(np.arange(10), 4, 2)
@@ -838,6 +848,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.fps == 2)
         self.assertTrue(result.overlap_factor == 0.5)
         self.assertTrue(result.shape == (5, 4))
+        self.assertTrue(result.ndim, 2)
 
     def test_values_slicing(self):
         result = FramedSignal(np.arange(10), 4, 2, sample_rate=4)[1:]
@@ -875,6 +886,22 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[3], signal[299: 299 + 2048]))
         self.assertTrue(result.frame_rate == 100)
         self.assertTrue(result.fps == 100)
+        self.assertTrue(result.ndim == 2)
+
+    def test_values_stereo_file(self):
+        signal = Signal(DATA_PATH + '/stereo_sample.wav')
+        result = FramedSignal(DATA_PATH + '/stereo_sample.wav')
+        self.assertTrue(result.frame_size == 2048)
+        self.assertTrue(result.hop_size == 441.)
+        self.assertTrue(result.origin == 0)
+        self.assertTrue(result.num_frames == 415)
+        self.assertTrue(np.allclose(result[0][:3], [[0, 0], [0, 0], [0, 0]]))
+        # 3rd frame should start at 3 * 441 - 2048 / 2 = 299
+        self.assertTrue(np.allclose(result[3], signal[299: 299 + 2048]))
+        self.assertTrue(result.frame_rate == 100)
+        self.assertTrue(result.fps == 100)
+        self.assertTrue(result.ndim == 3)
+        self.assertTrue(result.shape == (415, 2048, 2))
 
     def test_values_file_origin(self):
         signal = Signal(DATA_PATH + '/sample.wav')

@@ -409,12 +409,12 @@ class Signal(np.ndarray):
     @property
     def num_channels(self):
         """Number of channels."""
-        try:
-            # multi channel files
-            return np.shape(self)[1]
-        except IndexError:
-            # catch mono files
+        if self.ndim == 1:
+            # mono file
             return 1
+        else:
+            # multi channel file
+            return np.shape(self)[1]
 
     @property
     def length(self):
@@ -948,7 +948,15 @@ class FramedSignal(object):
     @property
     def shape(self):
         """Shape of the FramedSignal (frames x samples)."""
-        return self.num_frames, self.frame_size
+        shape = self.num_frames, self.frame_size
+        if self.signal.num_channels != 1:
+            shape += (self.signal.num_channels, )
+        return shape
+
+    @property
+    def ndim(self):
+        """Dimensionality of the FramedSignal."""
+        return len(self.shape)
 
 
 class FramedSignalProcessor(Processor):
@@ -1052,6 +1060,5 @@ class FramedSignalProcessor(Processor):
             g.add_argument('--online', dest='online', action='store_true',
                            default=online,
                            help='operate in online mode [default=%(default)s]')
-        # TODO: include end_of_signal handling!?
         # return the argument group so it can be modified if needed
         return g
