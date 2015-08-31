@@ -845,18 +845,25 @@ class RnnlibConfig(object):
                 self.layer_sizes = np.array(line[:].split()[1].split(','),
                                             dtype=np.int).tolist()
                 # number of the output layer
-                num_output_layer = len(self.layer_sizes)
+                num_output = len(self.layer_sizes)
             elif line.startswith('hiddenType'):
-                hidden_type = line[:].split()[1]
-                self.layer_types = [hidden_type] * len(self.layer_sizes)
+                hidden = line[:].split()[1]
+                if hidden == 'lstm':
+                    self.layer_types = ['LSTM'] * len(self.layer_sizes)
+                    self.layer_transfer_fn = ['tanh'] * len(self.layer_sizes)
+                else:
+                    self.layer_types = ['Recurrent'] * len(self.layer_sizes)
+                    self.layer_transfer_fn = [hidden] * len(self.layer_sizes)
             # task
             elif line.startswith('task'):
                 self.task = line[:].split()[1]
                 # set the output layer type
                 if self.task == 'classification':
-                    self.layer_types.append('sigmoid')
+                    self.layer_types.append('FeedForward')
+                    self.layer_transfer_fn.append('sigmoid')
                 elif self.task == 'regression':
-                    self.layer_types.append('linear')
+                    self.layer_types.append('FeedForward')
+                    self.layer_transfer_fn.append('linear')
                 else:
                     raise ValueError('unknown task, cannot set type of output '
                                      'layer.')
@@ -872,8 +879,6 @@ class RnnlibConfig(object):
                 output_size = int(line[:].split()[1])
                 self.layer_sizes.append(output_size)
 
-        # number of output layer
-        num_output = len(self.layer_sizes) - 1
         # process the weights
         for line in lines:
             # save the weights
@@ -911,17 +916,18 @@ class RnnlibConfig(object):
                         name = "%s_bias" % name[2:]
                     if name.startswith('o_'):
                         # output layer
-                        name = "layer_%s_0_%s" % (num_output_layer, name[2:])
+                        name = "layer_%s_0_%s" % (num_output, name[2:])
                     if name.endswith('_o'):
-                        name = re.sub('layer_%s_0_o' % (num_output_layer - 1),
-                                      'layer_%s_0_weights' % num_output_layer,
+                        name = re.sub('layer_%s_0_o' % (num_output - 1),
+                                      'layer_%s_0_weights' % num_output,
                                       name)
-                        name = re.sub('layer_%s_1_o' % (num_output_layer - 1),
-                                      'layer_%s_1_weights' % num_output_layer,
+                        name = re.sub('layer_%s_1_o' % (num_output - 1),
+                                      'layer_%s_1_weights' % num_output,
                                       name)
                     # rename bidirectional stuff (not for output layer)
                     for i in range(len(self.layer_sizes)):
                         if self.bidirectional:
+                            # fix the weird counting in gather layers
                             name = re.sub('layer_%s_1' % i, 'layer_%s' % i,
                                           name)
                             name = re.sub('layer_%s_0' % i,
@@ -936,12 +942,11 @@ class RnnlibConfig(object):
                     # RNNLIB stacks bwd and fwd layers in a weird way, thus
                     # swap the weights of the hidden layers if it is
                     # bidirectional and not the first hidden layer
-                    swap = (layer_num >= 1 and self.bidirectional and
-                            layer_num != num_output and
-                            name.endswith("weights") and
+                    swap = (layer_num >= 1 and layer_num != num_output and
+                            self.bidirectional and name.endswith("weights") and
                             "peephole" not in name and "recurrent" not in name)
                     # if we use LSTM units, align weights differently
-                    if self.layer_types[layer_num] == 'lstm':
+                    if self.layer_types[layer_num] == 'LSTM':
                         if 'peephole' in name:
                             # peephole connections
                             w = w.reshape(3 * layer_size, -1)
@@ -1114,13 +1119,15 @@ class RnnlibConfig(object):
                     # save the weights
                     grp.create_dataset(key, data=w.astype(np.float32))
                     # include the layer type as attribute
-                    layer_type = self.layer_types[layer].capitalize()
-                    if layer_type == 'Lstm':
-                        layer_type = 'LSTM'
+                    layer_type = self.layer_types[layer]
                     grp.attrs['type'] = str(layer_type)
+                    grp.attrs['transfer_fn'] = \
+                        str(self.layer_transfer_fn[layer])
                     # also for the reverse bidirectional layer if it exists
-                    if self.bidirectional:
+                    if self.bidirectional and layer != num_output:
                         grp.attrs['%s_type' % REVERSE] = str(layer_type)
+                        grp.attrs['%s_transfer_fn' % REVERSE] = \
+                            str(self.layer_transfer_fn[layer])
                 # next layer
         # also convert to .npz
         if npz:
@@ -1468,7 +1475,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             exit()
         # print file
         if verbose:
-            print f, filename, annotation
+            print f
 
         # create the data for the .nc file from the .wav file
         nc_data = processor.process(wav_files[0])
@@ -1532,7 +1539,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         # split files
         if split is None:
             # create a .nc file
-            create_nc_file(nc_file + '.beats.nc', nc_data, targets, tags)
+            create_nc_file(nc_file + '.nc', nc_data, targets, tags)
         else:
             # length of one part
             length = int(split * fps)

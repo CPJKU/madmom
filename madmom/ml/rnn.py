@@ -101,6 +101,7 @@ def relu(x, out=None):
 
 def softmax(x, out=None):
     """
+    Softmax transfer function.
 
     :param x:   input data
     :param out: numpy array to hold the output data
@@ -451,30 +452,27 @@ class RecurrentNeuralNetwork(Processor):
             """
             # first check if we need to create a bidirectional layer
             bwd_layer = None
+
             if '%s_type' % REVERSE in params.keys():
                 # pop the parameters needed for the reverse (backward) layer
-                bwd_type = str(params.pop('%s_type' % REVERSE)).lower()
+                bwd_type = str(params.pop('%s_type' % REVERSE))
+                bwd_transfer_fn = str(params.pop('%s_transfer_fn' % REVERSE))
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in params.keys() if
                                   k.startswith('%s_' % REVERSE))
+                bwd_params['transfer_fn'] = globals()[bwd_transfer_fn]
                 # construct the layer
-                if bwd_type == 'lstm':
-                    bwd_layer = LSTMLayer(**bwd_params)
-                else:
-                    transfer_fn = globals()[bwd_type]
-                    bwd_layer = RecurrentLayer(**bwd_params)
+                bwd_layer = globals()['%sLayer' % bwd_type](**bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
-            fwd_type = str(params.pop('type')).lower()
+            fwd_type = str(params.pop('type'))
+            fwd_transfer_fn = str(params.pop('transfer_fn'))
             fwd_params = params
+            fwd_params['transfer_fn'] = globals()[fwd_transfer_fn]
             # construct the layer
-            if fwd_type == 'lstm':
-                fwd_layer = LSTMLayer(**fwd_params)
-            else:
-                transfer_fn = globals()[fwd_type]
-                fwd_layer = RecurrentLayer(**fwd_params)
+            fwd_layer = globals()['%sLayer' % fwd_type](**fwd_params)
 
-            # return a (bidirectional) layer
+            # return the (bidirectional) layer
             if bwd_layer is not None:
                 # construct a bidirectional layer with the forward and backward
                 # layers and return it
