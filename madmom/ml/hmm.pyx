@@ -423,7 +423,7 @@ class HiddenMarkovModel(object):
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.initializedcheck(False)
-    def forward_generator(self, observations, int block_size=2000):
+    def forward_generator(self, observations, block_size=None):
         """
         Compute the forward variables at each time step. Instead of computing
         in the log domain, we normalise at each step, which is faster for
@@ -434,7 +434,8 @@ class HiddenMarkovModel(object):
 
         :param observations: observations to compute the forward variables for
         :param block_size:   block size for the blockwise computation of
-                             observation densities.
+                             observation densities. If None, all observation
+                             densities will be computed at once
         :returns:            2D numpy array containing the forward variables
 
         """
@@ -456,13 +457,17 @@ class HiddenMarkovModel(object):
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.
-        cdef unsigned int prev_pointer, state, obs_start, obs_end, frame
+        cdef unsigned int prev_pointer, state
+        cdef unsigned int obs_start, obs_end, frame, block_sz
         cdef double prob_sum, norm_factor
 
         # keep track which observations om_densitites currently contains
         # obs_start is the first observation index, obs_end the last one
         obs_start = 0
         obs_end = 0
+
+        # compute everything at once if block_size was set to None
+        block_sz = num_observations if block_size is None else block_size
 
         # iterate over all observations
         for frame in range(num_observations):
@@ -475,7 +480,7 @@ class HiddenMarkovModel(object):
             # check if we have to compute another block of observation densities
             if frame >= obs_end:
                 obs_start = frame
-                obs_end = obs_start + block_size
+                obs_end = obs_start + block_sz
                 om_densities = om.densities(observations[obs_start:obs_end])
 
             # iterate over all states
@@ -485,7 +490,8 @@ class HiddenMarkovModel(object):
                     fwd_cur[state] += fwd_prev[tm_states[prev_pointer]] * \
                                       tm_probabilities[prev_pointer]
                 # multiply with the observation probability
-                fwd_cur[state] *= om_densities[frame - obs_start, om_pointers[state]]
+                fwd_cur[state] *= om_densities[frame - obs_start,
+                                               om_pointers[state]]
                 prob_sum += fwd_cur[state]
             # normalise
             norm_factor = 1. / prob_sum
