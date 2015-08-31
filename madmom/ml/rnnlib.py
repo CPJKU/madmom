@@ -811,6 +811,8 @@ class RnnlibConfig(object):
         self.rand_seed = 0
         self.noise = 0
         self.weight_noise = 0
+        self.l1 = 0
+        self.l2 = 0
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -992,6 +994,8 @@ class RnnlibConfig(object):
         f.write('randSeed %s\n' % str(self.rand_seed))
         f.write('inputNoiseDev %s\n' % str(self.noise))
         f.write('weightDistortion %s\n' % str(self.weight_noise))
+        f.write('l1 %s\n' % str(self.l1))
+        f.write('l2 %s\n' % str(self.l2))
         if len(self.train_files) > 0:
             f.write('trainFile %s\n' % ",".join(self.train_files))
         if len(self.val_files) > 0:
@@ -1240,18 +1244,18 @@ def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
             Activations(activations[0], fps=fps).save(act_file)
 
 
-def create_config(files, config, out_dir, folds=8, randomize=False,
+def create_config(files, config, out_dir, num_folds=8, randomize=False,
                   bidirectional=True, task='classification', learn_rate=1e-5,
                   layer_sizes=[25, 25, 25], layer_type='lstm', momentum=0.9,
-                  optimizer='steepest', splits=None, noise=0,
-                  weight_noise=0):
+                  optimizer='steepest', splits=None, noise=0, weight_noise=0,
+                  l1=0, l2=0):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
     :param files:         use these .nc files
     :param config:        common base name for the config files
     :param out_dir:       output directory for config files
-    :param folds:         number of folds
+    :param num_folds:     number of folds
     :param randomize:     shuffle files before creating splits
     :param bidirectional: use bidirectional neural networks
     :param task:          neural network task
@@ -1263,6 +1267,8 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
     :param splits:        use pre-defined folds from splits folder
     :param noise:         add noise to inputs
     :param weight_noise:  add noise to weights
+    :param l1:            L1 regularisation
+    :param l2:            L2 regularisation
 
     """
     from madmom.utils import search_files
@@ -1284,15 +1290,15 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
         import random
         random.shuffle(files)
     # splits into N parts
-    splittings = []
-    for n in range(folds):
-        splittings.append([])
+    folds = []
+    for n in range(num_folds):
+        folds.append([])
     if isinstance(splits, list):
         # we got a list of splits folders
         from madmom.utils import search_files, match_file
         for split in splits:
             folds = search_files(split, '.fold')
-            if len(folds) != len(splittings):
+            if len(folds) != len(folds):
                 raise ValueError('number of folds must match.')
             for fold, fold_file in enumerate(folds):
                 with open(fold_file, 'r') as s:
@@ -1300,33 +1306,31 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
                         line = line.strip()
                         nc_file = match_file(line, files, match_suffix='.nc')
                         try:
-                            splittings[fold].append(str(nc_file[0]))
+                            folds[fold].append(str(nc_file[0]))
                         except IndexError:
-                            print("can't find .nc file for file: "
-                                             "%s" % line)
+                            print("can't find .nc file for file: %s" % line)
     else:
         # use a standard splits
-        for fold in range(folds):
-            splittings[fold] = [f for i, f in enumerate(files)
-                                if i % folds == fold]
-            if not splittings[fold]:
-                raise ValueError('not enough files for %d folds.' % folds)
-    # set the number of folds
-    folds = len(splittings)
+        for fold in range(num_folds):
+            folds[fold] = [f for i, f in enumerate(files)
+                                if i % num_folds == fold]
+            if not folds[fold]:
+                raise ValueError('not enough files for %d folds.' % num_folds)
     # create the rnnlib_config files
-    if folds < 3:
+    if num_folds < 3:
         raise ValueError('cannot create splits with less than 3 folds.')
     for i in range(folds):
         rnnlib_config = RnnlibConfig()
-        test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
-        val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
-        train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
+        all_folds = np.arange(i, i + num_folds)
+        test_fold = np.nonzero(all_folds % num_folds == 0)[0]
+        val_fold = np.nonzero(all_folds % num_folds == 1)[0]
+        train_fold = np.nonzero(all_folds % num_folds >= 2)[0]
         # assign the sets
-        rnnlib_config.test_files = splittings[int(test_fold)]
-        rnnlib_config.val_files = splittings[int(val_fold)]
+        rnnlib_config.test_files = folds[int(test_fold)]
+        rnnlib_config.val_files = folds[int(val_fold)]
         rnnlib_config.train_files = []
         for j in train_fold.tolist():
-            rnnlib_config.train_files.extend(splittings[j])
+            rnnlib_config.train_files.extend(folds[j])
         rnnlib_config.task = task
         rnnlib_config.bidirectional = bidirectional
         rnnlib_config.learn_rate = learn_rate
@@ -1336,6 +1340,8 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
         rnnlib_config.optimizer = optimizer
         rnnlib_config.noise = noise
         rnnlib_config.weight_noise = weight_noise
+        rnnlib_config.l1 = l1
+        rnnlib_config.l2 = l2
         rnnlib_config.save('%s_%s' % (out_file, i + 1))
 
 
@@ -1526,7 +1532,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         # split files
         if split is None:
             # create a .nc file
-            create_nc_file(nc_file + '.nc', nc_data, targets, tags)
+            create_nc_file(nc_file + '.beats.nc', nc_data, targets, tags)
         else:
             # length of one part
             length = int(split * fps)
@@ -1628,6 +1634,10 @@ def main():
                     help='add noise to input [default=%(default).2f]')
     sp.add_argument('--weight_noise', default=0, type=float,
                     help='add noise to weight [default=%(default).2f]')
+    sp.add_argument('--l1', default=0, type=float,
+                    help='L1 regularisation [default=%(default).2f]')
+    sp.add_argument('--l2', default=0, type=float,
+                    help='L2 regularisation [default=%(default).2f]')
 
     # .nc file creation options
     sp = s.add_parser('create', help='.nc file creation help', description="""
