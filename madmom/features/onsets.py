@@ -7,20 +7,14 @@ This file contains onset detection related functionality.
 
 """
 
-import glob
-
 import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom import MODELS_PATH
-from madmom.processors import Processor, SequentialProcessor
-from madmom.ml.rnn import RNNProcessor, average_predictions
-from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import (Spectrogram, SpectrogramDifference,
-                                      LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      StackedSpectrogramProcessor)
+from madmom.processors import Processor
+from madmom.audio.signal import smooth as smooth_signal
+from madmom.audio.spectrogram import SpectrogramDifference
+
 
 EPSILON = 1e-6
 
@@ -183,13 +177,14 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
 
 # TODO: should this be its own class so that we can set the filter
 #       sizes in seconds instead of frames?
-def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
-                 temporal_origin=0):
+def complex_flux(spectrogram, diff_frames=None, diff_max_bins=3,
+                 temporal_filter=3, temporal_origin=0):
     """
     Complex Flux with a local group delay based tremolo suppression.
 
     :param spectrogram:     Spectrogram instance
     :param diff_frames:     number of frames to calculate the diff to [int]
+    :param diff_max_bins:   number of bins used for maximum filter [int]
     :param temporal_filter: temporal maximum filtering of the local group delay
     :param temporal_origin: origin of the temporal maximum filter
     :return:                complex flux onset detection function
@@ -237,6 +232,7 @@ def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
         mask = minimum_filter(lgd, size=[1, 3])
     # sum all positive 1st order max. filtered and weighted differences
     return np.sum(spectrogram.diff(diff_frames=diff_frames,
+                                   diff_max_bins=diff_max_bins,
                                    positive_diffs=True) * mask, axis=1)
 
 

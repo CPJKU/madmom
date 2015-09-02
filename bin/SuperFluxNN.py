@@ -50,7 +50,7 @@ def main():
     ActivationsProcessor.add_arguments(p)
     # add signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
+    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
     FilteredSpectrogramProcessor.add_arguments(p, num_bands=24, fmin=30,
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)

@@ -1206,8 +1206,8 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         Creates a new StackedSpectrogramProcessor instance.
 
         :param frame_size:  list with frame sizes [list of int]
-        :param spectrogram: Spectrogram processor instance
-        :param difference:  SpectrogramDifference processor instance; if given
+        :param spectrogram: SpectrogramProcessor instance
+        :param difference:  SpectrogramDifferenceProcessor instance; if given
                             the differences of the spectrogram(s) are stacked
                             as well
         :param stack:       stacking function to be used

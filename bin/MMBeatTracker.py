@@ -16,7 +16,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
-from madmom.ml.rnn import RNNProcessor, average_predictions
+from madmom.ml.rnn import RNNProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import (DBNBeatTrackingProcessor,
                                    MultiModelSelectionProcessor)
@@ -98,26 +98,20 @@ def main():
                                             online=False, **vars(args))
         # process everything with an RNN and select the best predictions
         rnn = RNNProcessor(**vars(args))
-        if args.nn_ref_files is not None:
-            if args.nn_ref_files is True:
-                # FIXME: this is kind of hackish, but being able to simply set
-                #        the nn_ref_files to 'True' makes the arguments stuff
-                #        for the MMBeatTracker much simpler
-                args.nn_ref_files = args.nn_files
-            if args.nn_ref_files == args.nn_files:
-                # if we don't have nn_ref_files given or they are the same as
-                # the nn_files, set num_ref_predictions to 0
-                num_ref_predictions = 0
-            else:
-                # set the number of reference files according to the length
-                num_ref_predictions = len(args.nn_ref_files)
-                # redefine the list of files to be tested
-                args.nn_files = args.nn_ref_files + args.nn_files
-            # define the selector
-            selector = MultiModelSelectionProcessor(num_ref_predictions)
+        if args.nn_ref_files is None:
+            # set the nn_ref_files the same as the nn_files, i.e. average them
+            args.nn_ref_files = args.nn_files
+        if args.nn_ref_files == args.nn_files:
+            # if we don't have nn_ref_files given or they are the same as
+            # the nn_files, set num_ref_predictions to 0
+            num_ref_predictions = 0
         else:
-            # use simple averaging
-            selector = average_predictions
+            # set the number of reference files according to the length
+            num_ref_predictions = len(args.nn_ref_files)
+            # redefine the list of files to be tested
+            args.nn_files = args.nn_ref_files + args.nn_files
+        # define the selector
+        selector = MultiModelSelectionProcessor(num_ref_predictions)
         # sequentially process everything
         in_processor = [sig, stack, rnn, selector]
 

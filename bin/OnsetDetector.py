@@ -46,7 +46,8 @@ def main():
                                                fmax=17000, norm_filters=True)
     # TODO: make sure newer models are trained with mul=1
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=5, add=1)
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+    # TODO: make sure newer models are trained with diff_ratio=0.5
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.25,
                                                  positive_diffs=True)
     # RNN processing arguments
     RNNProcessor.add_arguments(p, nn_files=NN_FILES)
