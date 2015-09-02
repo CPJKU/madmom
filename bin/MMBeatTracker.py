@@ -5,11 +5,24 @@
 
 """
 
+import glob
 import argparse
 
+from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      StackedSpectrogramProcessor)
+from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
+from madmom.features.beats import (DBNBeatTrackingProcessor,
+                                   MultiModelSelectionProcessor)
+
+NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
+NN_REF_FILES = None
 
 
 def main():
@@ -38,11 +51,31 @@ def main():
     ''')
     # version
     p.add_argument('--version', action='version', version='MMBeatTracker.2015')
-    # add arguments
+    # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
-    # TODO: replace this hack nn_ref_files=True hack with a proper solution
-    RNNBeatProcessor.add_arguments(p, nn_ref_files=True)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=100,
+                                        frame_size=[1024, 2048, 4096])
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=3, fmin=30,
+                                               fmax=17000, norm_filters=True)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 positive_diffs=True)
+    # RNN processing arguments (including option for reference files)
+    g = RNNProcessor.add_arguments(p, nn_files=NN_FILES)
+    g.add_argument('--nn_ref_files', action='append', type=str,
+                   default=NN_REF_FILES,
+                   help='Compare the predictions to these pre-trained '
+                        'neural networks (multiple files can be'
+                        'given, one file per argument) and choose the '
+                        'most suitable one accordingly (i.e. the one '
+                        'with the least deviation form the reference '
+                        'model). If multiple reference files are'
+                        'given, the predictions of the networks are '
+                        'averaged first.')
+    # beat tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p)
     # parse arguments
     args = p.parse_args()
@@ -51,17 +84,42 @@ def main():
     if args.verbose:
         print args
 
-    # TODO: remove this hack!
-    args.fps = 100
-
     # input processor
     if args.load:
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # process the signal with a RNN tp predict the beats
-        # Note: this also includes the multi-model extension
-        in_processor = RNNBeatProcessor(**vars(args))
+        # define processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        # we need to define how specs and diffs should be stacked
+        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+        diff = SpectrogramDifferenceProcessor(**vars(args))
+        stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
+                                            online=False, **vars(args))
+        # process everything with an RNN and select the best predictions
+        rnn = RNNProcessor(**vars(args))
+        if args.nn_ref_files is not None:
+            if args.nn_ref_files is True:
+                # FIXME: this is kind of hackish, but being able to simply set
+                #        the nn_ref_files to 'True' makes the arguments stuff
+                #        for the MMBeatTracker much simpler
+                args.nn_ref_files = args.nn_files
+            if args.nn_ref_files == args.nn_files:
+                # if we don't have nn_ref_files given or they are the same as
+                # the nn_files, set num_ref_predictions to 0
+                num_ref_predictions = 0
+            else:
+                # set the number of reference files according to the length
+                num_ref_predictions = len(args.nn_ref_files)
+                # redefine the list of files to be tested
+                args.nn_files = args.nn_ref_files + args.nn_files
+            # define the selector
+            selector = MultiModelSelectionProcessor(num_ref_predictions)
+        else:
+            # use simple averaging
+            selector = average_predictions
+        # sequentially process everything
+        in_processor = [sig, stack, rnn, selector]
 
     # output processor
     if args.save:

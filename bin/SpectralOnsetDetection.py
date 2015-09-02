@@ -10,13 +10,13 @@ Spectral onset detection script.
 import argparse
 
 from madmom.processors import IOProcessor, io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (ShortTimeFourierTransformProcessor,
                                       SpectrogramProcessor,
                                       FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
+from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 

@@ -7,18 +7,10 @@ This file contains all beat tracking related functionality.
 
 """
 
-import sys
-import glob
-
 import numpy as np
 
-from madmom import MODELS_PATH
-from madmom.processors import Processor, SequentialProcessor
-from madmom.audio.signal import SignalProcessor, smooth as smooth_signal
-from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      StackedSpectrogramProcessor)
-from madmom.ml.rnn import RNNProcessor, average_predictions
+from madmom.processors import Processor
+from madmom.audio.signal import smooth as smooth_signal
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
@@ -57,6 +49,7 @@ class MultiModelSelectionProcessor(Processor):
               the list of given predictions
 
         """
+        from madmom.ml.rnn import average_predictions
         # TODO: right now we only have 1D predictions, what to do with
         #       multi-dim?
         num_refs = self.num_ref_predictions
@@ -86,113 +79,6 @@ class MultiModelSelectionProcessor(Processor):
         return best_prediction.ravel()
 
 
-class RNNBeatProcessor(SequentialProcessor):
-    """
-    Class for predicting beats with a recurrent neural network (RNN).
-
-    """
-    NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
-    NN_REF_FILES = None
-
-    def __init__(self, nn_files=NN_FILES, nn_ref_files=NN_REF_FILES, **kwargs):
-        """
-        Use (multiple) RNNs to predict a beat activation function.
-
-        :param nn_files:    list of RNN model files
-        :param ref_nn_file: list of files that define the reference NN model
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx), 2011
-
-        If `nn_ref_files` are set, the most appropriate model is chosen
-        according to the method described in:
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
-
-        If `nn_ref_files` is 'True' or identical to `ref_files`, the averaged
-        predictions of the `ref_files` are used as the reference the individual
-        predictions are compared to.
-
-        """
-        # FIXME: remove this hack of setting fps and the other stuff here!
-        #        all information should be stored in the nn_files or in a
-        #        pickled Processor (including information about spectrograms,
-        #        mul, add & diff_ratio and so on)
-        kwargs['fps'] = self.fps = 100
-        # processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        # we need to define how specs and diffs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=3,
-                                                       norm_filters=True,
-                                                       mul=1, add=1)
-        diff = SpectrogramDifferenceProcessor(diff_ratio=0.5,
-                                              positive_diffs=True)
-        # stack specs with the given frame sizes
-        stack = StackedSpectrogramProcessor(frame_size=[1024, 2048, 4096],
-                                            spectrogram=spec, difference=diff,
-                                            **kwargs)
-        if nn_ref_files is not None:
-            if nn_ref_files is True:
-                # FIXME: this is kind of hackish, but being able to simply set
-                #        the nn_ref_files to 'True' makes the arguments stuff
-                #        for the MMBeatTracker much simpler
-                nn_ref_files = nn_files
-            if nn_ref_files == nn_files:
-                # if we don't have nn_ref_files given or they are the same as
-                # the nn_files, set num_ref_predictions to 0
-                num_ref_predictions = 0
-            else:
-                # set the number of reference files according to the length
-                num_ref_predictions = len(nn_ref_files)
-                # redefine the list of files to be tested
-                nn_files = nn_ref_files + nn_files
-            # define the selector
-            selector = MultiModelSelectionProcessor(num_ref_predictions)
-        else:
-            # use simple averaging
-            selector = average_predictions
-        rnn = RNNProcessor(nn_files=nn_files, **kwargs)
-        # sequentially process everything
-        super(RNNBeatProcessor, self).__init__([sig, stack, rnn, selector])
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES,
-                      nn_ref_files=NN_REF_FILES):
-        """
-        Add RNN beat tracking related arguments to an existing parser.
-
-        :param parser:       existing argparse parser
-        :param nn_files:     list of files that define the RNN
-        :param nn_ref_files: list with files of reference NN model(s)
-        :return:             RNN beat tracking parser group
-
-        """
-        # add signal processing arguments
-        SignalProcessor.add_arguments(parser, norm=False, att=0)
-        # add RNN processing arguments
-        g = RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        # add option for the reference files
-        if nn_ref_files is not None:
-            g.add_argument('--nn_ref_files', action='append', type=str,
-                           default=nn_ref_files,
-                           help='Compare the predictions to these pre-trained '
-                                'neural networks (multiple files can be'
-                                'given, one file per argument) and choose the '
-                                'most suitable one accordingly (i.e. the one '
-                                'with the least deviation form the reference '
-                                'model). If multiple reference files are'
-                                'given, the predictions of the networks are '
-                                'averaged first.')
-        # return the argument group so it can be modified if needed
-        return g
-
-
 # function for detecting the beats based on the given dominant interval
 def detect_beats(activations, interval, look_aside=0.2):
     """
@@ -214,6 +100,7 @@ def detect_beats(activations, interval, look_aside=0.2):
 
     """
     # TODO: make this faster!
+    import sys
     sys.setrecursionlimit(len(activations))
     # always look at least 1 frame to each side
     frames_look_aside = max(1, int(interval * look_aside))
@@ -729,8 +616,8 @@ class DBNBeatTrackingProcessor(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
 
-        Instead of the originally proposed transition model for the DBN, the
-        following is used:
+        Instead of the originally proposed state space and transition model
+        for the DBN, the following is used:
 
         "An efficient state space model for joint tempo and meter tracking"
         Florian Krebs, Sebastian Böck and Gerhard Widmer
@@ -895,9 +782,8 @@ class DownbeatTrackingProcessor(Processor):
     TRANSITION_LAMBDA = [100, 100]
     NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
-    GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
 
-    def __init__(self, gmm_file=GMM_FILE, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def __init__(self, gmm_file, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
                  transition_lambda=TRANSITION_LAMBDA, num_beats=NUM_BEATS,
                  norm_observations=NORM_OBSERVATIONS, downbeats=False,
@@ -944,8 +830,8 @@ class DownbeatTrackingProcessor(Processor):
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2013
 
-        Instead of the originally proposed transition model for the DBN, the
-        following is used:
+        Instead of the originally proposed state space and transition model
+        for the DBN, the following is used:
 
         "An efficient state space model for joint tempo and meter tracking"
         Florian Krebs, Sebastian Böck and Gerhard Widmer
@@ -963,7 +849,7 @@ class DownbeatTrackingProcessor(Processor):
         if not isinstance(num_tempo_states, list):
             num_tempo_states = [num_tempo_states] * len(num_tempo_states)
         if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * len(beat_states)
+            transition_lambda = [transition_lambda] * len(num_tempo_states)
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
                 len(transition_lambda) == len(num_beats)):
@@ -1020,15 +906,18 @@ class DownbeatTrackingProcessor(Processor):
             return zip(beats, beat_numbers)
 
     @classmethod
-    def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def add_arguments(cls, parser, gmm_file, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempo_states=NUM_TEMPO_STATES,
-                      transition_lambda=TRANSITION_LAMBDA,
-                      num_beats=NUM_BEATS,
+                      transition_lambda=TRANSITION_LAMBDA, num_beats=NUM_BEATS,
                       norm_observations=NORM_OBSERVATIONS):
         """
         Add HMM related arguments to an existing parser.
 
         :param parser:            existing argparse parser
+
+        Parameters for the GMMs:
+
+        :param gmm_file:          load the fitted GMMs from this file
 
         Parameters for the transition model:
 
@@ -1054,6 +943,10 @@ class DownbeatTrackingProcessor(Processor):
 
         """
         from madmom.utils import OverrideDefaultListAction
+        # add GMM options
+        g = parser.add_argument_group('GMM arguments')
+        g.add_argument('--gmm_file', action='store', default=gmm_file,
+                       help='load the fitted GMMs from this file')
         # add HMM parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         g.add_argument('--min_bpm', action=OverrideDefaultListAction,

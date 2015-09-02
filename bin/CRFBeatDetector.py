@@ -5,11 +5,23 @@
 
 """
 
+import glob
 import argparse
 
+from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      StackedSpectrogramProcessor)
+from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor, CRFBeatDetectionProcessor
+from madmom.features.beats import CRFBeatDetectionProcessor
+
+
+NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
 
 
 def main():
@@ -41,10 +53,21 @@ def main():
     # version
     p.add_argument('--version', action='version',
                    version='CRFBeatDetector.2015')
-    # add arguments
+    # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
-    RNNBeatProcessor.add_arguments(p)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=100,
+                                        frame_size=[1024, 2048, 4096])
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=3, fmin=30,
+                                               fmax=17000, norm_filters=True)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
+                                                 positive_diffs=True)
+    # RNN processing arguments
+    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
+    # beat tracking arguments
     CRFBeatDetectionProcessor.add_tempo_arguments(p)
     CRFBeatDetectionProcessor.add_arguments(p)
 
@@ -54,16 +77,23 @@ def main():
     if args.verbose:
         print args
 
-    # TODO: remove this hack!
-    args.fps = 100
-
     # input processor
     if args.load:
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # process the signal with a RNN tp predict the beats
-        in_processor = RNNBeatProcessor(**vars(args))
+        # define processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        # we need to define how specs and diffs should be stacked
+        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+        diff = SpectrogramDifferenceProcessor(**vars(args))
+        stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
+                                            online=False, **vars(args))
+        # process everything with a RNN and average the predictions
+        rnn = RNNProcessor(**vars(args))
+        avg = average_predictions
+        # sequentially process everything
+        in_processor = [sig, stack, rnn, avg]
 
     # output processor
     if args.save:

@@ -120,7 +120,8 @@ def spectral_diff(spectrogram, diff_frames=None):
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
     if not isinstance(spectrogram, SpectrogramDifference):
-        spectrogram = spectrogram.diff(diff_frames=diff_frames)
+        spectrogram = spectrogram.diff(diff_frames=diff_frames,
+                                       positive_diffs=True)
     # Spectral diff is the sum of all squared positive 1st order differences
     return np.sum(spectrogram ** 2, axis=1)
 
@@ -140,7 +141,8 @@ def spectral_flux(spectrogram, diff_frames=None):
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
     if not isinstance(spectrogram, SpectrogramDifference):
-        spectrogram = spectrogram.diff(diff_frames=diff_frames)
+        spectrogram = spectrogram.diff(diff_frames=diff_frames,
+                                       positive_diffs=True)
     # Spectral flux is the sum of all positive 1st order differences
     return np.sum(spectrogram, axis=1)
 
@@ -234,7 +236,8 @@ def complex_flux(spectrogram, diff_frames=None, temporal_filter=3,
         # covering only the current bin and its neighbours
         mask = minimum_filter(lgd, size=[1, 3])
     # sum all positive 1st order max. filtered and weighted differences
-    return np.sum(spectrogram.diff(diff_frames=diff_frames) * mask, axis=1)
+    return np.sum(spectrogram.diff(diff_frames=diff_frames,
+                                   positive_diffs=True) * mask, axis=1)
 
 
 def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
@@ -481,67 +484,6 @@ class SpectralOnsetProcessor(Processor):
                                 '[default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
-
-
-class RNNOnsetProcessor(SequentialProcessor):
-    """
-    Class for predicting onsets with a recurrent neural network (RNN).
-
-    """
-    BI_FILES = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
-    UNI_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
-    ONLINE = False
-
-    def __init__(self, nn_files=BI_FILES, online=ONLINE, **kwargs):
-        """
-        Processor for finding possible onset positions in a signal.
-
-        :param nn_files:  list of RNN model files
-        :param online:    use online mode
-
-        """
-        # FIXME: remove this hack of setting fps and the other stuff here!
-        #        all information should be stored in the nn_files or in a
-        #        pickled Processor (including information about spectrograms,
-        #        mul, add & diff_ratio and so on)
-        kwargs['fps'] = self.fps = 100
-        # processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        # we need to define how specs and diffs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=6,
-                                                       norm_filters=True,
-                                                       mul=5, add=1)
-        diff = SpectrogramDifferenceProcessor(diff_ratio=0.25,
-                                              positive_diffs=True)
-        # stack specs with the given frame sizes and online mode
-        frame_sizes = [512, 1024, 2048] if online else [1024, 2048, 4096]
-        stack = StackedSpectrogramProcessor(frame_size=frame_sizes,
-                                            spectrogram=spec, difference=diff,
-                                            online=online, **kwargs)
-        rnn = RNNProcessor(nn_files=nn_files, **kwargs)
-        avg = average_predictions
-        # sequentially process everything
-        super(RNNOnsetProcessor, self).__init__([sig, stack, rnn, avg])
-
-    @classmethod
-    def add_arguments(cls, parser, online=ONLINE):
-        """
-        Add RNN onset detection related arguments to an existing parser.
-
-        :param parser:    existing argparse parser
-        :param online:    settings for online mode (OnsetDetectorLL)
-
-        """
-        if online:
-            nn_files = cls.UNI_FILES
-            norm = None
-        else:
-            nn_files = cls.BI_FILES
-            norm = False
-        # add signal processing arguments
-        SignalProcessor.add_arguments(parser, norm=norm, att=0)
-        # add RNN processing arguments
-        RNNProcessor.add_arguments(parser, nn_files=nn_files)
 
 
 # universal peak-picking method
@@ -815,64 +757,3 @@ class PeakPickingProcessor(Processor):
                                 '[default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
-
-
-class NNPeakPickingProcessor(SequentialProcessor):
-    """
-    Class for peak-picking with neural networks.
-
-    """
-    NN_FILES = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" % MODELS_PATH)
-    FPS = 100
-    THRESHOLD = 0.4
-    SMOOTH = 0.07
-    COMBINE = 0.04
-    DELAY = 0
-
-    def __init__(self, nn_files=NN_FILES, threshold=THRESHOLD, smooth=SMOOTH,
-                 combine=COMBINE, delay=DELAY, fps=FPS, **kwargs):
-        """
-        Creates a new NNSpectralOnsetDetection instance.
-
-        :param nn_files:  neural network files with models for peak-picking
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param combine:   only report one onset within N seconds
-        :param delay:     report onsets N seconds delayed
-
-        "Enhanced peak picking for onset detection with recurrent neural
-         networks"
-        Sebastian Böck, Jan Schlüter and Gerhard Widmer
-        Proceedings of the 6th International Workshop on Machine Learning and
-        Music (MML), 2013.
-
-        """
-        # first perform RNN processing and averaging, then onset peak-picking
-        rnn = RNNProcessor(nn_files=nn_files, num_threads=1)
-        avg = average_predictions
-        pp = PeakPickingProcessor(threshold=threshold, smooth=smooth,
-                                  pre_max=1. / fps, post_max=1. / fps,
-                                  combine=combine, delay=delay, fps=fps)
-        # make this an SequentialProcessor by defining the processing chain
-        super(NNPeakPickingProcessor, self).__init__([rnn, avg, pp])
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES, threshold=THRESHOLD,
-                      smooth=SMOOTH, combine=COMBINE, delay=DELAY):
-        """
-        Add peak-picking related arguments to an existing parser object.
-
-        :param parser:    existing argparse parser object
-        :param nn_files:  list with files of RNN models
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param combine:   only report one event within N seconds
-        :param delay:     report events N seconds delayed
-        :return:          peak-picking argument parser group object
-
-        """
-        # add RNN parser arguments (but without number of threads)
-        RNNProcessor.add_arguments(parser, nn_files=nn_files)
-        PeakPickingProcessor.add_arguments(parser, threshold=threshold,
-                                           smooth=smooth, combine=combine,
-                                           delay=delay)

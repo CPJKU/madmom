@@ -7,18 +7,9 @@ This file contains note transcription related functionality.
 
 """
 
-import glob
-
 import numpy as np
 
-from madmom import MODELS_PATH
 from madmom.utils import suppress_warnings, open
-from madmom.processors import SequentialProcessor
-from madmom.audio.signal import SignalProcessor
-from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      StackedSpectrogramProcessor)
-from madmom.ml.rnn import RNNProcessor, average_predictions
 
 
 @suppress_warnings
@@ -100,61 +91,10 @@ def write_frequencies(notes, filename, note_length=0.6):
 
 def note_reshaper(notes):
     """
+    Reshapes the activations produced by a RNN to ave the right shape.
 
     :param notes: numpy array with note activations
     :return:      reshaped array to represent the 88 MIDI notes
 
     """
     return notes.reshape(-1, 88)
-
-
-class RNNNoteProcessor(SequentialProcessor):
-    """
-    Class for detecting notes with a recurrent neural network (RNN).
-
-    """
-    # NN model files
-    NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
-
-    def __init__(self, nn_files=NN_FILES, **kwargs):
-        """
-        Processor for finding possible notes positions in a signal.
-
-        :param nn_files: list of RNN model files
-
-        """
-        # FIXME: remove this hack of setting fps here
-        #        all information should be stored in the nn_files or in a
-        #        pickled Processor (including information about spectrograms,
-        #        mul, add & diff_ratio and so on)
-        kwargs['fps'] = self.fps = 100
-        # processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **kwargs)
-        # we need to define how specs and diffs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(num_bands=12,
-                                                       norm_filters=True,
-                                                       mul=5, add=1)
-        diff = SpectrogramDifferenceProcessor(diff_ratio=0.5,
-                                              positive_diffs=True)
-        # stack specs with the given frame sizes
-        stack = StackedSpectrogramProcessor(frame_size=[1024, 2048, 4096],
-                                            spectrogram=spec, difference=diff,
-                                            **kwargs)
-        rnn = RNNProcessor(nn_files=nn_files, **kwargs)
-        avg = average_predictions
-        reshape = note_reshaper
-        # sequentially process everything
-        super(RNNNoteProcessor, self).__init__([sig, stack, rnn, avg, reshape])
-
-    @classmethod
-    def add_arguments(cls, parser, nn_files=NN_FILES):
-        """
-        Add note transcription related arguments to an existing parser.
-
-        :param parser:    existing argparse parser
-        :param nn_files:  list with files of NN models
-        :return:          note argument parser group
-
-        """
-        # add RNN processing arguments
-        RNNProcessor.add_arguments(parser, nn_files=nn_files)

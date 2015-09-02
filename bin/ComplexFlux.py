@@ -10,13 +10,13 @@ ComplexFlux onset detection algorithm.
 import argparse
 
 from madmom.processors import IOProcessor, io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (ShortTimeFourierTransformProcessor,
                                       FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       LogarithmicFilteredSpectrogramProcessor)
+from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
@@ -47,7 +47,8 @@ def main():
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
-                                                 diff_max_bins=3)
+                                                 diff_max_bins=3,
+                                                 positive_diffs=True)
     PeakPickingProcessor.add_arguments(p, threshold=1.1, pre_max=0.01,
                                        post_max=0.05, pre_avg=0.15, post_avg=0,
                                        combine=0.03, delay=0)
