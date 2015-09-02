@@ -5,16 +5,21 @@
 
 """
 
+import glob
 import argparse
 
+from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       MultiBandSpectrogramProcessor)
+from madmom.features import ActivationsProcessor
 from madmom.features.beats import DownbeatTrackingProcessor
+
+
+GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
 
 
 def main():
@@ -32,8 +37,8 @@ def main():
     Proceedings of the 14th International Society for Music Information
     Retrieval Conference (ISMIR), 2013.
 
-    Instead of the originally proposed transition model for the DBN, the
-    following is used:
+    Instead of the originally proposed state space and transition model for the
+    DBN, the following is used:
 
     "An efficient state space model for joint tempo and meter tracking"
     Florian Krebs, Sebastian Böck and Gerhard Widmer
@@ -55,7 +60,8 @@ def main():
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
                                                  positive_diffs=True)
     MultiBandSpectrogramProcessor.add_arguments(p, crossover_frequencies=[270])
-    DownbeatTrackingProcessor.add_arguments(p, num_beats=None)
+    DownbeatTrackingProcessor.add_arguments(p, gmm_file=GMM_FILE,
+                                            num_beats=None)
     # parse arguments
     args = p.parse_args()
     # print arguments

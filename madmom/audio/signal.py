@@ -967,12 +967,11 @@ class FramedSignalProcessor(Processor):
     FRAME_SIZE = 2048
     HOP_SIZE = 441.
     FPS = 100.
-    ONLINE = False
     START = 0
     END_OF_SIGNAL = 'normal'
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
-                 online=ONLINE, end=END_OF_SIGNAL, **kwargs):
+                 online=False, end=END_OF_SIGNAL, **kwargs):
         """
         Creates a new FramedSignalProcessor instance.
 
@@ -1025,7 +1024,7 @@ class FramedSignalProcessor(Processor):
 
     @classmethod
     def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,
-                      online=ONLINE):
+                      online=None):
         """
         Add signal framing related arguments to an existing parser.
 
@@ -1056,9 +1055,11 @@ class FramedSignalProcessor(Processor):
         if fps is not None:
             g.add_argument('--fps', action='store', type=float, default=fps,
                            help='frames per second [default=%(default).1f]')
-        if online is not None:
+        if online is False:
             g.add_argument('--online', dest='online', action='store_true',
-                           default=online,
-                           help='operate in online mode [default=%(default)s]')
+                           help='operate in online mode [default=offline]')
+        elif online is True:
+            g.add_argument('--offline', dest='online', action='store_false',
+                           help='operate in offline mode [default=online]')
         # return the argument group so it can be modified if needed
         return g

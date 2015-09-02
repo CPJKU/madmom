@@ -5,13 +5,25 @@
 
 """
 
+import glob
 import argparse
 
+from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      LogarithmicFilteredSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor,
+                                      StackedSpectrogramProcessor)
+from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.notes import (RNNNoteProcessor, write_midi, write_notes,
-                                   write_frequencies)
 from madmom.features.onsets import PeakPickingProcessor
+from madmom.features.notes import (write_midi, write_notes, write_frequencies,
+                                   note_reshaper)
+
+
+NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
 
 
 def main():
@@ -34,10 +46,21 @@ def main():
     # version
     p.add_argument('--version', action='version',
                    version='PianoTranscriptor.2014')
-    # add arguments
+    # input/output arguments
     io_arguments(p, output_suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)
-    RNNNoteProcessor.add_arguments(p)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, norm=False, att=0)
+    FramedSignalProcessor.add_arguments(p, fps=100,
+                                        frame_size=[1024, 2048, 4096])
+    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
+                                               fmax=17000, norm_filters=True)
+    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=5, add=1)
+    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.25,
+                                                 positive_diffs=True)
+    # RNN processing arguments
+    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
+    # peak picking arguments
     PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
                                        combine=0.05)
     # midi arguments
@@ -66,8 +89,19 @@ def main():
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # use the RNN Beat processor
-        in_processor = RNNNoteProcessor(**vars(args))
+        # define processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        # we need to define how specs and diffs should be stacked
+        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+        diff = SpectrogramDifferenceProcessor(**vars(args))
+        stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
+                                            online=False, **vars(args))
+        # process everything with a RNN and average the predictions
+        rnn = RNNProcessor(**vars(args))
+        avg = average_predictions
+        reshape = note_reshaper
+        # sequentially process everything
+        in_processor = [sig, stack, rnn, avg, reshape]
 
     # output processor
     if args.save:

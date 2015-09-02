@@ -111,12 +111,15 @@ class OutputProcessor(Processor):
 def _process(process_tuple):
     """
     Function to process a Processor object (first tuple item) with the given
-    data (second tuple item).
+    data (second tuple item). The processed data is returned and if a third
+    tuple item is given, the processed data is also outputted to the given
+    output file or file handle.
 
     Instead of a Processor also a function accepting a single positional
-    argument (data) and returning the processed data can be given.
+    argument (data) or two positional arguments (data, output) and returning
+    the processed data can be given.
 
-    :param process_tuple: tuple (Processor/function, data)
+    :param process_tuple: tuple (Processor/function, data, [output])
     :return:              processed data
 
     Note: This must be a top-level function to be pickle-able.
@@ -127,7 +130,7 @@ def _process(process_tuple):
         return process_tuple[1]
     else:
         # just call whatever we got here (every Processor is callable)
-        return process_tuple[0](process_tuple[1])
+        return process_tuple[0](*process_tuple[1:])
 
 
 class SequentialProcessor(Processor):
@@ -285,7 +288,7 @@ class IOProcessor(OutputProcessor):
         #       or a function with only one argument should be accepted
         #       as output a OutputProcessor, IOProcessor or function with two
         #       arguments should be accepted
-        # wrap the input processor in a SequentialProcessor is needed
+        # wrap the input processor in a SequentialProcessor if needed
         if isinstance(in_processor, list):
             self.in_processor = SequentialProcessor(in_processor)
         else:
@@ -313,18 +316,9 @@ class IOProcessor(OutputProcessor):
 
         """
         # process the data by the input processor
-        data = _process((self.in_processor, data))
-        # TODO: unify this with _process!?
-        # further process it with the output Processor and return it
-        if self.out_processor is None:
-            # no processing needed, just return the data
-            return data
-        elif isinstance(self.out_processor, Processor):
-            # call the process method
-            return self.out_processor.process(data, output)
-        else:
-            # or simply call the function
-            return self.out_processor(data, output)
+        data = _process((self.in_processor, data, ))
+        # process the data by the output processor and return it
+        return _process((self.out_processor, data, output))
 
 
 def process_single(processor, input, output, **kwargs):

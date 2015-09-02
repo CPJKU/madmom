@@ -7,17 +7,22 @@ SuperFlux with neural network based peak picking onset detection algorithm.
 
 """
 
+import glob
 import argparse
 
+from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
-from madmom.features import ActivationsProcessor
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       SuperFluxProcessor)
-from madmom.features.onsets import (SpectralOnsetProcessor,
-                                    NNPeakPickingProcessor)
+from madmom.ml.rnn import RNNProcessor, average_predictions
+from madmom.features import ActivationsProcessor
+from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
+
+
+NN_FILES = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" % MODELS_PATH)
 
 
 def main():
@@ -38,20 +43,25 @@ def main():
     of 200), because it is faster and produces highly comparable results.
 
     ''')
-    # add arguments
+    # version
+    p.add_argument('--version', action='version', version='SuperFluxNN')
+    # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
+    # add signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=200, online=False)
+    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
     FilteredSpectrogramProcessor.add_arguments(p, num_bands=24, fmin=30,
                                                fmax=17000, norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
                                                  diff_max_bins=3,
                                                  positive_diffs=True)
-    NNPeakPickingProcessor.add_arguments(p)
-    # version
-    p.add_argument('--version', action='version', version='SuperFluxNN')
+    # RNN processing arguments
+    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
+    # peak picking arguments
+    PeakPickingProcessor.add_arguments(p, threshold=0.4, smooth=0.07,
+                                       combine=0.04, delay=0)
     # parse arguments
     args = p.parse_args()
     # print arguments
@@ -75,11 +85,13 @@ def main():
         # save the Onset activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # perform peak picking of the onset function with a RNN
-        peak_picking = NNPeakPickingProcessor(**vars(args))
+        # perform RNN processing, averaging and peak-picking
+        rnn = RNNProcessor(**vars(args))
+        avg = average_predictions
+        pp = PeakPickingProcessor(**vars(args))
         from madmom.utils import write_events as writer
         # sequentially process them
-        out_processor = [peak_picking, writer]
+        out_processor = [rnn, avg, pp, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

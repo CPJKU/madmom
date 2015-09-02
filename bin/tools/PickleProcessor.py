@@ -28,7 +28,7 @@ def main():
                         help='pickled processor')
     parser.add_argument('--version', action='version',
                         version='PickleProcessor v0.1')
-    io_arguments(parser, output_suffix='.pkl')
+    io_arguments(parser, output_suffix='.txt')
 
     # parse arguments
     args = parser.parse_args()
