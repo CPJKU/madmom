@@ -612,10 +612,9 @@ class LogarithmicSpectrogramProcessor(Processor):
         # log
         if log is True:
             g.add_argument('--linear', dest='log', action='store_false',
-                           default=log,
                            help='linear magnitudes [default=logarithmic]')
         elif log is False:
-            g.add_argument('--log', action='store_true', default=-log,
+            g.add_argument('--log', action='store_true',
                            help='logarithmic magnitudes [default=linear]')
         # mul
         if mul is not None:

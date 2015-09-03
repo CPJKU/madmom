@@ -10,18 +10,13 @@ import argparse
 
 from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
-                                      LogarithmicSpectrogramProcessor,
-                                      LogarithmicFilteredSpectrogramProcessor,
+from madmom.audio.signal import SignalProcessor
+from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import PeakPickingProcessor
-
-
-NN_FILES = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
 
 
 def main():
@@ -60,21 +55,32 @@ def main():
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=100,
-                                        frame_size=[512, 1024, 2048])
-    FilteredSpectrogramProcessor.add_arguments(p, num_bands=6, fmin=30,
-                                               fmax=17000, norm_filters=True)
-    # TODO: make sure newer models are trained with mul=1
-    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=5, add=1)
-    # TODO: make sure newer models are trained with diff_ratio=0.5
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.25,
-                                                 positive_diffs=True)
-    # RNN processing arguments
-    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
     # peak picking arguments
     PeakPickingProcessor.add_arguments(p, threshold=0.23)
+
     # parse arguments
     args = p.parse_args()
+
+    # set immutable defaults
+    args.num_channels = 1
+    args.sample_rate = 44100
+    args.online = True
+    args.fps = 100
+    args.frame_size = [512, 1024, 2048]
+    args.num_bands = 6
+    args.fmin = 30
+    args.fmax = 17000
+    args.norm_filters = True
+    args.log = True
+    args.mul = 5
+    args.add = 1
+    args.diff_ratio = 0.25
+    args.positive_diffs = True
+    args.nn_files = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
+    args.pre_max = 1. / args.fps
+    args.post_max = 0
+    args.post_avg = 0
+
     # print arguments
     if args.verbose:
         print args
@@ -85,12 +91,12 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # define processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        sig = SignalProcessor(**vars(args))
         # we need to define how specs and diffs should be stacked
         spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
         diff = SpectrogramDifferenceProcessor(**vars(args))
         stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
-                                            online=True, **vars(args))
+                                            **vars(args))
         # process everything with an RNN and average the predictions
         rnn = RNNProcessor(**vars(args))
         avg = average_predictions
@@ -103,8 +109,7 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # perform peak picking on the onset activations
-        peak_picking = PeakPickingProcessor(pre_max=1. / args.fps, post_max=0,
-                                            post_avg=0, **vars(args))
+        peak_picking = PeakPickingProcessor(**vars(args))
         # output handler
         from madmom.utils import write_events as writer
         # sequentially process them

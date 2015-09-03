@@ -23,9 +23,6 @@ from madmom.features.notes import (write_midi, write_notes, write_frequencies,
                                    note_reshaper)
 
 
-NN_FILES = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
-
-
 def main():
     """PianoTranscriptor.2014"""
 
@@ -50,16 +47,7 @@ def main():
     io_arguments(p, output_suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=100,
-                                        frame_size=[1024, 2048, 4096])
-    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
-                                               fmax=17000, norm_filters=True)
-    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=5, add=1)
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.25,
-                                                 positive_diffs=True)
-    # RNN processing arguments
-    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
+    SignalProcessor.add_arguments(p, norm=False, att=0, start=True, stop=True)
     # peak picking arguments
     PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
                                        combine=0.05)
@@ -74,9 +62,30 @@ def main():
 
     # parse arguments
     args = p.parse_args()
+
+    # set immutable defaults
+    args.num_channels = 1
+    args.sample_rate = 44100
+    args.online = True
+    args.fps = 100
+    args.frame_size = [1024, 2048, 4096]
+    args.num_bands = 12
+    args.fmin = 30
+    args.fmax = 17000
+    args.norm_filters = True
+    args.log = True
+    args.mul = 5
+    args.add = 1
+    args.diff_ratio = 0.5
+    args.positive_diffs = True
+    args.nn_files = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
+    args.pre_max = 1. / args.fps
+    args.post_max = 1. / args.fps
+
     # set the suffix for midi files
     if args.output_format == 'midi':
         args.output_suffix = '.mid'
+
     # print arguments
     if args.verbose:
         print args
@@ -90,12 +99,12 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # define processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        sig = SignalProcessor(**vars(args))
         # we need to define how specs and diffs should be stacked
         spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
         diff = SpectrogramDifferenceProcessor(**vars(args))
         stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
-                                            online=False, **vars(args))
+                                            **vars(args))
         # process everything with a RNN and average the predictions
         rnn = RNNProcessor(**vars(args))
         avg = average_predictions
@@ -109,9 +118,7 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # perform peak picking of the detection function
-        peak_picking = PeakPickingProcessor(pre_max=1. / args.fps,
-                                            post_max=1. / args.fps,
-                                            **vars(args))
+        peak_picking = PeakPickingProcessor(**vars(args))
         # output everything in the right format
         if args.output_format is None:
             output = write_notes
