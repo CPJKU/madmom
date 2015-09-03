@@ -10,18 +10,13 @@ import argparse
 
 from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
-                                      LogarithmicSpectrogramProcessor,
-                                      LogarithmicFilteredSpectrogramProcessor,
+from madmom.audio.signal import SignalProcessor
+from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import DBNBeatTrackingProcessor
-
-
-NN_FILES = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
 
 
 def main():
@@ -60,19 +55,28 @@ def main():
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=100,
-                                        frame_size=[1024, 2048, 4096])
-    FilteredSpectrogramProcessor.add_arguments(p, num_bands=3, fmin=30,
-                                               fmax=17000, norm_filters=True)
-    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
-                                                 positive_diffs=True)
-    # RNN processing arguments
-    RNNProcessor.add_arguments(p, nn_files=NN_FILES)
     # peak picking arguments
     DBNBeatTrackingProcessor.add_arguments(p)
+
     # parse arguments
     args = p.parse_args()
+
+    # set immutable defaults
+    args.num_channels = 1
+    args.sample_rate = 44100
+    args.fps = 100
+    args.frame_size = [1024, 2048, 4096]
+    args.num_bands = 3
+    args.fmin = 30
+    args.fmax = 17000
+    args.norm_filters = True
+    args.log = True
+    args.mul = 1
+    args.add = 1
+    args.diff_ratio = 0.5
+    args.positive_diffs = True
+    args.nn_files = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
+
     # print arguments
     if args.verbose:
         print args
@@ -83,12 +87,12 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # define processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100, **vars(args))
+        sig = SignalProcessor(**vars(args))
         # we need to define how specs and diffs should be stacked
         spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
         diff = SpectrogramDifferenceProcessor(**vars(args))
         stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
-                                            online=False, **vars(args))
+                                            **vars(args))
         # process everything with a RNN and average the predictions
         rnn = RNNProcessor(**vars(args))
         avg = average_predictions
