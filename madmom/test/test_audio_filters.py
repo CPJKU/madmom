@@ -93,6 +93,7 @@ class TestHz2BarkFunction(unittest.TestCase):
 
     def test_raises_warning(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             hz2bark(HZ)
 
 
@@ -100,6 +101,7 @@ class TestBark2HzFunction(unittest.TestCase):
 
     def test_raises_warning(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             bark2hz(BARK)
 
 
@@ -214,6 +216,64 @@ class TestSemitoneFrequenciesFunction(unittest.TestCase):
 
 
 # MIDI
+class TestHz2MidiFunction(unittest.TestCase):
+
+    def test_num_arguments(self):
+        # number of arguments
+        with self.assertRaises(TypeError):
+            hz2midi()
+        with self.assertRaises(TypeError):
+            hz2midi(1, 2, 3)
+
+    def test_types(self):
+        # return types
+        result = hz2midi(20, 440)
+        self.assertIsInstance(result, float)
+        result = hz2midi([20, 40], 440)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float)
+        result = hz2midi(np.arange(10, 20), 440)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float)
+
+    def test_values(self):
+        # single value
+        result = hz2midi(440, 440)
+        self.assertTrue(result == 69)
+        # 12 bands per octave
+        result = hz2midi([220, 440], 440)
+        self.assertTrue(len(result) == 2)
+        self.assertTrue(np.allclose(result, [57, 69]))
+
+
+class TestMidi2HzFunction(unittest.TestCase):
+
+    def test_num_arguments(self):
+        # number of arguments
+        with self.assertRaises(TypeError):
+            midi2hz()
+        with self.assertRaises(TypeError):
+            midi2hz(1, 2, 3)
+
+    def test_types(self):
+        # return types
+        result = midi2hz(20, 440)
+        self.assertIsInstance(result, float)
+        result = midi2hz([20, 40], 440)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float)
+        result = midi2hz(np.arange(10, 20), 440)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float)
+
+    def test_values(self):
+        # single value
+        result = midi2hz(69, 440)
+        self.assertTrue(result == 440)
+        # 12 bands per octave
+        result = midi2hz([57, 69], 440)
+        self.assertTrue(len(result) == 2)
+        self.assertTrue(np.allclose(result, [220, 440]))
 
 
 # ERB
@@ -350,6 +410,7 @@ class TestFilterClass(unittest.TestCase):
         with self.assertRaises(TypeError):
             Filter(np.arange(5), [0, 1])
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             Filter(np.zeros((10, 2)), 1)
 
     def test_value(self):
@@ -357,16 +418,22 @@ class TestFilterClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt, [0, 1, 2, 3, 4]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.stop == 5)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 4))
         filt = Filter(np.arange(5), 1)
         self.assertTrue(np.allclose(filt, [0, 1, 2, 3, 4]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 6)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 4))
 
     def test_normalization(self):
         filt = Filter(np.arange(5), norm=True)
         self.assertTrue(np.allclose(filt, [0, 0.1, 0.2, 0.3, 0.4]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.stop == 5)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 0.4))
 
     def test_pickling(self):
         f, filename = tempfile.mkstemp()
@@ -379,6 +446,7 @@ class TestFilterClass(unittest.TestCase):
 
     def test_filters_method(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             Filter(np.arange(5)).filters(3, norm=True)
 
 
@@ -387,7 +455,7 @@ class TestTriangularFilterClass(unittest.TestCase):
     bins = np.asarray([0, 1, 2, 3, 4, 6, 9])
 
     def test_types(self):
-        filt = TriangularFilter(0, 1, 2, False)
+        filt = TriangularFilter(0, 1, 2)
         self.assertIsInstance(filt, TriangularFilter)
         self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertIsInstance(filt.band_bins(np.arange(8)),
@@ -396,44 +464,44 @@ class TestTriangularFilterClass(unittest.TestCase):
     def test_errors(self):
         # integers bin numbers
         with self.assertRaises(ValueError):
-            TriangularFilter(0, 1.1, 2, False)
+            TriangularFilter(0, 1.1, 2)
         # filter bins ascending order
         with self.assertRaises(ValueError):
-            TriangularFilter(0, 2, 1, False)
+            TriangularFilter(0, 2, 1)
 
     def test_values(self):
-        filt = TriangularFilter(0, 1, 2, False)
+        filt = TriangularFilter(0, 1, 2, norm=False)
         self.assertTrue(np.allclose(filt, [0, 1]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.center == 1)
         self.assertTrue(filt.stop == 2)
-        filt = TriangularFilter(1, 2, 3, True)
+        filt = TriangularFilter(1, 2, 3, norm=True)
         self.assertTrue(np.allclose(filt, [0, 1]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 3)
-        filt = TriangularFilter(1, 2, 4, False)
+        filt = TriangularFilter(1, 2, 4, norm=False)
         self.assertTrue(np.allclose(filt, [0, 1, 0.5]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 4)
-        filt = TriangularFilter(1, 2, 4, True)
+        filt = TriangularFilter(1, 2, 4, norm=True)
         self.assertTrue(np.allclose(filt, [0, 0.66667, 0.33333]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.center == 2)
         self.assertTrue(filt.stop == 4)
-        filt = TriangularFilter(4, 6, 9, True)
+        filt = TriangularFilter(4, 6, 9, norm=True)
         self.assertTrue(np.allclose(filt, [0, 0.2, 0.4, 0.266667, 0.133333]))
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.center == 6)
         self.assertTrue(filt.stop == 9)
         # test small filters
-        filt = TriangularFilter(0, 0, 1, True)
+        filt = TriangularFilter(0, 0, 1, norm=True)
         self.assertTrue(np.allclose(filt, [1]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.center == 0)
         self.assertTrue(filt.stop == 1)
-        filt = TriangularFilter(0, 0, 1, False)
+        filt = TriangularFilter(0, 0, 1, norm=False)
         self.assertTrue(np.allclose(filt, [1]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.center == 0)
@@ -530,26 +598,27 @@ class TestRectangularFilterClass(unittest.TestCase):
         #     RectangularFilter(0, 1.1, False)
         # filter bins ascending order
         with self.assertRaises(ValueError):
-            RectangularFilter(2, 1, False)
+            # stop bigger than start
+            RectangularFilter(2, 1)
 
     def test_values(self):
-        filt = RectangularFilter(0, 1, False)
+        filt = RectangularFilter(0, 1, norm=False)
         self.assertTrue(np.allclose(filt, [1]))
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.stop == 1)
-        filt = RectangularFilter(1, 3, True)
+        filt = RectangularFilter(1, 3, norm=True)
         self.assertTrue(np.allclose(filt, [0.5, 0.5]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 3)
-        filt = RectangularFilter(1, 4, False)
+        filt = RectangularFilter(1, 4, norm=False)
         self.assertTrue(np.allclose(filt, [1, 1, 1]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 4)
-        filt = RectangularFilter(1, 4, True)
+        filt = RectangularFilter(1, 4, norm=True)
         self.assertTrue(np.allclose(filt, [0.33333, 0.33333, 0.33333]))
         self.assertTrue(filt.start == 1)
         self.assertTrue(filt.stop == 4)
-        filt = RectangularFilter(4, 9, True)
+        filt = RectangularFilter(4, 9, norm=True)
         self.assertTrue(np.allclose(filt, [0.2, 0.2, 0.2, 0.2, 0.2]))
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.stop == 9)
@@ -572,6 +641,7 @@ class TestRectangularFilterClass(unittest.TestCase):
     def test_band_bins_method_overlap(self):
         result = RectangularFilter.band_bins(self.bins, overlap=True)
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             result.next()
 
     def test_band_bins_method(self):
@@ -681,9 +751,20 @@ class TestFilterbankClass(unittest.TestCase):
         Filterbank._put_filter(RectangularFilter(-5, 10), filt)
         self.assertTrue(np.allclose(filt[:10], np.ones(10)))
         self.assertTrue(np.allclose(filt[10:], np.zeros(10)))
+        # non filter placement
+        filt = np.zeros(20)
+        with self.assertRaises(ValueError):
+            Filterbank._put_filter([10], filt)
 
     def test_from_filters_function(self):
+        # a list of filters
         filt = Filterbank.from_filters(self.rect_filters, np.arange(100))
+        self.assertIsInstance(filt, Filterbank)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
+        self.assertTrue(filt.bin_frequencies.dtype == np.float)
+        # a list of list of filters
+        filt = Filterbank.from_filters([self.rect_filters,
+                                        self.triang_filters], np.arange(100))
         self.assertIsInstance(filt, Filterbank)
         self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
@@ -694,11 +775,19 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.num_bins == 100)
         self.assertTrue(filt.fmin == 0)
         self.assertTrue(filt.fmax == 99)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1))
         self.assertTrue(np.allclose(filt.bin_frequencies, np.arange(100)))
         self.assertTrue(np.allclose(filt.corner_frequencies,
                                     [[0, 9], [10, 24], [25, 49], [50, 99]]))
         self.assertTrue(np.allclose(filt.center_frequencies,
                                     [4, 17, 37, 74]))
+        result = np.zeros((100, 4))
+        result[0:10, 0] = 1
+        result[10:25, 1] = 1
+        result[25:50, 2] = 1
+        result[50:100, 3] = 1
+        self.assertTrue(np.allclose(filt, result))
 
     def test_values_triangular(self):
         filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
@@ -706,11 +795,42 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.num_bins == 100)
         self.assertTrue(filt.fmin == 1)
         self.assertTrue(filt.fmax == 69)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1))
         self.assertTrue(np.allclose(filt.bin_frequencies, np.arange(100)))
         self.assertTrue(np.allclose(filt.corner_frequencies,
                                     [[1, 14], [7, 24], [16, 49], [26, 69]]))
         self.assertTrue(np.allclose(filt.center_frequencies,
                                     [6, 15, 25, 50]))
+
+    def test_values_rectangular_and_triangular(self):
+        # put all triangular filter in a band, always selecting the maximum
+        # ad all rectangular filters in the second band
+        filt = Filterbank.from_filters([self.triang_filters,
+                                        self.rect_filters], np.arange(100))
+        self.assertTrue(filt.num_bands == 2)
+        self.assertTrue(filt.num_bins == 100)
+        self.assertTrue(filt.fmin == 0)
+        self.assertTrue(filt.fmax == 99)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1))
+        # all triangular filters
+        correct = np.zeros(100)
+        correct[1:70] = [1./6, 2./6, 3./6, 4./6, 5./6, 1., 8./9, 7./9, 6./9,
+                         5./9, 5./9, 6./9, 7./9, 8./9, 1., 0.9, 0.8, 0.7, 0.6,
+                         0.5, 0.6, 0.7, 0.8, 0.9, 1., 0.96, 0.92, 0.88, 0.84,
+                         0.8, 0.76, 0.72, 0.68, 0.64, 0.6, 0.56, 0.52, 0.52,
+                         0.56, 0.6, 0.64, 0.68, 0.72, 0.76, 0.8, 0.84, 0.88,
+                         0.92, 0.96, 1., 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65,
+                         0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15,
+                         0.1, 0.05]
+        self.assertTrue(np.allclose(filt[:, 0], correct))
+        # all rectangular filters are 1
+        self.assertTrue(np.allclose(filt[:, 1], np.ones(100)))
+        self.assertTrue(np.allclose(filt.bin_frequencies, np.arange(100)))
+        self.assertTrue(np.allclose(filt.corner_frequencies,
+                                    [[1, 69], [0, 99]]))
+        self.assertTrue(np.allclose(filt.center_frequencies, [6, 49]))
 
     def test_pickling(self):
         filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
@@ -721,6 +841,11 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
+
+    def test_process(self):
+        filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
+        result = filt.process(np.zeros((20, 100)))
+        self.assertTrue(np.allclose(result, np.zeros((20, 4))))
 
 
 class TestMelFilterbankClass(unittest.TestCase):
@@ -751,6 +876,8 @@ class TestMelFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.num_bins == 1000)
         self.assertTrue(filt.fmin == 40)
         self.assertTrue(filt.fmax == 16980)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 0.0714286))
         self.assertTrue(np.allclose(filt.center_frequencies,
                                     [260, 580, 1020, 1600, 2380, 3420, 4820,
                                      6700, 9180, 12520]))
@@ -802,6 +929,8 @@ class TestMelFilterbankClass(unittest.TestCase):
                   [9560.742187, 11261.865238], [10400.537109, 12230.859375],
                   [11304.931640, 13285.986328], [12273.925781, 14427.246093],
                   [13329.052734, 15654.638671], [14470.312500, 16968.164062]]
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1./3))
         self.assertTrue(np.allclose(filt.center_frequencies, center))
         self.assertTrue(np.allclose(filt.corner_frequencies, corner))
 
@@ -813,6 +942,10 @@ class TestBarkFilterbankClass(unittest.TestCase):
         self.assertIsInstance(filt, BarkFilterbank)
         self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            BarkFilterbank(np.arange(20000), 'foo')
 
     def test_constant_types(self):
         self.assertIsInstance(BarkFilterbank.FMIN, float)
@@ -860,6 +993,53 @@ class TestBarkFilterbankClass(unittest.TestCase):
                   [9496.142578, 11972.460937], [11993.994140, 15482.373046]]
         self.assertTrue(filt.num_bands == 24)
         self.assertTrue(filt.num_bins == 1024)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(filt.max() < 1)
+        self.assertTrue(np.allclose(filt.fmin, 21.5332031))
+        self.assertTrue(np.allclose(filt.fmax, 15482.3730468))
+        self.assertTrue(np.allclose(filt.center_frequencies, center))
+        self.assertTrue(np.allclose(filt.corner_frequencies, corner))
+
+    def test_double_values(self):
+        filt = BarkFilterbank(FFT_FREQS_1024, 'double')
+        center = [21.53320312, 64.59960938, 107.66601562, 150.73242188,
+                  215.33203125, 258.3984375, 301.46484375, 366.06445312,
+                  409.13085938, 473.73046875, 516.796875, 581.39648438,
+                  645.99609375, 732.12890625, 796.72851562, 861.328125,
+                  947.4609375, 1012.06054688, 1098.19335938, 1205.859375,
+                  1313.52539062, 1421.19140625, 1528.85742188, 1636.5234375,
+                  1765.72265625, 1916.45507812, 2067.1875, 2217.91992188,
+                  2390.18554688, 2583.984375, 2777.78320312, 3014.6484375,
+                  3251.51367188, 3531.4453125, 3832.91015625, 4177.44140625,
+                  4586.57226562, 5038.76953125, 5534.03320312, 6072.36328125,
+                  6675.29296875, 7342.82226562, 8096.484375, 8979.34570312,
+                  9991.40625, 11240.33203125, 12726.12304688, 14491.84570312]
+        corner = [[21.53320312, 21.53320312], [43.06640625, 86.1328125],
+                  [107.66601562, 129.19921875], [150.73242188, 172.265625],
+                  [193.79882812, 236.86523438], [258.3984375, 279.93164062],
+                  [301.46484375, 322.99804688], [344.53125, 387.59765625],
+                  [409.13085938, 430.6640625], [452.19726562, 495.26367188],
+                  [516.796875, 538.33007812], [559.86328125, 602.9296875],
+                  [624.46289062, 689.0625], [710.59570312, 753.66210938],
+                  [775.1953125, 818.26171875], [839.79492188, 904.39453125],
+                  [925.92773438, 968.99414062], [990.52734375, 1055.12695312],
+                  [1076.6601563, 1141.2597656], [1162.7929688, 1248.92578125],
+                  [1270.45898438, 1356.59179688], [1378.125, 1464.2578125],
+                  [1485.79101562, 1571.9238281], [1593.45703125, 1701.1230469],
+                  [1722.65625, 1830.32226562], [1851.85546875, 1981.0546875],
+                  [2002.58789062, 2131.7871094], [2153.3203125, 2304.05273438],
+                  [2325.5859375, 2476.31835938], [2497.8515625, 2670.1171875],
+                  [2691.65039062, 2885.44921875], [2906.9824219, 3122.3144531],
+                  [3143.84765625, 3380.7128906], [3402.24609375, 3682.1777344],
+                  [3703.7109375, 3983.64257812], [4005.17578125, 4371.2402344],
+                  [4392.7734375, 4780.37109375], [4801.90429688, 5275.6347656],
+                  [5297.16796875, 5770.8984375], [5792.43164062, 6373.828125],
+                  [6395.36132812, 6976.7578125], [6998.29101562, 7687.3535156],
+                  [7708.88671875, 8484.08203125], [8505.61523438, 9474.609375],
+                  [9496.1425781, 10486.6699219], [10508.203125, 11972.4609375],
+                  [11993.994141, 13479.785156], [13501.318359, 15482.373047]]
+        self.assertTrue(filt.num_bands == 48)
+        self.assertTrue(filt.num_bins == 1024)
         self.assertTrue(np.allclose(filt.fmin, 21.5332031))
         self.assertTrue(np.allclose(filt.fmax, 15482.3730468))
         self.assertTrue(np.allclose(filt.center_frequencies, center))
@@ -873,6 +1053,11 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         self.assertIsInstance(filt, LogarithmicFilterbank)
         self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
+
+    def test_errors(self):
+        with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
+            LogarithmicFilterbank(np.arange(20000), bands_per_octave=False)
 
     def test_constant_types(self):
         # TODO: why can't we test the inherited constants? it does not matter
@@ -904,10 +1089,12 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
 
     def test_values_unique_filters(self):
         filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12)
+        self.assertTrue(np.allclose(filt.min(), 0))
         self.assertTrue(np.allclose(filt.max(), 1))
         self.assertEqual(filt.shape, (1000, 81))
         filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12,
                                      unique_filters=False)
+        self.assertTrue(np.allclose(filt.min(), 0))
         self.assertTrue(np.allclose(filt.max(), 1))
         self.assertEqual(filt.shape, (1000, 108))
 
@@ -976,16 +1163,61 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.num_bands == 81)
         self.assertTrue(filt.num_bands_per_octave == 12)
         self.assertTrue(filt.num_bins == 1024)
+        self.assertTrue(np.allclose(filt.min(), 0))
         self.assertTrue(np.allclose(filt.fmin, 43.066406))
         self.assertTrue(np.allclose(filt.fmax, 16731.298828))
         self.assertTrue(np.allclose(filt.center_frequencies, center))
         self.assertTrue(np.allclose(filt.corner_frequencies, corner))
 
 
+class TestRectangularFilterbankClass(unittest.TestCase):
+
+    def test_types(self):
+        filt = RectangularFilterbank(np.arange(20000), [100, 1000])
+        self.assertIsInstance(filt, RectangularFilterbank)
+        self.assertTrue(filt.dtype == FILTER_DTYPE)
+        self.assertTrue(filt.bin_frequencies.dtype == np.float)
+        self.assertTrue(filt.crossover_frequencies.dtype == np.float)
+
+    def test_pickling(self):
+        filt = RectangularFilterbank(FFT_FREQS_1024, [100, 1000])
+        f, filename = tempfile.mkstemp()
+        cPickle.dump(filt, open(filename, 'w'),
+                     protocol=cPickle.HIGHEST_PROTOCOL)
+        filt_ = cPickle.load(open(filename))
+        self.assertTrue(np.allclose(filt, filt_))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    filt_.bin_frequencies))
+        self.assertTrue(np.allclose(filt.crossover_frequencies,
+                                    filt_.crossover_frequencies))
+
+    def test_values(self):
+        filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 1000],
+                                     norm_filters=False)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1))
+        self.assertEqual(filt.shape, (100, 3))
+        self.assertTrue(np.allclose(filt.bin_frequencies,
+                                    np.arange(0, 2000, 20)))
+        print filt.crossover_frequencies
+        self.assertTrue(np.allclose(filt.crossover_frequencies, [100, 1000]))
+
+
+    def test_values_unique_filters(self):
+        filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 101, 1000],
+                                     unique_filters=False)
+        self.assertTrue(np.allclose(filt.min(), 0))
+        self.assertTrue(np.allclose(filt.max(), 1./3))
+        # second band must be 0
+        self.assertTrue(np.allclose(filt[:, 1], np.zeros(100)))
+        self.assertEqual(filt.shape, (100, 4))
+
+
 class TestSimpleChromaFilterbankClass(unittest.TestCase):
 
     def test_error(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             SimpleChromaFilterbank(FFT_FREQS_1024)
 
 
@@ -993,13 +1225,15 @@ class TestHarmonicFilterbankClass(unittest.TestCase):
 
     def test_error(self):
         with self.assertRaises(NotImplementedError):
-            SimpleChromaFilterbank(FFT_FREQS_1024)
+            # TODO: write test when implemented
+            HarmonicFilterbank()
 
 
 class TestPitchClassProfileFilterbankClass(unittest.TestCase):
 
     def test_error(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             PitchClassProfileFilterbank(FFT_FREQS_1024)
 
 
@@ -1007,4 +1241,5 @@ class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
 
     def test_error(self):
         with self.assertRaises(NotImplementedError):
+            # TODO: write test when implemented
             HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)
