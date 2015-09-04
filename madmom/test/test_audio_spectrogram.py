@@ -137,10 +137,16 @@ class TestSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.add is None)
 
     def test_values(self):
+        # from file
         result = Spectrogram(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 1024)
+        # from spec
+        self.assertTrue(np.allclose(Spectrogram(result), result))
+        # from stft
+        stft = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
+        self.assertTrue(np.allclose(Spectrogram(stft), result))
 
     def test_pickle(self):
         result = Spectrogram(DATA_PATH + '/sample.wav')
@@ -185,9 +191,18 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         # other faked attributes
         self.assertTrue(result.mul is None)
         self.assertTrue(result.add is None)
+        # wrong filterbank type
+        with self.assertRaises(TypeError):
+            FilteredSpectrogram(DATA_PATH + '/sample.wav', filterbank='bla')
 
     def test_values(self):
+        # from file
         result = FilteredSpectrogram(DATA_PATH + '/sample.wav')
+        self.assertTrue(result.num_bins == 81)
+        self.assertTrue(result.num_frames == 281)
+        # with given filterbank
+        result = FilteredSpectrogram(DATA_PATH + '/sample.wav',
+                                     filterbank=result.filterbank)
         self.assertTrue(result.num_bins == 81)
         self.assertTrue(result.num_frames == 281)
 
@@ -395,6 +410,8 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 1024)
         self.assertTrue(result.shape == (281, 1024))
+        # methods
+        self.assertTrue(result.positive_diff().min() == 0)
 
     def test_pickle(self):
         # test with non-default values
@@ -483,6 +500,17 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 3)
         # self.assertTrue(result.bin_frequencies == [])
+
+    def test_pickle(self):
+        # test with non-default values
+        result = MultiBandSpectrogram(DATA_PATH + '/sample.wav', [200, 1000])
+        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
+        dump = cPickle.loads(dump)
+        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(result.crossover_frequencies ==
+                        dump.crossover_frequencies)
+        self.assertTrue(np.allclose(result.filterbank, dump.filterbank))
+        self.assertTrue(result.norm_bands == dump.norm_bands)
 
 
 class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
@@ -585,3 +613,18 @@ class TestStackedSpectrogramProcessorClass(unittest.TestCase):
                                                 stack='depth')
         result = processor.process(DATA_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 108, 3))
+
+    def test_stack_literals(self):
+        spec_processor = LogarithmicFilteredSpectrogramProcessor()
+        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
+                                                stack='time')
+        self.assertEqual(processor.stack, np.vstack)
+        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
+                                                stack='freq')
+        self.assertEqual(processor.stack, np.hstack)
+        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
+                                                stack='frequency')
+        self.assertEqual(processor.stack, np.hstack)
+        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
+                                                stack='depth')
+        self.assertEqual(processor.stack, np.dstack)
