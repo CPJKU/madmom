@@ -63,6 +63,32 @@ class TestVariationsFunction(unittest.TestCase):
         self.assertTrue(np.allclose(sequences[1], ANNOTATIONS[1::3]))
         self.assertTrue(np.allclose(sequences[2], ANNOTATIONS[2::3]))
 
+    def test_empty_sequence(self):
+        # no variations
+        sequences = variations([])
+        self.assertTrue(len(sequences) == 0)
+        self.assertEqual(sequences, [])
+        # offbeat
+        self.assertTrue(len(sequences) == 0)
+        sequences = variations([], offbeat=True)
+        self.assertTrue(len(sequences) == 1)
+        self.assertTrue(np.allclose(sequences, [[]]))
+        # double
+        sequences = variations([], double=True)
+        self.assertTrue(len(sequences) == 1)
+        self.assertTrue(np.allclose(sequences, [[]]))
+        # half tempo (includes starting with 1st or 2nd beat)
+        sequences = variations([], half=True)
+        self.assertTrue(len(sequences) == 2)
+        self.assertTrue(np.allclose(sequences, [[], []]))
+        # triple
+        sequences = variations([], triple=True)
+        self.assertTrue(len(sequences) == 1)
+        self.assertTrue(np.allclose(sequences, [[], [], []]))
+        # third (includes starting with 1st, 2nd or 3rd beat)
+        sequences = variations([], third=True)
+        self.assertTrue(np.allclose(sequences, [[], [], []]))
+
 
 class TestCalcIntervalFunction(unittest.TestCase):
 
@@ -344,6 +370,9 @@ class TestGotoFunction(unittest.TestCase):
         # two empty sequences should have a perfect score
         score = goto([], [], 0.175, 0.2, 0.2)
         self.assertEqual(score, 1)
+        # if the length of the correct segment is < 0.25 the annotation length
+        score = goto([1], [1, 2, 3, 4, 5], 0.175, 0.2, 0.2)
+        self.assertEqual(score, 0)
         # if we have no annotations but detections, the score should be 0
         score = goto(DETECTIONS, [], 0.175, 0.2, 0.2)
         self.assertEqual(score, 0)
@@ -393,9 +422,11 @@ class TestCmlFunction(unittest.TestCase):
             cml(DETECTIONS, ANNOTATIONS, 0, None)
         with self.assertRaises(ValueError):
             cml(DETECTIONS, ANNOTATIONS, None, 0)
-        # score relies on intervals, hence at least 2 annotations must be given
+        # score relies on intervals, hence at least 2 ann/det must be given
         with self.assertRaises(BeatIntervalError):
             cml(DETECTIONS, [1.], 0.175, 0.175)
+        with self.assertRaises(BeatIntervalError):
+            cml([1.], ANNOTATIONS, 0.175, 0.175)
 
     def test_values(self):
         # two empty sequences should have a perfect score
@@ -458,9 +489,11 @@ class TestContinuityFunction(unittest.TestCase):
             continuity(DETECTIONS, ANNOTATIONS, 0, None)
         with self.assertRaises(ValueError):
             continuity(DETECTIONS, ANNOTATIONS, None, 0)
-        # score relies on intervals, hence at least 2 annotations must be given
+        # score relies on intervals, hence at least 2 ann/det must be given
         with self.assertRaises(BeatIntervalError):
             continuity(DETECTIONS, [1.], 0.175, 0.175)
+        with self.assertRaises(BeatIntervalError):
+            continuity([1.], ANNOTATIONS, 0.175, 0.175)
 
     def test_values(self):
         # two empty sequences should have a perfect score
@@ -747,6 +780,15 @@ class TestInformationGainFunction(unittest.TestCase):
         self.assertTrue(np.allclose(histogram, [1, 0, 9, 0]))
         self.assertEqual(ig, np.log2(4) - 0.46899559358928122)
 
+    def test_few_correct_detections(self):
+        # if only a few beats are correct, ig should be low, too
+        ig, histogram = information_gain([1., 2.], DETECTIONS, 10)
+        self.assertTrue(np.allclose(histogram, [0, 0, 0, 0, 0, 9, 1, 0, 0, 0]))
+        self.assertTrue(np.allclose(ig, 2.8529325))
+        ig, histogram = information_gain(DETECTIONS, [1., 2.], 10)
+        self.assertTrue(np.allclose(histogram, [0, 0, 0, 0, 0, 9, 1, 0, 0, 0]))
+        self.assertTrue(np.allclose(ig, 2.8529325))
+
 
 # test evaluation class
 class TestBeatEvaluationClass(unittest.TestCase):
@@ -876,6 +918,8 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS)),
                          None)
         # appending something else should not work
+        with self.assertRaises(TypeError):
+            e.append('bla')
 
     def test_append_types(self):
         e = MeanBeatEvaluation()
@@ -893,6 +937,7 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.global_information_gain, float)
         # error histogram
         self.assertIsInstance(e.error_histogram, np.ndarray)
+
 
     def test_results_empty(self):
         e = MeanBeatEvaluation()
@@ -929,3 +974,9 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
+
+    def test_legth(self):
+        e = MeanBeatEvaluation()
+        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
+        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
+        self.assertEqual(len(e), 2)

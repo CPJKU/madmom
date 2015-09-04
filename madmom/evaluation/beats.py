@@ -63,17 +63,17 @@ def variations(sequence, offbeat=False, double=False, half=False,
     """
     # create different variants of the annotations
     sequences = []
-    # just return the empty sequences list if input is empty
-    if len(sequence) == 0:
-        # TODO: is this the right thing to do?
-        return sequences
     # double/half and offbeat variation
     if double or offbeat:
-        # create a sequence with double tempo
-        same = np.arange(0, len(sequence))
-        # Note: request one item less, otherwise we would extrapolate
-        shifted = np.arange(0, len(sequence), 0.5)[:-1]
-        double_sequence = np.interp(shifted, same, sequence)
+        if len(sequence) == 0:
+            # if we don't a sequence, there's nothing to interpolate
+            double_sequence = []
+        else:
+            # create a sequence with double tempo
+            same = np.arange(0, len(sequence))
+            # request one item less, otherwise we would extrapolate
+            shifted = np.arange(0, len(sequence), 0.5)[:-1]
+            double_sequence = np.interp(shifted, same, sequence)
         # same tempo, half tempo off
         if offbeat:
             sequences.append(double_sequence[1::2])
@@ -88,11 +88,15 @@ def variations(sequence, offbeat=False, double=False, half=False,
         sequences.append(sequence[1::2])
     # triple/third tempo variations
     if triple:
-        # create a annotation sequence with triple tempo
-        same = np.arange(0, len(sequence))
-        # Note: request two items less, otherwise we would extrapolate
-        shifted = np.arange(0, len(sequence), 1. / 3)[:-2]
-        triple_sequence = np.interp(shifted, same, sequence)
+        if len(sequence) == 0:
+            # if we don't a sequence, there's nothing to interpolate
+            triple_sequence = []
+        else:
+            # create a annotation sequence with triple tempo
+            same = np.arange(0, len(sequence))
+            # request two items less, otherwise we would extrapolate
+            shifted = np.arange(0, len(sequence), 1. / 3)[:-2]
+            triple_sequence = np.interp(shifted, same, sequence)
         # triple tempo
         sequences.append(triple_sequence)
     if third:
@@ -491,8 +495,8 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
     # 1) must match an annotation within a certain tolerance window, i.e. the
     #    phase must be correct
     correct_phase = detections[errors <= ann_interval * phase_tolerance]
-    # Note: the initially cited technical has an additional condition ii) on
-    #       page 5 which requires the same condition to be true for the
+    # Note: the initially cited technical report has an additional condition
+    #       ii) on page 5 which requires the same condition to be true for the
     #       previous detection / annotation combination. We do not enforce
     #       this, since a) this condition is kind of pointless: why shouldn't
     #       we count a correct beat just because its predecessor is not? and
@@ -732,8 +736,7 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     # evaluate detections against annotations
     fwd_histogram = _error_histogram(detections, annotations, histogram_bins)
     fwd_ig = _information_gain(fwd_histogram)
-
-    # in only a few (but correct) beats are detected, the errors could be small
+    # if only a few (but correct) beats are detected, the errors could be small
     # thus evaluate also the annotations against the detections, i.e. simulate
     # a lot of false positive detections
     bwd_histogram = _error_histogram(annotations, detections, histogram_bins)
