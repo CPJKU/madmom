@@ -38,6 +38,13 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :return:             the output file name
 
     """
+    # check input and output file type
+    if isinstance(infile, file):
+        raise ValueError("only file names are supported as 'infile', not %s."
+                         % infile)
+    if isinstance(outfile, file):
+        raise ValueError("only file names are supported as 'outfile', not %s."
+                         % outfile)
     # create temp file if no outfile is given
     if outfile is None:
         # looks stupid, but is recommended over tempfile.mktemp()
@@ -79,6 +86,11 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :return:             a binary string of samples
 
     """
+    # check input file type
+    if isinstance(infile, file):
+        raise ValueError("only file names are supported as 'infile', not %s."
+                         % infile)
+    # assemble ffmpeg call
     call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
                                  num_channels, skip, max_len, cmd)
     if hasattr(subprocess, 'check_output'):
@@ -120,6 +132,10 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          samples, process object for the decoding process)
 
     """
+    # check input file type
+    if isinstance(infile, file):
+        raise ValueError("only file names are supported as 'infile', not %s."
+                         % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
     #       reacts on that. A cleaner solution would be calling
     #       proc.terminate explicitly, but this is only available in
@@ -162,10 +178,10 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     call = [cmd, "-v", "quiet"]
     # infile options
     if skip is not None:
-        call.extend(["-ss", str(float(skip))])
+        call.extend(["-ss", "%f" % float(skip)])
     call.extend(["-i", infile, "-y", "-f", str(fmt)])
     if max_len is not None:
-        call.extend(["-t", str(float(max_len))])
+        call.extend(["-t", "%f" % float(max_len)])
     # output options
     if num_channels is not None:
         call.extend(["-ac", str(num_channels)])
@@ -185,6 +201,10 @@ def get_file_info(infile, cmd='ffprobe'):
     :return:       dictionary containing audio file information
 
     """
+    # check input file type
+    if isinstance(infile, file):
+        raise ValueError("only file names are supported as 'infile', not %s."
+                         % infile)
     # init dictionary
     info = {'num_channels': None, 'sample_rate': None}
     # call ffprobe

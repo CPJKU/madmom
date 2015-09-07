@@ -206,6 +206,11 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     :param stop:         stop position (seconds) [float]
     :return:             tuple (signal, sample_rate)
 
+    Note: the `start` and `stop` positions are rounded to the closest sample;
+          the sample corresponding to the `stop` value is not returned, thus
+          consecutive segment starting with the previous `stop` can be
+          concatenated to obtain the original signal without gaps or overlaps.
+
     """
     from scipy.io import wavfile
     file_sample_rate, signal = wavfile.read(filename, mmap=True)
@@ -311,7 +316,9 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     """
     # determine the name of the file if it is a file handle
     if isinstance(filename, file):
-        # open file handle
+        # close the file handle if it is open
+        filename.close()
+        # use the file name
         filename = filename.name
     # try reading as a wave file, ffmpeg or avconv (in this order)
     try:
