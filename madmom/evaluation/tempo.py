@@ -372,7 +372,7 @@ def main():
         # add this file's mean evaluation to the global evaluation
         mean_eval.append(e)
     # print summary
-    eval_output.add_eval('mean for %i file(s)\n  ' % len(mean_eval), mean_eval)
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
     print eval_output
 
 

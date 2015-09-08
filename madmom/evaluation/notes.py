@@ -237,14 +237,14 @@ def main():
         e = NoteEvaluation(detections, annotations, window=args.window)
         # print stats for the file
         if args.verbose:
-            eval_output.add_eval(os.path.basename(ann_file),
+            eval_output.add_eval(os.path.basename(ann_file), e,
                                  verbose=(args.verbose >= 2))
         # add this file's evaluation to the global evaluation
         sum_eval += e
         mean_eval.append(e)
     # print summary
-    eval_output.add_eval('sum for %i file(s)\n  ' % len(mean_eval), sum_eval)
-    eval_output.add_eval('mean for %i file(s)\n  ' % len(mean_eval), mean_eval)
+    eval_output.add_eval('sum for %i file(s)' % len(mean_eval), sum_eval)
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
     print eval_output
 
 
