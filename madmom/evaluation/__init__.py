@@ -650,8 +650,8 @@ class EvaluationOutput(object):
 
 class TexOutput(EvaluationOutput):
 
-    def __init__(self, **kwargs):
-        super(TexOutput, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(TexOutput, self).__init__(*args, **kwargs)
         self.output_lines = ['  & ' + ' & '.join(self.metric_labels) + '\\\\']
 
     def add_eval(self, name, evaluation, **kwargs):
@@ -666,8 +666,8 @@ class TexOutput(EvaluationOutput):
 
 class CsvOutput(EvaluationOutput):
 
-    def __init__(self, **kwargs):
-        super(CsvOutput, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(CsvOutput, self).__init__(*args, **kwargs)
         self.output_lines = ['Name,' + ','.join(self.metric_labels)]
 
     def add_eval(self, name, evaluation, **kwargs):
@@ -682,8 +682,8 @@ class CsvOutput(EvaluationOutput):
 
 class StrOutput(EvaluationOutput):
 
-    def __init__(self, **kwargs):
-        super(StrOutput, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(StrOutput, self).__init__(*args, **kwargs)
         self.output_lines = []
 
     def add_eval(self, name, evaluation, **kwargs):
@@ -703,7 +703,7 @@ def add_indent(lines, indent):
     whitespace_indent = re.sub('\n', '', whitespace_indent)
 
     for i, eval_line in enumerate(split_lines[1:]):
-        split_lines[i] = whitespace_indent + eval_line
+        split_lines[i + 1] = whitespace_indent + eval_line
 
     return '\n'.join(split_lines)
 

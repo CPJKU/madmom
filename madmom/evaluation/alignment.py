@@ -111,14 +111,17 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
 
     correctly_aligned_error = np.ma.array(aligned_error, mask=misaligned)
     pc_idx = float(correctly_aligned_error.mask[::-1].argmin())
-    results = {'miss_rate': missed.mean(),
-               'misalign_rate': misaligned.mean(),
-               'avg_imprecision': correctly_aligned_error.mean(),
-               'stddev_imprecision': correctly_aligned_error.std(),
-               'avg_error': aligned_error.mean(),
-               'stddev_error': aligned_error.std(),
-               'piece_completion': (1.0 - pc_idx /
-                                    correctly_aligned_error.mask.shape[0])}
+
+    # we have to typecast everything to float, if we don't the
+    # variables are of type np.maskedarray
+    results = {'miss_rate': float(missed.mean()),
+               'misalign_rate': float(misaligned.mean()),
+               'avg_imprecision': float(correctly_aligned_error.mean()),
+               'stddev_imprecision': float(correctly_aligned_error.std()),
+               'avg_error': float(aligned_error.mean()),
+               'stddev_error': float(aligned_error.std()),
+               'piece_completion': float(1.0 - pc_idx /
+                                         correctly_aligned_error.mask.shape[0])}
 
     # convert possibly masked values to NaN. A masked value can occur when
     # computing the mean or stddev of values that are all masked
@@ -268,7 +271,7 @@ class AlignmentEvaluation(object):
         """
         return self.metrics['error_hist']
 
-    def print_errors(self, verbose=False):
+    def to_string(self, verbose=False):
         """
         Print errors.
 
