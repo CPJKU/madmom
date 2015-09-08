@@ -146,6 +146,15 @@ class AlignmentEvaluation(object):
     rather than computing a time step for each individual event in the
     score.
     """
+    METRIC_NAMES = [
+        ('misalign_rate', 'Misalign Rate'),
+        ('miss_rate', 'Miss Rate'),
+        ('piece_completion', 'Piece Completion'),
+        ('avg_imprecision', 'Avg. Imprecision'),
+        ('stddev_imprecision', 'Std. Dev. of Imprecision'),
+        ('avg_error', 'Avg. Error'),
+        ('stddev_error', 'Std. Dev. of Error'),
+    ]
 
     def __init__(self, alignment, ground_truth,
                  tolerance=TOLERANCE, err_hist_bins=HISTOGRAM_BINS):
@@ -259,19 +268,16 @@ class AlignmentEvaluation(object):
         """
         return self.metrics['error_hist']
 
-    def print_errors(self, indent='', histogram=False):
+    def print_errors(self, verbose=False):
         """
         Print errors.
 
-        :param indent:    use the given string as indentation
-        :param histogram: output error histogram
-
+        :param verbose: output error histogram
         """
-        errs = '%smisalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
+        errs = 'misalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
                'avg-imprecision: %.3f stddev-imprecision %.3f '\
                'avg-error: %.3f stddev-error: %.3f' %\
-               (indent,
-                self.metrics['misalign_rate'],
+               (self.metrics['misalign_rate'],
                 self.metrics['miss_rate'],
                 self.metrics['piece_completion'],
                 self.metrics['avg_imprecision'],
@@ -279,7 +285,7 @@ class AlignmentEvaluation(object):
                 self.metrics['avg_error'],
                 self.metrics['stddev_error'])
 
-        if histogram:
+        if verbose:
             # hacky way to create the format string. first, we
             # convert the bins to the desired string format
             bins_str = map('{:.2f}'.format, self.error_histogram_bins)
@@ -288,12 +294,7 @@ class AlignmentEvaluation(object):
             hist_str = '<' + ': {:.2f}  <'.join(bins_str) + ': {:.2f}'
             # then, we insert the histogram at the positions specified above
             hist_str = hist_str.format(*self.metrics['error_hist'])
-            # here, we try to have an indentation of the same length as the
-            # indent parameter, but containing only whitespaces
-            whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
-            whitespace_indent = re.sub('\n', '', whitespace_indent)
-            # finally, we combine all together
-            errs += '\n' + whitespace_indent + hist_str
+            errs += '\n' + hist_str
 
         return errs
 
@@ -362,7 +363,7 @@ def parse_args():
 
     """
     import argparse
-    from . import evaluation_io
+    from . import evaluation_in, evaluation_out
 
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -384,7 +385,10 @@ def parse_args():
           an error histogram. This will change in the future!
     """)
 
-    evaluation_io(p, ann_suffix='.alignment', det_suffix='.aligned')
+    evaluation_in(p, ann_suffix='.alignment', det_suffix='.aligned')
+    out_opts = evaluation_out(p)
+    out_opts.add_argument('--histogram', action='store_true',
+                          help='Output error histogram [default: %(default)s]')
 
     g = p.add_argument_group('evaluation arguments')
 
@@ -410,6 +414,7 @@ def main():
     Simple alignment evaluation.
 
     """
+    import os
     from madmom.utils import search_files, match_file
 
     args = parse_args()
@@ -427,6 +432,7 @@ def main():
         exit()
 
     mean_eval = MeanAlignmentEvaluation(args.piecewise)
+    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
 
     for ann_file in ann_files:
         ground_truth = np.loadtxt(ann_file)
@@ -446,18 +452,20 @@ def main():
             # load the detections
             alignment = np.loadtxt(matches[0])
 
-        sf_eval = AlignmentEvaluation(
+        e = AlignmentEvaluation(
             np.atleast_2d(alignment),
             np.atleast_2d(ground_truth),
             args.tolerance)
 
         if args.verbose:
-            print sf_eval.print_errors('%s\n  ' % ann_file, args.tex)
+            eval_output.add_eval(os.path.basename(ann_file), e,
+                                 verbose=args.histogram)
 
-        mean_eval.append(sf_eval)
+        mean_eval.append(e)
 
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval),
-                                 args.tex)
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval,
+                         verbose=args.histogram)
+    print eval_output
 
 
 if __name__ == '__main__':

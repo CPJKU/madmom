@@ -144,7 +144,7 @@ def parser():
 
     """
     import argparse
-    from . import evaluation_io
+    from . import evaluation_in, evaluation_out
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -159,7 +159,8 @@ def parser():
 
     """)
     # files used for evaluation
-    evaluation_io(p, ann_suffix='.notes', det_suffix='.notes.txt')
+    evaluation_in(p, ann_suffix='.notes', det_suffix='.notes.txt')
+    evaluation_out(p)
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
     g.add_argument('-w', dest='window', action='store', type=float,
@@ -184,6 +185,7 @@ def main():
     Simple note evaluation.
 
     """
+    import os
     from madmom.utils import search_files, match_file
 
     # parse arguments
@@ -204,6 +206,8 @@ def main():
     # sum and mean evaluation for all files
     sum_eval = MultiClassEvaluation()
     mean_eval = MeanEvaluation()
+    # create output formatter
+    eval_output = args.output_formatter(metric_names=mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:
         # load the annotations
@@ -233,17 +237,15 @@ def main():
         e = NoteEvaluation(detections, annotations, window=args.window)
         # print stats for the file
         if args.verbose:
-            print ann_file
-            if args.verbose >= 2:
-                print e.print_errors('  ', args.tex, True)
-            else:
-                print e.print_errors('  ', args.tex, False)
+            eval_output.add_eval(os.path.basename(ann_file),
+                                 verbose=(args.verbose >= 2))
         # add this file's evaluation to the global evaluation
         sum_eval += e
         mean_eval.append(e)
     # print summary
-    print sum_eval.print_errors('sum for %i file(s):\n  ' % len(mean_eval))
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+    eval_output.add_eval('sum for %i file(s)\n  ' % len(mean_eval), sum_eval)
+    eval_output.add_eval('mean for %i file(s)\n  ' % len(mean_eval), mean_eval)
+    print eval_output
 
 
 if __name__ == '__main__':

@@ -10,6 +10,7 @@ Example:
 python -m madmom.evaluation.onsets /dir/to/be/evaluated
 
 """
+import re
 import numpy as np
 
 
@@ -121,6 +122,16 @@ class SimpleEvaluation(object):
     Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
+
+    METRIC_NAMES = [
+        ('num_annotations', 'No. Annotations'),
+        ('precision', 'Precision'),
+        ('recall', 'Recall'),
+        ('fmeasure', 'F-measure'),
+        ('accuracy', 'Accuracy'),
+        ('mean_error', 'Mean'),
+        ('std_error', 'Std.dev'),
+    ]
 
     def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
@@ -278,39 +289,24 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
-    def print_errors(self, indent='', tex=False, verbose=True):
+    def to_string(self, verbose=True):
         """
         Print errors.
 
-        :param indent:  use the given string as indentation
-        :param tex:     output format to be used in .tex files
-        :param verbose: add true/false positive rates and mean/std of errors
-
+        :param verbose: add accuracy and mean/std of errors
         """
-        # print the errors
-        if tex:
-            # tex formatting
-            ret = 'tex & Precision & Recall & F-measure & Accuracy & Mean & ' \
-                  'Std.dev\\\\\n %i annotations & %.3f & %.3f & %.3f & %.3f ' \
-                  '& %.2f ms & %.2f ms\\\\' % \
-                  (self.num_annotations, self.precision, self.recall,
-                   self.fmeasure, self.accuracy, self.mean_error * 1000.,
-                   self.std_error * 1000.)
-        else:
-            # normal formatting
-            ret = '%sannotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
-                  'r=%.3f f=%.3f' % (indent, self.num_annotations, self.num_tp,
-                                     self.num_fp, self.num_fn, self.precision,
-                                     self.recall, self.fmeasure)
-            if verbose:
-                ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
-                       (self.accuracy, self.mean_error * 1000.,
-                        self.std_error * 1000.)
-        # return
+        ret = 'annotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
+              'r=%.3f f=%.3f' % (self.num_annotations, self.num_tp,
+                                 self.num_fp, self.num_fn, self.precision,
+                                 self.recall, self.fmeasure)
+        if verbose:
+            ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
+                   (self.accuracy, self.mean_error * 1000.,
+                    self.std_error * 1000.)
         return ret
 
     def __str__(self):
-        return self.print_errors()
+        return self.to_string()
 
 
 # class for summing Evaluations
@@ -446,18 +442,16 @@ class MeanEvaluation(SimpleEvaluation):
             return 0.
         return np.mean(self._std_errors)
 
-    def print_errors(self, indent='', verbose=True):
+    def to_string(self, verbose=True):
         """
         Print errors.
 
-        :param indent:  use the given string as indentation
-        :param verbose: add true/false positive rates and mean/std of errors
-
+        :param verbose: add accuracy and mean/std of errors
         """
         # use floats instead of integers for reporting
-        ret = '%sannotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
+        ret = 'annotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
               'p=%.3f r=%.3f f=%.3f' % \
-              (indent, self.num_annotations, self.num_tp, self.num_fp,
+              (self.num_annotations, self.num_tp, self.num_fp,
                self.num_fn, self.precision, self.recall, self.fmeasure)
         if verbose:
             ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
@@ -589,71 +583,132 @@ class MultiClassEvaluation(Evaluation):
 
     """
 
-    def print_errors(self, indent='', tex=False, verbose=True):
+    def to_string(self, verbose=True):
         """
         Print errors.
 
-        :param indent:  use the given string as indentation
-        :param tex:     output format to be used in .tex files
         :param verbose: add evaluation for individual classes
-
         """
-        # print the errors
-        annotations = self.num_tp + self.num_fn
-        tpr = self.recall
-        fpr = (1 - self.precision)
         ret = ''
-        if tex:
-            # tex formatting
-            ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
-                  'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
-                  'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
-                  '%.2f ms & %.2f ms\\\\' % \
-                  (annotations, self.precision, self.recall, self.fmeasure,
-                   tpr, fpr, self.accuracy, self.mean_error * 1000.,
-                   self.std_error * 1000.)
-            # TODO: add individual class output
-        else:
-            if verbose:
-                # print errors for all classes individually
-                tp = np.asarray(self.tp)
-                fp = np.asarray(self.fp)
-                tn = np.asarray(self.tn)
-                fn = np.asarray(self.fn)
-                # extract all classes
-                classes = []
-                if tp.any():
-                    np.append(classes, np.unique(tp[:, 1]))
-                if fp.any():
-                    np.append(classes, np.unique(fp[:, 1]))
-                if tn.any():
-                    np.append(classes, np.unique(tn[:, 1]))
-                if fn.any():
-                    np.append(classes, np.unique(fn[:, 1]))
-                for cls in sorted(np.unique(classes)):
-                    # extract the TP, FP, TN and FN of this class
-                    tp_ = tp[tp[:, 1] == cls]
-                    fp_ = fp[fp[:, 1] == cls]
-                    tn_ = tn[tn[:, 1] == cls]
-                    fn_ = fn[fn[:, 1] == cls]
-                    # evaluate them
-                    e = Evaluation(tp_, fp_, tn_, fn_)
-                    # append to the output string
-                    string = e.print_errors(indent * 2, verbose=False)
-                    ret += '%s Class %s:\n%s\n' % (indent, cls, string)
-            # normal formatting
-            ret += '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-                   'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
-                   'mean: %.1f ms std: %.1f ms' % \
-                   (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
-                    self.precision, self.recall, self.fmeasure, indent,
-                    tpr * 100., fpr * 100., self.accuracy * 100.,
-                    self.mean_error * 1000., self.std_error * 1000.)
+
+        if verbose:
+            # print errors for all classes individually
+            tp = np.asarray(self.tp)
+            fp = np.asarray(self.fp)
+            tn = np.asarray(self.tn)
+            fn = np.asarray(self.fn)
+            # extract all classes
+            classes = []
+            if tp.any():
+                np.append(classes, np.unique(tp[:, 1]))
+            if fp.any():
+                np.append(classes, np.unique(fp[:, 1]))
+            if tn.any():
+                np.append(classes, np.unique(tn[:, 1]))
+            if fn.any():
+                np.append(classes, np.unique(fn[:, 1]))
+            for cls in sorted(np.unique(classes)):
+                # extract the TP, FP, TN and FN of this class
+                tp_ = tp[tp[:, 1] == cls]
+                fp_ = fp[fp[:, 1] == cls]
+                tn_ = tn[tn[:, 1] == cls]
+                fn_ = fn[fn[:, 1] == cls]
+                # evaluate them
+                e = Evaluation(tp_, fp_, tn_, fn_)
+                # append to the output string
+                string = e.to_string(verbose=False)
+                ret += add_indent(string, 'Class %s:\n' % cls) + '\n'
+        # normal formatting
+        ret += 'annotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
+               'r=%.3f f=%.3f\nacc: %.1f%% ' \
+               'mean: %.1f ms std: %.1f ms' % \
+               (self.num_tp + self.num_fn, self.num_tp, self.num_fp,
+                self.num_fn, self.precision, self.recall, self.fmeasure,
+                self.accuracy * 100., self.mean_error * 1000.,
+                self.std_error * 1000.)
         # return
         return ret
 
 
-def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
+class EvaluationOutput(object):
+
+    def __init__(self, metric_names, float_format='{:.3f}'):
+        self.float_format = float_format
+
+        if isinstance(metric_names, Evaluation):
+            metric_names = metric_names.METRIC_NAMES
+
+        self.metric_names, self.metric_labels = zip(*metric_names)
+
+    def add_eval(self, name, evaluation, **kwargs):
+        raise NotImplementedError('Implement this method!')
+
+    def format_eval_values(self, evaluation):
+        return [self.float_format.format(getattr(evaluation, mn))
+                for mn in self.metric_names]
+
+
+class TexOutput(EvaluationOutput):
+
+    def __init__(self, **kwargs):
+        super(TexOutput, self).__init__(**kwargs)
+        self.output_lines = ['  & ' + ' & '.join(self.metric_labels) + '\\\\']
+
+    def add_eval(self, name, evaluation, **kwargs):
+        val_strings = self.format_eval_values(evaluation)
+        self.output_lines.append(
+            name + ' & ' + ' & '.join(val_strings) + '\\\\'
+        )
+
+    def __str__(self):
+        return '\n'.join(self.output_lines)
+
+
+class CsvOutput(EvaluationOutput):
+
+    def __init__(self, **kwargs):
+        super(CsvOutput, self).__init__(**kwargs)
+        self.output_lines = ['Name,' + ','.join(self.metric_labels)]
+
+    def add_eval(self, name, evaluation, **kwargs):
+        val_strings = self.format_eval_values(evaluation)
+        self.output_lines.append(
+            name + ',' + ','.join(val_strings)
+        )
+
+    def __str__(self):
+        return '\n'.join(self.output_lines)
+
+
+class StrOutput(EvaluationOutput):
+
+    def __init__(self, **kwargs):
+        super(StrOutput, self).__init__(**kwargs)
+        self.output_lines = []
+
+    def add_eval(self, name, evaluation, **kwargs):
+        eval_str = add_indent(evaluation.to_string(**kwargs), '%s\n  ' % name)
+        self.output_lines.append(eval_str)
+
+    def __str__(self):
+        return '\n'.join(self.output_lines)
+
+
+def add_indent(lines, indent):
+    split_lines = lines.split('\n')
+    split_lines[0] = indent + split_lines[0]
+    # here, we try to have an indentation of the same length as the
+    # indent parameter, but containing only whitespaces
+    whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
+    whitespace_indent = re.sub('\n', '', whitespace_indent)
+
+    for i, eval_line in enumerate(split_lines[1:]):
+        split_lines[i] = whitespace_indent + eval_line
+
+    return '\n'.join(split_lines)
+
+
+def evaluation_in(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
     Add evaluation related arguments to an existing parser object.
 
@@ -688,10 +743,6 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                         default=False,
                         help='ignore non-existing detections [default: raise '
                              'a warning and assume empty detections]')
-    # output options
-    g = parser.add_argument_group('formatting arguments')
-    g.add_argument('--tex', action='store_true',
-                   help='format output to be used in .tex files')
     # verbose
     parser.add_argument('-v', dest='verbose', action='count', default=0,
                         help='increase verbosity level')
@@ -700,6 +751,32 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                         help='suppress any warnings')
     # return the parser
     return parser
+
+
+def evaluation_out(parser, tex=True, csv=True):
+    # output options
+
+    parser.set_defaults(output_formatter=StrOutput)
+
+    if not (tex or csv):
+        return
+
+    g = parser.add_argument_group('formatting arguments')
+    formats = g.add_mutually_exclusive_group()
+
+    if tex:
+        formats.add_argument(
+            '--tex', action='store_const', const=TexOutput,
+            dest='output_formatter',
+            help='format output to be used in .tex files')
+    if csv:
+        formats.add_argument(
+            '--csv', action='store_const', const=CsvOutput,
+            dest='output_formatter',
+            help='format output to be used in .csv files')
+
+    # return g so the caller can add more output options
+    return g
 
 
 # finally import the submodules

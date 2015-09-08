@@ -121,6 +121,13 @@ class TempoEvaluation(object):
     Tempo evaluation class.
 
     """
+    METRIC_NAMES = [
+        ('pscore', 'P-score'),
+        ('any', 'one tempo'),
+        ('all', 'both tempi'),
+        ('acc1', 'accuracy 1'),
+        ('acc2', 'accuracy 2')
+    ]
 
     def __init__(self, detections, annotations, strengths, tolerance=TOLERANCE,
                  double=DOUBLE, triple=TRIPLE):
@@ -155,25 +162,16 @@ class TempoEvaluation(object):
         strengths = np.tile(strengths, len(ann) / len_strengths)
         self.acc2 = tempo_evaluation(detections, ann, strengths, tolerance)[1]
 
-    def print_errors(self, indent='', tex=False):
+    def to_string(self):
         """
         Print errors.
-
-        :param indent: use the given string as indentation
-        :param tex:    output format to be used in .tex files
-
         """
-        if tex:
-            # tex formatting
-            ret = 'tex & P-Score & one tempo & both tempi & accuracy 1 & ' \
-                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' % \
-                  (self.pscore, self.any, self.all, self.acc1, self.acc2)
-        else:
-            # normal formatting
-            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
-                  'acc1=%.3f acc2=%.3f' % (indent, self.pscore, self.any,
-                                           self.all, self.acc1, self.acc2)
-        return ret
+        return 'pscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
+               'acc1=%.3f acc2=%.3f' % (self.pscore, self.any,
+                                        self.all, self.acc1, self.acc2)
+
+    def __str__(self):
+        return self.to_string()
 
 
 class MeanTempoEvaluation(TempoEvaluation):
@@ -263,7 +261,7 @@ def parser():
 
     """
     import argparse
-    from . import evaluation_io
+    from . import evaluation_in, evaluation_out
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -278,7 +276,8 @@ def parser():
 
     """)
     # files used for evaluation
-    evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
+    evaluation_in(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
+    evaluation_out(p)
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
     g.add_argument('--tolerance', type=float, action='store',
@@ -312,6 +311,7 @@ def main():
     Simple tempo evaluation.
 
     """
+    import os
     from madmom.utils import search_files, match_file
 
     # parse arguments
@@ -332,6 +332,7 @@ def main():
 
     # mean evaluation for all files
     mean_eval = MeanTempoEvaluation()
+    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:
         # load the annotations
@@ -367,11 +368,12 @@ def main():
                             double=args.double, triple=args.triple)
         # print stats for each file
         if args.verbose:
-            print e.print_errors('%s\n  ' % ann_file)
+            eval_output.add_eval(os.path.basename(ann_file), e)
         # add this file's mean evaluation to the global evaluation
         mean_eval.append(e)
     # print summary
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+    eval_output.add_eval('mean for %i file(s)\n  ' % len(mean_eval), mean_eval)
+    print eval_output
 
 
 if __name__ == '__main__':

@@ -74,7 +74,7 @@ def main():
         # print stats for each file
         if args.verbose:
             print f
-            e.print_errors()
+            e.to_string()
         # process the next annotation file
     # sort the evaluations by value
     sorted_scores = sorted(evaluations.iteritems(), key=operator.itemgetter(1))
