@@ -631,73 +631,164 @@ class MultiClassEvaluation(Evaluation):
 
 
 class EvaluationOutput(object):
+    """
+    Base class for evaluation output formatters
+    """
 
     def __init__(self, metric_names, float_format='{:.3f}'):
+        """
+        Initialises the evaluation output.
+
+        :param metric_names: list of tuples defining the name of the property
+                             corresponding to the metric, and the metric label.
+                             e.g. ('fp', 'False Posivies')
+        :param float_format: how to format the metrics
+        """
         self.float_format = float_format
         self.metric_names, self.metric_labels = zip(*metric_names)
 
     def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param **kwargs:   further formatting parameters
+        """
         raise NotImplementedError('Implement this method!')
 
     def format_eval_values(self, evaluation):
+        """
+        Converts the metrics of the evaluation to strings according to the
+        given format.
+        :param evaluation: evaluation with metrics to be converted
+        :return:           list of strings containing the metric values
+        """
         return [self.float_format.format(getattr(evaluation, mn))
                 for mn in self.metric_names]
 
 
 class TexOutput(EvaluationOutput):
+    """
+    Outputs evaluations as LaTeX tables.
+    """
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+        """
         super(TexOutput, self).__init__(*args, **kwargs)
+        # add header
         self.output_lines = ['  & ' + ' & '.join(self.metric_labels) + '\\\\']
 
     def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param **kwargs:   further formatting parameters (unused here)
+        """
         val_strings = self.format_eval_values(evaluation)
         self.output_lines.append(
             name + ' & ' + ' & '.join(val_strings) + '\\\\'
         )
 
     def __str__(self):
+        """
+        Convert the added evaluations to a string.
+        :return: string with formatted evaluations.
+        """
         return '\n'.join(self.output_lines)
 
 
 class CsvOutput(EvaluationOutput):
+    """
+    Outputs evaluations as CSV tables.
+    """
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+        """
         super(CsvOutput, self).__init__(*args, **kwargs)
+        # add header
         self.output_lines = ['Name,' + ','.join(self.metric_labels)]
 
     def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param **kwargs:   further formatting parameters (unused here)
+        """
         val_strings = self.format_eval_values(evaluation)
         self.output_lines.append(
             name + ',' + ','.join(val_strings)
         )
 
     def __str__(self):
+        """
+        Convert the added evaluations to a string.
+        :return: string with formatted evaluations.
+        """
         return '\n'.join(self.output_lines)
 
 
 class StrOutput(EvaluationOutput):
+    """
+    Outputs evaluations as defined in the evaluations themselves by their
+    respective to_string() methods.
+    """
 
     def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+        """
         super(StrOutput, self).__init__(*args, **kwargs)
         self.output_lines = []
 
     def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param **kwargs:   further formatting parameters passed to the to_string
+                           method of the evaluation
+        """
         eval_str = add_indent(evaluation.to_string(**kwargs), '%s\n  ' % name)
         self.output_lines.append(eval_str)
 
     def __str__(self):
+        """
+        Convert the added evaluations to a string.
+        :return: string with formatted evaluations.
+        """
         return '\n'.join(self.output_lines)
 
 
 def add_indent(lines, indent):
+    """
+    Adds an indent to a given string. The string may contain line breaks. In
+    this case, the indent is used as is in the first line, while for the other
+    line a white-space indent of the same length as the actual indent is used.
+
+    :param lines:  string containing the lines to be indented
+    :param indent: indent to use
+    :return:       string containing the indented lines
+    """
     split_lines = lines.split('\n')
+    # add indent to first line
     split_lines[0] = indent + split_lines[0]
-    # here, we try to have an indentation of the same length as the
+
+    # here, we try to create an indentation of the same length as the
     # indent parameter, but containing only whitespaces
     whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
     whitespace_indent = re.sub('\n', '', whitespace_indent)
 
+    # add whitespace indent to other lines
     for i, eval_line in enumerate(split_lines[1:]):
         split_lines[i + 1] = whitespace_indent + eval_line
 
@@ -706,7 +797,7 @@ def add_indent(lines, indent):
 
 def evaluation_in(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
-    Add evaluation related arguments to an existing parser object.
+    Add evaluation input related arguments to an existing parser object.
 
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
@@ -750,12 +841,20 @@ def evaluation_in(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
 
 
 def evaluation_out(parser, tex=True, csv=True):
-    # output options
+    """
+    Add evaluation output related arguments ot an existing parser object.
 
+    :param parser: existing argparse parser object
+    :param tex:    enable LaTeX output
+    :param csv:    enable CSV output
+    :return:       output argument group
+    """
+
+    # output options
     parser.set_defaults(output_formatter=StrOutput)
 
     if not (tex or csv):
-        return
+        return None
 
     g = parser.add_argument_group('formatting arguments')
     formats = g.add_mutually_exclusive_group()

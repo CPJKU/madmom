@@ -332,6 +332,7 @@ def main():
 
     # mean evaluation for all files
     mean_eval = MeanTempoEvaluation()
+    # create the output formatter using the metrics of the evaluation
     eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:

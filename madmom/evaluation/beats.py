@@ -1016,7 +1016,9 @@ def parser():
     """)
     # files used for evaluation
     evaluation_in(p, ann_suffix='.beats', det_suffix='.beats.txt')
+    # add output parameters
     evaluation_out(p)
+
     # parameters for sequence variants
     g = p.add_argument_group('sequence manipulation arguments')
     g.add_argument('--no_offbeat', dest='offbeat', action='store_false',
@@ -1099,6 +1101,7 @@ def main():
 
     # mean evaluation for all files
     mean_eval = MeanBeatEvaluation()
+    # create the output formatter using the metrics of the evaluation
     eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:

@@ -192,7 +192,7 @@ def main():
     # sum and mean evaluation for all files
     sum_eval = SumEvaluation()
     mean_eval = MeanEvaluation()
-    # create output formatter for the evaluations
+    # create the output formatter using the metrics of the evaluation
     eval_output = args.output_formatter(metric_names=mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:

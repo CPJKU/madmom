@@ -432,7 +432,9 @@ def main():
         print "no files to evaluate. exiting."
         exit()
 
+    # mean evaluation for all files
     mean_eval = MeanAlignmentEvaluation(args.piecewise)
+    # create the output formatter using the metrics of the evaluation
     eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
 
     for ann_file in ann_files:
@@ -464,6 +466,7 @@ def main():
 
         mean_eval.append(e)
 
+    # output summary
     eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval,
                          verbose=args.histogram)
     print eval_output
