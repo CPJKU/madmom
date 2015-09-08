@@ -265,22 +265,24 @@ class FilteredSpectrogram(Spectrogram):
         :param kwargs:         keyword arguments passed to Spectrogram
 
         """
+        import inspect
         from .filters import Filterbank
+
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
 
         # instantiate a Filterbank if needed
-        if issubclass(filterbank, Filterbank):
-            # create a filterbank of the given type
+        if inspect.isclass(filterbank) and issubclass(filterbank, Filterbank):
+            # a Filterbank class is given, create a filterbank of this type
             filterbank = filterbank(spectrogram.bin_frequencies,
                                     num_bands=num_bands, fmin=fmin, fmax=fmax,
                                     fref=fref, norm_filters=norm_filters,
                                     unique_filters=unique_filters)
         if not isinstance(filterbank, Filterbank):
-            raise ValueError('not a Filterbank type or instance: %s' %
-                             filterbank)
+            raise TypeError('not a Filterbank type or instance: %s' %
+                            filterbank)
 
         # TODO: reactivate this or move this whole block/batch processing to
         #       the processors?

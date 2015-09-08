@@ -50,10 +50,15 @@ class TestStftFunction(unittest.TestCase):
         self.assertEqual(result.dtype, np.complex64)
 
     def test_dimensionality(self):
+        # input must be 2D
         with self.assertRaises(ValueError):
             stft(np.arange(10))
+        # like this:
         result = stft(np.arange(10).reshape(5, 2))
         self.assertEqual(result.shape, (5, 1))
+        # window size must match frame size
+        with self.assertRaises(ValueError):
+            stft(np.arange(10).reshape(5, 2), window=[1, 2, 3])
 
     def test_value(self):
         result = stft(sig_2d)
@@ -61,6 +66,21 @@ class TestStftFunction(unittest.TestCase):
         # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
         # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
         res = [3.+0.j, 0.+0.j, 0.-0.j, 3+0.j, 0.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[0], res))
+        # [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] every erd bin => 4/12
+        res = [4.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 4.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[1], res))
+        # [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0] every 2nd bin => 6/12
+        # can't resolve any more
+        res = [6.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j]
+        self.assertTrue(np.allclose(result[2], res))
+
+    def test_circular_shift(self):
+        result = stft(sig_2d, circular_shift=True)
+        # signal length and FFT size = 12
+        # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
+        # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
+        res = [3.+0.j, 0.+0.j, 0.+0j, -3.+0.j, 0.+0.j, 0.+0.j]
         self.assertTrue(np.allclose(result[0], res))
         # [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] every erd bin => 4/12
         res = [4.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 4.+0.j, 0.+0.j]
@@ -100,8 +120,22 @@ class TestPhaseFunction(unittest.TestCase):
 
 class TestLocalGroupDelayFunction(unittest.TestCase):
 
-    def test_errors(self):
-        self.assertTrue(True)
+    def test_types(self):
+        result = local_group_delay(np.random.rand(10, 2))
+        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.shape == (10, 2))
+        with self.assertRaises(ValueError):
+            local_group_delay(np.arange(10))
+        with self.assertRaises(ValueError):
+            local_group_delay(np.arange(20).reshape(5, 2, 2))
+
+    def test_values(self):
+        data = np.arange(20).reshape(10, 2) * 2
+        correct = np.tile([-2, 0], 10).reshape(10, 2)
+        self.assertTrue(np.allclose(correct, local_group_delay(data)))
+        data = np.arange(20).reshape(10, 2) * 4
+        correct = np.tile([2.28318531, 0], 10).reshape(10, 2)
+        self.assertTrue(np.allclose(correct, local_group_delay(data)))
 
 
 # test classes
@@ -133,6 +167,8 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
                                     fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
         self.assertTrue(result.shape == (281, 1024))
+        # from STFT
+        self.assertTrue(np.allclose(ShortTimeFourierTransform(result), result))
 
     def test_pickle(self):
         # test with non-default values
@@ -152,6 +188,25 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav')
         self.assertIsInstance(result.spec(), Spectrogram)
         self.assertIsInstance(result.phase(), Phase)
+
+    def test_fft_window(self):
+        # use a signal
+        from madmom.audio.signal import Signal
+        signal = Signal(DATA_PATH + '/sample.wav')
+        # scale the signal to float and range -1..1
+        scaling = float(np.iinfo(signal.dtype).max)
+        scaled_signal = signal / scaling
+        # calculate the STFTs of both signals
+        result = ShortTimeFourierTransform(signal)
+        scaled_result = ShortTimeFourierTransform(scaled_signal)
+        # both STFTs must be the same
+        self.assertTrue(np.allclose(result, scaled_result))
+        # if now window is given, a uniformly distributed one should be used
+        result = ShortTimeFourierTransform(signal, window=None)
+        self.assertTrue(np.allclose(result.fft_window,
+                                    np.ones(2048, dtype=float) / scaling))
+        scaled_result = ShortTimeFourierTransform(scaled_signal, window=None)
+        self.assertTrue(scaled_result.fft_window is None)
 
 
 class ShortTimeFourierTransformProcessorClass(unittest.TestCase):

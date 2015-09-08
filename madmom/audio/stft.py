@@ -118,6 +118,9 @@ def local_group_delay(phase):
     :return:      local group delay
 
     """
+    # check for correct shape of input
+    if phase.ndim != 2:
+        raise ValueError('phase must be a 2D array')
     # unwrap phase
     unwrapped_phase = np.unwrap(phase)
     # local group delay is the derivative over frequency
@@ -212,7 +215,7 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         # window used for FFT
         try:
             # if the audio signal is not scaled, scale the window accordingly
-            max_range = np.iinfo(frames.signal.dtype).max
+            max_range = float(np.iinfo(frames.signal.dtype).max)
             try:
                 # if the window is None, we can't scale it
                 fft_window = window / max_range
@@ -396,10 +399,8 @@ class Phase(PropertyMixin, np.ndarray):
             import warnings
             warnings.warn("`circular_shift` of the STFT must be set to 'True' "
                           "for correct phase")
-        # take the angle of the stft
-        data = np.angle(stft)
-        # cast as Phase
-        obj = np.asarray(data).view(cls)
+        # process the STFT and cast the result as Phase
+        obj = np.asarray(phase(stft)).view(cls)
         # save additional attributes
         obj.stft = stft
         obj.frames = stft.frames
@@ -454,14 +455,8 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
             import warnings
             warnings.warn("`circular_shift` of the STFT must be set to 'True' "
                           "for correct local group delay")
-        # unwrap phase
-        data = np.unwrap(phase)
-        # local group delay is the derivative over frequency
-        data[:, :-1] -= data[:, 1:]
-        # set the highest frequency to 0
-        data[:, -1] = 0
-        # cast as LocalGroupDelay
-        obj = np.asarray(data).view(cls)
+        # process the phase and cast the result as LocalGroupDelay
+        obj = np.asarray(local_group_delay(phase)).view(cls)
         # save additional attributes
         obj.phase = phase
         obj.stft = phase.stft

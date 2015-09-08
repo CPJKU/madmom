@@ -184,7 +184,7 @@ def hz2midi(f, fref=A4):
           need to round it to the nearest integer.
 
     """
-    return (12. * np.log2(f / float(fref))) + 69.
+    return (12. * np.log2(np.asarray(f, dtype=np.float) / fref)) + 69.
 
 
 def midi2hz(m, fref=A4):
@@ -198,7 +198,7 @@ def midi2hz(m, fref=A4):
     For details see: http://www.phys.unsw.edu.au/jw/notes.html
 
     """
-    return 2. ** ((m - 69.) / 12.) * fref
+    return 2. ** ((np.asarray(m, dtype=np.float) - 69.) / 12.) * fref
 
 
 # provide an alias to semitone_frequencies
@@ -405,8 +405,6 @@ class TriangularFilter(Filter):
         return obj
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(TriangularFilter, self).__reduce__()
         # create our own tuple to pass to __setstate__
@@ -415,7 +413,6 @@ class TriangularFilter(Filter):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # in addition to the start and stop bins, also set the center bin
         self.center = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -566,8 +563,6 @@ class Filterbank(np.ndarray):
         self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(Filterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
@@ -576,7 +571,6 @@ class Filterbank(np.ndarray):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the bin frequencies
         self.bin_frequencies = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -793,7 +787,7 @@ class BarkFilterbank(Filterbank):
             raise ValueError("`num_bands` must be {'normal', 'double'}")
         # convert to bins
         bins = frequencies2bins(frequencies, bin_frequencies,
-                                unique_bins=-unique_filters)
+                                unique_bins=not unique_filters)
         # get non-overlapping rectangular filters
         filters = RectangularFilter.filters(bins, norm=norm_filters,
                                             overlap=False)
@@ -867,8 +861,6 @@ class LogarithmicFilterbank(Filterbank):
         self.fref = getattr(obj, 'fref', A4)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(LogarithmicFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
@@ -877,7 +869,6 @@ class LogarithmicFilterbank(Filterbank):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the number of bands per octave and reference frequency
         self.num_bands_per_octave = state[-2]
         self.fref = state[-1]
@@ -914,23 +905,26 @@ class RectangularFilterbank(Filterbank):
 
         """
         # create an empty filterbank
-        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1))
-        crossover_frequencies = np.r_[fmin, crossover_frequencies, fmax]
-        # get the crossover bins
-        crossover_bins = frequencies2bins(crossover_frequencies,
-                                          bin_frequencies,
-                                          unique_bins=unique_filters)
+        fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
+                      dtype=FILTER_DTYPE)
+        corner_frequencies = np.r_[fmin, crossover_frequencies, fmax]
+        # get the corner bins
+        corner_bins = frequencies2bins(corner_frequencies, bin_frequencies,
+                                       unique_bins=unique_filters)
         # map the bins to the filterbank bands
-        for i in range(len(crossover_bins) - 1):
-            fb[crossover_bins[i]:crossover_bins[i + 1], i] = 1
+        for i in range(len(corner_bins) - 1):
+            fb[corner_bins[i]:corner_bins[i + 1], i] = 1
         # normalize the filterbank
         if norm_filters:
-            fb /= np.sum(fb, axis=0)
-        # cast as RectangularFilterbank
-        obj = fb.view(cls)
+            # if the sum over a band is zero, do not normalize this band
+            band_sum = np.sum(fb, axis=0)
+            band_sum[band_sum == 0] = 1
+            fb /= band_sum
+        # create Filterbank and cast as RectangularFilterbank
+        obj = Filterbank.__new__(cls, fb, bin_frequencies)
         # set additional attributes
-        obj.bin_frequencies = np.asarray(bin_frequencies)
-        obj.crossover_frequencies = crossover_frequencies
+        obj.crossover_frequencies = bins2frequencies(corner_bins[1:-1],
+                                                     bin_frequencies)
         # return the object
         return obj
 
@@ -1002,8 +996,6 @@ class SimpleChromaFilterbank(Filterbank):
         self.fref = getattr(obj, 'fref', A4)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(SimpleChromaFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
@@ -1012,7 +1004,6 @@ class SimpleChromaFilterbank(Filterbank):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -1024,10 +1015,7 @@ class HarmonicFilterbank(Filterbank):
     Harmonic filterbank class.
 
     """
-    # Note: the last commit with the old harmonic filterbank stuff is
-    #       8a73a0c8eec455928f241d3199309e075afe91c1
-    #       https://jobim.ofai.at/gitlab/madmom/madmom/blob/
-    #       8a73a0c8eec455928f241d3199309e075afe91c1/madmom/audio/filters.py
+    # Note: old code: https://jobim.ofai.at/gitlab/madmom/madmom/snippets/1
 
     def __new__(cls):
         """
@@ -1089,8 +1077,6 @@ class PitchClassProfileFilterbank(Filterbank):
         self.fref = getattr(obj, 'fref', A4)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(PitchClassProfileFilterbank, self).__reduce__()
         # create our own tuple to pass to __setstate__
@@ -1099,7 +1085,6 @@ class PitchClassProfileFilterbank(Filterbank):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
@@ -1169,8 +1154,6 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         self.fref = getattr(obj, 'fref', A4)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(HarmonicPitchClassProfileFilterbank,
                               self).__reduce__()
@@ -1180,7 +1163,6 @@ class HarmonicPitchClassProfileFilterbank(Filterbank):
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the reference frequency
         self.fref = state[-1]
         # call the parent's __setstate__ with the other tuple elements
