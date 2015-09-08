@@ -383,15 +383,13 @@ def parse_args():
     'ef' will be aligned at max(t_e, t_ef).
 
     Lines starting with # are treated as comments and are ignored.
-
-    NOTE: Due tue implementation limitations, --tex activates the output of
-          an error histogram. This will change in the future!
     """)
 
     evaluation_in(p, ann_suffix='.alignment', det_suffix='.aligned')
     out_opts = evaluation_out(p)
     out_opts.add_argument('--histogram', action='store_true',
-                          help='Output error histogram [default: %(default)s]')
+                          help='Output error histogram. Works only for '
+                               'standard output. [default: %(default)s]')
 
     g = p.add_argument_group('evaluation arguments')
 
