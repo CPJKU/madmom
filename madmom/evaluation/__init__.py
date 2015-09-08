@@ -634,10 +634,6 @@ class EvaluationOutput(object):
 
     def __init__(self, metric_names, float_format='{:.3f}'):
         self.float_format = float_format
-
-        if isinstance(metric_names, Evaluation):
-            metric_names = metric_names.METRIC_NAMES
-
         self.metric_names, self.metric_labels = zip(*metric_names)
 
     def add_eval(self, name, evaluation, **kwargs):
