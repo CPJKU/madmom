@@ -120,7 +120,7 @@ def local_group_delay(phase):
     """
     # check for correct shape of input
     if phase.ndim != 2:
-        raise ValueError('frames must be a 2D array')
+        raise ValueError('phase must be a 2D array')
     # unwrap phase
     unwrapped_phase = np.unwrap(phase)
     # local group delay is the derivative over frequency

@@ -91,8 +91,8 @@ def search_files(path, suffix=None):
             file_list = glob.glob("%s/*" % path)
         elif isinstance(suffix, list):
             file_list = []
-            for e in suffix:
-                file_list.extend(glob.glob("%s/*%s" % (path, e)))
+            for s in suffix:
+                file_list.extend(glob.glob("%s/*%s" % (path, s)))
         else:
             file_list = glob.glob("%s/*%s" % (path, suffix))
     elif os.path.isfile(path):
@@ -102,18 +102,21 @@ def search_files(path, suffix=None):
             file_list = [path]
         # a list of suffices is given
         elif isinstance(suffix, list):
-            for e in suffix:
-                if path.endswith(e):
+            for s in suffix:
+                if path.endswith(s):
                     file_list = [path]
         # a single suffix is given
         elif path.endswith(suffix):
             file_list = [path]
     else:
         raise IOError("%s does not exist." % path)
+    # remove duplicates
+    file_list = list(set(file_list))
     # sort files
     file_list.sort()
-    # return file list
+    # return the file list
     return file_list
+
 
 
 def strip_suffix(filename, suffix=None):
@@ -304,6 +307,118 @@ class OverrideDefaultListAction(argparse.Action):
         except ValueError, e:
             import argparse
             raise argparse.ArgumentError(self, e)
+
+
+# taken from: http://www.scipy.org/Cookbook/SegmentAxis
+def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
+                 end_value=0):
+    """
+    Generate a new array that chops the given array along the given axis into
+    (overlapping) frames.
+
+    :param signal:     signal [numpy array]
+    :param frame_size: size of each frame in samples [int]
+    :param hop_size:   hop size in samples between adjacent frames [int]
+    :param axis:       axis to operate on; if None, act on the flattened array
+    :param end:        what to do with the last frame, if the array is not
+                       evenly divisible into pieces; possible values:
+                       'cut'  simply discard the extra values
+                       'wrap' copy values from the beginning of the array
+                       'pad'  pad with a constant value
+    :param end_value:  value to use for end='pad'
+    :return:           2D array with overlapping frames
+
+    The array is not copied unless necessary (either because it is unevenly
+    strided and being flattened or because end is set to 'pad' or 'wrap').
+
+    The returned array is always of type np.ndarray.
+
+    Example:
+    >>> segment_axis(np.arange(10), 4, 2)
+    array([[0, 1, 2, 3],
+           [2, 3, 4, 5],
+           [4, 5, 6, 7],
+           [6, 7, 8, 9]])
+
+    """
+    # make sure that both frame_size and hop_size are integers
+    frame_size = int(frame_size)
+    hop_size = int(hop_size)
+    # TODO: add comments!
+    if axis is None:
+        signal = np.ravel(signal)  # may copy
+        axis = 0
+    if axis != 0:
+        raise ValueError('please check if the resulting array is correct.')
+
+    length = signal.shape[axis]
+
+    if hop_size <= 0:
+        raise ValueError("hop_size must be positive.")
+    if frame_size <= 0:
+        raise ValueError("frame_size must be positive.")
+
+    if length < frame_size or (length - frame_size) % hop_size:
+        if length > frame_size:
+            round_up = (frame_size + (1 + (length - frame_size) // hop_size) *
+                        hop_size)
+            round_down = (frame_size + ((length - frame_size) // hop_size) *
+                          hop_size)
+        else:
+            round_up = frame_size
+            round_down = 0
+        assert round_down < length < round_up
+        assert round_up == round_down + hop_size or (round_up == frame_size and
+                                                     round_down == 0)
+        signal = signal.swapaxes(-1, axis)
+
+        if end == 'cut':
+            signal = signal[..., :round_down]
+        elif end in ['pad', 'wrap']:
+            # need to copy
+            s = list(signal.shape)
+            s[-1] = round_up
+            y = np.empty(s, dtype=signal.dtype)
+            y[..., :length] = signal
+            if end == 'pad':
+                y[..., length:] = end_value
+            elif end == 'wrap':
+                y[..., length:] = signal[..., :round_up - length]
+            signal = y
+
+        signal = signal.swapaxes(-1, axis)
+
+    length = signal.shape[axis]
+    if length == 0:
+        raise ValueError("Not enough data points to segment array in 'cut' "
+                         "mode; try end='pad' or end='wrap'")
+    assert length >= frame_size
+    assert (length - frame_size) % hop_size == 0
+    n = 1 + (length - frame_size) // hop_size
+    s = signal.strides[axis]
+    new_shape = (signal.shape[:axis] + (n, frame_size) +
+                 signal.shape[axis + 1:])
+    new_strides = (signal.strides[:axis] + (hop_size * s, s) +
+                   signal.strides[axis + 1:])
+
+    try:
+        # noinspection PyArgumentList
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=signal,
+                                  dtype=signal.dtype)
+    except TypeError:
+        # TODO: remove warning?
+        import warnings
+        warnings.warn("Problem with ndarray creation forces copy.")
+        signal = signal.copy()
+        # shape doesn't change but strides does
+        new_strides = (signal.strides[:axis] + (hop_size * s, s) +
+                       signal.strides[axis + 1:])
+        # noinspection PyArgumentList
+        return np.ndarray.__new__(np.ndarray, strides=new_strides,
+                                  shape=new_shape, buffer=signal,
+                                  dtype=signal.dtype)
+
 
 # keep namespace clean
 del argparse, contextlib

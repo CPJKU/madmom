@@ -425,8 +425,6 @@ class TestLoadWaveFunction(unittest.TestCase):
         self.assertTrue(signal.shape == (182919, 2))
 
 
-
-
 class TestLoadFfmpegFileFunction(unittest.TestCase):
 
     def test_types(self):
@@ -735,12 +733,24 @@ class TestSignalFrameFunction(unittest.TestCase):
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
+        result = signal_frame(signal, 2000, 400, 200)
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.dtype == np.int16)
+        result = signal_frame(signal, -10, 400, 200)
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.dtype == np.int16)
 
     def test_short_input_length(self):
         result = signal_frame(np.arange(4), 0, 10, 5)
         self.assertTrue(np.allclose(result, [0, 0, 0, 0, 0, 0, 1, 2, 3, 0]))
         result = signal_frame(np.arange(4), 1, 10, 5)
         self.assertTrue(np.allclose(result, [0, 1, 2, 3, 0, 0, 0, 0, 0, 0]))
+        result = signal_frame(np.arange(4), 2, 10, 5)
+        self.assertTrue(np.allclose(result, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+        result = signal_frame(np.arange(4), -2, 10, 5)
+        self.assertTrue(np.allclose(result, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
     def test_values(self):
         result = signal_frame(np.arange(10), 0, 4, 2)
@@ -795,48 +805,6 @@ class TestSignalFrameFunction(unittest.TestCase):
         # test with float origin with half the size of the frame size
         result = signal_frame(np.arange(10), 0, 5, 2, -2.5)
         self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
-
-
-class TestSegmentAxisFunction(unittest.TestCase):
-
-    def test_types(self):
-        result = segment_axis(np.arange(10), 4, 2)
-        self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int)
-        result = segment_axis(np.arange(10, dtype=np.float), 4, 2)
-        self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.float)
-        signal = Signal(DATA_PATH + '/sample.wav')
-        result = segment_axis(signal, 4, 2)
-        self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int16)
-
-    def test_errors(self):
-        with self.assertRaises(ValueError):
-            segment_axis(np.arange(10), 4, 2, axis=1)
-
-    def test_values(self):
-        result = segment_axis(np.arange(10), 4, 2)
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [2, 3, 4, 5],
-                                             [4, 5, 6, 7], [6, 7, 8, 9]]))
-        result = segment_axis(np.arange(10), 4, 3, end='pad')
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9]]))
-        result = segment_axis(np.arange(11), 4, 3, end='pad')
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9], [9, 10, 0, 0]]))
-        result = segment_axis(np.arange(11), 4, 3, end='pad', end_value=1)
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9], [9, 10, 1, 1]]))
-        result = segment_axis(np.arange(11), 4, 3, end='wrap')
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9], [9, 10, 0, 1]]))
-        result = segment_axis(np.arange(11), 4, 3, end='cut')
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9]]))
-        result = segment_axis(np.arange(11), 4, 3, axis=0)
-        self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
-                                             [6, 7, 8, 9]]))
 
 
 # framing classes
@@ -983,6 +951,15 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[1], [4, 5, 6, 7]))
         with self.assertRaises(IndexError):
             result[2]
+        # slices with steps != 1
+        with self.assertRaises(ValueError):
+            FramedSignal(np.arange(10), 4, 2, sample_rate=4)[2:4:2]
+        # only slices with integers should work
+        with self.assertRaises(TypeError):
+            FramedSignal(np.arange(10), 4, 2, sample_rate=4)['foo':'bar']
+        # only slices or integers should work
+        with self.assertRaises(TypeError):
+            FramedSignal(np.arange(10), 4, 2, sample_rate=4)['bar']
 
     def test_values_file(self):
         signal = Signal(DATA_PATH + '/sample.wav')

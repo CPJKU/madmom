@@ -124,6 +124,10 @@ class TestLocalGroupDelayFunction(unittest.TestCase):
         result = local_group_delay(np.random.rand(10, 2))
         self.assertTrue(result.dtype == np.float)
         self.assertTrue(result.shape == (10, 2))
+        with self.assertRaises(ValueError):
+            local_group_delay(np.arange(10))
+        with self.assertRaises(ValueError):
+            local_group_delay(np.arange(20).reshape(5, 2, 2))
 
     def test_values(self):
         data = np.arange(20).reshape(10, 2) * 2
