@@ -801,6 +801,7 @@ class RnnlibConfig(object):
         self.train_files = None
         self.val_files = None
         self.test_files = None
+        self.test = True
         self.layer_sizes = None
         self.layer_types = None
         self.bidirectional = False
@@ -813,6 +814,7 @@ class RnnlibConfig(object):
         self.weight_noise = 0
         self.l1 = 0
         self.l2 = 0
+        self.patience = 20
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -992,7 +994,7 @@ class RnnlibConfig(object):
         f.write('hiddenSize %s\n' % ",".join(str(x) for x in self.layer_sizes))
         f.write('bidirectional %s\n' % str(self.bidirectional).lower())
         f.write('dataFraction 1\n')
-        f.write('maxTestsNoBest %s\n' % 20)
+        f.write('maxTestsNoBest %s\n' % str(self.patience))
         f.write('learnRate %s\n' % str(self.learn_rate))
         f.write('momentum %s\n' % str(self.momentum))
         f.write('optimiser %s\n' % str(self.optimizer))
@@ -1006,8 +1008,11 @@ class RnnlibConfig(object):
         if len(self.val_files) > 0:
             f.write('valFile %s\n' % ",".join(self.val_files))
         if len(self.test_files) > 0:
-            # comment the test files so they are not tested during training
-            f.write('#testFile %s\n' % ",".join(self.test_files))
+            if self.test:
+                f.write('testFile %s\n' % ",".join(self.test_files))
+            else:
+                # comment the test files so they are not tested during training
+                f.write('#testFile %s\n' % ",".join(self.test_files))
         f.close()
 
     def test(self, out_dir=None, file_set='test', threads=THREADS,
@@ -1255,7 +1260,7 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
                   bidirectional=True, task='classification', learn_rate=1e-5,
                   layer_sizes=[25, 25, 25], layer_type='lstm', momentum=0.9,
                   optimizer='steepest', splits=None, noise=0, weight_noise=0,
-                  l1=0, l2=0):
+                  l1=0, l2=0, patience=20):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
@@ -1276,6 +1281,8 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
     :param weight_noise:  add noise to weights
     :param l1:            L1 regularisation
     :param l2:            L2 regularisation
+    :param patience:      early stop training after N epoch without improvement
+                          of validation error
 
     """
     from madmom.utils import search_files
@@ -1304,10 +1311,10 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
         # we got a list of splits folders
         from madmom.utils import search_files, match_file
         for split in splits:
-            folds = search_files(split, '.fold')
-            if len(folds) != len(folds):
+            fold_files = search_files(split, '.fold')
+            if len(fold_files) != num_folds:
                 raise ValueError('number of folds must match.')
-            for fold, fold_file in enumerate(folds):
+            for fold, fold_file in enumerate(fold_files):
                 with open(fold_file, 'r') as s:
                     for line in s:
                         line = line.strip()
@@ -1320,13 +1327,13 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
         # use a standard splits
         for fold in range(num_folds):
             folds[fold] = [f for i, f in enumerate(files)
-                                if i % num_folds == fold]
+                           if i % num_folds == fold]
             if not folds[fold]:
                 raise ValueError('not enough files for %d folds.' % num_folds)
     # create the rnnlib_config files
     if num_folds < 3:
         raise ValueError('cannot create splits with less than 3 folds.')
-    for i in range(folds):
+    for i in range(num_folds):
         rnnlib_config = RnnlibConfig()
         all_folds = np.arange(i, i + num_folds)
         test_fold = np.nonzero(all_folds % num_folds == 0)[0]
@@ -1349,6 +1356,7 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
         rnnlib_config.weight_noise = weight_noise
         rnnlib_config.l1 = l1
         rnnlib_config.l2 = l2
+        rnnlib_config.patience = patience
         rnnlib_config.save('%s_%s' % (out_file, i + 1))
 
 
@@ -1361,40 +1369,40 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     """
     Create .nc files for the given .wav and annotation files.
 
-    :param files:         use the files (must contain both the audio files and
-                          the annotation files)
-    :param annotations:   use these annotation suffices [list of strings]
-    :param out_dir:       output directory for the created .nc files
+    :param files:          use the files (must contain both the audio files and
+                           the annotation files)
+    :param annotations:    use these annotation suffices [list of strings]
+    :param out_dir:        output directory for the created .nc files
 
     Signal parameters:
 
-    :param norm:          normalize the signal
-    :param att:           attenuate the signal
+    :param norm:           normalize the signal
+    :param att:            attenuate the signal
 
     Framing parameters:
 
-    :param frame_size:    size of one frame(s), if a list is given, the
-                          individual spectrograms are stacked [int]
-    :param fps:           use given frames per second [float]
-    :param online:        online mode, i.e. use only past information
+    :param frame_size:     size of one frame(s), if a list is given, the
+                           individual spectrograms are stacked [int]
+    :param fps:            use given frames per second [float]
+    :param online:         online mode, i.e. use only past information
 
     Filterbank parameters:
 
-    :param filterbank:    filterbank type [Filterbank]
-    :param num_bands:     number of filter bands (per octave, depending on the
-                          type of the filterbank)
-    :param fmin:          the minimum frequency [Hz]
-    :param fmax:          the maximum frequency [Hz]
-    :param norm_filters:  normalize the filter to area 1 [bool]
+    :param filterbank:     filterbank type [Filterbank]
+    :param num_bands:      number of filter bands (per octave, depending on the
+                           type of the filterbank)
+    :param fmin:           the minimum frequency [Hz]
+    :param fmax:           the maximum frequency [Hz]
+    :param norm_filters:   normalize the filter to area 1 [bool]
 
     Logarithmic magnitude parameters:
 
-    :param log:           scale the magnitude spectrogram logarithmically
-                          [bool]
-    :param mul:           multiply the magnitude spectrogram with this factor
-                          before taking the logarithm [float]
-    :param add:           add this value before taking the logarithm of the
-                          magnitudes [float]
+    :param log:            scale the magnitude spectrogram logarithmically
+                           [bool]
+    :param mul:            multiply the magnitude spectrogram with this factor
+                           before taking the logarithm [float]
+    :param add:            add this value before taking the logarithm of the
+                           magnitudes [float]
 
     Difference parameters:
 
@@ -1423,7 +1431,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Other parameters:
 
-    :param verbose:       be verbose
+    :param verbose:        be verbose
 
     """
     from madmom.processors import SequentialProcessor
@@ -1466,7 +1474,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         filename, annotation = os.path.splitext(f)
         # get the matching .wav or .flac file to the input file
         wav_files = match_file(f, files, annotation, '.wav')
-        # no wav file found, try flac
+        # no .wav file found, try .flac
         if len(wav_files) < 1:
             wav_files = match_file(f, files, annotation, '.flac')
         # no wav file found
@@ -1615,8 +1623,8 @@ def main():
                     help='output directory')
     sp.add_argument('-c', dest='config', default='config',
                     help='config file base name')
-    sp.add_argument('--folds', default=8, type=int,
-                    help='%(default)s-fold cross validation')
+    sp.add_argument('--folds', dest='num_folds', default=8, type=int,
+                    help='N-fold cross validation [default=%(default)s]')
     sp.add_argument('--splits', action='append', default=None,
                     help='use the pre-defined folds from this split folder '
                          '(argument can be given multiple times)')
@@ -1637,6 +1645,8 @@ def main():
                     help='momentum for learning [default=%(default)s]')
     sp.add_argument('--optimizer', default='steepest', type=str,
                     help='optimizer [default=%(default)s]')
+    sp.add_argument('--patience', default=20, type=int,
+                    help='early stopping after N epochs [default=%(default)s]')
     sp.add_argument('--noise', default=0, type=float,
                     help='add noise to input [default=%(default).2f]')
     sp.add_argument('--weight_noise', default=0, type=float,

@@ -59,3 +59,7 @@ ATLAS instead of Apple's own Accelerate framework or use the a single thread
 
 If you get errors pointing to any .pyx file, please recompile (see above)
 before investigating this error further.
+
+If you get a "cPickle.PicklingError: Can't pickle <type 'instancemethod'>"
+error, make sure that you use only one thread (i.e. use the "-j 1" switch),
+otherwise ParallelProcessors can not be pickled.

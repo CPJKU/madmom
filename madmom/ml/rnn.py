@@ -538,7 +538,7 @@ class RNNProcessor(ParallelProcessor):
         for nn_file in nn_files:
             nn_models.append(RecurrentNeuralNetwork.load(nn_file))
         # instantiate ParallelProcessor
-        super(RNNProcessor, self).__init__(nn_models, num_threads)
+        super(RNNProcessor, self).__init__(nn_models, num_threads=num_threads)
 
     @classmethod
     def add_arguments(cls, parser, nn_files):

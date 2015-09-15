@@ -54,7 +54,9 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     # test all possible delays
     taus = range(min_tau, max_tau + 1)
     bins = []
-    # TODO: make this processing parallel or numpyfy if possible
+    # Note: this is faster than:
+    #   corr = np.correlate(activations, activations, mode='full')
+    #   bins = corr[len(activations) + min_tau - 1: len(activations) + max_tau]
     for tau in taus:
         bins.append(np.sum(np.abs(activations[tau:] * activations[0:-tau])))
     # return histogram
