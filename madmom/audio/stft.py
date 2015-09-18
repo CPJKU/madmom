@@ -34,14 +34,22 @@ def stft(frames, window=None, fft_size=None, circular_shift=False):
     framed signal.
 
     :param frames:         framed signal [2D numpy array or iterable]
-    :param window:         window function [1D numpy array]
-    :param fft_size:       use this size for FFT [int, should be a power of 2]
+    :param window:         window function [numpy ufunc or 1D numpy array]
+    :param fft_size:       FFT size [int, should be a power of 2];
+                           if 'None' is given the `frame_size` of the
+                           `FramedSignal` is used, if the given `fft_size` is
+                           greater than the `frame_size`, the frames are
+                           zero-padded accordingly; `fft_size` must not be
+                           smaller than `frame_size`
     :param circular_shift: circular shift for correct phase [bool]
     :return:               the complex STFT of the signal
 
     Note: `frames` must be a 2D numpy array or iterable with the time as the
           first dimension (axis=0). If given, he size of the `window` must
           match the second dimension of `frames`.
+          `window` must be either a numpy window function (size of the window
+          is inferred from the frame size) or a 1D numpy array with a size
+          equal to the size of the frames.
 
     """
     # check for correct shape of input
@@ -59,6 +67,9 @@ def stft(frames, window=None, fft_size=None, circular_shift=False):
     # FFT size to use
     if fft_size is None:
         fft_size = frame_size
+    # fft size must be at least the frame size
+    if fft_size < frame_size:
+        raise ValueError('FFT size must greater or equal the frame size')
     # number of FFT bins to store
     num_fft_bins = fft_size >> 1
 
@@ -181,7 +192,11 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         FFT parameters:
 
         :param window:         window function [numpy ufunc or numpy array]
-        :param fft_size:       use this size for the FFT [int, power of 2]
+        :param fft_size:       FFT size [int, should be a power of 2];
+                               if 'None' is given the `frame_size` of the
+                               `FramedSignal` is used, if the given `fft_size`
+                               is greater than the `frame_size`, the frames
+                               are zero-padded accordingly.
         :param circular_shift: circular shift the signal before performing the
                                FFT; needed for correct phase
 
