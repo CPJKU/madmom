@@ -84,18 +84,21 @@ def statistical_spectrum_descriptors(spectrogram):
 def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
     """
     Determines the tuning frequency of the audio signal based on the given
-    (peak) magnitude spectrogram.
+    magnitude spectrogram.
 
-    :param spectrogram:     (peak) magnitude spectrogram [numpy array]
+    :param spectrogram:     magnitude spectrogram [numpy array]
     :param bin_frequencies: frequencies of the spectrogram bins [numpy array]
     :param num_hist_bins:   number of histogram bins
     :param fref:            reference tuning frequency [Hz]
     :return:                tuning frequency
 
+    To determine the tuning frequency, a weighted histogram of relative
+    deviations of the spectrogram bins towards the closest semitones is built.
+
     """
     from .filters import hz2midi
     # interval of spectral bins from the reference frequency in semitones
-    semitone_int = hz2midi(bin_frequencies)
+    semitone_int = hz2midi(bin_frequencies, fref=fref)
     # deviation from the next semitone
     semitone_dev = semitone_int - np.round(semitone_int)
     # np.histogram accepts bin edges, so we need to apply an offset and use 1
