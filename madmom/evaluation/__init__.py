@@ -113,8 +113,29 @@ def calc_relative_errors(detections, annotations, matches=None):
     return np.abs(1 - (errors / annotations[matches]))
 
 
+# Mixin which provides a dictionary of all evaluation metrics
+class EvaluationMetricsMixin(object):
+    """
+    Mixin for Evaluations to provide access to the defined metrics through a
+    dictionary.
+
+    """
+    METRIC_NAMES = []
+
+    @ property
+    def metrics(self):
+        """Metrics as a dictionary."""
+        # TODO: use an ordered dict?
+        # from collections import OrderedDict
+        # metrics = OrderedDict()
+        metrics = {}
+        for metric in [m[0] for m in self.METRIC_NAMES]:
+            metrics[metric] = getattr(self, metric)
+        return metrics
+
+
 # evaluation classes
-class SimpleEvaluation(object):
+class SimpleEvaluation(EvaluationMetricsMixin, object):
     """
     Simple evaluation class for calculating Precision, Recall and F-measure
     based on the numbers of true/false positive/negative detections.

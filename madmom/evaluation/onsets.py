@@ -118,7 +118,7 @@ class OnsetEvaluation(Evaluation):
         self._errors = calc_errors(self.tp, annotations).tolist()
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -155,12 +155,12 @@ def parser():
                    help='add given delay to all detections [seconds]')
     # parse the arguments
     args = p.parse_args()
-    # print the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-    # return
+    # return the arguments
     return args
 
 
@@ -174,7 +174,7 @@ def main():
     import os
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:

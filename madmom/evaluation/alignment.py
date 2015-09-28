@@ -11,6 +11,8 @@ import warnings
 
 import numpy as np
 
+from . import EvaluationMetricsMixin
+
 # constants for the data format
 _TIME = 0
 _SCORE_POS = 1
@@ -141,7 +143,7 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
     return results
 
 
-class AlignmentEvaluation(object):
+class AlignmentEvaluation(EvaluationMetricsMixin, object):
     """
     Alignment evaluation class for beat-level alignments.
     Beat-level aligners output beat positions for points in time,
@@ -401,15 +403,15 @@ def parse_args():
 
     g.add_argument('--piecewise', action='store_true',
                    help='Combine metrics piecewise [default: %(default)s]')
-
+    # parse the arguments
     args = p.parse_args()
-    # output the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-
-    return p.parse_args()
+    # return the arguments
+    return args
 
 
 def main():

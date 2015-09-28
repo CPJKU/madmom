@@ -988,7 +988,7 @@ class MeanBeatEvaluation(BeatEvaluation):
         return self._error_histogram
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -1065,12 +1065,12 @@ def parser():
                         '[default=%(default)i]')
     # parse the arguments
     args = p.parse_args()
-    # output the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-    # return
+    # return the arguments
     return args
 
 
@@ -1083,7 +1083,7 @@ def main():
     import os
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:

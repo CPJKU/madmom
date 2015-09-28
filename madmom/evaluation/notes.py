@@ -136,7 +136,7 @@ class NoteEvaluation(Evaluation):
         return self._errors
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -170,12 +170,12 @@ def parser():
                    help='add given delay to all detections [seconds]')
     # parse the arguments
     args = p.parse_args()
-    # print the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-    # return
+    # return the arguments
     return args
 
 
@@ -188,7 +188,7 @@ def main():
     from madmom.utils import search_files, match_file
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:

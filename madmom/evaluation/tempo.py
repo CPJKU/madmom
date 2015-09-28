@@ -10,6 +10,7 @@ This file contains tempo evaluation functionality.
 import warnings
 import numpy as np
 
+from . import EvaluationMetricsMixin
 from ..utils import open
 
 
@@ -116,7 +117,7 @@ TRIPLE = True
 
 
 # basic tempo evaluation
-class TempoEvaluation(object):
+class TempoEvaluation(EvaluationMetricsMixin, object):
     """
     Tempo evaluation class.
 
@@ -254,7 +255,7 @@ class MeanTempoEvaluation(TempoEvaluation):
         return np.mean(self._acc2)
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -302,7 +303,7 @@ def parser():
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-        # return
+    # return the args
     return args
 
 
@@ -315,7 +316,7 @@ def main():
     from madmom.utils import search_files, match_file
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:
