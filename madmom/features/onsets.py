@@ -15,6 +15,7 @@ from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
 from madmom.audio.spectrogram import SpectrogramDifference
 
+
 EPSILON = 1e-6
 
 
