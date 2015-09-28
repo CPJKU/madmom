@@ -10,13 +10,13 @@ This file contains all cepstrogram related functionality.
 import numpy as np
 from scipy.fftpack import dct
 
-from madmom.processors import Processor, SequentialProcessor
-from madmom.audio.filters import MelFilterbank
-from madmom.audio.spectrogram import (ShortTimeFourierTransform, Spectrogram,
-                                      LogarithmicFilteredSpectrogramProcessor)
+from ..processors import Processor
+from .stft import PropertyMixin
+from .filters import MelFilterbank
+from .spectrogram import Spectrogram
 
 
-class Cepstrogram(Spectrogram):
+class Cepstrogram(PropertyMixin, np.ndarray):
     """
     Cepstrogram is a generic class which applies some transformation (usually
     a DCT) on a spectrogram.
@@ -25,7 +25,7 @@ class Cepstrogram(Spectrogram):
 
     def __new__(cls, spectrogram, transform=dct, **kwargs):
         """
-        Creates a new FilteredSpectrogram instance from the given Spectrogram.
+        Creates a new Cepstrogram instance from the given Spectrogram.
 
         :param spectrogram:       Spectrogram instance (or anything a
                                   Spectrogram can be instantiated from)
@@ -43,7 +43,7 @@ class Cepstrogram(Spectrogram):
 
         # apply the transformation to the spectrogram
         data = transform(spectrogram)
-        # cast as FilteredSpectrogram
+        # cast as Cepstrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.transform = transform
@@ -51,8 +51,6 @@ class Cepstrogram(Spectrogram):
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.frames = spectrogram.stft.frames
-        obj.mul = spectrogram.mul
-        obj.add = spectrogram.add
         # return the object
         return obj
 
@@ -62,7 +60,6 @@ class Cepstrogram(Spectrogram):
         # set default values here, also needed for views
         self.transform = getattr(obj, 'transform', None)
         self.spectrogram = getattr(obj, 'spectrogram', None)
-        super(Cepstrogram, self).__array_finalize__(obj)
 
     def __reduce__(self):
         # get the parent's __reduce__ tuple
@@ -77,6 +74,12 @@ class Cepstrogram(Spectrogram):
         self.transform = state[-1]
         # call the parent's __setstate__ with the other tuple elements
         super(Cepstrogram, self).__setstate__(state[0:-1])
+
+    @property
+    def bin_frequencies(self):
+        """Frequencies of the bins."""
+        # TODO: what are the frequencies of the bins?
+        raise NotImplementedError('please implement!')
 
 
 class CepstrogramProcessor(Processor):
@@ -221,21 +224,22 @@ class MFCC(Cepstrogram):
         super(MFCC, self).__array_finalize__(obj)
 
     def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
         pickled_state = super(MFCC, self).__reduce__()
         # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.filterbank,)
+        new_state = pickled_state[2] + (self.transform, self.filterbank,
+                                        self.mul, self.add)
         # return a tuple that replaces the parent's __reduce__ tuple
         return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
-        # needed for correct un-pickling
         # set the attributes
-        self.filterbank = state[-1]
+        self.transform = state[-4]
+        self.filterbank = state[-3]
+        self.mul = state[-2]
+        self.add = state[-1]
         # call the parent's __setstate__ with the other tuple elements
-        super(MFCC, self).__setstate__(state[0:-1])
+        super(MFCC, self).__setstate__(state[0:-4])
 
 
 class MFCCProcessor(Processor):
