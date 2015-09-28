@@ -123,10 +123,10 @@ class TempoEvaluation(object):
     """
     METRIC_NAMES = [
         ('pscore', 'P-score'),
-        ('any', 'one tempo'),
-        ('all', 'both tempi'),
-        ('acc1', 'accuracy 1'),
-        ('acc2', 'accuracy 2')
+        ('any', 'one tempo correct'),
+        ('all', 'both tempi correct'),
+        ('acc1', 'Accuracy 1'),
+        ('acc2', 'Accuracy 2')
     ]
 
     def __init__(self, detections, annotations, strengths, tolerance=TOLERANCE,
@@ -164,7 +164,8 @@ class TempoEvaluation(object):
 
     def to_string(self):
         """
-        Print errors.
+        Format the errors as a human readable string.
+
         """
         return 'pscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
                'acc1=%.3f acc2=%.3f' % (self.pscore, self.any,
@@ -261,7 +262,7 @@ def parser():
 
     """
     import argparse
-    from . import evaluation_in, evaluation_out
+    from . import evaluation_io
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -276,8 +277,7 @@ def parser():
 
     """)
     # files used for evaluation
-    evaluation_in(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
-    evaluation_out(p)
+    evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
     g.add_argument('--tolerance', type=float, action='store',

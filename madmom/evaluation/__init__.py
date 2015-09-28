@@ -291,9 +291,10 @@ class SimpleEvaluation(object):
 
     def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
         :param verbose: add accuracy and mean/std of errors
+
         """
         ret = 'annotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
               'r=%.3f f=%.3f' % (self.num_annotations, self.num_tp,
@@ -444,9 +445,10 @@ class MeanEvaluation(SimpleEvaluation):
 
     def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
         :param verbose: add accuracy and mean/std of errors
+
         """
         # use floats instead of integers for reporting
         ret = 'annotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
@@ -585,9 +587,10 @@ class MultiClassEvaluation(Evaluation):
 
     def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
         :param verbose: add evaluation for individual classes
+
         """
         ret = ''
 
@@ -620,8 +623,7 @@ class MultiClassEvaluation(Evaluation):
                 ret += add_indent(string, 'Class %s:\n' % cls) + '\n'
         # normal formatting
         ret += 'annotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-               'r=%.3f f=%.3f\nacc: %.1f%% ' \
-               'mean: %.1f ms std: %.1f ms' % \
+               'r=%.3f f=%.3f\nacc: %.1f%% mean: %.1f ms std: %.1f ms' % \
                (self.num_tp + self.num_fn, self.num_tp, self.num_fp,
                 self.num_fn, self.precision, self.recall, self.fmeasure,
                 self.accuracy * 100., self.mean_error * 1000.,
@@ -632,7 +634,8 @@ class MultiClassEvaluation(Evaluation):
 
 class EvaluationOutput(object):
     """
-    Base class for evaluation output formatters
+    Base class for evaluation output formatters.
+
     """
 
     def __init__(self, metric_names, float_format='{:.3f}'):
@@ -640,9 +643,10 @@ class EvaluationOutput(object):
         Initialises the evaluation output.
 
         :param metric_names: list of tuples defining the name of the property
-                             corresponding to the metric, and the metric label.
-                             e.g. ('fp', 'False Posivies')
+                             corresponding to the metric, and the metric label
+                             e.g. ('fp', 'False Positives')
         :param float_format: how to format the metrics
+
         """
         self.float_format = float_format
         self.metric_names, self.metric_labels = zip(*metric_names)
@@ -653,7 +657,8 @@ class EvaluationOutput(object):
 
         :param name:       label of the evaluation (file name, 'mean', ...)
         :param evaluation: evaluation to format
-        :param **kwargs:   further formatting parameters
+        :param kwargs:     additional formatting parameters
+
         """
         raise NotImplementedError('Implement this method!')
 
@@ -661,8 +666,10 @@ class EvaluationOutput(object):
         """
         Converts the metrics of the evaluation to strings according to the
         given format.
+
         :param evaluation: evaluation with metrics to be converted
         :return:           list of strings containing the metric values
+
         """
         return [self.float_format.format(getattr(evaluation, mn))
                 for mn in self.metric_names]
@@ -676,6 +683,7 @@ class TexOutput(EvaluationOutput):
     def __init__(self, *args, **kwargs):
         """
         Initialises the output formatter. See EvaluationOutput for parameters.
+
         """
         super(TexOutput, self).__init__(*args, **kwargs)
         # add header
@@ -687,7 +695,8 @@ class TexOutput(EvaluationOutput):
 
         :param name:       label of the evaluation (file name, 'mean', ...)
         :param evaluation: evaluation to format
-        :param **kwargs:   further formatting parameters (unused here)
+        :param kwargs:     additional formatting parameters (not used here)
+
         """
         val_strings = self.format_eval_values(evaluation)
         self.output_lines.append(
@@ -697,21 +706,25 @@ class TexOutput(EvaluationOutput):
     def __str__(self):
         """
         Convert the added evaluations to a string.
+
         :return: string with formatted evaluations.
+
         """
         return '\n'.join(self.output_lines)
 
 
-class CsvOutput(EvaluationOutput):
+class CSVOutput(EvaluationOutput):
     """
     Outputs evaluations as CSV tables.
+
     """
 
     def __init__(self, *args, **kwargs):
         """
         Initialises the output formatter. See EvaluationOutput for parameters.
+
         """
-        super(CsvOutput, self).__init__(*args, **kwargs)
+        super(CSVOutput, self).__init__(*args, **kwargs)
         # add header
         self.output_lines = ['Name,' + ','.join(self.metric_labels)]
 
@@ -721,7 +734,8 @@ class CsvOutput(EvaluationOutput):
 
         :param name:       label of the evaluation (file name, 'mean', ...)
         :param evaluation: evaluation to format
-        :param **kwargs:   further formatting parameters (unused here)
+        :param kwargs:     additional formatting parameters (not used here)
+
         """
         val_strings = self.format_eval_values(evaluation)
         self.output_lines.append(
@@ -731,7 +745,9 @@ class CsvOutput(EvaluationOutput):
     def __str__(self):
         """
         Convert the added evaluations to a string.
+
         :return: string with formatted evaluations.
+
         """
         return '\n'.join(self.output_lines)
 
@@ -739,12 +755,14 @@ class CsvOutput(EvaluationOutput):
 class StrOutput(EvaluationOutput):
     """
     Outputs evaluations as defined in the evaluations themselves by their
-    respective to_string() methods.
+    respective `to_string()` methods.
+
     """
 
     def __init__(self, *args, **kwargs):
         """
         Initialises the output formatter. See EvaluationOutput for parameters.
+
         """
         super(StrOutput, self).__init__(*args, **kwargs)
         self.output_lines = []
@@ -755,8 +773,8 @@ class StrOutput(EvaluationOutput):
 
         :param name:       label of the evaluation (file name, 'mean', ...)
         :param evaluation: evaluation to format
-        :param **kwargs:   further formatting parameters passed to the to_string
-                           method of the evaluation
+        :param kwargs:     additional formatting parameters passed to the
+                           `to_string()` method of the evaluation
         """
         eval_str = add_indent(evaluation.to_string(**kwargs), '%s\n  ' % name)
         self.output_lines.append(eval_str)
@@ -764,7 +782,9 @@ class StrOutput(EvaluationOutput):
     def __str__(self):
         """
         Convert the added evaluations to a string.
+
         :return: string with formatted evaluations.
+
         """
         return '\n'.join(self.output_lines)
 
@@ -778,6 +798,7 @@ def add_indent(lines, indent):
     :param lines:  string containing the lines to be indented
     :param indent: indent to use
     :return:       string containing the indented lines
+
     """
     split_lines = lines.split('\n')
     # add indent to first line
@@ -795,82 +816,54 @@ def add_indent(lines, indent):
     return '\n'.join(split_lines)
 
 
-def evaluation_in(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
+def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
-    Add evaluation input related arguments to an existing parser object.
+    Add evaluation input/output related arguments to an existing parser object.
 
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
     :param det_suffix: suffix for the detection files
     :param ann_dir:    use only annotations from this folder (+ sub-folders)
     :param det_dir:    use only detections from this folder (+ sub-folders)
-    :return:           audio argument parser group object
+    :return:           evaluation output formatter argument group
 
     """
     parser.add_argument('files', nargs='*',
                         help='files (or folders) to be evaluated')
     # suffixes used for evaluation
-    parser.add_argument('-a', dest='ann_suffix', action='store',
-                        default=ann_suffix,
-                        help='suffix of the annotation files '
-                             '[default: %(default)s]')
-    parser.add_argument('--ann_dir', action='store',
-                        default=ann_dir,
-                        help='search only this directory (recursively) for '
-                             'annotation files [default: %(default)s]')
-    parser.add_argument('-d', dest='det_suffix', action='store',
-                        default=det_suffix,
-                        help='suffix of the detection files '
-                             '[default: %(default)s]')
-    parser.add_argument('--det_dir', action='store',
-                        default=det_dir,
-                        help='search only this directory (recursively) for '
-                             'detection files [default: %(default)s]')
-    parser.add_argument('-i', '--ignore_non_existing', action='store_true',
-                        default=False,
-                        help='ignore non-existing detections [default: raise '
-                             'a warning and assume empty detections]')
+    g = parser.add_argument_group('file/folder/suffix arguments')
+    g.add_argument('-a', dest='ann_suffix', action='store', default=ann_suffix,
+                   help='suffix of the annotation files '
+                        '[default: %(default)s]')
+    g.add_argument('--ann_dir', action='store', default=ann_dir,
+                   help='search only this directory (recursively) for '
+                        'annotation files [default: %(default)s]')
+    g.add_argument('-d', dest='det_suffix', action='store', default=det_suffix,
+                   help='suffix of the detection files [default: %(default)s]')
+    g.add_argument('--det_dir', action='store', default=det_dir,
+                   help='search only this directory (recursively) for '
+                        'detection files [default: %(default)s]')
+    # option to ignore non-existing detections
+    g.add_argument('-i', '--ignore_non_existing', action='store_true',
+                   help='ignore non-existing detections [default: raise a '
+                        'warning and assume empty detections]')
     # verbose
-    parser.add_argument('-v', dest='verbose', action='count', default=0,
+    parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='increase verbosity level')
     # option to suppress warnings
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='suppress any warnings')
-    # return the parser
-    return parser
-
-
-def evaluation_out(parser, tex=True, csv=True):
-    """
-    Add evaluation output related arguments ot an existing parser object.
-
-    :param parser: existing argparse parser object
-    :param tex:    enable LaTeX output
-    :param csv:    enable CSV output
-    :return:       output argument group
-    """
-
-    # output options
-    parser.set_defaults(output_formatter=StrOutput)
-
-    if not (tex or csv):
-        return None
-
+    # output format options
     g = parser.add_argument_group('formatting arguments')
+    parser.set_defaults(output_formatter=StrOutput)
     formats = g.add_mutually_exclusive_group()
-
-    if tex:
-        formats.add_argument(
-            '--tex', action='store_const', const=TexOutput,
-            dest='output_formatter',
-            help='format output to be used in .tex files')
-    if csv:
-        formats.add_argument(
-            '--csv', action='store_const', const=CsvOutput,
-            dest='output_formatter',
-            help='format output to be used in .csv files')
-
-    # return g so the caller can add more output options
+    formats.add_argument('--tex', dest='output_formatter',
+                         action='store_const', const=TexOutput,
+                         help='format output to be used in .tex files')
+    formats.add_argument('--csv', dest='output_formatter',
+                         action='store_const', const=CSVOutput,
+                         help='format output to be used in .csv files')
+    # return the output formatting group so the caller can add more options
     return g
 
 

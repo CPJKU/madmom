@@ -144,7 +144,7 @@ def parser():
 
     """
     import argparse
-    from . import evaluation_in, evaluation_out
+    from . import evaluation_io
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -159,8 +159,7 @@ def parser():
 
     """)
     # files used for evaluation
-    evaluation_in(p, ann_suffix='.notes', det_suffix='.notes.txt')
-    evaluation_out(p)
+    evaluation_io(p, ann_suffix='.notes', det_suffix='.notes.txt')
     # parameters for evaluation
     g = p.add_argument_group('evaluation arguments')
     g.add_argument('-w', dest='window', action='store', type=float,

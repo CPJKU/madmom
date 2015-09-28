@@ -7,7 +7,6 @@ This file contains global alignment evaluation functionality.
 
 """
 
-import re
 import warnings
 
 import numpy as np
@@ -112,16 +111,16 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
     correctly_aligned_error = np.ma.array(aligned_error, mask=misaligned)
     pc_idx = float(correctly_aligned_error.mask[::-1].argmin())
 
-    # we have to typecast everything to float, if we don't the
-    # variables are of type np.maskedarray
+    # we have to typecast everything to float, if we don't the variables will
+    # be of type np.maskedarray
     results = {'miss_rate': float(missed.mean()),
                'misalign_rate': float(misaligned.mean()),
                'avg_imprecision': float(correctly_aligned_error.mean()),
                'stddev_imprecision': float(correctly_aligned_error.std()),
                'avg_error': float(aligned_error.mean()),
                'stddev_error': float(aligned_error.std()),
-               'piece_completion': float(1.0 - pc_idx /
-                                         correctly_aligned_error.mask.shape[0])}
+               'piece_completion': float(
+                   1.0 - pc_idx / correctly_aligned_error.mask.shape[0])}
 
     # convert possibly masked values to NaN. A masked value can occur when
     # computing the mean or stddev of values that are all masked
@@ -268,14 +267,16 @@ class AlignmentEvaluation(object):
         """
         Cumulative histogram of absolute alignment error. For bounds see
         error_histogram_bins.
+
         """
         return self.metrics['error_hist']
 
     def to_string(self, verbose=False):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
         :param verbose: output error histogram
+
         """
         errs = 'misalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
                'avg-imprecision: %.3f stddev-imprecision %.3f '\
@@ -344,7 +345,8 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
 
         """
         if len(self) == 0:
-            raise RuntimeError('Cannot compute mean evaluation on empty object')
+            raise RuntimeError('Cannot compute mean evaluation on empty '
+                               'object.')
 
         if self._metrics is None:
             self._metrics = {}
@@ -352,8 +354,8 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
             for weight, sf_eval in self.evals:
                 for name, val in sf_eval.iteritems():
                     if isinstance(val, np.ndarray) or not np.isnan(val):
-                        self._metrics[name] = (self._metrics.get(name, 0.) +
-                                               weight / self.total_weight * val)
+                        self._metrics[name] = self._metrics.get(name, 0.) + \
+                                              weight / self.total_weight * val
 
         return self._metrics
 
@@ -366,7 +368,7 @@ def parse_args():
 
     """
     import argparse
-    from . import evaluation_in, evaluation_out
+    from . import evaluation_io
 
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
@@ -384,9 +386,9 @@ def parse_args():
 
     Lines starting with # are treated as comments and are ignored.
     """)
-
-    evaluation_in(p, ann_suffix='.alignment', det_suffix='.aligned')
-    out_opts = evaluation_out(p)
+    # files used for evaluation
+    out_opts = evaluation_io(p, ann_suffix='.alignment', det_suffix='.aligned')
+    # add additional output formating options
     out_opts.add_argument('--histogram', action='store_true',
                           help='Output error histogram. Works only for '
                                'standard output. [default: %(default)s]')

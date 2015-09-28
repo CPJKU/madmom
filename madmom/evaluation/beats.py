@@ -833,9 +833,10 @@ class BeatEvaluation(OnsetEvaluation):
         # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
 
-    def to_string(self, verbose=True):
+    def to_string(self):
         """
-        Print errors.
+        Format the errors as a human readable string.
+
         """
         return 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
                'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
@@ -995,7 +996,7 @@ def parser():
 
     """
     import argparse
-    from . import evaluation_in, evaluation_out
+    from . import evaluation_io
 
     # define parser
     p = argparse.ArgumentParser(
@@ -1015,10 +1016,7 @@ def parser():
 
     """)
     # files used for evaluation
-    evaluation_in(p, ann_suffix='.beats', det_suffix='.beats.txt')
-    # add output parameters
-    evaluation_out(p)
-
+    evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants
     g = p.add_argument_group('sequence manipulation arguments')
     g.add_argument('--no_offbeat', dest='offbeat', action='store_false',
