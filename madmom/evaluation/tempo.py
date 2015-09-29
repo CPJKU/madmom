@@ -10,6 +10,7 @@ This file contains tempo evaluation functionality.
 import warnings
 import numpy as np
 
+from . import EvaluationMetricsMixin
 from ..utils import open
 
 
@@ -116,11 +117,18 @@ TRIPLE = True
 
 
 # basic tempo evaluation
-class TempoEvaluation(object):
+class TempoEvaluation(EvaluationMetricsMixin, object):
     """
     Tempo evaluation class.
 
     """
+    METRIC_NAMES = [
+        ('pscore', 'P-score'),
+        ('any', 'one tempo correct'),
+        ('all', 'both tempi correct'),
+        ('acc1', 'Accuracy 1'),
+        ('acc2', 'Accuracy 2')
+    ]
 
     def __init__(self, detections, annotations, strengths, tolerance=TOLERANCE,
                  double=DOUBLE, triple=TRIPLE):
@@ -155,25 +163,17 @@ class TempoEvaluation(object):
         strengths = np.tile(strengths, len(ann) / len_strengths)
         self.acc2 = tempo_evaluation(detections, ann, strengths, tolerance)[1]
 
-    def print_errors(self, indent='', tex=False):
+    def to_string(self):
         """
-        Print errors.
-
-        :param indent: use the given string as indentation
-        :param tex:    output format to be used in .tex files
+        Format the errors as a human readable string.
 
         """
-        if tex:
-            # tex formatting
-            ret = 'tex & P-Score & one tempo & both tempi & accuracy 1 & ' \
-                  'accuracy 2\\\\\n& %.3f & %.3f & %.3f & %.3f & %.3f\\\\' % \
-                  (self.pscore, self.any, self.all, self.acc1, self.acc2)
-        else:
-            # normal formatting
-            ret = '%spscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
-                  'acc1=%.3f acc2=%.3f' % (indent, self.pscore, self.any,
-                                           self.all, self.acc1, self.acc2)
-        return ret
+        return 'pscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
+               'acc1=%.3f acc2=%.3f' % (self.pscore, self.any,
+                                        self.all, self.acc1, self.acc2)
+
+    def __str__(self):
+        return self.to_string()
 
 
 class MeanTempoEvaluation(TempoEvaluation):
@@ -255,7 +255,7 @@ class MeanTempoEvaluation(TempoEvaluation):
         return np.mean(self._acc2)
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -303,7 +303,7 @@ def parser():
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-        # return
+    # return the args
     return args
 
 
@@ -312,10 +312,11 @@ def main():
     Simple tempo evaluation.
 
     """
+    import os
     from madmom.utils import search_files, match_file
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:
@@ -332,6 +333,8 @@ def main():
 
     # mean evaluation for all files
     mean_eval = MeanTempoEvaluation()
+    # create the output formatter using the metrics of the evaluation
+    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:
         # load the annotations
@@ -367,11 +370,12 @@ def main():
                             double=args.double, triple=args.triple)
         # print stats for each file
         if args.verbose:
-            print e.print_errors('%s\n  ' % ann_file)
+            eval_output.add_eval(os.path.basename(ann_file), e)
         # add this file's mean evaluation to the global evaluation
         mean_eval.append(e)
     # print summary
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
+    print eval_output
 
 
 if __name__ == '__main__':

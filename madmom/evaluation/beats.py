@@ -757,6 +757,18 @@ class BeatEvaluation(OnsetEvaluation):
     Beat evaluation class.
 
     """
+    METRIC_NAMES = [
+        ('fmeasure', 'F-measure'),
+        ('pscore', 'P-score'),
+        ('cemgil', 'Cemgil'),
+        ('goto', 'Goto'),
+        ('cmlc', 'CMLc'),
+        ('cmlt', 'CMLt'),
+        ('amlc', 'AMLc'),
+        ('amlt', 'AMLt'),
+        ('information_gain', 'D'),
+        ('global_information_gain', 'Dg')
+    ]
 
     def __init__(self, detections, annotations,
                  fmeasure_window=FMEASURE_WINDOW,
@@ -821,36 +833,20 @@ class BeatEvaluation(OnsetEvaluation):
         # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
 
-    def print_errors(self, indent='', tex=False):
+    def to_string(self):
         """
-        Print errors.
-
-        :param indent: use the given string as indentation
-        :param tex:    output format to be used in .tex files
+        Format the errors as a human readable string.
 
         """
-        # report the scores always in the range 0..1, because of formatting
-        ret = ''
-        if tex:
-            # tex formatting
-            ret += 'tex & F-measure & P-score & Cemgil & Goto & CMLc & CMLt &'\
-                   ' AMLc & AMLt & D & Dg \\\\\n& %.3f & %.3f & %.3f & %.3f &'\
-                   ' %.3f & %.3f & %.3f & %.3f & %.3f & %.3f \\\\' %\
-                   (self.fmeasure, self.pscore, self.cemgil, self.goto,
-                    self.cmlc, self.cmlt, self.amlc, self.amlt,
-                    self.information_gain, self.global_information_gain)
-        else:
-            # normal formatting
-            ret += '%sF-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
-                   'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
-                   'Dg: %.3f' %\
-                   (indent, self.fmeasure, self.pscore, self.cemgil, self.goto,
-                    self.cmlc, self.cmlt, self.amlc, self.amlt,
-                    self.information_gain, self.global_information_gain)
-        return ret
+        return 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
+               'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
+               'Dg: %.3f' % \
+               (self.fmeasure, self.pscore, self.cemgil, self.goto, self.cmlc,
+                self.cmlt, self.amlc, self.amlt, self.information_gain,
+                self.global_information_gain)
 
     def __str__(self):
-        return self.print_errors()
+        return self.to_string()
 
 
 class MeanBeatEvaluation(BeatEvaluation):
@@ -992,7 +988,7 @@ class MeanBeatEvaluation(BeatEvaluation):
         return self._error_histogram
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -1069,12 +1065,12 @@ def parser():
                         '[default=%(default)i]')
     # parse the arguments
     args = p.parse_args()
-    # output the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-    # return
+    # return the arguments
     return args
 
 
@@ -1084,9 +1080,10 @@ def main():
 
     """
     from madmom.utils import search_files, match_file, load_events
+    import os
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:
@@ -1102,6 +1099,8 @@ def main():
 
     # mean evaluation for all files
     mean_eval = MeanBeatEvaluation()
+    # create the output formatter using the metrics of the evaluation
+    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:
         # load the annotations
@@ -1144,11 +1143,13 @@ def main():
                            triple=args.triple)
         # output stats for the file
         if args.verbose:
-            print e.print_errors('%s\n  ' % ann_file)
+            eval_output.add_eval(os.path.basename(ann_file), e)
+
         # add this file's evaluation to the global evaluation
         mean_eval.append(e)
     # output summary
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
+    print eval_output
 
 
 if __name__ == '__main__':

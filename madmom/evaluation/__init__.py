@@ -10,6 +10,7 @@ Example:
 python -m madmom.evaluation.onsets /dir/to/be/evaluated
 
 """
+import re
 import numpy as np
 
 
@@ -112,8 +113,29 @@ def calc_relative_errors(detections, annotations, matches=None):
     return np.abs(1 - (errors / annotations[matches]))
 
 
+# Mixin which provides a dictionary of all evaluation metrics
+class EvaluationMetricsMixin(object):
+    """
+    Mixin for Evaluations to provide access to the defined metrics through a
+    dictionary.
+
+    """
+    METRIC_NAMES = []
+
+    @ property
+    def metrics(self):
+        """Metrics as a dictionary."""
+        # TODO: use an ordered dict?
+        # from collections import OrderedDict
+        # metrics = OrderedDict()
+        metrics = {}
+        for metric in [m[0] for m in self.METRIC_NAMES]:
+            metrics[metric] = getattr(self, metric)
+        return metrics
+
+
 # evaluation classes
-class SimpleEvaluation(object):
+class SimpleEvaluation(EvaluationMetricsMixin, object):
     """
     Simple evaluation class for calculating Precision, Recall and F-measure
     based on the numbers of true/false positive/negative detections.
@@ -121,6 +143,16 @@ class SimpleEvaluation(object):
     Note: so far, this class is only suitable for a 1-class evaluation problem.
 
     """
+
+    METRIC_NAMES = [
+        ('num_annotations', 'No. Annotations'),
+        ('precision', 'Precision'),
+        ('recall', 'Recall'),
+        ('fmeasure', 'F-measure'),
+        ('accuracy', 'Accuracy'),
+        ('mean_error', 'Mean'),
+        ('std_error', 'Std.dev'),
+    ]
 
     def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
         """
@@ -278,39 +310,25 @@ class SimpleEvaluation(object):
             return 0.
         return np.std(self.errors)
 
-    def print_errors(self, indent='', tex=False, verbose=True):
+    def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
-        :param indent:  use the given string as indentation
-        :param tex:     output format to be used in .tex files
-        :param verbose: add true/false positive rates and mean/std of errors
+        :param verbose: add accuracy and mean/std of errors
 
         """
-        # print the errors
-        if tex:
-            # tex formatting
-            ret = 'tex & Precision & Recall & F-measure & Accuracy & Mean & ' \
-                  'Std.dev\\\\\n %i annotations & %.3f & %.3f & %.3f & %.3f ' \
-                  '& %.2f ms & %.2f ms\\\\' % \
-                  (self.num_annotations, self.precision, self.recall,
-                   self.fmeasure, self.accuracy, self.mean_error * 1000.,
-                   self.std_error * 1000.)
-        else:
-            # normal formatting
-            ret = '%sannotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
-                  'r=%.3f f=%.3f' % (indent, self.num_annotations, self.num_tp,
-                                     self.num_fp, self.num_fn, self.precision,
-                                     self.recall, self.fmeasure)
-            if verbose:
-                ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
-                       (self.accuracy, self.mean_error * 1000.,
-                        self.std_error * 1000.)
-        # return
+        ret = 'annotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
+              'r=%.3f f=%.3f' % (self.num_annotations, self.num_tp,
+                                 self.num_fp, self.num_fn, self.precision,
+                                 self.recall, self.fmeasure)
+        if verbose:
+            ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
+                   (self.accuracy, self.mean_error * 1000.,
+                    self.std_error * 1000.)
         return ret
 
     def __str__(self):
-        return self.print_errors()
+        return self.to_string()
 
 
 # class for summing Evaluations
@@ -446,18 +464,17 @@ class MeanEvaluation(SimpleEvaluation):
             return 0.
         return np.mean(self._std_errors)
 
-    def print_errors(self, indent='', verbose=True):
+    def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
-        :param indent:  use the given string as indentation
-        :param verbose: add true/false positive rates and mean/std of errors
+        :param verbose: add accuracy and mean/std of errors
 
         """
         # use floats instead of integers for reporting
-        ret = '%sannotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
+        ret = 'annotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
               'p=%.3f r=%.3f f=%.3f' % \
-              (indent, self.num_annotations, self.num_tp, self.num_fp,
+              (self.num_annotations, self.num_tp, self.num_fp,
                self.num_fn, self.precision, self.recall, self.fmeasure)
         if verbose:
             ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
@@ -589,117 +606,286 @@ class MultiClassEvaluation(Evaluation):
 
     """
 
-    def print_errors(self, indent='', tex=False, verbose=True):
+    def to_string(self, verbose=True):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
-        :param indent:  use the given string as indentation
-        :param tex:     output format to be used in .tex files
         :param verbose: add evaluation for individual classes
 
         """
-        # print the errors
-        annotations = self.num_tp + self.num_fn
-        tpr = self.recall
-        fpr = (1 - self.precision)
         ret = ''
-        if tex:
-            # tex formatting
-            ret = 'tex & Precision & Recall & F-measure & True Positives & ' \
-                  'False Positives & Accuracy & Mean & Std.dev\\\\\n %i ' \
-                  'annotations & %.3f & %.3f & %.3f & %.3f & %.3f & %.3f & ' \
-                  '%.2f ms & %.2f ms\\\\' % \
-                  (annotations, self.precision, self.recall, self.fmeasure,
-                   tpr, fpr, self.accuracy, self.mean_error * 1000.,
-                   self.std_error * 1000.)
-            # TODO: add individual class output
-        else:
-            if verbose:
-                # print errors for all classes individually
-                tp = np.asarray(self.tp)
-                fp = np.asarray(self.fp)
-                tn = np.asarray(self.tn)
-                fn = np.asarray(self.fn)
-                # extract all classes
-                classes = []
-                if tp.any():
-                    np.append(classes, np.unique(tp[:, 1]))
-                if fp.any():
-                    np.append(classes, np.unique(fp[:, 1]))
-                if tn.any():
-                    np.append(classes, np.unique(tn[:, 1]))
-                if fn.any():
-                    np.append(classes, np.unique(fn[:, 1]))
-                for cls in sorted(np.unique(classes)):
-                    # extract the TP, FP, TN and FN of this class
-                    tp_ = tp[tp[:, 1] == cls]
-                    fp_ = fp[fp[:, 1] == cls]
-                    tn_ = tn[tn[:, 1] == cls]
-                    fn_ = fn[fn[:, 1] == cls]
-                    # evaluate them
-                    e = Evaluation(tp_, fp_, tn_, fn_)
-                    # append to the output string
-                    string = e.print_errors(indent * 2, verbose=False)
-                    ret += '%s Class %s:\n%s\n' % (indent, cls, string)
-            # normal formatting
-            ret += '%sannotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-                   'r=%.3f f=%.3f\n%stpr: %.1f%% fpr: %.1f%% acc: %.1f%% ' \
-                   'mean: %.1f ms std: %.1f ms' % \
-                   (indent, annotations, self.num_tp, self.num_fp, self.num_fn,
-                    self.precision, self.recall, self.fmeasure, indent,
-                    tpr * 100., fpr * 100., self.accuracy * 100.,
-                    self.mean_error * 1000., self.std_error * 1000.)
+
+        if verbose:
+            # print errors for all classes individually
+            tp = np.asarray(self.tp)
+            fp = np.asarray(self.fp)
+            tn = np.asarray(self.tn)
+            fn = np.asarray(self.fn)
+            # extract all classes
+            classes = []
+            if tp.any():
+                np.append(classes, np.unique(tp[:, 1]))
+            if fp.any():
+                np.append(classes, np.unique(fp[:, 1]))
+            if tn.any():
+                np.append(classes, np.unique(tn[:, 1]))
+            if fn.any():
+                np.append(classes, np.unique(fn[:, 1]))
+            for cls in sorted(np.unique(classes)):
+                # extract the TP, FP, TN and FN of this class
+                tp_ = tp[tp[:, 1] == cls]
+                fp_ = fp[fp[:, 1] == cls]
+                tn_ = tn[tn[:, 1] == cls]
+                fn_ = fn[fn[:, 1] == cls]
+                # evaluate them
+                e = Evaluation(tp_, fp_, tn_, fn_)
+                # append to the output string
+                string = e.to_string(verbose=False)
+                ret += add_indent(string, 'Class %s:\n' % cls) + '\n'
+        # normal formatting
+        ret += 'annotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
+               'r=%.3f f=%.3f\nacc: %.1f%% mean: %.1f ms std: %.1f ms' % \
+               (self.num_tp + self.num_fn, self.num_tp, self.num_fp,
+                self.num_fn, self.precision, self.recall, self.fmeasure,
+                self.accuracy * 100., self.mean_error * 1000.,
+                self.std_error * 1000.)
         # return
         return ret
 
 
+class EvaluationOutput(object):
+    """
+    Base class for evaluation output formatters.
+
+    """
+
+    def __init__(self, metric_names, float_format='{:.3f}'):
+        """
+        Initialises the evaluation output.
+
+        :param metric_names: list of tuples defining the name of the property
+                             corresponding to the metric, and the metric label
+                             e.g. ('fp', 'False Positives')
+        :param float_format: how to format the metrics
+
+        """
+        self.float_format = float_format
+        self.metric_names, self.metric_labels = zip(*metric_names)
+
+    def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param kwargs:     additional formatting parameters
+
+        """
+        raise NotImplementedError('Implement this method!')
+
+    def format_eval_values(self, evaluation):
+        """
+        Converts the metrics of the evaluation to strings according to the
+        given format.
+
+        :param evaluation: evaluation with metrics to be converted
+        :return:           list of strings containing the metric values
+
+        """
+        return [self.float_format.format(getattr(evaluation, mn))
+                for mn in self.metric_names]
+
+
+class TexOutput(EvaluationOutput):
+    """
+    Outputs evaluations as LaTeX tables.
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+
+        """
+        super(TexOutput, self).__init__(*args, **kwargs)
+        # add header
+        self.output_lines = ['  & ' + ' & '.join(self.metric_labels) + '\\\\']
+
+    def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param kwargs:     additional formatting parameters (not used here)
+
+        """
+        val_strings = self.format_eval_values(evaluation)
+        self.output_lines.append(
+            name + ' & ' + ' & '.join(val_strings) + '\\\\'
+        )
+
+    def __str__(self):
+        """
+        Convert the added evaluations to a string.
+
+        :return: string with formatted evaluations.
+
+        """
+        return '\n'.join(self.output_lines)
+
+
+class CSVOutput(EvaluationOutput):
+    """
+    Outputs evaluations as CSV tables.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+
+        """
+        super(CSVOutput, self).__init__(*args, **kwargs)
+        # add header
+        self.output_lines = ['Name,' + ','.join(self.metric_labels)]
+
+    def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param kwargs:     additional formatting parameters (not used here)
+
+        """
+        val_strings = self.format_eval_values(evaluation)
+        self.output_lines.append(
+            name + ',' + ','.join(val_strings)
+        )
+
+    def __str__(self):
+        """
+        Convert the added evaluations to a string.
+
+        :return: string with formatted evaluations.
+
+        """
+        return '\n'.join(self.output_lines)
+
+
+class StrOutput(EvaluationOutput):
+    """
+    Outputs evaluations as defined in the evaluations themselves by their
+    respective `to_string()` methods.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialises the output formatter. See EvaluationOutput for parameters.
+
+        """
+        super(StrOutput, self).__init__(*args, **kwargs)
+        self.output_lines = []
+
+    def add_eval(self, name, evaluation, **kwargs):
+        """
+        Adds an evaluation to the output.
+
+        :param name:       label of the evaluation (file name, 'mean', ...)
+        :param evaluation: evaluation to format
+        :param kwargs:     additional formatting parameters passed to the
+                           `to_string()` method of the evaluation
+        """
+        eval_str = add_indent(evaluation.to_string(**kwargs), '%s\n  ' % name)
+        self.output_lines.append(eval_str)
+
+    def __str__(self):
+        """
+        Convert the added evaluations to a string.
+
+        :return: string with formatted evaluations.
+
+        """
+        return '\n'.join(self.output_lines)
+
+
+def add_indent(lines, indent):
+    """
+    Adds an indent to a given string. The string may contain line breaks. In
+    this case, the indent is used as is in the first line, while for the other
+    line a white-space indent of the same length as the actual indent is used.
+
+    :param lines:  string containing the lines to be indented
+    :param indent: indent to use
+    :return:       string containing the indented lines
+
+    """
+    split_lines = lines.split('\n')
+    # add indent to first line
+    split_lines[0] = indent + split_lines[0]
+
+    # here, we try to create an indentation of the same length as the
+    # indent parameter, but containing only whitespaces
+    whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
+    whitespace_indent = re.sub('\n', '', whitespace_indent)
+
+    # add whitespace indent to other lines
+    for i, eval_line in enumerate(split_lines[1:]):
+        split_lines[i + 1] = whitespace_indent + eval_line
+
+    return '\n'.join(split_lines)
+
+
 def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
-    Add evaluation related arguments to an existing parser object.
+    Add evaluation input/output related arguments to an existing parser object.
 
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
     :param det_suffix: suffix for the detection files
     :param ann_dir:    use only annotations from this folder (+ sub-folders)
     :param det_dir:    use only detections from this folder (+ sub-folders)
-    :return:           audio argument parser group object
+    :return:           evaluation output formatter argument group
 
     """
     parser.add_argument('files', nargs='*',
                         help='files (or folders) to be evaluated')
     # suffixes used for evaluation
-    parser.add_argument('-a', dest='ann_suffix', action='store',
-                        default=ann_suffix,
-                        help='suffix of the annotation files '
-                             '[default: %(default)s]')
-    parser.add_argument('--ann_dir', action='store',
-                        default=ann_dir,
-                        help='search only this directory (recursively) for '
-                             'annotation files [default: %(default)s]')
-    parser.add_argument('-d', dest='det_suffix', action='store',
-                        default=det_suffix,
-                        help='suffix of the detection files '
-                             '[default: %(default)s]')
-    parser.add_argument('--det_dir', action='store',
-                        default=det_dir,
-                        help='search only this directory (recursively) for '
-                             'detection files [default: %(default)s]')
-    parser.add_argument('-i', '--ignore_non_existing', action='store_true',
-                        default=False,
-                        help='ignore non-existing detections [default: raise '
-                             'a warning and assume empty detections]')
-    # output options
-    g = parser.add_argument_group('formatting arguments')
-    g.add_argument('--tex', action='store_true',
-                   help='format output to be used in .tex files')
+    g = parser.add_argument_group('file/folder/suffix arguments')
+    g.add_argument('-a', dest='ann_suffix', action='store', default=ann_suffix,
+                   help='suffix of the annotation files '
+                        '[default: %(default)s]')
+    g.add_argument('--ann_dir', action='store', default=ann_dir,
+                   help='search only this directory (recursively) for '
+                        'annotation files [default: %(default)s]')
+    g.add_argument('-d', dest='det_suffix', action='store', default=det_suffix,
+                   help='suffix of the detection files [default: %(default)s]')
+    g.add_argument('--det_dir', action='store', default=det_dir,
+                   help='search only this directory (recursively) for '
+                        'detection files [default: %(default)s]')
+    # option to ignore non-existing detections
+    g.add_argument('-i', '--ignore_non_existing', action='store_true',
+                   help='ignore non-existing detections [default: raise a '
+                        'warning and assume empty detections]')
     # verbose
-    parser.add_argument('-v', dest='verbose', action='count', default=0,
+    parser.add_argument('-v', '--verbose', action='count', default=0,
                         help='increase verbosity level')
     # option to suppress warnings
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='suppress any warnings')
-    # return the parser
-    return parser
+    # output format options
+    g = parser.add_argument_group('formatting arguments')
+    parser.set_defaults(output_formatter=StrOutput)
+    formats = g.add_mutually_exclusive_group()
+    formats.add_argument('--tex', dest='output_formatter',
+                         action='store_const', const=TexOutput,
+                         help='format output to be used in .tex files')
+    formats.add_argument('--csv', dest='output_formatter',
+                         action='store_const', const=CSVOutput,
+                         help='format output to be used in .csv files')
+    # return the output formatting group so the caller can add more options
+    return g
 
 
 # finally import the submodules

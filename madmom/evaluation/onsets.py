@@ -118,7 +118,7 @@ class OnsetEvaluation(Evaluation):
         self._errors = calc_errors(self.tp, annotations).tolist()
 
 
-def parser():
+def parse_args():
     """
     Create a parser and parse the arguments.
 
@@ -155,12 +155,12 @@ def parser():
                    help='add given delay to all detections [seconds]')
     # parse the arguments
     args = p.parse_args()
-    # print the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-    # return
+    # return the arguments
     return args
 
 
@@ -171,9 +171,10 @@ def main():
     """
     from madmom.utils import (search_files, match_file, load_events,
                               combine_events)
+    import os
 
     # parse arguments
-    args = parser()
+    args = parse_args()
 
     # get detection and annotation files
     if args.det_dir is None:
@@ -190,6 +191,8 @@ def main():
     # sum and mean evaluation for all files
     sum_eval = SumEvaluation()
     mean_eval = MeanEvaluation()
+    # create the output formatter using the metrics of the evaluation
+    eval_output = args.output_formatter(metric_names=mean_eval.METRIC_NAMES)
     # evaluate all files
     for ann_file in ann_files:
         # load the annotations
@@ -222,13 +225,14 @@ def main():
         e = OnsetEvaluation(detections, annotations, window=args.window)
         # print stats for the file
         if args.verbose:
-            print e.print_errors('%s\n  ' % ann_file)
+            eval_output.add_eval(os.path.basename(ann_file), e)
         # add this file's evaluation to the global evaluation
         sum_eval += e
         mean_eval.append(e)
-    # print summary
-    print sum_eval.print_errors('sum for %i file(s):\n  ' % len(mean_eval))
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval))
+    # output summary
+    eval_output.add_eval('sum for %i file(s)' % len(mean_eval), sum_eval)
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
+    print eval_output
 
 
 if __name__ == '__main__':

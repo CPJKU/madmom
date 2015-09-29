@@ -7,10 +7,11 @@ This file contains global alignment evaluation functionality.
 
 """
 
-import re
 import warnings
 
 import numpy as np
+
+from . import EvaluationMetricsMixin
 
 # constants for the data format
 _TIME = 0
@@ -111,14 +112,17 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
 
     correctly_aligned_error = np.ma.array(aligned_error, mask=misaligned)
     pc_idx = float(correctly_aligned_error.mask[::-1].argmin())
-    results = {'miss_rate': missed.mean(),
-               'misalign_rate': misaligned.mean(),
-               'avg_imprecision': correctly_aligned_error.mean(),
-               'stddev_imprecision': correctly_aligned_error.std(),
-               'avg_error': aligned_error.mean(),
-               'stddev_error': aligned_error.std(),
-               'piece_completion': (1.0 - pc_idx /
-                                    correctly_aligned_error.mask.shape[0])}
+
+    # we have to typecast everything to float, if we don't the variables will
+    # be of type np.maskedarray
+    results = {'miss_rate': float(missed.mean()),
+               'misalign_rate': float(misaligned.mean()),
+               'avg_imprecision': float(correctly_aligned_error.mean()),
+               'stddev_imprecision': float(correctly_aligned_error.std()),
+               'avg_error': float(aligned_error.mean()),
+               'stddev_error': float(aligned_error.std()),
+               'piece_completion': float(
+                   1.0 - pc_idx / correctly_aligned_error.mask.shape[0])}
 
     # convert possibly masked values to NaN. A masked value can occur when
     # computing the mean or stddev of values that are all masked
@@ -139,13 +143,22 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
     return results
 
 
-class AlignmentEvaluation(object):
+class AlignmentEvaluation(EvaluationMetricsMixin, object):
     """
     Alignment evaluation class for beat-level alignments.
     Beat-level aligners output beat positions for points in time,
     rather than computing a time step for each individual event in the
     score.
     """
+    METRIC_NAMES = [
+        ('misalign_rate', 'Misalign Rate'),
+        ('miss_rate', 'Miss Rate'),
+        ('piece_completion', 'Piece Completion'),
+        ('avg_imprecision', 'Avg. Imprecision'),
+        ('stddev_imprecision', 'Std. Dev. of Imprecision'),
+        ('avg_error', 'Avg. Error'),
+        ('stddev_error', 'Std. Dev. of Error'),
+    ]
 
     def __init__(self, alignment, ground_truth,
                  tolerance=TOLERANCE, err_hist_bins=HISTOGRAM_BINS):
@@ -256,22 +269,21 @@ class AlignmentEvaluation(object):
         """
         Cumulative histogram of absolute alignment error. For bounds see
         error_histogram_bins.
+
         """
         return self.metrics['error_hist']
 
-    def print_errors(self, indent='', histogram=False):
+    def to_string(self, verbose=False):
         """
-        Print errors.
+        Format the errors as a human readable string.
 
-        :param indent:    use the given string as indentation
-        :param histogram: output error histogram
+        :param verbose: output error histogram
 
         """
-        errs = '%smisalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
+        errs = 'misalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
                'avg-imprecision: %.3f stddev-imprecision %.3f '\
                'avg-error: %.3f stddev-error: %.3f' %\
-               (indent,
-                self.metrics['misalign_rate'],
+               (self.metrics['misalign_rate'],
                 self.metrics['miss_rate'],
                 self.metrics['piece_completion'],
                 self.metrics['avg_imprecision'],
@@ -279,7 +291,7 @@ class AlignmentEvaluation(object):
                 self.metrics['avg_error'],
                 self.metrics['stddev_error'])
 
-        if histogram:
+        if verbose:
             # hacky way to create the format string. first, we
             # convert the bins to the desired string format
             bins_str = map('{:.2f}'.format, self.error_histogram_bins)
@@ -288,12 +300,7 @@ class AlignmentEvaluation(object):
             hist_str = '<' + ': {:.2f}  <'.join(bins_str) + ': {:.2f}'
             # then, we insert the histogram at the positions specified above
             hist_str = hist_str.format(*self.metrics['error_hist'])
-            # here, we try to have an indentation of the same length as the
-            # indent parameter, but containing only whitespaces
-            whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
-            whitespace_indent = re.sub('\n', '', whitespace_indent)
-            # finally, we combine all together
-            errs += '\n' + whitespace_indent + hist_str
+            errs += '\n' + hist_str
 
         return errs
 
@@ -340,7 +347,8 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
 
         """
         if len(self) == 0:
-            raise RuntimeError('Cannot compute mean evaluation on empty object')
+            raise RuntimeError('Cannot compute mean evaluation on empty '
+                               'object.')
 
         if self._metrics is None:
             self._metrics = {}
@@ -348,8 +356,8 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
             for weight, sf_eval in self.evals:
                 for name, val in sf_eval.iteritems():
                     if isinstance(val, np.ndarray) or not np.isnan(val):
-                        self._metrics[name] = (self._metrics.get(name, 0.) +
-                                               weight / self.total_weight * val)
+                        self._metrics[name] = self._metrics.get(name, 0.) + \
+                                              weight / self.total_weight * val
 
         return self._metrics
 
@@ -379,12 +387,13 @@ def parse_args():
     'ef' will be aligned at max(t_e, t_ef).
 
     Lines starting with # are treated as comments and are ignored.
-
-    NOTE: Due tue implementation limitations, --tex activates the output of
-          an error histogram. This will change in the future!
     """)
-
-    evaluation_io(p, ann_suffix='.alignment', det_suffix='.aligned')
+    # files used for evaluation
+    out_opts = evaluation_io(p, ann_suffix='.alignment', det_suffix='.aligned')
+    # add additional output formating options
+    out_opts.add_argument('--histogram', action='store_true',
+                          help='Output error histogram. Works only for '
+                               'standard output. [default: %(default)s]')
 
     g = p.add_argument_group('evaluation arguments')
 
@@ -394,15 +403,15 @@ def parse_args():
 
     g.add_argument('--piecewise', action='store_true',
                    help='Combine metrics piecewise [default: %(default)s]')
-
+    # parse the arguments
     args = p.parse_args()
-    # output the args
+    # print the arguments
     if args.verbose >= 2:
         print args
     if args.quiet:
         warnings.filterwarnings("ignore")
-
-    return p.parse_args()
+    # return the arguments
+    return args
 
 
 def main():
@@ -410,6 +419,7 @@ def main():
     Simple alignment evaluation.
 
     """
+    import os
     from madmom.utils import search_files, match_file
 
     args = parse_args()
@@ -426,7 +436,10 @@ def main():
         print "no files to evaluate. exiting."
         exit()
 
+    # mean evaluation for all files
     mean_eval = MeanAlignmentEvaluation(args.piecewise)
+    # create the output formatter using the metrics of the evaluation
+    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
 
     for ann_file in ann_files:
         ground_truth = np.loadtxt(ann_file)
@@ -446,18 +459,21 @@ def main():
             # load the detections
             alignment = np.loadtxt(matches[0])
 
-        sf_eval = AlignmentEvaluation(
+        e = AlignmentEvaluation(
             np.atleast_2d(alignment),
             np.atleast_2d(ground_truth),
             args.tolerance)
 
         if args.verbose:
-            print sf_eval.print_errors('%s\n  ' % ann_file, args.tex)
+            eval_output.add_eval(os.path.basename(ann_file), e,
+                                 verbose=args.histogram)
 
-        mean_eval.append(sf_eval)
+        mean_eval.append(e)
 
-    print mean_eval.print_errors('mean for %i file(s):\n  ' % len(mean_eval),
-                                 args.tex)
+    # output summary
+    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval,
+                         verbose=args.histogram)
+    print eval_output
 
 
 if __name__ == '__main__':
