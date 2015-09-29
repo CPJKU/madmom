@@ -59,6 +59,9 @@ class TestStftFunction(unittest.TestCase):
         # window size must match frame size
         with self.assertRaises(ValueError):
             stft(np.arange(10).reshape(5, 2), window=[1, 2, 3])
+        # fft size must be greater or equal frame size
+        with self.assertRaises(ValueError):
+            stft(np.arange(10).reshape(5, 2), fft_size=1)
 
     def test_value(self):
         result = stft(sig_2d)
