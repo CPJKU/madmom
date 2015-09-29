@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-@author: Jan Schlüter <jan.schlueter@ofai.at>
-
 """
 
 import tempfile

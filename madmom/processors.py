@@ -2,8 +2,6 @@
 """
 This file contains all processor related functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 All features should be implemented as classes which inherit from Processor
 (or provide a XYZProcessor(Processor) variant). This way, multiple Processor
 objects can be chained/combined to achieve the wanted functionality.

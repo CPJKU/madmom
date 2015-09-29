@@ -19,8 +19,6 @@ Hence these evaluation functions DO NOT report the exact same results/scores.
 This approach was chosen, because it is simpler and produces more accurate
 results.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import warnings

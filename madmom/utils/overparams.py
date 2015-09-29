@@ -63,8 +63,6 @@ Namespace(config='config.yaml',
           positional='aloha')
 
 
-@author: Rainer Kelz <rainer.kelz@jku.at>
-
 """
 
 import argparse

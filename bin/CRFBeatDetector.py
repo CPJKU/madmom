@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
-
 """
 
 import glob

@@ -3,8 +3,6 @@
 """
 This file contains MIDI functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 Almost all code is taken from Giles Hall's python-midi package:
 https://github.com/vishnubob/python-midi
 

@@ -2,8 +2,6 @@
 """
 This module contains tests.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 # pylint: skip-file
 

@@ -2,8 +2,6 @@
 """
 This file contains test functions for the madmom.utils module.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 # pylint: skip-file
 

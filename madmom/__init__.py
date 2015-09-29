@@ -7,8 +7,6 @@ Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 
 Please see the README for further details of this package.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import os

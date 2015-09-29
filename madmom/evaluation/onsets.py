@@ -10,8 +10,6 @@ Sebastian Böck, Florian Krebs and Markus Schedl
 Proceedings of the 13th International Society for Music Information Retrieval
 Conference (ISMIR), 2012.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import warnings

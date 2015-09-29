@@ -6,8 +6,6 @@ related functionality.
 Note: right now, this file is just an empty augmenting file. However, it
 increases performance when cython is used to compile the normal rnn.py file.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 import cython
 

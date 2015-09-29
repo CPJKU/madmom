@@ -3,8 +3,6 @@
 """
 This file contains all harmonic/percussive source separation functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

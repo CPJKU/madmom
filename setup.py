@@ -3,8 +3,6 @@
 """
 This file contains the setup for setuptools to distribute as a package.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 from setuptools import setup

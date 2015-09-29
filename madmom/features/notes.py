@@ -3,8 +3,6 @@
 """
 This file contains note transcription related functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

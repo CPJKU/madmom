@@ -2,8 +2,6 @@
 """
 This file contains tests for the madmom.audio.filters module.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 # pylint: skip-file
 

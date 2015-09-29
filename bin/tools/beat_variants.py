@@ -3,8 +3,6 @@
 """
 Script for creating variations of the given beat sequence.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse

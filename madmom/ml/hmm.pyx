@@ -2,8 +2,6 @@
 """
 This file contains Hidden Markov Model (HMM) functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 If you want to change this module and use it interactively, use pyximport.
 
 >>> import pyximport

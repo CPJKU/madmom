@@ -3,8 +3,6 @@
 """
 Spectral onset detection script.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse

@@ -3,8 +3,6 @@
 """
 Script for matching detections against ground truth annotations.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

@@ -3,8 +3,6 @@
 """
 SuperFlux with neural network based peak picking onset detection algorithm.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import glob

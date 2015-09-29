@@ -3,8 +3,6 @@
 """
 Script for correcting ground truth annotations in multiple fashions.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

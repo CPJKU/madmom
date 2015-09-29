@@ -3,8 +3,6 @@
 """
 Script for converting ground truth annotations into the GiantSteps format.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 Version history:
 0.1 initial version
 0.2 added #@format: prefix

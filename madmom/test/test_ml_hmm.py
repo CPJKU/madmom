@@ -2,8 +2,6 @@
 """
 This file contains tests for the madmom.ml.hmm module.
 
-@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
-
 """
 # pylint: skip-file
 

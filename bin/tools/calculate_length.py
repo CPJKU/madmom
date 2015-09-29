@@ -3,8 +3,6 @@
 """
 Script for calculating the length of the given audio files.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse
