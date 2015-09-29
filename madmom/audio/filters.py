@@ -3,8 +3,6 @@
 """
 This file contains filter and filterbank related functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

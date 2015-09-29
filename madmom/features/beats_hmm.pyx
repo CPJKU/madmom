@@ -6,8 +6,6 @@ beat and downbeat tracking.
 Please note that (almost) everything within this module is discretised to
 integer values because of performance reasons.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 If you want to change this module and use it interactively, use pyximport.
 
 >>> import pyximport

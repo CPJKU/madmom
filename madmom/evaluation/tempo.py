@@ -3,8 +3,6 @@
 """
 This file contains tempo evaluation functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import warnings

@@ -3,8 +3,6 @@
 """
 Script for renumbering beat annotation files.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse

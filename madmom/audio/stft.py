@@ -3,8 +3,6 @@
 """
 This file contains Short-Time Fourier Transform (STFT) related functionality.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

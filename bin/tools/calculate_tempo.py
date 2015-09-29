@@ -3,8 +3,6 @@
 """
 Script for calculating the tempo from beat ground truth annotations.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import os

@@ -14,8 +14,6 @@ module is not meant to be a general purpose RNN with lots of functionality.
 Just use one of the many NN/ML packages out there if you need training or any
 other stuff.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 import abc
 

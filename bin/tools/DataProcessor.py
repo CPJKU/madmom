@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse

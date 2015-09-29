@@ -4,8 +4,6 @@
 This file loads a beat file and translates the old downbeat format
 (bar.beat) into the new one (beat).
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 import os
 import argparse

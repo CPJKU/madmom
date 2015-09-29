@@ -4,8 +4,6 @@ This file contains the speed crucial Viterbi functionality for the
 CRFBeatDetector plus some functions computing the distributions and
 normalisation factors...
 
-@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
-
 """
 
 import numpy as np

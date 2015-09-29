@@ -26,8 +26,6 @@ Each of the previous layer subgroups can contain the same named data sets with
 a 'reverse_' prefix to indicate that they belong to the reverse/backward layer
 of bidirectional layers.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import os

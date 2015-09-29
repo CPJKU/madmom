@@ -13,8 +13,6 @@ Note: RNNLIB is rather slow, madmom.ml.rnn serves as a (faster) purely Python
       network configurations can be converted for testing with madmom.ml.rnn by
       RnnConfig('trained_network.save').save_model('converted_file').
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import os.path

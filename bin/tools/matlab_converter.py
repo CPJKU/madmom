@@ -3,8 +3,6 @@
 """
 Script for converting .npy and .npz files in .mat files.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import os

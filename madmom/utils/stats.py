@@ -3,9 +3,6 @@
 """
 This file contains some statistical functionality.
 
-@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import numpy as np

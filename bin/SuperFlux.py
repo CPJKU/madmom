@@ -3,8 +3,6 @@
 """
 SuperFlux onset detection algorithm.
 
-@author: Sebastian Böck <sebastian.boeck@jku.at>
-
 """
 
 import argparse

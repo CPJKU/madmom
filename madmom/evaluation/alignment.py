@@ -3,8 +3,6 @@
 """
 This file contains global alignment evaluation functionality.
 
-@author: Filip Korzeniowski <filip.korzeniowski@jku.at>
-
 """
 
 import warnings
