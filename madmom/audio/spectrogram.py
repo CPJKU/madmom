@@ -948,19 +948,19 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         Add spectrogram difference related arguments to an existing parser.
 
-        :param parser:            existing argparse parser
-        :param diff:              take the difference of the spectrogram [bool]
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-        :param diff_frames:       calculate the difference to the N-th previous
-                                  frame [int] (if set, this overrides the value
-                                  calculated from the `diff_ratio`)
-        :param diff_max_bins:     apply a maximum filter with this width (in
-                                  bins in frequency dimension) [int]
-        :param positive_diffs:    keep only the positive differences, i.e. set
-                                  all diff values < 0 to 0
-        :return:                  spectrogram difference argument parser group
+        :param parser:         existing argparse parser
+        :param diff:           take the difference of the spectrogram [bool]
+        :param diff_ratio:     calculate the difference to the frame at which
+                               the window used for the STFT yields this ratio
+                               of the maximum height [float]
+        :param diff_frames:    calculate the difference to the N-th previous
+                               frame [int] (if set, this overrides the value
+                               calculated from the `diff_ratio`)
+        :param diff_max_bins:  apply a maximum filter with this width (in bins
+                               in frequency dimension) [int]
+        :param positive_diffs: keep only the positive differences, i.e. set all
+                               diff values < 0 to 0
+        :return:               spectrogram difference argument parser group
 
         Parameters are included in the group only if they are not 'None'.
         Only the `diff_frames` parameter behaves differently, it is included
@@ -1217,9 +1217,8 @@ class StackedSpectrogramProcessor(ParallelProcessor):
     """
     # Note: `frame_size` is used instead of the more meaningful `frame_sizes`,
     #       this way the existing argument from `FramedSignal` can be reused
-    # TODO: use `axis` and `np.concatenate` instead?
-    def __init__(self, frame_size, spectrogram, difference=None,
-                 stack=np.hstack, **kwargs):
+    def __init__(self, frame_size, spectrogram, difference=None, axis=1,
+                 **kwargs):
         """
         Creates a new StackedSpectrogramProcessor instance.
 
@@ -1228,21 +1227,12 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         :param difference:  SpectrogramDifferenceProcessor instance; if given
                             the differences of the spectrogram(s) are stacked
                             as well
-        :param stack:       stacking function to be used
-                            - 'np.vstack' stack multiple spectrograms
-                              vertically, i.e. stack in time dimension
-                            - 'np.hstack' stack multiple spectrograms
-                              horizontally, i.e. stack in the frequency
-                              dimension
-                            - 'np.dstack' stacks them in depth, i.e.
-                              returns them as a 3D representation
-                            Additionally, the literal values {'time',
-                            'freq' | 'frequency', 'depth'} are supported
+        :param axis:        axis to stack the results [int] or literal value
+                            {'time', 'freq', 'depth'}
 
-        Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
-              as a stacking function), they must have the same frequency
-              dimensionality. If filtered spectrograms are used,
-              `unique_filters` must be set to 'False'.
+        Note: To be able to stack spectrograms in depth (i.e. `axis=2`, they
+              must have the same frequency dimensionality. If filtered
+              spectrograms are used, `unique_filters` must be set to 'False'.
 
         """
         from .signal import FramedSignalProcessor
@@ -1251,17 +1241,18 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         processors = []
         for frame_size_ in frame_size:
             fs = FramedSignalProcessor(frame_size=frame_size_, **kwargs)
-            processors.append(SequentialProcessor([fs, spectrogram]))
+            processors.append([fs, spectrogram])
         # FIXME: works only with a single thread
-        super(StackedSpectrogramProcessor, self).__init__(processors, 1)
-        # stacking parameters
-        if stack == 'time':
-            stack = np.vstack
-        elif stack in ('freq', 'frequency'):
-            stack = np.hstack
-        elif stack == 'depth':
-            stack = np.dstack
-        self.stack = stack
+        super(StackedSpectrogramProcessor, self).__init__(processors,
+                                                          num_threads=1)
+        # literal stacking directions
+        if axis == 'time':
+            axis = 0
+        elif axis in ('freq', 'frequency'):
+            axis = 1
+        elif axis == 'depth':
+            axis = 2
+        self.axis = axis
         # TODO: it is a bit hackish to define another processor here
         self.diff_processor = difference
 
@@ -1284,16 +1275,16 @@ class StackedSpectrogramProcessor(ParallelProcessor):
             if self.diff_processor is not None:
                 diffs = self.diff_processor.process(s)
                 stack.append(diffs)
-        # stack them in the given direction and return them
-        return self.stack(stack)
+        # stack them along given axis and return them
+        return np.concatenate(stack, axis=self.axis)
 
     @classmethod
-    def add_arguments(cls, parser, stack='freq', stack_diffs=None):
+    def add_arguments(cls, parser, axis='freq', stack_diffs=None):
         """
         Add stacking related arguments to an existing parser.
 
         :param parser:      existing argparse parser
-        :param stack:       stacking direction {'time', 'freq', 'depth'}
+        :param axis:        stack along this axis {'time', 'freq', 'depth'}
         :param stack_diffs: also stack the differences [bool]
         :return:            stacking argument parser group
 
@@ -1301,10 +1292,10 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         """
         # add diff related options to the existing parser
         g = parser.add_argument_group('stacking arguments')
-        # stacking direction
-        if stack is not None:
-            g.add_argument('--stack', action='store', type=str,
-                           default=stack, choices=['time', 'freq', 'depth'],
+        # stacking axis
+        if axis is not None:
+            g.add_argument('--axis', action='store', type=str,
+                           default=axis, choices=['time', 'freq', 'depth'],
                            help="stacking direction [default=%(default)s]")
         # stack diffs?
         if stack_diffs is True:

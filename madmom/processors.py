@@ -14,6 +14,8 @@ import abc
 import argparse
 import multiprocessing as mp
 
+from collections import MutableSequence
+
 
 class Processor(object):
     """
@@ -101,7 +103,7 @@ class OutputProcessor(Processor):
         :return:       also return the processed data
 
         """
-        # also return the data!
+        # also return the data
         return data
 
 
@@ -131,36 +133,71 @@ def _process(process_tuple):
         return process_tuple[0](*process_tuple[1:])
 
 
-class SequentialProcessor(Processor):
+class SequentialProcessor(MutableSequence, Processor):
     """
-    Class for sequential processing of data.
+    Processor class for sequential processing of data.
 
     """
     def __init__(self, processors):
         """
         Instantiates a SequentialProcessor object.
 
-        :param processors: list with Processor objects
+        :param processors: list of Processor objects
 
         """
-        # wrap the processor in a list if needed
-        if isinstance(processors, Processor):
-            processors = [processors]
-        # save the processors
-        self.processors = processors
+        self.processors = []
+        # iterate over all given processors and save them
+        for processor in processors:
+            # wrap lists and tuples as a SequentialProcessor
+            if isinstance(processor, (list, tuple)):
+                processor = SequentialProcessor(processor)
+            # save the processors
+            self.processors.append(processor)
 
-    def process(self, data):
+    def __getitem__(self, index):
         """
-        Process the data sequentially.
+        Get the Processor at the given processing chain position.
 
-        :param data: data to be processed
-        :return:     processed data
+        :param index: position inside the processing chain
 
         """
-        # sequentially process the data
-        for processor in self.processors:
-            data = _process((processor, data))
-        return data
+        return self.processors[index]
+
+    def __setitem__(self, index, processor):
+        """
+        Set the Processor at the given processing chain position.
+
+        :param index:     position inside the processing chain
+        :param processor: Processor to set
+
+        """
+        self.processors[index] = processor
+
+    def __delitem__(self, index):
+        """
+        Delete the Processor at the given processing chain position.
+
+        :param index: position inside the processing chain
+
+        """
+        del self.processors[index]
+
+    def __len__(self):
+        """
+        Length of the processing chain.
+
+        """
+        return len(self.processors)
+
+    def insert(self, index, processor):
+        """
+        Insert a Processor at the given processing chain position.
+
+        :param index:     position inside the processing chain
+        :param processor: Processor to insert
+
+        """
+        self.processors.insert(index, processor)
 
     def append(self, other):
         """
@@ -180,11 +217,24 @@ class SequentialProcessor(Processor):
         """
         self.processors.extend(other)
 
+    def process(self, data):
+        """
+        Process the data sequentially with the defined processing chain.
+
+        :param data: data to be processed
+        :return:     processed data
+
+        """
+        # sequentially process the data
+        for processor in self.processors:
+            data = _process((processor, data))
+        return data
+
 
 # inherit from SequentialProcessor because of append() and extend()
 class ParallelProcessor(SequentialProcessor):
     """
-    Base class for parallel processing of data.
+    Processor class for parallel processing of data.
 
     """
     NUM_THREADS = 1
@@ -195,6 +245,11 @@ class ParallelProcessor(SequentialProcessor):
 
         :param processors:  list with processing objects
         :param num_threads: number of parallel working threads
+
+        Note: We use `**kwargs` instead of `num_threads` to be able to pass
+              an arbitrary number of processors which should get processed in
+              parallel as the first arguments.
+              Tuples or lists are wrapped as a `SequentialProcessor`.
 
         """
         # save the processing chain
@@ -259,10 +314,10 @@ class IOProcessor(OutputProcessor):
     Processor and feeds everything into the given output Processor.
 
     The output Processor is the only one ever called with two arguments
-    (data, output).
+    ('data', 'output').
 
-    All Processors defined in the input chain are sequentially called with
-    only the data argument.
+    All Processors defined in the input chain are sequentially called with the
+    'data' argument only.
 
     """
 
@@ -278,7 +333,9 @@ class IOProcessor(OutputProcessor):
               which gets wrapped as a SequentialProcessor.
 
               `out_processor` can be a OutputProcessor or a function
-              accepting two arguments (data, output)
+              accepting two arguments (data, output). If a tuple or list is
+              given, it is wrapped in an `IOProcessor` itself with the last
+              element regarded as the `out_processor`.
 
         """
         # TODO: check the input and output processors!?
@@ -287,7 +344,7 @@ class IOProcessor(OutputProcessor):
         #       as output a OutputProcessor, IOProcessor or function with two
         #       arguments should be accepted
         # wrap the input processor in a SequentialProcessor if needed
-        if isinstance(in_processor, list):
+        if isinstance(in_processor, (list, tuple)):
             self.in_processor = SequentialProcessor(in_processor)
         else:
             self.in_processor = in_processor
@@ -301,6 +358,24 @@ class IOProcessor(OutputProcessor):
                 self.out_processor = out_processor[0]
         else:
             self.out_processor = out_processor
+
+    def __getitem__(self, index):
+        """
+        Get the Processor at the given position.
+
+        :param index: processor position
+
+        Note: Index '0' refers to the `in_processor`,  index '1' to the
+              `out_processor`.
+
+        """
+        if index == 0:
+            return self.in_processor
+        elif index == 1:
+            return self.out_processor
+        else:
+            raise IndexError('Only `in_processor` at index 0 and '
+                             '`out_processor` at index 1 are defined.')
 
     def process(self, data, output=None):
         """

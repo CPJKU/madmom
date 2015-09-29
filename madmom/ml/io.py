@@ -12,19 +12,21 @@ The `model` group contains just attributes.
 
 The `layer` group contains a subgroup for each layer.
 
-The subgroups are numbered consecutively, starting at index zero.
+The subgroups are numbered consecutively, starting with zero.
 
 Each layer subgroup contains the following attributes:
-  - `type`: the type of the layer
-Each layer subgroup can contain the following data sets:
+  - `type`:              the type of the layer (e.g. FeedForward, Recurrent,
+                         LSTM; basically any Layer of madmom.ml.rnn)
+  - `transfer_fn`:       the transfer/activation function of the layer
+Each layer subgroup contains the following data sets:
   - `bias`:              bias of the layer
   - `weights`:           weights of the layer
   - `recurrent_weights`: recurrent weights (optional for recurrent layers)
   - `peephole_weights`:  peephole weights (optional for LSTM layers)
 
-Each of the previous layer subgroups can contain the same named data sets with
-a 'reverse_' prefix to indicate that they belong to the reverse/backward layer
-of bidirectional layers.
+Each of the previous layer subgroups data sets and attributes can contain the
+same named data sets with a 'reverse_' prefix to indicate that they belong to
+the reverse/backward layer of bidirectional layers.
 
 """
 

@@ -27,6 +27,9 @@ import subprocess
 import numpy as np
 
 from madmom.features import Activations
+from madmom.ml.rnn import (REVERSE, tanh, linear, sigmoid,
+                           RecurrentNeuralNetwork, FeedForwardLayer,
+                           RecurrentLayer, BidirectionalLayer, LSTMLayer)
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
@@ -798,6 +801,7 @@ class RnnlibConfig(object):
         self.train_files = None
         self.val_files = None
         self.test_files = None
+        self.test = True
         self.layer_sizes = None
         self.layer_types = None
         self.bidirectional = False
@@ -808,6 +812,9 @@ class RnnlibConfig(object):
         self.rand_seed = 0
         self.noise = 0
         self.weight_noise = 0
+        self.l1 = 0
+        self.l2 = 0
+        self.patience = 20
         # read in file if a file name is given
         self.filename = filename
         if filename:
@@ -823,7 +830,9 @@ class RnnlibConfig(object):
         # open the config file
         f = open(filename, 'r')
         # read in every line
-        for line in f.readlines():
+        lines = f.readlines()
+        # get some general information
+        for line in lines:
             # save the file sets
             if line.startswith('trainFile'):
                 self.train_files = line[:].split()[1].split(',')
@@ -838,21 +847,52 @@ class RnnlibConfig(object):
                 self.layer_sizes = np.array(line[:].split()[1].split(','),
                                             dtype=np.int).tolist()
                 # number of the output layer
-                num_output_layer = len(self.layer_sizes)
+                num_output = len(self.layer_sizes)
             elif line.startswith('hiddenType'):
-                hidden_type = line[:].split()[1]
-                self.layer_types = [hidden_type] * len(self.layer_sizes)
+                hidden = line[:].split()[1]
+                if hidden == 'lstm':
+                    self.layer_types = ['LSTM'] * len(self.layer_sizes)
+                    self.layer_transfer_fn = ['tanh'] * len(self.layer_sizes)
+                else:
+                    self.layer_types = ['Recurrent'] * len(self.layer_sizes)
+                    self.layer_transfer_fn = [hidden] * len(self.layer_sizes)
             # task
             elif line.startswith('task'):
                 self.task = line[:].split()[1]
-            # save the weights
+                # set the output layer type
+                if self.task == 'classification':
+                    self.layer_types.append('FeedForward')
+                    self.layer_transfer_fn.append('sigmoid')
+                elif self.task == 'regression':
+                    self.layer_types.append('FeedForward')
+                    self.layer_transfer_fn.append('linear')
+                else:
+                    raise ValueError('unknown task, cannot set type of output '
+                                     'layer.')
+            # get bidirectional information
+            # unfortunately RNNLIB does not store bidirectional information in
+            # its .save files, so we do it two runs
             elif line.startswith('weightContainer_'):
+                parts = line[:].split()
+                if parts[0].endswith('0_1_weights'):
+                    self.bidirectional = True
+            # append output layer size
+            if line.startswith('weightContainer_bias_to_output_weights'):
+                output_size = int(line[:].split()[1])
+                self.layer_sizes.append(output_size)
+
+        # process the weights
+        for line in lines:
+            # save the weights
+            if line.startswith('weightContainer_'):
                 # line format: weightContainer_bias_to_hidden_0_0_weights \
                 # num_weights weight0 weight1 ...
                 parts = line[:].split()
                 # only use the weights
                 if parts[0].endswith('_weights'):
-                    # get rid of beginning and end
+                    # get the weights
+                    w = np.array(parts[2:], dtype=np.float32)
+                    # get rid of beginning and end of name
                     name = re.sub('weightContainer_', '', str(parts[0][:]))
                     name = re.sub('_weights', '', name)
                     # alter the name to a more useful schema
@@ -863,17 +903,13 @@ class RnnlibConfig(object):
                     name = re.sub('_output', '_o', name)
                     name = re.sub('gather_._', 'i_', name)
                     name = re.sub('_peepholes', '_peephole_weights', name)
-                    # hidden layer handling
+                    # hidden layer recurrent weights handling
                     for i in range(len(self.layer_sizes)):
-                        # recurrent connections
                         name = re.sub('layer_%s_0_layer_%s_0_delay.*' % (i, i),
                                       'layer_%s_0_recurrent_weights' % i, name)
                         name = re.sub('layer_%s_1_layer_%s_1_delay.*' % (i, i),
                                       'layer_%s_1_recurrent_weights' % i, name)
-                    # set bidirectional mode
-                    if '0_1' in name:
-                        self.bidirectional = True
-                    # start renaming / renumbering
+                    # renaming / renumbering beginning
                     if name.startswith('i_'):
                         # weights
                         name = "%s_weights" % name[2:]
@@ -882,37 +918,62 @@ class RnnlibConfig(object):
                         name = "%s_bias" % name[2:]
                     if name.startswith('o_'):
                         # output layer
-                        name = "layer_%s_0_%s" % (num_output_layer, name[2:])
+                        name = "layer_%s_0_%s" % (num_output, name[2:])
                     if name.endswith('_o'):
-                        name = re.sub('layer_%s_0_o' % (num_output_layer - 1),
-                                      'layer_%s_0_weights' % num_output_layer,
+                        name = re.sub('layer_%s_0_o' % (num_output - 1),
+                                      'layer_%s_0_weights' % num_output,
                                       name)
-                        name = re.sub('layer_%s_1_o' % (num_output_layer - 1),
-                                      'layer_%s_1_weights' % num_output_layer,
+                        name = re.sub('layer_%s_1_o' % (num_output - 1),
+                                      'layer_%s_1_weights' % num_output,
                                       name)
+                    # rename bidirectional stuff (not for output layer)
+                    for i in range(len(self.layer_sizes)):
+                        if self.bidirectional:
+                            # fix the weird counting in gather layers
+                            name = re.sub('layer_%s_1' % i, 'layer_%s' % i,
+                                          name)
+                            name = re.sub('layer_%s_0' % i,
+                                          'layer_%s_%s' % (i, REVERSE), name)
+                        else:
+                            name = re.sub('layer_%s_0' % i, 'layer_%s' % i,
+                                          name)
+                    # reshape the weights
+                    # FIXME: evil hack
+                    layer_num = int(name[6])
+                    layer_size = self.layer_sizes[layer_num]
+                    # RNNLIB stacks bwd and fwd layers in a weird way, thus
+                    # swap the weights of the hidden layers if it is
+                    # bidirectional and not the first hidden layer
+                    swap = (layer_num >= 1 and layer_num != num_output and
+                            self.bidirectional and name.endswith("weights") and
+                            "peephole" not in name and "recurrent" not in name)
+                    # if we use LSTM units, align weights differently
+                    if self.layer_types[layer_num] == 'LSTM':
+                        if 'peephole' in name:
+                            # peephole connections
+                            w = w.reshape(3 * layer_size, -1)
+                        else:
+                            # bias, weights and recurrent connections
+                            if swap:
+                                w = w.reshape(4 * layer_size, 2,
+                                              -1)[:, ::-1, :].ravel()
+                            w = w.reshape(4 * layer_size, -1)
+                    # "normal" units
+                    else:
+                        if swap:
+                            w = w.reshape(layer_size, 2,
+                                          -1)[:, ::-1, :].ravel()
+                        w = w.reshape(layer_size, -1).T
                     # save the weights
-                    self.w[name] = np.array(parts[2:], dtype=np.float32)
-        # append output layer size
-        output_size = self.w['layer_%s_0_bias' % num_output_layer].size
-        self.layer_sizes.append(output_size)
-        # set the output layer type
-        if self.task == 'classification':
-            self.layer_types.append('sigmoid')
-        elif self.task == 'regression':
-            self.layer_types.append('linear')
-        else:
-            raise ValueError('unknown task, cannot set type of output layer.')
+                    self.w[name] = w
         # stack the output weights
         if self.bidirectional:
-            num_output = len(self.layer_sizes) - 1
-            size_output = self.layer_sizes[num_output]
-            bwd = self.w.pop('layer_%s_0_weights' % num_output)
-            fwd = self.w.pop('layer_%s_1_weights' % num_output)
-            # reshape weights
-            bwd = bwd.reshape((size_output, -1))
-            fwd = fwd.reshape((size_output, -1))
-            # stack weights
-            self.w['layer_%s_0_weights' % num_output] = np.hstack((bwd, fwd))
+            fwd = self.w.pop('layer_%s_weights' % num_output)
+            bwd = self.w.pop('layer_%s_%s_weights' % (num_output, REVERSE))
+            self.w['layer_%s_weights' % num_output] = np.vstack((fwd, bwd))
+            # rename bias
+            bias = self.w.pop('layer_%s_%s_bias' % (num_output, REVERSE))
+            self.w['layer_%s_bias' % num_output] = bias
         # close the file
         f.close()
 
@@ -933,20 +994,25 @@ class RnnlibConfig(object):
         f.write('hiddenSize %s\n' % ",".join(str(x) for x in self.layer_sizes))
         f.write('bidirectional %s\n' % str(self.bidirectional).lower())
         f.write('dataFraction 1\n')
-        f.write('maxTestsNoBest %s\n' % 20)
+        f.write('maxTestsNoBest %s\n' % str(self.patience))
         f.write('learnRate %s\n' % str(self.learn_rate))
         f.write('momentum %s\n' % str(self.momentum))
         f.write('optimiser %s\n' % str(self.optimizer))
         f.write('randSeed %s\n' % str(self.rand_seed))
         f.write('inputNoiseDev %s\n' % str(self.noise))
         f.write('weightDistortion %s\n' % str(self.weight_noise))
+        f.write('l1 %s\n' % str(self.l1))
+        f.write('l2 %s\n' % str(self.l2))
         if len(self.train_files) > 0:
             f.write('trainFile %s\n' % ",".join(self.train_files))
         if len(self.val_files) > 0:
             f.write('valFile %s\n' % ",".join(self.val_files))
         if len(self.test_files) > 0:
-            # comment the test files so they are not tested during training
-            f.write('#testFile %s\n' % ",".join(self.test_files))
+            if self.test:
+                f.write('testFile %s\n' % ",".join(self.test_files))
+            else:
+                # comment the test files so they are not tested during training
+                f.write('#testFile %s\n' % ",".join(self.test_files))
         f.close()
 
     def test(self, out_dir=None, file_set='test', threads=THREADS,
@@ -1045,7 +1111,6 @@ class RnnlibConfig(object):
             h5_l = h5.create_group('layer')
             # create a subgroup for each layer
             for layer in range(len(self.layer_sizes)):
-                bidirectional = False
                 # create group with layer number
                 grp = h5_l.create_group(str(layer))
                 # iterate over all weights
@@ -1055,52 +1120,74 @@ class RnnlibConfig(object):
                         continue
                     # get the weights
                     w = self.w[key]
-                    name = None
-                    if key.endswith('peephole_weights'):
-                        name = 'peephole_weights'
-                    elif key.endswith('recurrent_weights'):
-                        name = 'recurrent_weights'
-                    elif key.endswith('weights'):
-                        name = 'weights'
-                    elif key.endswith('bias'):
-                        name = 'bias'
-                    else:
-                        ValueError('key %s not understood' % key)
-                    # get the size of the layer to reshape it
-                    layer_size = self.layer_sizes[layer]
-                    # if we use LSTM units, align weights differently
-                    if self.layer_types[layer] == 'lstm':
-                        if 'peephole' in key:
-                            # peephole connections
-                            w = w.reshape(3 * layer_size, -1)
-                        else:
-                            # bias, weights and recurrent connections
-                            w = w.reshape(4 * layer_size, -1)
-                    # "normal" units
-                    else:
-                        w = w.reshape(layer_size, -1).T
-                    # reverse
-                    if key.startswith('layer_%s_0' % layer):
-                        if re.sub('layer_%s_0' % layer, 'layer_%s_1' % layer,
-                                  key) in self.w.keys():
-                            name = '%s_%s' % (REVERSE, name)
-                            bidirectional = True
+                    key = re.sub('layer_%s_' % layer, '', key)
                     # save the weights
-                    grp.create_dataset(name, data=w.astype(np.float32))
+                    grp.create_dataset(key, data=w.astype(np.float32))
                     # include the layer type as attribute
-                    layer_type = self.layer_types[layer].capitalize()
-                    if layer_type == 'Lstm':
-                        layer_type = 'LSTM'
+                    layer_type = self.layer_types[layer]
                     grp.attrs['type'] = str(layer_type)
+                    grp.attrs['transfer_fn'] = \
+                        str(self.layer_transfer_fn[layer])
                     # also for the reverse bidirectional layer if it exists
-                    if bidirectional:
+                    if self.bidirectional and layer != num_output:
                         grp.attrs['%s_type' % REVERSE] = str(layer_type)
+                        grp.attrs['%s_transfer_fn' % REVERSE] = \
+                            str(self.layer_transfer_fn[layer])
                 # next layer
         # also convert to .npz
         if npz:
             from .io import convert_model
-
             convert_model(filename)
+
+    def create_rnn(self):
+        """Create a RNN."""
+        # shortcut
+        w = self.w
+        # create layers
+        layers = []
+        for i, layer_type in enumerate(self.layer_types[:-1]):
+            if layer_type == 'lstm':
+                # LSTM units
+                transfer_fn = tanh
+                # create a fwd layer
+                w_ = w['layer_%d_weights' % i]
+                b_ = w['layer_%d_bias' % i]
+                r_ = w['layer_%d_recurrent_weights' % i]
+                p_ = w['layer_%d_peephole_weights' % i]
+                layer = LSTMLayer(w_, b_, r_, p_, transfer_fn)
+                # create a bwd layer and a bidirectional layer
+                if self.bidirectional:
+                    w_ = w['layer_%d_reverse_weights' % i]
+                    b_ = w['layer_%d_reverse_bias' % i]
+                    r_ = w['layer_%d_reverse_recurrent_weights' % i]
+                    p_ = w['layer_%d_reverse_peephole_weights' % i]
+                    bwd_layer = LSTMLayer(w_, b_, r_, p_, transfer_fn)
+                    layer = BidirectionalLayer(layer, bwd_layer)
+            else:
+                # "normal" units
+                transfer_fn = globals()[layer_type]
+                # create a fwd layer
+                w_ = w['layer_%d_weights' % i]
+                b_ = w['layer_%d_bias' % i]
+                r_ = w['layer_%d_recurrent_weights' % i]
+                layer = RecurrentLayer(w_, b_, r_, transfer_fn)
+                # create a bwd layer and a bidirectional layer
+                if self.bidirectional:
+                    w_ = w['layer_%d_reverse_weights' % i]
+                    b_ = w['layer_%d_reverse_bias' % i]
+                    r_ = w['layer_%d_reverse_recurrent_weights' % i]
+                    bwd_layer = RecurrentLayer(w_, b_, r_, transfer_fn)
+                    layer = BidirectionalLayer(layer, bwd_layer)
+            # append the layer
+            layers.append(layer)
+        # create output layer
+        i += 1
+        w_ = w['layer_%d_weights' % i]
+        b_ = w['layer_%d_bias' % i]
+        out = FeedForwardLayer(w_, b_, globals()[self.layer_types[-1]])
+        layers.append(out)
+        # create and return a RNN
+        return RecurrentNeuralNetwork(layers)
 
 
 def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
@@ -1169,18 +1256,18 @@ def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
             Activations(activations[0], fps=fps).save(act_file)
 
 
-def create_config(files, config, out_dir, folds=8, randomize=False,
+def create_config(files, config, out_dir, num_folds=8, randomize=False,
                   bidirectional=True, task='classification', learn_rate=1e-5,
                   layer_sizes=[25, 25, 25], layer_type='lstm', momentum=0.9,
-                  optimizer='steepest', splits=None, noise=0,
-                  weight_noise=0):
+                  optimizer='steepest', splits=None, noise=0, weight_noise=0,
+                  l1=0, l2=0, patience=20):
     """
     Creates RNNLIB config files for N-fold cross validation.
 
     :param files:         use these .nc files
     :param config:        common base name for the config files
     :param out_dir:       output directory for config files
-    :param folds:         number of folds
+    :param num_folds:     number of folds
     :param randomize:     shuffle files before creating splits
     :param bidirectional: use bidirectional neural networks
     :param task:          neural network task
@@ -1192,6 +1279,10 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
     :param splits:        use pre-defined folds from splits folder
     :param noise:         add noise to inputs
     :param weight_noise:  add noise to weights
+    :param l1:            L1 regularisation
+    :param l2:            L2 regularisation
+    :param patience:      early stop training after N epoch without improvement
+                          of validation error
 
     """
     from madmom.utils import search_files
@@ -1213,49 +1304,47 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
         import random
         random.shuffle(files)
     # splits into N parts
-    splittings = []
-    for n in range(folds):
-        splittings.append([])
+    folds = []
+    for n in range(num_folds):
+        folds.append([])
     if isinstance(splits, list):
         # we got a list of splits folders
         from madmom.utils import search_files, match_file
         for split in splits:
-            folds = search_files(split, '.fold')
-            if len(folds) != len(splittings):
+            fold_files = search_files(split, '.fold')
+            if len(fold_files) != num_folds:
                 raise ValueError('number of folds must match.')
-            for fold, fold_file in enumerate(folds):
+            for fold, fold_file in enumerate(fold_files):
                 with open(fold_file, 'r') as s:
                     for line in s:
                         line = line.strip()
                         nc_file = match_file(line, files, match_suffix='.nc')
                         try:
-                            splittings[fold].append(str(nc_file[0]))
+                            folds[fold].append(str(nc_file[0]))
                         except IndexError:
-                            print("can't find .nc file for file: "
-                                             "%s" % line)
+                            print("can't find .nc file for file: %s" % line)
     else:
         # use a standard splits
-        for fold in range(folds):
-            splittings[fold] = [f for i, f in enumerate(files)
-                                if i % folds == fold]
-            if not splittings[fold]:
-                raise ValueError('not enough files for %d folds.' % folds)
-    # set the number of folds
-    folds = len(splittings)
+        for fold in range(num_folds):
+            folds[fold] = [f for i, f in enumerate(files)
+                           if i % num_folds == fold]
+            if not folds[fold]:
+                raise ValueError('not enough files for %d folds.' % num_folds)
     # create the rnnlib_config files
-    if folds < 3:
+    if num_folds < 3:
         raise ValueError('cannot create splits with less than 3 folds.')
-    for i in range(folds):
+    for i in range(num_folds):
         rnnlib_config = RnnlibConfig()
-        test_fold = np.nonzero(np.arange(i, i + folds) % folds == 0)[0]
-        val_fold = np.nonzero(np.arange(i, i + folds) % folds == 1)[0]
-        train_fold = np.nonzero(np.arange(i, i + folds) % folds >= 2)[0]
+        all_folds = np.arange(i, i + num_folds)
+        test_fold = np.nonzero(all_folds % num_folds == 0)[0]
+        val_fold = np.nonzero(all_folds % num_folds == 1)[0]
+        train_fold = np.nonzero(all_folds % num_folds >= 2)[0]
         # assign the sets
-        rnnlib_config.test_files = splittings[int(test_fold)]
-        rnnlib_config.val_files = splittings[int(val_fold)]
+        rnnlib_config.test_files = folds[int(test_fold)]
+        rnnlib_config.val_files = folds[int(val_fold)]
         rnnlib_config.train_files = []
         for j in train_fold.tolist():
-            rnnlib_config.train_files.extend(splittings[j])
+            rnnlib_config.train_files.extend(folds[j])
         rnnlib_config.task = task
         rnnlib_config.bidirectional = bidirectional
         rnnlib_config.learn_rate = learn_rate
@@ -1265,6 +1354,9 @@ def create_config(files, config, out_dir, folds=8, randomize=False,
         rnnlib_config.optimizer = optimizer
         rnnlib_config.noise = noise
         rnnlib_config.weight_noise = weight_noise
+        rnnlib_config.l1 = l1
+        rnnlib_config.l2 = l2
+        rnnlib_config.patience = patience
         rnnlib_config.save('%s_%s' % (out_file, i + 1))
 
 
@@ -1277,40 +1369,40 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
     """
     Create .nc files for the given .wav and annotation files.
 
-    :param files:         use the files (must contain both the audio files and
-                          the annotation files)
-    :param annotations:   use these annotation suffices [list of strings]
-    :param out_dir:       output directory for the created .nc files
+    :param files:          use the files (must contain both the audio files and
+                           the annotation files)
+    :param annotations:    use these annotation suffices [list of strings]
+    :param out_dir:        output directory for the created .nc files
 
     Signal parameters:
 
-    :param norm:          normalize the signal
-    :param att:           attenuate the signal
+    :param norm:           normalize the signal
+    :param att:            attenuate the signal
 
     Framing parameters:
 
-    :param frame_size:    size of one frame(s), if a list is given, the
-                          individual spectrograms are stacked [int]
-    :param fps:           use given frames per second [float]
-    :param online:        online mode, i.e. use only past information
+    :param frame_size:     size of one frame(s), if a list is given, the
+                           individual spectrograms are stacked [int]
+    :param fps:            use given frames per second [float]
+    :param online:         online mode, i.e. use only past information
 
     Filterbank parameters:
 
-    :param filterbank:    filterbank type [Filterbank]
-    :param num_bands:     number of filter bands (per octave, depending on the
-                          type of the filterbank)
-    :param fmin:          the minimum frequency [Hz]
-    :param fmax:          the maximum frequency [Hz]
-    :param norm_filters:  normalize the filter to area 1 [bool]
+    :param filterbank:     filterbank type [Filterbank]
+    :param num_bands:      number of filter bands (per octave, depending on the
+                           type of the filterbank)
+    :param fmin:           the minimum frequency [Hz]
+    :param fmax:           the maximum frequency [Hz]
+    :param norm_filters:   normalize the filter to area 1 [bool]
 
     Logarithmic magnitude parameters:
 
-    :param log:           scale the magnitude spectrogram logarithmically
-                          [bool]
-    :param mul:           multiply the magnitude spectrogram with this factor
-                          before taking the logarithm [float]
-    :param add:           add this value before taking the logarithm of the
-                          magnitudes [float]
+    :param log:            scale the magnitude spectrogram logarithmically
+                           [bool]
+    :param mul:            multiply the magnitude spectrogram with this factor
+                           before taking the logarithm [float]
+    :param add:            add this value before taking the logarithm of the
+                           magnitudes [float]
 
     Difference parameters:
 
@@ -1339,7 +1431,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
 
     Other parameters:
 
-    :param verbose:       be verbose
+    :param verbose:        be verbose
 
     """
     from madmom.processors import SequentialProcessor
@@ -1382,7 +1474,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         filename, annotation = os.path.splitext(f)
         # get the matching .wav or .flac file to the input file
         wav_files = match_file(f, files, annotation, '.wav')
-        # no wav file found, try flac
+        # no .wav file found, try .flac
         if len(wav_files) < 1:
             wav_files = match_file(f, files, annotation, '.flac')
         # no wav file found
@@ -1391,7 +1483,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             exit()
         # print file
         if verbose:
-            print f, filename, annotation
+            print f
 
         # create the data for the .nc file from the .wav file
         nc_data = processor.process(wav_files[0])
@@ -1531,8 +1623,8 @@ def main():
                     help='output directory')
     sp.add_argument('-c', dest='config', default='config',
                     help='config file base name')
-    sp.add_argument('--folds', default=8, type=int,
-                    help='%(default)s-fold cross validation')
+    sp.add_argument('--folds', dest='num_folds', default=8, type=int,
+                    help='N-fold cross validation [default=%(default)s]')
     sp.add_argument('--splits', action='append', default=None,
                     help='use the pre-defined folds from this split folder '
                          '(argument can be given multiple times)')
@@ -1553,10 +1645,16 @@ def main():
                     help='momentum for learning [default=%(default)s]')
     sp.add_argument('--optimizer', default='steepest', type=str,
                     help='optimizer [default=%(default)s]')
+    sp.add_argument('--patience', default=20, type=int,
+                    help='early stopping after N epochs [default=%(default)s]')
     sp.add_argument('--noise', default=0, type=float,
                     help='add noise to input [default=%(default).2f]')
     sp.add_argument('--weight_noise', default=0, type=float,
                     help='add noise to weight [default=%(default).2f]')
+    sp.add_argument('--l1', default=0, type=float,
+                    help='L1 regularisation [default=%(default).2f]')
+    sp.add_argument('--l2', default=0, type=float,
+                    help='L2 regularisation [default=%(default).2f]')
 
     # .nc file creation options
     sp = s.add_parser('create', help='.nc file creation help', description="""
