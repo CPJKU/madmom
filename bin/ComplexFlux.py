@@ -35,7 +35,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='ComplexFlux.2014')
+    p.add_argument('--version', action='version', version='ComplexFlux')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)

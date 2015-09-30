@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+BeatDetector beat tracking algorithm.
+
 """
 
 import glob
@@ -18,7 +20,7 @@ from madmom.features.beats import BeatDetectionProcessor
 
 
 def main():
-    """BeatDetector.2014"""
+    """BeatDetector"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -42,7 +44,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='BeatDetector.2014')
+    p.add_argument('--version', action='version', version='BeatDetector')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
@@ -69,7 +71,8 @@ def main():
     args.add = 1
     args.diff_ratio = 0.5
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
+    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].npz" %
+                              MODELS_PATH)
 
     # print arguments
     if args.verbose:

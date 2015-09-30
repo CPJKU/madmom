@@ -63,7 +63,7 @@ def main():
     args.fps = 100
     args.online = False
     args.onset_method = 'superflux'
-    args.nn_files = glob.glob("%s/onsets_brnn_peak_picking_[1-8].npz" %
+    args.nn_files = glob.glob("%s/onsets/2014/onsets_brnn_pp_[1-8].npz" %
                               MODELS_PATH)
 
     # print arguments

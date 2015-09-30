@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+OnsetDetectorLL online onset detection algorithm.
+
 """
 
 import glob
@@ -18,7 +20,7 @@ from madmom.features.onsets import PeakPickingProcessor
 
 
 def main():
-    """OnsetDetectorLL.2013"""
+    """OnsetDetectorLL"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -46,8 +48,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version',
-                   version='OnsetDetectorLL.2013')
+    p.add_argument('--version', action='version', version='OnsetDetectorLL')
     # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
@@ -74,7 +75,8 @@ def main():
     args.add = 1
     args.diff_ratio = 0.25
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/onsets_rnn_[1-8].npz" % MODELS_PATH)
+    args.nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].npz" %
+                              MODELS_PATH)
     args.pre_max = 1. / args.fps
     args.post_max = 0
     args.post_avg = 0

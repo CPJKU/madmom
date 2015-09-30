@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+DBNBeatTracker beat tracking algorithm.
+
 """
 
 import glob
@@ -46,8 +48,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version',
-                   version='DBNBeatTracker.2015')
+    p.add_argument('--version', action='version', version='DBNBeatTracker')
     # input/output options
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
@@ -73,7 +74,8 @@ def main():
     args.add = 1
     args.diff_ratio = 0.5
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/beats_blstm_[1-8].npz" % MODELS_PATH)
+    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].npz" %
+                              MODELS_PATH)
 
     # print arguments
     if args.verbose:

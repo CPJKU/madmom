@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+OnsetDetector onset detection algorithm.
+
 """
 
 import glob
@@ -17,32 +19,8 @@ from madmom.features import ActivationsProcessor
 from madmom.features.onsets import PeakPickingProcessor
 
 
-NN_FILES = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
-
-
-DEFAULTS = argparse.Namespace(
-    # set immutable defaults
-    num_channels = 1,
-    sample_rate = 44100,
-    fps = 100,
-    frame_size = [1024, 2048, 4096],
-    num_bands = 6,
-    fmin = 30,
-    fmax = 17000,
-    norm_filters = True,
-    log = True,
-    mul = 5,
-    add = 1,
-    diff_ratio = 0.25,
-    positive_diffs = True,
-    nn_files = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH),
-    pre_max = 0.01,
-    post_max = 0.01)
-
-import ConfigParser
-
 def main():
-    """OnsetDetector.2013"""
+    """OnsetDetector"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -51,7 +29,7 @@ def main():
     network.
     ''')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
+    p.add_argument('--version', action='version', version='OnsetDetector')
     # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
@@ -61,25 +39,26 @@ def main():
     PeakPickingProcessor.add_arguments(p, threshold=0.3, smooth=0.07)
 
     # parse arguments
-    args = p.parse_args(namespace=DEFAULTS)
+    args = p.parse_args()
 
-    # # set immutable defaults
-    # args.num_channels = 1
-    # args.sample_rate = 44100
-    # args.fps = 100
-    # args.frame_size = [1024, 2048, 4096]
-    # args.num_bands = 6
-    # args.fmin = 30
-    # args.fmax = 17000
-    # args.norm_filters = True
-    # args.log = True
-    # args.mul = 5
-    # args.add = 1
-    # args.diff_ratio = 0.25
-    # args.positive_diffs = True
-    # args.nn_files = glob.glob("%s/onsets_brnn_[1-8].npz" % MODELS_PATH)
-    # args.pre_max = 1. / args.fps
-    # args.post_max = 1. / args.fps
+    # set immutable defaults
+    args.num_channels = 1
+    args.sample_rate = 44100
+    args.fps = 100
+    args.frame_size = [1024, 2048, 4096]
+    args.num_bands = 6
+    args.fmin = 30
+    args.fmax = 17000
+    args.norm_filters = True
+    args.log = True
+    args.mul = 5
+    args.add = 1
+    args.diff_ratio = 0.25
+    args.positive_diffs = True
+    args.nn_files = glob.glob("%s/onsets/2013/onsets_brnn_[1-8].npz" %
+                              MODELS_PATH)
+    args.pre_max = 1. / args.fps
+    args.post_max = 1. / args.fps
 
     # print arguments
     if args.verbose:
