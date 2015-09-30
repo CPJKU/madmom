@@ -18,7 +18,7 @@ from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
 def main():
-    """LogFiltSpecFlux.2014"""
+    """LogFiltSpecFlux"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -33,8 +33,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version',
-                   version='LogFiltSpecFlux.2014')
+    p.add_argument('--version', action='version', version='LogFiltSpecFlux')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+PianoTranscriptor (piano) note transcription algorithm.
+
 """
 
 import glob
@@ -8,10 +10,8 @@ import argparse
 
 from madmom import MODELS_PATH
 from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
-                                      LogarithmicSpectrogramProcessor,
-                                      LogarithmicFilteredSpectrogramProcessor,
+from madmom.audio.signal import SignalProcessor
+from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
@@ -22,7 +22,7 @@ from madmom.features.notes import (write_midi, write_notes, write_frequencies,
 
 
 def main():
-    """PianoTranscriptor.2014"""
+    """PianoTranscriptor"""
 
     # define parser
     p = argparse.ArgumentParser(
@@ -39,8 +39,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version',
-                   version='PianoTranscriptor.2014')
+    p.add_argument('--version', action='version', version='PianoTranscriptor')
     # input/output arguments
     io_arguments(p, output_suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)
@@ -76,7 +75,7 @@ def main():
     args.add = 1
     args.diff_ratio = 0.5
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/notes_brnn*npz" % MODELS_PATH)
+    args.nn_files = glob.glob("%s/notes/2013/notes_brnn.npz" % MODELS_PATH)
     args.pre_max = 1. / args.fps
     args.post_max = 1. / args.fps
 
@@ -87,9 +86,6 @@ def main():
     # print arguments
     if args.verbose:
         print args
-
-    # TODO: remove this hack!
-    args.fps = 100
 
     # input processor
     if args.load:
