@@ -778,12 +778,11 @@ class DownbeatTrackingProcessor(Processor):
     MAX_BPM = [205, 225]
     NUM_TEMPO_STATES = [None, None]
     TRANSITION_LAMBDA = [100, 100]
-    NUM_BEATS = [3, 4]
     NORM_OBSERVATIONS = False
 
-    def __init__(self, gmm_file, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def __init__(self, pattern_files, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
-                 transition_lambda=TRANSITION_LAMBDA, num_beats=NUM_BEATS,
+                 transition_lambda=TRANSITION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, downbeats=False,
                  fps=None, **kwargs):
         """
@@ -791,7 +790,9 @@ class DownbeatTrackingProcessor(Processor):
         Track the beats and downbeats with a Dynamic Bayesian Network (DBN)
         approximated by a Hidden Markov Model (HMM).
 
-        :param gmm_file:          load the fitted GMMs from this file
+        :param pattern_files:     list of files with the patterns
+                                  (including the fitted GMMs and information
+                                   about the number of beats)
 
         Parameters for the transition model:
 
@@ -811,7 +812,6 @@ class DownbeatTrackingProcessor(Processor):
                                   from one beat to the next one). If a single
                                   value is given, the same value is assumed
                                   for all patterns.
-        :param num_beats:         list with number of beats per bar
 
         Parameters for the observation model:
 
@@ -850,21 +850,29 @@ class DownbeatTrackingProcessor(Processor):
             transition_lambda = [transition_lambda] * len(num_tempo_states)
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
-                len(transition_lambda) == len(num_beats)):
-            raise ValueError("`min_bpm`, `max_bpm`, `num_tempo_states`, "
-                             "`transition_lambda` and `num_beats` must have "
-                             "the same length (one entry for each pattern)")
-        self.fps = fps
-        self.num_beats = num_beats
-        self.downbeats = downbeats
-        # load the fitted GMMs
+                len(transition_lambda) == len(pattern_files)):
+            raise ValueError('`min_bpm`, `max_bpm`, `num_tempo_states` and '
+                             '`transition_lambda` must have the same length '
+                             'as number of patterns.')
+        # load the patterns
         import cPickle
-        with open(gmm_file, 'r') as f:
-            gmms = cPickle.load(f)
+        patterns = []
+        for pattern_file in pattern_files:
+            with open(pattern_file, 'r') as f:
+                patterns.append(cPickle.load(f))
+        if len(patterns) == 0:
+            raise ValueError('at least one rhythmical pattern must be given.')
+        # extract the GMMs and number of beats
+        gmms = [p['gmms'] for p in patterns]
+        self.num_beats = [p['num_beats'] for p in patterns]
+        # save additional variables
+        self.downbeats = downbeats
+        self.fps = fps
         # convert timing information to construct state space
-        # Note: since we model a complete bar, multiply by the number of beats
-        min_interval = 60. * fps / np.asarray(max_bpm) * num_beats
-        max_interval = 60. * fps / np.asarray(min_bpm) * num_beats
+        # Note: since we model a complete bar, we must multiply the intervals
+        #       by the number of beats in that pattern
+        min_interval = 60. * self.fps / np.asarray(max_bpm) * self.num_beats
+        max_interval = 60. * self.fps / np.asarray(min_bpm) * self.num_beats
         # state space
         self.st = St(min_interval, max_interval, num_tempo_states)
         # transition model
@@ -887,11 +895,14 @@ class DownbeatTrackingProcessor(Processor):
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
         pattern = self.st.pattern(path[0])
-        # the position inside the pattern
+        # the position inside the pattern (0..1)
         position = self.st.position(path)
         # beat position (= weighted by number of beats in bar)
         beat_counter = (position * self.num_beats[pattern]).astype(int)
         # transitions are the points where the beat counters change
+        # FIXME: we might miss the first or last beat!
+        #        we could calculate the interval towards the beginning/end to
+        #        decide whether to include these points
         beat_positions = np.nonzero(np.diff(beat_counter))[0] + 1
         # the beat numbers are the counters + 1 at the transition points
         beat_numbers = beat_counter[beat_positions] + 1
@@ -904,18 +915,18 @@ class DownbeatTrackingProcessor(Processor):
             return zip(beats, beat_numbers)
 
     @classmethod
-    def add_arguments(cls, parser, gmm_file, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      num_tempo_states=NUM_TEMPO_STATES,
-                      transition_lambda=TRANSITION_LAMBDA, num_beats=NUM_BEATS,
+    def add_arguments(cls, parser, pattern_files=None, min_bpm=MIN_BPM,
+                      max_bpm=MAX_BPM, num_tempo_states=NUM_TEMPO_STATES,
+                      transition_lambda=TRANSITION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS):
         """
         Add HMM related arguments to an existing parser.
 
         :param parser:            existing argparse parser
 
-        Parameters for the GMMs:
+        Parameters for the patterns (i.e. fitted GMMs):
 
-        :param gmm_file:          load the fitted GMMs from this file
+        :param pattern_files:     load the patterns from these files
 
         Parameters for the transition model:
 
@@ -931,7 +942,6 @@ class DownbeatTrackingProcessor(Processor):
                                   change distribution (higher values prefer a
                                   constant tempo over a tempo change from one
                                   bar to the next one)
-        :param num_beats:         list with number of beats per bar
 
         Parameters for the observation model:
 
@@ -942,9 +952,12 @@ class DownbeatTrackingProcessor(Processor):
         """
         from madmom.utils import OverrideDefaultListAction
         # add GMM options
-        g = parser.add_argument_group('GMM arguments')
-        g.add_argument('--gmm_file', action='store', default=gmm_file,
-                       help='load the fitted GMMs from this file')
+        if pattern_files is not None:
+            g = parser.add_argument_group('GMM arguments')
+            g.add_argument('--pattern_files', action=OverrideDefaultListAction,
+                           default=pattern_files,
+                           help='load the patterns (with the fitted GMMs) '
+                                'from these files (comma separated list)')
         # add HMM parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         g.add_argument('--min_bpm', action=OverrideDefaultListAction,
@@ -968,12 +981,6 @@ class DownbeatTrackingProcessor(Processor):
                             'tempo change from one bar to the next one (comma '
                             'separated list with one value per pattern) '
                             '[default=%(default)s]')
-        if num_beats is not None:
-            g.add_argument('--num_beats', action=OverrideDefaultListAction,
-                           default=num_beats, type=int, sep=',',
-                           help='number of beats per par (comma separated '
-                                'list with one value per pattern) '
-                                '[default=%(default)s]')
         # observation model stuff
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+DownBeatTracker (down-)beat tracking algorithm.
+
 """
 
 import glob
@@ -15,9 +17,6 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       MultiBandSpectrogramProcessor)
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import DownbeatTrackingProcessor
-
-
-GMM_FILE = glob.glob("%s/downbeat_ismir2013.pkl" % MODELS_PATH)[0]
 
 
 def main():
@@ -43,25 +42,37 @@ def main():
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
 
+    In its default setting, this script uses only two rhythmical patterns and
+    allows tempo changes only at bar boundaries.
+
     ''')
     # version
-    p.add_argument('--version', action='version',
-                   version='DownBeatTracker.2015')
+    p.add_argument('--version', action='version', version='DownBeatTracker')
     # add arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    FramedSignalProcessor.add_arguments(p, fps=50, online=False)
-    FilteredSpectrogramProcessor.add_arguments(p, num_bands=12, fmin=30,
-                                               fmax=17000, norm_filters=False)
-    LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
-    SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
-                                                 positive_diffs=True)
-    MultiBandSpectrogramProcessor.add_arguments(p, crossover_frequencies=[270])
-    DownbeatTrackingProcessor.add_arguments(p, gmm_file=GMM_FILE,
-                                            num_beats=None)
+    DownbeatTrackingProcessor.add_arguments(p)
+
     # parse arguments
     args = p.parse_args()
+
+    # set immutable defaults
+    args.num_channels = 1
+    args.sample_rate = 44100
+    args.fps = 50
+    args.num_bands = 12
+    args.fmin = 30
+    args.fmax = 17000
+    args.norm_filters = False
+    args.log = True
+    args.mul = 1
+    args.add = 1
+    args.diff_ratio = 0.5
+    args.positive_diffs = True
+    args.crossover_frequencies = [270]
+    args.pattern_files = glob.glob("%s/downbeats/2013/*.pkl" % MODELS_PATH)
+
     # print arguments
     if args.verbose:
         print args
@@ -72,7 +83,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # define an input processor
-        sig = SignalProcessor(num_channels=1, **vars(args))
+        sig = SignalProcessor(**vars(args))
         frames = FramedSignalProcessor(**vars(args))
         filt = FilteredSpectrogramProcessor(**vars(args))
         log = LogarithmicSpectrogramProcessor(**vars(args))
