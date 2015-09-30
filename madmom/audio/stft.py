@@ -178,8 +178,8 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
 
     """
 
-    def __new__(cls, frames, window=np.hanning, fft_size=None,
-                circular_shift=False, **kwargs):
+    def __init__(self, frames, window=np.hanning, fft_size=None,
+                 circular_shift=False, **kwargs):
         """
         Creates a new ShortTimeFourierTransform instance from the given
         FramedSignal.
@@ -208,8 +208,12 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
               values being in the range [-1, 1].
 
         """
-        from .signal import FramedSignal
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
 
+    def __new__(cls, frames, window=np.hanning, fft_size=None,
+                circular_shift=False, **kwargs):
+        from .signal import FramedSignal
         # take the FramedSignal from the given STFT
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT
@@ -385,7 +389,7 @@ class Phase(PropertyMixin, np.ndarray):
 
     """
 
-    def __new__(cls, stft, **kwargs):
+    def __init__(self, stft, **kwargs):
         """
         Creates a new Phase instance from the given ShortTimeFourierTransform.
 
@@ -398,12 +402,17 @@ class Phase(PropertyMixin, np.ndarray):
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
-        circular_shift = kwargs.pop('circular_shift', True)
-        # take the STFT
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, stft, **kwargs):
+        # if a Phase object is given use its STFT
         if isinstance(stft, Phase):
             stft = stft.stft
         # instantiate a ShortTimeFourierTransform object if needed
         if not isinstance(stft, ShortTimeFourierTransform):
+            # set circular_shift if it was not disables explicitly
+            circular_shift = kwargs.pop('circular_shift', True)
             stft = ShortTimeFourierTransform(stft,
                                              circular_shift=circular_shift,
                                              **kwargs)
@@ -447,7 +456,7 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
 
     """
 
-    def __new__(cls, phase, **kwargs):
+    def __init__(self, phase, **kwargs):
         """
         Creates a new LocalGroupDelay instance from the given Phase.
 
@@ -460,9 +469,12 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
         :param kwargs: keyword arguments passed to Phase
 
         """
-        #
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, phase, **kwargs):
+        # try to instantiate a Phase object
         if not isinstance(stft, Phase):
-            # try to instantiate a Phase object
             phase = Phase(phase, circular_shift=True, **kwargs)
         if not phase.stft.circular_shift:
             import warnings

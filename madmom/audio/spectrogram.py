@@ -120,7 +120,7 @@ class Spectrogram(PropertyMixin, np.ndarray):
 
     """
 
-    def __new__(cls, stft, **kwargs):
+    def __init__(self, stft, **kwargs):
         """
         Creates a new Spectrogram instance from the given
         ShortTimeFourierTransform.
@@ -134,6 +134,11 @@ class Spectrogram(PropertyMixin, np.ndarray):
         :param kwargs: keyword arguments passed to ShortTimeFourierTransform
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, stft, **kwargs):
+        # check stft type
         if isinstance(stft, Spectrogram):
             # already a Spectrogram
             data = stft
@@ -243,11 +248,11 @@ class FilteredSpectrogram(Spectrogram):
     FilteredSpectrogram class.
 
     """
-
     # we just want to inherit some properties from Spectrogram
-    def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
-                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+
+    def __init__(self, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
+                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
         """
         Creates a new FilteredSpectrogram instance from the given Spectrogram.
 
@@ -282,6 +287,12 @@ class FilteredSpectrogram(Spectrogram):
         :param kwargs:         keyword arguments passed to Spectrogram
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
+                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
         import inspect
         from .filters import Filterbank
 
@@ -507,9 +518,9 @@ class LogarithmicSpectrogram(Spectrogram):
     LogarithmicSpectrogram class.
 
     """
-
     # we just want to inherit some properties from Spectrogram
-    def __new__(cls, spectrogram, mul=MUL, add=ADD, **kwargs):
+
+    def __init__(self, spectrogram, mul=MUL, add=ADD, **kwargs):
         """
         Creates a new LogarithmicSpectrogram instance from the given
         Spectrogram.
@@ -530,6 +541,10 @@ class LogarithmicSpectrogram(Spectrogram):
         :param kwargs:      keyword arguments passed to Spectrogram
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, mul=MUL, add=ADD, **kwargs):
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
@@ -657,7 +672,7 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
 
     """
 
-    def __new__(cls, spectrogram, **kwargs):
+    def __init__(self, spectrogram, **kwargs):
         """
         Creates a new LogarithmicFilteredSpectrogram instance of the given
         FilteredSpectrogram.
@@ -672,6 +687,10 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
                             LogarithmicSpectrogram
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, **kwargs):
         # get the log args
         mul = kwargs.pop('mul', MUL)
         add = kwargs.pop('add', ADD)
@@ -775,41 +794,47 @@ class SpectrogramDifference(Spectrogram):
     SpectrogramDifference class.
 
     """
-
     # we just want to inherit some properties from Spectrogram
-    def __new__(cls, spectrogram, diff_ratio=DIFF_RATIO,
-                diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
-                positive_diffs=POSITIVE_DIFFS, **kwargs):
+
+    def __init__(self, spectrogram, diff_ratio=DIFF_RATIO,
+                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
+                 positive_diffs=POSITIVE_DIFFS, **kwargs):
         """
         Creates a new SpectrogramDifference instance from the given
         spectrogram.
 
-        :param spectrogram:       Spectrogram instance (or anything a
-                                  Spectrogram can be instantiated from)
+        :param spectrogram:    Spectrogram instance (or anything a Spectrogram
+                               can be instantiated from)
 
         Difference parameters:
 
-        :param diff_ratio:        calculate the difference to the frame at
-                                  which the window used for the STFT yields
-                                  this ratio of the maximum height [float]
-        :param diff_frames:       calculate the difference to the N-th previous
-                                  frame (if set, this overrides the value
-                                  calculated from the `diff_ratio`) [int]
-        :param diff_max_bins:     apply a maximum filter with this width (in
-                                  bins in frequency dimension) [int]
-        :param positive_diffs:    keep only the positive differences, i.e. set
-                                  all diff values < 0 to 0. [bool]
+        :param diff_ratio:     calculate the difference to the frame at which
+                               the window used for the STFT yields this ratio
+                               of the maximum height [float]
+        :param diff_frames:    calculate the difference to the N-th previous
+                               frame (if set, this overrides the value
+                               calculated from the `diff_ratio`) [int]
+        :param diff_max_bins:  apply a maximum filter with this width (in bins
+                               in frequency dimension) [int]
+        :param positive_diffs: keep only the positive differences, i.e. set
+                               all diff values < 0 to 0. [bool]
 
         If no Spectrogram instance was given, one is instantiated and these
         arguments are passed:
 
-        :param kwargs:            keyword arguments passed to Spectrogram
+        :param kwargs:         keyword arguments passed to Spectrogram
 
         Note: The SuperFlux algorithm uses a maximum filtered spectrogram with
               3 `max_bins` together with a 24 band logarithmic filterbank to
               calculate the difference spectrogram.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, diff_ratio=DIFF_RATIO,
+                diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
+                positive_diffs=POSITIVE_DIFFS, **kwargs):
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
@@ -1057,8 +1082,8 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
     """
 
-    def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
-                **kwargs):
+    def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
+                 **kwargs):
         """
         Creates a new MultiBandSpectrogram instance from the given
         Spectrogram.
@@ -1079,6 +1104,11 @@ class MultiBandSpectrogram(FilteredSpectrogram):
                                       FilteredSpectrogram
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
+                **kwargs):
         from .filters import RectangularFilterbank
         # instantiate a FilteredSpectrogram if needed
         if not isinstance(spectrogram, Spectrogram):

@@ -45,8 +45,8 @@ class PitchClassProfile(FilteredSpectrogram):
 
     """
 
-    def __new__(cls, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
-                fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
+    def __init__(self, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
+                 fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
         """
         Creates a new PitchClassProfile instance.
 
@@ -62,6 +62,11 @@ class PitchClassProfile(FilteredSpectrogram):
               given spectrogram.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
+                fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
         # check spectrogram type
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
@@ -106,9 +111,9 @@ class HarmonicPitchClassProfile(PitchClassProfile):
 
     """
 
-    def __new__(cls, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
-                fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,
-                **kwargs):
+    def __init__(self, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
+                 fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,
+                 **kwargs):
         """
         Creates a new HarmonicPitchClassProfile instance.
 
@@ -125,6 +130,12 @@ class HarmonicPitchClassProfile(PitchClassProfile):
               given spectrogram.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
+                fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,
+                **kwargs):
         # check spectrogram type
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
