@@ -349,8 +349,8 @@ class Signal(np.ndarray):
 
     """
 
-    def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
-                stop=None):
+    def __init__(self, data, sample_rate=None, num_channels=None, start=None,
+                 stop=None):
         """
         Creates a new Signal instance.
 
@@ -370,6 +370,11 @@ class Signal(np.ndarray):
               of the array.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
+                stop=None):
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate=sample_rate,

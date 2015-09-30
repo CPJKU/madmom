@@ -285,7 +285,7 @@ class Filter(np.ndarray):
 
     """
 
-    def __new__(cls, data, start=0, norm=False):
+    def __init__(self, data, start=0, norm=False):
         """
         Creates a new Filter instance.
 
@@ -297,6 +297,10 @@ class Filter(np.ndarray):
         creation of a Filterbank. If not set, a start position of 0 is assumed.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, data, start=0, norm=False):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray):
             # cast as Filter
@@ -370,8 +374,7 @@ class TriangularFilter(Filter):
     Triangular filter class.
 
     """
-
-    def __new__(cls, start, center, stop, norm=False):
+    def __init__(self, start, center, stop, norm=False):
         """
         Creates a new TriangularFilter instance.
 
@@ -383,6 +386,10 @@ class TriangularFilter(Filter):
                        (unless normalized) with indices <= `start` set to 0
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, start, center, stop, norm=False):
         # center must be between start & stop
         if not start <= center < stop:
             raise ValueError('center must be between start and stop')
@@ -459,7 +466,7 @@ class RectangularFilter(Filter):
 
     """
 
-    def __new__(cls, start, stop, norm=False):
+    def __init__(self, start, stop, norm=False):
         """
         Creates a new RectangularFilter instance.
 
@@ -470,6 +477,10 @@ class RectangularFilter(Filter):
                       (unless normalized) with indices <= `start` set to 0
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, start, stop, norm=False):
         # start must be smaller than stop
         if start >= stop:
             raise ValueError('start must be smaller than stop')
@@ -529,7 +540,7 @@ class Filterbank(np.ndarray):
     """
     fref = None
 
-    def __new__(cls, data, bin_frequencies):
+    def __init__(self, data, bin_frequencies):
         """
         Creates a new Filterbank instance.
 
@@ -539,6 +550,10 @@ class Filterbank(np.ndarray):
                                  of the given data array)
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, data, bin_frequencies):
         # input is an numpy ndarray instance
         if isinstance(data, np.ndarray) and data.ndim == 2:
             # cast as Filterbank
@@ -716,9 +731,9 @@ class MelFilterbank(Filterbank):
     NORM_FILTERS = True
     UNIQUE_FILTERS = True
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
-                fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, **kwargs):
+    def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                 fmax=FMAX, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         """
         Creates a new MelFilterbank instance.
 
@@ -736,6 +751,12 @@ class MelFilterbank(Filterbank):
               frequencies do not necessarily match the arguments given.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # get a list of frequencies aligned on the Mel scale
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(num_bands + 2, fmin, fmax)
@@ -760,9 +781,9 @@ class BarkFilterbank(Filterbank):
     NORM_FILTERS = True
     UNIQUE_FILTERS = True
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
-                fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, **kwargs):
+    def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                 fmax=FMAX, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         """
         Creates a new BarkFilterbank instance.
 
@@ -776,6 +797,12 @@ class BarkFilterbank(Filterbank):
                                 at low frequencies [bool]
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # get a list of frequencies
         if num_bands == 'normal':
             frequencies = bark_frequencies(fmin, fmax)
@@ -800,9 +827,9 @@ class LogarithmicFilterbank(Filterbank):
     """
     NUM_BANDS_PER_OCTAVE = 12
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
-                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
+    def __init__(self, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
+                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
         """
         Creates a new LogarithmicFilterbank instance.
 
@@ -827,6 +854,13 @@ class LogarithmicFilterbank(Filterbank):
               spacing is created.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
+                fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
+        # decide whether num_bands is bands per octave or total number of bands
         if bands_per_octave:
             num_bands_per_octave = num_bands
             # get a list of frequencies with logarithmic scaling
@@ -884,9 +918,9 @@ class RectangularFilterbank(Filterbank):
 
     """
 
-    def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
-                fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS):
+    def __init__(self, bin_frequencies, crossover_frequencies, fmin=FMIN,
+                 fmax=FMAX, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS):
         """
         Creates a new LogarithmicFilterbank instance.
 
@@ -902,6 +936,12 @@ class RectangularFilterbank(Filterbank):
                                       frequencies [bool]
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
+                fmax=FMAX, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS):
         # create an empty filterbank
         fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
                       dtype=FILTER_DTYPE)
@@ -949,9 +989,9 @@ class SimpleChromaFilterbank(Filterbank):
     """
     NUM_BANDS = 12
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
-                fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS):
+    def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS):
         """
         Creates a new SimpleChromaFilterbank instance.
 
@@ -965,6 +1005,12 @@ class SimpleChromaFilterbank(Filterbank):
                                 filters resulting from insufficient resolution
                                 at low frequencies [bool]
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+                fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
+                unique_filters=UNIQUE_FILTERS):
         raise NotImplementedError("please check if produces correct/expected "
                                   "results and enable if yes.")
         # TODO: add comments!
@@ -1037,8 +1083,8 @@ class PitchClassProfileFilterbank(Filterbank):
     FMIN = 100.
     FMAX = 5000.
 
-    def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
-                fmax=FMAX, fref=A4):
+    def __init__(self, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
+                 fmax=FMAX, fref=A4):
         """
         Creates a new PitchClassProfile (PCP) filterbank instance.
 
@@ -1049,6 +1095,11 @@ class PitchClassProfileFilterbank(Filterbank):
         :param fref:            reference frequency for the first PCP bin [Hz]
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
+                fmax=FMAX, fref=A4):
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # use only positive bin frequencies
@@ -1114,8 +1165,8 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
     FMAX = 5000.
     WINDOW = 4
 
-    def __new__(cls, bin_frequencies, num_classes=CLASSES,
-                fmin=FMIN, fmax=FMAX, fref=A4, window=WINDOW):
+    def __init__(self, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
+                 fmax=FMAX, fref=A4, window=WINDOW):
         """
         Creates a new HarmonicPitchClassProfile (HPCP) filterbank instance.
 
@@ -1127,6 +1178,11 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
         :param window:          length of the weighting window [bins]
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
+                fmax=FMAX, fref=A4, window=WINDOW):
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # use only positive bin frequencies

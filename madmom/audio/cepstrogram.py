@@ -16,24 +16,31 @@ from .spectrogram import Spectrogram
 
 class Cepstrogram(PropertyMixin, np.ndarray):
     """
-    Cepstrogram is a generic class which applies some transformation (usually
-    a DCT) on a spectrogram.
+    The Cepstrogram class represents a transformed Spectrogram. This generic
+    class applies some transformation (usually a DCT) on a spectrogram.
 
     """
 
-    def __new__(cls, spectrogram, transform=dct, **kwargs):
+    def __init__(self, spectrogram, transform=dct, **kwargs):
         """
+
         Creates a new Cepstrogram instance from the given Spectrogram.
 
-        :param spectrogram:       Spectrogram instance (or anything a
-                                  Spectrogram can be instantiated from)
+        :param spectrogram: Spectrogram instance (or anything a Spectrogram can
+                            be instantiated from)
+        :param transform:   transformation applied to the `spectrogram`
+                            [numpy ufunc]
 
         If no Spectrogram instance was given, one is instantiated and
         these arguments are passed:
 
-        :param kwargs:            keyword arguments passed to Spectrogram
+        :param kwargs:      keyword arguments passed to Spectrogram
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, transform=dct, **kwargs):
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
@@ -97,6 +104,8 @@ class CepstrogramProcessor(Processor):
 
     def process(self, data):
         """
+        Create and return a Cepstrogram of the given data.
+
         :param data: data to be processed
         :return:     Cepstrogram instance
 
@@ -130,43 +139,55 @@ class MFCC(Cepstrogram):
 
     """
 
-    def __new__(cls, spectrogram, transform=dct, filterbank=MelFilterbank,
-                num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
-                norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
-                **kwargs):
+    def __init__(self, spectrogram, transform=dct, filterbank=MelFilterbank,
+                 num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
+                 norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
+                 **kwargs):
         """
         Creates a new MFCC instance from the given Spectrogram.
 
-        :param spectrogram:       Spectrogram instance (or anything a
-                                  Spectrogram can be instantiated from)
-        :param transform:         transformation to be applied to the
-                                  spectrogram to obtain a cepstrogram
+        :param spectrogram: Spectrogram instance (or anything a Spectrogram
+                            can be instantiated from)
+        :param transform:   transformation to be applied to the
+                            spectrogram to obtain a cepstrogram
 
         Filterbank parameters:
 
-        :param filterbank:        Filterbank type or instance [Filterbank]
+        :param filterbank:  Filterbank type or instance [Filterbank]
 
         If a Filterbank type is given rather than a Filterbank instance, one
         will be created with the given type and these parameters:
 
-        :param num_bands:         number of filter bands (per octave, depending
-                                  on the type of the filterbank) [int]
-        :param fmin:              the minimum frequency [Hz, float]
-        :param fmax:              the maximum frequency [Hz, float]
+        :param num_bands:   number of filter bands (per octave, depending on
+                            the type of the filterbank) [int]
+        :param fmin:        the minimum frequency [Hz, float]
+        :param fmax:        the maximum frequency [Hz, float]
 
         Logarithmic magnitude parameters:
 
-        :param mul:               multiply the magnitude spectrogram with this
-                                  factor before taking the logarithm [float]
-        :param add:               add this value before taking the logarithm
-                                  of the magnitudes [float]
+        :param mul:         multiply the magnitude spectrogram with this factor
+                            before taking the logarithm [float]
+        :param add:         add this value before taking the logarithm of the
+                            magnitudes [float]
 
         If no Spectrogram instance was given, one is instantiated and
         these arguments are passed:
 
-        :param kwargs:            keyword arguments passed to Spectrogram
+        :param kwargs:      keyword arguments passed to Spectrogram
+
+        Note: If a filtered or scaled Spectrogram is given, a new unfiltered
+              and unscaled Spectrogram will be computed and then the given
+              filter and scaling will be applied accordingly.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, spectrogram, transform=dct, filterbank=MelFilterbank,
+                num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
+                norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
+                **kwargs):
+        # for signature documentation see __init__()
         from .filters import Filterbank
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):

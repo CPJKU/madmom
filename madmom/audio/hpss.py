@@ -9,6 +9,8 @@ import numpy as np
 
 from madmom.processors import Processor
 
+# TODO: keep this as Processors or should it be done as np.ndarray classes?
+
 
 class HarmonicPercussiveSourceSeparation(Processor):
     """
