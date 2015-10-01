@@ -14,6 +14,9 @@
 .ipynb_checkpoints
 *.ipynb
 
+# Python egg
+/madmom.egg-info/
+
 # Vim swap files
 *.swp
 
