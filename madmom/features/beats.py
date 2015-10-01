@@ -27,8 +27,8 @@ class MultiModelSelectionProcessor(Processor):
 
         :param num_ref_predictions: number of reference predictions
 
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
+        "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+         Music Styles"
         Sebastian Böck, Florian Krebs and Gerhard Widmer
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
@@ -424,8 +424,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
         This method is based on the following work with some improvements:
 
-        "Probabilistic extraction of beat positions from a beat activation
-         function"
+        "Probabilistic Extraction of Beat Positions from a Beat Activation
+         Function"
         Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
         In Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014.
@@ -608,8 +608,8 @@ class DBNBeatTrackingProcessor(Processor):
                                    remaining non-beat states
         :param norm_observations:  normalize the observations
 
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
+        "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+         Music Styles"
         Sebastian Böck, Florian Krebs and Gerhard Widmer
         Proceedings of the 15th International Society for Music Information
         Retrieval Conference (ISMIR), 2014
@@ -617,7 +617,7 @@ class DBNBeatTrackingProcessor(Processor):
         Instead of the originally proposed state space and transition model
         for the DBN, the following is used:
 
-        "An efficient state space model for joint tempo and meter tracking"
+        "An Efficient State Space Model for Joint Tempo and Meter Tracking"
         Florian Krebs, Sebastian Böck and Gerhard Widmer
         Proceedings of the 16th International Society for Music Information
         Retrieval Conference (ISMIR), 2015.
@@ -831,7 +831,7 @@ class DownbeatTrackingProcessor(Processor):
         Instead of the originally proposed state space and transition model
         for the DBN, the following is used:
 
-        "An efficient state space model for joint tempo and meter tracking"
+        "An Efficient State Space Model for Joint Tempo and Meter Tracking"
         Florian Krebs, Sebastian Böck and Gerhard Widmer
         Proceedings of the 16th International Society for Music Information
         Retrieval Conference (ISMIR), 2015.

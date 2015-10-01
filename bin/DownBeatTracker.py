@@ -28,16 +28,16 @@ def main():
     The software detects all (down-)beats in an audio file according to the
     method described in:
 
-    "Rhythmic Pattern Modelling For Beat and Downbeat Tracking in Musical
+    "Rhythmic Pattern Modelling for Beat and Downbeat Tracking in Musical
      Audio"
-    Florian Krebs, Sebastian Böck, and Gerhard Widmer
+    Florian Krebs, Sebastian Böck and Gerhard Widmer
     Proceedings of the 14th International Society for Music Information
     Retrieval Conference (ISMIR), 2013.
 
     Instead of the originally proposed state space and transition model for the
     DBN, the following is used:
 
-    "An efficient state space model for joint tempo and meter tracking"
+    "An Efficient State Space Model for Joint Tempo and Meter Tracking"
     Florian Krebs, Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.

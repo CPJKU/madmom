@@ -13,8 +13,9 @@ Possible acronyms are:
 
 - Madmom Analyzes Digitized Music Of Musicians
 - Mostly Audio / Dominantly Music Oriented Modules
-- Madmom Analyzes Digitized Music Or Melodies
-- Madmom Analyzes Digitized Music On Mushrooms
+
+It includes reference implementations for some music information retrieval
+algorithms, please see the `References`_ section.
 
 License
 =======
@@ -31,87 +32,99 @@ Model and data files
 --------------------
 
 Unless indicated otherwise, all model and data files are distributed under the
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 license. For details,
-please see the `madmom/models/LICENSE <madmom/models/LICENSE>`_ file.
+`Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+<http://creativecommons.org/licenses/by-nc-sa/4.0/legalcode>`_ license.
 
 If you want to include any of these files (or a variation or modification
 thereof) or technology which utilises them in a commercial product, please
 contact `Gerhard Widmer <http://www.cp.jku.at/people/widmer/>`_.
 
 Installation
-------------
-
-There are several ways to install this package.
+============
 
 Prerequisites
 -------------
 
-To install the `madmom` package, you must have Python version 2.7 and the
+To install the ``madmom`` package, you must have Python version 2.7 and the
 following packages installed:
 
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
-- optional:  `ffmpeg` (or `avconv` on Ubuntu Linux) if you need support for
-audio files other than `.wav` with a sample rate of 44.1kHz and 16 bit depth.
+
+If you need support for audio files other than ``.wav`` with a sample rate of
+44.1kHz and 16 bit depth, you need ``ffmpeg`` (or ``avconv`` on Ubuntu Linux).
 
 Please refer to the `requirements.txt <requirements.txt>`_ file for the minimum
 required versions and make sure that these modules are up to date, otherwise it
 can result in unexpected errors or false computations!
 
-Install via PyPI
-----------------
+Install from package
+--------------------
 
-The package can be installed easily via:
+The easiest way to install the package is via ``pip`` from the `PyPI (Python
+Package Index) <https://pypi.python.org/pypi>`_:
 
-    pip install -r madmom
+    pip install madmom
 
-This includes the latest code and trained models.
+This includes the latest code and trained models and will install all
+dependencies automatically.
 
-Install via Git
----------------
+Install from source
+-------------------
 
-If you plan to use the package as a developer, cloning or forking the Git
-repository is the best option, e.g.:
+If you plan to use the package as a developer, cloning the Git repository is
+the best option, e.g.:
 
     git clone https://github.com/CPJKU/madmom.git
 
 Since the pre-trained model/data files are not included in this repository but
-rather added as a Git submodule, you have either have to clone the repo
-recursively:
+rather added as a Git submodule, you either have to clone the repo recursively:
 
     git clone --recursive https://github.com/CPJKU/madmom.git
 
-or to init the submodule and fetch the data manually:
+or init the submodule and fetch the data manually:
 
     cd /path/to/madmom
+
     git submodule update --init --remote
 
-To use this package without installing it, make sure the main directory is in
-your `$PYTHONPATH`, e.g. by the following command (if your are in the directory
-containing this `README` file):
+You can then build and install this package by running:
+
+    python setup.py build
+
+    python setup.py install
+
+You might need higher privileges (use su or sudo) to install the files to a
+common place like ``/usr/local`` or similar. Alternatively you can install the
+package locally by adding the ``--user`` argument:
+
+    python setup.py install --user
+
+Install for development
+-----------------------
+
+If you want to actively work on the package, please follow the git instructions
+from the `Install from source`_ section.
+
+You can then either include the package directory in your ``$PYTHONPATH``,
+e.g. by the following command (if your are in the directory containing this
+``README`` file):
 
     export PYTHONPATH=`pwd`:$PYTHONPATH
 
-Most modules work in Python-only mode, but some require to be compiled with
-cython. To do so, please run:
-
-    python setup.py build_ext --inplace
-
-You can also build and install this package by running:
-
-    python setup.py build
-    python setup.py install
-
-or:
+or you can install the package in development mode:
 
     python setup.py develop
 
-You might need higher privileges (use su or sudo) to install the files to a
-common place like `/usr/local` or similar. Alternatively you can install the
-package locally by adding the `--user` argument:
+If you are not using the development variant or if you change any ``.pyx`` or
+``.pxd`` files, you have to (re-)compile some modules with Cython. To do so,
+please run:
 
-    python setup.py install --user
+    python setup.py build_ext --inplace
+
+Again, you can install the package locally by adding the ``--user`` argument:
+
     python setup.py develop --user
 
 Package structure
@@ -151,9 +164,9 @@ Note
 ----
 
 Although we try to keep the API stable, the features are considered work in
-progress and thus can change without prior notice. Do NOT expect these to stay
-the same forever! If you need stable features, clone or fork this project, set
-the parameters accordingly and/or pickle the processors.
+progress and thus can change without prior notice. Do *NOT* expect these to
+stay the same forever! If you need stable features, clone or fork this project,
+set the parameters accordingly and/or pickle the processors.
 
 Additional resources
 ====================
@@ -161,8 +174,9 @@ Additional resources
 Mailing list
 ------------
 
-The mailing list can be found here:
-https://groups.google.com/d/forum/madmom-users
+The `mailing list <https://groups.google.com/d/forum/madmom-users>`_ should be
+used to get in touch with the developers and other users. Please ask any
+questions there before opening an issue.
 
 Wiki
 ----
@@ -176,6 +190,81 @@ Frequently asked questions can be found here:
 https://github.com/CPJKU/madmom/wiki/FAQ
 
 Contribution
-------------
+============
 
-Please feel encouraged to contribute to this project. Every input is welcome!
+Issue tracker
+-------------
+
+If you find any bugs, `please check if it is a known issue
+<https://github.com/CPJKU/madmom/issues>`_. If not, please try asking on the
+mailing list first, before opening a new issue.
+
+Fork the project
+----------------
+
+Please feel encouraged to fork this project, fix bugs, add new features,
+enhance documentation or contribute to this project in any other way. Pull
+requests are welcome!
+
+References
+==========
+
+.. [1] *Universal Onset Detection with bidirectional Long Short-Term Memory
+    Neural Networks*.
+    Florian Eyben, Sebastian Böck, Björn Schuller and Alex Graves.
+    Proceedings of the 11th International Society for Music Information
+    Retrieval Conference (ISMIR), 2010.
+.. [2] *Enhanced Beat Tracking with Context-Aware Neural Networks*.
+    Sebastian Böck and Markus Schedl.
+    Proceedings of the 14th International Conference on Digital Audio Effects
+    (DAFx), 2011.
+.. [3] *Polyphonic Piano Note Transcription with Recurrent Neural Networks*.
+    Sebastian Böck and Markus Schedl.
+    Proceedings of the 37th International Conference on Acoustics, Speech and
+    Signal Processing (ICASSP), 2012.
+.. [4] *Online Real-time Onset Detection with Recurrent Neural Networks*.
+    Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl.
+    Proceedings of the 15th International Conference on Digital Audio Effects
+    (DAFx), 2012.
+.. [5] *Evaluating the Online Capabilities of Onset Detection Methods*.
+    Sebastian Böck, Florian Krebs and Markus Schedl.
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2012.
+.. [6] *Maximum Filter Vibrato Suppression for Onset Detection*.
+    Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 16th International Conference on Digital Audio Effects
+    (DAFx), 2013.
+.. [7] *Local Group Delay based Vibrato and Tremolo Suppression for Onset
+    Detection*.
+    Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 13th International Society for Music Information
+    Retrieval Conference (ISMIR), 2013.
+.. [8] *Rhythmic Pattern Modelling for Beat and Downbeat Tracking in Musical
+    Audio*.
+    Florian Krebs, Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 14th International Society for Music Information
+    Retrieval Conference (ISMIR), 2013.
+.. [9] *Enhanced Peak Picking for Onset Detection with Recurrent Neural
+    Networks*.
+    Sebastian Böck, Jan Schlüter and Gerhard Widmer.
+    Proceedings of the 6th International Workshop on Machine Learning and
+    Music (MML), 2013.
+.. [10] *A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+    Music Styles*.
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
+    Proceedings of the 15th International Society for Music Information
+    Retrieval Conference (ISMIR), 2014.
+.. [11] *Probabilistic Extraction of Beat Positions from a Beat Activation
+    Function*.
+    Filip Korzeniowski, Sebastian Böck and Gerhard Widmer.
+    In Proceedings of the 15th International Society for Music Information
+    Retrieval Conference (ISMIR), 2014.
+.. [12] *Accurate Tempo Estimation based on Recurrent Neural Networks and
+    Resonating Comb Filters*.
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
+.. [13] *An Efficient State Space Model for Joint Tempo and Meter Tracking*.
+    Florian Krebs, Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
