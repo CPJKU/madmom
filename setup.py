@@ -2,7 +2,7 @@
 # encoding: utf-8
 """
 This file contains the setup for setuptools to distribute everything as a
-package.
+(PyPI) package.
 
 """
 
@@ -12,6 +12,7 @@ from Cython.Distutils import build_ext
 
 import numpy as np
 
+# define the modules to be included in the PyPI package
 modules = ['madmom.audio',
            'madmom.audio.ffmpeg',
            'madmom.audio.signal',
@@ -36,6 +37,17 @@ modules = ['madmom.audio',
            'madmom.evaluation.tempo',
            'madmom.evaluation.alignment']
 
+# define the models to be included in the PyPI package
+# Note: we need to explicitly define which data to include in the package since
+#       pip install does not properly process non-module entries in MANIFEST.in
+package_data = ['models/LICENSE',
+                'models/README.rst',
+                'models/beats/*/*',
+                'models/downbeats/*/*',
+                'models/notes/*/*',
+                'models/onsets/*/*']
+
+# define to be compiled extensions in the PyPI package
 extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
                         include_dirs=[np.get_include()]),
@@ -52,6 +64,7 @@ extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/hmm.pyx'],
                         include_dirs=[np.get_include()])]
 
+# some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
                'Programming Language :: Python :: 2.7',
                'Environment :: Console',
@@ -60,8 +73,14 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
+# installation requirements
+install_requires = ['numpy>=1.8.1',
+                    'scipy>=0.14',
+                    'cython>=0.22.1']
+
+# the actual setup routine
 setup(name='madmom',
-      version='0.10.2',
+      version='0.11',
       description='Python audio signal processing library',
       long_description=open('README.rst').read(),
       author='Department of Computational Perception, Johannes Kepler '
@@ -73,6 +92,7 @@ setup(name='madmom',
       py_modules=modules,
       ext_modules=extensions,
       packages=['madmom'],
-      package_data={'madmom': ['models/*']},
+      package_data={'madmom': package_data},
       cmdclass={'build_ext': build_ext},
+      install_requires=install_requires,
       classifiers=classifiers)

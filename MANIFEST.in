@@ -1,18 +1,14 @@
+# this files defines which files are included in the (PyPI) package
+
+# python modules to be included are defined in setup.py
+
+# the model files are also included via setup.py, since setuptools has this
+# weird behaviour to not correctly install data outside a python module
+
 # always include these files
-include README
+include README.rst
 include LICENSE
 include requirements.txt
-
-# modules are included automatically (via 'py_modules' in setup.py)
-
-# include models
-include madmom/models/LICENSE
-include madmom/models/beats/2013/beats_blstm_[1-8].npz
-include madmom/models/downbeats/2013/downbeats_ballroom_*.pkl
-include madmom/models/onsets/2013/onsets_rnn_[1-8].npz
-include madmom/models/onsets/2013/onsets_brnn_[1-8].npz
-include madmom/models/onsets/2014/onsets_brnn_pp_[1-8].npz
-include madmom/models/notes/notes_brnn.npz
 
 # include scripts
 include bin/*
@@ -22,3 +18,7 @@ include bin/tools/*
 global-exclude *.pyc
 global-exclude .DS_Store
 global-exclude .ipynb
+global-exclude .git
+
+# do not include the test files
+recursive-exclude madmom/test *
