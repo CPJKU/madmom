@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file contains the setup for setuptools to distribute as a package.
+This file contains the setup for setuptools to distribute everything as a
+package.
 
 """
 
@@ -61,13 +62,13 @@ classifiers = ['Development Status :: 3 - Alpha',
 
 setup(name='madmom',
       version='0.10.2',
-      description='Python package used at cp.jku.at and ofai.at',
-      long_description=open('README').read(),
+      description='Python audio signal processing library',
+      long_description=open('README.rst').read(),
       author='Department of Computational Perception, Johannes Kepler '
              'University, Linz, Austria and Austrian Research Institute for '
              'Artificial Intelligence (OFAI), Vienna, Austria',
-      author_email='python-sig@jku.at',
-      url='https://jobim.ofai.at/gitlab/madmom/madmom',
+      author_email='madmom-users@googlegroups.com',
+      url='https://github.com/CPJKU/madmom',
       license='BSD, CC BY-NC-SA',
       py_modules=modules,
       ext_modules=extensions,
