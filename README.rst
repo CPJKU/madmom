@@ -146,10 +146,10 @@ The package has a very simple structure, divided into the following folders:
   machine learning stuff (e.g. RNNs, HMMs)
 `/madmom/models <madmom/models>`_
   pre-trained model/data files (see the License section)
-`/madmom/test <madmom/test>`_
-  tests
 `/madmom/utils <madmom/utils>`_
   misc stuff (e.g. MIDI and general file handling)
+`/tests <tests>`_
+  tests
 
 Almost all low level features (i.e. everything under
 `/madmom/audio <madmom/audio>`_) are divided
