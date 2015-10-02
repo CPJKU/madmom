@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-OnsetDetector onset detection algorithm.
+OnsetDetectorLL online onset detection algorithm.
 
 """
 
@@ -20,33 +20,58 @@ from madmom.features.onsets import PeakPickingProcessor
 
 
 def main():
-    """OnsetDetector"""
+    """OnsetDetectorLL"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all onsets in an audio file with a recurrent neural
-    network similar to method described in:
+    The OnsetDetectorLL Program detects all onsets in an audio file according
+    to the algorithm described in:
 
-    "Universal Onset Detection with bidirectional Long Short-Term Memory Neural
-     Networks"
-    Florian Eyben, Sebastian Böck, Björn Schuller and Alex Graves.
-    Proceedings of the 11th International Society for Music Information
-    Retrieval Conference (ISMIR), 2010.
+    "Online Real-time Onset Detection with Recurrent Neural Networks"
+    Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl.
+    Proceedings of the 15th International Conference on Digital Audio Effects
+    (DAFx), 2012.
 
-    Instead of 'LSTM' units, this version uses 'tanh' units and a simplified
-    peak picking method.
+    The paper includes an error in Section 2.2.1, 2nd paragraph:
+    The targets of the training examples have been annotated 1 frame shifted to
+    the future, thus the results given in Table 2 are off by 10ms. Given the
+    fact that the delayed reporting (as outlined in Section 2.3) is not
+    needed, an extra shift of 5ms needs to be added to the mean errors given in
+    Table 2.
+
+    This implementation takes care of this error is is modified in this way:
+    - a logarithmic frequency spacing is used for the spectrograms instead of
+      the Bark scale
+    - targets are annotated at the next frame for neural network training
+    - post processing reports the onset instantaneously instead of delayed.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected onsets to STDOUT or the given output file.
+
+    $ OnsetDetectorLL single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected onsets to files with the given suffix.
+
+    $ OnsetDetectorLL batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected onsets to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetector')
+    p.add_argument('--version', action='version', version='OnsetDetectorLL')
     # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
     # peak picking arguments
-    PeakPickingProcessor.add_arguments(p, threshold=0.3, smooth=0.07)
+    PeakPickingProcessor.add_arguments(p, threshold=0.23)
 
     # parse arguments
     args = p.parse_args()
@@ -54,8 +79,9 @@ def main():
     # set immutable defaults
     args.num_channels = 1
     args.sample_rate = 44100
+    args.online = True
     args.fps = 100
-    args.frame_size = [1024, 2048, 4096]
+    args.frame_size = [512, 1024, 2048]
     args.num_bands = 6
     args.fmin = 30
     args.fmax = 17000
@@ -65,10 +91,11 @@ def main():
     args.add = 1
     args.diff_ratio = 0.25
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/onsets/2013/onsets_brnn_[1-8].npz" %
+    args.nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].npz" %
                               MODELS_PATH)
     args.pre_max = 1. / args.fps
-    args.post_max = 1. / args.fps
+    args.post_max = 0
+    args.post_avg = 0
 
     # print arguments
     if args.verbose:

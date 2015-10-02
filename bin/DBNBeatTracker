@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-OnsetDetectorLL online onset detection algorithm.
+DBNBeatTracker beat tracking algorithm.
 
 """
 
@@ -16,46 +16,62 @@ from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import PeakPickingProcessor
+from madmom.features.beats import DBNBeatTrackingProcessor
 
 
 def main():
-    """OnsetDetectorLL"""
+    """DBNBeatTracker"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all onsets in an audio file with the algorithm
-    described in:
+    The DBNBeatTracker program detects all beats in an audio file according to
+    the method described in:
 
-    "Online Real-time Onset Detection with Recurrent Neural Networks"
-    Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl
-    Proceedings of the 15th International Conference on Digital Audio Effects
-    (DAFx), 2012.
+    "A Multi-Model Approach to Beat Tracking Considering Heterogeneous Music
+     Styles"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
+    Proceedings of the 15th International Society for Music Information
+    Retrieval Conference (ISMIR), 2014.
 
-    The paper includes an error in Section 2.2.1, 2nd paragraph:
-    The targets of the training examples have been annotated 1 frame shifted to
-    the future, thus the results given in Table 2 are off by 10ms. Given the
-    fact that the delayed reporting (as outlined in Section 2.3) is not
-    needed, an extra shift of 5ms needs to be added to the mean errors given in
-    Table 2.
+    It does not use the multi-model (Section 2.2.) and selection stage (Section
+    2.3), i.e. this version corresponds to the pure DBN version of the
+    algorithm for which results are given in Table 2.
 
-    This implementation takes care of this error is is modified in this way:
-    - a logarithmic frequency spacing is used for the spectrograms instead of
-      the Bark scale
-    - targets are annotated at the next frame for neural network training
-    - post processing reports the onset instantaneously instead of delayed.
+    Instead of the originally proposed state space and transition model for the
+    DBN, the following is used:
+
+    "An Efficient State Space Model for Joint Tempo and Meter Tracking"
+    Florian Krebs, Sebastian Böck and Gerhard Widmer.
+    Proceedings of the 16th International Society for Music Information
+    Retrieval Conference (ISMIR), 2015.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ DBNBeatTracker single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ DBNBeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetectorLL')
+    p.add_argument('--version', action='version', version='DBNBeatTracker')
     # input/output options
-    io_arguments(p, output_suffix='.onsets.txt')
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
     # peak picking arguments
-    PeakPickingProcessor.add_arguments(p, threshold=0.23)
+    DBNBeatTrackingProcessor.add_arguments(p)
 
     # parse arguments
     args = p.parse_args()
@@ -63,23 +79,19 @@ def main():
     # set immutable defaults
     args.num_channels = 1
     args.sample_rate = 44100
-    args.online = True
     args.fps = 100
-    args.frame_size = [512, 1024, 2048]
-    args.num_bands = 6
+    args.frame_size = [1024, 2048, 4096]
+    args.num_bands = 3
     args.fmin = 30
     args.fmax = 17000
     args.norm_filters = True
     args.log = True
-    args.mul = 5
+    args.mul = 1
     args.add = 1
-    args.diff_ratio = 0.25
+    args.diff_ratio = 0.5
     args.positive_diffs = True
-    args.nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].npz" %
+    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].npz" %
                               MODELS_PATH)
-    args.pre_max = 1. / args.fps
-    args.post_max = 0
-    args.post_avg = 0
 
     # print arguments
     if args.verbose:
@@ -97,7 +109,7 @@ def main():
         diff = SpectrogramDifferenceProcessor(**vars(args))
         stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
                                             **vars(args))
-        # process everything with an RNN and average the predictions
+        # process everything with a RNN and average the predictions
         rnn = RNNProcessor(**vars(args))
         avg = average_predictions
         # sequentially process everything
@@ -105,15 +117,15 @@ def main():
 
     # output processor
     if args.save:
-        # save the RNN onset activations to file
+        # save the RNN beat activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # perform peak picking on the onset activations
-        peak_picking = PeakPickingProcessor(**vars(args))
+        # track the beats with a DBN
+        beat_processor = DBNBeatTrackingProcessor(**vars(args))
         # output handler
         from madmom.utils import write_events as writer
-        # sequentially process them
-        out_processor = [peak_picking, writer]
+        # sequentially process everything
+        out_processor = [beat_processor, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

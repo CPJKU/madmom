@@ -25,11 +25,11 @@ def main():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all beats in an audio file; it can follow tempo
-    changes.
+    The BeatTracker program detects all beats in an audio file according to the
+    method described in (while following tempo changes):
 
     "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    Sebastian Böck and Markus Schedl
+    Sebastian Böck and Markus Schedl.
     Proceedings of the 14th International Conference on Digital Audio Effects
     (DAFx), 2011.
 
@@ -38,9 +38,25 @@ def main():
 
     "Accurate Tempo Estimation based on Recurrent Neural Networks and
      Resonating Comb Filters"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ BeatTracker single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ BeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
 
     ''')
     # version

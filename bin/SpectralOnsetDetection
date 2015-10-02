@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-LogFiltSpecFlux onset detection algorithm.
+Spectral onset detection script.
 
 """
 
@@ -9,31 +9,51 @@ import argparse
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+from madmom.audio.spectrogram import (ShortTimeFourierTransformProcessor,
+                                      SpectrogramProcessor,
+                                      FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
-                                      LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
 def main():
-    """LogFiltSpecFlux"""
+    """SpectralOnsetDetection"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all onsets in an audio file with the LogFiltSpecFlux
-    algorithm with additional tremolo suppression as described in:
+    The SpectralOnsetDetection program detects all onsets in an audio file
+    with selectable algorithms. The parameters have to be set accordingly.
+    The different algorithms are described in:
 
     "Evaluating the Online Capabilities of Onset Detection Methods"
-    Sebastian Böck, Florian Krebs and Markus Schedl
+    Sebastian Böck, Florian Krebs and Markus Schedl.
     Proceedings of the 13th International Society for Music Information
     Retrieval Conference (ISMIR), 2012.
 
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected onsets to STDOUT or the given output file.
+
+    $ SpectralOnsetDetection single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected onsets to files with the given suffix.
+
+    $ SpectralOnsetDetection batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF
+    FILES
+
+    If no output directory is given, the program writes the files with the
+    detected onsets to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='LogFiltSpecFlux')
+    p.add_argument('--version', action='version',
+                   version='SpectralOnsetDetection')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
@@ -44,6 +64,7 @@ def main():
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,
                                                  positive_diffs=True)
+    SpectralOnsetProcessor.add_arguments(p, onset_method='spectral_flux')
     PeakPickingProcessor.add_arguments(p, threshold=1.6, pre_max=0.01,
                                        post_max=0.05, pre_avg=0.15, post_avg=0,
                                        combine=0.03, delay=0)
@@ -52,6 +73,15 @@ def main():
     # switch to offline mode
     if args.norm:
         args.online = False
+    # add circular shift for correct phase and remove filterbank if needed
+    if args.onset_method in ('phase_deviation', 'weighted_phase_deviation',
+                             'normalized_weighted_phase_deviation',
+                             'complex_domain', 'rectified_complex_domain'):
+        args.circular_shift = True
+        args.filterbank = None
+    if args.onset_method in ('superflux', 'complex_flux'):
+        raise SystemExit('Please use the dedicated onset detection script for '
+                         '%s.' % args.onset_method)
     # print arguments
     if args.verbose:
         print args
@@ -64,11 +94,19 @@ def main():
         # define processing chain
         sig = SignalProcessor(num_channels=1, **vars(args))
         frames = FramedSignalProcessor(**vars(args))
-        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
-        diff = SpectrogramDifferenceProcessor(**vars(args))
-        odf = SpectralOnsetProcessor(onset_method='spectral_flux',
-                                     **vars(args))
-        in_processor = [sig, frames, spec, diff, odf]
+        stft = ShortTimeFourierTransformProcessor(**vars(args))
+        spec = SpectrogramProcessor(**vars(args))
+        in_processor = [sig, frames, stft, spec]
+        # append additional processors as needed
+        if args.filterbank:
+            filt = FilteredSpectrogramProcessor(**vars(args))
+            in_processor.append(filt)
+        if args.log:
+            log = LogarithmicSpectrogramProcessor(**vars(args))
+            in_processor.append(log)
+        # define a spectral onset processor
+        odf = SpectralOnsetProcessor(**vars(args))
+        in_processor.append(odf)
 
     # output processor
     if args.save:

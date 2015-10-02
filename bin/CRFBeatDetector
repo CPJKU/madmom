@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-TempoDetector tempo estimation algorithm.
+CRFBeatDetector beat tracking algorithm.
 
 """
 
@@ -16,53 +16,61 @@ from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.tempo import TempoEstimationProcessor, write_tempo
+from madmom.features.beats import CRFBeatDetectionProcessor
 
 
 def main():
-    """TempoDetector"""
+    """CRFBeatDetector"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects the dominant tempi in an audio file by inferring it
-    with comb filters from the beat activations produced by the algorithm
-    described in:
+    The CRFBeatDetector program detects all beats in an audio file according to
+    the method described in:
 
-    "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    Sebastian Böck and Markus Schedl
-    Proceedings of the 14th International Conference on Digital Audio Effects
-    (DAFx), 2011.
+    "Probabilistic extraction of beat positions from a beat activation
+     function"
+    Filip Korzeniowski, Sebastian Böck and Gerhard Widmer.
+    In Proceedings of the 15th International Society for Music Information
+    Retrieval Conference (ISMIR), 2014.
 
-    Instead of using the originally proposed auto-correlation method to build
-    a tempo histogram, a new method based on comb filters is used:
+    Instead of using the auto-correlation method to determine the dominant
+    interval, a new method based on comb filters is used to get multiple tempo
+    hypotheses.
 
     "Accurate Tempo Estimation based on Recurrent Neural Networks and
      Resonating Comb Filters"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
 
-    The old behaviour can be restored by using the `--method acf` switch.
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ CRFBeatDetector single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ CRFBeatDetector batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='TempoDetector')
-    # input/output options
-    io_arguments(p, output_suffix='.bpm.txt')
+    p.add_argument('--version', action='version', version='CRFBeatDetector')
+    # input/output arguments
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    # tempo arguments
-    TempoEstimationProcessor.add_arguments(p)
-    # mirex stuff
-    g = p.add_mutually_exclusive_group()
-    g.add_argument('--mirex', dest='tempo_format',
-                   action='store_const', const='mirex',
-                   help='use the MIREX output format (lower tempo first)')
-    g.add_argument('--all', dest='tempo_format',
-                   action='store_const', const='all',
-                   help='output all detected tempi in raw format')
+    # beat tracking arguments
+    CRFBeatDetectionProcessor.add_tempo_arguments(p)
+    CRFBeatDetectionProcessor.add_arguments(p)
 
     # parse arguments
     args = p.parse_args()
@@ -111,28 +119,19 @@ def main():
         # save the RNN beat activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # tempo estimation based on the beat activation function
-        tempo_estimator = TempoEstimationProcessor(**vars(args))
+        # detect the beats with a CRF
+        beat_processor = CRFBeatDetectionProcessor(**vars(args))
         # output handler
-        if args.tempo_format == 'mirex':
-            # output in the MIREX format (i.e. slower tempo first)
-            from functools import partial
-            writer = partial(write_tempo, mirex=True)
-        elif args.tempo_format in ('raw', 'all'):
-            # borrow the note writer for outputting multiple values
-            from madmom.features.notes import write_notes as writer
-        else:
-            # normal output
-            writer = write_tempo
+        from madmom.utils import write_events as writer
         # sequentially process them
-        out_processor = [tempo_estimator, writer]
+        out_processor = [beat_processor, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
 
-    # finally call the processing function (single/batch processing)
+    # and call the processing function
     args.func(processor, **vars(args))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
