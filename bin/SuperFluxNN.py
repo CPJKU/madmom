@@ -29,7 +29,7 @@ def main():
     The software detects all onsets in an audio file with the SuperFlux
     algorithm with neural network based peak-picking as described in:
 
-    "Enhanced peak picking for onset detection with recurrent neural networks"
+    "Enhanced Peak Picking for Onset Detection with Recurrent Neural Networks"
     Sebastian Böck, Jan Schlüter and Gerhard Widmer
     Proceedings of the 6th International Workshop on Machine Learning and
     Music (MML), 2013.

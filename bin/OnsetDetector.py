@@ -26,7 +26,17 @@ def main():
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     The software detects all onsets in an audio file with a recurrent neural
-    network.
+    network similar to method described in:
+
+    "Universal Onset Detection with bidirectional Long Short-Term Memory Neural
+     Networks"
+    Florian Eyben, Sebastian Böck, Björn Schuller and Alex Graves.
+    Proceedings of the 11th International Society for Music Information
+    Retrieval Conference (ISMIR), 2010.
+
+    Instead of 'LSTM' units, this version uses 'tanh' units and a simplified
+    peak picking method.
+
     ''')
     # version
     p.add_argument('--version', action='version', version='OnsetDetector')

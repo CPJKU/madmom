@@ -29,8 +29,8 @@ def main():
     The software detects all beats in an audio file according to the method
     described in:
 
-    "A multi-model approach to beat tracking considering heterogeneous music
-     styles"
+    "A Multi-Model Approach to Beat Tracking Considering Heterogeneous Music
+     Styles"
     Sebastian Böck, Florian Krebs and Gerhard Widmer
     Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
@@ -38,7 +38,7 @@ def main():
     Instead of the originally proposed transition model for the DBN, the
     following is used:
 
-    "An efficient state space model for joint tempo and meter tracking"
+    "An Efficient State Space Model for Joint Tempo and Meter Tracking"
     Florian Krebs, Sebastian Böck and Gerhard Widmer
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.

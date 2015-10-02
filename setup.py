@@ -2,40 +2,17 @@
 # encoding: utf-8
 """
 This file contains the setup for setuptools to distribute everything as a
-package.
+(PyPI) package.
 
 """
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 import numpy as np
 
-modules = ['madmom.audio',
-           'madmom.audio.ffmpeg',
-           'madmom.audio.signal',
-           'madmom.audio.filters',
-           'madmom.audio.comb_filters',
-           'madmom.audio.stft',
-           'madmom.audio.spectrogram',
-           'madmom.features',
-           'madmom.features.onsets',
-           'madmom.features.beats',
-           'madmom.features.notes',
-           'madmom.features.tempo',
-           'madmom.ml',
-           'madmom.ml.gmm',
-           'madmom.ml.rnn',
-           'madmom.ml.hmm',
-           'madmom.utils',
-           'madmom.utils.midi',
-           'madmom.evaluation.onsets',
-           'madmom.evaluation.beats',
-           'madmom.evaluation.notes',
-           'madmom.evaluation.tempo',
-           'madmom.evaluation.alignment']
-
+# define which extensions need to be compiled
 extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
                         include_dirs=[np.get_include()]),
@@ -52,6 +29,15 @@ extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/hmm.pyx'],
                         include_dirs=[np.get_include()])]
 
+# define the models to be included in the PyPI package
+package_data = ['models/LICENSE',
+                'models/README.rst',
+                'models/beats/*/*',
+                'models/downbeats/*/*',
+                'models/notes/*/*',
+                'models/onsets/*/*']
+
+# some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
                'Programming Language :: Python :: 2.7',
                'Environment :: Console',
@@ -60,8 +46,14 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
+# installation requirements
+install_requires = ['numpy>=1.8.1',
+                    'scipy>=0.14',
+                    'cython>=0.22.1']
+
+# the actual setup routine
 setup(name='madmom',
-      version='0.10.2',
+      version='0.11',
       description='Python audio signal processing library',
       long_description=open('README.rst').read(),
       author='Department of Computational Perception, Johannes Kepler '
@@ -70,9 +62,9 @@ setup(name='madmom',
       author_email='madmom-users@googlegroups.com',
       url='https://github.com/CPJKU/madmom',
       license='BSD, CC BY-NC-SA',
-      py_modules=modules,
+      packages=find_packages(exclude=['tests']),
       ext_modules=extensions,
-      packages=['madmom'],
-      package_data={'madmom': ['models/*']},
+      package_data={'madmom': package_data},
       cmdclass={'build_ext': build_ext},
+      install_requires=install_requires,
       classifiers=classifiers)

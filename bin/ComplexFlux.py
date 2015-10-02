@@ -27,8 +27,8 @@ def main():
     The software detects all onsets in an audio file with the SuperFlux
     algorithm with additional tremolo suppression as described in:
 
-    "Local group delay based vibrato and tremolo suppression for onset
-     detection"
+    "Local Group Delay based Vibrato and Tremolo Suppression for Onset
+     Detection"
     Sebastian Böck and Gerhard Widmer.
     Proceedings of the 13th International Society for Music Information
     Retrieval Conference (ISMIR), 2013.

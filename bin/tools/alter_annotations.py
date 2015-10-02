@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Script for correcting ground truth annotations in multiple fashions.
+Script for altering (ground truth) annotations.
 
 """
 
@@ -13,13 +13,13 @@ from madmom.utils import search_files, match_file, load_events
 
 def main():
     """
-    Simple annotation correction tool.
+    Simple tool to alter annotations.
 
     """
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    The script corrects ground truth annotations.
+    The script alters (ground truth) annotations.
 
     """)
     # files used for evaluation

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-This file loads a beat file and translates the old downbeat format
-(bar.beat) into the new one (beat).
+This file loads a beat annotations file with 'bar.beat' style annotations and
+removes the 'bar' part.
 
 """
 import os
