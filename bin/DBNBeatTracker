@@ -64,7 +64,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='DBNBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='DBNBeatTracker.2014v2')
     # input/output options
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)

@@ -63,7 +63,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='DownBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='DownBeatTracker.2013')
     # add arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)

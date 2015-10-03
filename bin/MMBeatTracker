@@ -61,7 +61,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='MMBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='MMBeatTracker.2014v2')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)

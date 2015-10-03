@@ -62,7 +62,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='CRFBeatDetector')
+    p.add_argument('--version', action='version',
+                   version='CRFBeatDetector.2014v2')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)

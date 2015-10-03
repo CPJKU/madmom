@@ -55,7 +55,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='PianoTranscriptor')
+    p.add_argument('--version', action='version',
+                   version='PianoTranscriptor.2013')
     # input/output arguments
     io_arguments(p, output_suffix='.notes.txt')
     ActivationsProcessor.add_arguments(p)

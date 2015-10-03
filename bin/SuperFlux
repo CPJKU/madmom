@@ -49,7 +49,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='SuperFlux')
+    p.add_argument('--version', action='version', version='SuperFlux.2014')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)

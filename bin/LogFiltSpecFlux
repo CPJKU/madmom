@@ -49,7 +49,8 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='LogFiltSpecFlux')
+    p.add_argument('--version', action='version',
+                   version='LogFiltSpecFlux.2014')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
