@@ -68,7 +68,22 @@ Package Index) <https://pypi.python.org/pypi>`_:
     pip install madmom
 
 This includes the latest code and trained models and will install all
-dependencies automatically.
+dependencies automatically. It will also install the executable scripts to a
+common place (e.g. ``/usr/local/bin``) which should be in your ``$PATH``
+already. ``pip`` will output the install location.
+
+You might need higher privileges (use su or sudo) to install the package, model
+files and scripts globally. Alternatively you can install the package locally
+(i.e. only for you) by adding the ``--user`` argument:
+
+    pip install --user madmom
+
+Depending on your platform, the scripts will be copied to a folder which
+might not be included in your ``$PATH`` (e.g. ``~/Library/Python/2.7/bin``
+on Mac OS X or ``~/.local/bin`` on Ubuntu Linux), so please call the scripts
+directly or add their path to your ``$PATH`` environment variable:
+
+    export PATH='path/to/scripts':$PATH
 
 Install from source
 -------------------
@@ -158,7 +173,36 @@ always to a certain instance (e.g. the STFT of an audio file), whereas the
 processor classes are used to define processing chains through which the audio
 is processed (i.e. most stuff in `/madmom/features <madmom/features>`_).
 
-For usage examples please refer to the scripts in the `/bin <bin>`_ folder.
+Executable scripts
+------------------
+
+The package includes executable scripts in the `/bin <bin>`_ folder.
+If you installed the package, they were copied to a common place.
+
+All scripts can be run in different modes: in ``single`` file mode to process
+a single audio file and write the output to STDOUT or the given output file.
+
+    SuperFlux single INFILE [OUTFILE]
+
+If multiple audio files should be processed, the scripts can also be run in
+``batch`` mode to write the outputs to files with the given suffix.
+
+    SuperFlux batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF INPUT FILES
+
+If no output directory is given, the program writes the output files to same
+location as the audio files.
+
+The ``pickle`` mode can be used to store the used parameters to be able to
+exactly reproduce experiments.
+
+Please note that the script itself as well as the modes have help messages:
+
+    ./bin/SuperFlux -h
+    ./bin/SuperFlux -h single -h
+    ./bin/SuperFlux -h batch -h
+    ./bin/SuperFlux -h pickle -h
+
+will give different help messages.
 
 Note
 ----

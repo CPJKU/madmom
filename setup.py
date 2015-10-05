@@ -10,6 +10,7 @@ from setuptools import setup, find_packages
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
+import glob
 import numpy as np
 
 # define which extensions need to be compiled
@@ -28,6 +29,10 @@ extensions = [Extension('madmom.ml.rnn',
               Extension('madmom.ml.hmm',
                         ['madmom/ml/hmm.pyx'],
                         include_dirs=[np.get_include()])]
+
+# define scripts to be installed by the PyPI package
+scripts = glob.glob('bin/*')
+scripts.remove('bin/tools')
 
 # define the models to be included in the PyPI package
 package_data = ['models/LICENSE',
@@ -65,6 +70,8 @@ setup(name='madmom',
       packages=find_packages(exclude=['tests']),
       ext_modules=extensions,
       package_data={'madmom': package_data},
+      exclude_package_data={'': ['tests']},
+      scripts=scripts,
       cmdclass={'build_ext': build_ext},
       install_requires=install_requires,
       classifiers=classifiers)

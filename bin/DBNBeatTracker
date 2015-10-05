@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-TempoDetector tempo estimation algorithm.
+DBNBeatTracker beat tracking algorithm.
 
 """
 
@@ -16,53 +16,63 @@ from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       StackedSpectrogramProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
-from madmom.features.tempo import TempoEstimationProcessor, write_tempo
+from madmom.features.beats import DBNBeatTrackingProcessor
 
 
 def main():
-    """TempoDetector"""
+    """DBNBeatTracker"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects the dominant tempi in an audio file by inferring it
-    with comb filters from the beat activations produced by the algorithm
-    described in:
+    The DBNBeatTracker program detects all beats in an audio file according to
+    the method described in:
 
-    "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    Sebastian Böck and Markus Schedl
-    Proceedings of the 14th International Conference on Digital Audio Effects
-    (DAFx), 2011.
+    "A Multi-Model Approach to Beat Tracking Considering Heterogeneous Music
+     Styles"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
+    Proceedings of the 15th International Society for Music Information
+    Retrieval Conference (ISMIR), 2014.
 
-    Instead of using the originally proposed auto-correlation method to build
-    a tempo histogram, a new method based on comb filters is used:
+    It does not use the multi-model (Section 2.2.) and selection stage (Section
+    2.3), i.e. this version corresponds to the pure DBN version of the
+    algorithm for which results are given in Table 2.
 
-    "Accurate Tempo Estimation based on Recurrent Neural Networks and
-     Resonating Comb Filters"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Instead of the originally proposed state space and transition model for the
+    DBN, the following is used:
+
+    "An Efficient State Space Model for Joint Tempo and Meter Tracking"
+    Florian Krebs, Sebastian Böck and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
 
-    The old behaviour can be restored by using the `--method acf` switch.
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ DBNBeatTracker single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ DBNBeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='TempoDetector')
+    p.add_argument('--version', action='version',
+                   version='DBNBeatTracker.2014v2')
     # input/output options
-    io_arguments(p, output_suffix='.bpm.txt')
+    io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
-    # tempo arguments
-    TempoEstimationProcessor.add_arguments(p)
-    # mirex stuff
-    g = p.add_mutually_exclusive_group()
-    g.add_argument('--mirex', dest='tempo_format',
-                   action='store_const', const='mirex',
-                   help='use the MIREX output format (lower tempo first)')
-    g.add_argument('--all', dest='tempo_format',
-                   action='store_const', const='all',
-                   help='output all detected tempi in raw format')
+    # peak picking arguments
+    DBNBeatTrackingProcessor.add_arguments(p)
 
     # parse arguments
     args = p.parse_args()
@@ -111,26 +121,17 @@ def main():
         # save the RNN beat activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # tempo estimation based on the beat activation function
-        tempo_estimator = TempoEstimationProcessor(**vars(args))
+        # track the beats with a DBN
+        beat_processor = DBNBeatTrackingProcessor(**vars(args))
         # output handler
-        if args.tempo_format == 'mirex':
-            # output in the MIREX format (i.e. slower tempo first)
-            from functools import partial
-            writer = partial(write_tempo, mirex=True)
-        elif args.tempo_format in ('raw', 'all'):
-            # borrow the note writer for outputting multiple values
-            from madmom.features.notes import write_notes as writer
-        else:
-            # normal output
-            writer = write_tempo
-        # sequentially process them
-        out_processor = [tempo_estimator, writer]
+        from madmom.utils import write_events as writer
+        # sequentially process everything
+        out_processor = [beat_processor, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
 
-    # finally call the processing function (single/batch processing)
+    # and call the processing function
     args.func(processor, **vars(args))
 
 

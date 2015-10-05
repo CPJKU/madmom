@@ -18,22 +18,38 @@ from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
 
 def main():
-    """SuperFlux.2014"""
+    """SuperFlux"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all onsets in an audio file with the SuperFlux
+    The SuperFlux program detects all onsets in an audio file according to the
     algorithm described in:
 
     "Maximum Filter Vibrato Suppression for Onset Detection"
-    Sebastian Böck and Gerhard Widmer
+    Sebastian Böck and Gerhard Widmer.
     Proceedings of the 16th International Conference on Digital Audio Effects
     (DAFx), 2013.
 
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected onsets to STDOUT or the given output file.
+
+    $ SuperFlux single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected onsets to files with the given suffix.
+
+    $ SuperFlux batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected onsets to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='SuperFlux')
+    p.add_argument('--version', action='version', version='SuperFlux.2014')
     # add arguments
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)

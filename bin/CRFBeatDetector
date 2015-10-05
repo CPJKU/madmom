@@ -25,12 +25,12 @@ def main():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all beats in an audio file according to the method
-    described in:
+    The CRFBeatDetector program detects all beats in an audio file according to
+    the method described in:
 
     "Probabilistic extraction of beat positions from a beat activation
      function"
-    Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
+    Filip Korzeniowski, Sebastian Böck and Gerhard Widmer.
     In Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
 
@@ -40,13 +40,30 @@ def main():
 
     "Accurate Tempo Estimation based on Recurrent Neural Networks and
      Resonating Comb Filters"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
 
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ CRFBeatDetector single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ CRFBeatDetector batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='CRFBeatDetector')
+    p.add_argument('--version', action='version',
+                   version='CRFBeatDetector.2014v2')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)

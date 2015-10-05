@@ -26,12 +26,12 @@ def main():
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    The software detects all beats in an audio file according to the method
-    described in:
+    The MMBeatTracker program detects all beats in an audio file according to
+    the method described in:
 
     "A Multi-Model Approach to Beat Tracking Considering Heterogeneous Music
      Styles"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
     Proceedings of the 15th International Society for Music Information
     Retrieval Conference (ISMIR), 2014.
 
@@ -39,13 +39,30 @@ def main():
     following is used:
 
     "An Efficient State Space Model for Joint Tempo and Meter Tracking"
-    Florian Krebs, Sebastian Böck and Gerhard Widmer
+    Florian Krebs, Sebastian Böck and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
 
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ MMBeatTracker single INFILE [OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ MMBeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
     ''')
     # version
-    p.add_argument('--version', action='version', version='MMBeatTracker')
+    p.add_argument('--version', action='version',
+                   version='MMBeatTracker.2014v2')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
