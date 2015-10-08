@@ -72,7 +72,7 @@ def main():
         # print stats for each file
         if args.verbose:
             print f
-            e.to_string()
+            e.tostring()
         # process the next annotation file
     # sort the evaluations by value
     sorted_scores = sorted(evaluations.iteritems(), key=operator.itemgetter(1))

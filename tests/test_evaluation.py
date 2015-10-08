@@ -6,12 +6,15 @@ This file contains tests for the madmom.evaluation module.
 # pylint: skip-file
 
 import unittest
+import math
+from collections import OrderedDict
 
 from madmom.evaluation import *
 
 
 DETECTIONS = np.asarray([0.99, 1.45, 2.01, 2.015, 3.1, 8.1])
 ANNOTATIONS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+MATCHES = np.asarray([0, 1, 2, 3, 6, 6])
 
 
 # test functions
@@ -21,23 +24,19 @@ class TestFindClosestMatchesFunction(unittest.TestCase):
         matches = find_closest_matches([], [])
         self.assertIsInstance(matches, np.ndarray)
         self.assertEqual(matches.dtype, np.int)
-        # lists don't have searchsorted
-        with self.assertRaises(AttributeError):
-            find_closest_matches([0, 1], [2, 3])
         self.assertIsInstance(find_closest_matches([], []), np.ndarray)
 
     def test_value(self):
         # empty sequences
         matches = find_closest_matches([], [])
-        self.assertTrue(np.array_equal(matches, []))
+        self.assertTrue(np.allclose(matches, []))
         # detections relative to annotations
         matches = find_closest_matches(DETECTIONS, ANNOTATIONS)
-        correct = np.asarray([0, 1, 2, 3, 6, 6])
-        self.assertTrue(np.array_equal(matches, correct))
+        self.assertTrue(np.allclose(matches, MATCHES))
         # annotations relative to detections
         matches = find_closest_matches(ANNOTATIONS, DETECTIONS)
         correct = np.asarray([0, 1, 2, 3, 3, 3, 4])
-        self.assertTrue(np.array_equal(matches, correct))
+        self.assertTrue(np.allclose(matches, correct))
 
 
 class TestCalcErrorsFunction(unittest.TestCase):
@@ -46,17 +45,17 @@ class TestCalcErrorsFunction(unittest.TestCase):
         errors = calc_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
         self.assertEqual(errors.dtype, np.float)
-        # lists don't have searchsorted
-        with self.assertRaises(AttributeError):
-            calc_errors([0, 1], [2, 3])
 
     def test_values(self):
         # empty sequences
         matches = calc_errors([], [])
-        self.assertTrue(np.array_equal(matches, []))
+        self.assertTrue(np.allclose(matches, []))
         # detections relative to annotations
         errors = calc_errors(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([-0.01, -0.05, 0.01, -0.015, 0.1, 5.1])
+        self.assertTrue(np.allclose(errors, correct))
+        # same but with matches given
+        errors = calc_errors(DETECTIONS, ANNOTATIONS, MATCHES)
         self.assertTrue(np.allclose(errors, correct))
         # annotations relative to detections
         errors = calc_errors(ANNOTATIONS, DETECTIONS)
@@ -70,9 +69,6 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
         errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
         self.assertEqual(errors.dtype, np.float)
-        # lists don't have searchsorted
-        with self.assertRaises(AttributeError):
-            calc_absolute_errors([0, 1], [2, 3])
 
     def test_values(self):
         # empty sequences
@@ -81,6 +77,9 @@ class TestCalcAbsoluteErrorsFunction(unittest.TestCase):
         # detections relative to annotations
         errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS)
         correct = np.asarray([0.01, 0.05, 0.01, 0.015, 0.1, 5.1])
+        self.assertTrue(np.allclose(errors, correct))
+        # same but with matches given
+        errors = calc_absolute_errors(DETECTIONS, ANNOTATIONS, MATCHES)
         self.assertTrue(np.allclose(errors, correct))
         # annotations relative to detections
         errors = calc_absolute_errors(ANNOTATIONS, DETECTIONS)
@@ -93,8 +92,6 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
     def test_types(self):
         errors = calc_relative_errors(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(errors, np.ndarray)
-        with self.assertRaises(AttributeError):
-            calc_relative_errors([0, 1], [2, 3])
 
     def test_values(self):
         # empty sequences
@@ -108,6 +105,9 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
         correct = np.abs(np.asarray([1 + 0.01 / 1, 1 + 0.05 / 1.5,
                                      1 - 0.01 / 2, 1 + 0.015 / 2.03,
                                      1 - 0.1 / 3, 1 - 5.1 / 3]))
+        self.assertTrue(np.allclose(errors, correct))
+        # same but with matches given
+        errors = calc_relative_errors(DETECTIONS, ANNOTATIONS, MATCHES)
         self.assertTrue(np.allclose(errors, correct))
         # annotations relative to detections
         errors = calc_relative_errors(ANNOTATIONS, DETECTIONS)
@@ -123,17 +123,18 @@ class TestSimpleEvaluationClass(unittest.TestCase):
 
     def test_types(self):
         e = SimpleEvaluation()
+        self.assertIsNone(e.name)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)
         self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.num_annotations, int)
         self.assertIsInstance(e.precision, float)
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, list)
-        self.assertIsInstance(e.mean_error, float)
-        self.assertIsInstance(e.std_error, float)
+        self.assertIsInstance(len(e), int)
+        self.assertIsInstance(e.metrics, dict)
 
     def test_conversion(self):
         # conversion from float should work
@@ -146,30 +147,15 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         self.assertRaises(TypeError, SimpleEvaluation, [0], [0], [0], [0])
         self.assertRaises(TypeError, SimpleEvaluation, {}, {}, {}, {})
 
-    def test_add(self):
-        e = SimpleEvaluation()
-        self.assertIsInstance(e + Evaluation(), SimpleEvaluation)
-        self.assertIsInstance(e + SimpleEvaluation(), SimpleEvaluation)
-        self.assertIsInstance(e + SumEvaluation(), SimpleEvaluation)
-        self.assertIsInstance(e + MeanEvaluation(), SimpleEvaluation)
-
-    def test_iadd(self):
-        e = SimpleEvaluation()
-        e += SimpleEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-        e += Evaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-        e += SumEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-        e += MeanEvaluation()
-        self.assertIsInstance(e, SimpleEvaluation)
-
-    def test_results_empty(self):
+    def test_results(self):
+        # empty evaluation object
         e = SimpleEvaluation()
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
         self.assertEqual(e.num_fn, 0)
+        self.assertEqual(e.num_annotations, 0)
+        self.assertEqual(len(e), 0)
         # all correct (none) retrieved
         self.assertEqual(e.precision, 1)
         # all retrieved (none) are correct
@@ -178,17 +164,25 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, 1)
         # (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
-        # errors
-        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+        # metric dictionary
+        self.assertEqual(e.metrics.keys(), ['num_tp', 'num_fp', 'num_tn',
+                                            'num_fn', 'num_annotations',
+                                            'precision', 'recall', 'fmeasure',
+                                            'accuracy'])
+        correct = OrderedDict([('num_tp', 0), ('num_fp', 0), ('num_tn', 0),
+                               ('num_fn', 0), ('num_annotations', 0),
+                               ('precision', 1.0), ('recall', 1.0),
+                               ('fmeasure', 1.0), ('accuracy', 1.0)])
+        self.assertEqual(e.metrics, correct)
 
-    def test_results_5341(self):
+        # test with other values
         e = SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
         self.assertEqual(e.num_tp, 5)
         self.assertEqual(e.num_fp, 3)
         self.assertEqual(e.num_tn, 4)
         self.assertEqual(e.num_fn, 1)
+        self.assertEqual(e.num_annotations, 6)
+        self.assertEqual(len(e), 6)
         # correct / retrieved
         self.assertEqual(e.precision, 5. / 8.)
         # correct / relevant
@@ -198,16 +192,26 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, f)
         # (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
-        # array with errors
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+
+        # test with no true positives/negatives
+        e = SimpleEvaluation(num_tp=0, num_fp=3, num_tn=0, num_fn=1)
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 3)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 1)
+        self.assertEqual(e.num_annotations, 1)
+        self.assertEqual(len(e), 1)
+        self.assertEqual(e.precision, 0)
+        self.assertEqual(e.recall, 0)
+        self.assertEqual(e.fmeasure, 0)
+        self.assertEqual(e.accuracy, 0)
 
 
 class TestEvaluationClass(unittest.TestCase):
 
     def test_types(self):
         e = Evaluation()
+        self.assertIsNone(e.name)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)
@@ -216,55 +220,35 @@ class TestEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.fmeasure, float)
-        self.assertIsInstance(e.errors, list)
-        self.assertIsInstance(e.tp, list)
-        self.assertIsInstance(e.fp, list)
-        self.assertIsInstance(e.tn, list)
-        self.assertIsInstance(e.fn, list)
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(len(e), int)
+        self.assertIsInstance(e.metrics, dict)
 
     def test_conversion(self):
-        # conversion from float should fail
-        with self.assertRaises(TypeError):
-            Evaluation(tp=float(0), fp=float(0), tn=float(0), fn=float(0))
-        # conversion from int should fail
+        # # conversion from dict should fail
+        # with self.assertRaises(TypeError):
+        #     Evaluation(tp={}, fp={}, tn={}, fn={})
+        # conversion from int or float should fail
         with self.assertRaises(TypeError):
             Evaluation(tp=int(0), fp=int(0), tn=int(0), fn=int(0))
-        # conversion from dict should work
+        with self.assertRaises(TypeError):
+            Evaluation(tp=float(0), fp=float(0), tn=float(0), fn=float(0))
         e = Evaluation(tp={}, fp={}, tn={}, fn={})
-        self.assertIsInstance(e.tp, list)
-        self.assertIsInstance(e.fp, list)
-        self.assertIsInstance(e.tn, list)
-        self.assertIsInstance(e.fn, list)
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
 
-    def test_add(self):
+    def test_results(self):
+        # empty evaluation object
         e = Evaluation()
-        self.assertIsInstance(e + Evaluation(), Evaluation)
-        # can't add the following, because the don't have TP, FP, TN, FN arrays
-        with self.assertRaises(TypeError):
-            e + SimpleEvaluation()
-        with self.assertRaises(TypeError):
-            e + SumEvaluation()
-        with self.assertRaises(TypeError):
-            e + MeanEvaluation()
-
-    def test_iadd(self):
-        e = Evaluation()
-        e += Evaluation()
-        self.assertIsInstance(e, Evaluation)
-        # can't add the following, because the don't have TP, FP, TN, FN arrays
-        with self.assertRaises(TypeError):
-            e += SimpleEvaluation()
-        with self.assertRaises(TypeError):
-            e += SumEvaluation()
-        with self.assertRaises(TypeError):
-            e += MeanEvaluation()
-
-    def test_results_empty(self):
-        e = Evaluation()
-        self.assertTrue(np.array_equal(e.tp, np.empty(0)))
-        self.assertTrue(np.array_equal(e.fp, np.empty(0)))
-        self.assertTrue(np.array_equal(e.tn, np.empty(0)))
-        self.assertTrue(np.array_equal(e.fn, np.empty(0)))
+        self.assertTrue(np.allclose(e.tp, np.empty(0)))
+        self.assertTrue(np.allclose(e.fp, np.empty(0)))
+        self.assertTrue(np.allclose(e.tn, np.empty(0)))
+        self.assertTrue(np.allclose(e.fn, np.empty(0)))
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
@@ -277,21 +261,36 @@ class TestEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, 1)
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
-        # errors
-        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+        # test metric dictionary keys
+        # self.assertEqual(e.metrics.keys(), ['tp', 'fp', 'tn', 'fn', 'num_tp',
+        #                                     'num_fp', 'num_tn', 'num_fn',
+        #                                     'num_annotations', 'precision',
+        #                                     'recall', 'fmeasure', 'accuracy'])
+        self.assertEqual(e.metrics.keys(), ['num_tp','num_fp', 'num_tn',
+                                            'num_fn', 'num_annotations',
+                                            'precision', 'recall', 'fmeasure',
+                                            'accuracy'])
 
-    def test_results_3102(self):
+        # TODO: why is this not the same?
+        #       possible solution: http://stackoverflow.com/questions/23549419
+        # correct = OrderedDict([('tp', np.empty(0)), ('fp', np.empty(0)),
+        #                        ('tn', np.empty(0)), ('fn', np.empty(0)),
+        #                        ('num_tp', 0), ('num_fp', 0), ('num_tn', 0),
+        #                        ('num_fn', 0), ('num_annotations', 0),
+        #                        ('precision', 1.0), ('recall', 1.0),
+        #                        ('fmeasure', 1.0), ('accuracy', 1.0)])
+        # self.assertEqual(e.metrics, correct)
+
+        # test with other values
         e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
         tp = np.asarray([1, 2, 3], dtype=np.float)
-        self.assertTrue(np.array_equal(e.tp, tp))
+        self.assertTrue(np.allclose(e.tp, tp))
         fp = np.asarray([1.5], dtype=np.float)
-        self.assertTrue(np.array_equal(e.fp, fp))
+        self.assertTrue(np.allclose(e.fp, fp))
         tn = np.asarray([], dtype=np.float)
-        self.assertTrue(np.array_equal(e.tn, tn))
+        self.assertTrue(np.allclose(e.tn, tn))
         fn = np.asarray([0, 3.1], dtype=np.float)
-        self.assertTrue(np.array_equal(e.fn, fn))
+        self.assertTrue(np.allclose(e.fn, fn))
         self.assertEqual(e.num_tp, 3)
         self.assertEqual(e.num_fp, 1)
         self.assertEqual(e.num_tn, 0)
@@ -305,16 +304,39 @@ class TestEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, f)
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 3. / (3 + 1 + 2))
-        # errors
-        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+
+
+class TestMultiClassEvaluationClass(unittest.TestCase):
+
+    def test_types(self):
+        e = MultiClassEvaluation()
+        self.assertIsNone(e.name)
+        self.assertIsInstance(e.num_tp, int)
+        self.assertIsInstance(e.num_fp, int)
+        self.assertIsInstance(e.num_tn, int)
+        self.assertIsInstance(e.num_fn, int)
+        self.assertIsInstance(e.precision, float)
+        self.assertIsInstance(e.recall, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.fmeasure, float)
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        self.assertEqual(e.tp.shape, (0, 2))
+        self.assertEqual(e.fp.shape, (0, 2))
+        self.assertEqual(e.tn.shape, (0, 2))
+        self.assertEqual(e.fn.shape, (0, 2))
+        self.assertIsInstance(len(e), int)
+        self.assertIsInstance(e.metrics, dict)
 
 
 class TestSumEvaluationClass(unittest.TestCase):
 
     def test_types(self):
-        e = SumEvaluation()
+        e = SumEvaluation([])
+        self.assertIsInstance(e.eval_objects, list)
+        self.assertIsInstance(e.name, str)
         self.assertIsInstance(e.num_tp, int)
         self.assertIsInstance(e.num_fp, int)
         self.assertIsInstance(e.num_tn, int)
@@ -323,70 +345,47 @@ class TestSumEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, list)
-        self.assertIsInstance(e.mean_error, float)
-        self.assertIsInstance(e.std_error, float)
+        self.assertIsInstance(len(e), int)
+        self.assertIsInstance(e.metrics, dict)
 
-    def test_add(self):
-        e = SumEvaluation()
-        self.assertIsInstance(e + Evaluation(), SumEvaluation)
-        self.assertIsInstance(e + SimpleEvaluation(), SumEvaluation)
-        self.assertIsInstance(e + SumEvaluation(), SumEvaluation)
-        self.assertIsInstance(e + MeanEvaluation(), SumEvaluation)
-
-    def test_iadd(self):
-        e = SumEvaluation()
-        e += Evaluation()
-        self.assertIsInstance(e, SumEvaluation)
-        e += SimpleEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-        e += SumEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-        e += MeanEvaluation()
-        self.assertIsInstance(e, SumEvaluation)
-
-    def test_iadd_types(self):
-        e = SumEvaluation()
-        e += SimpleEvaluation()
-        self.assertIsInstance(e.num_tp, int)
-        self.assertIsInstance(e.num_fp, int)
-        self.assertIsInstance(e.num_tn, int)
-        self.assertIsInstance(e.num_fn, int)
-        self.assertIsInstance(e.precision, float)
-        self.assertIsInstance(e.recall, float)
-        self.assertIsInstance(e.fmeasure, float)
-        self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, list)
-        self.assertIsInstance(e.mean_error, float)
-        self.assertIsInstance(e.std_error, float)
-
-    def test_results_empty(self):
-        e = SumEvaluation()
-        # add an empty SimpleEvaluation
-        e += SimpleEvaluation()
+    def test_results(self):
+        # empty evaluation
+        e = SumEvaluation([])
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
         self.assertEqual(e.num_fn, 0)
-        # p: all correct (none) retrieved
         self.assertEqual(e.precision, 1)
-        # r: all retrieved (none) are correct
         self.assertEqual(e.recall, 1)
-        # f: 2 * P * R / (P + R)
         self.assertEqual(e.fmeasure, 1)
-        # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
-        # errors
-        self.assertTrue(np.array_equal(e.errors, np.empty(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
-
-    def test_results_empty_5341(self):
-        e = SumEvaluation()
-        # add an empty SimpleEvaluation
-        e += SimpleEvaluation()
-        # add another SimpleEvaluation
-        e += SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
+        self.assertEqual(len(e), 0)
+        # empty SimpleEvaluation
+        e = SumEvaluation([SimpleEvaluation()])
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        self.assertEqual(e.precision, 1)
+        self.assertEqual(e.recall, 1)
+        self.assertEqual(e.fmeasure, 1)
+        self.assertEqual(e.accuracy, 1)
+        self.assertEqual(len(e), 1)
+        # empty SimpleEvaluation without the list
+        e = SumEvaluation(SimpleEvaluation())
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        self.assertEqual(e.precision, 1)
+        self.assertEqual(e.recall, 1)
+        self.assertEqual(e.fmeasure, 1)
+        self.assertEqual(e.accuracy, 1)
+        self.assertEqual(len(e), 1)
+        # empty and real SimpleEvaluation
+        e1 = SimpleEvaluation()
+        e2 = SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
+        e = SumEvaluation([e1, e2])
         self.assertEqual(e.num_tp, 5)
         self.assertEqual(e.num_fp, 3)
         self.assertEqual(e.num_tn, 4)
@@ -396,92 +395,76 @@ class TestSumEvaluationClass(unittest.TestCase):
         f = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))
         self.assertEqual(e.fmeasure, f)
         self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1))
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+        self.assertEqual(len(e), 2)
 
 
 class TestMeanEvaluationClass(unittest.TestCase):
 
     def test_types(self):
-        e = MeanEvaluation()
+        e = MeanEvaluation([])
+        self.assertIsInstance(e.eval_objects, list)
+        self.assertIsInstance(e.name, str)
         self.assertIsInstance(e.num_tp, float)
         self.assertIsInstance(e.num_fp, float)
         self.assertIsInstance(e.num_tn, float)
         self.assertIsInstance(e.num_fn, float)
+        self.assertIsInstance(e.num_annotations, float)
         self.assertIsInstance(e.precision, float)
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
+        self.assertIsInstance(e.accuracy, float)
+        self.assertIsInstance(len(e), int)
+        self.assertIsInstance(e.metrics, dict)
 
-    def test_append(self):
-        e = MeanEvaluation()
-        e.append(Evaluation())
-        self.assertIsInstance(e, MeanEvaluation)
-        e.append(SimpleEvaluation())
-        self.assertIsInstance(e, MeanEvaluation)
-        e.append(SumEvaluation())
-        self.assertIsInstance(e, MeanEvaluation)
-        e.append(MeanEvaluation())
-        self.assertIsInstance(e, MeanEvaluation)
-        # appending something valid should not return anything
-        self.assertEqual(e.append(Evaluation()), None)
-        # appending something else should not work
-
-    def test_append_types(self):
-        e = MeanEvaluation()
-        e.append(Evaluation())
-        self.assertIsInstance(e.num_tp, float)
-        self.assertIsInstance(e.num_fp, float)
-        self.assertIsInstance(e.num_tn, float)
-        self.assertIsInstance(e.num_fn, float)
-        self.assertIsInstance(e.precision, float)
-        self.assertIsInstance(e.recall, float)
-        self.assertIsInstance(e.fmeasure, float)
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
-
-    def test_results_empty(self):
-        e = MeanEvaluation()
-        # append an empty evaluation
-        e.append(MeanEvaluation())
+    def test_results(self):
+        # empty MeanEvaluation
+        e = MeanEvaluation([])
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
         self.assertEqual(e.num_fn, 0)
-        # p: all correct (none) retrieved
-        self.assertEqual(e.precision, 0)
-        # r: all retrieved (none) are correct
-        self.assertEqual(e.recall, 0)
-        # f: 2 * P * R / (P + R)
-        self.assertEqual(e.fmeasure, 0)
-        # acc: (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(e.accuracy, 0)
-        # errors
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
-
-    def test_results_5341(self):
-        e = MeanEvaluation()
-        # append an empty evaluation
-        e.append(MeanEvaluation())
-        # append a SimpleEvaluation
-        e.append(SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1))
-        # all number should be half of the last added SimpleEvaluation
+        self.assertEqual(e.num_annotations, 0)
+        self.assertTrue(math.isnan(e.precision))
+        self.assertTrue(math.isnan(e.recall))
+        self.assertTrue(math.isnan(e.fmeasure))
+        self.assertTrue(math.isnan(e.accuracy))
+        self.assertEqual(len(e), 0)
+        # empty SimpleEvaluation
+        e = MeanEvaluation([SimpleEvaluation()])
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        self.assertEqual(e.num_annotations, 0)
+        self.assertEqual(e.precision, 1)
+        self.assertEqual(e.recall, 1)
+        self.assertEqual(e.fmeasure, 1)
+        self.assertEqual(e.accuracy, 1)
+        self.assertEqual(len(e), 1)
+        # empty SimpleEvaluation without the list
+        e = MeanEvaluation(SimpleEvaluation())
+        self.assertEqual(e.num_tp, 0)
+        self.assertEqual(e.num_fp, 0)
+        self.assertEqual(e.num_tn, 0)
+        self.assertEqual(e.num_fn, 0)
+        self.assertEqual(e.num_annotations, 0)
+        self.assertEqual(e.precision, 1)
+        self.assertEqual(e.recall, 1)
+        self.assertEqual(e.fmeasure, 1)
+        self.assertEqual(e.accuracy, 1)
+        self.assertEqual(len(e), 1)
+        # empty and real SimpleEvaluation
+        e1 = SimpleEvaluation()
+        e2 = SimpleEvaluation(num_tp=5, num_fp=3, num_tn=4, num_fn=1)
+        e = MeanEvaluation([e1, e2])
         self.assertEqual(e.num_tp, 5 / 2.)
         self.assertEqual(e.num_fp, 3 / 2.)
         self.assertEqual(e.num_tn, 4 / 2.)
         self.assertEqual(e.num_fn, 1 / 2.)
-        # correct / retrieved
-        self.assertEqual(e.precision, 5. / 8. / 2.)
-        # correct / relevant
-        self.assertEqual(e.recall, 5. / 6. / 2.)
-        # 2 * P * R / (P + R)
-        f = 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.)) / 2.
+        self.assertEqual(e.num_annotations, 6 / 2.)
+        self.assertEqual(e.precision, (1 + 5. / 8.) / 2.)
+        self.assertEqual(e.recall, (1 + 5. / 6.) / 2.)
+        f = (1 + 2 * (5. / 8.) * (5. / 6.) / ((5. / 8.) + (5. / 6.))) / 2.
         self.assertEqual(e.fmeasure, f)
-        # (TP + TN) / (TP + FP + TN + FN)
-        self.assertEqual(e.accuracy, (5. + 4) / (5 + 3 + 4 + 1) / 2.)
-        # array with errors
-        self.assertTrue(np.array_equal(e.errors, np.zeros(0)))
-        self.assertEqual(e.mean_error, 0)
-        self.assertEqual(e.std_error, 0)
+        self.assertEqual(e.accuracy, (1 + (5. + 4) / (5 + 3 + 4 + 1)) / 2.)
+        self.assertEqual(len(e), 2)

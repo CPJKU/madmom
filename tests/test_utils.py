@@ -133,7 +133,7 @@ class TestLoadEventsFunction(unittest.TestCase):
 
     def test_read_onset_annotations(self):
         events = load_events(DATA_PATH + 'sample.onsets')
-        self.assertTrue(np.array_equal(events, ANNOTATIONS))
+        self.assertTrue(np.allclose(events, ANNOTATIONS))
 
     def test_read_file_without_comments(self):
         events = load_events(DATA_PATH + 'sample.onsets.txt')
@@ -167,7 +167,7 @@ class TestWriteEventsFunction(unittest.TestCase):
     def test_write_and_read_events(self):
         write_events(EVENTS, DATA_PATH + 'events.txt')
         annotations = load_events(DATA_PATH + 'events.txt')
-        self.assertTrue(np.array_equal(annotations, EVENTS))
+        self.assertTrue(np.allclose(annotations, EVENTS))
 
 
 class TestCombineEventsFunction(unittest.TestCase):
@@ -175,12 +175,12 @@ class TestCombineEventsFunction(unittest.TestCase):
     def test_combine_000(self):
         comb = combine_events(EVENTS, 0.)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
-        self.assertTrue(np.array_equal(comb, correct))
+        self.assertTrue(np.allclose(comb, correct))
 
     def test_combine_001(self):
         comb = combine_events(EVENTS, 0.01)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
-        self.assertTrue(np.array_equal(comb, correct))
+        self.assertTrue(np.allclose(comb, correct))
 
     def test_combine_003(self):
         comb = combine_events(EVENTS, 0.03)
@@ -206,13 +206,13 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [10, 15, 20, 21, 25, 30]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
         # 100 FPS
         quantized = quantize_events(EVENTS, 100, length=None)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
 
     def test_length(self):
         # length = 280
@@ -220,36 +220,36 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         # targets: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
 
     def test_rounding(self):
         # without length
         quantized = quantize_events([3.95], 10, length=None)
         idx = np.nonzero(quantized)[0]
         correct = [40]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
         # with length
         quantized = quantize_events([3.95], 10, length=40)
         idx = np.nonzero(quantized)[0]
         correct = []
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
         # round down with length
         quantized = quantize_events([3.9499999], 10, length=40)
         idx = np.nonzero(quantized)[0]
         correct = [39]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
 
     def test_shift(self):
         # no length
         quantized = quantize_events(EVENTS, 10, shift=1)
         idx = np.nonzero(quantized)[0]
         correct = [20, 25, 30, 31, 35, 40]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
         # limited length
         quantized = quantize_events(EVENTS, 10, shift=1, length=35)
         idx = np.nonzero(quantized)[0]
         correct = [20, 25, 30, 31]
-        self.assertTrue(np.array_equal(idx, correct))
+        self.assertTrue(np.allclose(idx, correct))
 
 
 class TestSegmentAxisFunction(unittest.TestCase):

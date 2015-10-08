@@ -178,11 +178,9 @@ def load_events(filename):
     """
     with open(filename, 'rb') as f:
         # read in the events, one per line
-        events = np.atleast_1d(np.loadtxt(f))
+        events = np.loadtxt(f, ndmin=2)
         # 1st column is the event's time, the rest is ignored
-        if events.ndim > 1:
-            return events[:, 0]
-        return events
+        return events[:, 0]
 
 
 def write_events(events, filename):

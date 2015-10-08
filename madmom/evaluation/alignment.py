@@ -9,7 +9,7 @@ import warnings
 
 import numpy as np
 
-from . import EvaluationMetricsMixin
+from . import EvaluationABC
 
 # constants for the data format
 _TIME = 0
@@ -141,7 +141,7 @@ def compute_metrics(event_alignment, ground_truth, tolerance, err_hist_bins):
     return results
 
 
-class AlignmentEvaluation(EvaluationMetricsMixin, object):
+class AlignmentEvaluation(EvaluationABC, object):
     """
     Alignment evaluation class for beat-level alignments.
     Beat-level aligners output beat positions for points in time,
@@ -158,8 +158,8 @@ class AlignmentEvaluation(EvaluationMetricsMixin, object):
         ('stddev_error', 'Std. Dev. of Error'),
     ]
 
-    def __init__(self, alignment, ground_truth,
-                 tolerance=TOLERANCE, err_hist_bins=HISTOGRAM_BINS):
+    def __init__(self, alignment, ground_truth, tolerance=TOLERANCE,
+                 err_hist_bins=HISTOGRAM_BINS, **kwargs):
         """
         Initializes the evaluation with the given data.
 
@@ -271,11 +271,14 @@ class AlignmentEvaluation(EvaluationMetricsMixin, object):
         """
         return self.metrics['error_hist']
 
-    def to_string(self, verbose=False):
+    def tostring(self, histogram=False, **kwargs):
         """
-        Format the errors as a human readable string.
+        Format the evaluation metrics as a human readable string.
 
-        :param verbose: output error histogram
+        :param histogram: also output the error histogram
+        :param kwargs:    additional arguments will be ignored
+        :return:          evaluation metrics formatted as a human readable
+                          string
 
         """
         errs = 'misalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
@@ -289,7 +292,7 @@ class AlignmentEvaluation(EvaluationMetricsMixin, object):
                 self.metrics['avg_error'],
                 self.metrics['stddev_error'])
 
-        if verbose:
+        if histogram:
             # hacky way to create the format string. first, we
             # convert the bins to the desired string format
             bins_str = map('{:.2f}'.format, self.error_histogram_bins)
@@ -303,7 +306,7 @@ class AlignmentEvaluation(EvaluationMetricsMixin, object):
         return errs
 
 
-class MeanAlignmentEvaluation(AlignmentEvaluation):
+class AlignmentMeanEvaluation(AlignmentEvaluation):
     """
     Class for averaging alignment evaluation scores.
 
@@ -311,13 +314,14 @@ class MeanAlignmentEvaluation(AlignmentEvaluation):
     def __init__(self, piecewise=True):
         """
         :param piecewise:  average piecewise (each piece has the same weight)
+
         """
         self.piecewise = piecewise
         self.total_weight = 0.0
         self.evals = []
         self._metrics = None
 
-        super(MeanAlignmentEvaluation, self).__init__(None, None)
+        super(AlignmentMeanEvaluation, self).__init__(None, None)
 
     def __len__(self):
         """Number of averaged evaluations."""
@@ -371,7 +375,7 @@ def parse_args():
     from . import evaluation_io
 
     p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     This script evaluates pairs of files containing the true and computed
     alignments of audio files. Suffixes can be given to filter them
     from the list of files.
@@ -385,10 +389,11 @@ def parse_args():
     'ef' will be aligned at max(t_e, t_ef).
 
     Lines starting with # are treated as comments and are ignored.
-    """)
+
+    ''')
     # files used for evaluation
     out_opts = evaluation_io(p, ann_suffix='.alignment', det_suffix='.aligned')
-    # add additional output formating options
+    # add additional output formatting options
     out_opts.add_argument('--histogram', action='store_true',
                           help='Output error histogram. Works only for '
                                'standard output. [default: %(default)s]')
@@ -435,7 +440,7 @@ def main():
         exit()
 
     # mean evaluation for all files
-    mean_eval = MeanAlignmentEvaluation(args.piecewise)
+    mean_eval = AlignmentMeanEvaluation(args.piecewise)
     # create the output formatter using the metrics of the evaluation
     eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
 

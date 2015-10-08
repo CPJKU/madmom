@@ -24,7 +24,8 @@ results.
 import warnings
 import numpy as np
 
-from . import find_closest_matches, calc_errors, calc_absolute_errors
+from . import (find_closest_matches, calc_errors, calc_absolute_errors,
+               evaluation_io, MeanEvaluation)
 from .onsets import OnsetEvaluation
 
 
@@ -776,7 +777,7 @@ class BeatEvaluation(OnsetEvaluation):
                  continuity_phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
                  offbeat=True, double=True, triple=True,
-                 information_gain_bins=INFORMATION_GAIN_BINS):
+                 information_gain_bins=INFORMATION_GAIN_BINS, **kwargs):
         """
         Evaluate the given detections and annotations.
 
@@ -801,14 +802,23 @@ class BeatEvaluation(OnsetEvaluation):
                                            variations
         :param information_gain_bins:      number of bins for the information
                                            gain error histogram
+        :param kwargs:                     additional arguments will be ignored
 
         """
-        # convert the detections and annotations
-        detections = np.asarray(sorted(detections), dtype=np.float)
-        annotations = np.asarray(sorted(annotations), dtype=np.float)
+        # convert the detections and annotations to numpy arrays
+        detections = np.asarray(detections, dtype=np.float)
+        annotations = np.asarray(annotations, dtype=np.float)
+        # if these are 2D, use only the first column (i.e. the time stamp)
+        if detections.ndim > 1:
+            detections = detections[:, 0]
+        if annotations.ndim > 1:
+            annotations = annotations[:, 0]
+        # sort them
+        detections = np.sort(detections)
+        annotations = np.sort(annotations)
         # perform onset evaluation with the appropriate fmeasure_window
         super(BeatEvaluation, self).__init__(detections, annotations,
-                                             fmeasure_window)
+                                             window=fmeasure_window, **kwargs)
         # other scores
         self.pscore = pscore(detections, annotations, pscore_tolerance)
         self.cemgil = cemgil(detections, annotations, cemgil_sigma)
@@ -831,215 +841,172 @@ class BeatEvaluation(OnsetEvaluation):
         # Note: if only 1 file is evaluated, it is the same as information gain
         return self.information_gain
 
-    def to_string(self):
+    def tostring(self, **kwargs):
         """
-        Format the errors as a human readable string.
+        Format the evaluation metrics as a human readable string.
+
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
 
         """
-        return 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
+        ret = ''
+        if self.name is not None:
+            ret += '%s\n  ' % self.name
+        ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
                'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
                'Dg: %.3f' % \
                (self.fmeasure, self.pscore, self.cemgil, self.goto, self.cmlc,
                 self.cmlt, self.amlc, self.amlt, self.information_gain,
                 self.global_information_gain)
-
-    def __str__(self):
-        return self.to_string()
+        return ret
 
 
-class MeanBeatEvaluation(BeatEvaluation):
+class BeatMeanEvaluation(MeanEvaluation):
     """
     Class for averaging beat evaluation scores.
 
     """
-    # we just want to inherit the print_errors() function
-
-    def __init__(self):
-        """
-        Class for averaging beat evaluation scores.
-
-        """
-        # simple scores
-        self._fmeasure = np.zeros(0)
-        self._pscore = np.zeros(0)
-        self._cemgil = np.zeros(0)
-        self._goto = np.zeros(0)
-        # continuity scores
-        self._cmlc = np.zeros(0)
-        self._cmlt = np.zeros(0)
-        self._amlc = np.zeros(0)
-        self._amlt = np.zeros(0)
-        # information gain stuff
-        self._information_gain = np.zeros(0)
-        self._error_histogram = None
-
-    def __len__(self):
-        # just use the length of any of the arrays
-        return len(self._fmeasure)
-
-    # for adding another BeatEvaluation object
-    def append(self, other):
-        """
-        Appends the scores of another BeatEvaluation object to the respective
-        arrays.
-
-        :param other: BeatEvaluation object
-
-        """
-        if isinstance(other, BeatEvaluation):
-            # append the scores to the arrays
-            self._fmeasure = np.append(self._fmeasure, other.fmeasure)
-            self._pscore = np.append(self._pscore, other.pscore)
-            self._cemgil = np.append(self._cemgil, other.cemgil)
-            self._goto = np.append(self._goto, other.goto)
-            self._cmlc = np.append(self._cmlc, other.cmlc)
-            self._cmlt = np.append(self._cmlt, other.cmlt)
-            self._amlc = np.append(self._amlc, other.amlc)
-            self._amlt = np.append(self._amlt, other.amlt)
-            self._information_gain = np.append(self._information_gain,
-                                               other.information_gain)
-            # the error histograms needs special treatment
-            if self._error_histogram is None:
-                # if it is the first, just take this histogram
-                self._error_histogram = other.error_histogram
-            else:
-                # otherwise just add them
-                self._error_histogram += other.error_histogram
-        else:
-            raise TypeError('Can only append BeatEvaluation to '
-                            'MeanBeatEvaluation, not %s' %
-                            type(other).__name__)
+    METRIC_NAMES = BeatEvaluation.METRIC_NAMES
 
     @property
     def fmeasure(self):
         """F-measure."""
-        if len(self._fmeasure) == 0:
-            return 0.
-        return np.mean(self._fmeasure)
+        return np.nanmean([e.fmeasure for e in self.eval_objects])
 
     @property
     def pscore(self):
         """P-score."""
-        if len(self._pscore) == 0:
-            return 0.
-        return np.mean(self._pscore)
+        return np.nanmean([e.pscore for e in self.eval_objects])
 
     @property
     def cemgil(self):
         """Cemgil accuracy."""
-        if len(self._cemgil) == 0:
-            return 0.
-        return np.mean(self._cemgil)
+        return np.nanmean([e.cemgil for e in self.eval_objects])
 
     @property
     def goto(self):
         """Goto accuracy."""
-        if len(self._goto) == 0:
-            return 0.
-        return np.mean(self._goto)
+        return np.nanmean([e.goto for e in self.eval_objects])
 
     @property
     def cmlc(self):
         """CMLc."""
-        if len(self._cmlc) == 0:
-            return 0.
-        return np.mean(self._cmlc)
+        return np.nanmean([e.cmlc for e in self.eval_objects])
 
     @property
     def cmlt(self):
         """CMLt."""
-        if len(self._cmlt) == 0:
-            return 0.
-        return np.mean(self._cmlt)
+        return np.nanmean([e.cmlt for e in self.eval_objects])
 
     @property
     def amlc(self):
         """AMLc."""
-        if len(self._amlc) == 0:
-            return 0.
-        return np.mean(self._amlc)
+        return np.nanmean([e.amlc for e in self.eval_objects])
 
     @property
     def amlt(self):
         """AMLt."""
-        if len(self._amlt) == 0:
-            return 0.
-        return np.mean(self._amlt)
+        return np.nanmean([e.amlt for e in self.eval_objects])
 
     @property
     def information_gain(self):
         """Information gain."""
-        if len(self._information_gain) == 0:
-            return 0.
-        return np.mean(self._information_gain)
-
-    @property
-    def global_information_gain(self):
-        """Global information gain."""
-        if self.error_histogram is None:
-            return 0.
-        return _information_gain(self.error_histogram)
+        return np.nanmean([e.information_gain for e in self.eval_objects])
 
     @property
     def error_histogram(self):
         """Error histogram."""
-        return self._error_histogram
+        if len(self.eval_objects) == 0:
+            # return an empty error histogram of length 0
+            return np.zeros(0)
+        # sum all error histograms to gather a global one
+        return np.sum([e.error_histogram for e in self.eval_objects], axis=0)
+
+    @property
+    def global_information_gain(self):
+        """Global information gain."""
+        if len(self.error_histogram) == 0:
+            # if the error histogram has length 0, the information gain is 0
+            return 0.
+        # calculate the information gain from the (global) error histogram
+        return _information_gain(self.error_histogram)
+
+    def tostring(self, **kwargs):
+        """
+        Format the evaluation metrics as a human readable string.
+
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
+
+        """
+        ret = ''
+        if self.name is not None:
+            ret += '%s\n  ' % self.name
+        ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
+               'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
+               'Dg: %.3f' % \
+               (self.fmeasure, self.pscore, self.cemgil, self.goto, self.cmlc,
+                self.cmlt, self.amlc, self.amlt, self.information_gain,
+                self.global_information_gain)
+        return ret
 
 
-def parse_args():
+def add_parser(parser):
     """
-    Create a parser and parse the arguments.
+    Add a beat evaluation sub-parser to an existing parser.
 
-    :return: the parsed arguments
+    :param parser: existing argparse parser
+    :return:       beat evaluation sub-parser and evaluation parameter group
 
     """
     import argparse
-    from . import evaluation_io
-
-    # define parser
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-    This script evaluates pairs of files containing the beat annotations and
+    # add beat evaluation sub-parser to the existing parser
+    p = parser.add_parser(
+        'beats', help='beat evaluation',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='''
+    This program evaluates pairs of files containing the beat annotations and
     detections. Suffixes can be given to filter them from the list of files.
 
     Each line represents a beat and must have the following format with values
-    being separated by tabs [brackets indicate optional values]:
-    `beat_time [bar.beat]`
+    being separated by whitespace [brackets indicate optional values]:
+    `beat_time [[bar.]beat]`
 
     Lines starting with # are treated as comments and are ignored.
 
-    To maintain compatibility with the original Matlab implementation, use
-    the arguments '--skip 5 --no_triple'. Please note, that the results can
-    still differ, because of the different implementation approach.
+    To maintain compatibility with the original Matlab implementation, use the
+    arguments '--skip 5 --no_triple'. Please note, that the results can still
+    differ, because of the different implementation approach.
 
-    """)
-    # files used for evaluation
+    ''')
+    # set defaults
+    p.set_defaults(eval=BeatEvaluation, sum_eval=None,
+                   mean_eval=BeatMeanEvaluation)
+    # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants
-    g = p.add_argument_group('sequence manipulation arguments')
-    g.add_argument('--no_offbeat', dest='offbeat', action='store_false',
-                   default=True,
+    s = p.add_argument_group('sequence manipulation arguments')
+    s.add_argument('--no_offbeat', dest='offbeat', action='store_false',
                    help='do not include offbeat evaluation')
-    g.add_argument('--no_double', dest='double', action='store_false',
-                   default=True,
+    s.add_argument('--no_double', dest='double', action='store_false',
                    help='do not include double/half tempo evaluation')
-    g.add_argument('--no_triple', dest='triple', action='store_false',
-                   default=True,
+    s.add_argument('--no_triple', dest='triple', action='store_false',
                    help='do not include triple/third tempo evaluation')
-    g.add_argument('--skip', action='store', type=float, default=0,
+    s.add_argument('--skip', action='store', type=float, default=0,
                    help='skip first N seconds for evaluation '
                         '[default=%(default).3f]')
-    # parameters for evaluation
-    g = p.add_argument_group('evaluation arguments')
-    g.add_argument('--window', action='store', type=float,
-                   default=FMEASURE_WINDOW,
+    # evaluation parameters
+    g = p.add_argument_group('beat evaluation arguments')
+    g.add_argument('--window', dest='fmeasure_window', action='store',
+                   type=float, default=FMEASURE_WINDOW,
                    help='evaluation window for F-measure '
                         '[seconds, default=%(default).3f]')
     g.add_argument('--tolerance', action='store', type=float,
                    default=PSCORE_TOLERANCE,
                    help='evaluation tolerance for P-score '
                         '[default=%(default).3f]')
-    g.add_argument('--sigma', action='store', type=float, default=CEMGIL_SIGMA,
+    g.add_argument('--sigma', action='store', type=float,
+                   default=CEMGIL_SIGMA,
                    help='sigma for Cemgil accuracy [default=%(default).3f]')
     g.add_argument('--goto_threshold', action='store', type=float,
                    default=GOTO_THRESHOLD,
@@ -1047,8 +1014,9 @@ def parse_args():
     g.add_argument('--goto_sigma', action='store', type=float,
                    default=GOTO_SIGMA,
                    help='sigma for Goto error [default=%(default).3f]')
-    g.add_argument('--goto_mu', action='store', type=float, default=GOTO_MU,
-                   help='mu for Goto error [default=%(default).3f]')
+    g.add_argument('--goto_mu', action='store', type=float,
+                   default=GOTO_MU,
+                   help='µ for Goto error [default=%(default).3f]')
     g.add_argument('--phase_tolerance', action='store', type=float,
                    default=CONTINUITY_PHASE_TOLERANCE,
                    help='phase tolerance window for continuity accuracies '
@@ -1061,94 +1029,5 @@ def parse_args():
                    default=INFORMATION_GAIN_BINS,
                    help='number of histogram bins for information gain '
                         '[default=%(default)i]')
-    # parse the arguments
-    args = p.parse_args()
-    # print the arguments
-    if args.verbose >= 2:
-        print args
-    if args.quiet:
-        warnings.filterwarnings("ignore")
-    # return the arguments
-    return args
-
-
-def main():
-    """
-    Simple beat evaluation.
-
-    """
-    from madmom.utils import search_files, match_file, load_events
-    import os
-
-    # parse arguments
-    args = parse_args()
-
-    # get detection and annotation files
-    if args.det_dir is None:
-        args.det_dir = args.files
-    if args.ann_dir is None:
-        args.ann_dir = args.files
-    det_files = search_files(args.det_dir, args.det_suffix)
-    ann_files = search_files(args.ann_dir, args.ann_suffix)
-    # quit if no files are found
-    if len(ann_files) == 0:
-        print "no files to evaluate. exiting."
-        exit()
-
-    # mean evaluation for all files
-    mean_eval = MeanBeatEvaluation()
-    # create the output formatter using the metrics of the evaluation
-    eval_output = args.output_formatter(mean_eval.METRIC_NAMES)
-    # evaluate all files
-    for ann_file in ann_files:
-        # load the annotations
-        annotations = load_events(ann_file)
-        # get the matching detection files
-        matches = match_file(ann_file, det_files,
-                             args.ann_suffix, args.det_suffix)
-        if len(matches) > 1:
-            # exit if multiple detections were found
-            raise SystemExit("multiple detections for %s found." % ann_file)
-        elif len(matches) == 0:
-            # ignore non-existing detections
-            if args.ignore_non_existing:
-                continue
-            # output a warning if no detections were found
-            warnings.warn(" can't find detections for %s." % ann_file)
-            # but continue and assume no detections
-            detections = np.zeros(0)
-        else:
-            # load the detections
-            detections = load_events(matches[0])
-        # remove beats and annotations that are within the first N seconds
-        if args.skip > 0:
-            # skipping the first few seconds alters the results
-            start_idx = np.searchsorted(detections, args.skip, 'right')
-            detections = detections[start_idx:]
-            start_idx = np.searchsorted(annotations, args.skip, 'right')
-            annotations = annotations[start_idx:]
-        # evaluate
-        e = BeatEvaluation(detections, annotations,
-                           fmeasure_window=args.window,
-                           pscore_tolerance=args.tolerance,
-                           cemgil_sigma=args.sigma,
-                           goto_threshold=args.goto_threshold,
-                           goto_sigma=args.goto_sigma, goto_mu=args.goto_mu,
-                           continuity_tempo_tolerance=args.tempo_tolerance,
-                           continuity_phase_tolerance=args.phase_tolerance,
-                           information_gain_bins=args.bins,
-                           offbeat=args.offbeat, double=args.double,
-                           triple=args.triple)
-        # output stats for the file
-        if args.verbose:
-            eval_output.add_eval(os.path.basename(ann_file), e)
-
-        # add this file's evaluation to the global evaluation
-        mean_eval.append(e)
-    # output summary
-    eval_output.add_eval('mean for %i file(s)' % len(mean_eval), mean_eval)
-    print eval_output
-
-
-if __name__ == '__main__':
-    main()
+    # return the sub-parser and evaluation argument group
+    return p, g
