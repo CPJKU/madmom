@@ -27,6 +27,7 @@ import numpy as np
 from . import (find_closest_matches, calc_errors, calc_absolute_errors,
                evaluation_io, MeanEvaluation)
 from .onsets import OnsetEvaluation
+from ..utils import suppress_warnings
 
 
 class BeatIntervalError(Exception):
@@ -43,6 +44,36 @@ class BeatIntervalError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
+
+@suppress_warnings
+def load_beats(values):
+    """
+    Load the beats from the given values or file.
+
+    To make this function more universal, it also accepts lists or arrays.
+
+    :param values: name of the file, file handle, list or numpy array
+    :return:       1D numpy array with notes
+
+    Expected format: beat_time [additional information will be ignored]
+
+    """
+    # load the beats from the given representation
+    if values is None:
+        # return an empty array
+        values = np.zeros(0)
+    elif isinstance(values, (list, np.ndarray)):
+        # convert to numpy array if possible
+        # Note: use array instead of asarray because of ndmin
+        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
+    else:
+        # try to load the data from file
+        values = np.loadtxt(values, ndmin=1)
+    # 1st column is the beat time, the rest is ignored
+    if values.ndim > 1:
+        return values[:, 0]
+    return values
 
 
 # function for sequence variations generation
@@ -776,15 +807,17 @@ class BeatEvaluation(OnsetEvaluation):
                  goto_sigma=GOTO_SIGMA, goto_mu=GOTO_MU,
                  continuity_phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
-                 offbeat=True, double=True, triple=True,
-                 information_gain_bins=INFORMATION_GAIN_BINS, **kwargs):
+                 information_gain_bins=INFORMATION_GAIN_BINS,
+                 offbeat=True, double=True, triple=True, skip=0, **kwargs):
         """
         Evaluate the given detections and annotations.
 
-        :param detections:                 sequence of estimated beat times
-                                           [seconds, float]
-        :param annotations:                sequence of ground truth beat
-                                           annotations [seconds, float]
+        :param detections:  detected beats [file or list or numpy array]
+        :param annotations: annotated ground truth beats [file or list or
+                            numpy array]
+
+        Evaluation parameters:
+
         :param fmeasure_window:            F-measure evaluation window
                                            [seconds, float]
         :param pscore_tolerance:           P-score tolerance [fraction of
@@ -796,18 +829,21 @@ class BeatEvaluation(OnsetEvaluation):
         :param goto_mu:                    mu for Goto error [float]
         :param continuity_phase_tolerance: continuity phase tolerance [float]
         :param continuity_tempo_tolerance: continuity tempo tolerance [float]
-        :param offbeat:                    include offbeat variations
-        :param double:                     include double/half tempo variations
-        :param triple:                     include triple/third tempo
-                                           variations
         :param information_gain_bins:      number of bins for the information
                                            gain error histogram
-        :param kwargs:                     additional arguments will be ignored
+
+        Sequence manipulation parameters
+
+        :param offbeat: include offbeat variations
+        :param double:  include double/half tempo variations
+        :param triple:  include triple/third tempo variations
+
+        :param kwargs:  additional keywords
 
         """
-        # convert the detections and annotations to numpy arrays
-        detections = np.asarray(detections, dtype=np.float)
-        annotations = np.asarray(annotations, dtype=np.float)
+        # load the beat detections and annotations
+        detections = load_beats(detections)
+        annotations = load_beats(annotations)
         # if these are 2D, use only the first column (i.e. the time stamp)
         if detections.ndim > 1:
             detections = detections[:, 0]
@@ -816,6 +852,14 @@ class BeatEvaluation(OnsetEvaluation):
         # sort them
         detections = np.sort(detections)
         annotations = np.sort(annotations)
+        # remove detections and annotations that are within the first N seconds
+        # Note: skipping the first few seconds alters the results!
+        if skip > 0:
+            start_idx = np.searchsorted(detections, skip, 'right')
+            detections = detections[start_idx:]
+            start_idx = np.searchsorted(annotations, skip, 'right')
+            annotations = annotations[start_idx:]
+
         # perform onset evaluation with the appropriate fmeasure_window
         super(BeatEvaluation, self).__init__(detections, annotations,
                                              window=fmeasure_window, **kwargs)

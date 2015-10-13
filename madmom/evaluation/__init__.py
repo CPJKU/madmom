@@ -340,21 +340,21 @@ class Evaluation(SimpleEvaluation):
     numpy arrays or lists with true/false positive/negative detections.
 
     """
-    # METRIC_NAMES = [
-    #     ('tp', 'True positives'),
-    #     ('fp', 'False positives'),
-    #     ('tn', 'True negatives'),
-    #     ('fn', 'False negatives'),
-    #     ('num_tp', 'No. of true positives'),
-    #     ('num_fp', 'No. of false positives'),
-    #     ('num_tn', 'No. of true negatives'),
-    #     ('num_fn', 'No. of false negatives'),
-    #     ('num_annotations', 'No. Annotations'),
-    #     ('precision', 'Precision'),
-    #     ('recall', 'Recall'),
-    #     ('fmeasure', 'F-measure'),
-    #     ('accuracy', 'Accuracy'),
-    # ]
+    METRIC_NAMES = [
+        ('tp', 'True positives'),
+        ('fp', 'False positives'),
+        ('tn', 'True negatives'),
+        ('fn', 'False negatives'),
+        ('num_tp', 'No. of true positives'),
+        ('num_fp', 'No. of false positives'),
+        ('num_tn', 'No. of true negatives'),
+        ('num_fn', 'No. of false negatives'),
+        ('num_annotations', 'No. Annotations'),
+        ('precision', 'Precision'),
+        ('recall', 'Recall'),
+        ('fmeasure', 'F-measure'),
+        ('accuracy', 'Accuracy'),
+    ]
 
     def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
         """
@@ -376,17 +376,13 @@ class Evaluation(SimpleEvaluation):
             tn = []
         if fn is None:
             fn = []
-        # convert everything to lists
-        tp = list(tp)
-        fp = list(fp)
-        tn = list(tn)
-        fn = list(fn)
-        # and finally to numpy arrays
+        # instantiate a SimpleEvaluation object
         super(Evaluation, self).__init__(**kwargs)
-        self.tp = np.asarray(tp, dtype=np.float)
-        self.fp = np.asarray(fp, dtype=np.float)
-        self.tn = np.asarray(tn, dtype=np.float)
-        self.fn = np.asarray(fn, dtype=np.float)
+        # convert everything to numpy arrays and save them
+        self.tp = np.asarray(list(tp), dtype=np.float)
+        self.fp = np.asarray(list(fp), dtype=np.float)
+        self.tn = np.asarray(list(tn), dtype=np.float)
+        self.fn = np.asarray(list(fn), dtype=np.float)
 
     @property
     def num_tp(self):
@@ -416,14 +412,15 @@ class MultiClassEvaluation(Evaluation):
     2D numpy arrays with true/false positive/negative detections.
 
     """
-    def __init__(self, tp=None, fp=None, tn=None, fn=None):
+    def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
         """
         Creates a new Evaluation instance.
 
-        :param tp: list of tuples or 2D array with true positive detections
-        :param fp: list of tuples or 2D array with false positive detections
-        :param tn: list of tuples or 2D array with true negative detections
-        :param fn: list of tuples or 2D array with false negative detections
+        :param tp:     list of tuples / 2D array with true positive detections
+        :param fp:     list of tuples / 2D array with false positive detections
+        :param tn:     list of tuples / 2D array with true negative detections
+        :param fn:     list of tuples / 2D array with false negative detections
+        :param kwargs: keyword arguments passed to Evaluation()
 
         Note: The second item of the tuples or the second column of the arrays
               denote the class the detection belongs to.
@@ -438,13 +435,13 @@ class MultiClassEvaluation(Evaluation):
             tn = np.zeros((0, 2))
         if fn is None:
             fn = np.zeros((0, 2))
-        super(Evaluation, self).__init__()
+        super(Evaluation, self).__init__(**kwargs)
         self.tp = np.asarray(tp, dtype=np.float)
         self.fp = np.asarray(fp, dtype=np.float)
         self.tn = np.asarray(tn, dtype=np.float)
         self.fn = np.asarray(fn, dtype=np.float)
 
-    def tostring(self, verbose=True):
+    def tostring(self, verbose=False):
         """
         Format the evaluation metrics as a human readable string.
 
@@ -458,13 +455,13 @@ class MultiClassEvaluation(Evaluation):
             # extract all classes
             classes = []
             if self.tp.any():
-                np.append(classes, np.unique(self.tp[:, 1]))
+                classes = np.append(classes, np.unique(self.tp[:, 1]))
             if self.fp.any():
-                np.append(classes, np.unique(self.fp[:, 1]))
+                classes = np.append(classes, np.unique(self.fp[:, 1]))
             if self.tn.any():
-                np.append(classes, np.unique(self.tn[:, 1]))
+                classes = np.append(classes, np.unique(self.tn[:, 1]))
             if self.fn.any():
-                np.append(classes, np.unique(self.fn[:, 1]))
+                classes = np.append(classes, np.unique(self.fn[:, 1]))
             for cls in sorted(np.unique(classes)):
                 # extract the TP, FP, TN and FN of this class
                 tp = self.tp[self.tp[:, 1] == cls]
@@ -472,10 +469,9 @@ class MultiClassEvaluation(Evaluation):
                 tn = self.tn[self.tn[:, 1] == cls]
                 fn = self.fn[self.fn[:, 1] == cls]
                 # evaluate them
-                e = Evaluation(tp, fp, tn, fn)
+                e = Evaluation(tp, fp, tn, fn, name='Class %s' % cls)
                 # append to the output string
-                string = e.tostring(verbose=False)
-                ret += add_indent(string, 'Class %s:\n' % cls) + '\n'
+                ret += '  %s\n' % e.tostring(verbose=False)
         # normal formatting
         ret += 'Annotations: %5d TP: %5d FP: %4d FN: %4d ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f%' % \
@@ -501,7 +497,7 @@ class SumEvaluation(SimpleEvaluation):
 
         """
         # Note: we want to inherit the evaluation functions/properties, no need
-        #       to call __super__
+        #       to call __super__, but we need to take care of 'name'
         if not isinstance(eval_objects, list):
             # wrap the given eval_object in a list
             eval_objects = [eval_objects]
@@ -556,6 +552,7 @@ class MeanEvaluation(SumEvaluation):
 
         """
         super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
+        # handle the 'name' here to be able to prvide a different default value
         self.name = name or 'mean for %d files' % len(self)
 
     # overwrite the properties to calculate the mean instead of the sum
@@ -622,6 +619,9 @@ class MeanEvaluation(SumEvaluation):
         :return: evaluation metrics formatted as a human readable string
 
         """
+        ret = ''
+        if self.name is not None:
+            ret += '%s\n  ' % self.name
         # TODO: unify this with SimpleEvaluation but
         #       add option to provide field formatters (e.g. 3d or 5.2f)
         # format with floats instead of integers
@@ -707,32 +707,6 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}'):
         lines.append(e.name + ' & ' + ' & '.join(values) + '\\\\')
     # return everything
     return '\n'.join(lines)
-
-
-def add_indent(lines, indent):
-    """
-    Adds an indent to a given string. The string may contain line breaks. In
-    this case, the indent is used as is in the first line, while for the other
-    line a white-space indent of the same length as the actual indent is used.
-
-    :param lines:  string containing the lines to be indented
-    :param indent: indent to use
-    :return:       string containing the indented lines
-
-    """
-    # split the lines
-    split_lines = lines.split('\n')
-    # add indent to first line
-    split_lines[0] = indent + split_lines[0]
-    # create an indentation of the same length as indent parameter containing
-    # only whitespaces
-    whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
-    whitespace_indent = re.sub('\n', '', whitespace_indent)
-    # add whitespace indent to other lines
-    for i, eval_line in enumerate(split_lines[1:]):
-        split_lines[i + 1] = whitespace_indent + eval_line
-    # return the indented lines
-    return '\n'.join(split_lines)
 
 
 def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):

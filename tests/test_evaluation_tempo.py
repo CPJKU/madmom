@@ -135,28 +135,38 @@ class TestLoadTempoFunction(unittest.TestCase):
             load_tempo([100, 50, 0.8, 0.2], max_len=-1)
 
 
+class TestConstantsClass(unittest.TestCase):
 
+    def test_types(self):
+        self.assertIsInstance(TOLERANCE, float)
+        self.assertIsInstance(DOUBLE, bool)
+        self.assertIsInstance(TRIPLE, bool)
+
+    def test_values(self):
+        self.assertEqual(TOLERANCE, 0.04)
+        self.assertEqual(DOUBLE, True)
+        self.assertEqual(TRIPLE, True)
 
 
 class TestTempoEvaluationFunction(unittest.TestCase):
 
     def test_types(self):
-        scores = tempo_evaluation(DETECTIONS, ANNOTATIONS, 0.08)
+        scores = tempo_evaluation(DETECTIONS, ANNOTATIONS)
         self.assertIsInstance(scores, tuple)
         # detections / annotations must be correct type
-        scores = tempo_evaluation([], [], 0.08)
+        scores = tempo_evaluation([], [])
         self.assertIsInstance(scores, tuple)
-        scores = tempo_evaluation({}, {}, 0.08)
+        scores = tempo_evaluation({}, {})
         self.assertIsInstance(scores, tuple)
         # # we do not support normal non-empty lists
         # with self.assertRaises(TypeError):
         #     tempo_evaluation(DETECTIONS.tolist(), ANNOTATIONS.tolist(), 0.08)
         # detections must not be None
         with self.assertRaises(TypeError):
-            tempo_evaluation(None, ANN_TEMPI, 0.08)
+            tempo_evaluation(None, ANN_TEMPI)
         # annotations must not be None
         with self.assertRaises(TypeError):
-            tempo_evaluation(DETECTIONS, None, 0.08)
+            tempo_evaluation(DETECTIONS, None)
         # tolerance must be correct type
         scores = tempo_evaluation(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(scores, tuple)
@@ -164,7 +174,7 @@ class TestTempoEvaluationFunction(unittest.TestCase):
         with self.assertRaises(ValueError):
             tempo_evaluation(DETECTIONS, ANN_TEMPI, [])
         # with self.assertRaises(ValueError):
-        #     tempo_evaluation(DETECTIONS, ANN_TEMPI, 0.08)
+        #     tempo_evaluation(DETECTIONS, ANN_TEMPI)
         # TODO: what should happen if we supply a dictionary?
         # with self.assertRaises(TypeError):
         #     tempo_evaluation(DETECTIONS, ANN_TEMPI, ANN_STRENGTHS, {})
@@ -176,20 +186,20 @@ class TestTempoEvaluationFunction(unittest.TestCase):
         with self.assertRaises(ValueError):
             tempo_evaluation(DETECTIONS, ANNOTATIONS, None)
         # no tempi should return perfect score
-        scores = tempo_evaluation([], [], 0.08)
+        scores = tempo_evaluation([], [])
         self.assertEqual(scores, (1, True, True))
         # no detections should return worst score
-        scores = tempo_evaluation([], ANNOTATIONS, 0.08)
+        scores = tempo_evaluation([], ANNOTATIONS)
         self.assertEqual(scores, (0, False, False))
         # no annotations should return worst score
-        scores = tempo_evaluation(DETECTIONS, np.zeros(0), 0.08)
+        scores = tempo_evaluation(DETECTIONS, np.zeros(0))
         self.assertEqual(scores, (0, False, False))
         # normal calculation
-        scores = tempo_evaluation(DETECTIONS, ANNOTATIONS, 0.08)
+        scores = tempo_evaluation(DETECTIONS, ANNOTATIONS)
         self.assertEqual(scores, (0.3, True, False))
-        # # uniform strength calculation
-        # scores = tempo_evaluation(DETECTIONS, ANN_TEMPI, 0.08)
-        # self.assertEqual(scores, (0.5, True, False))
+        # uniform strength calculation
+        scores = tempo_evaluation(DETECTIONS, ANN_TEMPI)
+        self.assertEqual(scores, (0.5, True, False))
 
 
 # test evaluation class
@@ -307,6 +317,9 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.all, False)
         self.assertEqual(e.acc1, False)
         self.assertEqual(e.acc2, False)
+
+    def test_tostring(self):
+        print TempoEvaluation([], [])
 
 
 class TestMeanTempoEvaluationClass(unittest.TestCase):

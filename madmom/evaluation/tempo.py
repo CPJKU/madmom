@@ -14,7 +14,7 @@ from . import EvaluationABC, MeanEvaluation, evaluation_io
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
                max_len=None):
     """
-    Load tempo information from the given values or file(name).
+    Load tempo information from the given values or file.
 
     To make this function more universal, it also accepts lists or arrays.
 
@@ -42,10 +42,10 @@ def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
     # check max_len
     if max_len is not None and max_len < 1:
         raise ValueError('`max_len` must be greater or equal to 1')
-    # read in the file if needed
+    # load the tempo from the given representation
     if isinstance(values, (list, np.ndarray)):
         # convert to numpy array if possible
-        # Note use array instead of asarray because of ndmin
+        # Note: use array instead of asarray because of ndmin
         values = np.array(values, dtype=np.float, ndmin=1, copy=False)
     else:
         # try to load the data from file
@@ -83,8 +83,14 @@ def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
     return np.vstack((tempi[:max_len], strengths[:max_len])).T
 
 
+# default tempo evaluation values
+TOLERANCE = 0.04
+DOUBLE = True
+TRIPLE = True
+
+
 # this evaluation function can evaluate multiple tempi simultaneously
-def tempo_evaluation(detections, annotations, tolerance):
+def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     """
     Calculate the tempo P-Score, at least one or both tempi correct.
 
@@ -113,7 +119,7 @@ def tempo_evaluation(detections, annotations, tolerance):
         # worst result
         return 0., False, False
     # tolerance must be greater than 0
-    if tolerance <= 0:
+    if not tolerance > 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
     detections = np.asarray(detections, dtype=np.float)
@@ -141,13 +147,11 @@ def tempo_evaluation(detections, annotations, tolerance):
     errors = np.abs(1 - (detections[:, np.newaxis] / annotations))
     # correctly identified annotation tempi
     correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
-    # the p-score is the sum of the strengths of the correctly identified tempi
-    return np.sum(strengths[correct]), correct.any(), correct.all()
-
-
-TOLERANCE = 0.04
-DOUBLE = True
-TRIPLE = True
+    # the P-Score is the sum of the strengths of the correctly identified tempi
+    pscore = np.sum(strengths[correct])
+    # return the scores
+    # TODO, also return the errors?
+    return pscore, correct.any(), correct.all()
 
 
 # basic tempo evaluation
@@ -166,7 +170,7 @@ class TempoEvaluation(EvaluationABC):
 
     def __init__(self, detections, annotations, tolerance=TOLERANCE,
                  double=DOUBLE, triple=TRIPLE, sort=True, max_len=None,
-                 **kwargs):
+                 name=None, **kwargs):
         """
         Evaluate the given detection and annotation sequences.
 
@@ -185,21 +189,18 @@ class TempoEvaluation(EvaluationABC):
               on the `sort` this can be either the first or the strongest one.
 
         """
-        # convert the detections and annotations
+        # load the tempo detections and annotations
         detections = load_tempo(detections, sort=sort, max_len=max_len)
         annotations = load_tempo(annotations, sort=sort, max_len=max_len)
-        # TODO: truncate the length of the detections to the length of the
-        #       annotations?
-        if detections.ndim != 2 or annotations.ndim != 2:
-            raise ValueError('detections and annotations must be 2D arrays')
+        # TODO: truncate the detections to the length of the annotations?
         # evaluate P-score with all tempo annotations, but truncate the
         # detections to the same length
         ann = load_tempo(annotations, sort=sort)
         det = load_tempo(detections, sort=sort, max_len=(len(ann) or None))
         self.pscore, self.any, self.all = tempo_evaluation(det, ann, tolerance)
+        # evaluate acc1 only with the strongest/first tempo
         # Note: the strengths are irrelevant or acc1 & acc2 calculation
         #       the accuracies correspond to either any or all tempi
-        # evaluate acc1 only with the strongest/first tempo
         # TODO: allow a different max_len here?
         det = load_tempo(detections, sort=sort, max_len=1)
         ann = load_tempo(annotations, sort=sort, max_len=1)
@@ -214,6 +215,8 @@ class TempoEvaluation(EvaluationABC):
         # accuracy doesn't need strengths, so we just add fake strengths
         ann = np.vstack((ann, np.ones_like(ann) / len(ann))).T
         self.acc2 = tempo_evaluation(det, ann, tolerance)[1]
+        # save the name
+        self.name = name
 
     def __len__(self):
         return 1

@@ -31,9 +31,6 @@ def main():
     $ evaluate onsets -h
 
     ''')
-    # set some global defaults
-    p.set_defaults(skip=0, combine=0, delay=0, load_fn=load_events)
-
     # add version
     p.add_argument('--version', action='version', version='evaluate')
 
@@ -82,9 +79,6 @@ def main():
                          (num_file + 1, num_files))
         sys.stderr.flush()
 
-        # load the annotations
-        annotations = args.load_fn(ann_file)
-
         #  get the matching detection files
         matches = match_file(ann_file, det_files,
                              args.ann_suffix, args.det_suffix)
@@ -98,34 +92,13 @@ def main():
             # output a warning if no detections were found
             warnings.warn(" can't find detections for %s" % ann_file)
             # but continue and assume no detections
-            detections = None
+            det_file = None
         else:
-            # load the detections
-            detections = args.load_fn(matches[0])
-
-        # combine the annotations if needed
-        if args.combine > 0:
-            annotations = combine_events(annotations, args.combine)
-
-        # shift the detections if needed
-        if args.delay != 0:
-            try:
-                # try to shift the first column of a 2D array
-                detections[:, 0] += args.delay
-            except IndexError:
-                # if that fails, it must be a 1D array already
-                detections += args.delay
-
-        # remove detections and annotations that are within the first N seconds
-        if args.skip > 0:
-            # skipping the first few seconds alters the results
-            start_idx = np.searchsorted(detections, args.skip, 'right')
-            detections = detections[start_idx:]
-            start_idx = np.searchsorted(annotations, args.skip, 'right')
-            annotations = annotations[start_idx:]
+            # use the first (and only) matched detection file
+            det_file = matches[0]
 
         # evaluate
-        e = args.eval(detections, annotations, name=os.path.basename(ann_file),
+        e = args.eval(det_file, ann_file, name=os.path.basename(ann_file),
                       **vars(args))
 
         # add this file's evaluation to the global evaluation list

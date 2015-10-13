@@ -11,33 +11,50 @@ import math
 from madmom.evaluation.onsets import *
 
 DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
-                         3.030000001])
+                         3.025000001])
 ANNOTATIONS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+
+
+class TestOnsetConstantsClass(unittest.TestCase):
+
+    def test_types(self):
+        self.assertIsInstance(WINDOW, float)
+
+    def test_values(self):
+        self.assertEqual(WINDOW, 0.025)
 
 
 # test evaluation function
 class TestOnsetEvaluationFunction(unittest.TestCase):
 
     def test_results(self):
+        # default window
+        tp, fp, tn, fn, errors = onset_evaluation(DETECTIONS, ANNOTATIONS)
+        self.assertTrue(np.allclose(tp, [0.999999, 1.029999, 2.01, 2.02, 2.5]))
+        self.assertTrue(np.allclose(fp, [1.45, 3.025000001]))
+        self.assertTrue(np.allclose(tn, []))
+        self.assertTrue(np.allclose(fn, [1.5, 2.05, 3.0]))
+        self.assertTrue(np.allclose(errors, [-0.00000001, 0.00999999, 0.01,
+                                             -0.01, 0]))
         # window = 0.01
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.01)
+        tp, fp, tn, fn, errors = onset_evaluation(DETECTIONS, ANNOTATIONS,
+                                                  window=0.01)
         self.assertTrue(np.allclose(tp, [0.999999, 1.029999, 2.01, 2.02, 2.5]))
-        self.assertTrue(np.allclose(fp, [1.45, 3.030000001]))
+        self.assertTrue(np.allclose(fp, [1.45, 3.025000001]))
         self.assertTrue(np.allclose(tn, []))
         self.assertTrue(np.allclose(fn, [1.5, 2.05, 3.0]))
-        # window = 0.03
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.03)
-        self.assertTrue(np.allclose(tp, [0.999999, 1.029999, 2.01, 2.02, 2.5]))
-        self.assertTrue(np.allclose(fp, [1.45, 3.030000001]))
-        self.assertTrue(np.allclose(tn, []))
-        self.assertTrue(np.allclose(fn, [1.5, 2.05, 3.0]))
+        self.assertTrue(np.allclose(errors, [-0.00000001, 0.00999999, 0.01,
+                                             -0.01, 0]))
         # window = 0.04
-        tp, fp, tn, fn = onset_evaluation(DETECTIONS, ANNOTATIONS, 0.04)
+        tp, fp, tn, fn, errors = onset_evaluation(DETECTIONS, ANNOTATIONS,
+                                                  window=0.04)
         self.assertTrue(np.allclose(tp, [0.999999, 1.029999, 2.01, 2.02, 2.5,
-                                         3.030000001]))
+                                         3.025000001]))
         self.assertTrue(np.allclose(fp, [1.45]))
         self.assertTrue(np.allclose(tn, []))
         self.assertTrue(np.allclose(fn, [1.5, 2.05]))
+        self.assertTrue(np.allclose(errors, [-0.00000001, 0.00999999, 0.01,
+                                             -0.01, 0, 0.025]))
 
 
 # test evaluation class
@@ -64,15 +81,19 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-        # conversion from dict should work as well
-        e = OnsetEvaluation({}, {})
+        self.assertIsInstance(e.errors, np.ndarray)
+        # conversion from None should work
+        e = OnsetEvaluation(None, None)
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
+        self.assertIsInstance(e.errors, np.ndarray)
         # others should fail
-        self.assertRaises(TypeError, OnsetEvaluation, float(0), float(0))
-        self.assertRaises(TypeError, OnsetEvaluation, int(0), int(0))
+        self.assertRaises(ValueError, OnsetEvaluation, float(0), float(0))
+        self.assertRaises(ValueError, OnsetEvaluation, int(0), int(0))
+        # TODO: why does dict work?
+        # self.assertRaises(ValueError, OnsetEvaluation, {}, {})
 
     def test_results(self):
         # empty detections / annotations
@@ -81,6 +102,7 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertTrue(np.allclose(e.fp, []))
         self.assertTrue(np.allclose(e.tn, []))
         self.assertTrue(np.allclose(e.fn, []))
+        self.assertTrue(np.allclose(e.errors, []))
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
@@ -96,7 +118,7 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         # real detections / annotations
         e = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         self.assertTrue(np.allclose(e.tp, [0.99999, 1.02999, 2.01, 2.02, 2.5]))
-        self.assertTrue(np.allclose(e.fp, [1.45, 3.030000001]))
+        self.assertTrue(np.allclose(e.fp, [1.45, 3.025000001]))
         self.assertTrue(np.allclose(e.tn, []))
         self.assertTrue(np.allclose(e.fn, [1.5, 2.05, 3.0]))
         self.assertEqual(e.num_tp, 5)
@@ -124,6 +146,9 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         std = np.std([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2, 2.02 - 2.03,
                       2.5 - 2.5])
         self.assertEqual(e.std_error, std)
+
+    def test_tostring(self):
+        print OnsetEvaluation([], [])
 
 
 class TestOnsetSumEvaluationClass(unittest.TestCase):
@@ -157,7 +182,8 @@ class TestOnsetSumEvaluationClass(unittest.TestCase):
         self.assertTrue(math.isnan(e.mean_error))
         self.assertTrue(math.isnan(e.std_error))
         # sum evaluation of empty onset evaluation
-        e = OnsetSumEvaluation([OnsetEvaluation([], [])])
+        e1 = OnsetEvaluation([], [])
+        e = OnsetSumEvaluation([e1])
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
@@ -170,7 +196,6 @@ class TestOnsetSumEvaluationClass(unittest.TestCase):
         self.assertTrue(math.isnan(e.mean_error))
         self.assertTrue(math.isnan(e.std_error))
         # sum evaluation of empty and real onset evaluation
-        e1 = OnsetEvaluation([], [])
         e2 = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         e = OnsetSumEvaluation([e1, e2])
         self.assertEqual(e.num_tp, 5)
@@ -186,18 +211,14 @@ class TestOnsetSumEvaluationClass(unittest.TestCase):
         self.assertEqual(e.fmeasure, f)
         # acc = (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, (5. + 0) / (5 + 2 + 0 + 3))
-        # errors
-        # det 0.99999999, 1.02999999, 1.45, 2.01, 2.02,       2.5, 3.030000001
-        # tar 1,          1.02,       1.5,  2.0,  2.03, 2.05, 2.5, 3
-        errors = [0.99999999 - 1, 1.02999999 - 1.02,  # 1.45 - 1.5,
-                  2.01 - 2, 2.02 - 2.03, 2.5 - 2.5]  # , 3.030000001 - 3
-        self.assertTrue(np.allclose(e.errors, errors))
-        mean = np.mean([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2,
-                        2.02 - 2.03, 2.5 - 2.5])
-        self.assertEqual(e.mean_error, mean)
-        std = np.std([0.99999999 - 1, 1.02999999 - 1.02, 2.01 - 2, 2.02 - 2.03,
-                      2.5 - 2.5])
-        self.assertEqual(e.std_error, std)
+        # errors is just a concatenation of all errors, i.e. those of e2
+        self.assertTrue(np.allclose(e.errors, e2.errors))
+        # thus mean and std of errors is those of e2
+        self.assertEqual(e.mean_error, e2.mean_error)
+        self.assertEqual(e.std_error, e2.std_error)
+
+    def test_tostring(self):
+        print OnsetSumEvaluation([])
 
 
 class TestOnsetMeanEvaluationClass(unittest.TestCase):
@@ -217,7 +238,7 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.std_error, float)
 
     def test_results(self):
-        # empty sum evaluation
+        # empty mean evaluation
         e = OnsetMeanEvaluation([])
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
@@ -231,8 +252,9 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
         self.assertTrue(math.isnan(e.mean_error))
         self.assertTrue(math.isnan(e.std_error))
 
-        # sum evaluation of empty onset evaluation
-        e = OnsetMeanEvaluation([OnsetEvaluation([], [])])
+        # mean evaluation of empty onset evaluation
+        e1 = OnsetEvaluation([], [])
+        e = OnsetMeanEvaluation([e1])
         self.assertEqual(e.num_tp, 0)
         self.assertEqual(e.num_fp, 0)
         self.assertEqual(e.num_tn, 0)
@@ -245,8 +267,7 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
         self.assertTrue(math.isnan(e.mean_error))
         self.assertTrue(math.isnan(e.std_error))
 
-        # sum evaluation of empty and real onset evaluation
-        e1 = OnsetEvaluation([], [])
+        # mean evaluation of empty and real onset evaluation
         e2 = OnsetEvaluation(DETECTIONS, ANNOTATIONS)
         e3 = OnsetEvaluation(ANNOTATIONS, DETECTIONS)
         e = OnsetMeanEvaluation([e1, e2, e3])
@@ -266,9 +287,15 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
             e.fmeasure, np.mean([e_.fmeasure for e_ in [e1, e2, e3]])))
         self.assertTrue(np.allclose(
             e.accuracy, np.mean([e_.accuracy for e_ in [e1, e2, e3]])))
+        # errors is just a concatenation of all errors
+        # (inherited from SumOnsetEvaluation)
         self.assertTrue(np.allclose(
             e.errors, np.concatenate([e_.errors for e_ in [e2, e3]])))
         # mean and std errors are those of e2 and e3, since those of e1 are NaN
         self.assertEqual(e.mean_error,
                          np.mean([e_.mean_error for e_ in [e2, e3]]))
-        self.assertEqual(e.std_error, np.mean([e_.std_error for e_ in [e2, e3]]))
+        self.assertEqual(e.std_error,
+                         np.mean([e_.std_error for e_ in [e2, e3]]))
+
+    def test_tostring(self):
+        print OnsetMeanEvaluation([])

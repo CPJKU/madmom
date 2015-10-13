@@ -262,25 +262,10 @@ class TestEvaluationClass(unittest.TestCase):
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
         # test metric dictionary keys
-        # self.assertEqual(e.metrics.keys(), ['tp', 'fp', 'tn', 'fn', 'num_tp',
-        #                                     'num_fp', 'num_tn', 'num_fn',
-        #                                     'num_annotations', 'precision',
-        #                                     'recall', 'fmeasure', 'accuracy'])
-        self.assertEqual(e.metrics.keys(), ['num_tp','num_fp', 'num_tn',
-                                            'num_fn', 'num_annotations',
-                                            'precision', 'recall', 'fmeasure',
-                                            'accuracy'])
-
-        # TODO: why is this not the same?
-        #       possible solution: http://stackoverflow.com/questions/23549419
-        # correct = OrderedDict([('tp', np.empty(0)), ('fp', np.empty(0)),
-        #                        ('tn', np.empty(0)), ('fn', np.empty(0)),
-        #                        ('num_tp', 0), ('num_fp', 0), ('num_tn', 0),
-        #                        ('num_fn', 0), ('num_annotations', 0),
-        #                        ('precision', 1.0), ('recall', 1.0),
-        #                        ('fmeasure', 1.0), ('accuracy', 1.0)])
-        # self.assertEqual(e.metrics, correct)
-
+        self.assertEqual(e.metrics.keys(), ['tp', 'fp', 'tn', 'fn', 'num_tp',
+                                            'num_fp', 'num_tn', 'num_fn',
+                                            'num_annotations', 'precision',
+                                            'recall', 'fmeasure', 'accuracy'])
         # test with other values
         e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
         tp = np.asarray([1, 2, 3], dtype=np.float)

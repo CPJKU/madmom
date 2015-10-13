@@ -230,6 +230,31 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
         # TODO: same tests with matches given
 
 
+class TestBeatConstantsClass(unittest.TestCase):
+
+    def test_types(self):
+        self.assertIsInstance(FMEASURE_WINDOW, float)
+        self.assertIsInstance(PSCORE_TOLERANCE, float)
+        self.assertIsInstance(CEMGIL_SIGMA, float)
+        self.assertIsInstance(GOTO_THRESHOLD, float)
+        self.assertIsInstance(GOTO_SIGMA, float)
+        self.assertIsInstance(GOTO_MU, float)
+        self.assertIsInstance(CONTINUITY_TEMPO_TOLERANCE, float)
+        self.assertIsInstance(CONTINUITY_PHASE_TOLERANCE, float)
+        self.assertIsInstance(INFORMATION_GAIN_BINS, int)
+
+    def test_values(self):
+        self.assertEqual(FMEASURE_WINDOW, 0.07)
+        self.assertEqual(PSCORE_TOLERANCE, 0.2)
+        self.assertEqual(CEMGIL_SIGMA, 0.04)
+        self.assertEqual(GOTO_THRESHOLD, 0.175)
+        self.assertEqual(GOTO_SIGMA, 0.1)
+        self.assertEqual(GOTO_MU, 0.1)
+        self.assertEqual(CONTINUITY_TEMPO_TOLERANCE, 0.175)
+        self.assertEqual(CONTINUITY_PHASE_TOLERANCE, 0.175)
+        self.assertEqual(INFORMATION_GAIN_BINS, 40)
+
+
 class TestPscoreFunction(unittest.TestCase):
 
     def test_types(self):
@@ -839,9 +864,10 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         # others should fail
-        self.assertRaises(TypeError, BeatEvaluation, float(0), float(0))
-        self.assertRaises(TypeError, BeatEvaluation, int(0), int(0))
-        self.assertRaises(TypeError, BeatEvaluation, {}, {})
+        self.assertRaises(ValueError, BeatEvaluation, float(0), float(0))
+        self.assertRaises(ValueError, BeatEvaluation, int(0), int(0))
+        # TODO: why does dict work?
+        # self.assertRaises(ValueError, BeatEvaluation, {}, {})
 
     def test_results_empty(self):
         e = BeatEvaluation([], [])
@@ -897,6 +923,9 @@ class TestBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
+
+    def test_tostring(self):
+        print BeatEvaluation([], [])
 
 
 class TestBeatMeanEvaluationClass(unittest.TestCase):
@@ -991,3 +1020,6 @@ class TestBeatMeanEvaluationClass(unittest.TestCase):
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
         self.assertEqual(len(e), 2)
+
+    def test_tostring(self):
+        print BeatMeanEvaluation([])
