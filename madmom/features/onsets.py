@@ -422,7 +422,6 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
     return np.sum(np.abs(rcd), axis=1)
 
 
-# TODO: split the classes similar to madmom.features.beats?
 class SpectralOnsetProcessor(Processor):
     """
     The SpectralOnsetProcessor class implements most of the common onset

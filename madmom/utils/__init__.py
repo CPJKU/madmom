@@ -82,7 +82,7 @@ def search_files(path, suffix=None):
     import glob
 
     # determine the files
-    if type(path) == list:
+    if isinstance(path, list):
         # a list of files or paths is given
         file_list = []
         # recursively call the function
@@ -305,7 +305,6 @@ class OverrideDefaultListAction(argparse.Action):
             cur_values.extend([self.list_type(v)
                                for v in value.split(self.sep)])
         except ValueError, e:
-            import argparse
             raise argparse.ArgumentError(self, e)
 
 

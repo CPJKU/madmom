@@ -107,6 +107,8 @@ class OutputProcessor(Processor):
         :return:       also return the processed data
 
         """
+        # pylint: disable=arguments-differ
+
         # also return the data
         return data
 
