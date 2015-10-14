@@ -779,4 +779,4 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
 
 
 # finally import the submodules
-from . import onsets, beats, notes, tempo, alignment
+from . import onsets, beats, notes, tempo
