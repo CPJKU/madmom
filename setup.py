@@ -13,6 +13,9 @@ from Cython.Distutils import build_ext
 import glob
 import numpy as np
 
+# define version
+version = '0.12'
+
 # define which extensions need to be compiled
 extensions = [Extension('madmom.ml.rnn',
                         ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
@@ -57,7 +60,7 @@ install_requires = ['numpy>=1.8.1',
 
 # the actual setup routine
 setup(name='madmom',
-      version='0.11',
+      version=version,
       description='Python audio signal processing library',
       long_description=open('README.rst').read(),
       author='Department of Computational Perception, Johannes Kepler '
