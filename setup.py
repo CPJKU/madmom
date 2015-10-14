@@ -32,7 +32,6 @@ extensions = [Extension('madmom.ml.rnn',
 
 # define scripts to be installed by the PyPI package
 scripts = glob.glob('bin/*')
-scripts.remove('bin/tools')
 
 # define the models to be included in the PyPI package
 package_data = ['models/LICENSE',
