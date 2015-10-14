@@ -1,6 +1,10 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
+This file contains audio handling via ffmpeg functionality.
+
 """
 
 import tempfile

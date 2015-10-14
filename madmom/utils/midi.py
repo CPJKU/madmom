@@ -1,5 +1,9 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+# pylint: disable=too-few-public-methods
+
 """
 This file contains MIDI functionality.
 
@@ -198,7 +202,7 @@ class AbstractEvent(object):
     register = False
 
     def __init__(self, **kwargs):
-        if type(self.length) == int:
+        if isinstance(self.length, int):
             data = [0] * self.length
         else:
             data = []
@@ -1038,8 +1042,8 @@ class MIDITrack(object):
             e_on.velocity = int(notes[note, 3])
             # and NoteOff
             e_off = NoteOffEvent()
-            e_off.tick = int((notes[note, 0] + notes[note, 2])
-                             * resolution * bps)
+            e_off.tick = int((notes[note, 0] + notes[note, 2]) *
+                             resolution * bps)
             e_off.pitch = int(notes[note, 1])
             events.append(e_on)
             events.append(e_off)
@@ -1191,14 +1195,16 @@ class MIDIFile(object):
             for e in note_events:
                 if tick > e.tick:
                     raise AssertionError('note events must be sorted!')
+
+                is_note_on = isinstance(e, NoteOnEvent)
+                is_note_off = isinstance(e, NoteOffEvent)
                 # if it's a note on event with a velocity > 0,
-                if isinstance(e, NoteOnEvent) and e.velocity > 0:
+                if is_note_on and e.velocity > 0:
                     # save the onset time and velocity
                     note_onsets[e.pitch] = e.tick
                     note_velocities[e.pitch] = e.velocity
                 # if it's a note off event or a note on with a velocity of 0,
-                elif isinstance(e, NoteOffEvent) or (isinstance(e, NoteOnEvent)
-                                                     and e.velocity == 0):
+                elif is_note_off or (is_note_on and e.velocity == 0):
                     # the old velocity must be greater 0
                     if note_velocities[e.pitch] <= 0:
                         raise AssertionError('note velocity must be positive')

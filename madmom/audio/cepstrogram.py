@@ -1,5 +1,8 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains all cepstrogram related functionality.
 
@@ -14,12 +17,15 @@ from .filters import MelFilterbank
 from .spectrogram import Spectrogram
 
 
-class Cepstrogram(PropertyMixin, np.ndarray):
+class Cepstrogram(np.ndarray, PropertyMixin):
     """
     The Cepstrogram class represents a transformed Spectrogram. This generic
     class applies some transformation (usually a DCT) on a spectrogram.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, transform=dct, **kwargs):
         """
@@ -100,6 +106,8 @@ class CepstrogramProcessor(Processor):
         :param transform: transform
 
         """
+        # pylint: disable=unused-argument
+
         self.transform = transform
 
     def process(self, data):
@@ -138,6 +146,9 @@ class MFCC(Cepstrogram):
     5) The MFCCs are the amplitudes of the resulting spectrum
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, transform=dct, filterbank=MelFilterbank,
                  num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
@@ -295,6 +306,8 @@ class MFCCProcessor(Processor):
         :param transform:    transformation to be applied on the spectrogram
 
         """
+        # pylint: disable=unused-argument
+
         self.num_bands = num_bands
         self.fmin = fmin
         self.fmax = fmax

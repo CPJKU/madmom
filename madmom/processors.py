@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains all processor related functionality.
 
@@ -394,16 +398,19 @@ class IOProcessor(OutputProcessor):
         return _process((self.out_processor, data, output))
 
 
-def process_single(processor, input, output, **kwargs):
+def process_single(processor, infile, outfile, **kwargs):
     """
     Process a single file with the given Processor.
 
     :param processor: pickled Processor
-    :param input:     input audio file
-    :param output:    output file
+    :param infile:    input file or file handle
+    :param outfile:   outfile file or file handle
+    :param kwargs:    additional keyword arguments will be ignored
 
     """
-    processor.process(input, output)
+    # pylint: disable=unused-argument
+
+    processor.process(infile, outfile)
 
 
 class ParallelProcess(mp.Process):
@@ -447,10 +454,13 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     :param output_suffix: output suffix
     :param strip_ext:     strip off the extension from the files [bool]
     :param num_workers:   number of parallel working threads [int]
+    :param kwargs:        additional keyword arguments will be ignored
 
     Note: Either `output_dir` or `output_suffix` must be set.
 
     """
+    # pylint: disable=unused-argument
+
     # either output_dir or output_suffix must be given
     if output_dir is None and output_suffix is None:
         raise ValueError('either output directory or suffix must be given')
@@ -497,8 +507,11 @@ def pickle_processor(processor, outfile, **kwargs):
 
     :param processor: the Processor
     :param outfile:   file where to pickle it
+    :param kwargs:    additional keyword arguments will be ignored
 
     """
+    # pylint: disable=unused-argument
+
     processor.dump(outfile)
 
 
@@ -523,9 +536,9 @@ def io_arguments(parser, output_suffix='.txt'):
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
-    sp.add_argument('input', type=argparse.FileType('r'),
+    sp.add_argument('infile', type=argparse.FileType('r'),
                     help='input audio file')
-    sp.add_argument('output', nargs='?',
+    sp.add_argument('outfile', nargs='?',
                     type=argparse.FileType('w'), default=sys.stdout,
                     help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),

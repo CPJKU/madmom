@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+Simple DataProcessor.
+
 """
 
 import argparse

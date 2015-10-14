@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This package includes higher level features. Your definition of "higher" may
 vary, but all "lower" level features can be found the `audio` package.
@@ -16,8 +20,10 @@ class Activations(np.ndarray):
     attribute.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=attribute-defined-outside-init
 
-    def __new__(cls, data, fps=None, sep=None, dtype=np.float32):
+    def __init__(self, data, fps=None, sep=None, dtype=np.float32):
         """
         Instantiate a new Activations object.
 
@@ -36,6 +42,10 @@ class Activations(np.ndarray):
               The activations are stored/saved/kept as np.float32.
 
         """
+        # this method exists only for argument documentation purposes
+        # the initialisation is done in __new__() and __array_finalize__()
+
+    def __new__(cls, data, fps=None, sep=None, dtype=np.float32):
         # check the type of the given data
         if isinstance(data, np.ndarray):
             # cast to Activations
@@ -144,8 +154,8 @@ class Activations(np.ndarray):
                    'fps': self.fps}
             np.savez(outfile, **npz)
         else:
-            if self.ndim >2:
-                raise ValueError('Only 1d and 2d activations can pre saved in '
+            if self.ndim > 2:
+                raise ValueError('Only 1D and 2D activations can be saved in '
                                  'human readable text format.')
             # simple text format
             header = "FPS:%f" % self.fps
@@ -172,6 +182,8 @@ class ActivationsProcessor(Processor):
               Only binary files can store the frame rate of the activations.
 
         """
+        # pylint: disable=unused-argument
+
         self.mode = mode
         self.fps = fps
         self.sep = sep
@@ -187,6 +199,8 @@ class ActivationsProcessor(Processor):
         :return:       Activations instance
 
         """
+        # pylint: disable=arguments-differ
+
         if self.mode in ('r', 'in', 'load'):
             return Activations.load(data, fps=self.fps, sep=self.sep)
         if self.mode in ('w', 'out', 'save'):

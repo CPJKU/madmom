@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 Utility package.
 
@@ -6,7 +10,6 @@ Utility package.
 
 import argparse
 import contextlib
-
 import numpy as np
 
 
@@ -116,7 +119,6 @@ def search_files(path, suffix=None):
     file_list.sort()
     # return the file list
     return file_list
-
 
 
 def strip_suffix(filename, suffix=None):

@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 Evaluation package.
 
@@ -643,6 +647,8 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
           evaluation object.
 
     """
+    # pylint: disable=unused-argument
+
     return '\n'.join([e.tostring() for e in eval_objects])
 
 
@@ -662,6 +668,8 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
           evaluation object.
 
     """
+    # pylint: disable=unused-argument
+
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES
@@ -693,6 +701,8 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
           evaluation object.
 
     """
+    # pylint: disable=unused-argument
+
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES

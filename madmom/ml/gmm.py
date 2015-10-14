@@ -1,5 +1,8 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains functionality needed for fitting and scoring Gaussian
 Mixture Models (GMMs) (needed e.g. in madmom.features.dbn).
@@ -135,10 +138,10 @@ def log_multivariate_normal_density(x, means, covars, covariance_type='diag'):
 def _log_multivariate_normal_density_diag(x, means, covars):
     """Compute Gaussian log-density at x for a diagonal model."""
     n_samples, n_dim = x.shape
-    lpr = -0.5 * (n_dim * np.log(2 * np.pi) + np.sum(np.log(covars), 1)
-                  + np.sum((means ** 2) / covars, 1)
-                  - 2 * np.dot(x, (means / covars).T)
-                  + np.dot(x ** 2, (1.0 / covars).T))
+    lpr = -0.5 * (n_dim * np.log(2 * np.pi) + np.sum(np.log(covars), 1) +
+                  np.sum((means ** 2) / covars, 1) -
+                  2 * np.dot(x, (means / covars).T) +
+                  np.dot(x ** 2, (1.0 / covars).T))
     return lpr
 
 

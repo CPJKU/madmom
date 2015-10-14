@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains all functionality needed for interaction with RNNLIB.
 
@@ -27,9 +31,10 @@ import subprocess
 import numpy as np
 
 from madmom.features import Activations
-from madmom.ml.rnn import (REVERSE, tanh, linear, sigmoid,
-                           RecurrentNeuralNetwork, FeedForwardLayer,
-                           RecurrentLayer, BidirectionalLayer, LSTMLayer)
+from madmom.ml.rnn import (REVERSE, tanh, FeedForwardLayer, RecurrentLayer,
+                           BidirectionalLayer, LSTMLayer,
+                           RecurrentNeuralNetwork)
+from madmom.utils import search_files, match_file
 
 # rnnlib binary, please see comment above
 RNNLIB = 'rnnlib'
@@ -41,6 +46,10 @@ class RnnlibActivations(np.ndarray):
     Class for reading in activations as written by RNNLIB.
 
     """
+    # pylint: disable=no-init
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __new__(cls, filename, fps=None):
         # default is only one label
@@ -76,8 +85,8 @@ class RnnlibActivations(np.ndarray):
         # cast to RnnlibActivations
         obj = np.asarray(activations.astype(np.float32)).view(cls)
         # set attributes
-        obj._labels = labels
-        obj._fps = fps
+        obj.labels = labels
+        obj.fps = fps
         # return the object
         return obj
 
@@ -85,18 +94,8 @@ class RnnlibActivations(np.ndarray):
         if obj is None:
             return
         # set default values here
-        self._labels = getattr(obj, '_labels', None)
-        self._fps = getattr(obj, '_fps', None)
-
-    @property
-    def labels(self):
-        """Labels for classes."""
-        return self._labels
-
-    @property
-    def fps(self):
-        """Frames per second."""
-        return self._fps
+        self.labels = getattr(obj, 'labels', None)
+        self.fps = getattr(obj, 'fps', None)
 
 
 # helper functions for .nc file creation
@@ -801,9 +800,9 @@ class RnnlibConfig(object):
         self.train_files = None
         self.val_files = None
         self.test_files = None
-        self.test = True
         self.layer_sizes = None
         self.layer_types = None
+        self.layer_transfer_fn = None
         self.bidirectional = False
         self.task = None
         self.learn_rate = None
@@ -955,14 +954,14 @@ class RnnlibConfig(object):
                         else:
                             # bias, weights and recurrent connections
                             if swap:
-                                w = w.reshape(4 * layer_size, 2,
-                                              -1)[:, ::-1, :].ravel()
+                                w = w.reshape(
+                                    4 * layer_size, 2, -1)[:, ::-1, :].ravel()
                             w = w.reshape(4 * layer_size, -1)
                     # "normal" units
                     else:
                         if swap:
-                            w = w.reshape(layer_size, 2,
-                                          -1)[:, ::-1, :].ravel()
+                            w = w.reshape(
+                                layer_size, 2, -1)[:, ::-1, :].ravel()
                         w = w.reshape(layer_size, -1).T
                     # save the weights
                     self.w[name] = w
@@ -1008,11 +1007,7 @@ class RnnlibConfig(object):
         if len(self.val_files) > 0:
             f.write('valFile %s\n' % ",".join(self.val_files))
         if len(self.test_files) > 0:
-            if self.test:
-                f.write('testFile %s\n' % ",".join(self.test_files))
-            else:
-                # comment the test files so they are not tested during training
-                f.write('#testFile %s\n' % ",".join(self.test_files))
+            f.write('testFile %s\n' % ",".join(self.test_files))
         f.close()
 
     def test(self, out_dir=None, file_set='test', threads=THREADS,
@@ -1087,7 +1082,6 @@ class RnnlibConfig(object):
 
         """
         import h5py
-        from .rnn import REVERSE
         # check if weights are present
         if not self.w:
             raise ValueError('please load a configuration file first')
@@ -1145,6 +1139,7 @@ class RnnlibConfig(object):
         w = self.w
         # create layers
         layers = []
+        i = 0
         for i, layer_type in enumerate(self.layer_types[:-1]):
             if layer_type == 'lstm':
                 # LSTM units
@@ -1285,7 +1280,6 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
                           of validation error
 
     """
-    from madmom.utils import search_files
     # filter the files to include only .nc files
     files = search_files(files, '.nc')
     # common output filename
@@ -1305,11 +1299,10 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
         random.shuffle(files)
     # splits into N parts
     folds = []
-    for n in range(num_folds):
+    for _ in range(num_folds):
         folds.append([])
     if isinstance(splits, list):
         # we got a list of splits folders
-        from madmom.utils import search_files, match_file
         for split in splits:
             fold_files = search_files(split, '.fold')
             if len(fold_files) != num_folds:
@@ -1322,7 +1315,7 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
                         try:
                             folds[fold].append(str(nc_file[0]))
                         except IndexError:
-                            print("can't find .nc file for file: %s" % line)
+                            print "can't find .nc file for file: %s" % line
     else:
         # use a standard splits
         for fold in range(num_folds):
@@ -1440,8 +1433,7 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
         LogarithmicFilteredSpectrogramProcessor, StackedSpectrogramProcessor,
         SpectrogramDifferenceProcessor)
 
-    from madmom.utils import (search_files, match_file, load_events,
-                              quantize_events)
+    from madmom.utils import load_events, quantize_events
 
     # define processing chain
     sig = SignalProcessor(num_channels=1, norm=norm, att=att)

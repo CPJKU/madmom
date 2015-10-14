@@ -1,4 +1,5 @@
 # encoding: utf-8
+
 """
 This file contains Hidden Markov Model (HMM) functionality.
 

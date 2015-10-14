@@ -1,5 +1,8 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains chroma related functionality.
 
@@ -44,6 +47,9 @@ class PitchClassProfile(FilteredSpectrogram):
     Beijing, China
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
                  fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
@@ -110,6 +116,9 @@ class HarmonicPitchClassProfile(PitchClassProfile):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
                  fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,

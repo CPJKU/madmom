@@ -1,5 +1,8 @@
-#!/usr/bin/env python
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains tempo evaluation functionality.
 
@@ -189,6 +192,8 @@ class TempoEvaluation(EvaluationABC):
               on the `sort` this can be either the first or the strongest one.
 
         """
+        # pylint: disable=unused-argument
+
         # load the tempo detections and annotations
         detections = load_tempo(detections, sort=sort, max_len=max_len)
         annotations = load_tempo(annotations, sort=sort, max_len=max_len)
@@ -229,6 +234,8 @@ class TempoEvaluation(EvaluationABC):
         :return:       evaluation metrics formatted as a human readable string
 
         """
+        # pylint: disable=unused-argument
+
         ret = ''
         if self.name is not None:
             ret += '%s\n  ' % self.name

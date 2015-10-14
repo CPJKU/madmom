@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+PickleProcessor.
+
 """
 
 import cPickle
@@ -10,7 +12,7 @@ from madmom.processors import io_arguments
 
 
 def main():
-    """Generic Pickle Processor."""
+    """PickleProcessor."""
     # define parser
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
