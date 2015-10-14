@@ -2,16 +2,9 @@
 """
 Evaluation package.
 
-All evaluation methods of this package can be used as scripts directly, if the
-package is in $PYTHONPATH.
-
-Example:
-
-python -m madmom.evaluation.onsets /dir/to/be/evaluated
-
 """
+
 import abc
-import re
 import numpy as np
 
 
@@ -168,7 +161,7 @@ class EvaluationABC(object):
     METRIC_NAMES = []
     FLOAT_FORMAT = '{:.3f}'
 
-    @ property
+    @property
     def metrics(self):
         """Metrics as a dictionary."""
         # TODO: use an ordered dict?
@@ -474,7 +467,7 @@ class MultiClassEvaluation(Evaluation):
                 ret += '  %s\n' % e.tostring(verbose=False)
         # normal formatting
         ret += 'Annotations: %5d TP: %5d FP: %4d FN: %4d ' \
-               'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f%' % \
+               'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
                (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
                 self.precision, self.recall, self.fmeasure, self.accuracy)
         # return
@@ -552,7 +545,7 @@ class MeanEvaluation(SumEvaluation):
 
         """
         super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
-        # handle the 'name' here to be able to prvide a different default value
+        # handle the 'name' here to be able to set a different default value
         self.name = name or 'mean for %d files' % len(self)
 
     # overwrite the properties to calculate the mean instead of the sum
@@ -658,6 +651,7 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}'):
     :param metric_names: list of tuples defining the name of the property
                          corresponding to the metric, and the metric label
                          e.g. ('fp', 'False Positives')
+    :param float_format: how to format the metrics
     :return:             CSV table representation of the evaluation objects
 
     Note: If no `metric_names` are given, they will be extracted from the first
@@ -687,6 +681,7 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}'):
     :param metric_names: list of tuples defining the name of the property
                          corresponding to the metric, and the metric label
                          e.g. ('fp', 'False Positives')
+    :param float_format: how to format the metrics
     :return:             LaTeX table representation of the evaluation objects
 
     Note: If no `metric_names` are given, they will be extracted from the first
