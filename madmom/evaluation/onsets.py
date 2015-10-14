@@ -189,7 +189,7 @@ class OnsetEvaluation(Evaluation):
                                                   window)
         # instantiate a Evaluation object
         super(OnsetEvaluation, self).__init__(tp, fp, tn, fn, **kwargs)
-        # add th errors
+        # add the errors
         self.errors = errors
 
     @property

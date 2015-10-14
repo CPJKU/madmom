@@ -206,20 +206,20 @@ class NoteEvaluation(MultiClassEvaluation):
             return np.nan
         return np.std(self.errors[:, 0])
 
-    def tostring(self, verbose=False, **kwargs):
+    def tostring(self, notes=False, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param verbose: detailed output for all individual notes [bool]
-        :param kwargs:  additional arguments will be ignored
-        :return:        evaluation metrics formatted as a human readable string
+        :param notes:  detailed output for all individual notes [bool]
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
 
         """
         ret = ''
         if self.name is not None:
             ret += '%s\n  ' % self.name
         # add statistics for the individual note
-        if verbose:
+        if notes:
             # determine which notes are present
             notes = []
             if self.tp.any():
@@ -238,7 +238,7 @@ class NoteEvaluation(MultiClassEvaluation):
                 name = 'MIDI note %s' % note
                 e = OnsetEvaluation(det, ann, self.window, name=name)
                 # append to the output string
-                ret += '  %s\n' % e.tostring(verbose=False)
+                ret += '  %s\n' % e.tostring(notes=False)
         # normal formatting
         ret += 'Notes: %5d TP: %5d FP: %4d FN: %4d ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f ' \

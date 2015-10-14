@@ -117,7 +117,7 @@ def main():
     out_list.append(args.mean_eval(eval_objects))
 
     # output everything
-    print args.output_formatter(out_list)
+    args.outfile.write(args.output_formatter(out_list, **vars(args)) + '\n')
 
 
 if __name__ == '__main__':

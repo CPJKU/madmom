@@ -223,7 +223,7 @@ class SimpleEvaluation(EvaluationABC):
         :param num_fp: number of false positive detections
         :param num_tn: number of true negative detections
         :param num_fn: number of false negative detections
-        :param name:   name of the evaluation to be displayed
+        :param name:   name to be displayed
         :param kwargs: additional arguments will be ignored
 
         """
@@ -434,11 +434,12 @@ class MultiClassEvaluation(Evaluation):
         self.tn = np.asarray(tn, dtype=np.float)
         self.fn = np.asarray(fn, dtype=np.float)
 
-    def tostring(self, verbose=False):
+    def tostring(self, verbose=False, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
 
         :param verbose: add evaluation for individual classes
+        :param kwargs:  additional arguments will be ignored
         :return:        evaluation metrics formatted as a human readable string
 
         """
@@ -486,7 +487,7 @@ class SumEvaluation(SimpleEvaluation):
         Creates a new SumEvaluation instance.
 
         :param eval_objects: list of evaluation objects
-        :param name:
+        :param name:         name to be displayed
 
         """
         # Note: we want to inherit the evaluation functions/properties, no need
@@ -541,7 +542,7 @@ class MeanEvaluation(SumEvaluation):
         Creates a new MeanEvaluation instance.
 
         :param eval_objects: list of evaluation objects.
-        :param name:
+        :param name:         name to be displayed
 
         """
         super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
@@ -605,11 +606,12 @@ class MeanEvaluation(SumEvaluation):
         """Accuracy."""
         return np.nanmean([e.accuracy for e in self.eval_objects])
 
-    def tostring(self):
+    def tostring(self, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
 
-        :return: evaluation metrics formatted as a human readable string
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
 
         """
         ret = ''
@@ -625,7 +627,7 @@ class MeanEvaluation(SumEvaluation):
         return ret
 
 
-def tostring(eval_objects, metric_names=None, float_format='{:.3f}'):
+def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as human readable strings.
 
@@ -634,6 +636,7 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}'):
                          corresponding to the metric, and the metric label
                          e.g. ('fp', 'False Positives')
     :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
     :return:             human readable output of the evaluation objects
 
     Note: If no `metric_names` are given, they will be extracted from the first
@@ -643,7 +646,7 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}'):
     return '\n'.join([e.tostring() for e in eval_objects])
 
 
-def tocsv(eval_objects, metric_names=None, float_format='{:.3f}'):
+def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as a CSV table.
 
@@ -652,6 +655,7 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}'):
                          corresponding to the metric, and the metric label
                          e.g. ('fp', 'False Positives')
     :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
     :return:             CSV table representation of the evaluation objects
 
     Note: If no `metric_names` are given, they will be extracted from the first
@@ -673,7 +677,7 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}'):
     return '\n'.join(lines)
 
 
-def totex(eval_objects, metric_names=None, float_format='{:.3f}'):
+def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as a LaTeX table.
 
@@ -682,10 +686,12 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}'):
                          corresponding to the metric, and the metric label
                          e.g. ('fp', 'False Positives')
     :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
     :return:             LaTeX table representation of the evaluation objects
 
     Note: If no `metric_names` are given, they will be extracted from the first
           evaluation object.
+
     """
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
@@ -706,20 +712,26 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}'):
 
 def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
-    Add evaluation input/output related arguments to an existing parser object.
+    Add evaluation input/output and formatting related arguments to an existing
+    parser object.
 
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
     :param det_suffix: suffix for the detection files
     :param ann_dir:    use only annotations from this folder (+ sub-folders)
     :param det_dir:    use only detections from this folder (+ sub-folders)
-    :return:           evaluation output formatter argument group
+    :return:           evaluation input/output and formatter argument groups
 
     """
+    import sys
+    import argparse
+    # general input output file handling
     parser.add_argument('files', nargs='*',
                         help='files (or folders) to be evaluated')
-    # parser.add_argument('-o', STDOUT)
-    # suffixes used for evaluation
+    parser.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
+                        default=sys.stdout,
+                        help='output file [default: STDOUT]')
+    # file suffixes used for evaluation
     g = parser.add_argument_group('file/folder/suffix arguments')
     g.add_argument('-a', dest='ann_suffix', action='store', default=ann_suffix,
                    help='suffix of the annotation files '
@@ -743,9 +755,9 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='suppress any warnings')
     # output format options
-    g = parser.add_argument_group('formatting arguments')
     parser.set_defaults(output_formatter=tostring)
-    formats = g.add_mutually_exclusive_group()
+    f = parser.add_argument_group('formatting arguments')
+    formats = f.add_mutually_exclusive_group()
     formats.add_argument('--tex', dest='output_formatter',
                          action='store_const', const=totex,
                          help='format output to be used in .tex files')
@@ -753,7 +765,7 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
                          action='store_const', const=tocsv,
                          help='format output to be used in .csv files')
     # return the output formatting group so the caller can add more options
-    return g
+    return g, f
 
 
 # finally import the submodules

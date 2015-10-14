@@ -24,6 +24,7 @@ HISTOGRAM_BINS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.]
 class AlignmentFormatError(Exception):
     """
     Exception to be raised whenever an incorrect alignment format is given
+
     """
 
     def __init__(self, value=None):
@@ -42,6 +43,7 @@ def load_alignment(values):
 
     :param values: name of the file, file handle, list of numpy array
     :return:       2D numpy array time and score position columns
+
     """
     if values is None:
         # return 'empty' alignment
@@ -105,6 +107,7 @@ def compute_event_alignment(alignment, ground_truth):
 def _attr_name(histogram_bin):
     """
     :return: attribute name for the histogram_bin
+
     """
     return 'below_{:.2f}'.format(histogram_bin).replace('.', '_')
 
@@ -112,6 +115,7 @@ def _attr_name(histogram_bin):
 def _label(histogram_bin):
     """
     :return: label for the histogram_bin
+
     """
     return '<{:.2f}'.format(histogram_bin)
 
@@ -147,6 +151,7 @@ def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
     :return:                dictionary containing (some) of the metrics
                             described in the paper mentioned above and the
                             error histogram
+
     """
     abs_error = np.abs(event_alignment[:, _TIME] - ground_truth[:, _TIME])
     missed = np.isnan(abs_error)
@@ -195,10 +200,10 @@ def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
 
 class AlignmentEvaluation(EvaluationABC):
     """
-    Alignment evaluation class for beat-level alignments.
-    Beat-level aligners output beat positions for points in time,
-    rather than computing a time step for each individual event in the
-    score. The following metrics are available:
+    Alignment evaluation class for beat-level alignments. Beat-level aligners
+    output beat positions for points in time, rather than computing a time step
+    for each individual event in the score. The following metrics are
+    available:
 
     miss_rate:
         Percentage of missed events (events that exist in the reference score,
@@ -227,6 +232,7 @@ class AlignmentEvaluation(EvaluationABC):
     below_{x}_{yy}:
         Percentage of events that are aligned with an
         error smaller than x.yy seconds
+
     """
 
     HISTOGRAM_METRICS = [(_attr_name(hb), _label(hb)) for hb in HISTOGRAM_BINS]
@@ -259,7 +265,7 @@ class AlignmentEvaluation(EvaluationABC):
                               apart than this value will be considered as
                               errors.
         :param name:          name of the evaluation to be displayed
-        :param kwargs:        additional arguments, currently not used
+        :param kwargs:        additional arguments will be ignored
 
         """
 
@@ -288,14 +294,15 @@ class AlignmentEvaluation(EvaluationABC):
     def __len__(self):
         """
         :return: number of ground truth events
+
         """
         return self._length
 
-    def tostring(self, histogram=True, **kwargs):
+    def tostring(self, histogram=False, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param histogram: also output the error histogram
+        :param histogram: also output the error histogram [bool]
         :param kwargs:    additional arguments will be ignored
         :return:          evaluation metrics formatted as a human readable
                           string
@@ -310,78 +317,93 @@ class AlignmentEvaluation(EvaluationABC):
                (self.misalign_rate, self.miss_rate, self.piece_completion,
                 self.avg_imprecision, self.stddev_imprecision, self.avg_error,
                 self.stddev_error)
-
+        # also output the histogram
         if histogram:
             ret += '\n  '
             for attr_name, lbl in self.HISTOGRAM_METRICS:
                 ret += '{}: {:.2f}  '.format(lbl, getattr(self, attr_name))
-
+        # return everything
         return ret
 
 
-def combine_metrics(evals, piecewise):
+def _combine_metrics(eval_objects, piecewise):
+    """
+    Combine the metrics of the given evaluation objects.
+
+    :param eval_objects: evaluation objects
+    :param piecewise:    if 'True' all evaluation objects are weighted the same
+                         if 'False' the evaluation objects are weighted by the
+                         number of their events
+    :return:             combined metrics
+
+    """
+    if len(eval_objects) == 0:
+        raise AssertionError('cannot handle empty eval_objects list yet')
     metrics = {}
-    total_weight = len(evals) if piecewise else sum(len(e) for e in evals)
-    for e in evals:
+    if piecewise:
+        total_weight = len(eval_objects)
+    else:
+        total_weight = sum(len(e) for e in eval_objects)
+    for e in eval_objects:
         for name, val in e.metrics.iteritems():
             if isinstance(val, np.ndarray) or not np.isnan(val):
                 weight = 1.0 if piecewise else float(len(e))
                 metrics[name] = \
                     metrics.get(name, 0.) + (weight / total_weight) * val
-
+    # return combined metrics
     return metrics
 
 
 class AlignmentSumEvaluation(AlignmentEvaluation):
     """
-    Class for averaging alignment evaluation scores, considering the
-    lengths of the aligned pieces.
+    Class for averaging alignment evaluation scores, considering the lengths
+    of the aligned pieces. For a detailed description of the available metrics,
+    refer to AlignmentEvaluation.
 
-    For a detailed description of the available metrics, refer to
-    AlignmentEvaluation.
     """
 
     def __init__(self, eval_objects, name=None):
-        assert len(eval_objects) > 0, \
-            'AlignmentSumEvaluation cannot handle empty lists yet'
+        """
+        Creates a new MeanEvaluation instance.
 
+        :param eval_objects: list of evaluation objects.
+        :param name:         name to be displayed
+
+        """
         self.name = name or 'piecewise mean for %d files' % len(eval_objects)
         self.window = eval_objects[0].window
         self._length = sum(len(e) for e in eval_objects)
 
-        metrics = combine_metrics(eval_objects, piecewise=False)
+        metrics = _combine_metrics(eval_objects, piecewise=False)
         for attr_name, _ in self.METRIC_NAMES:
             setattr(self, attr_name, metrics[attr_name])
 
 
 class AlignmentMeanEvaluation(AlignmentEvaluation):
     """
-    Class for averaging alignment evaluation scores,
-    averaging piece-wise (i.e. ignoring the lengths of the pieces)
+    Class for averaging alignment evaluation scores, averaging piecewise (i.e.
+    ignoring the lengths of the pieces). For a detailed description of the
+    available metrics, refer to AlignmentEvaluation.
 
-    For a detailed description of the available metrics, refer to
-    AlignmentEvaluation.
     """
 
     def __init__(self, eval_objects, name=None):
-
-        assert len(eval_objects) > 0, \
-            'AlignmentMeanEvaluation cannot handle empty lists yet'
-
-        self.name = name or 'piecewise mean for %d files' % len(eval_objects)
+        self.name = name or 'mean for %d files' % len(eval_objects)
         self.window = eval_objects[0].window
         self._length = len(eval_objects)
 
-        metrics = combine_metrics(eval_objects, piecewise=True)
+        metrics = _combine_metrics(eval_objects, piecewise=True)
         for attr_name, _ in self.METRIC_NAMES:
             setattr(self, attr_name, metrics[attr_name])
 
 
 def add_parser(parser):
     """
-    Create a parser and parse the arguments.
+    Add an alignment evaluation sub-parser to an existing parser.
 
-    :return: the parsed arguments
+    :param parser: existing argparse parser
+    :return:       alignment evaluation sub-parser and evaluation parameter
+                   group
 
     """
     import argparse
@@ -392,8 +414,8 @@ def add_parser(parser):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='''
     This script evaluates pairs of files containing the true and computed
-    alignments of audio files. Suffixes can be given to filter them
-    from the list of files.
+    alignments of audio files. Suffixes can be given to filter them from the
+    list of files.
 
     Each line represents an alignment point and must have the following format
     with values being separated by whitespace:
@@ -410,14 +432,17 @@ def add_parser(parser):
                    mean_eval=AlignmentMeanEvaluation)
 
     # files used for evaluation
-    out_opts = evaluation_io(p, ann_suffix='.alignment',
-                             det_suffix='.alignment.txt')
+    _, f = evaluation_io(p, ann_suffix='.alignment',
+                         det_suffix='.alignment.txt')
 
     # evaluation parameters
     g = p.add_argument_group('alignment evaluation arguments')
-
     g.add_argument('--window', type=float, default=WINDOW,
-                   help='Tolerance window for misaligned notes '
+                   help='tolerance window for misaligned notes '
                         '[seconds, default: %(default)s]')
 
+    # add histogram option to formatting group
+    f.add_argument('--histogram', action='store_true',
+                   help='also output the error histogram')
+    # return the sub-parser and evaluation argument group
     return p, g
