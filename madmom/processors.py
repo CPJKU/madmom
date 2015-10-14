@@ -516,12 +516,13 @@ def pickle_processor(processor, outfile, **kwargs):
 
 
 # generic input/output arguments for scripts
-def io_arguments(parser, output_suffix='.txt'):
+def io_arguments(parser, output_suffix='.txt', pickle=True):
     """
     Add input / output related arguments to an existing parser.
 
     :param parser:        existing argparse parser
     :param output_suffix: suffix appended to the output files
+    :param pickle:        add 'pickle' subparser [bool]
 
     """
     # add general options
@@ -529,25 +530,30 @@ def io_arguments(parser, output_suffix='.txt'):
                         help='increase verbosity level')
     # add subparsers
     sub_parsers = parser.add_subparsers(title='processing options')
-    # pickle processor options
-    sp = sub_parsers.add_parser('pickle', help='pickle processor')
-    sp.set_defaults(func=pickle_processor)
-    sp.add_argument('outfile', type=str, help='file to pickle the processor')
+    if pickle:
+        # pickle processor options
+        sp = sub_parsers.add_parser('pickle', help='pickle processor')
+        sp.set_defaults(func=pickle_processor)
+        # Note: requiring '-o' is a simple safety measure to not overwrite
+        #       existing audio files after using the processor in 'batch' mode
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
+                        help='file to pickle the processor to')
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
     sp.add_argument('infile', type=argparse.FileType('r'),
                     help='input audio file')
-    sp.add_argument('outfile', nargs='?',
-                    type=argparse.FileType('w'), default=sys.stdout,
-                    help='output file [default: STDOUT]')
+    # Note: requiring '-o' is a simple safety measure to not overwrite existing
+    #       audio files after using the processor in 'batch' mode
+    sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
+                    default=sys.stdout, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
     sp.set_defaults(func=process_batch)
     sp.add_argument('files', nargs='+', help='files to be processed')
-    sp.add_argument('-o', dest='output_dir', default=None,
+    sp.add_argument('--out', dest='output_dir', default=None,
                     help='output directory [default=%(default)s]')
     sp.add_argument('-s', dest='output_suffix', default=output_suffix,
                     help='suffix appended to the files (dot must be included '
