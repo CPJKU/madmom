@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains basic signal processing functionality.
 
@@ -213,9 +217,9 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     file_sample_rate, signal = wavfile.read(filename, mmap=True)
     # if the sample rate is not the desired one, raise exception
     if sample_rate is not None and sample_rate != file_sample_rate:
-        raise NotImplementedError("Requested sample rate of %f Hz, but got %f "
-                                  "Hz and resampling is not implemented." %
-                                  (sample_rate, file_sample_rate))
+        raise ValueError('Requested sample rate of %f Hz, but got %f Hz and '
+                         'resampling is not implemented.' %
+                         (sample_rate, file_sample_rate))
     # only request the desired part of the signal
     if start is not None:
         start = int(start * file_sample_rate)
@@ -311,33 +315,41 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     :return:             tuple (signal, sample_rate)
 
     """
+    from subprocess import CalledProcessError
+
     # determine the name of the file if it is a file handle
     if isinstance(filename, file):
         # close the file handle if it is open
         filename.close()
         # use the file name
         filename = filename.name
-    # try reading as a wave file, ffmpeg or avconv (in this order)
+    # try reading as a wave file
+    error = "All attempts to load audio file %r failed." % filename
     try:
         return load_wave_file(filename, sample_rate=sample_rate,
                               num_channels=num_channels, start=start,
                               stop=stop)
-    except Exception:
+    except ValueError:
         pass
+    # not a wave file (or other sample rate requested), try ffmpeg
     try:
         return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                 num_channels=num_channels, start=start,
                                 stop=stop)
-    except Exception:
+    except OSError:
+        # ffmpeg is not present, try avconv
+        try:
+            return load_ffmpeg_file(filename, sample_rate=sample_rate,
+                                    num_channels=num_channels, start=start,
+                                    stop=stop, cmd_decode='avconv',
+                                    cmd_probe='avprobe')
+        except OSError:
+            error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."
+        except CalledProcessError:
+            pass
+    except CalledProcessError:
         pass
-    try:
-        return load_ffmpeg_file(filename, sample_rate=sample_rate,
-                                num_channels=num_channels, start=start,
-                                stop=stop, cmd_decode='avconv',
-                                cmd_probe='avprobe')
-    except Exception:
-        pass
-    raise RuntimeError("All attempts to load audio file %r failed." % filename)
+    raise RuntimeError(error)
 
 
 # signal classes
@@ -347,6 +359,9 @@ class Signal(np.ndarray):
     attributes.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, sample_rate=None, num_channels=None, start=None,
                  stop=None):
@@ -466,6 +481,8 @@ class SignalProcessor(Processor):
               audio file are returned.
 
         """
+        # pylint: disable=unused-argument
+
         self.sample_rate = sample_rate
         self.num_channels = num_channels
         self.norm = norm
@@ -480,10 +497,12 @@ class SignalProcessor(Processor):
         :param data:   file name or handle
         :param start:  start position (seconds) [float]
         :param stop:   stop position (seconds) [float]
-        :param kwargs: keyword arguments passed to Signal
+        :param kwargs: additional keywords will be ignored
         :return:       Signal instance with processed signal
 
         """
+        # pylint: disable=unused-argument
+
         # overwrite the default start & stop time
         if start is None:
             start = self.start
@@ -847,6 +866,8 @@ class FramedSignalProcessor(Processor):
                       with the signal
 
         """
+        # pylint: disable=unused-argument
+
         self.frame_size = frame_size
         self.hop_size = hop_size
         self.fps = fps  # do not convert here, pass it to FramedSignal

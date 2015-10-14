@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This software serves as a Python implementation of the beat evaluation toolkit,
 which can be downloaded from:

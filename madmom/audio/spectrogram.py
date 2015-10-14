@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains spectrogram related functionality.
 
@@ -118,6 +122,9 @@ class Spectrogram(PropertyMixin, np.ndarray):
     Spectrogram class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, stft, **kwargs):
         """
@@ -202,6 +209,9 @@ class Spectrogram(PropertyMixin, np.ndarray):
         Determines the tuning frequency of the audio signal based on peaks
         of the spectrogram.
 
+        :param kwargs: keyword arguments passed to tuning_frequency()
+        :return:       tuning frequency of the spectrogram
+
         """
         from scipy.ndimage.filters import maximum_filter
         # widen the spectrogram in frequency dimension
@@ -247,6 +257,10 @@ class FilteredSpectrogram(Spectrogram):
     FilteredSpectrogram class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     # we just want to inherit some properties from Spectrogram
 
     def __init__(self, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
@@ -292,6 +306,8 @@ class FilteredSpectrogram(Spectrogram):
     def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+        # pylint: disable=unused-argument
+
         import inspect
         from .filters import Filterbank
 
@@ -396,6 +412,8 @@ class FilteredSpectrogramProcessor(Processor):
                                at low frequencies [bool]
 
         """
+        # pylint: disable=unused-argument
+
         self.filterbank = filterbank
         self.num_bands = num_bands
         self.fmin = fmin
@@ -517,6 +535,10 @@ class LogarithmicSpectrogram(Spectrogram):
     LogarithmicSpectrogram class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     # we just want to inherit some properties from Spectrogram
 
     def __init__(self, spectrogram, mul=MUL, add=ADD, **kwargs):
@@ -608,6 +630,8 @@ class LogarithmicSpectrogramProcessor(Processor):
                     magnitudes [float]
 
         """
+        # pylint: disable=unused-argument
+
         self.mul = mul
         self.add = add
 
@@ -670,6 +694,9 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
     LogarithmicFilteredSpectrogram class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, **kwargs):
         """
@@ -753,6 +780,8 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
                                the magnitudes [float]
 
         """
+        # pylint: disable=unused-argument
+
         self.filterbank = filterbank
         self.num_bands = num_bands
         self.fmin = fmin
@@ -793,6 +822,10 @@ class SpectrogramDifference(Spectrogram):
     SpectrogramDifference class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     # we just want to inherit some properties from Spectrogram
 
     def __init__(self, spectrogram, diff_ratio=DIFF_RATIO,
@@ -944,6 +977,8 @@ class SpectrogramDifferenceProcessor(Processor):
                                diff values < 0 to 0
 
         """
+        # pylint: disable=unused-argument
+
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
@@ -1080,6 +1115,9 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     MultiBandSpectrogram class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
                  **kwargs):
@@ -1144,7 +1182,7 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         # needed for correct pickling
         # source: http://stackoverflow.com/questions/26598109/
         # get the parent's __reduce__ tuple
-        pickled_state = super(FilteredSpectrogram, self).__reduce__()
+        pickled_state = super(MultiBandSpectrogram, self).__reduce__()
         # create our own tuple to pass to __setstate__
         new_state = pickled_state[2] + (self.filterbank,
                                         self.crossover_frequencies,
@@ -1159,7 +1197,7 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         self.crossover_frequencies = state[-2]
         self.norm_bands = state[-1]
         # call the parent's __setstate__ with the other tuple elements
-        super(FilteredSpectrogram, self).__setstate__(state[0:-3])
+        super(MultiBandSpectrogram, self).__setstate__(state[0:-3])
 
     @property
     def bin_frequencies(self):
@@ -1183,6 +1221,8 @@ class MultiBandSpectrogramProcessor(Processor):
         :param norm_bands:            normalize the bands [bool]
 
         """
+        # pylint: disable=unused-argument
+
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
 
@@ -1244,6 +1284,7 @@ class StackedSpectrogramProcessor(ParallelProcessor):
     dimension.
 
     """
+
     # Note: `frame_size` is used instead of the more meaningful `frame_sizes`,
     #       this way the existing argument from `FramedSignal` can be reused
     def __init__(self, frame_size, spectrogram, difference=None,
@@ -1328,6 +1369,8 @@ class StackedSpectrogramProcessor(ParallelProcessor):
 
 
         """
+        # pylint: disable=arguments-differ
+
         # add diff related options to the existing parser
         g = parser.add_argument_group('stacking arguments')
         # stacking axis

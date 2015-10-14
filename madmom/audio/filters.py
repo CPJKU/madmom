@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains filter and filterbank related functionality.
 
@@ -283,6 +287,9 @@ class Filter(np.ndarray):
     Generic filter class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, start=0, norm=False):
         """
@@ -373,6 +380,10 @@ class TriangularFilter(Filter):
     Triangular filter class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     def __init__(self, start, center, stop, norm=False):
         """
         Creates a new TriangularFilter instance.
@@ -389,6 +400,8 @@ class TriangularFilter(Filter):
         # the initialisation is done in __new__() and __array_finalize__()
 
     def __new__(cls, start, center, stop, norm=False):
+        # pylint: disable=arguments-differ
+
         # center must be between start & stop
         if not start <= center < stop:
             raise ValueError('center must be between start and stop')
@@ -436,6 +449,8 @@ class TriangularFilter(Filter):
               applies.
 
         """
+        # pylint: disable=arguments-differ
+
         # make sure enough bins are given
         if len(bins) < 3:
             raise ValueError('not enough bins to create a TriangularFilter')
@@ -464,6 +479,9 @@ class RectangularFilter(Filter):
     Rectangular filter class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, start, stop, norm=False):
         """
@@ -480,6 +498,8 @@ class RectangularFilter(Filter):
         # the initialisation is done in __new__() and __array_finalize__()
 
     def __new__(cls, start, stop, norm=False):
+        # pylint: disable=signature-differs
+
         # start must be smaller than stop
         if start >= stop:
             raise ValueError('start must be smaller than stop')
@@ -501,6 +521,8 @@ class RectangularFilter(Filter):
         :return:        start and stop bins
 
         """
+        # pylint: disable=arguments-differ
+
         # make sure enough bins are given
         if len(bins) < 2:
             raise ValueError('not enough bins to create a RectangularFilter')
@@ -537,6 +559,10 @@ class Filterbank(np.ndarray):
     num_bands).
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     fref = None
 
     def __init__(self, data, bin_frequencies):
@@ -645,7 +671,7 @@ class Filterbank(np.ndarray):
             band = fb[:, band_id]
             # if there's a list of filters for the current band, put them all
             # into this band
-            if type(band_filter) is list:
+            if isinstance(band_filter, list):
                 for filt in band_filter:
                     cls._put_filter(filt, band)
             # otherwise put this filter into that band
@@ -724,6 +750,10 @@ class MelFilterbank(Filterbank):
     Mel filterbank class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     NUM_BANDS = 40
     FMIN = 20.
     FMAX = 17000.
@@ -756,6 +786,8 @@ class MelFilterbank(Filterbank):
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, **kwargs):
+        # pylint: disable=unused-argument
+
         # get a list of frequencies aligned on the Mel scale
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(num_bands + 2, fmin, fmax)
@@ -774,6 +806,10 @@ class BarkFilterbank(Filterbank):
     Bark filterbank class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     FMIN = 20.
     FMAX = 15500.
     NUM_BANDS = 'normal'
@@ -802,6 +838,8 @@ class BarkFilterbank(Filterbank):
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, **kwargs):
+        # pylint: disable=unused-argument
+
         # get a list of frequencies
         if num_bands == 'normal':
             frequencies = bark_frequencies(fmin, fmax)
@@ -824,6 +862,10 @@ class LogarithmicFilterbank(Filterbank):
     Logarithmic filterbank class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     NUM_BANDS_PER_OCTAVE = 12
 
     def __init__(self, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
@@ -859,6 +901,8 @@ class LogarithmicFilterbank(Filterbank):
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
+        # pylint: disable=arguments-differ
+
         # decide whether num_bands is bands per octave or total number of bands
         if bands_per_octave:
             num_bands_per_octave = num_bands
@@ -916,6 +960,9 @@ class RectangularFilterbank(Filterbank):
     Rectangular filterbank class.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, bin_frequencies, crossover_frequencies, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
@@ -941,6 +988,8 @@ class RectangularFilterbank(Filterbank):
     def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS):
+        # pylint: disable=arguments-differ
+
         # create an empty filterbank
         fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
                       dtype=FILTER_DTYPE)
@@ -986,6 +1035,10 @@ class SimpleChromaFilterbank(Filterbank):
     A simple chroma filterbank based on a (semitone) filterbank.
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     NUM_BANDS = 12
 
     def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
@@ -1010,6 +1063,8 @@ class SimpleChromaFilterbank(Filterbank):
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS):
+        # pylint: disable=arguments-differ
+
         raise NotImplementedError("please check if produces correct/expected "
                                   "results and enable if yes.")
         # TODO: add comments!
@@ -1078,6 +1133,10 @@ class PitchClassProfileFilterbank(Filterbank):
     Beijing, China
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     CLASSES = 12
     FMIN = 100.
     FMAX = 5000.
@@ -1099,6 +1158,8 @@ class PitchClassProfileFilterbank(Filterbank):
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
                 fmax=FMAX, fref=A4):
+        # pylint: disable=arguments-differ
+
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # use only positive bin frequencies
@@ -1159,6 +1220,10 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
     PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
     CLASSES = 36
     FMIN = 100.
     FMAX = 5000.
@@ -1182,6 +1247,8 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
 
     def __new__(cls, bin_frequencies, num_classes=CLASSES, fmin=FMIN,
                 fmax=FMAX, fref=A4, window=WINDOW):
+        # pylint: disable=arguments-differ
+
         # init a filterbank
         fb = np.zeros((len(bin_frequencies), num_classes))
         # use only positive bin frequencies

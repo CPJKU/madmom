@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains Short-Time Fourier Transform (STFT) related functionality.
 
@@ -176,6 +180,7 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     ShortTimeFourierTransform class.
 
     """
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
                  circular_shift=False, **kwargs):
@@ -212,6 +217,8 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
                 circular_shift=False, **kwargs):
+        # pylint: disable=unused-argument
+
         from .signal import FramedSignal
         # take the FramedSignal from the given STFT
         if isinstance(frames, ShortTimeFourierTransform):
@@ -331,6 +338,8 @@ class ShortTimeFourierTransformProcessor(Processor):
                                FFT; needed for correct phase
 
         """
+        # pylint: disable=unused-argument
+
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
@@ -387,6 +396,7 @@ class Phase(PropertyMixin, np.ndarray):
     Phase class.
 
     """
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, stft, **kwargs):
         """
@@ -405,6 +415,8 @@ class Phase(PropertyMixin, np.ndarray):
         # the initialisation is done in __new__() and __array_finalize__()
 
     def __new__(cls, stft, **kwargs):
+        # pylint: disable=unused-argument
+
         # if a Phase object is given use its STFT
         if isinstance(stft, Phase):
             stft = stft.stft
@@ -454,6 +466,7 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
     Local Group Delay class.
 
     """
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, phase, **kwargs):
         """
@@ -472,6 +485,8 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
         # the initialisation is done in __new__() and __array_finalize__()
 
     def __new__(cls, phase, **kwargs):
+        # pylint: disable=unused-argument
+
         # try to instantiate a Phase object
         if not isinstance(stft, Phase):
             phase = Phase(phase, circular_shift=True, **kwargs)

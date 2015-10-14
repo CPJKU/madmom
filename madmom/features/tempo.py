@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains tempo related functionality.
 
@@ -199,6 +203,8 @@ class TempoEstimationProcessor(Processor):
         :param alpha:       scaling factor for the comb filter
 
         """
+        # pylint: disable=unused-argument
+
         # save variables
         self.method = method
         self.min_bpm = min_bpm

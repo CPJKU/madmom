@@ -1,4 +1,5 @@
 # encoding: utf-8
+
 """
 This file contains HMM state space, transition and observation models used for
 beat and downbeat tracking.

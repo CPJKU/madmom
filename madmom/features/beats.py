@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains all beat tracking related functionality.
 
@@ -33,6 +37,8 @@ class MultiModelSelectionProcessor(Processor):
         Retrieval Conference (ISMIR), 2014
 
         """
+        # pylint: disable=unused-argument
+
         self.num_ref_predictions = num_ref_predictions
 
     def process(self, predictions):
@@ -378,8 +384,11 @@ def _process_crf(process_tuple):
                           and log probability of beat sequence
 
     """
+    # pylint: disable=no-name-in-module
+
+    from .beats_crf import best_sequence
     # activations, dominant_interval, interval_sigma = process_tuple
-    return CRFBeatDetectionProcessor.best_sequence(*process_tuple)
+    return best_sequence(*process_tuple)
 
 
 class CRFBeatDetectionProcessor(BeatTrackingProcessor):
@@ -389,22 +398,13 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     """
     INTERVAL_SIGMA = 0.18
     USE_FACTORS = False
-    FACTORS = [0.5, 0.67, 1.0, 1.5, 2.0]
+    FACTORS = np.array([0.5, 0.67, 1.0, 1.5, 2.0])
     NUM_INTERVALS = 5
     # tempo defaults
     MIN_BPM = 20
     MAX_BPM = 240
     ACT_SMOOTH = 0.09
     HIST_SMOOTH = 7
-
-    try:
-        from .beats_crf import best_sequence
-    except ImportError:
-        import warnings
-        warnings.warn('CRFBeatDetection only works if you build the viterbi '
-                      'module with cython!')
-        # else, use dummy function
-        best_sequence = lambda x: np.array([]), -np.inf
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
                  num_intervals=NUM_INTERVALS, factors=FACTORS, **kwargs):
@@ -514,6 +514,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         :return:               beat argument parser group
 
         """
+        # pylint: disable=arguments-differ
+
         from madmom.utils import OverrideDefaultListAction
         # add CRF related arguments
         g = parser.add_argument_group('conditional random field arguments')
@@ -521,18 +523,16 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                        default=interval_sigma,
                        help='allowed deviation from the dominant interval '
                             '[default=%(default).2f]')
-
         g.add_argument('--use_factors', action='store_true',
                        default=use_factors,
                        help='use dominant interval multiplied with factors '
                             'instead of multiple estimated intervals '
                             '[default=%(default)s]')
-
         g.add_argument('--num_intervals', action='store', type=int,
                        default=num_intervals, dest='num_intervals',
                        help='number of estimated intervals to try '
                             '[default=%(default)s]')
-        g.add_argument('-f', '--factors', action=OverrideDefaultListAction,
+        g.add_argument('--factors', action=OverrideDefaultListAction,
                        default=factors, type=float, sep=',',
                        help='(comma separated) list with factors of dominant '
                             'interval to try [default=%(default)s]')
@@ -552,6 +552,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         :return:            tempo argument parser group
 
         """
+        # pylint: disable=arguments-differ
+
         # TODO: import the TempoEstimation here otherwise we have a
         #       loop. This is super ugly, but right now I can't think of a
         #       better solution...
@@ -622,6 +624,8 @@ class DBNBeatTrackingProcessor(Processor):
         Retrieval Conference (ISMIR), 2015.
 
         """
+        # pylint: disable=unused-argument
+        # pylint: disable=no-name-in-module
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BeatTrackingStateSpace as St,
@@ -722,6 +726,8 @@ class DBNBeatTrackingProcessor(Processor):
         :return:                   beat argument parser group
 
         """
+        # pylint: disable=arguments-differ
+
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         if correct:
@@ -773,6 +779,7 @@ class DownbeatTrackingProcessor(Processor):
     Beat and downbeat tracking with a dynamic Bayesian network (DBN).
 
     """
+    # TODO: this should not be lists (lists are mutable!)
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
     NUM_TEMPO_STATES = [None, None]
@@ -836,6 +843,8 @@ class DownbeatTrackingProcessor(Processor):
         Retrieval Conference (ISMIR), 2015.
 
         """
+        # pylint: disable=unused-argument
+        # pylint: disable=no-name-in-module
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (DownBeatTrackingStateSpace as St,

@@ -1,4 +1,5 @@
 # encoding: utf-8
+
 """
 This file contains the speed crucial Viterbi functionality for the
 CRFBeatDetector plus some functions computing the distributions and

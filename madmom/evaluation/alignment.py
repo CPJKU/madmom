@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains global alignment evaluation functionality.
 
@@ -267,6 +271,7 @@ class AlignmentEvaluation(EvaluationABC):
         :param kwargs:        additional arguments will be ignored
 
         """
+        # pylint: disable=unused-argument
 
         alignment = load_alignment(alignment)
         ground_truth = load_alignment(ground_truth)

@@ -1,4 +1,9 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+# pylint: disable=too-few-public-methods
+
 """
 This file contains recurrent neural network (RNN) related functionality.
 
@@ -14,8 +19,8 @@ Just use one of the many NN/ML packages out there if you need training or any
 other stuff.
 
 """
-import abc
 
+import abc
 import numpy as np
 
 from ..processors import Processor, ParallelProcessor
@@ -67,6 +72,8 @@ def _sigmoid(x, out=None):
     return out
 
 try:
+    # pylint: disable=no-name-in-module
+
     # try to use a faster sigmoid function
     from distutils.version import LooseVersion
     from scipy.version import version as scipy_version
@@ -533,6 +540,8 @@ class RNNProcessor(ParallelProcessor):
         :param num_threads: number of parallel working threads
 
         """
+        # pylint: disable=unused-argument
+
         nn_models = []
         for nn_file in nn_files:
             nn_models.append(RecurrentNeuralNetwork.load(nn_file))
@@ -549,6 +558,8 @@ class RNNProcessor(ParallelProcessor):
         :return:         neural network argument parser group
 
         """
+        # pylint: disable=signature-differs
+
         from madmom.utils import OverrideDefaultListAction
         # add neural network options
         g = parser.add_argument_group('neural network arguments')

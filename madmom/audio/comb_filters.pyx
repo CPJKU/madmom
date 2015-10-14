@@ -1,6 +1,7 @@
 # encoding: utf-8
+
 """
-This file contains the speed crucial filter and filterbank functionality.
+This file contains comb-filter and comb-filterbank functionality.
 
 """
 

@@ -1,4 +1,8 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
+
 """
 This file contains onset detection related functionality.
 
@@ -446,6 +450,8 @@ class SpectralOnsetProcessor(Processor):
         :param onset_method:        onset detection function
 
         """
+        # pylint: disable=unused-argument
+
         self.method = onset_method
 
     def process(self, spectrogram):
@@ -604,6 +610,8 @@ class PeakPickingProcessor(Processor):
         Retrieval Conference (ISMIR), 2012.
 
         """
+        # pylint: disable=unused-argument
+
         # # make this an IOProcessor by defining input and output processings
         # super(PeakPicking, self).__init__(peak_picking, write_events)
         # adjust some params for online mode
