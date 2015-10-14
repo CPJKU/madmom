@@ -2,15 +2,9 @@
 """
 Evaluation package.
 
-All evaluation methods of this package can be used as scripts directly, if the
-package is in $PYTHONPATH.
-
-Example:
-
-python -m madmom.evaluation.onsets /dir/to/be/evaluated
-
 """
-import re
+
+import abc
 import numpy as np
 
 
@@ -26,6 +20,12 @@ def find_closest_matches(detections, annotations):
     Note: The sequences must be ordered!
 
     """
+    # make sure the arrays have the correct types
+    detections = np.asarray(detections, dtype=np.float)
+    annotations = np.asarray(annotations, dtype=np.float)
+    # TODO: right now, it only works with 1D arrays
+    if detections.ndim > 1 or annotations.ndim > 1:
+        raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
@@ -57,6 +57,14 @@ def calc_errors(detections, annotations, matches=None):
           of pre-computed indices of the closest matches can be used.
 
     """
+    # make sure the arrays have the correct types
+    detections = np.asarray(detections, dtype=np.float)
+    annotations = np.asarray(annotations, dtype=np.float)
+    if matches is not None:
+        matches = np.asarray(matches, dtype=np.int)
+    # TODO: right now, it only works with 1D arrays
+    if detections.ndim > 1 or annotations.ndim > 1:
+        raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
@@ -83,6 +91,14 @@ def calc_absolute_errors(detections, annotations, matches=None):
           of pre-computed indices of the closest matches can be used.
 
     """
+    # make sure the arrays have the correct types
+    detections = np.asarray(detections, dtype=np.float)
+    annotations = np.asarray(annotations, dtype=np.float)
+    if matches is not None:
+        matches = np.asarray(matches, dtype=np.int)
+    # TODO: right now, it only works with 1D arrays
+    if detections.ndim > 1 or annotations.ndim > 1:
+        raise NotImplementedError('please implement multi-dim support')
     # return the errors
     return np.abs(calc_errors(detections, annotations, matches))
 
@@ -100,6 +116,14 @@ def calc_relative_errors(detections, annotations, matches=None):
           pre-computed indices of the closest matches can be used.
 
     """
+    # make sure the arrays have the correct types
+    detections = np.asarray(detections, dtype=np.float)
+    annotations = np.asarray(annotations, dtype=np.float)
+    if matches is not None:
+        matches = np.asarray(matches, dtype=np.int)
+    # TODO: right now, it only works with 1D arrays
+    if detections.ndim > 1 or annotations.ndim > 1:
+        raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
@@ -113,48 +137,85 @@ def calc_relative_errors(detections, annotations, matches=None):
     return np.abs(1 - (errors / annotations[matches]))
 
 
-# Mixin which provides a dictionary of all evaluation metrics
-class EvaluationMetricsMixin(object):
+# abstract evaluation base class
+class EvaluationABC(object):
     """
-    Mixin for Evaluations to provide access to the defined metrics through a
-    dictionary.
+    Evaluation abstract base class.
+
+    `METRIC_NAMES` is a list of tuples, containing the attribute's name and the
+    corresponding label, e.g.:
+
+    METRIC_NAMES = [
+        ('precision', 'Precision'),
+        ('recall', 'Recall'),
+        ('fmeasure', 'F-measure'),
+    ]
+
+    The attributes defined in `METRIC_NAMES` will be provided as an ordered
+    dictionary as the `metrics` attribute of the
 
     """
+    __metaclass__ = abc.ABCMeta
+
+    name = None
     METRIC_NAMES = []
+    FLOAT_FORMAT = '{:.3f}'
 
-    @ property
+    @property
     def metrics(self):
         """Metrics as a dictionary."""
         # TODO: use an ordered dict?
-        # from collections import OrderedDict
-        # metrics = OrderedDict()
-        metrics = {}
+        from collections import OrderedDict
+        metrics = OrderedDict()
+        # metrics = {}
         for metric in [m[0] for m in self.METRIC_NAMES]:
             metrics[metric] = getattr(self, metric)
         return metrics
 
+    @abc.abstractmethod
+    def __len__(self):
+        """Length of the evaluation object."""
+        return
+
+    def tostring(self, **kwargs):
+        """
+        Format the evaluation metrics as a human readable string.
+
+        :param kwargs: additional keyword arguments
+        :return:       evaluation metrics formatted as a human readable string
+
+        Note: This is a fallback method formatting the 'metrics' dictionary in
+              a human readable way. Classes implementing this abstract base
+              class should provide a better suitable method.
+
+        """
+        import pprint
+        return pprint.pformat(dict(self.metrics), indent=4)
+
 
 # evaluation classes
-class SimpleEvaluation(EvaluationMetricsMixin, object):
+class SimpleEvaluation(EvaluationABC):
     """
-    Simple evaluation class for calculating Precision, Recall and F-measure
-    based on the numbers of true/false positive/negative detections.
+    Simple Precision, Recall, F-measure and Accuracy evaluation based on the
+    numbers of true/false positive/negative detections.
 
-    Note: so far, this class is only suitable for a 1-class evaluation problem.
+    Note: This class is only suitable for a 1-class evaluation problem.
 
     """
-
     METRIC_NAMES = [
+        ('num_tp', 'No. of true positives'),
+        ('num_fp', 'No. of false positives'),
+        ('num_tn', 'No. of true negatives'),
+        ('num_fn', 'No. of false negatives'),
         ('num_annotations', 'No. Annotations'),
         ('precision', 'Precision'),
         ('recall', 'Recall'),
         ('fmeasure', 'F-measure'),
         ('accuracy', 'Accuracy'),
-        ('mean_error', 'Mean'),
-        ('std_error', 'Std.dev'),
     ]
 
-    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0):
+    def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0, name=None,
+                 **kwargs):
         """
         Creates a new SimpleEvaluation instance.
 
@@ -162,6 +223,8 @@ class SimpleEvaluation(EvaluationMetricsMixin, object):
         :param num_fp: number of false positive detections
         :param num_tn: number of true negative detections
         :param num_fn: number of false negative detections
+        :param name:   name to be displayed
+        :param kwargs: additional arguments will be ignored
 
         """
         # hidden variables, to be able to overwrite them in subclasses
@@ -169,46 +232,8 @@ class SimpleEvaluation(EvaluationMetricsMixin, object):
         self._num_fp = int(num_fp)
         self._num_tn = int(num_tn)
         self._num_fn = int(num_fn)
-        # define the errors as an (empty) array here
-        # derived classes must redefine them accordingly
-        self._errors = []
-
-    # for adding another SimpleEvaluation object, i.e. summing them
-    def __iadd__(self, other):
-        if isinstance(other, SimpleEvaluation):
-            # increase the counters
-            self._num_tp += other.num_tp
-            self._num_fp += other.num_fp
-            self._num_tn += other.num_tn
-            self._num_fn += other.num_fn
-            # extend the errors array
-            self._errors.extend(other.errors)
-            # return the modified object
-            return self
-        else:
-            raise TypeError('Can only add SimpleEvaluation or derived class to'
-                            ' %s, not %s' % (type(self).__name__,
-                                             type(other).__name__))
-
-    # for adding two SimpleEvaluation objects
-    def __add__(self, other):
-        if isinstance(other, SimpleEvaluation):
-            num_tp = self._num_tp + other.num_tp
-            num_fp = self._num_fp + other.num_fp
-            num_tn = self._num_tn + other.num_tn
-            num_fn = self._num_fn + other.num_fn
-            # create a new object
-            new = SimpleEvaluation(num_tp, num_fp, num_tn, num_fn)
-            # modify the hidden _errors variable directly
-            # first copy the list and then extend it
-            new._errors = list(self.errors)
-            new._errors.extend(other.errors)
-            # return the newly created object
-            return new
-        else:
-            raise TypeError('Can only add SimpleEvaluation or derived class to'
-                            ' %s, not %s' % (type(self).__name__,
-                                             type(other).__name__))
+        # name of the evaluation
+        self.name = name
 
     @property
     def num_tp(self):
@@ -280,225 +305,59 @@ class SimpleEvaluation(EvaluationMetricsMixin, object):
             return 0.
         return numerator / denominator
 
-    @property
-    def errors(self):
+    def tostring(self, **kwargs):
         """
-        Errors of the true positive detections relative to the corresponding
-        annotations.
+        Format the evaluation metrics as a human readable string.
 
-        """
-        # if any errors are given, they have to be the same length as the true
-        # positive detections
-        # Note: access the hidden variable _errors and the property num_tp
-        #       because different classes implement the latter differently
-        if len(self._errors) > 0 and len(self._errors) != self.num_tp:
-            raise AssertionError("length of the errors and number of true "
-                                 "positive detections must match")
-        return self._errors
-
-    @property
-    def mean_error(self):
-        """Mean of the errors."""
-        if len(self.errors) == 0:
-            return 0.
-        return np.mean(self.errors)
-
-    @property
-    def std_error(self):
-        """Standard deviation of the errors."""
-        if len(self.errors) == 0:
-            return 0.
-        return np.std(self.errors)
-
-    def to_string(self, verbose=True):
-        """
-        Format the errors as a human readable string.
-
-        :param verbose: add accuracy and mean/std of errors
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
 
         """
-        ret = 'annotations: %5d correct: %5d fp: %5d fn: %5d p=%.3f ' \
-              'r=%.3f f=%.3f' % (self.num_annotations, self.num_tp,
-                                 self.num_fp, self.num_fn, self.precision,
-                                 self.recall, self.fmeasure)
-        if verbose:
-            ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
-                   (self.accuracy, self.mean_error * 1000.,
-                    self.std_error * 1000.)
+        ret = ''
+        if self.name is not None:
+            ret += '%s\n  ' % self.name
+        ret += 'Annotations: %5d TP: %5d FP: %5d FN: %5d ' \
+               'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
+               (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
+                self.precision, self.recall, self.fmeasure, self.accuracy)
         return ret
 
     def __str__(self):
-        return self.to_string()
+        return self.tostring()
 
 
-# class for summing Evaluations
-SumEvaluation = SimpleEvaluation
-
-
-# class for averaging Evaluations
-class MeanEvaluation(SimpleEvaluation):
-    """
-    Simple evaluation class for averaging Precision, Recall and F-measure.
-
-    """
-
-    def __init__(self):
-        """
-        Creates a new MeanEvaluation instance.
-
-        """
-        super(MeanEvaluation, self).__init__()
-        # redefine most of the stuff as arrays so we can average them
-        self._num_tp = []
-        self._num_fp = []
-        self._num_tn = []
-        self._num_fn = []
-        self._precision = []
-        self._recall = []
-        self._fmeasure = []
-        self._accuracy = []
-        self._errors = []
-        self._mean_errors = []
-        self._std_errors = []
-
-    def __len__(self):
-        # just use the length of any of the arrays
-        return len(self._num_tp)
-
-    # for adding another Evaluation object
-    def append(self, other):
-        """
-        Appends the scores of another SimpleEvaluation (or derived class)
-        object to the respective arrays.
-
-        :param other: SimpleEvaluation (or derived class) object
-
-        """
-        if isinstance(other, SimpleEvaluation):
-            # append the numbers of any Evaluation object to the arrays
-            self._num_tp.append(other.num_tp)
-            self._num_fp.append(other.num_fp)
-            self._num_tn.append(other.num_tn)
-            self._num_fn.append(other.num_fn)
-            self._precision.append(other.precision)
-            self._recall.append(other.recall)
-            self._fmeasure.append(other.fmeasure)
-            self._accuracy.append(other.accuracy)
-            # TODO: extend the errors list instead of appending, might lead to
-            #       undesired effects with lists of tuples or lists of lists
-            self._errors.extend(other.errors)
-            self._mean_errors.append(other.mean_error)
-            self._std_errors.append(other.std_error)
-        else:
-            raise TypeError('Can only append SimpleEvaluation or derived class'
-                            ' to %s, not %s' % (type(self).__name__,
-                                                type(other).__name__))
-
-    @property
-    def num_tp(self):
-        """Number of true positive detections."""
-        if len(self._num_tp) == 0:
-            return 0.
-        return np.mean(self._num_tp)
-
-    @property
-    def num_fp(self):
-        """Number of false positive detections."""
-        if len(self._num_fp) == 0:
-            return 0.
-        return np.mean(self._num_fp)
-
-    @property
-    def num_tn(self):
-        """Number of true negative detections."""
-        if len(self._num_tn) == 0:
-            return 0.
-        return np.mean(self._num_tn)
-
-    @property
-    def num_fn(self):
-        """Number of false negative detections."""
-        if len(self._num_fn) == 0:
-            return 0.
-        return np.mean(self._num_fn)
-
-    @property
-    def precision(self):
-        """Precision."""
-        if len(self._precision) == 0:
-            return 0.
-        return np.mean(self._precision)
-
-    @property
-    def recall(self):
-        """Recall."""
-        if len(self._recall) == 0:
-            return 0.
-        return np.mean(self._recall)
-
-    @property
-    def fmeasure(self):
-        """F-measure."""
-        if len(self._fmeasure) == 0:
-            return 0.
-        return np.mean(self._fmeasure)
-
-    @property
-    def accuracy(self):
-        """Accuracy."""
-        if len(self._accuracy) == 0:
-            return 0.
-        return np.mean(self._accuracy)
-
-    @property
-    def mean_error(self):
-        """Mean of the errors."""
-        if len(self._mean_errors) == 0:
-            return 0.
-        return np.mean(self._mean_errors)
-
-    @property
-    def std_error(self):
-        """Standard deviation of the errors."""
-        if len(self._std_errors) == 0:
-            return 0.
-        return np.mean(self._std_errors)
-
-    def to_string(self, verbose=True):
-        """
-        Format the errors as a human readable string.
-
-        :param verbose: add accuracy and mean/std of errors
-
-        """
-        # use floats instead of integers for reporting
-        ret = 'annotations: %5.2f correct: %5.2f fp: %5.2f fn: %5.2f ' \
-              'p=%.3f r=%.3f f=%.3f' % \
-              (self.num_annotations, self.num_tp, self.num_fp,
-               self.num_fn, self.precision, self.recall, self.fmeasure)
-        if verbose:
-            ret += ' acc: %.3f mean: %.1f ms std: %.1f ms' % \
-                   (self.accuracy, self.mean_error * 1000.,
-                    self.std_error * 1000.)
-        return ret
-
-
-# class for evaluation of Precision, Recall, F-measure with lists
+# evaluate Precision, Recall, F-measure and Accuracy with lists or numpy arrays
 class Evaluation(SimpleEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure based on
     numpy arrays or lists with true/false positive/negative detections.
 
     """
+    METRIC_NAMES = [
+        ('tp', 'True positives'),
+        ('fp', 'False positives'),
+        ('tn', 'True negatives'),
+        ('fn', 'False negatives'),
+        ('num_tp', 'No. of true positives'),
+        ('num_fp', 'No. of false positives'),
+        ('num_tn', 'No. of true negatives'),
+        ('num_fn', 'No. of false negatives'),
+        ('num_annotations', 'No. Annotations'),
+        ('precision', 'Precision'),
+        ('recall', 'Recall'),
+        ('fmeasure', 'F-measure'),
+        ('accuracy', 'Accuracy'),
+    ]
 
-    def __init__(self, tp=None, fp=None, tn=None, fn=None):
+    def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
         """
         Creates a new Evaluation instance.
 
-        :param tp: list with true positive detections [seconds]
-        :param fp: list with false positive detections [seconds]
-        :param tn: list with true negative detections [seconds]
-        :param fn: list with false negative detections [seconds]
+        :param tp:     list/array with true positive detections
+        :param fp:     list/array with false positive detections
+        :param tn:     list/array with true negative detections
+        :param fn:     list/array with false negative detections
+        :param kwargs: keyword arguments passed to SimpleEvaluation()
 
         """
         # set default values
@@ -510,92 +369,33 @@ class Evaluation(SimpleEvaluation):
             tn = []
         if fn is None:
             fn = []
-        super(Evaluation, self).__init__()
-        self._tp = list(tp)
-        self._fp = list(fp)
-        self._tn = list(tn)
-        self._fn = list(fn)
-
-    # for adding another Evaluation object, i.e. summing them
-    def __iadd__(self, other):
-        if isinstance(other, Evaluation):
-            # extend the arrays
-            self._tp.extend(other.tp)
-            self._fp.extend(other.fp)
-            self._tn.extend(other.tn)
-            self._fn.extend(other.fn)
-            self._errors.extend(other.errors)
-            # return the modified object
-            return self
-        else:
-            raise TypeError('Can only add Evaluation or derived class to %s, '
-                            'not %s' % (type(self).__name__,
-                                        type(other).__name__))
-
-    # for adding two Evaluation objects
-    def __add__(self, other):
-        if isinstance(other, Evaluation):
-            # copy the lists
-            tp = list(self.tp)
-            fp = list(self.fp)
-            tn = list(self.tn)
-            fn = list(self.fn)
-            # and extend them
-            tp.extend(other.tp)
-            fp.extend(other.fp)
-            tn.extend(other.tn)
-            fn.extend(other.fn)
-            # create a new object
-            new = Evaluation(tp, fp, tn, fn)
-            # modify the hidden _errors variable directly
-            new._errors = list(self._errors)
-            new._errors.extend(other.errors)
-            # return the newly created object
-            return new
-        else:
-            raise TypeError('Can only add Evaluation or derived class to %s, '
-                            'not %s' % (type(self).__name__,
-                                        type(other).__name__))
-
-    @property
-    def tp(self):
-        """True positive detections."""
-        return self._tp
+        # instantiate a SimpleEvaluation object
+        super(Evaluation, self).__init__(**kwargs)
+        # convert everything to numpy arrays and save them
+        self.tp = np.asarray(list(tp), dtype=np.float)
+        self.fp = np.asarray(list(fp), dtype=np.float)
+        self.tn = np.asarray(list(tn), dtype=np.float)
+        self.fn = np.asarray(list(fn), dtype=np.float)
 
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        return len(self._tp)
-
-    @property
-    def fp(self):
-        """False positive detections."""
-        return self._fp
+        return len(self.tp)
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        return len(self._fp)
-
-    @property
-    def tn(self):
-        """True negative detections."""
-        return self._tn
+        return len(self.fp)
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        return len(self._tn)
-
-    @property
-    def fn(self):
-        """False negative detections."""
-        return self._fn
+        return len(self.tn)
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        return len(self._fn)
+        return len(self.fn)
 
 
 # class for evaluation of Precision, Recall, F-measure with 2D arrays
@@ -605,253 +405,333 @@ class MultiClassEvaluation(Evaluation):
     2D numpy arrays with true/false positive/negative detections.
 
     """
-
-    def to_string(self, verbose=True):
+    def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
         """
-        Format the errors as a human readable string.
+        Creates a new Evaluation instance.
+
+        :param tp:     list of tuples / 2D array with true positive detections
+        :param fp:     list of tuples / 2D array with false positive detections
+        :param tn:     list of tuples / 2D array with true negative detections
+        :param fn:     list of tuples / 2D array with false negative detections
+        :param kwargs: keyword arguments passed to Evaluation()
+
+        Note: The second item of the tuples or the second column of the arrays
+              denote the class the detection belongs to.
+
+        """
+        # set default values
+        if tp is None:
+            tp = np.zeros((0, 2))
+        if fp is None:
+            fp = np.zeros((0, 2))
+        if tn is None:
+            tn = np.zeros((0, 2))
+        if fn is None:
+            fn = np.zeros((0, 2))
+        super(Evaluation, self).__init__(**kwargs)
+        self.tp = np.asarray(tp, dtype=np.float)
+        self.fp = np.asarray(fp, dtype=np.float)
+        self.tn = np.asarray(tn, dtype=np.float)
+        self.fn = np.asarray(fn, dtype=np.float)
+
+    def tostring(self, verbose=False, **kwargs):
+        """
+        Format the evaluation metrics as a human readable string.
 
         :param verbose: add evaluation for individual classes
+        :param kwargs:  additional arguments will be ignored
+        :return:        evaluation metrics formatted as a human readable string
 
         """
         ret = ''
 
         if verbose:
-            # print errors for all classes individually
-            tp = np.asarray(self.tp)
-            fp = np.asarray(self.fp)
-            tn = np.asarray(self.tn)
-            fn = np.asarray(self.fn)
             # extract all classes
             classes = []
-            if tp.any():
-                np.append(classes, np.unique(tp[:, 1]))
-            if fp.any():
-                np.append(classes, np.unique(fp[:, 1]))
-            if tn.any():
-                np.append(classes, np.unique(tn[:, 1]))
-            if fn.any():
-                np.append(classes, np.unique(fn[:, 1]))
+            if self.tp.any():
+                classes = np.append(classes, np.unique(self.tp[:, 1]))
+            if self.fp.any():
+                classes = np.append(classes, np.unique(self.fp[:, 1]))
+            if self.tn.any():
+                classes = np.append(classes, np.unique(self.tn[:, 1]))
+            if self.fn.any():
+                classes = np.append(classes, np.unique(self.fn[:, 1]))
             for cls in sorted(np.unique(classes)):
                 # extract the TP, FP, TN and FN of this class
-                tp_ = tp[tp[:, 1] == cls]
-                fp_ = fp[fp[:, 1] == cls]
-                tn_ = tn[tn[:, 1] == cls]
-                fn_ = fn[fn[:, 1] == cls]
+                tp = self.tp[self.tp[:, 1] == cls]
+                fp = self.fp[self.fp[:, 1] == cls]
+                tn = self.tn[self.tn[:, 1] == cls]
+                fn = self.fn[self.fn[:, 1] == cls]
                 # evaluate them
-                e = Evaluation(tp_, fp_, tn_, fn_)
+                e = Evaluation(tp, fp, tn, fn, name='Class %s' % cls)
                 # append to the output string
-                string = e.to_string(verbose=False)
-                ret += add_indent(string, 'Class %s:\n' % cls) + '\n'
+                ret += '  %s\n' % e.tostring(verbose=False)
         # normal formatting
-        ret += 'annotations: %5d correct: %5d fp: %4d fn: %4d p=%.3f ' \
-               'r=%.3f f=%.3f\nacc: %.1f%% mean: %.1f ms std: %.1f ms' % \
-               (self.num_tp + self.num_fn, self.num_tp, self.num_fp,
-                self.num_fn, self.precision, self.recall, self.fmeasure,
-                self.accuracy * 100., self.mean_error * 1000.,
-                self.std_error * 1000.)
+        ret += 'Annotations: %5d TP: %5d FP: %4d FN: %4d ' \
+               'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
+               (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
+                self.precision, self.recall, self.fmeasure, self.accuracy)
         # return
         return ret
 
 
-class EvaluationOutput(object):
+# class for summing Evaluations
+class SumEvaluation(SimpleEvaluation):
     """
-    Base class for evaluation output formatters.
-
-    """
-
-    def __init__(self, metric_names, float_format='{:.3f}'):
-        """
-        Initialises the evaluation output.
-
-        :param metric_names: list of tuples defining the name of the property
-                             corresponding to the metric, and the metric label
-                             e.g. ('fp', 'False Positives')
-        :param float_format: how to format the metrics
-
-        """
-        self.float_format = float_format
-        self.metric_names, self.metric_labels = zip(*metric_names)
-
-    def add_eval(self, name, evaluation, **kwargs):
-        """
-        Adds an evaluation to the output.
-
-        :param name:       label of the evaluation (file name, 'mean', ...)
-        :param evaluation: evaluation to format
-        :param kwargs:     additional formatting parameters
-
-        """
-        raise NotImplementedError('Implement this method!')
-
-    def format_eval_values(self, evaluation):
-        """
-        Converts the metrics of the evaluation to strings according to the
-        given format.
-
-        :param evaluation: evaluation with metrics to be converted
-        :return:           list of strings containing the metric values
-
-        """
-        return [self.float_format.format(getattr(evaluation, mn))
-                for mn in self.metric_names]
-
-
-class TexOutput(EvaluationOutput):
-    """
-    Outputs evaluations as LaTeX tables.
-    """
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initialises the output formatter. See EvaluationOutput for parameters.
-
-        """
-        super(TexOutput, self).__init__(*args, **kwargs)
-        # add header
-        self.output_lines = ['  & ' + ' & '.join(self.metric_labels) + '\\\\']
-
-    def add_eval(self, name, evaluation, **kwargs):
-        """
-        Adds an evaluation to the output.
-
-        :param name:       label of the evaluation (file name, 'mean', ...)
-        :param evaluation: evaluation to format
-        :param kwargs:     additional formatting parameters (not used here)
-
-        """
-        val_strings = self.format_eval_values(evaluation)
-        self.output_lines.append(
-            name + ' & ' + ' & '.join(val_strings) + '\\\\'
-        )
-
-    def __str__(self):
-        """
-        Convert the added evaluations to a string.
-
-        :return: string with formatted evaluations.
-
-        """
-        return '\n'.join(self.output_lines)
-
-
-class CSVOutput(EvaluationOutput):
-    """
-    Outputs evaluations as CSV tables.
+    Simple class for summing evaluations.
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, eval_objects, name=None):
         """
-        Initialises the output formatter. See EvaluationOutput for parameters.
+        Creates a new SumEvaluation instance.
 
-        """
-        super(CSVOutput, self).__init__(*args, **kwargs)
-        # add header
-        self.output_lines = ['Name,' + ','.join(self.metric_labels)]
-
-    def add_eval(self, name, evaluation, **kwargs):
-        """
-        Adds an evaluation to the output.
-
-        :param name:       label of the evaluation (file name, 'mean', ...)
-        :param evaluation: evaluation to format
-        :param kwargs:     additional formatting parameters (not used here)
+        :param eval_objects: list of evaluation objects
+        :param name:         name to be displayed
 
         """
-        val_strings = self.format_eval_values(evaluation)
-        self.output_lines.append(
-            name + ',' + ','.join(val_strings)
-        )
+        # Note: we want to inherit the evaluation functions/properties, no need
+        #       to call __super__, but we need to take care of 'name'
+        if not isinstance(eval_objects, list):
+            # wrap the given eval_object in a list
+            eval_objects = [eval_objects]
+        self.eval_objects = eval_objects
+        self.name = name or 'sum for %d files' % len(self)
 
-    def __str__(self):
-        """
-        Convert the added evaluations to a string.
+    def __len__(self):
+        # just use the length of the evaluation objects
+        return len(self.eval_objects)
 
-        :return: string with formatted evaluations.
+    # redefine the counters (number of TP, FP, TN, FN & annotations)
 
-        """
-        return '\n'.join(self.output_lines)
+    @property
+    def num_tp(self):
+        """Number of true positive detections."""
+        return sum(e.num_tp for e in self.eval_objects)
+
+    @property
+    def num_fp(self):
+        """Number of false positive detections."""
+        return sum(e.num_fp for e in self.eval_objects)
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        return sum(e.num_tn for e in self.eval_objects)
+
+    @property
+    def num_fn(self):
+        """Number of false negative detections."""
+        return sum(e.num_fn for e in self.eval_objects)
+
+    @property
+    def num_annotations(self):
+        """Number of annotations."""
+        return sum(e.num_annotations for e in self.eval_objects)
 
 
-class StrOutput(EvaluationOutput):
+# class for averaging Evaluations
+class MeanEvaluation(SumEvaluation):
     """
-    Outputs evaluations as defined in the evaluations themselves by their
-    respective `to_string()` methods.
-
-    """
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initialises the output formatter. See EvaluationOutput for parameters.
-
-        """
-        super(StrOutput, self).__init__(*args, **kwargs)
-        self.output_lines = []
-
-    def add_eval(self, name, evaluation, **kwargs):
-        """
-        Adds an evaluation to the output.
-
-        :param name:       label of the evaluation (file name, 'mean', ...)
-        :param evaluation: evaluation to format
-        :param kwargs:     additional formatting parameters passed to the
-                           `to_string()` method of the evaluation
-        """
-        eval_str = add_indent(evaluation.to_string(**kwargs), '%s\n  ' % name)
-        self.output_lines.append(eval_str)
-
-    def __str__(self):
-        """
-        Convert the added evaluations to a string.
-
-        :return: string with formatted evaluations.
-
-        """
-        return '\n'.join(self.output_lines)
-
-
-def add_indent(lines, indent):
-    """
-    Adds an indent to a given string. The string may contain line breaks. In
-    this case, the indent is used as is in the first line, while for the other
-    line a white-space indent of the same length as the actual indent is used.
-
-    :param lines:  string containing the lines to be indented
-    :param indent: indent to use
-    :return:       string containing the indented lines
+    Simple class for averaging evaluation.
 
     """
-    split_lines = lines.split('\n')
-    # add indent to first line
-    split_lines[0] = indent + split_lines[0]
 
-    # here, we try to create an indentation of the same length as the
-    # indent parameter, but containing only whitespaces
-    whitespace_indent = re.sub('[^\s]', ' ', indent.split('\n')[-1])
-    whitespace_indent = re.sub('\n', '', whitespace_indent)
+    def __init__(self, eval_objects, name=None, **kwargs):
+        """
+        Creates a new MeanEvaluation instance.
 
-    # add whitespace indent to other lines
-    for i, eval_line in enumerate(split_lines[1:]):
-        split_lines[i + 1] = whitespace_indent + eval_line
+        :param eval_objects: list of evaluation objects.
+        :param name:         name to be displayed
 
-    return '\n'.join(split_lines)
+        """
+        super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
+        # handle the 'name' here to be able to set a different default value
+        self.name = name or 'mean for %d files' % len(self)
+
+    # overwrite the properties to calculate the mean instead of the sum
+
+    @property
+    def num_tp(self):
+        """Number of true positive detections."""
+        if len(self.eval_objects) == 0:
+            return 0.
+        return np.nanmean([e.num_tp for e in self.eval_objects])
+
+    @property
+    def num_fp(self):
+        """Number of false positive detections."""
+        if len(self.eval_objects) == 0:
+            return 0.
+        return np.nanmean([e.num_fp for e in self.eval_objects])
+
+    @property
+    def num_tn(self):
+        """Number of true negative detections."""
+        if len(self.eval_objects) == 0:
+            return 0.
+        return np.nanmean([e.num_tn for e in self.eval_objects])
+
+    @property
+    def num_fn(self):
+        """Number of false negative detections."""
+        if len(self.eval_objects) == 0:
+            return 0.
+        return np.nanmean([e.num_fn for e in self.eval_objects])
+
+    @property
+    def num_annotations(self):
+        """Number of annotations."""
+        if len(self.eval_objects) == 0:
+            return 0.
+        return np.nanmean([e.num_annotations for e in self.eval_objects])
+
+    @property
+    def precision(self):
+        """Precision."""
+        return np.nanmean([e.precision for e in self.eval_objects])
+
+    @property
+    def recall(self):
+        """Recall."""
+        return np.nanmean([e.recall for e in self.eval_objects])
+
+    @property
+    def fmeasure(self):
+        """F-measure."""
+        return np.nanmean([e.fmeasure for e in self.eval_objects])
+
+    @property
+    def accuracy(self):
+        """Accuracy."""
+        return np.nanmean([e.accuracy for e in self.eval_objects])
+
+    def tostring(self, **kwargs):
+        """
+        Format the evaluation metrics as a human readable string.
+
+        :param kwargs: additional arguments will be ignored
+        :return:       evaluation metrics formatted as a human readable string
+
+        """
+        ret = ''
+        if self.name is not None:
+            ret += '%s\n  ' % self.name
+        # TODO: unify this with SimpleEvaluation but
+        #       add option to provide field formatters (e.g. 3d or 5.2f)
+        # format with floats instead of integers
+        ret = 'Annotations: %5.2f TP: %5.2f FP: %5.2f FN: %5.2f' \
+              'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
+              (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
+               self.precision, self.recall, self.fmeasure, self.accuracy)
+        return ret
+
+
+def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
+    """
+    Format the given evaluation objects as human readable strings.
+
+    :param eval_objects: evaluation objects
+    :param metric_names: list of tuples defining the name of the property
+                         corresponding to the metric, and the metric label
+                         e.g. ('fp', 'False Positives')
+    :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
+    :return:             human readable output of the evaluation objects
+
+    Note: If no `metric_names` are given, they will be extracted from the first
+          evaluation object.
+
+    """
+    return '\n'.join([e.tostring() for e in eval_objects])
+
+
+def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
+    """
+    Format the given evaluation objects as a CSV table.
+
+    :param eval_objects: evaluation objects
+    :param metric_names: list of tuples defining the name of the property
+                         corresponding to the metric, and the metric label
+                         e.g. ('fp', 'False Positives')
+    :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
+    :return:             CSV table representation of the evaluation objects
+
+    Note: If no `metric_names` are given, they will be extracted from the first
+          evaluation object.
+
+    """
+    if metric_names is None:
+        # get the evaluation metrics from the first evaluation object
+        metric_names = eval_objects[0].METRIC_NAMES
+    metric_names, metric_labels = zip(*metric_names)
+    # add header
+    lines = ['Name,' + ','.join(metric_labels)]
+    # TODO: use e.metrics dict?
+    # add the evaluation objects
+    for e in eval_objects:
+        values = [float_format.format(getattr(e, mn)) for mn in metric_names]
+        lines.append(e.name + ',' + ','.join(values))
+    # return everything
+    return '\n'.join(lines)
+
+
+def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
+    """
+    Format the given evaluation objects as a LaTeX table.
+
+    :param eval_objects: evaluation objects
+    :param metric_names: list of tuples defining the name of the property
+                         corresponding to the metric, and the metric label
+                         e.g. ('fp', 'False Positives')
+    :param float_format: how to format the metrics
+    :param kwargs:       additional arguments will be ignored
+    :return:             LaTeX table representation of the evaluation objects
+
+    Note: If no `metric_names` are given, they will be extracted from the first
+          evaluation object.
+
+    """
+    if metric_names is None:
+        # get the evaluation metrics from the first evaluation object
+        metric_names = eval_objects[0].METRIC_NAMES
+    metric_names, metric_labels = zip(*metric_names)
+    # add header
+    lines = ['Name & ' + ' & '.join(metric_labels) + '\\\\']
+    # TODO: use e.metrics dict
+    # TODO: add a generic totable() function which accepts columns separator,
+    #       newline stuff (e.g. tex \\\\) and others
+    # add the evaluation objects
+    for e in eval_objects:
+        values = [float_format.format(getattr(e, mn)) for mn in metric_names]
+        lines.append(e.name + ' & ' + ' & '.join(values) + '\\\\')
+    # return everything
+    return '\n'.join(lines)
 
 
 def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     """
-    Add evaluation input/output related arguments to an existing parser object.
+    Add evaluation input/output and formatting related arguments to an existing
+    parser object.
 
     :param parser:     existing argparse parser object
     :param ann_suffix: suffix for the annotation files
     :param det_suffix: suffix for the detection files
     :param ann_dir:    use only annotations from this folder (+ sub-folders)
     :param det_dir:    use only detections from this folder (+ sub-folders)
-    :return:           evaluation output formatter argument group
+    :return:           evaluation input/output and formatter argument groups
 
     """
+    import sys
+    import argparse
+    # general input output file handling
     parser.add_argument('files', nargs='*',
                         help='files (or folders) to be evaluated')
-    # suffixes used for evaluation
+    parser.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
+                        default=sys.stdout,
+                        help='output file [default: STDOUT]')
+    # file suffixes used for evaluation
     g = parser.add_argument_group('file/folder/suffix arguments')
     g.add_argument('-a', dest='ann_suffix', action='store', default=ann_suffix,
                    help='suffix of the annotation files '
@@ -875,17 +755,17 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='suppress any warnings')
     # output format options
-    g = parser.add_argument_group('formatting arguments')
-    parser.set_defaults(output_formatter=StrOutput)
-    formats = g.add_mutually_exclusive_group()
+    parser.set_defaults(output_formatter=tostring)
+    f = parser.add_argument_group('formatting arguments')
+    formats = f.add_mutually_exclusive_group()
     formats.add_argument('--tex', dest='output_formatter',
-                         action='store_const', const=TexOutput,
+                         action='store_const', const=totex,
                          help='format output to be used in .tex files')
     formats.add_argument('--csv', dest='output_formatter',
-                         action='store_const', const=CSVOutput,
+                         action='store_const', const=tocsv,
                          help='format output to be used in .csv files')
     # return the output formatting group so the caller can add more options
-    return g
+    return g, f
 
 
 # finally import the submodules

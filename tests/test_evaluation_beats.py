@@ -6,6 +6,7 @@ This file contains tests for the madmom.evaluation.beats module.
 # pylint: skip-file
 
 import unittest
+import math
 
 from madmom.evaluation.beats import *
 # noinspection PyProtectedMember
@@ -227,6 +228,31 @@ class TestCalcRelativeErrorsFunction(unittest.TestCase):
         intervals_ = np.asarray([0.99, 0.99, 1.05, 1.05, 2, 2, 1, 1, 1.1, 0.9])
         self.assertTrue(np.allclose(errors, errors_ / intervals_))
         # TODO: same tests with matches given
+
+
+class TestBeatConstantsClass(unittest.TestCase):
+
+    def test_types(self):
+        self.assertIsInstance(FMEASURE_WINDOW, float)
+        self.assertIsInstance(PSCORE_TOLERANCE, float)
+        self.assertIsInstance(CEMGIL_SIGMA, float)
+        self.assertIsInstance(GOTO_THRESHOLD, float)
+        self.assertIsInstance(GOTO_SIGMA, float)
+        self.assertIsInstance(GOTO_MU, float)
+        self.assertIsInstance(CONTINUITY_TEMPO_TOLERANCE, float)
+        self.assertIsInstance(CONTINUITY_PHASE_TOLERANCE, float)
+        self.assertIsInstance(INFORMATION_GAIN_BINS, int)
+
+    def test_values(self):
+        self.assertEqual(FMEASURE_WINDOW, 0.07)
+        self.assertEqual(PSCORE_TOLERANCE, 0.2)
+        self.assertEqual(CEMGIL_SIGMA, 0.04)
+        self.assertEqual(GOTO_THRESHOLD, 0.175)
+        self.assertEqual(GOTO_SIGMA, 0.1)
+        self.assertEqual(GOTO_MU, 0.1)
+        self.assertEqual(CONTINUITY_TEMPO_TOLERANCE, 0.175)
+        self.assertEqual(CONTINUITY_PHASE_TOLERANCE, 0.175)
+        self.assertEqual(INFORMATION_GAIN_BINS, 40)
 
 
 class TestPscoreFunction(unittest.TestCase):
@@ -802,7 +828,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.recall, float)
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.accuracy, float)
-        self.assertIsInstance(e.errors, list)
+        self.assertIsInstance(e.errors, np.ndarray)
         self.assertIsInstance(e.mean_error, float)
         self.assertIsInstance(e.std_error, float)
         # additional beat score types
@@ -820,19 +846,28 @@ class TestBeatEvaluationClass(unittest.TestCase):
     def test_conversion(self):
         # conversion from list should work
         e = BeatEvaluation([], [])
-        self.assertIsInstance(e.tp, list)
-        self.assertIsInstance(e.fp, list)
-        self.assertIsInstance(e.tn, list)
-        self.assertIsInstance(e.fn, list)
-        # conversion from dict should work as well
-        e = BeatEvaluation({}, {})
-        self.assertIsInstance(e.tp, list)
-        self.assertIsInstance(e.fp, list)
-        self.assertIsInstance(e.tn, list)
-        self.assertIsInstance(e.fn, list)
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        # conversion from 2D arrays
+        e = BeatEvaluation(np.array([[1, 1.1], [2, 1.2]]),
+                           np.array([[1, 1.1], [2, 1.2]]))
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
+        # conversion from list of lists
+        e = BeatEvaluation([[1, 1.1], [2, 1.2]], [[1, 1.1], [2, 1.2]])
+        self.assertIsInstance(e.tp, np.ndarray)
+        self.assertIsInstance(e.fp, np.ndarray)
+        self.assertIsInstance(e.tn, np.ndarray)
+        self.assertIsInstance(e.fn, np.ndarray)
         # others should fail
-        self.assertRaises(TypeError, BeatEvaluation, float(0), float(0))
-        self.assertRaises(TypeError, BeatEvaluation, int(0), int(0))
+        self.assertRaises(ValueError, BeatEvaluation, float(0), float(0))
+        self.assertRaises(ValueError, BeatEvaluation, int(0), int(0))
+        # TODO: why does dict work?
+        # self.assertRaises(ValueError, BeatEvaluation, {}, {})
 
     def test_results_empty(self):
         e = BeatEvaluation([], [])
@@ -858,10 +893,10 @@ class TestBeatEvaluationClass(unittest.TestCase):
         # TEMPO_TOLERANCE = 0.175
         # PHASE_TOLERANCE = 0.175
         # BINS = 40
-        self.assertEqual(e.tp, [1.01, 2, 2.95, 4, 6, 7, 8, 10])
-        self.assertEqual(e.fp, [9.1, 11])
-        self.assertEqual(e.tn, [])
-        self.assertEqual(e.fn, [5, 9])
+        self.assertTrue(np.allclose(e.tp, [1.01, 2, 2.95, 4, 6, 7, 8, 10]))
+        self.assertTrue(np.allclose(e.fp, [9.1, 11]))
+        self.assertTrue(np.allclose(e.tn, []))
+        self.assertTrue(np.allclose(e.fn, [5, 9]))
         self.assertEqual(e.num_tp, 8)
         self.assertEqual(e.num_fp, 2)
         self.assertEqual(e.num_tn, 0)
@@ -889,11 +924,14 @@ class TestBeatEvaluationClass(unittest.TestCase):
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
 
+    def test_tostring(self):
+        print BeatEvaluation([], [])
 
-class TestMeanBeatEvaluationClass(unittest.TestCase):
+
+class TestBeatMeanEvaluationClass(unittest.TestCase):
 
     def test_types(self):
-        e = MeanBeatEvaluation()
+        e = BeatMeanEvaluation([])
         # scores
         self.assertIsInstance(e.fmeasure, float)
         self.assertIsInstance(e.pscore, float)
@@ -905,41 +943,27 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.amlt, float)
         self.assertIsInstance(e.information_gain, float)
         self.assertIsInstance(e.global_information_gain, float)
-        # error histogram is initially None
-        self.assertIsNone(e.error_histogram)
-
-    def test_append(self):
-        e = MeanBeatEvaluation()
-        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
-        self.assertIsInstance(e, MeanBeatEvaluation)
-        # appending something valid should not return anything
-        self.assertEqual(e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS)),
-                         None)
-        # appending something else should not work
-        with self.assertRaises(TypeError):
-            e.append('bla')
-
-    def test_append_types(self):
-        e = MeanBeatEvaluation()
-        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
-        # scores
-        self.assertIsInstance(e.fmeasure, float)
-        self.assertIsInstance(e.pscore, float)
-        self.assertIsInstance(e.cemgil, float)
-        self.assertIsInstance(e.goto, float)
-        self.assertIsInstance(e.cmlc, float)
-        self.assertIsInstance(e.cmlt, float)
-        self.assertIsInstance(e.amlc, float)
-        self.assertIsInstance(e.amlt, float)
-        self.assertIsInstance(e.information_gain, float)
-        self.assertIsInstance(e.global_information_gain, float)
-        # error histogram
         self.assertIsInstance(e.error_histogram, np.ndarray)
 
+    def test_results(self):
+        # empty mean evaluation
+        e = BeatMeanEvaluation([])
+        self.assertTrue(math.isnan(e.fmeasure))
+        self.assertTrue(math.isnan(e.pscore))
+        self.assertTrue(math.isnan(e.cemgil))
+        self.assertTrue(math.isnan(e.goto))
+        self.assertTrue(math.isnan(e.cmlc))
+        self.assertTrue(math.isnan(e.cmlt))
+        self.assertTrue(math.isnan(e.amlc))
+        self.assertTrue(math.isnan(e.amlt))
+        self.assertTrue(math.isnan(e.information_gain))
+        self.assertTrue(np.allclose(e.global_information_gain, 0))
+        self.assertEqual(len(e), 0)
+        # TODO: should this also return nan?
+        self.assertTrue(np.allclose(e.error_histogram, np.zeros(0)))
 
-    def test_results_empty(self):
-        e = MeanBeatEvaluation()
-        e.append(BeatEvaluation([], []))
+        # mean evaluation of empty beat evaluation
+        e = BeatMeanEvaluation([BeatEvaluation([], [])])
         self.assertEqual(e.fmeasure, 1)
         self.assertEqual(e.pscore, 1)
         self.assertEqual(e.cemgil, 1)
@@ -951,10 +975,10 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         self.assertEqual(e.information_gain, np.log2(40))
         self.assertTrue(np.allclose(e.global_information_gain, np.log2(40)))
         self.assertTrue(np.allclose(e.error_histogram, np.zeros(40)))
+        self.assertEqual(len(e), 1)
 
-    def test_results(self):
-        e = MeanBeatEvaluation()
-        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
+        # mean evaluation of beat evaluation
+        e = BeatMeanEvaluation([BeatEvaluation(DETECTIONS, ANNOTATIONS)])
         f = 2 * (8. / 10.) * (8. / 10.) / ((8. / 10.) + (8. / 10.))
         self.assertEqual(e.fmeasure, f)
         self.assertEqual(e.pscore, 9. / 10.)
@@ -972,9 +996,30 @@ class TestMeanBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
-
-    def test_legth(self):
-        e = MeanBeatEvaluation()
-        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
-        e.append(BeatEvaluation(DETECTIONS, ANNOTATIONS))
+        self.assertEqual(len(e), 1)
+        # mean evaluation of empty and beat evaluation
+        e1 = BeatEvaluation([], [])
+        e2 = BeatEvaluation(DETECTIONS, ANNOTATIONS)
+        e = BeatMeanEvaluation([e1, e2])
+        f2 = 2 * (8. / 10.) * (8. / 10.) / ((8. / 10.) + (8. / 10.))
+        self.assertEqual(e.fmeasure, (1 + f2) / 2)
+        self.assertEqual(e.pscore, (1 + 9. / 10.) / 2)
+        self.assertEqual(e.cemgil, (1 + 0.74710035298713695) / 2)
+        self.assertEqual(e.goto, (1 + 1) / 2)
+        self.assertEqual(e.cmlc, (1 + 0.4) / 2)
+        self.assertEqual(e.cmlt, (1 + 0.8) / 2)
+        self.assertEqual(e.amlc, (1 + 0.4) / 2)
+        self.assertEqual(e.amlt, (1 + 0.8) / 2)
+        ig = (np.log2(40) + 3.965148445440323) / 2
+        self.assertEqual(e.information_gain, ig)
+        self.assertEqual(e.global_information_gain, 3.965148445440323)
+        error_histogram_ = np.zeros(40)
+        error_histogram_[0] = 1
+        error_histogram_[16] = 1
+        error_histogram_[20] = 7
+        error_histogram_[22] = 1
+        self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
         self.assertEqual(len(e), 2)
+
+    def test_tostring(self):
+        print BeatMeanEvaluation([])
