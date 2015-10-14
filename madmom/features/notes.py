@@ -35,7 +35,6 @@ def write_notes(notes, filename, sep='\t'):
     :param sep:      separator for the fields [default='\t']
 
     """
-    from madmom.utils import open
     # write the notes to the output
     if filename is not None:
         with open(filename, 'wb') as f:
@@ -79,7 +78,6 @@ def write_frequencies(notes, filename, note_length=0.6):
 
     """
     from madmom.audio.filters import midi2hz
-    from madmom.utils import open
     # MIREX format: onset \t offset \t frequency
     with open(filename, 'wb') as f:
         for note in notes:

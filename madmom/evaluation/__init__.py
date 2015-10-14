@@ -193,6 +193,8 @@ class EvaluationABC(object):
               class should provide a better suitable method.
 
         """
+        # pylint: disable=unused-argument
+
         import pprint
         return pprint.pformat(dict(self.metrics), indent=4)
 
@@ -231,6 +233,8 @@ class SimpleEvaluation(EvaluationABC):
         :param kwargs: additional arguments will be ignored
 
         """
+        # pylint: disable=unused-argument
+
         # hidden variables, to be able to overwrite them in subclasses
         self._num_tp = int(num_tp)
         self._num_fp = int(num_fp)
@@ -432,7 +436,7 @@ class MultiClassEvaluation(Evaluation):
             tn = np.zeros((0, 2))
         if fn is None:
             fn = np.zeros((0, 2))
-        super(Evaluation, self).__init__(**kwargs)
+        super(MultiClassEvaluation, self).__init__(**kwargs)
         self.tp = np.asarray(tp, dtype=np.float)
         self.fp = np.asarray(fp, dtype=np.float)
         self.tn = np.asarray(tn, dtype=np.float)
@@ -494,6 +498,8 @@ class SumEvaluation(SimpleEvaluation):
         :param name:         name to be displayed
 
         """
+        # pylint: disable=super-init-not-called
+
         # Note: we want to inherit the evaluation functions/properties, no need
         #       to call __super__, but we need to take care of 'name'
         if not isinstance(eval_objects, list):
