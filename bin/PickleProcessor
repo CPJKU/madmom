@@ -16,10 +16,10 @@ def main():
     # define parser
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    This script runs previously pickled Processors in either batch or single
-    file mode.
+    This program runs previously pickled Processors in either 'single' or
+    'batch' mode.
 
-    To obtain a pickled Processor, either run the respective script with the
+    To obtain a pickled Processor, either run the respective program with the
     'pickle' option or call the 'dump()' method of the Processor.
 
     ''')
@@ -28,7 +28,7 @@ def main():
                         help='pickled processor')
     parser.add_argument('--version', action='version',
                         version='PickleProcessor v0.1')
-    io_arguments(parser, output_suffix='.txt')
+    sp = io_arguments(parser, output_suffix='.txt', pickle=False)
 
     # parse arguments
     args = parser.parse_args()
