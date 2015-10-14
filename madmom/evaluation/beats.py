@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # encoding: utf-8
 """
 This software serves as a Python implementation of the beat evaluation toolkit,

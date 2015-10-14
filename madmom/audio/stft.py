@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # encoding: utf-8
 """
 This file contains Short-Time Fourier Transform (STFT) related functionality.
