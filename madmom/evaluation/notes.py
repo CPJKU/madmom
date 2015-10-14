@@ -9,7 +9,7 @@ import numpy as np
 import warnings
 
 from ..utils import suppress_warnings
-from . import (evaluation_io, Evaluation, MultiClassEvaluation, SumEvaluation,
+from . import (evaluation_io, MultiClassEvaluation, SumEvaluation,
                MeanEvaluation)
 from .onsets import onset_evaluation, OnsetEvaluation
 

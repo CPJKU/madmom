@@ -10,9 +10,7 @@ import sys
 import argparse
 import warnings
 
-import numpy as np
-
-from madmom.utils import search_files, match_file, load_events, combine_events
+from madmom.utils import search_files, match_file
 from madmom.evaluation import onsets, beats, notes, tempo, alignment
 
 
@@ -45,7 +43,7 @@ def main():
     # note evaluation
     notes.add_parser(sub_parsers)
     # alignment evaluation
-    # alignment.add_parser(sub_parsers)
+    alignment.add_parser(sub_parsers)
 
     # parse the args
     args = p.parse_args()
