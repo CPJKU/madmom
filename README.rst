@@ -148,7 +148,7 @@ Package structure
 The package has a very simple structure, divided into the following folders:
 
 `/bin <bin>`_
-  this folder includes example script files (i.e. executable algorithms)
+  this folder includes example programs (i.e. executable algorithms)
 `/madmom <madmom>`_
   the actual Python package
 `/madmom/audio <madmom/audio>`_
@@ -167,27 +167,27 @@ The package has a very simple structure, divided into the following folders:
   tests
 
 Almost all low level features (i.e. everything under
-`/madmom/audio <madmom/audio>`_) are divided
-into a data class and a corresponding processor class. The data class refers
-always to a certain instance (e.g. the STFT of an audio file), whereas the
-processor classes are used to define processing chains through which the audio
-is processed (i.e. most stuff in `/madmom/features <madmom/features>`_).
+`/madmom/audio <madmom/audio>`_) are divided into a data class and a
+corresponding processor class. The data class refers always to a certain
+instance (e.g. the STFT of an audio file), whereas the processor classes are
+used to define processing chains through which the audio is processed (i.e.
+most stuff in `/madmom/features <madmom/features>`_).
 
-Executable scripts
-------------------
+Executable programs
+-------------------
 
-The package includes executable scripts in the `/bin <bin>`_ folder.
+The package includes executable programs in the `/bin <bin>`_ folder.
 If you installed the package, they were copied to a common place.
 
 All scripts can be run in different modes: in ``single`` file mode to process
 a single audio file and write the output to STDOUT or the given output file.
 
-    SuperFlux single INFILE [OUTFILE]
+    SuperFlux single [-o OUTFILE] INFILE
 
 If multiple audio files should be processed, the scripts can also be run in
 ``batch`` mode to write the outputs to files with the given suffix.
 
-    SuperFlux batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF INPUT FILES
+    SuperFlux batch [--out OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF INPUT FILES
 
 If no output directory is given, the program writes the output files to same
 location as the audio files.
@@ -195,12 +195,15 @@ location as the audio files.
 The ``pickle`` mode can be used to store the used parameters to be able to
 exactly reproduce experiments.
 
-Please note that the script itself as well as the modes have help messages:
+Please note that the program itself as well as the modes have help messages:
 
-    ./bin/SuperFlux -h
-    ./bin/SuperFlux -h single -h
-    ./bin/SuperFlux -h batch -h
-    ./bin/SuperFlux -h pickle -h
+    SuperFlux -h
+
+    SuperFlux single -h
+
+    SuperFlux batch -h
+
+    SuperFlux pickle -h
 
 will give different help messages.
 
