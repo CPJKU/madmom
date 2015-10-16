@@ -165,12 +165,14 @@ def root_mean_square(signal):
     return np.sqrt(np.dot(signal, signal) / signal.size)
 
 
-def sound_pressure_level(signal, p_ref=1.0):
+def sound_pressure_level(signal, p_ref=None):
     """
     Computes the sound pressure level of a signal.
 
     :param signal: signal [numpy array]
-    :param p_ref:  reference sound pressure level
+    :param p_ref:  reference sound pressure level; if 'None', take the max
+                   amplitude value for the datatype, if the datatype is float,
+                   assume amplitudes are between -1 and +1.
     :return:       sound pressure level of the signal
 
     From http://en.wikipedia.org/wiki/Sound_pressure:
@@ -186,6 +188,12 @@ def sound_pressure_level(signal, p_ref=1.0):
         # return the smallest possible negative number
         return -np.finfo(float).max
     else:
+        if p_ref is None:
+            # find a reasonable default reference value
+            if np.issubdtype(signal.dtype, np.integer):
+                p_ref = np.iinfo(signal.dtype).max
+            else:
+                p_ref = 1.0
         # normal SPL computation
         return 20.0 * np.log10(rms / p_ref)
 
