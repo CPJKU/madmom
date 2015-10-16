@@ -11,6 +11,7 @@ import tempfile
 import subprocess
 import os
 import sys
+import numpy as np
 
 
 def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
@@ -172,6 +173,12 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     :return:             assembled ffmpeg call
 
     """
+    # Note: avconv rounds decoding positions and decodes in blocks of 4096
+    #       length resulting in incorrect start and stop positions
+    if cmd == 'avconv' and skip is not None and max_len is not None:
+        raise RuntimeError('avconv has a bug, which results in wrong audio '
+                           'slices! Decode the audio files to .wav first or '
+                           'use ffmpeg.')
     if isinstance(infile, unicode):
         infile = infile.encode(sys.getfilesystemencoding())
     else:
@@ -220,3 +227,66 @@ def get_file_info(infile, cmd='ffprobe'):
             info['sample_rate'] = float(line[len('sample_rate='):])
     # return the dictionary
     return info
+
+
+def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
+                     start=None, stop=None, dtype=np.int16,
+                     cmd_decode='ffmpeg', cmd_probe='ffprobe'):
+    """
+    Load the audio data from the given file and return it as a numpy array.
+    This uses ffmpeg (or avconv) and thus supports a lot of different file
+    formats, resampling and channel conversions. The file will be fully decoded
+    into memory if no start and stop positions are given.
+
+    :param filename:     name of the file
+    :param sample_rate:  desired sample rate of the signal in Hz [int], or
+                         `None` to return the signal in its original rate
+    :param num_channels: reduce or expand the signal to N channels [int], or
+                         `None` to return the signal with its original channels
+    :param start:        start position (seconds) [float]
+    :param stop:         stop position (seconds) [float]
+    :param dtype:        numpy dtype to return the signal in (supports signed
+                         and unsigned 8/16/32-bit integers, and single and
+                         double precision floats, each in little or big endian)
+    :param cmd_decode:   command used for decoding audio
+    :param cmd_probe:    command used for probing audio (i.e. get file info)
+    :return:             tuple (signal, sample_rate)
+
+    """
+    # convert dtype to sample type
+    # (all ffmpeg PCM sample types: ffmpeg -formats | grep PCM)
+    dtype = np.dtype(dtype)
+    # - unsigned int, signed int, floating point:
+    sample_type = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
+    # - sample size in bits:
+    sample_type += str(8 * dtype.itemsize)
+    # - little endian or big endian:
+    if dtype.byteorder == '=':
+        import sys
+        sample_type += sys.byteorder[0] + 'e'
+    else:
+        sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    # start and stop position
+    if start is None:
+        start = 0
+    max_len = None
+    if stop is not None:
+        max_len = stop - start
+    # convert the audio signal using ffmpeg
+    signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
+                                            sample_rate=sample_rate,
+                                            num_channels=num_channels,
+                                            skip=start, max_len=max_len,
+                                            cmd=cmd_decode),
+                           dtype=dtype)
+    # get the needed information from the file
+    if sample_rate is None or num_channels is None:
+        info = get_file_info(filename, cmd=cmd_probe)
+        if sample_rate is None:
+            sample_rate = info['sample_rate']
+        if num_channels is None:
+            num_channels = info['num_channels']
+    # reshape the audio signal
+    if num_channels > 1:
+        signal = signal.reshape((-1, num_channels))
+    return signal, sample_rate
