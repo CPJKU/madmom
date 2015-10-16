@@ -352,59 +352,117 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
             sound_pressure_level(sig_2d)
 
 
-class TestLoadWaveFunction(unittest.TestCase):
+class TestLoadAudioFileFunction(unittest.TestCase):
+
+    # this tests both the madmom.audio.signal.load_wave_file() and the
+    # madmom.audio.ffmpeg.load_ffmpeg_file() functions via the universal
+    # load_audio_file() function
 
     def test_types(self):
-        signal, sample_rate = load_wave_file(DATA_PATH + '/sample.wav')
+        # test wave loader
+        f = DATA_PATH + '/sample.wav'
+        signal, sample_rate = load_audio_file(f)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
+        # test ffmpeg loader
+        f = DATA_PATH + '/stereo_sample.flac'
+        signal, sample_rate = load_audio_file(f)
+        self.assertIsInstance(signal, np.ndarray)
+        self.assertTrue(signal.dtype == np.int16)
+        # TODO: ffmpeg returns a float sample_rate, convert it?
+        self.assertTrue(type(sample_rate) == float)
 
     def test_file_handle(self):
+        # test wave loader
+        f = DATA_PATH + '/sample.wav'
         # open file handle
-        file_handle = __builtin__.open(DATA_PATH + '/sample.wav')
-        signal, sample_rate = load_wave_file(file_handle)
+        file_handle = __builtin__.open(f)
+        signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         file_handle.close()
-        # closed file handle is not supported
-        with self.assertRaises(ValueError):
-            load_wave_file(file_handle)
+        # closed file handle
+        signal, sample_rate = load_audio_file(file_handle)
+        self.assertIsInstance(signal, np.ndarray)
+        self.assertTrue(signal.dtype == np.int16)
+        self.assertTrue(type(sample_rate) == int)
+        # test ffmpeg loader
+        f = DATA_PATH + '/stereo_sample.flac'
+        # open file handle
+        file_handle = __builtin__.open(f)
+        signal, sample_rate = load_audio_file(file_handle)
+        self.assertIsInstance(signal, np.ndarray)
+        self.assertTrue(signal.dtype == np.int16)
+        self.assertTrue(type(sample_rate) == float)
+        file_handle.close()
+        # closed file handle
+        signal, sample_rate = load_audio_file(file_handle)
+        self.assertIsInstance(signal, np.ndarray)
+        self.assertTrue(signal.dtype == np.int16)
+        self.assertTrue(type(sample_rate) == float)
 
     def test_values(self):
-        signal, sample_rate = load_wave_file(DATA_PATH + '/sample.wav')
+        # test wave loader
+        f = DATA_PATH + '/sample.wav'
+        signal, sample_rate = load_audio_file(f)
         self.assertTrue(np.allclose(signal[:5],
                                     [-2494, -2510, -2484, -2678, -2833]))
         self.assertTrue(len(signal) == 123481)
         self.assertTrue(sample_rate == 44100)
-
-    def test_start_stop(self):
-        signal, sample_rate = load_wave_file(DATA_PATH + '/sample.wav',
-                                             start=1./44100, stop=5./44100)
-        self.assertTrue(np.allclose(signal, [-2510, -2484, -2678, -2833]))
-        self.assertTrue(len(signal) == 4)
+        self.assertTrue(signal.shape == (123481,))
+        # stereo
+        f = DATA_PATH + '/stereo_sample.wav'
+        signal, sample_rate = load_audio_file(f)
+        self.assertTrue(np.allclose(signal[:4],
+                                    [[33, 38], [35, 36], [29, 34], [36, 31]]))
+        self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
-
-    def test_stereo(self):
-        signal, sample_rate = load_wave_file(DATA_PATH + '/stereo_sample.wav')
+        self.assertTrue(signal.shape == (182919, 2))
+        # test ffmpeg loader
+        f = DATA_PATH + '/stereo_sample.flac'
+        signal, sample_rate = load_audio_file(f)
         self.assertTrue(np.allclose(signal[:4],
                                     [[33, 38], [35, 36], [29, 34], [36, 31]]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, 2))
 
-    def test_stereo_downmix(self):
-        signal, sample_rate = load_wave_file(DATA_PATH + '/stereo_sample.wav',
-                                             num_channels=1)
+    def test_start_stop(self):
+        # test wave loader
+        f = DATA_PATH + '/sample.wav'
+        signal, sample_rate = load_audio_file(f, start=1./44100, stop=5./44100)
+        self.assertTrue(np.allclose(signal, [-2510, -2484, -2678, -2833]))
+        self.assertTrue(len(signal) == 4)
+        self.assertTrue(sample_rate == 44100)
+        # test ffmpeg loader
+        f = DATA_PATH + '/stereo_sample.flac'
+        signal, sample_rate = load_audio_file(f, start=1./44100, stop=4./44100)
+        self.assertTrue(np.allclose(signal, [[35, 36], [29, 34], [36, 31]]))
+        self.assertTrue(len(signal) == 3)
+        self.assertTrue(sample_rate == 44100)
+
+    def test_downmix(self):
+        # test wave loader
+        f = DATA_PATH + '/stereo_sample.wav'
+        signal, sample_rate = load_audio_file(f, num_channels=1)
         self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, ))
+        # test ffmpeg loader
+        f = DATA_PATH + '/stereo_sample.flac'
+        signal, sample_rate = load_audio_file(f, num_channels=1)
+        # TODO: is it a problem that the results are rounded differently?
+        self.assertTrue(np.allclose(signal[:5], [36, 36, 32, 34, 34]))
+        self.assertTrue(len(signal) == 182919)
+        self.assertTrue(sample_rate == 44100)
+        self.assertTrue(signal.shape == (182919, ))
 
-    def test_mono_upmix(self):
+    def test_upmix(self):
         f = DATA_PATH + '/sample.wav'
-        signal, sample_rate = load_wave_file(f, num_channels=2)
+        signal, sample_rate = load_audio_file(f, num_channels=2)
         self.assertTrue(np.allclose(signal[:5],
                                     [[-2494, -2494], [-2510, -2510],
                                      [-2484, -2484], [-2678, -2678],
@@ -413,120 +471,18 @@ class TestLoadWaveFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (123481, 2))
 
-    def test_stereo_two_channels_wav(self):
-        f = DATA_PATH + '/stereo_sample.wav'
-        signal, sample_rate = load_wave_file(f, num_channels=2)
-        self.assertTrue(np.allclose(signal[:4],
-                                    [[33, 38], [35, 36], [29, 34], [36, 31]]))
-        self.assertTrue(len(signal) == 182919)
-        self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, 2))
-
-
-class TestLoadFfmpegFileFunction(unittest.TestCase):
-
-    def test_types(self):
-        signal, sample_rate = load_ffmpeg_file(DATA_PATH +
-                                               '/stereo_sample.flac')
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        # TODO: ffmpeg returns a float sample_rate, convert it?
-        self.assertTrue(type(sample_rate) == float)
-
-    def test_file_handle(self):
-        # open file handle
-        file_handle = __builtin__.open(DATA_PATH + '/stereo_sample.flac')
-        with self.assertRaises(ValueError):
-            load_ffmpeg_file(file_handle)
-        file_handle.close()
-        # closed file handle
-        with self.assertRaises(ValueError):
-            load_ffmpeg_file(file_handle)
-
-    def test_values(self):
-        signal, sample_rate = load_ffmpeg_file(DATA_PATH +
-                                               '/stereo_sample.flac')
-        self.assertTrue(np.allclose(signal[:4],
-                                    [[33, 38], [35, 36], [29, 34], [36, 31]]))
-        self.assertTrue(len(signal) == 182919)
-        self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, 2))
-
-    def test_start_stop(self):
-        signal, sample_rate = load_ffmpeg_file(DATA_PATH +
-                                               '/stereo_sample.flac',
-                                               start=1./44100, stop=4./44100)
-        self.assertTrue(np.allclose(signal, [[35, 36], [29, 34], [36, 31]]))
-        self.assertTrue(len(signal) == 3)
-        self.assertTrue(sample_rate == 44100)
-
-    def test_stereo_downmix(self):
-        f = DATA_PATH + '/stereo_sample.flac'
-        signal, sample_rate = load_ffmpeg_file(f, num_channels=1)
-        # TODO: is it a problem that the results are rounded differently?
-        self.assertTrue(np.allclose(signal[:5], [36, 36, 32, 34, 34]))
-        self.assertTrue(len(signal) == 182919)
-        self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
-
-    def test_stereo_resample_downmix(self):
-        f = DATA_PATH + '/stereo_sample.flac'
-        signal, sample_rate = load_ffmpeg_file(f, sample_rate=22050,
-                                               num_channels=1)
-        # allow rounding errors, i.e. use atol=1
-        self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33], atol=1))
-        # avconv results in a different length of 91450 samples
-        self.assertTrue(np.allclose(len(signal), 91460, atol=10))
-        self.assertTrue(sample_rate == 22050)
-
-
-class TestLoadAudioFileFunction(unittest.TestCase):
-
-    def test_types(self):
-        signal, sample_rate = load_audio_file(DATA_PATH + '/sample.wav')
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        signal, sample_rate = load_audio_file(DATA_PATH +
-                                              '/stereo_sample.flac')
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) in (int, float))
-
-    def test_file_handle(self):
-        # open file handle
-        file_handle = __builtin__.open(DATA_PATH + '/sample.wav')
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        # same for .flac, i.e. use ffmpeg to decode
-        # TODO: ffmpeg returns a float sample_rate, convert it?
-        # open file handle
-        file_handle = __builtin__.open(DATA_PATH + '/stereo_sample.flac')
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == float)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == float)
-
-    def test_stereo_resample_downmix(self):
+    def test_resample(self):
         # method must chose ffmpeg loader
         f = DATA_PATH + '/stereo_sample.wav'
+        signal, sample_rate = load_audio_file(f, sample_rate=22050)
+        self.assertEqual(sample_rate, 22050)
+        # avconv does round differently, thus allow atol=1
+        # result: [[33, 38], [33, 33], [36, 31], [35, 35], [32, 35]]
+        self.assertTrue(np.allclose(signal[:5], [[34, 38], [32, 33], [37, 31],
+                                                 [35, 35], [32, 34]], atol=1))
+        # also downmix
         signal, sample_rate = load_audio_file(f, sample_rate=22050,
                                               num_channels=1)
-        # allow rounding errors, i.e. use atol=1
         self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33], atol=1))
         # avconv results in a different length of 91450 samples
         self.assertTrue(np.allclose(len(signal), 91460, atol=10))
