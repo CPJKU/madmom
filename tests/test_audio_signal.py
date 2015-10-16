@@ -16,7 +16,8 @@ from madmom.audio.signal import *
 # test signal functions
 class TestSmoothFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = smooth(sig_1d, None)
         self.assertTrue(type(result) == type(sig_1d))
         self.assertTrue(len(result) == len(sig_1d))
@@ -25,8 +26,7 @@ class TestSmoothFunction(unittest.TestCase):
         self.assertTrue(type(result) == type(sig_1d))
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
-
-    def test_types_2d(self):
+        # multi-channel signals
         result = smooth(sig_2d, None)
         self.assertTrue(type(result) == type(sig_2d))
         self.assertTrue(len(result) == len(sig_2d))
@@ -44,7 +44,8 @@ class TestSmoothFunction(unittest.TestCase):
         with self.assertRaises(ValueError):
             smooth(np.zeros(18).reshape(3, 3, 2), 4)
 
-    def test_values_1d(self):
+    def test_values(self):
+        # mono signals
         result = smooth(sig_1d, None)
         self.assertTrue(np.allclose(result, sig_1d))
         result = smooth(sig_1d, 0)
@@ -64,8 +65,7 @@ class TestSmoothFunction(unittest.TestCase):
         result = smooth(sig_1d, np.ones(4))
         result_4_ones = [0, 1, 1, 1, 2, 1, 1, 2, 1]
         self.assertTrue(np.allclose(result, result_4_ones))
-
-    def test_values_2d(self):
+        # multi-channel signals
         result = smooth(sig_2d, None)
         self.assertTrue(np.allclose(result, sig_2d))
         result = smooth(sig_2d, 3)
@@ -84,116 +84,106 @@ class TestSmoothFunction(unittest.TestCase):
 
 class TestAttenuateFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = attenuate(sig_1d, 0)
         self.assertTrue(type(result) == type(sig_1d))
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == sig_1d.dtype)
-
-    def test_types_2d(self):
-        result = attenuate(sig_2d, 0)
-        self.assertTrue(type(result) == type(sig_2d))
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == sig_2d.dtype)
-
-    def test_types_1d_int_dtype(self):
+        # same as int16 dtype
         result = attenuate(sig_1d.astype(np.int16), 0)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == np.int16)
-
-    def test_types_2d_int_dtype(self):
-        result = attenuate(sig_2d.astype(np.int), 0)
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == np.int)
-
-    def test_types_signal(self):
+        # from file
         signal = Signal(DATA_PATH + '/sample.wav')
         result = attenuate(signal, 0)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
+        # multi-channel signals
+        result = attenuate(sig_2d, 0)
+        self.assertTrue(type(result) == type(sig_2d))
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        # same as int dtype
+        result = attenuate(sig_2d.astype(np.int), 0)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == np.int)
 
-    def test_values_1d(self):
+    def test_values(self):
+        # mono signals
         result = attenuate(sig_1d, 0)
         self.assertTrue(np.allclose(result, sig_1d))
         result = attenuate(sig_1d, 10)
         self.assertTrue(np.allclose(result, 0.31622777 * sig_1d))
-
-    def test_values_2d(self):
-        result = attenuate(sig_2d, 0)
-        self.assertTrue(np.allclose(result, sig_2d))
-        result = attenuate(sig_2d, 3)
-        self.assertTrue(np.allclose(result, 0.70794578 * sig_2d))
-
-    def test_values_1d_int_dtype(self):
+        # same as int dtype
         result = attenuate(sig_1d.astype(np.int), 0)
         self.assertTrue(np.allclose(result, sig_1d.astype(np.int)))
         result = attenuate(sig_1d.astype(np.int), 5)
         self.assertTrue(np.allclose(result, 0 * sig_1d))
-
-    def test_values_2d_int_dtype(self):
-        result = attenuate(sig_2d.astype(np.int), 0)
+        # multi-channel signals
+        result = attenuate(sig_2d, 0)
         self.assertTrue(np.allclose(result, sig_2d))
-        result = attenuate(sig_2d.astype(np.int), 1)
+        result = attenuate(sig_2d, 3)
+        self.assertTrue(np.allclose(result, 0.70794578 * sig_2d))
+        # same as int16 dtype
+        result = attenuate(sig_2d.astype(np.int16), 0)
+        self.assertTrue(np.allclose(result, sig_2d))
+        result = attenuate(sig_2d.astype(np.int16), 1)
         self.assertTrue(np.allclose(result, 0 * sig_2d))
 
 
 class TestNormalizeFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = normalize(sig_1d)
         self.assertTrue(result.dtype == float)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == sig_1d.dtype)
-
-    def test_types_2d(self):
-        result = normalize(sig_2d)
-        self.assertTrue(result.dtype == float)
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == sig_2d.dtype)
-
-    def test_types_1d_int_dtype(self):
+        # same as int16 dtype
         result = normalize(sig_1d.astype(np.int16))
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == np.float)
-
-    def test_types_2d_int_dtype(self):
-        result = normalize(sig_2d.astype(np.int))
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == np.float)
-
-    def test_types_signal(self):
+        # from file
         signal = Signal(DATA_PATH + '/sample.wav')
         result = normalize(signal)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
+        # multi-channel signals
+        result = normalize(sig_2d)
+        self.assertTrue(result.dtype == float)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        # same as int32 dtype
+        result = normalize(sig_2d.astype(np.int32))
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == np.float)
 
-    def test_values_1d(self):
+    def test_values(self):
+        # mono signals
         result = normalize(sig_1d)
         self.assertTrue(np.allclose(result, sig_1d))
         result = normalize(sig_1d * 0.5)
         self.assertTrue(np.allclose(result, sig_1d))
-
-    def test_values_2d(self):
+        # same as int15 dtype
+        result = normalize(10 * sig_1d.astype(np.int16))
+        self.assertTrue(np.allclose(result, sig_1d))
+        # multi-channel signals
         result = normalize(sig_2d)
         self.assertTrue(np.allclose(result, sig_2d))
         result = normalize(sig_2d * 0.5)
         self.assertTrue(np.allclose(result, sig_2d))
-
-    def test_values_1d_int_dtype(self):
-        result = normalize(10 * sig_1d.astype(np.int16))
-        self.assertTrue(np.allclose(result, sig_1d))
-
-    def test_values_2d_int_dtype(self):
+        # same as int dtype
         result = normalize(3 * sig_2d.astype(np.int))
         self.assertTrue(np.allclose(result, sig_2d))
 
@@ -202,7 +192,8 @@ class TestMixFunction(unittest.TestCase):
 
     mono_2d = np.asarray([0.5, 0, 1, 0, 0.5, 0.5, 0.5, 0, 1], dtype=np.float)
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = remix(sig_1d, 1)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
@@ -215,20 +206,7 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == (len(sig_1d), 3))
         self.assertTrue(result.dtype == sig_1d.dtype)
-
-    def test_types_2d(self):
-        result = remix(sig_2d, 1)
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_1d.shape)
-        self.assertTrue(result.dtype == sig_2d.dtype)
-        result = remix(sig_2d, 2)
-        self.assertTrue(len(result) == len(sig_2d))
-        self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == sig_2d.dtype)
-        with self.assertRaises(NotImplementedError):
-            remix(sig_2d, 3)
-
-    def test_types_1d_int_dtype(self):
+        # same as int dtype
         result = remix(sig_1d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
@@ -237,8 +215,34 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == (len(sig_1d), 2))
         self.assertTrue(result.dtype == np.int)
-
-    def test_types_2d_int_dtype(self):
+        # from file
+        signal = Signal(DATA_PATH + '/sample.wav')
+        result = remix(signal, 1)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.int16)
+        # multi-channel signals
+        result = remix(sig_2d, 1)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_1d.shape)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        result = remix(sig_2d, 2)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        # from file
+        signal = Signal(DATA_PATH + '/stereo_sample.wav')
+        result = remix(signal, 1)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.int16)
+        result = remix(signal, 2)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.int16)
+        with self.assertRaises(NotImplementedError):
+            remix(sig_2d, 3)
+        # same as int dtype
         result = remix(sig_2d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_2d))
         self.assertTrue(result.shape == sig_1d.shape)
@@ -248,106 +252,98 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(result.shape == sig_2d.shape)
         self.assertTrue(result.dtype == np.int)
 
-    def test_types_signal(self):
-        signal = Signal(DATA_PATH + '/sample.wav')
-        result = remix(signal, 1)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.int16)
-
-    def test_types_stereo_signal(self):
-        signal = Signal(DATA_PATH + '/stereo_sample.wav')
-        result = remix(signal, 1)
-        self.assertTrue(isinstance(result, Signal))
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.int16)
-
-    def test_values_1d(self):
+    def test_values(self):
+        # mono signals
         result = remix(sig_1d, 1)
         self.assertTrue(np.allclose(result, sig_1d))
-
-    def test_values_2d(self):
-        result = remix(sig_2d, 1)
-        self.assertTrue(np.allclose(result, self.mono_2d))
-
-    def test_values_2d_int_dtype(self):
+        # same as int dtype
         result = remix(sig_2d.astype(np.int), 1)
         self.assertTrue(np.allclose(result, self.mono_2d.astype(np.int)))
-
-    def test_values_2d_double_range(self):
+        # multi-channel signals
+        result = remix(sig_2d, 1)
+        self.assertTrue(np.allclose(result, self.mono_2d))
+        # same as int dtype
         result = remix(2 * sig_2d.astype(np.int), 1)
         self.assertTrue(np.allclose(result, 2 * self.mono_2d))
 
 
 class TestTrimFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = trim(sig_1d)
         self.assertTrue(type(result) == type(sig_1d))
         self.assertTrue(len(result) == len(sig_1d) - 2)
         self.assertTrue(result.ndim == sig_1d.ndim)
-
-    def test_types_signal(self):
         signal = Signal(DATA_PATH + '/sample.wav')
         result = trim(signal)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
-
-    def test_values_1d(self):
-        result = trim(sig_1d)
-        trimmed_1d = [1, 0, 0, 1, 0, 0, 1]
-        self.assertTrue(np.allclose(result, trimmed_1d))
-
-    def test_types_2d(self):
+        # multi-channel signals
         with self.assertRaises(NotImplementedError):
             trim(sig_2d)
 
-    def test_values_2d(self):
+    def test_values(self):
+        # mono signals
+        result = trim(sig_1d)
+        trimmed_1d = [1, 0, 0, 1, 0, 0, 1]
+        self.assertTrue(np.allclose(result, trimmed_1d))
+        # multi-channel signals
         with self.assertRaises(NotImplementedError):
             trim(sig_2d)
 
 
 class TestRootMeanSquareFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = root_mean_square(sig_1d)
         self.assertIsInstance(result, float)
+        # multi-channel signals
+        with self.assertRaises(NotImplementedError):
+            root_mean_square(sig_2d)
 
-    def test_values_1d(self):
+    def test_values(self):
+        # mono signals
         result = root_mean_square(sig_1d)
         rms_1d = 0.57735026919
         self.assertTrue(np.allclose(result, rms_1d))
         result = root_mean_square(np.zeros(100))
         self.assertTrue(np.allclose(result, 0))
-
-    def test_types_2d(self):
-        with self.assertRaises(NotImplementedError):
-            root_mean_square(sig_2d)
-
-    def test_values_2d(self):
+        # multi-channel signals
         with self.assertRaises(NotImplementedError):
             root_mean_square(sig_2d)
 
 
 class TestSoundPressureLevelFunction(unittest.TestCase):
 
-    def test_types_1d(self):
+    def test_types(self):
+        # mono signals
         result = sound_pressure_level(sig_1d)
         self.assertIsInstance(result, float)
-
-    def test_values_1d(self):
-        result = sound_pressure_level(sig_1d)
-        spl_1d = -4.7712125472
-        self.assertTrue(np.allclose(result, spl_1d))
-        result = sound_pressure_level(np.zeros(100))
-        self.assertTrue(np.allclose(result, -np.finfo(float).max))
-
-    def test_types_2d(self):
+        # multi-channel signals
         with self.assertRaises(NotImplementedError):
             sound_pressure_level(sig_2d)
 
-    def test_values_2d(self):
+    def test_values(self):
+        # mono signals
+        result = sound_pressure_level(sig_1d)
+        spl_1d = -4.7712125472
+        self.assertTrue(np.allclose(result, spl_1d))
+        # silence
+        result = sound_pressure_level(np.zeros(100))
+        self.assertTrue(np.allclose(result, -np.finfo(float).max))
+        # maximum float amplitude, alternating between -1 and 1
+        sig = np.cos(np.linspace(0, 2*np.pi*100, 2*100+1))
+        result = sound_pressure_level(sig)
+        self.assertTrue(np.allclose(result, 0.))
+        # maximum float amplitude, alternating between -1 and 1
+        sig = np.cos(np.linspace(0, 2*np.pi*100, 2*100+1)) * \
+              np.iinfo(np.int16).max
+        result = sound_pressure_level(sig.astype(np.int16))
+        self.assertTrue(np.allclose(result, 0.))
+        # multi-channel signals
         with self.assertRaises(NotImplementedError):
             sound_pressure_level(sig_2d)
 
