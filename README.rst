@@ -51,6 +51,7 @@ following packages installed:
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
+- `nose <https://github.com/nose-devs/nose>`_ (to run the tests)
 
 If you need support for audio files other than ``.wav`` with a sample rate of
 44.1kHz and 16 bit depth, you need ``ffmpeg`` (or ``avconv`` on Ubuntu Linux).
@@ -116,11 +117,15 @@ package locally by adding the ``--user`` argument:
 
     python setup.py install --user
 
+To run the included tests:
+
+    python setup.py test
+
 Install for development
 -----------------------
 
-If you want to actively work on the package, please follow the git instructions
-from the `Install from source`_ section.
+If you want to actively work on the package, please follow the git cloning
+instructions from the `Install from source`_ section.
 
 You can then either include the package directory in your ``$PYTHONPATH``,
 e.g. by the following command (if your are in the directory containing this
@@ -141,6 +146,10 @@ please run:
 Again, you can install the package locally by adding the ``--user`` argument:
 
     python setup.py develop --user
+
+To run the included tests:
+
+    python setup.py test
 
 Package structure
 -----------------

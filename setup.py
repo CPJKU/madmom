@@ -75,5 +75,6 @@ setup(name='madmom',
       exclude_package_data={'': ['tests']},
       scripts=scripts,
       cmdclass={'build_ext': build_ext},
+      test_suite='nose.collector',
       install_requires=install_requires,
       classifiers=classifiers)
