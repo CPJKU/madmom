@@ -123,7 +123,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
         # worst result
         return 0., False, False
     # tolerance must be greater than 0
-    if not tolerance > 0:
+    if float(tolerance) <= 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
     detections = np.asarray(detections, dtype=np.float)

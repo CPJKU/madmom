@@ -525,6 +525,8 @@ class RNNProcessor(ParallelProcessor):
         """
         # pylint: disable=unused-argument
 
+        if len(nn_files) == 0:
+            raise ValueError('at least one RNN model must be given.')
         nn_models = []
         for nn_file in nn_files:
             nn_models.append(RecurrentNeuralNetwork.load(nn_file))

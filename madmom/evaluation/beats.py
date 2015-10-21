@@ -247,7 +247,9 @@ def find_longest_continuous_segment(sequence_indices):
     # lengths of the individual segments
     segment_lengths = np.diff(boundaries)
     # return the length and start position of the longest continuous segment
-    return np.max(segment_lengths), boundaries[np.argmax(segment_lengths)]
+    length = int(np.max(segment_lengths))
+    start_pos = int(boundaries[np.argmax(segment_lengths)])
+    return length, start_pos
 
 
 def calc_relative_errors(detections, annotations, matches=None):
@@ -332,7 +334,7 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
                                 "P-score.")
 
     # tolerance must be greater than 0
-    if tolerance <= 0:
+    if float(tolerance) <= 0:
         raise ValueError("Tolerance must be greater than 0.")
 
     # make sure the annotations and detections have a float dtype
@@ -373,7 +375,7 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
         return 0.
 
     # sigma must be greater than 0
-    if sigma <= 0:
+    if float(sigma) <= 0:
         raise ValueError("Sigma must be greater than 0.")
 
     # make sure the annotations and detections have a float dtype
@@ -427,7 +429,7 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
                                 "score.")
 
     # threshold, sigma and mu must be greater than 0
-    if threshold < 0 or sigma < 0 or mu < 0:
+    if float(threshold) <= 0 or float(sigma) <= 0 or float(mu) <= 0:
         raise ValueError("Threshold, sigma and mu must be positive.")
 
     # make sure the annotations and detections have a float dtype
@@ -510,7 +512,7 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                                 "continuity scores, %s given." % detections)
 
     # tolerances must be greater than 0
-    if tempo_tolerance <= 0 or phase_tolerance <= 0:
+    if float(tempo_tolerance) <= 0 or float(phase_tolerance) <= 0:
         raise ValueError("Tempo and phase tolerances must be greater than 0")
 
     # make sure the annotations and detections have a float dtype

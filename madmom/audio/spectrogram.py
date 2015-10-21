@@ -874,27 +874,28 @@ class SpectrogramDifference(Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
 
         # calculate the number of diff frames to use
-        if not diff_frames:
+        if diff_frames is None:
             # calculate the number of diff_frames on basis of the diff_ratio
             # get the first sample with a higher magnitude than given ratio
             window = spectrogram.stft.window
-            sample = np.argmax(window > diff_ratio * max(window))
+            sample = np.argmax(window > float(diff_ratio) * max(window))
             diff_samples = len(spectrogram.stft.window) / 2 - sample
             # convert to frames
             hop_size = spectrogram.stft.frames.hop_size
-            diff_frames = int(round(diff_samples / hop_size))
-        # always set the minimum to 1
-        if diff_frames < 1:
-            diff_frames = 1
+            diff_frames = round(diff_samples / hop_size)
+
+        # use at least 1 frame
+        diff_frames = max(1, int(diff_frames))
 
         # init matrix
         diff = np.zeros_like(spectrogram)
 
         # apply a maximum filter to diff_spec if needed
-        if diff_max_bins > 1:
+        if diff_max_bins is not None and diff_max_bins > 1:
             from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
-            diff_spec = maximum_filter(spectrogram, size=[1, diff_max_bins])
+            size = [1, int(diff_max_bins)]
+            diff_spec = maximum_filter(spectrogram, size=size)
         else:
             diff_spec = spectrogram
         # calculate the diff

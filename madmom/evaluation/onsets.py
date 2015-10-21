@@ -104,6 +104,10 @@ def onset_evaluation(detections, annotations, window=WINDOW):
         # all annotations are FN
         return tp, fp, tn, annotations, errors
 
+    # window must be greater than 0
+    if float(window) <= 0:
+        raise ValueError('window must be greater than 0')
+
     # sort the detections and annotations
     det = np.sort(detections)
     ann = np.sort(annotations)

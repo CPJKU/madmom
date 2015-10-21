@@ -166,33 +166,28 @@ class TestTempoEvaluationFunction(unittest.TestCase):
         self.assertIsInstance(scores, tuple)
         scores = tempo_evaluation({}, {})
         self.assertIsInstance(scores, tuple)
-        # # we do not support normal non-empty lists
-        # with self.assertRaises(TypeError):
-        #     tempo_evaluation(DETECTIONS.tolist(), ANNOTATIONS.tolist(), 0.08)
-        # detections must not be None
-        with self.assertRaises(TypeError):
-            tempo_evaluation(None, ANN_TEMPI)
-        # annotations must not be None
-        with self.assertRaises(TypeError):
-            tempo_evaluation(DETECTIONS, None)
         # tolerance must be correct type
         scores = tempo_evaluation(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(scores, tuple)
-        # various not supported versions
-        with self.assertRaises(ValueError):
-            tempo_evaluation(DETECTIONS, ANN_TEMPI, [])
-        # with self.assertRaises(ValueError):
-        #     tempo_evaluation(DETECTIONS, ANN_TEMPI)
-        # TODO: what should happen if we supply a dictionary?
-        # with self.assertRaises(TypeError):
-        #     tempo_evaluation(DETECTIONS, ANN_TEMPI, ANN_STRENGTHS, {})
 
-    def test_values(self):
+    def test_errors(self):
+        # detections / annotations must not be None
+        with self.assertRaises(TypeError):
+            tempo_evaluation(None, ANN_TEMPI)
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, None)
         # tolerance must be > 0
         with self.assertRaises(ValueError):
             tempo_evaluation(DETECTIONS, ANNOTATIONS, 0)
-        with self.assertRaises(ValueError):
-            tempo_evaluation(DETECTIONS, ANNOTATIONS, None)
+        # tolerance must be correct type
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, None)
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, [])
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, {})
+
+    def test_values(self):
         # no tempi should return perfect score
         scores = tempo_evaluation([], [])
         self.assertEqual(scores, (1, True, True))

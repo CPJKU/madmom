@@ -29,6 +29,23 @@ class TestOnsetConstantsClass(unittest.TestCase):
 # test evaluation function
 class TestOnsetEvaluationFunction(unittest.TestCase):
 
+    def test_errors(self):
+        # detections / annotations must not be None
+        with self.assertRaises(TypeError):
+            onset_evaluation(None, ANNOTATIONS)
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, None)
+        # tolerance must be > 0
+        with self.assertRaises(ValueError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, 0)
+        # tolerance must be correct type
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, None)
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, [])
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, {})
+
     def test_results(self):
         # default window
         tp, fp, tn, fn, errors = onset_evaluation(DETECTIONS, ANNOTATIONS)

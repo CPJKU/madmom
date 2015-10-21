@@ -95,7 +95,8 @@ class TransitionModel(object):
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
         # convert everything into a sparse CSR matrix
-        transitions = csr_matrix((probabilities, (states, prev_states)))
+        transitions = csr_matrix((np.array(probabilities),
+                                  (np.array(states), np.array(prev_states))))
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
