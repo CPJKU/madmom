@@ -531,7 +531,7 @@ class TestTriangularFilterClass(unittest.TestCase):
     def test_band_bins_method_non_overlap(self):
         # test non-overlapping
         result = list(TriangularFilter.band_bins(self.bins, overlap=False))
-        self.assertTrue(result == [(1, 1, 2), (2, 2, 3), (3, 3, 4), (4, 4, 5),
+        self.assertTrue(result == [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5),
                                    (5, 6, 8)])
 
     def test_filters_method_normalized(self):

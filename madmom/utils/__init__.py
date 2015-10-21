@@ -251,9 +251,11 @@ def quantize_events(events, fps, length=None, shift=None):
     :return:       a quantized numpy array
 
     """
+    # convert to numpy array if needed
+    events = np.asarray(events, dtype=np.float)
     # shift all events if needed
     if shift:
-        events = np.asarray(events) + shift
+        events += shift
     # determine the length for the quantized array
     if length is None:
         # set the length to be long enough to cover all events
@@ -264,14 +266,11 @@ def quantize_events(events, fps, length=None, shift=None):
         events = events[:np.searchsorted(events, float(length - 0.5) / fps)]
     # init array
     quantized = np.zeros(length)
-    # set the events
-    for event in events:
-        idx = int(round(event * float(fps)))
-        try:
-            quantized[idx] = 1
-        except IndexError:
-            # ignore out of range indices
-            pass
+    # quantize
+    events *= fps
+    # indices to be set in the quantized array
+    idx = np.unique(np.round(events).astype(np.int))
+    quantized[idx] = 1
     # return the quantized array
     return quantized
 
