@@ -23,7 +23,7 @@ def load_notes(filename):
     :return:         numpy array with notes
 
     """
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         return np.loadtxt(f)
 
 
@@ -38,7 +38,7 @@ def write_notes(notes, filename, sep='\t'):
     """
     # write the notes to the output
     if filename is not None:
-        with open(filename, 'wb') as f:
+        with open(filename, 'w') as f:
             for note in notes:
                 f.write(sep.join([str(x) for x in note]) + '\n')
     # also return them

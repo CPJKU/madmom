@@ -8,7 +8,12 @@ This file contains test functions for the madmom.utils module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import __builtin__
+try:
+    # Python 3 or python-future builtins
+    import builtins
+except ImportError:
+    # Python 2 compatibility
+    import __builtin__ as builtins
 
 from madmom.utils import *
 
@@ -128,7 +133,7 @@ class TestLoadEventsFunction(unittest.TestCase):
         self.assertIsInstance(events, np.ndarray)
 
     def test_read_events_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt')
+        file_handle = builtins.open(DATA_PATH + 'events.txt')
         events = load_events(file_handle)
         self.assertIsInstance(events, np.ndarray)
         file_handle.close()
@@ -161,7 +166,7 @@ class TestWriteEventsFunction(unittest.TestCase):
         self.assertEqual(EVENTS, result)
 
     def test_write_events_to_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'w')
+        file_handle = builtins.open(DATA_PATH + 'events.txt', 'w')
         result = write_events(EVENTS, file_handle)
         self.assertEqual(EVENTS, result)
         file_handle.close()

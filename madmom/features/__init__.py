@@ -47,12 +47,14 @@ class Activations(np.ndarray):
         # the initialisation is done in __new__() and __array_finalize__()
 
     def __new__(cls, data, fps=None, sep=None, dtype=np.float32):
+        import io
+
         # check the type of the given data
         if isinstance(data, np.ndarray):
             # cast to Activations
             obj = np.asarray(data, dtype=dtype).view(cls)
             obj.fps = fps
-        elif isinstance(data, (basestring, file)):
+        elif isinstance(data, (str, io.IOBase)):
             # read from file or file handle
             obj = cls.load(data, fps, sep)
         else:

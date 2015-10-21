@@ -44,7 +44,7 @@ class Processor(object):
         """
         import pickle
         # close the open file if needed and use its name
-        if not isinstance(infile, basestring):
+        if not isinstance(infile, str):
             infile.close()
             infile = infile.name
         # instantiate a new Processor and return it
@@ -66,7 +66,7 @@ class Processor(object):
         warnings.warn('The resulting file is considered a model file, please '
                       'see the LICENSE file for details!')
         # close the open file if needed and use its name
-        if not isinstance(outfile, basestring):
+        if not isinstance(outfile, str):
             outfile.close()
             outfile = outfile.name
         # dump the Processor to the given file

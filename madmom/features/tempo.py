@@ -373,7 +373,7 @@ def write_tempo(tempi, filename, mirex=False):
     if mirex and t1 > t2:
         t1, t2, strength = t2, t1, 1. - strength
     # write to output
-    with open(filename, 'wb') as f:
+    with open(filename, 'w') as f:
         f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
     # also return the tempi & strength
     return t1, t2, strength

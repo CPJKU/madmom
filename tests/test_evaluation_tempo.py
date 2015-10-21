@@ -8,7 +8,13 @@ This file contains tests for the madmom.evaluation.tempo module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import __builtin__
+try:
+    # Python 3 or python-future builtins
+    import builtins
+except ImportError:
+    # Python 2 compatibility
+    import __builtin__ as builtins
+
 import math
 
 from madmom.evaluation.tempo import *
@@ -30,7 +36,7 @@ class TestLoadTempoFunction(unittest.TestCase):
         self.assertIsInstance(annotations, np.ndarray)
 
     def test_load_tempo_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'sample.tempo')
+        file_handle = builtins.open(DATA_PATH + 'sample.tempo')
         annotations = load_tempo(file_handle)
         self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()

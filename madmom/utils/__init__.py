@@ -53,10 +53,15 @@ def open(filename, mode='r'):
     :return:         an open file handle
 
     """
-    import __builtin__
+    try:
+        # Python 3 or python-future builtins
+        import builtins
+    except ImportError:
+        # Python 2 compatibility
+        import __builtin__ as builtins
     # check if we need to open the file
-    if isinstance(filename, basestring):
-        f = fid = __builtin__.open(filename, mode)
+    if isinstance(filename, str):
+        f = fid = builtins.open(filename, mode)
     else:
         f = filename
         fid = None
@@ -179,7 +184,7 @@ def load_events(filename):
           ignored (i.e. only the first column is returned).
 
     """
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         # read in the events, one per line
         events = np.loadtxt(f, ndmin=2)
         # 1st column is the event's time, the rest is ignored
@@ -196,7 +201,7 @@ def write_events(events, filename):
     """
     # write the events to the output
     if filename is not None:
-        with open(filename, 'wb') as f:
+        with open(filename, 'w') as f:
             f.writelines('%g\n' % e for e in events)
     # also return them
     return events

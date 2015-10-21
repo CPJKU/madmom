@@ -91,7 +91,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if isinstance(infile, file):
+    if not isinstance(infile, str):
         raise ValueError("only file names are supported as 'infile', not %s."
                          % infile)
     # assemble ffmpeg call
@@ -180,7 +180,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
         raise RuntimeError('avconv has a bug, which results in wrong audio '
                            'slices! Decode the audio files to .wav first or '
                            'use ffmpeg.')
-    if isinstance(infile, unicode):
+    if isinstance(infile, str):
         infile = infile.encode(sys.getfilesystemencoding())
     else:
         infile = str(infile)
@@ -212,7 +212,7 @@ def get_file_info(infile, cmd='ffprobe'):
 
     """
     # check input file type
-    if isinstance(infile, file):
+    if not isinstance(infile, str):
         raise ValueError("only file names are supported as 'infile', not %s."
                          % infile)
     # init dictionary
