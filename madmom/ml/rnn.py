@@ -462,22 +462,24 @@ class RecurrentNeuralNetwork(Processor):
 
             if '%s_type' % REVERSE in list(params.keys()):
                 # pop the parameters needed for the reverse (backward) layer
-                bwd_type = str(params.pop('%s_type' % REVERSE))
-                bwd_transfer_fn = str(params.pop('%s_transfer_fn' % REVERSE))
+                bwd_type = bytes(params.pop('%s_type' % REVERSE))
+                bwd_transfer_fn = bytes(params.pop('%s_transfer_fn' %
+                                                   REVERSE))
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in list(params.keys()) if
                                   k.startswith('%s_' % REVERSE))
-                bwd_params['transfer_fn'] = globals()[bwd_transfer_fn]
+                bwd_params['transfer_fn'] = globals()[bwd_transfer_fn.decode()]
                 # construct the layer
-                bwd_layer = globals()['%sLayer' % bwd_type](**bwd_params)
+                bwd_layer = globals()['%sLayer' % bwd_type.decode()](
+                    **bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
-            fwd_type = str(params.pop('type'))
-            fwd_transfer_fn = str(params.pop('transfer_fn'))
+            fwd_type = bytes(params.pop('type'))
+            fwd_transfer_fn = bytes(params.pop('transfer_fn'))
             fwd_params = params
-            fwd_params['transfer_fn'] = globals()[fwd_transfer_fn]
+            fwd_params['transfer_fn'] = globals()[fwd_transfer_fn.decode()]
             # construct the layer
-            fwd_layer = globals()['%sLayer' % fwd_type](**fwd_params)
+            fwd_layer = globals()['%sLayer' % fwd_type.decode()](**fwd_params)
 
             # return the (bidirectional) layer
             if bwd_layer is not None:
