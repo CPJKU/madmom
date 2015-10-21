@@ -15,7 +15,6 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import sys
-import abc
 import argparse
 import multiprocessing as mp
 
@@ -27,7 +26,6 @@ class Processor(object):
     Abstract base class for processing data.
 
     """
-    __metaclass__ = abc.ABCMeta
 
     @classmethod
     def load(cls, infile):
@@ -73,7 +71,6 @@ class Processor(object):
         pickle.dump(self, open(outfile, 'wb'),
                     protocol=pickle.HIGHEST_PROTOCOL)
 
-    @abc.abstractmethod
     def process(self, data):
         """
         Process the data.
@@ -85,7 +82,7 @@ class Processor(object):
         :return:     processed data
 
         """
-        return data
+        raise NotImplementedError('must be implemented by subclass.')
 
     def __call__(self, *args):
         """This magic method makes a Processor instance callable."""
@@ -98,7 +95,6 @@ class OutputProcessor(Processor):
 
     """
 
-    @abc.abstractmethod
     def process(self, data, output):
         """
         Processes the data and feeds it to output.
@@ -110,8 +106,7 @@ class OutputProcessor(Processor):
         """
         # pylint: disable=arguments-differ
 
-        # also return the data
-        return data
+        raise NotImplementedError('must be implemented by subclass.')
 
 
 # functions for processing file(s) with a Processor

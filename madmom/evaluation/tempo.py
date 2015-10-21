@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import warnings
 import numpy as np
 
-from . import EvaluationABC, MeanEvaluation, evaluation_io
+from . import EvaluationMixin, MeanEvaluation, evaluation_io
 
 
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
@@ -159,7 +159,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
 
 
 # basic tempo evaluation
-class TempoEvaluation(EvaluationABC):
+class TempoEvaluation(EvaluationMixin):
     """
     Tempo evaluation class.
 

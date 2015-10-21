@@ -12,7 +12,6 @@ If you want to change this module and use it interactively, use pyximport.
 
 from __future__ import absolute_import, division, print_function
 
-import abc
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -144,7 +143,6 @@ class ObservationModel(object):
     different observation probability (log) densities. Type must be np.float.
 
     """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, pointers):
         """
@@ -156,7 +154,6 @@ class ObservationModel(object):
 
         self.pointers = pointers
 
-    @abc.abstractmethod
     def log_densities(self, observations):
         """
         Log densities (or probabilities) of the observations for each state.
@@ -168,7 +165,7 @@ class ObservationModel(object):
                              observation log probability densities. The type
                              must be np.float.
         """
-        return
+        raise NotImplementedError('must be implemented by subclass')
 
     def densities(self, observations):
         """

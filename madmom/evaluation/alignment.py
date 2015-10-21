@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from . import EvaluationABC
+from . import EvaluationMixin
 
 
 # constants for the data format
@@ -203,7 +203,7 @@ def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
     return results
 
 
-class AlignmentEvaluation(EvaluationABC):
+class AlignmentEvaluation(EvaluationMixin):
     """
     Alignment evaluation class for beat-level alignments. Beat-level aligners
     output beat positions for points in time, rather than computing a time step

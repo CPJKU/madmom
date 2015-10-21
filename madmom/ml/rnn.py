@@ -21,7 +21,6 @@ other stuff.
 
 from __future__ import absolute_import, division, print_function
 
-import abc
 import numpy as np
 
 from ..processors import Processor, ParallelProcessor
@@ -129,26 +128,7 @@ def softmax(x, out=None):
 
 
 # network layer classes
-class Layer(object):
-    """
-    Generic network Layer.
-
-    """
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def activate(self, data):
-        """
-        Activate the layer.
-
-        :param data: activate with this data
-        :return:     activations for this data
-
-        """
-        return
-
-
-class FeedForwardLayer(Layer):
+class FeedForwardLayer(object):
     """
     Feed-forward network layer.
 
@@ -230,7 +210,7 @@ class RecurrentLayer(FeedForwardLayer):
         return out
 
 
-class BidirectionalLayer(Layer):
+class BidirectionalLayer(object):
     """
     Bidirectional network layer.
 
@@ -340,7 +320,7 @@ class Gate(Cell):
         self.peephole_weights = peephole_weights.flatten()
 
 
-class LSTMLayer(Layer):
+class LSTMLayer(object):
     """
     Recurrent network layer with Long Short-Term Memory units.
 
