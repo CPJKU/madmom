@@ -218,7 +218,7 @@ class RecurrentLayer(FeedForwardLayer):
         out = np.dot(data, self.weights)
         out += self.bias
         # loop through each time step
-        for i in xrange(size):
+        for i in range(size):
             # add the weighted previous step
             if i >= 1:
                 # np.dot(out[i - 1], self.recurrent_weights, out=tmp)
@@ -389,7 +389,7 @@ class LSTMLayer(Layer):
         # state (of the previous time step)
         state_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # process the input data
-        for i in xrange(size):
+        for i in range(size):
             # cache input data
             data_ = data[i]
             # input gate:
@@ -446,7 +446,7 @@ class RecurrentNeuralNetwork(Processor):
 
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
         num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
-                          for k in data.keys() if k.startswith('layer_')])
+                          for k in list(data.keys()) if k.startswith('layer_')])
 
         # function for layer creation with the given parameters
         def create_layer(params):
@@ -460,12 +460,12 @@ class RecurrentNeuralNetwork(Processor):
             # first check if we need to create a bidirectional layer
             bwd_layer = None
 
-            if '%s_type' % REVERSE in params.keys():
+            if '%s_type' % REVERSE in list(params.keys()):
                 # pop the parameters needed for the reverse (backward) layer
                 bwd_type = str(params.pop('%s_type' % REVERSE))
                 bwd_transfer_fn = str(params.pop('%s_transfer_fn' % REVERSE))
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                  for k in params.keys() if
+                                  for k in list(params.keys()) if
                                   k.startswith('%s_' % REVERSE))
                 bwd_params['transfer_fn'] = globals()[bwd_transfer_fn]
                 # construct the layer
@@ -490,10 +490,10 @@ class RecurrentNeuralNetwork(Processor):
 
         # loop over all layers
         layers = []
-        for i in xrange(num_layers + 1):
+        for i in range(num_layers + 1):
             # get all parameters for that layer
             layer_params = dict((k.split('_', 2)[2], data[k])
-                                for k in data.keys() if
+                                for k in list(data.keys()) if
                                 k.startswith('layer_%d' % i))
             # create a layer from these parameters
             layer = create_layer(layer_params)

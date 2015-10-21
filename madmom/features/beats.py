@@ -482,10 +482,9 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
         contiguous_act = np.ascontiguousarray(activations, dtype=np.float32)
-        results = self.map(_process_crf,
-                           it.izip(it.repeat(contiguous_act),
-                                   possible_intervals,
-                                   it.repeat(self.interval_sigma)))
+        results = list(self.map(
+            _process_crf, zip(it.repeat(contiguous_act), possible_intervals,
+                              it.repeat(self.interval_sigma))))
 
         # normalize their probabilities
         normalized_seq_probabilities = np.array([r[1] / r[0].shape[0]
@@ -930,7 +929,7 @@ class DownbeatTrackingProcessor(Processor):
         if self.downbeats:
             return beats[beat_numbers == 1]
         else:
-            return zip(beats, beat_numbers)
+            return list(zip(beats, beat_numbers))
 
     @classmethod
     def add_arguments(cls, parser, pattern_files=None, min_bpm=MIN_BPM,

@@ -167,7 +167,7 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         # (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
         # metric dictionary
-        self.assertEqual(e.metrics.keys(), ['num_tp', 'num_fp', 'num_tn',
+        self.assertEqual(list(e.metrics.keys()), ['num_tp', 'num_fp', 'num_tn',
                                             'num_fn', 'num_annotations',
                                             'precision', 'recall', 'fmeasure',
                                             'accuracy'])
@@ -264,7 +264,7 @@ class TestEvaluationClass(unittest.TestCase):
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
         # test metric dictionary keys
-        self.assertEqual(e.metrics.keys(), ['tp', 'fp', 'tn', 'fn', 'num_tp',
+        self.assertEqual(list(e.metrics.keys()), ['tp', 'fp', 'tn', 'fn', 'num_tp',
                                             'num_fp', 'num_tn', 'num_fn',
                                             'num_annotations', 'precision',
                                             'recall', 'fmeasure', 'accuracy'])

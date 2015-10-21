@@ -44,13 +44,13 @@ from ..utils import open
 
 # constants
 OCTAVE_MAX_VALUE = 12
-OCTAVE_VALUES = range(OCTAVE_MAX_VALUE)
+OCTAVE_VALUES = list(range(OCTAVE_MAX_VALUE))
 
 NOTE_NAMES = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B']
 WHITE_KEYS = [0, 2, 4, 5, 7, 9, 11]
 BLACK_KEYS = [1, 3, 6, 8, 10]
 NOTE_PER_OCTAVE = len(NOTE_NAMES)
-NOTE_VALUES = range(OCTAVE_MAX_VALUE * NOTE_PER_OCTAVE)
+NOTE_VALUES = list(range(OCTAVE_MAX_VALUE * NOTE_PER_OCTAVE))
 NOTE_NAME_MAP_FLAT = {}
 NOTE_VALUE_MAP_FLAT = []
 NOTE_NAME_MAP_SHARP = {}
@@ -108,7 +108,7 @@ def read_variable_length(data):
     next_byte = 1
     value = 0
     while next_byte:
-        next_value = ord(data.next())
+        next_value = ord(next(data))
         # is the hi-bit set?
         if not next_value & 0x80:
             # no next BYTE
@@ -692,7 +692,7 @@ class SetTempoEvent(MetaEvent):
 
         """
         assert len(self.data) == 3
-        values = [self.data[x] << (16 - (8 * x)) for x in xrange(3)]
+        values = [self.data[x] << (16 - (8 * x)) for x in range(3)]
         return sum(values)
 
     @microseconds_per_quarter_note.setter
@@ -961,22 +961,22 @@ class MIDITrack(object):
                 # first datum is variable length representing the delta-time
                 tick = read_variable_length(track_data)
                 # next byte is status message
-                status_msg = ord(track_data.next())
+                status_msg = ord(next(track_data))
                 # is the event a MetaEvent?
                 if MetaEvent.is_event(status_msg):
-                    cmd = ord(track_data.next())
+                    cmd = ord(next(track_data))
                     if cmd not in EventRegistry.MetaEvents:
                         raise Warning("Unknown Meta MIDI Event: %s" % cmd)
                     event_cls = EventRegistry.MetaEvents[cmd]
                     data_len = read_variable_length(track_data)
-                    data = [ord(track_data.next()) for _ in range(data_len)]
+                    data = [ord(next(track_data)) for _ in range(data_len)]
                     # create an event and append it to the list
                     events.append(event_cls(tick=tick, data=data))
                 # is this event a SysEx Event?
                 elif SysExEvent.is_event(status_msg):
                     data = []
                     while True:
-                        datum = ord(track_data.next())
+                        datum = ord(next(track_data))
                         if datum == 0xF7:
                             break
                         data.append(datum)
@@ -992,7 +992,7 @@ class MIDITrack(object):
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
-                        data += [ord(track_data.next()) for _ in
+                        data += [ord(next(track_data)) for _ in
                                  range(event_cls.length - 1)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,
@@ -1001,7 +1001,7 @@ class MIDITrack(object):
                         status = status_msg
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
-                        data = [ord(track_data.next()) for _ in
+                        data = [ord(next(track_data)) for _ in
                                 range(event_cls.length)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,

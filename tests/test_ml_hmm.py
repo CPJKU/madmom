@@ -59,7 +59,7 @@ CORRECT_FWD = np.array(
 class TestHmmInference(unittest.TestCase):
 
     def setUp(self):
-        frm, to, prob = zip(*TRANSITIONS)
+        frm, to, prob = list(zip(*TRANSITIONS))
 
         tm = TransitionModel.from_dense(to, frm, prob)
         om = DiscreteObservationModel(OBS_PROB)

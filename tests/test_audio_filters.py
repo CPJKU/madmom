@@ -520,30 +520,19 @@ class TestTriangularFilterClass(unittest.TestCase):
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
-            result = TriangularFilter.band_bins(np.arange(2))
-            result.next()
+            list(TriangularFilter.band_bins(np.arange(2)))
 
     def test_band_bins_method_overlap(self):
         # test overlapping
-        result = TriangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1, 2))
-        self.assertTrue(result.next() == (1, 2, 3))
-        self.assertTrue(result.next() == (2, 3, 4))
-        self.assertTrue(result.next() == (3, 4, 6))
-        self.assertTrue(result.next() == (4, 6, 9))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(TriangularFilter.band_bins(self.bins))
+        self.assertTrue(result == [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 6),
+                                   (4, 6, 9)])
 
     def test_band_bins_method_non_overlap(self):
         # test non-overlapping
-        result = TriangularFilter.band_bins(self.bins, overlap=False)
-        self.assertTrue(result.next() == (1, 1, 2))
-        self.assertTrue(result.next() == (2, 2, 3))
-        self.assertTrue(result.next() == (3, 3, 4))
-        self.assertTrue(result.next() == (4, 4, 5))
-        self.assertTrue(result.next() == (5, 6, 8))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(TriangularFilter.band_bins(self.bins, overlap=False))
+        self.assertTrue(result == [(1, 1, 2), (2, 2, 3), (3, 3, 4), (4, 4, 5),
+                                   (5, 6, 8)])
 
     def test_filters_method_normalized(self):
         # normalized filters
@@ -635,25 +624,16 @@ class TestRectangularFilterClass(unittest.TestCase):
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
-            result = RectangularFilter.band_bins(np.arange(1))
-            result.next()
+            list(RectangularFilter.band_bins(np.arange(1)))
 
     def test_band_bins_method_overlap(self):
-        result = RectangularFilter.band_bins(self.bins, overlap=True)
         with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            result.next()
+            list(RectangularFilter.band_bins(self.bins, overlap=True))
 
     def test_band_bins_method(self):
-        result = RectangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1))
-        self.assertTrue(result.next() == (1, 2))
-        self.assertTrue(result.next() == (2, 3))
-        self.assertTrue(result.next() == (3, 4))
-        self.assertTrue(result.next() == (4, 6))
-        self.assertTrue(result.next() == (6, 9))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(RectangularFilter.band_bins(self.bins))
+        self.assertEqual(result, [(0, 1), (1, 2), (2, 3), (3, 4), (4, 6),
+                                  (6, 9)])
 
     def test_filters_method_normalized(self):
         # normalized filters

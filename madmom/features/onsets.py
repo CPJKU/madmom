@@ -669,11 +669,11 @@ class PeakPickingProcessor(Processor):
                         np.diff(note_onsets) > self.combine]
                     # zip the onsets with the MIDI note number and add them to
                     # the list of detections
-                    detections.extend(zip(combined_note_onsets,
-                                          [note] * len(combined_note_onsets)))
+                    detections.extend(list(zip(combined_note_onsets,
+                                          [note] * len(combined_note_onsets))))
             else:
                 # just zip all detected notes
-                detections = zip(onsets, midi_notes)
+                detections = list(zip(onsets, midi_notes))
             # sort the detections and save as numpy array
             detections = np.asarray(sorted(detections))
         else:

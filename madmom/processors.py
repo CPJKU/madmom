@@ -283,7 +283,7 @@ class ParallelProcessor(SequentialProcessor):
         """
         import itertools as it
         # process data in parallel and return a list with processed data
-        return self.map(_process, it.izip(self.processors, it.repeat(data)))
+        return list(self.map(_process, zip(self.processors, it.repeat(data))))
 
     @classmethod
     def add_arguments(cls, parser, num_threads=NUM_THREADS):

@@ -56,7 +56,7 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     if max_tau is None:
         max_tau = len(activations) - min_tau
     # test all possible delays
-    taus = range(min_tau, max_tau + 1)
+    taus = list(range(min_tau, max_tau + 1))
     bins = []
     # Note: this is faster than:
     #   corr = np.correlate(activations, activations, mode='full')
@@ -171,7 +171,7 @@ def detect_tempo(histogram, fps):
         strengths = bins[sorted_peaks]
         strengths /= np.sum(strengths)
         # return the tempi and their normalized strengths
-        ret = np.asarray(zip(tempi[sorted_peaks], strengths))
+        ret = np.asarray(list(zip(tempi[sorted_peaks], strengths)))
     # return the tempi
     return np.atleast_2d(ret)
 

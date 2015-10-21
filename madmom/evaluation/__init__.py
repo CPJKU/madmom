@@ -680,7 +680,7 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES
-    metric_names, metric_labels = zip(*metric_names)
+    metric_names, metric_labels = list(zip(*metric_names))
     # add header
     lines = ['Name,' + ','.join(metric_labels)]
     # TODO: use e.metrics dict?
@@ -713,7 +713,7 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES
-    metric_names, metric_labels = zip(*metric_names)
+    metric_names, metric_labels = list(zip(*metric_names))
     # add header
     lines = ['Name & ' + ' & '.join(metric_labels) + '\\\\']
     # TODO: use e.metrics dict
