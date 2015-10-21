@@ -346,8 +346,8 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
         result = sound_pressure_level(sig)
         self.assertTrue(np.allclose(result, 0.))
         # maximum float amplitude, alternating between -1 and 1
-        sig = np.cos(np.linspace(0, 2*np.pi*100, 2*100+1)) * \
-              np.iinfo(np.int16).max
+        sig = (np.cos(np.linspace(0, 2*np.pi*100, 2*100+1)) *
+               np.iinfo(np.int16).max)
         result = sound_pressure_level(sig.astype(np.int16))
         self.assertTrue(np.allclose(result, 0.))
         # multi-channel signals
@@ -567,7 +567,7 @@ class TestSignalClass(unittest.TestCase):
         result = Signal(DATA_PATH + '/sample.wav')
         f, filename = tempfile.mkstemp()
         pickle.dump(result, open(filename, 'wb'),
-                     protocol=pickle.HIGHEST_PROTOCOL)
+                    protocol=pickle.HIGHEST_PROTOCOL)
         result_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(result, result_))
         self.assertTrue(result.sample_rate == result_.sample_rate)

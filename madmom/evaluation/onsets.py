@@ -22,11 +22,6 @@ from . import evaluation_io, Evaluation, SumEvaluation, MeanEvaluation
 from ..utils import suppress_warnings, combine_events
 
 
-# default onset evaluation values
-WINDOW = 0.025
-COMBINE = 0.03
-
-
 @suppress_warnings
 def load_onsets(values):
     """
@@ -55,6 +50,11 @@ def load_onsets(values):
     if values.ndim > 1:
         return values[:, 0]
     return values
+
+
+# default onset evaluation values
+WINDOW = 0.025
+COMBINE = 0.03
 
 
 # onset evaluation function

@@ -1179,9 +1179,7 @@ class TestRectangularFilterbankClass(unittest.TestCase):
         self.assertEqual(filt.shape, (100, 3))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     np.arange(0, 2000, 20)))
-        print filt.crossover_frequencies
         self.assertTrue(np.allclose(filt.crossover_frequencies, [100, 1000]))
-
 
     def test_values_unique_filters(self):
         filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 101, 1000],

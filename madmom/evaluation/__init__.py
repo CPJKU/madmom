@@ -173,7 +173,6 @@ class EvaluationMixin(object):
     @property
     def metrics(self):
         """Metrics as a dictionary."""
-        # TODO: use an ordered dict?
         from collections import OrderedDict
         metrics = OrderedDict()
         # metrics = {}

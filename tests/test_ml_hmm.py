@@ -81,5 +81,6 @@ class TestHmmInference(unittest.TestCase):
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
 
     def test_forward_generator(self):
-        fwd = np.vstack(list(self.hmm.forward_generator(OBS_SEQ, block_size=5)))
+        fwd = np.vstack(list(self.hmm.forward_generator(OBS_SEQ,
+                                                        block_size=5)))
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))

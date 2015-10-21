@@ -425,8 +425,8 @@ class RecurrentNeuralNetwork(Processor):
         data = np.load(filename)
 
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
-        num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
-                          for k in list(data.keys()) if k.startswith('layer_')])
+        num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0]) for
+                          k in list(data.keys()) if k.startswith('layer_')])
 
         # function for layer creation with the given parameters
         def create_layer(params):

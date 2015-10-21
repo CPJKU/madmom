@@ -30,7 +30,7 @@ def main():
                         help='pickled processor')
     parser.add_argument('--version', action='version',
                         version='PickleProcessor v0.1')
-    sp = io_arguments(parser, output_suffix='.txt', pickle=False)
+    io_arguments(parser, output_suffix='.txt', pickle=False)
 
     # parse arguments
     args = parser.parse_args()

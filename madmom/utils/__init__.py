@@ -309,7 +309,7 @@ class OverrideDefaultListAction(argparse.Action):
         try:
             cur_values.extend([self.list_type(v)
                                for v in value.split(self.sep)])
-        except ValueError, e:
+        except ValueError as e:
             raise argparse.ArgumentError(self, e)
 
 
