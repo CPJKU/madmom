@@ -557,13 +557,13 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result.length, 2.8))
 
     def test_pickling(self):
-        import cPickle
+        import pickle
         import tempfile
         result = Signal(DATA_PATH + '/sample.wav')
         f, filename = tempfile.mkstemp()
-        cPickle.dump(result, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        result_ = cPickle.load(open(filename))
+        pickle.dump(result, open(filename, 'wb'),
+                     protocol=pickle.HIGHEST_PROTOCOL)
+        result_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(result, result_))
         self.assertTrue(result.sample_rate == result_.sample_rate)
 

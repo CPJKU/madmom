@@ -8,7 +8,7 @@ This file contains tests for the madmom.audio.stft module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import cPickle
+import pickle
 
 from . import DATA_PATH
 from madmom.audio.stft import *
@@ -178,8 +178,8 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav',
                                            window=np.hamming, fft_size=4096,
                                            circular_shift=True)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         # additional attributes
         self.assertTrue(np.allclose(result.window, dump.window))
@@ -260,8 +260,8 @@ class PhaseClass(unittest.TestCase):
 
     def test_pickle(self):
         result = Phase(DATA_PATH + '/sample.wav')
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
 
     def test_methods(self):
@@ -299,6 +299,6 @@ class LocalGroupDelayClass(unittest.TestCase):
 
     def test_pickle(self):
         result = LocalGroupDelay(DATA_PATH + '/sample.wav')
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))

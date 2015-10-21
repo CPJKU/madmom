@@ -42,13 +42,13 @@ class Processor(object):
         :return:       Processor instance
 
         """
-        import cPickle
+        import pickle
         # close the open file if needed and use its name
         if not isinstance(infile, basestring):
             infile.close()
             infile = infile.name
         # instantiate a new Processor and return it
-        return cPickle.load(open(infile, 'rb'))
+        return pickle.load(open(infile, 'rb'))
 
     def dump(self, outfile):
         """
@@ -61,7 +61,7 @@ class Processor(object):
         :param outfile: output file name or file handle
 
         """
-        import cPickle
+        import pickle
         import warnings
         warnings.warn('The resulting file is considered a model file, please '
                       'see the LICENSE file for details!')
@@ -70,8 +70,8 @@ class Processor(object):
             outfile.close()
             outfile = outfile.name
         # dump the Processor to the given file
-        cPickle.dump(self, open(outfile, 'wb'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(self, open(outfile, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
 
     @abc.abstractmethod
     def process(self, data):

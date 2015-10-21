@@ -8,7 +8,7 @@ This file contains tests for the madmom.audio.spectrogram module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import cPickle
+import pickle
 
 from . import DATA_PATH
 from madmom.audio.spectrogram import *
@@ -150,8 +150,8 @@ class TestSpectrogramClass(unittest.TestCase):
 
     def test_pickle(self):
         result = Spectrogram(DATA_PATH + '/sample.wav')
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
 
     def test_methods(self):
@@ -211,8 +211,8 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         from madmom.audio.filters import MelFilterbank
         result = FilteredSpectrogram(DATA_PATH + '/sample.wav',
                                      filterbank=MelFilterbank)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         # additional attributes
         self.assertTrue(np.allclose(result.filterbank, dump.filterbank))
@@ -284,8 +284,8 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         # test with non-default values
         result = LogarithmicSpectrogram(DATA_PATH + '/sample.wav',
                                         mul=2, add=2)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         self.assertTrue(result.mul == dump.mul)
         self.assertTrue(result.add == dump.add)
@@ -347,8 +347,8 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
         # test with non-default values
         result = LogarithmicFilteredSpectrogram(DATA_PATH + '/sample.wav',
                                                 mul=2, add=2)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         self.assertTrue(np.allclose(result.filterbank, dump.filterbank))
         self.assertTrue(result.mul == dump.mul)
@@ -418,8 +418,8 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         result = SpectrogramDifference(DATA_PATH + '/sample.wav',
                                        diff_ratio=0.7, diff_frames=3,
                                        diff_max_bins=2, positive_diffs=True)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         self.assertTrue(result.diff_ratio == dump.diff_ratio)
         self.assertTrue(result.diff_frames == dump.diff_frames)
@@ -504,8 +504,8 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
     def test_pickle(self):
         # test with non-default values
         result = MultiBandSpectrogram(DATA_PATH + '/sample.wav', [200, 1000])
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         self.assertTrue(result.crossover_frequencies ==
                         dump.crossover_frequencies)
