@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.onsets module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
@@ -148,7 +150,7 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, std)
 
     def test_tostring(self):
-        print OnsetEvaluation([], [])
+        print(OnsetEvaluation([], []))
 
 
 class TestOnsetSumEvaluationClass(unittest.TestCase):
@@ -218,7 +220,7 @@ class TestOnsetSumEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, e2.std_error)
 
     def test_tostring(self):
-        print OnsetSumEvaluation([])
+        print(OnsetSumEvaluation([]))
 
 
 class TestOnsetMeanEvaluationClass(unittest.TestCase):
@@ -298,4 +300,4 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
                          np.mean([e_.std_error for e_ in [e2, e3]]))
 
     def test_tostring(self):
-        print OnsetMeanEvaluation([])
+        print(OnsetMeanEvaluation([]))

@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This software serves as a Python implementation of the beat evaluation toolkit,
 which can be downloaded from:
@@ -23,6 +22,8 @@ This approach was chosen, because it is simpler and produces more accurate
 results.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import warnings
 import numpy as np

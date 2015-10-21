@@ -1,11 +1,12 @@
 # encoding: utf-8
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains audio handling via ffmpeg functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import tempfile
 import subprocess

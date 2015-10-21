@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains functionality needed for fitting and scoring Gaussian
 Mixture Models (GMMs) (needed e.g. in madmom.features.dbn).
@@ -18,6 +17,8 @@ This version works with sklearn v0.16 an onwards.
 All commits until 0650d5502e01e6b4245ce99729fc8e7a71aacff3 are incorporated.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy import linalg

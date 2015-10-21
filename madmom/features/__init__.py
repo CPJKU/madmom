@@ -2,12 +2,13 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This package includes higher level features. Your definition of "higher" may
 vary, but all "lower" level features can be found the `audio` package.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 

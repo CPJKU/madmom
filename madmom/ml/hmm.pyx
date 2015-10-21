@@ -1,5 +1,4 @@
 # encoding: utf-8
-
 """
 This file contains Hidden Markov Model (HMM) functionality.
 
@@ -10,6 +9,8 @@ If you want to change this module and use it interactively, use pyximport.
                       setup_args={'include_dirs': np.get_include()})
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import abc
 import numpy as np

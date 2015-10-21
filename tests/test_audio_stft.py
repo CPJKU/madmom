@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.audio.stft module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import cPickle

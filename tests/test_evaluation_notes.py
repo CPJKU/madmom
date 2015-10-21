@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.notes module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import __builtin__
@@ -224,7 +226,7 @@ class TestNoteEvaluationClass(unittest.TestCase):
                                     np.std([0, 0.014, -0.001, 0])))
 
     def test_tostring(self):
-        print NoteEvaluation([], [])
+        print(NoteEvaluation([], []))
 
 
 class TestNoteSumEvaluationClass(unittest.TestCase):
@@ -289,7 +291,7 @@ class TestNoteSumEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, e2.std_error)
 
     def test_tostring(self):
-        print NoteSumEvaluation([])
+        print(NoteSumEvaluation([]))
 
 
 class TestNoteMeanEvaluationClass(unittest.TestCase):
@@ -364,4 +366,4 @@ class TestNoteMeanEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, e2.std_error)
 
     def test_tostring(self):
-        print NoteMeanEvaluation([])
+        print(NoteMeanEvaluation([]))

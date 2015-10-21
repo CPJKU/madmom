@@ -3,7 +3,6 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
-
 """
 This file contains MIDI functionality.
 
@@ -34,6 +33,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import math
 import struct

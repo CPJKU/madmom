@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains chroma related functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 

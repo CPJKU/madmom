@@ -5,6 +5,8 @@ BeatDetector beat tracking algorithm.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import glob
 import argparse
 
@@ -94,7 +96,7 @@ def main():
 
     # print arguments
     if args.verbose:
-        print args
+        print(args)
 
     # input processor
     if args.load:

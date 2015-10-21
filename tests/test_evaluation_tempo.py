@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.tempo module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import __builtin__
@@ -319,7 +321,7 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.acc2, False)
 
     def test_tostring(self):
-        print TempoEvaluation([], [])
+        print(TempoEvaluation([], []))
 
 
 class TestMeanTempoEvaluationClass(unittest.TestCase):
@@ -361,4 +363,4 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(len(e), 2)
 
     def test_tostring(self):
-        print TempoMeanEvaluation([])
+        print(TempoMeanEvaluation([]))

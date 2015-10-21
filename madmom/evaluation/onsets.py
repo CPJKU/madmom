@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains onset evaluation functionality.
 
@@ -15,8 +14,9 @@ Conference (ISMIR), 2012.
 
 """
 
-import numpy as np
+from __future__ import absolute_import, division, print_function
 
+import numpy as np
 
 from . import evaluation_io, Evaluation, SumEvaluation, MeanEvaluation
 from ..utils import suppress_warnings, combine_events

@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains test functions for the madmom.utils module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import __builtin__

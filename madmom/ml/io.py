@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains functionality needed for the conversion of from the
 universal .h5 format to the .npz format understood by madmom.ml.rnn.
@@ -32,6 +31,8 @@ same named data sets with a 'reverse_' prefix to indicate that they belong to
 the reverse/backward layer of bidirectional layers.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import os
 import numpy as np

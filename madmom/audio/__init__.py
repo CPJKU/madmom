@@ -6,5 +6,7 @@ The definition of "lower" may vary, but all "higher" level features
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 # import the submodules
 from . import signal, ffmpeg, filters, comb_filters, stft, spectrogram

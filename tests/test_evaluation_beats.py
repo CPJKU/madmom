@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.beats module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
@@ -925,7 +927,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
 
     def test_tostring(self):
-        print BeatEvaluation([], [])
+        print(BeatEvaluation([], []))
 
 
 class TestBeatMeanEvaluationClass(unittest.TestCase):
@@ -1022,4 +1024,4 @@ class TestBeatMeanEvaluationClass(unittest.TestCase):
         self.assertEqual(len(e), 2)
 
     def test_tostring(self):
-        print BeatMeanEvaluation([])
+        print(BeatMeanEvaluation([]))

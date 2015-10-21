@@ -3,7 +3,6 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
-
 """
 This file contains recurrent neural network (RNN) related functionality.
 
@@ -19,6 +18,8 @@ Just use one of the many NN/ML packages out there if you need training or any
 other stuff.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import abc
 import numpy as np

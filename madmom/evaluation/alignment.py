@@ -2,15 +2,17 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains global alignment evaluation functionality.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
 from . import EvaluationABC
+
 
 # constants for the data format
 _TIME = 0

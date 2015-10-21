@@ -3,7 +3,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains all functionality needed for interaction with RNNLIB.
 
@@ -18,6 +17,8 @@ Note: RNNLIB is rather slow, madmom.ml.rnn serves as a (faster) purely Python
       RnnConfig('trained_network.save').save_model('converted_file').
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import os.path
 import re
@@ -694,7 +695,7 @@ class TestThread(Thread):
                 # TODO: make regression task work as well
                 #       until then just output the log
                 with open("%s/log" % tmp_work_path, 'rb') as log:
-                    print log.read()
+                    print(log.read())
                 raise RuntimeError("Error while RNNLIB processing.")
             finally:
                 # put a tuple with nc file, nn file and activations
@@ -1247,7 +1248,7 @@ def test_save_files(files, out_dir=None, file_set='test', threads=THREADS,
             # cast the activations to an Activations instance (we only passed
             # one .nc file, so it's the first activation in the returned list)
             if verbose:
-                print act_file
+                print(act_file)
             Activations(activations[0], fps=fps).save(act_file)
 
 
@@ -1315,7 +1316,7 @@ def create_config(files, config, out_dir, num_folds=8, randomize=False,
                         try:
                             folds[fold].append(str(nc_file[0]))
                         except IndexError:
-                            print "can't find .nc file for file: %s" % line
+                            print("can't find .nc file for file: %s" % line)
     else:
         # use a standard splits
         for fold in range(num_folds):
@@ -1471,11 +1472,11 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
             wav_files = match_file(f, files, annotation, '.flac')
         # no wav file found
         if len(wav_files) < 1:
-            print "can't find audio file for %s" % f
+            print("can't find audio file for %s" % f)
             exit()
         # print file
         if verbose:
-            print f
+            print(f)
 
         # create the data for the .nc file from the .wav file
         nc_data = processor.process(wav_files[0])
