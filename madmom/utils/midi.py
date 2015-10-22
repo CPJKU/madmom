@@ -9,7 +9,20 @@ This file contains MIDI functionality.
 Almost all code is taken from Giles Hall's python-midi package:
 https://github.com/vishnubob/python-midi
 
-The last merged commit is 3053fefe8cd829ff891ac4fe58dc230744fce0e6
+It combines the complete package in a single file, to make it easier to
+distribute. Most notable changes are `MIDITrack` and `MIDIFile` classes which
+handle all data i/o and provide a interface which allows to read/display all
+notes as simple numpy arrays. Also, the EventRegistry is handled differently.
+
+The last merged commit is 3053fefe.
+
+Since then the following commits have been added functionality-wise:
+- 0964c0b (prevent multiple tick conversions)
+- c43bf37 (add pitch and value properties to AfterTouchEvent)
+- 40111c6 (add 0x08 MetaEvent: ProgramNameEvent)
+- 43de818 (handle unknown MIDI meta events gracefully)
+
+Additionally, the module has been updated to work with Python3.
 
 The MIT License (MIT)
 Copyright (c) 2013 Giles F. Hall
@@ -59,22 +72,22 @@ NOTE_VALUE_MAP_SHARP = []
 for index in range(128):
     note_idx = index % NOTE_PER_OCTAVE
     oct_idx = index / OCTAVE_MAX_VALUE
-    name = NOTE_NAMES[note_idx]
-    if len(name) == 2:
+    note_name = NOTE_NAMES[note_idx]
+    if len(note_name) == 2:
         # sharp note
         flat = NOTE_NAMES[note_idx + 1] + 'b'
         NOTE_NAME_MAP_FLAT['%s_%d' % (flat, oct_idx)] = index
-        NOTE_NAME_MAP_SHARP['%s_%d' % (name, oct_idx)] = index
+        NOTE_NAME_MAP_SHARP['%s_%d' % (note_name, oct_idx)] = index
         NOTE_VALUE_MAP_FLAT.append('%s_%d' % (flat, oct_idx))
-        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (name, oct_idx))
-        globals()['%s_%d' % (name[0] + 's', oct_idx)] = index
+        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (note_name, oct_idx))
+        globals()['%s_%d' % (note_name[0] + 's', oct_idx)] = index
         globals()['%s_%d' % (flat, oct_idx)] = index
     else:
-        NOTE_NAME_MAP_FLAT['%s_%d' % (name, oct_idx)] = index
-        NOTE_NAME_MAP_SHARP['%s_%d' % (name, oct_idx)] = index
-        NOTE_VALUE_MAP_FLAT.append('%s_%d' % (name, oct_idx))
-        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (name, oct_idx))
-        globals()['%s_%d' % (name, oct_idx)] = index
+        NOTE_NAME_MAP_FLAT['%s_%d' % (note_name, oct_idx)] = index
+        NOTE_NAME_MAP_SHARP['%s_%d' % (note_name, oct_idx)] = index
+        NOTE_VALUE_MAP_FLAT.append('%s_%d' % (note_name, oct_idx))
+        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (note_name, oct_idx))
+        globals()['%s_%d' % (note_name, oct_idx)] = index
 
 BEAT_NAMES = ['whole', 'half', 'quarter', 'eighth', 'sixteenth',
               'thirty-second', 'sixty-fourth']
@@ -108,7 +121,7 @@ def read_variable_length(data):
     next_byte = 1
     value = 0
     while next_byte:
-        next_value = ord(next(data))
+        next_value = next(data)
         # is the hi-bit set?
         if not next_value & 0x80:
             # no next BYTE
@@ -124,70 +137,67 @@ def read_variable_length(data):
 
 def write_variable_length(value):
     """
+    Write a variable length variable.
 
     :param value:
     :return:
+
     """
-    chr1 = chr(value & 0x7F)
+    result = bytearray()
+    result.insert(0, value & 0x7F)
     value >>= 7
     if value:
-        chr2 = chr((value & 0x7F) | 0x80)
+        result.insert(0, (value & 0x7F) | 0x80)
         value >>= 7
         if value:
-            chr3 = chr((value & 0x7F) | 0x80)
+            result.insert(0, (value & 0x7F) | 0x80)
             value >>= 7
             if value:
-                chr4 = chr((value & 0x7F) | 0x80)
-                result = chr4 + chr3 + chr2 + chr1
-            else:
-                result = chr3 + chr2 + chr1
-        else:
-            result = chr2 + chr1
-    else:
-        result = chr1
+                result.insert(0, (value & 0x7F) | 0x80)
     return result
 
 
-class EventRegistry(type):
+class EventRegistry(object):
     """
-    Class for automatically registering usable Events.
+    Class for registering Events.
+
+    Event classes should be registered manually by calling
+    EventRegistry.register_event(EventClass) after the class definition.
 
     """
     Events = {}
     MetaEvents = {}
 
-    def __init__(cls, name, bases, dct):
+    @classmethod
+    def register_event(cls, event):
         """
         Registers an event in the registry.
 
-        :param name:       the name of the event to register
-        :param bases:      the base class(es)
-        :param dct:        dictionary with all the stuff
+        :param event:      the event to register
         :raise ValueError: for unknown events
 
         """
-        super(EventRegistry, cls).__init__(name, bases, dct)
-        # register the event
-        if cls.register:
-            # normal events
-            if any(x in [Event, NoteEvent] for x in bases):
-                # raise an error if the event class is registered already
-                if cls.status_msg in EventRegistry.Events:
+        # normal events
+        if any(b in (Event, NoteEvent) for b in event.__bases__):
+            # raise an error if the event class is registered already
+            if event.status_msg in cls.Events:
+                raise AssertionError("Event %s already registered" %
+                                     event.name)
+            # register the Event
+            cls.Events[event.status_msg] = event
+        # meta events
+        elif any(b in (MetaEvent, MetaEventWithText) for b in event.__bases__):
+            # raise an error if the meta event class is registered already
+            if event.meta_command is not None:
+                if event.meta_command in EventRegistry.MetaEvents:
                     raise AssertionError("Event %s already registered" %
-                                         cls.name)
-                # register the Event
-                EventRegistry.Events[cls.status_msg] = cls
-            # meta events
-            elif any(x in [MetaEvent, MetaEventWithText] for x in bases):
-                # raise an error if the meta event class is registered already
-                if cls.meta_command in EventRegistry.MetaEvents:
-                    raise AssertionError("Event %s already registered" %
-                                         cls.name)
-                # register the MetaEvent
-                EventRegistry.MetaEvents[cls.meta_command] = cls
-            else:
-                # raise an error
-                raise ValueError("Unknown base class in event type: %s" % name)
+                                         event.name)
+            # register the MetaEvent
+            cls.MetaEvents[event.meta_command] = event
+        else:
+            # raise an error
+            raise ValueError("Unknown base class in event type: %s" %
+                             event.__bases__)
 
 
 class AbstractEvent(object):
@@ -195,12 +205,9 @@ class AbstractEvent(object):
     Abstract Event.
 
     """
-    __metaclass__ = EventRegistry
-    __slots__ = ['tick', 'data']
     name = "Generic MIDI Event"
     length = 0
     status_msg = 0x0
-    register = False
 
     def __init__(self, **kwargs):
         if isinstance(self.length, int):
@@ -213,15 +220,19 @@ class AbstractEvent(object):
             setattr(self, key, kwargs[key])
 
     def __cmp__(self, other):
-        if self.tick < other.tick:
-            return -1
-        elif self.tick > other.tick:
-            return 1
-        return cmp(self.data, other.data)
+        raise RuntimeError('add missing comparison operators')
+
+    def __lt__(self, other):
+        return self.tick < other.tick
+
+    def __gt__(self, other):
+        return self.tick > other.tick
 
     def __str__(self):
         return "%s: tick: %s data: %s" % (self.__class__.__name__, self.tick,
                                           self.data)
+
+# do not register AbstractEvent
 
 
 class Event(AbstractEvent):
@@ -229,7 +240,6 @@ class Event(AbstractEvent):
     Event.
 
     """
-    __slots__ = ['channel']
     name = 'Event'
 
     def __init__(self, **kwargs):
@@ -261,6 +271,8 @@ class Event(AbstractEvent):
         """
         return cls.status_msg == (status_msg & 0xF0)
 
+# do not register Event
+
 
 class MetaEvent(AbstractEvent):
     """
@@ -283,6 +295,24 @@ class MetaEvent(AbstractEvent):
         """
         return cls.status_msg == status_msg
 
+# do not register MetaEvent
+
+
+class MetaEventWithText(MetaEvent):
+    """
+    Meta Event With Text.
+
+    """
+    def __init__(self, **kwargs):
+        super(MetaEventWithText, self).__init__(**kwargs)
+        if 'text' not in kwargs:
+            self.text = ''.join(chr(datum) for datum in self.data)
+
+    def __str__(self):
+        return "%s: %s" % (self.__class__.__name__, self.text)
+
+# do not register MetaEventWithText
+
 
 class NoteEvent(Event):
     """
@@ -290,7 +320,6 @@ class NoteEvent(Event):
     concrete class. It defines the generalities of NoteOn and NoteOff events.
 
     """
-    __slots__ = ['pitch', 'velocity']
     length = 2
 
     @property
@@ -329,15 +358,18 @@ class NoteEvent(Event):
         """
         self.data[1] = velocity
 
+# do not register NoteEvent
+
 
 class NoteOnEvent(NoteEvent):
     """
     Note On Event.
 
     """
-    register = True
     status_msg = 0x90
     name = 'Note On'
+
+EventRegistry.register_event(NoteOnEvent)
 
 
 class NoteOffEvent(NoteEvent):
@@ -345,9 +377,10 @@ class NoteOffEvent(NoteEvent):
     Note Off Event.
 
     """
-    register = True
     status_msg = 0x80
     name = 'Note Off'
+
+EventRegistry.register_event(NoteOffEvent)
 
 
 class AfterTouchEvent(Event):
@@ -355,10 +388,47 @@ class AfterTouchEvent(Event):
     After Touch Event.
 
     """
-    register = True
     status_msg = 0xA0
     length = 2
     name = 'After Touch'
+
+    @property
+    def pitch(self):
+        """
+        Pitch of the after touch event.
+
+        """
+        return self.data[0]
+
+    @pitch.setter
+    def pitch(self, pitch):
+        """
+        Set the pitch of the after touch event.
+
+        :param pitch: pitch of the after touch event.
+
+        """
+        self.data[0] = pitch
+
+    @property
+    def value(self):
+        """
+        Value of the after touch event.
+
+        """
+        return self.data[1]
+
+    @value.setter
+    def value(self, value):
+        """
+        Set the value of the after touch event.
+
+        :param value: value of the after touch event.
+
+        """
+        self.data[1] = value
+
+EventRegistry.register_event(AfterTouchEvent)
 
 
 class ControlChangeEvent(Event):
@@ -366,8 +436,6 @@ class ControlChangeEvent(Event):
     Control Change Event.
 
     """
-    __slots__ = ['control', 'value']
-    register = True
     status_msg = 0xB0
     length = 2
     name = 'Control Change'
@@ -408,14 +476,14 @@ class ControlChangeEvent(Event):
         """
         self.data[1] = value
 
+EventRegistry.register_event(ControlChangeEvent)
+
 
 class ProgramChangeEvent(Event):
     """
     Program Change Event.
 
     """
-    __slots__ = ['value']
-    register = True
     status_msg = 0xC0
     length = 1
     name = 'Program Change'
@@ -437,14 +505,14 @@ class ProgramChangeEvent(Event):
         """
         self.data[0] = value
 
+EventRegistry.register_event(ProgramChangeEvent)
+
 
 class ChannelAfterTouchEvent(Event):
     """
     Channel After Touch Event.
 
     """
-    __slots__ = ['value']
-    register = True
     status_msg = 0xD0
     length = 1
     name = 'Channel After Touch'
@@ -466,14 +534,14 @@ class ChannelAfterTouchEvent(Event):
         """
         self.data[0] = value
 
+EventRegistry.register_event(ChannelAfterTouchEvent)
+
 
 class PitchWheelEvent(Event):
     """
     Pitch Wheel Event.
 
     """
-    __slots__ = ['pitch']
-    register = True
     status_msg = 0xE0
     length = 2
     name = 'Pitch Wheel'
@@ -498,13 +566,14 @@ class PitchWheelEvent(Event):
         self.data[0] = value & 0x7F
         self.data[1] = (value >> 7) & 0x7F
 
+EventRegistry.register_event(PitchWheelEvent)
+
 
 class SysExEvent(Event):
     """
     System Exclusive Event.
 
     """
-    register = True
     status_msg = 0xF0
     length = 'variable'
     name = 'SysEx'
@@ -520,19 +589,7 @@ class SysExEvent(Event):
         """
         return cls.status_msg == status_msg
 
-
-class MetaEventWithText(MetaEvent):
-    """
-    Meta Event With Text.
-
-    """
-    def __init__(self, **kwargs):
-        super(MetaEventWithText, self).__init__(**kwargs)
-        if 'text' not in kwargs:
-            self.text = ''.join(chr(datum) for datum in self.data)
-
-    def __str__(self):
-        return "%s: %s" % (self.__class__.__name__, self.text)
+EventRegistry.register_event(SysExEvent)
 
 
 class SequenceNumberMetaEvent(MetaEvent):
@@ -540,10 +597,11 @@ class SequenceNumberMetaEvent(MetaEvent):
     Sequence Number Meta Event.
 
     """
-    register = True
     meta_command = 0x00
     length = 2
     name = 'Sequence Number'
+
+EventRegistry.register_event(SequenceNumberMetaEvent)
 
 
 class TextMetaEvent(MetaEventWithText):
@@ -551,10 +609,11 @@ class TextMetaEvent(MetaEventWithText):
     Text Meta Event.
 
     """
-    register = True
     meta_command = 0x01
     length = 'variable'
     name = 'Text'
+
+EventRegistry.register_event(TextMetaEvent)
 
 
 class CopyrightMetaEvent(MetaEventWithText):
@@ -562,10 +621,11 @@ class CopyrightMetaEvent(MetaEventWithText):
     Copyright Meta Event.
 
     """
-    register = True
     meta_command = 0x02
     length = 'variable'
     name = 'Copyright Notice'
+
+EventRegistry.register_event(CopyrightMetaEvent)
 
 
 class TrackNameEvent(MetaEventWithText):
@@ -573,10 +633,11 @@ class TrackNameEvent(MetaEventWithText):
     Track Name Event.
 
     """
-    register = True
     meta_command = 0x03
     length = 'variable'
     name = 'Track Name'
+
+EventRegistry.register_event(TrackNameEvent)
 
 
 class InstrumentNameEvent(MetaEventWithText):
@@ -584,10 +645,11 @@ class InstrumentNameEvent(MetaEventWithText):
     Instrument Name Event.
 
     """
-    register = True
     meta_command = 0x04
     length = 'variable'
     name = 'Instrument Name'
+
+EventRegistry.register_event(InstrumentNameEvent)
 
 
 class LyricsEvent(MetaEventWithText):
@@ -595,10 +657,11 @@ class LyricsEvent(MetaEventWithText):
     Lyrics Event.
 
     """
-    register = True
     meta_command = 0x05
     length = 'variable'
     name = 'Lyrics'
+
+EventRegistry.register_event(LyricsEvent)
 
 
 class MarkerEvent(MetaEventWithText):
@@ -606,10 +669,11 @@ class MarkerEvent(MetaEventWithText):
     Marker Event.
 
     """
-    register = True
     meta_command = 0x06
     length = 'variable'
     name = 'Marker'
+
+EventRegistry.register_event(MarkerEvent)
 
 
 class CuePointEvent(MetaEventWithText):
@@ -617,20 +681,48 @@ class CuePointEvent(MetaEventWithText):
     Cue Point Event.
 
     """
-    register = True
     meta_command = 0x07
     length = 'variable'
     name = 'Cue Point'
 
+EventRegistry.register_event(CuePointEvent)
 
-class SomethingEvent(MetaEvent):
+
+class ProgramNameEvent(MetaEventWithText):
     """
-    Something Event.
+    Program Name Event.
 
     """
-    register = True
-    meta_command = 0x09
-    name = 'Something'
+    meta_command = 0x08
+    length = 'varlen'
+    name = 'Program Name'
+
+EventRegistry.register_event(ProgramNameEvent)
+
+
+class UnknownMetaEvent(MetaEvent):
+    """
+    Unknown Meta Event.
+
+    The `meta_command` class variable must be set by the constructor of
+    inherited classes.
+
+    """
+    meta_command = None
+    name = 'Unknown'
+
+    def __init__(self, **kwargs):
+        """
+
+        """
+        super(MetaEvent, self).__init__(**kwargs)
+        self.meta_command = kwargs['meta_command']
+
+    def copy(self, **kwargs):
+        kwargs['meta_command'] = self.meta_command
+        return super(UnknownMetaEvent, self).copy(kwargs)
+
+EventRegistry.register_event(UnknownMetaEvent)
 
 
 class ChannelPrefixEvent(MetaEvent):
@@ -638,10 +730,11 @@ class ChannelPrefixEvent(MetaEvent):
     Channel Prefix Event.
 
     """
-    register = True
     meta_command = 0x20
     length = 1
     name = 'Channel Prefix'
+
+EventRegistry.register_event(ChannelPrefixEvent)
 
 
 class PortEvent(MetaEvent):
@@ -649,9 +742,10 @@ class PortEvent(MetaEvent):
     Port Event.
 
     """
-    register = True
     meta_command = 0x21
     name = 'MIDI Port/Cable'
+
+EventRegistry.register_event(PortEvent)
 
 
 class TrackLoopEvent(MetaEvent):
@@ -659,9 +753,10 @@ class TrackLoopEvent(MetaEvent):
     Track Loop Event.
 
     """
-    register = True
     meta_command = 0x2E
     name = 'Track Loop'
+
+EventRegistry.register_event(TrackLoopEvent)
 
 
 class EndOfTrackEvent(MetaEvent):
@@ -669,9 +764,10 @@ class EndOfTrackEvent(MetaEvent):
     End Of Track Event.
 
     """
-    register = True
     meta_command = 0x2F
     name = 'End of Track'
+
+EventRegistry.register_event(EndOfTrackEvent)
 
 
 class SetTempoEvent(MetaEvent):
@@ -679,8 +775,6 @@ class SetTempoEvent(MetaEvent):
     Set Tempo Event.
 
     """
-    __slots__ = ['microseconds_per_quarter_note']
-    register = True
     meta_command = 0x51
     length = 3
     name = 'Set Tempo'
@@ -705,15 +799,18 @@ class SetTempoEvent(MetaEvent):
         """
         self.data = [(microseconds >> (16 - (8 * x)) & 0xFF) for x in range(3)]
 
+EventRegistry.register_event(SetTempoEvent)
+
 
 class SmpteOffsetEvent(MetaEvent):
     """
     SMPTE Offset Event.
 
     """
-    register = True
     meta_command = 0x54
     name = 'SMPTE Offset'
+
+EventRegistry.register_event(SmpteOffsetEvent)
 
 
 class TimeSignatureEvent(MetaEvent):
@@ -721,8 +818,6 @@ class TimeSignatureEvent(MetaEvent):
     Time Signature Event.
 
     """
-    __slots__ = ['numerator', 'denominator', 'metronome', 'thirty_seconds']
-    register = True
     meta_command = 0x58
     length = 4
     name = 'Time Signature'
@@ -795,14 +890,14 @@ class TimeSignatureEvent(MetaEvent):
         """
         self.data[3] = thirty_seconds
 
+EventRegistry.register_event(TimeSignatureEvent)
+
 
 class KeySignatureEvent(MetaEvent):
     """
     Key Signature Event.
 
     """
-    __slots__ = ['alternatives', 'minor']
-    register = True
     meta_command = 0x59
     length = 2
     name = 'Key Signature'
@@ -843,15 +938,18 @@ class KeySignatureEvent(MetaEvent):
         """
         self.data[1] = val
 
+EventRegistry.register_event(KeySignatureEvent)
+
 
 class SequencerSpecificEvent(MetaEvent):
     """
     Sequencer Specific Event.
 
     """
-    register = True
     meta_command = 0x7F
     name = 'Sequencer Specific'
+
+EventRegistry.register_event(SequencerSpecificEvent)
 
 
 # MIDI Track
@@ -870,31 +968,31 @@ class MIDITrack(object):
             self.events = []
         else:
             self.events = events
-        self._relative_timing = relative_timing
+        self.relative_timing = relative_timing
 
     def make_ticks_abs(self):
         """
         Make the track's timing information absolute.
 
         """
-        if self._relative_timing:
+        if self.relative_timing:
             running_tick = 0
             for event in self.events:
                 event.tick += running_tick
                 running_tick = event.tick
-            self._relative_timing = False
+            self.relative_timing = False
 
     def make_ticks_rel(self):
         """
         Make the track's timing information relative.
 
         """
-        if not self._relative_timing:
+        if not self.relative_timing:
             running_tick = 0
             for event in self.events:
                 event.tick -= running_tick
                 running_tick += event.tick
-            self._relative_timing = True
+            self.relative_timing = True
 
     @property
     def data_stream(self):
@@ -907,32 +1005,32 @@ class MIDITrack(object):
         # and unset the status message
         status = None
         # then encode all events of the track
-        track_data = ''
+        track_data = bytearray()
         for event in self.events:
             # encode the event data, first the timing information
-            track_data += write_variable_length(event.tick)
+            track_data.extend(write_variable_length(event.tick))
             # is the event a MetaEvent?
             if isinstance(event, MetaEvent):
-                track_data += chr(event.status_msg)
-                track_data += chr(event.meta_command)
-                track_data += write_variable_length(len(event.data))
-                track_data += ''.join([chr(data) for data in event.data])
+                track_data.append(event.status_msg)
+                track_data.append(event.meta_command)
+                track_data.extend(write_variable_length(len(event.data)))
+                track_data.extend(event.data)
             # is this event a SysEx Event?
             elif isinstance(event, SysExEvent):
-                track_data += chr(0xF0)
-                track_data += ''.join([chr(data) for data in event.data])
-                track_data += chr(0xF7)
+                track_data.append(0xF0)
+                track_data.extend(event.data)
+                track_data.append(0xF7)
             # not a meta or SysEx event, must be a general message
             elif isinstance(event, Event):
                 if not status or status.status_msg != event.status_msg or \
                         status.channel != event.channel:
                     status = event
-                    track_data += chr(event.status_msg | event.channel)
-                track_data += ''.join([chr(data) for data in event.data])
+                    track_data.append(event.status_msg | event.channel)
+                track_data.extend(event.data)
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepare the track header
-        track_header = 'MTrk%s' % struct.pack(">L", len(track_data))
+        track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
         # return the track header + data
         return track_header + track_data
 
@@ -950,7 +1048,7 @@ class MIDITrack(object):
         status = None
         # first four bytes are Track header
         chunk = midi_stream.read(4)
-        if chunk != 'MTrk':
+        if chunk != b'MTrk':
             raise TypeError("Bad track header in MIDI file: %s" % chunk)
         # next four bytes are track size
         track_size = struct.unpack(">L", midi_stream.read(4))[0]
@@ -961,22 +1059,26 @@ class MIDITrack(object):
                 # first datum is variable length representing the delta-time
                 tick = read_variable_length(track_data)
                 # next byte is status message
-                status_msg = ord(next(track_data))
+                status_msg = next(track_data)
                 # is the event a MetaEvent?
                 if MetaEvent.is_event(status_msg):
-                    cmd = ord(next(track_data))
+                    cmd = next(track_data)
                     if cmd not in EventRegistry.MetaEvents:
-                        raise Warning("Unknown Meta MIDI Event: %s" % cmd)
-                    event_cls = EventRegistry.MetaEvents[cmd]
+                        import warnings
+                        warnings.warn("Unknown Meta MIDI Event: %s" % cmd)
+                        event_cls = UnknownMetaEvent
+                    else:
+                        event_cls = EventRegistry.MetaEvents[cmd]
                     data_len = read_variable_length(track_data)
-                    data = [ord(next(track_data)) for _ in range(data_len)]
+                    data = [next(track_data) for _ in range(data_len)]
                     # create an event and append it to the list
-                    events.append(event_cls(tick=tick, data=data))
+                    events.append(event_cls(tick=tick, data=data,
+                                            meta_command=cmd))
                 # is this event a SysEx Event?
                 elif SysExEvent.is_event(status_msg):
                     data = []
                     while True:
-                        datum = ord(next(track_data))
+                        datum = next(track_data)
                         if datum == 0xF7:
                             break
                         data.append(datum)
@@ -992,7 +1094,7 @@ class MIDITrack(object):
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
-                        data += [ord(next(track_data)) for _ in
+                        data += [next(track_data) for _ in
                                  range(event_cls.length - 1)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,
@@ -1001,7 +1103,7 @@ class MIDITrack(object):
                         status = status_msg
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
-                        data = [ord(next(track_data)) for _ in
+                        data = [next(track_data) for _ in
                                 range(event_cls.length)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,
@@ -1323,20 +1425,9 @@ class MIDIFile(object):
         MIDI data stream representation of the MIDI file.
 
         """
-        # from StringIO import StringIO
-        # str_buffer = StringIO()
-        # # put the MIDI header in the stream
-        # header_data = struct.pack(">LHHH", 6, self.format,
-        #                           len(self.tracks), self.resolution)
-        # str_buffer.write('MThd%s' % header_data)
-        # # put each track in the stream
-        # for track in self.tracks:
-        #     str_buffer.write(track.data_stream)
-        # # return the string buffer
-        # return str_buffer.getvalue()
         # generate a MIDI header
-        data = 'MThd%s' % struct.pack(">LHHH", 6, self.format,
-                                      len(self.tracks), self.resolution)
+        data = b'MThd%s' % struct.pack(">LHHH", 6, self.format,
+                                       len(self.tracks), self.resolution)
         # append the tracks
         for track in self.tracks:
             data += track.data_stream
@@ -1369,8 +1460,8 @@ class MIDIFile(object):
             # read in file header
             # first four bytes are MIDI header
             chunk = midi_file.read(4)
-            if chunk != 'MThd':
-                raise TypeError("Bad header in MIDI file.")
+            if chunk != b'MThd':
+                raise TypeError("Bad header in MIDI file: %s", chunk)
             # next four bytes are header size
             # next two bytes specify the format version
             # next two bytes specify the number of tracks
