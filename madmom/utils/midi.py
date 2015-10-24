@@ -53,7 +53,6 @@ import math
 import struct
 import numpy as np
 
-from ..utils import open
 
 # constants
 OCTAVE_MAX_VALUE = 12
@@ -1441,8 +1440,14 @@ class MIDIFile(object):
         :param midi_file: the MIDI file name
 
         """
-        with open(midi_file, 'wb') as midi_file:
-            midi_file.write(self.data_stream)
+        # if we get a filename, open the file
+        if not hasattr(midi_file, 'write'):
+            midi_file = open(midi_file, 'wb')
+        # write the MIDI stream
+        midi_file.write(self.data_stream)
+        # close the file
+        midi_file.close()
+
 
     @classmethod
     def from_file(cls, midi_file):

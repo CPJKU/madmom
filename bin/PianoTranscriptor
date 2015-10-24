@@ -19,7 +19,7 @@ from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import PeakPickingProcessor
-from madmom.features.notes import (write_midi, write_notes, write_frequencies,
+from madmom.features.notes import (write_midi, write_notes, write_mirex_format,
                                    note_reshaper)
 
 
@@ -138,7 +138,7 @@ def main():
         elif args.output_format == 'midi':
             output = write_midi
         elif args.output_format == 'mirex':
-            output = write_frequencies
+            output = write_mirex_format
         else:
             raise ValueError('unknown output format: %s' % args.output_format)
         out_processor = [peak_picking, output]

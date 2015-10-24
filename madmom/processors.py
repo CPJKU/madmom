@@ -523,6 +523,11 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     :param pickle:        add 'pickle' subparser [bool]
 
     """
+    # default output
+    try:
+        output = sys.stdout.buffer
+    except AttributeError:
+        output = sys.stdout
     # add general options
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
@@ -534,17 +539,17 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
         sp.set_defaults(func=pickle_processor)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
-        sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
-                        help='file to pickle the processor to')
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                        default=output, help='output file [default: STDOUT]')
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
-    sp.add_argument('infile', type=argparse.FileType('r'),
+    sp.add_argument('infile', type=argparse.FileType('rb'),
                     help='input audio file')
     # Note: requiring '-o' is a simple safety measure to not overwrite existing
     #       audio files after using the processor in 'batch' mode
-    sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
-                    default=sys.stdout, help='output file [default: STDOUT]')
+    sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                    default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
     # batch file processing options

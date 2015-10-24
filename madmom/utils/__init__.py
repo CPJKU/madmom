@@ -41,38 +41,6 @@ def suppress_warnings(function):
     return decorator_function
 
 
-# overwrite the built-in open() to transparently apply some magic file handling
-@contextlib.contextmanager
-def open(filename, mode='r'):
-    """
-    Context manager which yields an open file or handle with the given mode
-    and closes it if needed afterwards.
-
-    :param filename: file name or open file handle
-    :param mode:     mode in which to open the file
-    :return:         an open file handle
-
-    """
-    try:
-        # Python 3 or python-future builtins
-        import builtins
-    except ImportError:
-        # Python 2 compatibility
-        import __builtin__ as builtins
-    # check if we need to open the file
-    if isinstance(filename, str):
-        f = fid = builtins.open(filename, mode)
-    else:
-        f = filename
-        fid = None
-    # TODO: include automatic (un-)zipping here?
-    # yield an open file handle
-    yield f
-    # close the file if needed
-    if fid:
-        fid.close()
-
-
 # file handling routines
 def search_files(path, suffix=None):
     """
@@ -184,25 +152,24 @@ def load_events(filename):
           ignored (i.e. only the first column is returned).
 
     """
-    with open(filename, 'r') as f:
-        # read in the events, one per line
-        events = np.loadtxt(f, ndmin=2)
-        # 1st column is the event's time, the rest is ignored
-        return events[:, 0]
+    # read in the events, one per line
+    events = np.loadtxt(filename, ndmin=2)
+    # 1st column is the event's time, the rest is ignored
+    return events[:, 0]
 
 
-def write_events(events, filename):
+def write_events(events, filename, fmt='%.3f'):
     """
     Write a list of events to a text file, one floating point number per line.
 
-    :param events:   list of events [seconds]
-    :param filename: output file name or file handle
+    :param events:   events [seconds, list or numpy array]
+    :param filename: output file name or open file handle
+    :param fmt:      format to be written
+    :return:         return the events
 
     """
     # write the events to the output
-    if filename is not None:
-        with open(filename, 'w') as f:
-            f.writelines('%g\n' % e for e in events)
+    np.savetxt(filename, np.asarray(events), fmt=fmt)
     # also return them
     return events
 

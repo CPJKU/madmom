@@ -8,12 +8,6 @@ This file contains tests for the madmom.audio.signal module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-try:
-    # Python 3 or python-future builtins
-    import builtins
-except ImportError:
-    # Python 2 compatibility
-    import __builtin__ as builtins
 
 from . import DATA_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
@@ -380,7 +374,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # test wave loader
         f = DATA_PATH + '/sample.wav'
         # open file handle
-        file_handle = builtins.open(f)
+        file_handle = open(f)
         signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
@@ -394,7 +388,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # test ffmpeg loader
         f = DATA_PATH + '/stereo_sample.flac'
         # open file handle
-        file_handle = builtins.open(f)
+        file_handle = open(f)
         signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)

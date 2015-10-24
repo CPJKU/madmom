@@ -929,7 +929,7 @@ class DownbeatTrackingProcessor(Processor):
         if self.downbeats:
             return beats[beat_numbers == 1]
         else:
-            return list(zip(beats, beat_numbers))
+            return np.vstack(zip(beats, beat_numbers))
 
     @classmethod
     def add_arguments(cls, parser, pattern_files=None, min_bpm=MIN_BPM,

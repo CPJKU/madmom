@@ -353,7 +353,6 @@ def write_tempo(tempi, filename, mirex=False):
     :return:         the most dominant tempi and the relative strength
 
     """
-    from madmom.utils import open
     # default values
     t1, t2, strength = 0., 0., 1.
     # only one tempo was detected
@@ -372,8 +371,9 @@ def write_tempo(tempi, filename, mirex=False):
     # for MIREX, the lower tempo must be given first
     if mirex and t1 > t2:
         t1, t2, strength = t2, t1, 1. - strength
+    # format as a numpy array
+    out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    with open(filename, 'w') as f:
-        f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
+    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
     # also return the tempi & strength
     return t1, t2, strength
