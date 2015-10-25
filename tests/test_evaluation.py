@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
@@ -165,10 +167,10 @@ class TestSimpleEvaluationClass(unittest.TestCase):
         # (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
         # metric dictionary
-        self.assertEqual(e.metrics.keys(), ['num_tp', 'num_fp', 'num_tn',
-                                            'num_fn', 'num_annotations',
-                                            'precision', 'recall', 'fmeasure',
-                                            'accuracy'])
+        self.assertEqual(list(e.metrics.keys()),
+                         ['num_tp', 'num_fp', 'num_tn', 'num_fn',
+                          'num_annotations', 'precision', 'recall',
+                          'fmeasure', 'accuracy'])
         correct = OrderedDict([('num_tp', 0), ('num_fp', 0), ('num_tn', 0),
                                ('num_fn', 0), ('num_annotations', 0),
                                ('precision', 1.0), ('recall', 1.0),
@@ -262,10 +264,10 @@ class TestEvaluationClass(unittest.TestCase):
         # acc: (TP + TN) / (TP + FP + TN + FN)
         self.assertEqual(e.accuracy, 1)
         # test metric dictionary keys
-        self.assertEqual(e.metrics.keys(), ['tp', 'fp', 'tn', 'fn', 'num_tp',
-                                            'num_fp', 'num_tn', 'num_fn',
-                                            'num_annotations', 'precision',
-                                            'recall', 'fmeasure', 'accuracy'])
+        self.assertEqual(list(e.metrics.keys()),
+                         ['tp', 'fp', 'tn', 'fn', 'num_tp', 'num_fp', 'num_tn',
+                          'num_fn', 'num_annotations', 'precision', 'recall',
+                          'fmeasure', 'accuracy'])
         # test with other values
         e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])
         tp = np.asarray([1, 2, 3], dtype=np.float)

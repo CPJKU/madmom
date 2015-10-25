@@ -1,11 +1,12 @@
 # encoding: utf-8
-
 """
 This file contains the speed crucial Viterbi functionality for the
 CRFBeatDetector plus some functions computing the distributions and
 normalisation factors...
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 cimport numpy as np

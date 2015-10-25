@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains functionality needed for the conversion of from the
 universal .h5 format to the .npz format understood by madmom.ml.rnn.
@@ -33,6 +32,8 @@ the reverse/backward layer of bidirectional layers.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import os
 import numpy as np
 
@@ -51,16 +52,16 @@ def convert_model(infile, outfile=None, compressed=False):
     # read in model
     with h5py.File(infile, 'r') as h5:
         # model attributes
-        for attr in h5['model'].attrs.keys():
+        for attr in list(h5['model'].attrs.keys()):
             npz['model_%s' % attr] = h5['model'].attrs[attr]
         # layers
-        for l in h5['layer'].keys():
+        for l in list(h5['layer'].keys()):
             layer = h5['layer'][l]
             # each layer has some attributes
-            for attr in layer.attrs.keys():
+            for attr in list(layer.attrs.keys()):
                 npz['layer_%s_%s' % (l, attr)] = layer.attrs[attr]
             # and some data sets (i.e. different weights)
-            for data in layer.keys():
+            for data in list(layer.keys()):
                 npz['layer_%s_%s' % (l, data)] = layer[data].value
     # save the model to .npz format
     if outfile is None:

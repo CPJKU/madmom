@@ -2,15 +2,16 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains note transcription related functionality.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
-from madmom.utils import suppress_warnings, open
+from madmom.utils import suppress_warnings
 
 
 @suppress_warnings
@@ -22,24 +23,38 @@ def load_notes(filename):
     :return:         numpy array with notes
 
     """
-    with open(filename, 'rb') as f:
-        return np.loadtxt(f)
+    return np.loadtxt(filename)
 
 
-def write_notes(notes, filename, sep='\t'):
+def write_notes(notes, filename, sep='\t',
+                fmt=list(('%.3f', '%d', '%.3f', '%d'))):
     """
     Write the detected notes to a file.
 
-    :param notes:    list with notes
-    :param filename: output file name or file handle
-    :param sep:      separator for the fields [default='\t']
+    :param notes:         2D numpy array with notes
+    :param filename:      output file name or file handle
+    :param sep:           separator for the fields [default='\t']
+    :param fmt:           format of the fields (i.e. columns, see below)
+
+
+    Note: The `notes` must be a 2D numpy array with the individual notes as
+          rows, and the columns defined as:
+
+          'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
+
+          whith the duration and velocity being optional.
 
     """
-    # write the notes to the output
-    if filename is not None:
-        with open(filename, 'wb') as f:
-            for note in notes:
-                f.write(sep.join([str(x) for x in note]) + '\n')
+    from madmom.utils import write_events
+    # truncate to the number of colums given
+    if notes.ndim == 1:
+        fmt = '%f'
+    elif notes.ndim == 2:
+        fmt = sep.join(fmt[:notes.shape[1]])
+    else:
+        raise ValueError('unknown format for notes')
+    # write the notes
+    write_events(notes, filename, fmt=fmt)
     # also return them
     return notes
 
@@ -48,7 +63,7 @@ def write_midi(notes, filename, note_length=0.6, note_velocity=100):
     """
     Write the notes to a MIDI file.
 
-    :param notes:         detected notes
+    :param notes:         2D numpy array with notes
     :param filename:      output filename
     :param note_velocity: default velocity of the notes
     :param note_length:   default length of the notes
@@ -67,9 +82,9 @@ def write_midi(notes, filename, note_length=0.6, note_velocity=100):
     return process_notes(notes, filename)
 
 
-def write_frequencies(notes, filename, note_length=0.6):
+def write_mirex_format(notes, filename, note_length=0.6):
     """
-    Write the frequencies of the notes to file (i.e. MIREX format).
+    Write the frequencies of the notes to file (in MIREX format).
 
     :param notes:       detected notes
     :param filename:    output filename
@@ -79,18 +94,15 @@ def write_frequencies(notes, filename, note_length=0.6):
     """
     from madmom.audio.filters import midi2hz
     # MIREX format: onset \t offset \t frequency
-    with open(filename, 'wb') as f:
-        for note in notes:
-            onset, midi_note = note
-            offset = onset + note_length
-            frequency = midi2hz(midi_note)
-            f.write('%.2f\t%.2f\t%.2f\n' % (onset, offset, frequency))
+    notes = np.vstack((notes[:, 0], notes[:, 0] + note_length,
+                       midi2hz(notes[:, 1]))).T
+    write_notes(notes, filename, fmt=list(('%.3f', '%.3f', '%.1f', )))
     return notes
 
 
 def note_reshaper(notes):
     """
-    Reshapes the activations produced by a RNN to ave the right shape.
+    Reshapes the activations produced by a RNN to have the right shape.
 
     :param notes: numpy array with note activations
     :return:      reshaped array to represent the 88 MIDI notes

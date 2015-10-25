@@ -5,6 +5,8 @@ SuperFlux onset detection algorithm.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import argparse
 
 from madmom.processors import IOProcessor, io_arguments
@@ -71,7 +73,7 @@ def main():
         args.online = False
     # print arguments
     if args.verbose:
-        print args
+        print(args)
 
     # input processor
     if args.load:

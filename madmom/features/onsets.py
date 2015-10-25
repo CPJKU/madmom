@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains onset detection related functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy.ndimage import uniform_filter
@@ -126,6 +127,7 @@ def spectral_flux(spectrogram, diff_frames=None):
     Spectral Flux.
 
     :param spectrogram: Spectrogram instance
+    :param diff_frames: number of frames to calculate the diff to [int]
     :return:            spectral flux onset detection function
 
     "Computer Modeling of Sound for Transformation and Synthesis of Musical
@@ -668,11 +670,12 @@ class PeakPickingProcessor(Processor):
                         np.diff(note_onsets) > self.combine]
                     # zip the onsets with the MIDI note number and add them to
                     # the list of detections
-                    detections.extend(zip(combined_note_onsets,
-                                          [note] * len(combined_note_onsets)))
+                    notes = zip(combined_note_onsets,
+                                [note] * len(combined_note_onsets))
+                    detections.extend(list(notes))
             else:
                 # just zip all detected notes
-                detections = zip(onsets, midi_notes)
+                detections = list(zip(onsets, midi_notes))
             # sort the detections and save as numpy array
             detections = np.asarray(sorted(detections))
         else:

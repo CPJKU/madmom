@@ -1,12 +1,14 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.audio.stft module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
-import cPickle
+import pickle
 
 from . import DATA_PATH
 from madmom.audio.stft import *
@@ -66,14 +68,14 @@ class TestStftFunction(unittest.TestCase):
         # signal length and FFT size = 12
         # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
         # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
-        res = [3.+0.j, 0.+0.j, 0.-0.j, 3+0.j, 0.+0.j, 0.+0.j]
+        res = [3. + 0.j, 0. + 0.j, 0. - 0.j, 3 + 0.j, 0. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[0], res))
         # [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] every erd bin => 4/12
-        res = [4.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 4.+0.j, 0.+0.j]
+        res = [4. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 4. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[1], res))
         # [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0] every 2nd bin => 6/12
         # can't resolve any more
-        res = [6.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j]
+        res = [6. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[2], res))
 
     def test_circular_shift(self):
@@ -81,14 +83,14 @@ class TestStftFunction(unittest.TestCase):
         # signal length and FFT size = 12
         # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
         # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
-        res = [3.+0.j, 0.+0.j, 0.+0j, -3.+0.j, 0.+0.j, 0.+0.j]
+        res = [3. + 0.j, 0. + 0.j, 0. + 0j, -3. + 0.j, 0. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[0], res))
         # [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] every erd bin => 4/12
-        res = [4.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 4.+0.j, 0.+0.j]
+        res = [4. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 4. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[1], res))
         # [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0] every 2nd bin => 6/12
         # can't resolve any more
-        res = [6.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j]
+        res = [6. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[2], res))
 
 
@@ -176,8 +178,8 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         result = ShortTimeFourierTransform(DATA_PATH + '/sample.wav',
                                            window=np.hamming, fft_size=4096,
                                            circular_shift=True)
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
         # additional attributes
         self.assertTrue(np.allclose(result.window, dump.window))
@@ -258,8 +260,8 @@ class PhaseClass(unittest.TestCase):
 
     def test_pickle(self):
         result = Phase(DATA_PATH + '/sample.wav')
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))
 
     def test_methods(self):
@@ -297,6 +299,6 @@ class LocalGroupDelayClass(unittest.TestCase):
 
     def test_pickle(self):
         result = LocalGroupDelay(DATA_PATH + '/sample.wav')
-        dump = cPickle.dumps(result, protocol=cPickle.HIGHEST_PROTOCOL)
-        dump = cPickle.loads(dump)
+        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
+        dump = pickle.loads(dump)
         self.assertTrue(np.allclose(result, dump))

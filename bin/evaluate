@@ -5,6 +5,8 @@ Evaluation script.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import os
 import sys
 import argparse
@@ -50,7 +52,7 @@ def main():
 
     # print the arguments
     if args.verbose >= 2:
-        print args
+        print(args)
     if args.quiet:
         warnings.filterwarnings("ignore")
 
@@ -63,7 +65,7 @@ def main():
     ann_files = search_files(args.ann_dir, args.ann_suffix)
     # quit if no files are found
     if len(ann_files) == 0:
-        print "no files to evaluate. exiting."
+        print("no files to evaluate. exiting.")
         exit()
 
     # list to collect the individual evaluation objects

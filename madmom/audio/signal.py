@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains basic signal processing functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -270,7 +271,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     from .ffmpeg import load_ffmpeg_file
 
     # determine the name of the file if it is a file handle
-    if isinstance(filename, file):
+    if not isinstance(filename, str):
         # close the file handle if it is open
         filename.close()
         # use the file name

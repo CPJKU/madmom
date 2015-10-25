@@ -1,5 +1,4 @@
 # encoding: utf-8
-
 """
 This file contains HMM state space, transition and observation models used for
 beat and downbeat tracking.
@@ -14,6 +13,8 @@ If you want to change this module and use it interactively, use pyximport.
                       setup_args={'include_dirs': np.get_include()})
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 cimport numpy as np

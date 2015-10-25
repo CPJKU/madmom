@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains onset evaluation functionality.
 
@@ -15,16 +14,12 @@ Conference (ISMIR), 2012.
 
 """
 
-import numpy as np
+from __future__ import absolute_import, division, print_function
 
+import numpy as np
 
 from . import evaluation_io, Evaluation, SumEvaluation, MeanEvaluation
 from ..utils import suppress_warnings, combine_events
-
-
-# default onset evaluation values
-WINDOW = 0.025
-COMBINE = 0.03
 
 
 @suppress_warnings
@@ -55,6 +50,11 @@ def load_onsets(values):
     if values.ndim > 1:
         return values[:, 0]
     return values
+
+
+# default onset evaluation values
+WINDOW = 0.025
+COMBINE = 0.03
 
 
 # onset evaluation function
@@ -103,6 +103,10 @@ def onset_evaluation(detections, annotations, window=WINDOW):
     elif len(detections) == 0:
         # all annotations are FN
         return tp, fp, tn, annotations, errors
+
+    # window must be greater than 0
+    if float(window) <= 0:
+        raise ValueError('window must be greater than 0')
 
     # sort the detections and annotations
     det = np.sort(detections)

@@ -2,15 +2,17 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains global alignment evaluation functionality.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
-from . import EvaluationABC
+from . import EvaluationMixin
+
 
 # constants for the data format
 _TIME = 0
@@ -181,7 +183,7 @@ def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
 
     # convert possibly masked values to NaN. A masked value can occur when
     # computing the mean or stddev of values that are all masked
-    for k, v in results.iteritems():
+    for k, v in results.items():
         if v is np.ma.masked_singleton:
             results[k] = np.NaN
 
@@ -201,7 +203,7 @@ def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
     return results
 
 
-class AlignmentEvaluation(EvaluationABC):
+class AlignmentEvaluation(EvaluationMixin):
     """
     Alignment evaluation class for beat-level alignments. Beat-level aligners
     output beat positions for points in time, rather than computing a time step
@@ -349,7 +351,7 @@ def _combine_metrics(eval_objects, piecewise):
     else:
         total_weight = sum(len(e) for e in eval_objects)
     for e in eval_objects:
-        for name, val in e.metrics.iteritems():
+        for name, val in e.metrics.items():
             if isinstance(val, np.ndarray) or not np.isnan(val):
                 weight = 1.0 if piecewise else float(len(e))
                 metrics[name] = \

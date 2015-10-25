@@ -5,6 +5,8 @@ TempoDetector tempo estimation algorithm.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import glob
 import argparse
 
@@ -91,7 +93,7 @@ def main():
 
     # print arguments
     if args.verbose:
-        print args
+        print(args)
 
     # input processor
     if args.load:
@@ -124,8 +126,8 @@ def main():
             from functools import partial
             writer = partial(write_tempo, mirex=True)
         elif args.tempo_format in ('raw', 'all'):
-            # borrow the note writer for outputting multiple values
-            from madmom.features.notes import write_notes as writer
+            # borrow the event writer for outputting multiple values
+            from madmom.utils import write_events as writer
         else:
             # normal output
             writer = write_tempo

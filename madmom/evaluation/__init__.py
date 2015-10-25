@@ -2,13 +2,13 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 Evaluation package.
 
 """
 
-import abc
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
 
@@ -142,9 +142,12 @@ def calc_relative_errors(detections, annotations, matches=None):
 
 
 # abstract evaluation base class
-class EvaluationABC(object):
+class EvaluationMixin(object):
     """
-    Evaluation abstract base class.
+    Evaluation mixin class.
+
+    This class has a `name` attribute which is used for display purposes and
+    defaults to 'None'.
 
     `METRIC_NAMES` is a list of tuples, containing the attribute's name and the
     corresponding label, e.g.:
@@ -156,10 +159,12 @@ class EvaluationABC(object):
     ]
 
     The attributes defined in `METRIC_NAMES` will be provided as an ordered
-    dictionary as the `metrics` attribute of the
+    dictionary as the `metrics` property unless the subclass overwrites the
+    property.
+
+    `FLOAT_FORMAT` is used to format floats.
 
     """
-    __metaclass__ = abc.ABCMeta
 
     name = None
     METRIC_NAMES = []
@@ -168,7 +173,6 @@ class EvaluationABC(object):
     @property
     def metrics(self):
         """Metrics as a dictionary."""
-        # TODO: use an ordered dict?
         from collections import OrderedDict
         metrics = OrderedDict()
         # metrics = {}
@@ -176,10 +180,9 @@ class EvaluationABC(object):
             metrics[metric] = getattr(self, metric)
         return metrics
 
-    @abc.abstractmethod
     def __len__(self):
         """Length of the evaluation object."""
-        return
+        raise NotImplementedError('must be implemented by subclass.')
 
     def tostring(self, **kwargs):
         """
@@ -189,8 +192,8 @@ class EvaluationABC(object):
         :return:       evaluation metrics formatted as a human readable string
 
         Note: This is a fallback method formatting the 'metrics' dictionary in
-              a human readable way. Classes implementing this abstract base
-              class should provide a better suitable method.
+              a human readable way. Classes inheriting from this mixin class
+              should provide a method better suitable.
 
         """
         # pylint: disable=unused-argument
@@ -200,7 +203,7 @@ class EvaluationABC(object):
 
 
 # evaluation classes
-class SimpleEvaluation(EvaluationABC):
+class SimpleEvaluation(EvaluationMixin):
     """
     Simple Precision, Recall, F-measure and Accuracy evaluation based on the
     numbers of true/false positive/negative detections.
@@ -679,7 +682,7 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES
-    metric_names, metric_labels = zip(*metric_names)
+    metric_names, metric_labels = list(zip(*metric_names))
     # add header
     lines = ['Name,' + ','.join(metric_labels)]
     # TODO: use e.metrics dict?
@@ -712,7 +715,7 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     if metric_names is None:
         # get the evaluation metrics from the first evaluation object
         metric_names = eval_objects[0].METRIC_NAMES
-    metric_names, metric_labels = zip(*metric_names)
+    metric_names, metric_labels = list(zip(*metric_names))
     # add header
     lines = ['Name & ' + ' & '.join(metric_labels) + '\\\\']
     # TODO: use e.metrics dict

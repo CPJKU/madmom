@@ -1,5 +1,4 @@
 # encoding: utf-8
-
 """
 This file contains Hidden Markov Model (HMM) functionality.
 
@@ -11,7 +10,8 @@ If you want to change this module and use it interactively, use pyximport.
 
 """
 
-import abc
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 cimport numpy as np
 cimport cython
@@ -95,7 +95,8 @@ class TransitionModel(object):
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
         # convert everything into a sparse CSR matrix
-        transitions = csr_matrix((probabilities, (states, prev_states)))
+        transitions = csr_matrix((np.array(probabilities),
+                                  (np.array(states), np.array(prev_states))))
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
@@ -143,7 +144,6 @@ class ObservationModel(object):
     different observation probability (log) densities. Type must be np.float.
 
     """
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, pointers):
         """
@@ -155,7 +155,6 @@ class ObservationModel(object):
 
         self.pointers = pointers
 
-    @abc.abstractmethod
     def log_densities(self, observations):
         """
         Log densities (or probabilities) of the observations for each state.
@@ -167,7 +166,7 @@ class ObservationModel(object):
                              observation log probability densities. The type
                              must be np.float.
         """
-        return
+        raise NotImplementedError('must be implemented by subclass')
 
     def densities(self, observations):
         """

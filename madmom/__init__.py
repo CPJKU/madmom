@@ -11,6 +11,8 @@ Please see the README for further details of this package.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import os
 import pkg_resources
 

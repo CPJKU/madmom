@@ -1,13 +1,15 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.audio.filters module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import types
-import cPickle
+import pickle
 import tempfile
 
 from madmom.audio.filters import *
@@ -436,9 +438,9 @@ class TestFilterClass(unittest.TestCase):
     def test_pickling(self):
         f, filename = tempfile.mkstemp()
         filt = Filter(np.arange(5))
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.start, filt_.start))
 
@@ -508,9 +510,9 @@ class TestTriangularFilterClass(unittest.TestCase):
     def test_pickling(self):
         f, filename = tempfile.mkstemp()
         filt = TriangularFilter(1, 4, 10)
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.start, filt_.start))
         self.assertTrue(np.allclose(filt.stop, filt_.stop))
@@ -518,30 +520,19 @@ class TestTriangularFilterClass(unittest.TestCase):
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
-            result = TriangularFilter.band_bins(np.arange(2))
-            result.next()
+            list(TriangularFilter.band_bins(np.arange(2)))
 
     def test_band_bins_method_overlap(self):
         # test overlapping
-        result = TriangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1, 2))
-        self.assertTrue(result.next() == (1, 2, 3))
-        self.assertTrue(result.next() == (2, 3, 4))
-        self.assertTrue(result.next() == (3, 4, 6))
-        self.assertTrue(result.next() == (4, 6, 9))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(TriangularFilter.band_bins(self.bins))
+        self.assertTrue(result == [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 6),
+                                   (4, 6, 9)])
 
     def test_band_bins_method_non_overlap(self):
         # test non-overlapping
-        result = TriangularFilter.band_bins(self.bins, overlap=False)
-        self.assertTrue(result.next() == (1, 1, 2))
-        self.assertTrue(result.next() == (2, 2, 3))
-        self.assertTrue(result.next() == (3, 3, 4))
-        self.assertTrue(result.next() == (4, 4, 5))
-        self.assertTrue(result.next() == (5, 6, 8))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(TriangularFilter.band_bins(self.bins, overlap=False))
+        self.assertTrue(result == [(0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5),
+                                   (5, 6, 8)])
 
     def test_filters_method_normalized(self):
         # normalized filters
@@ -624,34 +615,25 @@ class TestRectangularFilterClass(unittest.TestCase):
     def test_pickling(self):
         f, filename = tempfile.mkstemp()
         filt = RectangularFilter(5, 10)
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.start, filt_.start))
         self.assertTrue(np.allclose(filt.stop, filt_.stop))
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
-            result = RectangularFilter.band_bins(np.arange(1))
-            result.next()
+            list(RectangularFilter.band_bins(np.arange(1)))
 
     def test_band_bins_method_overlap(self):
-        result = RectangularFilter.band_bins(self.bins, overlap=True)
         with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            result.next()
+            list(RectangularFilter.band_bins(self.bins, overlap=True))
 
     def test_band_bins_method(self):
-        result = RectangularFilter.band_bins(self.bins)
-        self.assertTrue(result.next() == (0, 1))
-        self.assertTrue(result.next() == (1, 2))
-        self.assertTrue(result.next() == (2, 3))
-        self.assertTrue(result.next() == (3, 4))
-        self.assertTrue(result.next() == (4, 6))
-        self.assertTrue(result.next() == (6, 9))
-        with self.assertRaises(StopIteration):
-            result.next()
+        result = list(RectangularFilter.band_bins(self.bins))
+        self.assertEqual(result, [(0, 1), (1, 2), (2, 3), (3, 4), (4, 6),
+                                  (6, 9)])
 
     def test_filters_method_normalized(self):
         # normalized filters
@@ -814,14 +796,14 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt.max(), 1))
         # all triangular filters
         correct = np.zeros(100)
-        correct[1:70] = [1./6, 2./6, 3./6, 4./6, 5./6, 1., 8./9, 7./9, 6./9,
-                         5./9, 5./9, 6./9, 7./9, 8./9, 1., 0.9, 0.8, 0.7, 0.6,
-                         0.5, 0.6, 0.7, 0.8, 0.9, 1., 0.96, 0.92, 0.88, 0.84,
-                         0.8, 0.76, 0.72, 0.68, 0.64, 0.6, 0.56, 0.52, 0.52,
-                         0.56, 0.6, 0.64, 0.68, 0.72, 0.76, 0.8, 0.84, 0.88,
-                         0.92, 0.96, 1., 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65,
-                         0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15,
-                         0.1, 0.05]
+        correct[1:70] = [1. / 6, 2. / 6, 3. / 6, 4. / 6, 5. / 6, 1., 8. / 9,
+                         7. / 9, 6. / 9, 5. / 9, 5. / 9, 6. / 9, 7. / 9,
+                         8. / 9, 1., 0.9, 0.8, 0.7, 0.6, 0.5, 0.6, 0.7, 0.8,
+                         0.9, 1., 0.96, 0.92, 0.88, 0.84, 0.8, 0.76, 0.72,
+                         0.68, 0.64, 0.6, 0.56, 0.52, 0.52, 0.56, 0.6, 0.64,
+                         0.68, 0.72, 0.76, 0.8, 0.84, 0.88, 0.92, 0.96, 1.,
+                         0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55,
+                         0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
         self.assertTrue(np.allclose(filt[:, 0], correct))
         # all rectangular filters are 1
         self.assertTrue(np.allclose(filt[:, 1], np.ones(100)))
@@ -833,9 +815,9 @@ class TestFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -888,9 +870,9 @@ class TestMelFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = MelFilterbank(np.arange(1000) * 20, 10)
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -928,7 +910,7 @@ class TestMelFilterbankClass(unittest.TestCase):
                   [11304.931640, 13285.986328], [12273.925781, 14427.246093],
                   [13329.052734, 15654.638671], [14470.312500, 16968.164062]]
         self.assertTrue(np.allclose(filt.min(), 0))
-        self.assertTrue(np.allclose(filt.max(), 1./3))
+        self.assertTrue(np.allclose(filt.max(), 1. / 3))
         self.assertTrue(np.allclose(filt.center_frequencies, center))
         self.assertTrue(np.allclose(filt.corner_frequencies, corner))
 
@@ -962,9 +944,9 @@ class TestBarkFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = BarkFilterbank(FFT_FREQS_1024)
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -1075,9 +1057,9 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = LogarithmicFilterbank(FFT_FREQS_1024)
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -1180,9 +1162,9 @@ class TestRectangularFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = RectangularFilterbank(FFT_FREQS_1024, [100, 1000])
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -1197,15 +1179,13 @@ class TestRectangularFilterbankClass(unittest.TestCase):
         self.assertEqual(filt.shape, (100, 3))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     np.arange(0, 2000, 20)))
-        print filt.crossover_frequencies
         self.assertTrue(np.allclose(filt.crossover_frequencies, [100, 1000]))
-
 
     def test_values_unique_filters(self):
         filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 101, 1000],
                                      unique_filters=False)
         self.assertTrue(np.allclose(filt.min(), 0))
-        self.assertTrue(np.allclose(filt.max(), 1./3))
+        self.assertTrue(np.allclose(filt.max(), 1. / 3))
         # second band must be 0
         self.assertTrue(np.allclose(filt[:, 1], np.zeros(100)))
         self.assertEqual(filt.shape, (100, 4))
@@ -1258,9 +1238,9 @@ class TestPitchClassProfileFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = PitchClassProfileFilterbank(FFT_FREQS_1024)
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))
@@ -1300,9 +1280,9 @@ class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
     def test_pickling(self):
         filt = HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)
         f, filename = tempfile.mkstemp()
-        cPickle.dump(filt, open(filename, 'w'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
-        filt_ = cPickle.load(open(filename))
+        pickle.dump(filt, open(filename, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
+        filt_ = pickle.load(open(filename, 'rb'))
         self.assertTrue(np.allclose(filt, filt_))
         self.assertTrue(np.allclose(filt.bin_frequencies,
                                     filt_.bin_frequencies))

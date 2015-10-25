@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains tempo related functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy.signal import argrelmax
@@ -55,7 +56,7 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     if max_tau is None:
         max_tau = len(activations) - min_tau
     # test all possible delays
-    taus = range(min_tau, max_tau + 1)
+    taus = list(range(min_tau, max_tau + 1))
     bins = []
     # Note: this is faster than:
     #   corr = np.correlate(activations, activations, mode='full')
@@ -170,7 +171,7 @@ def detect_tempo(histogram, fps):
         strengths = bins[sorted_peaks]
         strengths /= np.sum(strengths)
         # return the tempi and their normalized strengths
-        ret = np.asarray(zip(tempi[sorted_peaks], strengths))
+        ret = np.asarray(list(zip(tempi[sorted_peaks], strengths)))
     # return the tempi
     return np.atleast_2d(ret)
 
@@ -352,7 +353,6 @@ def write_tempo(tempi, filename, mirex=False):
     :return:         the most dominant tempi and the relative strength
 
     """
-    from madmom.utils import open
     # default values
     t1, t2, strength = 0., 0., 1.
     # only one tempo was detected
@@ -371,8 +371,9 @@ def write_tempo(tempi, filename, mirex=False):
     # for MIREX, the lower tempo must be given first
     if mirex and t1 > t2:
         t1, t2, strength = t2, t1, 1. - strength
+    # format as a numpy array
+    out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    with open(filename, 'wb') as f:
-        f.write("%.2f\t%.2f\t%.2f\n" % (t1, t2, strength))
+    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
     # also return the tempi & strength
     return t1, t2, strength

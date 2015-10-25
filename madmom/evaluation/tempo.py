@@ -2,16 +2,17 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains tempo evaluation functionality.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import warnings
 import numpy as np
 
-from . import EvaluationABC, MeanEvaluation, evaluation_io
+from . import EvaluationMixin, MeanEvaluation, evaluation_io
 
 
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
@@ -122,7 +123,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
         # worst result
         return 0., False, False
     # tolerance must be greater than 0
-    if not tolerance > 0:
+    if float(tolerance) <= 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
     detections = np.asarray(detections, dtype=np.float)
@@ -158,7 +159,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
 
 
 # basic tempo evaluation
-class TempoEvaluation(EvaluationABC):
+class TempoEvaluation(EvaluationMixin):
     """
     Tempo evaluation class.
 

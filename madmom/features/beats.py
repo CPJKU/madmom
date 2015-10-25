@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains all beat tracking related functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -481,10 +482,9 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         # since the cython code uses memory views, we need to make sure that
         # the activations are C-contiguous and of C-type float (np.float32)
         contiguous_act = np.ascontiguousarray(activations, dtype=np.float32)
-        results = self.map(_process_crf,
-                           it.izip(it.repeat(contiguous_act),
-                                   possible_intervals,
-                                   it.repeat(self.interval_sigma)))
+        results = list(self.map(
+            _process_crf, zip(it.repeat(contiguous_act), possible_intervals,
+                              it.repeat(self.interval_sigma))))
 
         # normalize their probabilities
         normalized_seq_probabilities = np.array([r[1] / r[0].shape[0]
@@ -846,6 +846,8 @@ class DownbeatTrackingProcessor(Processor):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
+        import pickle
+
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (DownBeatTrackingStateSpace as St,
                                 DownBeatTrackingTransitionModel as Tm,
@@ -862,12 +864,19 @@ class DownbeatTrackingProcessor(Processor):
             raise ValueError('`min_bpm`, `max_bpm`, `num_tempo_states` and '
                              '`transition_lambda` must have the same length '
                              'as number of patterns.')
+
         # load the patterns
-        import cPickle
         patterns = []
         for pattern_file in pattern_files:
-            with open(pattern_file, 'r') as f:
-                patterns.append(cPickle.load(f))
+            with open(pattern_file, 'rb') as f:
+                # Python 2 and 3 behave differently
+                # TODO: use some other format to save the GMMs (.npz, .hdf5)
+                try:
+                    # Python 3
+                    patterns.append(pickle.load(f, encoding='latin1'))
+                except TypeError:
+                    # Python 2 doesn't have/need the encoding
+                    patterns.append(pickle.load(f))
         if len(patterns) == 0:
             raise ValueError('at least one rhythmical pattern must be given.')
         # extract the GMMs and number of beats
@@ -920,7 +929,7 @@ class DownbeatTrackingProcessor(Processor):
         if self.downbeats:
             return beats[beat_numbers == 1]
         else:
-            return zip(beats, beat_numbers)
+            return np.vstack(zip(beats, beat_numbers))
 
     @classmethod
     def add_arguments(cls, parser, pattern_files=None, min_bpm=MIN_BPM,

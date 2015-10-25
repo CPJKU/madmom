@@ -1,12 +1,13 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains test functions for the madmom.utils module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
-import __builtin__
 
 from madmom.utils import *
 
@@ -126,7 +127,7 @@ class TestLoadEventsFunction(unittest.TestCase):
         self.assertIsInstance(events, np.ndarray)
 
     def test_read_events_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt')
+        file_handle = open(DATA_PATH + 'events.txt')
         events = load_events(file_handle)
         self.assertIsInstance(events, np.ndarray)
         file_handle.close()
@@ -159,7 +160,7 @@ class TestWriteEventsFunction(unittest.TestCase):
         self.assertEqual(EVENTS, result)
 
     def test_write_events_to_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'events.txt', 'w')
+        file_handle = open(DATA_PATH + 'events.txt', 'wb')
         result = write_events(EVENTS, file_handle)
         self.assertEqual(EVENTS, result)
         file_handle.close()
@@ -205,8 +206,7 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         quantized = quantize_events(EVENTS, 10, length=None)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
-        correct = [10, 15, 20, 21, 25, 30]
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, [10, 15, 20, 25, 30]))
         # 100 FPS
         quantized = quantize_events(EVENTS, 100, length=None)
         idx = np.nonzero(quantized)[0]
@@ -219,36 +219,31 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         quantized = quantize_events(EVENTS, 100, length=280)
         idx = np.nonzero(quantized)[0]
         # targets: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
-        correct = [100, 102, 150, 200, 203, 205, 250]
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, [100, 102, 150, 200, 203, 205, 250]))
 
     def test_rounding(self):
         # without length
         quantized = quantize_events([3.95], 10, length=None)
         idx = np.nonzero(quantized)[0]
-        correct = [40]
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, [40]))
         # with length
-        quantized = quantize_events([3.95], 10, length=40)
+        quantized = quantize_events([3.95], 10, length=39)
         idx = np.nonzero(quantized)[0]
-        correct = []
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, []))
         # round down with length
         quantized = quantize_events([3.9499999], 10, length=40)
         idx = np.nonzero(quantized)[0]
-        correct = [39]
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, [39]))
 
     def test_shift(self):
         # no length
         quantized = quantize_events(EVENTS, 10, shift=1)
         idx = np.nonzero(quantized)[0]
-        correct = [20, 25, 30, 31, 35, 40]
-        self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(idx, [20, 25, 30, 35, 40]))
         # limited length
         quantized = quantize_events(EVENTS, 10, shift=1, length=35)
         idx = np.nonzero(quantized)[0]
-        correct = [20, 25, 30, 31]
+        correct = [20, 25, 30]
         self.assertTrue(np.allclose(idx, correct))
 
 

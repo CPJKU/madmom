@@ -3,7 +3,6 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
-
 """
 This file contains recurrent neural network (RNN) related functionality.
 
@@ -20,7 +19,8 @@ other stuff.
 
 """
 
-import abc
+from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
 from ..processors import Processor, ParallelProcessor
@@ -128,26 +128,7 @@ def softmax(x, out=None):
 
 
 # network layer classes
-class Layer(object):
-    """
-    Generic network Layer.
-
-    """
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def activate(self, data):
-        """
-        Activate the layer.
-
-        :param data: activate with this data
-        :return:     activations for this data
-
-        """
-        return
-
-
-class FeedForwardLayer(Layer):
+class FeedForwardLayer(object):
     """
     Feed-forward network layer.
 
@@ -217,7 +198,7 @@ class RecurrentLayer(FeedForwardLayer):
         out = np.dot(data, self.weights)
         out += self.bias
         # loop through each time step
-        for i in xrange(size):
+        for i in range(size):
             # add the weighted previous step
             if i >= 1:
                 # np.dot(out[i - 1], self.recurrent_weights, out=tmp)
@@ -229,7 +210,7 @@ class RecurrentLayer(FeedForwardLayer):
         return out
 
 
-class BidirectionalLayer(Layer):
+class BidirectionalLayer(object):
     """
     Bidirectional network layer.
 
@@ -339,7 +320,7 @@ class Gate(Cell):
         self.peephole_weights = peephole_weights.flatten()
 
 
-class LSTMLayer(Layer):
+class LSTMLayer(object):
     """
     Recurrent network layer with Long Short-Term Memory units.
 
@@ -388,7 +369,7 @@ class LSTMLayer(Layer):
         # state (of the previous time step)
         state_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # process the input data
-        for i in xrange(size):
+        for i in range(size):
             # cache input data
             data_ = data[i]
             # input gate:
@@ -444,8 +425,8 @@ class RecurrentNeuralNetwork(Processor):
         data = np.load(filename)
 
         # determine the number of layers (i.e. all "layer_%d_" occurrences)
-        num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0])
-                          for k in data.keys() if k.startswith('layer_')])
+        num_layers = max([int(re.findall(r'layer_(\d+)_', k)[0]) for
+                          k in list(data.keys()) if k.startswith('layer_')])
 
         # function for layer creation with the given parameters
         def create_layer(params):
@@ -459,24 +440,26 @@ class RecurrentNeuralNetwork(Processor):
             # first check if we need to create a bidirectional layer
             bwd_layer = None
 
-            if '%s_type' % REVERSE in params.keys():
+            if '%s_type' % REVERSE in list(params.keys()):
                 # pop the parameters needed for the reverse (backward) layer
-                bwd_type = str(params.pop('%s_type' % REVERSE))
-                bwd_transfer_fn = str(params.pop('%s_transfer_fn' % REVERSE))
+                bwd_type = bytes(params.pop('%s_type' % REVERSE))
+                bwd_transfer_fn = bytes(params.pop('%s_transfer_fn' %
+                                                   REVERSE))
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
-                                  for k in params.keys() if
+                                  for k in list(params.keys()) if
                                   k.startswith('%s_' % REVERSE))
-                bwd_params['transfer_fn'] = globals()[bwd_transfer_fn]
+                bwd_params['transfer_fn'] = globals()[bwd_transfer_fn.decode()]
                 # construct the layer
-                bwd_layer = globals()['%sLayer' % bwd_type](**bwd_params)
+                bwd_layer = globals()['%sLayer' % bwd_type.decode()](
+                    **bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
-            fwd_type = str(params.pop('type'))
-            fwd_transfer_fn = str(params.pop('transfer_fn'))
+            fwd_type = bytes(params.pop('type'))
+            fwd_transfer_fn = bytes(params.pop('transfer_fn'))
             fwd_params = params
-            fwd_params['transfer_fn'] = globals()[fwd_transfer_fn]
+            fwd_params['transfer_fn'] = globals()[fwd_transfer_fn.decode()]
             # construct the layer
-            fwd_layer = globals()['%sLayer' % fwd_type](**fwd_params)
+            fwd_layer = globals()['%sLayer' % fwd_type.decode()](**fwd_params)
 
             # return the (bidirectional) layer
             if bwd_layer is not None:
@@ -489,10 +472,10 @@ class RecurrentNeuralNetwork(Processor):
 
         # loop over all layers
         layers = []
-        for i in xrange(num_layers + 1):
+        for i in range(num_layers + 1):
             # get all parameters for that layer
             layer_params = dict((k.split('_', 2)[2], data[k])
-                                for k in data.keys() if
+                                for k in list(data.keys()) if
                                 k.startswith('layer_%d' % i))
             # create a layer from these parameters
             layer = create_layer(layer_params)
@@ -542,6 +525,8 @@ class RNNProcessor(ParallelProcessor):
         """
         # pylint: disable=unused-argument
 
+        if len(nn_files) == 0:
+            raise ValueError('at least one RNN model must be given.')
         nn_models = []
         for nn_file in nn_files:
             nn_models.append(RecurrentNeuralNetwork.load(nn_file))

@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains filter and filterbank related functionality.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -462,8 +463,8 @@ class TriangularFilter(Filter):
             # create non-overlapping filters
             if not overlap:
                 # re-arrange the start and stop positions
-                start = int(round((center + start) / 2.))
-                stop = int(round((center + stop) / 2.))
+                start = int(np.floor((center + start) / 2.))
+                stop = int(np.ceil((center + stop) / 2.))
             # consistently handle too-small filters
             if stop - start < 2:
                 center = start

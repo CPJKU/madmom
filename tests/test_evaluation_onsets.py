@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.onsets module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
@@ -26,6 +28,23 @@ class TestOnsetConstantsClass(unittest.TestCase):
 
 # test evaluation function
 class TestOnsetEvaluationFunction(unittest.TestCase):
+
+    def test_errors(self):
+        # detections / annotations must not be None
+        with self.assertRaises(TypeError):
+            onset_evaluation(None, ANNOTATIONS)
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, None)
+        # tolerance must be > 0
+        with self.assertRaises(ValueError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, 0)
+        # tolerance must be correct type
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, None)
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, [])
+        with self.assertRaises(TypeError):
+            onset_evaluation(DETECTIONS, ANNOTATIONS, {})
 
     def test_results(self):
         # default window
@@ -148,7 +167,7 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, std)
 
     def test_tostring(self):
-        print OnsetEvaluation([], [])
+        print(OnsetEvaluation([], []))
 
 
 class TestOnsetSumEvaluationClass(unittest.TestCase):
@@ -218,7 +237,7 @@ class TestOnsetSumEvaluationClass(unittest.TestCase):
         self.assertEqual(e.std_error, e2.std_error)
 
     def test_tostring(self):
-        print OnsetSumEvaluation([])
+        print(OnsetSumEvaluation([]))
 
 
 class TestOnsetMeanEvaluationClass(unittest.TestCase):
@@ -298,4 +317,4 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
                          np.mean([e_.std_error for e_ in [e2, e3]]))
 
     def test_tostring(self):
-        print OnsetMeanEvaluation([])
+        print(OnsetMeanEvaluation([]))

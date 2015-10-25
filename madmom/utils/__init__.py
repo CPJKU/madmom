@@ -2,11 +2,12 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 Utility package.
 
 """
+
+from __future__ import absolute_import, division, print_function
 
 import argparse
 import contextlib
@@ -38,33 +39,6 @@ def suppress_warnings(function):
             return function(*args, **kwargs)
 
     return decorator_function
-
-
-# overwrite the built-in open() to transparently apply some magic file handling
-@contextlib.contextmanager
-def open(filename, mode='r'):
-    """
-    Context manager which yields an open file or handle with the given mode
-    and closes it if needed afterwards.
-
-    :param filename: file name or open file handle
-    :param mode:     mode in which to open the file
-    :return:         an open file handle
-
-    """
-    import __builtin__
-    # check if we need to open the file
-    if isinstance(filename, basestring):
-        f = fid = __builtin__.open(filename, mode)
-    else:
-        f = filename
-        fid = None
-    # TODO: include automatic (un-)zipping here?
-    # yield an open file handle
-    yield f
-    # close the file if needed
-    if fid:
-        fid.close()
 
 
 # file handling routines
@@ -178,25 +152,24 @@ def load_events(filename):
           ignored (i.e. only the first column is returned).
 
     """
-    with open(filename, 'rb') as f:
-        # read in the events, one per line
-        events = np.loadtxt(f, ndmin=2)
-        # 1st column is the event's time, the rest is ignored
-        return events[:, 0]
+    # read in the events, one per line
+    events = np.loadtxt(filename, ndmin=2)
+    # 1st column is the event's time, the rest is ignored
+    return events[:, 0]
 
 
-def write_events(events, filename):
+def write_events(events, filename, fmt='%.3f'):
     """
     Write a list of events to a text file, one floating point number per line.
 
-    :param events:   list of events [seconds]
-    :param filename: output file name or file handle
+    :param events:   events [seconds, list or numpy array]
+    :param filename: output file name or open file handle
+    :param fmt:      format to be written
+    :return:         return the events
 
     """
     # write the events to the output
-    if filename is not None:
-        with open(filename, 'wb') as f:
-            f.writelines('%g\n' % e for e in events)
+    np.savetxt(filename, np.asarray(events), fmt=fmt)
     # also return them
     return events
 
@@ -245,9 +218,11 @@ def quantize_events(events, fps, length=None, shift=None):
     :return:       a quantized numpy array
 
     """
+    # convert to numpy array if needed
+    events = np.asarray(events, dtype=np.float)
     # shift all events if needed
     if shift:
-        events = np.asarray(events) + shift
+        events += shift
     # determine the length for the quantized array
     if length is None:
         # set the length to be long enough to cover all events
@@ -258,14 +233,11 @@ def quantize_events(events, fps, length=None, shift=None):
         events = events[:np.searchsorted(events, float(length - 0.5) / fps)]
     # init array
     quantized = np.zeros(length)
-    # set the events
-    for event in events:
-        idx = int(round(event * float(fps)))
-        try:
-            quantized[idx] = 1
-        except IndexError:
-            # ignore out of range indices
-            pass
+    # quantize
+    events *= fps
+    # indices to be set in the quantized array
+    idx = np.unique(np.round(events).astype(np.int))
+    quantized[idx] = 1
     # return the quantized array
     return quantized
 
@@ -304,7 +276,7 @@ class OverrideDefaultListAction(argparse.Action):
         try:
             cur_values.extend([self.list_type(v)
                                for v in value.split(self.sep)])
-        except ValueError, e:
+        except ValueError as e:
             raise argparse.ArgumentError(self, e)
 
 

@@ -5,7 +5,9 @@ PickleProcessor.
 
 """
 
-import cPickle
+from __future__ import absolute_import, division, print_function
+
+import pickle
 import argparse
 
 from madmom.processors import io_arguments
@@ -28,14 +30,14 @@ def main():
                         help='pickled processor')
     parser.add_argument('--version', action='version',
                         version='PickleProcessor v0.1')
-    sp = io_arguments(parser, output_suffix='.txt', pickle=False)
+    io_arguments(parser, output_suffix='.txt', pickle=False)
 
     # parse arguments
     args = parser.parse_args()
     kwargs = vars(args)
 
     # create a processor
-    processor = cPickle.load(kwargs.pop('processor'))
+    processor = pickle.load(kwargs.pop('processor'))
     # and call the processing function
     args.func(processor, **kwargs)
 

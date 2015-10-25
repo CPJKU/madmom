@@ -1,9 +1,11 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.beats module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
@@ -169,6 +171,8 @@ class TestFindLongestContinuousSegmentFunction(unittest.TestCase):
         length, start = find_longest_continuous_segment([])
         self.assertIsInstance(length, int)
         self.assertIsInstance(start, int)
+
+    def test_errors(self):
         # events must be correct type
         with self.assertRaises(IndexError):
             find_longest_continuous_segment(None)
@@ -265,24 +269,26 @@ class TestPscoreFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         score = pscore({}, {}, 0.2)
         self.assertIsInstance(score, float)
-        with self.assertRaises(TypeError):
-            pscore(None, ANNOTATIONS, 0.2)
-        with self.assertRaises(TypeError):
-            pscore(DETECTIONS, None, 0.2)
-        # tolerance must be correct type
+        # tolerance must be convertible to float
         score = pscore(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(score, float)
-        with self.assertRaises(ValueError):
-            pscore(DETECTIONS, ANNOTATIONS, [])
-        with self.assertRaises(TypeError):
-            pscore(DETECTIONS, ANNOTATIONS, {})
 
     def test_errors(self):
         # tolerance must be > 0
         with self.assertRaises(ValueError):
             pscore(DETECTIONS, ANNOTATIONS, 0)
-        with self.assertRaises(ValueError):
+        # tolerance must be convertible to float
+        with self.assertRaises(TypeError):
             pscore(DETECTIONS, ANNOTATIONS, None)
+        with self.assertRaises(TypeError):
+            pscore(DETECTIONS, ANNOTATIONS, [])
+        with self.assertRaises(TypeError):
+            pscore(DETECTIONS, ANNOTATIONS, {})
+        # detections / annotations must be correct type
+        with self.assertRaises(TypeError):
+            pscore(None, ANNOTATIONS, 0.2)
+        with self.assertRaises(TypeError):
+            pscore(DETECTIONS, None, 0.2)
         # score relies on intervals, hence at least 2 annotations must be given
         with self.assertRaises(BeatIntervalError):
             pscore(DETECTIONS, [1], 0.2)
@@ -312,26 +318,29 @@ class TestCemgilFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         score = cemgil({}, {}, 0.04)
         self.assertIsInstance(score, float)
+        # sigma must be correct type
+        score = cemgil(DETECTIONS, ANNOTATIONS, int(1))
+        self.assertIsInstance(score, float)
+
+    def test_errors(self):
+        # sigma must not be None
+        with self.assertRaises(TypeError):
+            cemgil(DETECTIONS, ANNOTATIONS, None)
+        # sigma must be greater than 0
+        with self.assertRaises(ValueError):
+            cemgil(DETECTIONS, ANNOTATIONS, 0)
+        # detections / annotations must be correct type
         with self.assertRaises(TypeError):
             cemgil(None, ANNOTATIONS, 0.04)
         with self.assertRaises(TypeError):
             cemgil(DETECTIONS, None, 0.04)
-        # tolerance must be correct type
-        score = cemgil(DETECTIONS, ANNOTATIONS, int(1))
-        self.assertIsInstance(score, float)
+        # sigma must be correct type
         with self.assertRaises(TypeError):
             cemgil(DETECTIONS, ANNOTATIONS, [0.04])
         with self.assertRaises(TypeError):
             cemgil(DETECTIONS, ANNOTATIONS, {0: 0.04})
         with self.assertRaises(TypeError):
             cemgil(DETECTIONS, ANNOTATIONS, {0.04: 0})
-
-    def test_errors(self):
-        # sigma must be greater than 0
-        with self.assertRaises(ValueError):
-            cemgil(DETECTIONS, ANNOTATIONS, 0)
-        with self.assertRaises(ValueError):
-            cemgil(DETECTIONS, ANNOTATIONS, None)
 
     def test_values(self):
         # two empty sequences should have a perfect score
@@ -359,25 +368,21 @@ class TestGotoFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         score = goto({}, {}, 0.175, 0.2, 0.2)
         self.assertIsInstance(score, float)
-        with self.assertRaises(TypeError):
-            goto(None, ANNOTATIONS, 0.175, 0.2, 0.2)
-        with self.assertRaises(TypeError):
-            goto(DETECTIONS, None, 0.175, 0.2, 0.2)
         # parameters must be correct type
-        score = goto(DETECTIONS, ANNOTATIONS, int(0.175), 0.2, 0.2)
+        score = goto(DETECTIONS, ANNOTATIONS, int(1.175), 0.2, 0.2)
         self.assertIsInstance(score, float)
-        score = goto(DETECTIONS, ANNOTATIONS, 0.175, int(0.2), 0.2)
+        score = goto(DETECTIONS, ANNOTATIONS, 0.175, int(1.2), 0.2)
         self.assertIsInstance(score, float)
-        score = goto(DETECTIONS, ANNOTATIONS, 0.175, 0.2, int(0.2))
+        score = goto(DETECTIONS, ANNOTATIONS, 0.175, 0.2, int(1.2))
         self.assertIsInstance(score, float)
 
     def test_errors(self):
         # parameters must not be None
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             goto(DETECTIONS, ANNOTATIONS, None, 0.2, 0.2)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             goto(DETECTIONS, ANNOTATIONS, 0.175, None, 0.2)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             goto(DETECTIONS, ANNOTATIONS, 0.175, 0.2, None)
         # parameters must be positive
         with self.assertRaises(ValueError):
@@ -386,6 +391,11 @@ class TestGotoFunction(unittest.TestCase):
             goto(DETECTIONS, ANNOTATIONS, 0.175, -1, 0.2)
         with self.assertRaises(ValueError):
             goto(DETECTIONS, ANNOTATIONS, 0.175, 0.2, -1)
+        # detections / annotations must be correct type
+        with self.assertRaises(TypeError):
+            goto(None, ANNOTATIONS, 0.175, 0.2, 0.2)
+        with self.assertRaises(TypeError):
+            goto(DETECTIONS, None, 0.175, 0.2, 0.2)
         # score relies on intervals, hence at least 2 annotations must be given
         with self.assertRaises(BeatIntervalError):
             goto(DETECTIONS, [1], 0.175, 0.2, 0.2)
@@ -426,26 +436,31 @@ class TestCmlFunction(unittest.TestCase):
         cmlc, cmlt = cml({}, {}, 0.175, 0.175)
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
-        with self.assertRaises(TypeError):
-            cml(None, ANNOTATIONS, 0.175, 0.175)
-        with self.assertRaises(TypeError):
-            cml(DETECTIONS, None, 0.175, 0.175)
         # tolerances must be correct type
         cmlc, cmlt = cml(DETECTIONS, ANNOTATIONS, int(1), int(1))
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
-        cmlc, cmlt = cml(DETECTIONS, ANNOTATIONS, [0.175], [0.175])
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
         with self.assertRaises(TypeError):
             cml(DETECTIONS, ANNOTATIONS, {}, {})
+        with self.assertRaises(TypeError):
+            cml(DETECTIONS, ANNOTATIONS, [0.175], [0.175])
 
     def test_errors(self):
+        # tolerances must not be None
+        with self.assertRaises(TypeError):
+            cml(DETECTIONS, ANNOTATIONS, 0.1, None)
+        with self.assertRaises(TypeError):
+            cml(DETECTIONS, ANNOTATIONS, None, 0.1)
         # tolerances must be greater than 0
         with self.assertRaises(ValueError):
-            cml(DETECTIONS, ANNOTATIONS, 0, None)
+            cml(DETECTIONS, ANNOTATIONS, 0, 1)
         with self.assertRaises(ValueError):
-            cml(DETECTIONS, ANNOTATIONS, None, 0)
+            cml(DETECTIONS, ANNOTATIONS, 1, 0)
+        # detections / annotations must be correct type
+        with self.assertRaises(TypeError):
+            cml(None, ANNOTATIONS, 0.175, 0.175)
+        with self.assertRaises(TypeError):
+            cml(DETECTIONS, None, 0.175, 0.175)
         # score relies on intervals, hence at least 2 ann/det must be given
         with self.assertRaises(BeatIntervalError):
             cml(DETECTIONS, [1.], 0.175, 0.175)
@@ -487,10 +502,6 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)
         self.assertIsInstance(amlt, float)
-        with self.assertRaises(TypeError):
-            continuity(None, ANNOTATIONS, 0.175, 0.175)
-        with self.assertRaises(TypeError):
-            continuity(DETECTIONS, None, 0.175, 0.175)
         # tolerances must be correct type
         scores = continuity(DETECTIONS, ANNOTATIONS, int(1), int(1))
         cmlc, cmlt, amlc, amlt = scores
@@ -498,21 +509,36 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)
         self.assertIsInstance(amlt, float)
-        scores = continuity(DETECTIONS, ANNOTATIONS, [0.175], [0.175])
-        cmlc, cmlt, amlc, amlt = scores
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
-        self.assertIsInstance(amlc, float)
-        self.assertIsInstance(amlt, float)
-        with self.assertRaises(TypeError):
-            continuity(DETECTIONS, ANNOTATIONS, {}, {})
 
     def test_errors(self):
+        # tolerances must not be None
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, 0.1, None)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, None, 0.1)
         # tolerances must be greater than 0
         with self.assertRaises(ValueError):
-            continuity(DETECTIONS, ANNOTATIONS, 0, None)
+            continuity(DETECTIONS, ANNOTATIONS, 1, 0)
         with self.assertRaises(ValueError):
-            continuity(DETECTIONS, ANNOTATIONS, None, 0)
+            continuity(DETECTIONS, ANNOTATIONS, 0, 1)
+        # tolerances must be correct type
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, [0.175], 1)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, 1, [0.175])
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, None, 1)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, 1, None)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, {}, 1)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, ANNOTATIONS, 1, {})
+        # detections / annotations must be correct type
+        with self.assertRaises(TypeError):
+            continuity(None, ANNOTATIONS, 0.175, 0.175)
+        with self.assertRaises(TypeError):
+            continuity(DETECTIONS, None, 0.175, 0.175)
         # score relies on intervals, hence at least 2 ann/det must be given
         with self.assertRaises(BeatIntervalError):
             continuity(DETECTIONS, [1.], 0.175, 0.175)
@@ -754,10 +780,6 @@ class TestInformationGainFunction(unittest.TestCase):
         ig, histogram = information_gain({}, {}, 40)
         self.assertIsInstance(ig, float)
         self.assertIsInstance(histogram, np.ndarray)
-        with self.assertRaises(TypeError):
-            information_gain(None, ANNOTATIONS, 40)
-        with self.assertRaises(TypeError):
-            information_gain(DETECTIONS, None, 40)
         # tolerances must be correct type
         ig, histogram = information_gain(DETECTIONS, ANNOTATIONS, 40)
         self.assertIsInstance(ig, float)
@@ -767,6 +789,19 @@ class TestInformationGainFunction(unittest.TestCase):
         self.assertIsInstance(histogram, np.ndarray)
 
     def test_errors(self):
+        # num_bins must not be None
+        with self.assertRaises(TypeError):
+            information_gain(DETECTIONS, ANNOTATIONS, None)
+        # num_bins must be correct type
+        with self.assertRaises(TypeError):
+            information_gain(DETECTIONS, ANNOTATIONS, [10])
+        with self.assertRaises(TypeError):
+            information_gain(DETECTIONS, ANNOTATIONS, {10})
+        # detections / annotations must be correct type
+        with self.assertRaises(TypeError):
+            information_gain(None, ANNOTATIONS, 40)
+        with self.assertRaises(TypeError):
+            information_gain(DETECTIONS, None, 40)
         # score relies on intervals, hence at least 2 annotations must be given
         with self.assertRaises(BeatIntervalError):
             information_gain([1.], ANNOTATIONS, 4)
@@ -925,7 +960,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
 
     def test_tostring(self):
-        print BeatEvaluation([], [])
+        print(BeatEvaluation([], []))
 
 
 class TestBeatMeanEvaluationClass(unittest.TestCase):
@@ -1022,4 +1057,4 @@ class TestBeatMeanEvaluationClass(unittest.TestCase):
         self.assertEqual(len(e), 2)
 
     def test_tostring(self):
-        print BeatMeanEvaluation([])
+        print(BeatMeanEvaluation([]))

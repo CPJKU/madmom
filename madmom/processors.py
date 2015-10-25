@@ -2,7 +2,6 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
-
 """
 This file contains all processor related functionality.
 
@@ -12,9 +11,10 @@ objects can be chained/combined to achieve the wanted functionality.
 
 """
 
+from __future__ import absolute_import, division, print_function
+
 import os
 import sys
-import abc
 import argparse
 import multiprocessing as mp
 
@@ -26,7 +26,6 @@ class Processor(object):
     Abstract base class for processing data.
 
     """
-    __metaclass__ = abc.ABCMeta
 
     @classmethod
     def load(cls, infile):
@@ -41,13 +40,13 @@ class Processor(object):
         :return:       Processor instance
 
         """
-        import cPickle
+        import pickle
         # close the open file if needed and use its name
-        if not isinstance(infile, basestring):
+        if not isinstance(infile, str):
             infile.close()
             infile = infile.name
         # instantiate a new Processor and return it
-        return cPickle.load(open(infile, 'rb'))
+        return pickle.load(open(infile, 'rb'))
 
     def dump(self, outfile):
         """
@@ -60,19 +59,18 @@ class Processor(object):
         :param outfile: output file name or file handle
 
         """
-        import cPickle
+        import pickle
         import warnings
         warnings.warn('The resulting file is considered a model file, please '
                       'see the LICENSE file for details!')
         # close the open file if needed and use its name
-        if not isinstance(outfile, basestring):
+        if not isinstance(outfile, str):
             outfile.close()
             outfile = outfile.name
         # dump the Processor to the given file
-        cPickle.dump(self, open(outfile, 'wb'),
-                     protocol=cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(self, open(outfile, 'wb'),
+                    protocol=pickle.HIGHEST_PROTOCOL)
 
-    @abc.abstractmethod
     def process(self, data):
         """
         Process the data.
@@ -84,7 +82,7 @@ class Processor(object):
         :return:     processed data
 
         """
-        return data
+        raise NotImplementedError('must be implemented by subclass.')
 
     def __call__(self, *args):
         """This magic method makes a Processor instance callable."""
@@ -97,7 +95,6 @@ class OutputProcessor(Processor):
 
     """
 
-    @abc.abstractmethod
     def process(self, data, output):
         """
         Processes the data and feeds it to output.
@@ -109,8 +106,7 @@ class OutputProcessor(Processor):
         """
         # pylint: disable=arguments-differ
 
-        # also return the data
-        return data
+        raise NotImplementedError('must be implemented by subclass.')
 
 
 # functions for processing file(s) with a Processor
@@ -282,7 +278,7 @@ class ParallelProcessor(SequentialProcessor):
         """
         import itertools as it
         # process data in parallel and return a list with processed data
-        return self.map(_process, it.izip(self.processors, it.repeat(data)))
+        return list(self.map(_process, zip(self.processors, it.repeat(data))))
 
     @classmethod
     def add_arguments(cls, parser, num_threads=NUM_THREADS):
@@ -527,6 +523,11 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     :param pickle:        add 'pickle' subparser [bool]
 
     """
+    # default output
+    try:
+        output = sys.stdout.buffer
+    except AttributeError:
+        output = sys.stdout
     # add general options
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
@@ -538,17 +539,17 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
         sp.set_defaults(func=pickle_processor)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
-        sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
-                        help='file to pickle the processor to')
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                        default=output, help='output file [default: STDOUT]')
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
-    sp.add_argument('infile', type=argparse.FileType('r'),
+    sp.add_argument('infile', type=argparse.FileType('rb'),
                     help='input audio file')
     # Note: requiring '-o' is a simple safety measure to not overwrite existing
     #       audio files after using the processor in 'batch' mode
-    sp.add_argument('-o', dest='outfile', type=argparse.FileType('w'),
-                    default=sys.stdout, help='output file [default: STDOUT]')
+    sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                    default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
     # batch file processing options

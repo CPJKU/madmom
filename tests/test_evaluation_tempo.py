@@ -1,12 +1,13 @@
 # encoding: utf-8
+# pylint: skip-file
 """
 This file contains tests for the madmom.evaluation.tempo module.
 
 """
-# pylint: skip-file
+
+from __future__ import absolute_import, division, print_function
 
 import unittest
-import __builtin__
 import math
 
 from madmom.evaluation.tempo import *
@@ -28,7 +29,7 @@ class TestLoadTempoFunction(unittest.TestCase):
         self.assertIsInstance(annotations, np.ndarray)
 
     def test_load_tempo_from_file_handle(self):
-        file_handle = __builtin__.open(DATA_PATH + 'sample.tempo')
+        file_handle = open(DATA_PATH + 'sample.tempo')
         annotations = load_tempo(file_handle)
         self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()
@@ -158,33 +159,28 @@ class TestTempoEvaluationFunction(unittest.TestCase):
         self.assertIsInstance(scores, tuple)
         scores = tempo_evaluation({}, {})
         self.assertIsInstance(scores, tuple)
-        # # we do not support normal non-empty lists
-        # with self.assertRaises(TypeError):
-        #     tempo_evaluation(DETECTIONS.tolist(), ANNOTATIONS.tolist(), 0.08)
-        # detections must not be None
-        with self.assertRaises(TypeError):
-            tempo_evaluation(None, ANN_TEMPI)
-        # annotations must not be None
-        with self.assertRaises(TypeError):
-            tempo_evaluation(DETECTIONS, None)
         # tolerance must be correct type
         scores = tempo_evaluation(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(scores, tuple)
-        # various not supported versions
-        with self.assertRaises(ValueError):
-            tempo_evaluation(DETECTIONS, ANN_TEMPI, [])
-        # with self.assertRaises(ValueError):
-        #     tempo_evaluation(DETECTIONS, ANN_TEMPI)
-        # TODO: what should happen if we supply a dictionary?
-        # with self.assertRaises(TypeError):
-        #     tempo_evaluation(DETECTIONS, ANN_TEMPI, ANN_STRENGTHS, {})
 
-    def test_values(self):
+    def test_errors(self):
+        # detections / annotations must not be None
+        with self.assertRaises(TypeError):
+            tempo_evaluation(None, ANN_TEMPI)
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, None)
         # tolerance must be > 0
         with self.assertRaises(ValueError):
             tempo_evaluation(DETECTIONS, ANNOTATIONS, 0)
-        with self.assertRaises(ValueError):
-            tempo_evaluation(DETECTIONS, ANNOTATIONS, None)
+        # tolerance must be correct type
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, None)
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, [])
+        with self.assertRaises(TypeError):
+            tempo_evaluation(DETECTIONS, ANN_TEMPI, {})
+
+    def test_values(self):
         # no tempi should return perfect score
         scores = tempo_evaluation([], [])
         self.assertEqual(scores, (1, True, True))
@@ -319,7 +315,7 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.acc2, False)
 
     def test_tostring(self):
-        print TempoEvaluation([], [])
+        print(TempoEvaluation([], []))
 
 
 class TestMeanTempoEvaluationClass(unittest.TestCase):
@@ -361,4 +357,4 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(len(e), 2)
 
     def test_tostring(self):
-        print TempoMeanEvaluation([])
+        print(TempoMeanEvaluation([]))
