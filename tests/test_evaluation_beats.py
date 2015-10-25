@@ -289,7 +289,6 @@ class TestPscoreFunction(unittest.TestCase):
             pscore(None, ANNOTATIONS, 0.2)
         with self.assertRaises(TypeError):
             pscore(DETECTIONS, None, 0.2)
-
         # score relies on intervals, hence at least 2 annotations must be given
         with self.assertRaises(BeatIntervalError):
             pscore(DETECTIONS, [1], 0.2)

@@ -796,14 +796,14 @@ class TestFilterbankClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt.max(), 1))
         # all triangular filters
         correct = np.zeros(100)
-        correct[1:70] = [1./6, 2./6, 3./6, 4./6, 5./6, 1., 8./9, 7./9, 6./9,
-                         5./9, 5./9, 6./9, 7./9, 8./9, 1., 0.9, 0.8, 0.7, 0.6,
-                         0.5, 0.6, 0.7, 0.8, 0.9, 1., 0.96, 0.92, 0.88, 0.84,
-                         0.8, 0.76, 0.72, 0.68, 0.64, 0.6, 0.56, 0.52, 0.52,
-                         0.56, 0.6, 0.64, 0.68, 0.72, 0.76, 0.8, 0.84, 0.88,
-                         0.92, 0.96, 1., 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65,
-                         0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15,
-                         0.1, 0.05]
+        correct[1:70] = [1. / 6, 2. / 6, 3. / 6, 4. / 6, 5. / 6, 1., 8. / 9,
+                         7. / 9, 6. / 9, 5. / 9, 5. / 9, 6. / 9, 7. / 9,
+                         8. / 9, 1., 0.9, 0.8, 0.7, 0.6, 0.5, 0.6, 0.7, 0.8,
+                         0.9, 1., 0.96, 0.92, 0.88, 0.84, 0.8, 0.76, 0.72,
+                         0.68, 0.64, 0.6, 0.56, 0.52, 0.52, 0.56, 0.6, 0.64,
+                         0.68, 0.72, 0.76, 0.8, 0.84, 0.88, 0.92, 0.96, 1.,
+                         0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55,
+                         0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
         self.assertTrue(np.allclose(filt[:, 0], correct))
         # all rectangular filters are 1
         self.assertTrue(np.allclose(filt[:, 1], np.ones(100)))
@@ -910,7 +910,7 @@ class TestMelFilterbankClass(unittest.TestCase):
                   [11304.931640, 13285.986328], [12273.925781, 14427.246093],
                   [13329.052734, 15654.638671], [14470.312500, 16968.164062]]
         self.assertTrue(np.allclose(filt.min(), 0))
-        self.assertTrue(np.allclose(filt.max(), 1./3))
+        self.assertTrue(np.allclose(filt.max(), 1. / 3))
         self.assertTrue(np.allclose(filt.center_frequencies, center))
         self.assertTrue(np.allclose(filt.corner_frequencies, corner))
 
@@ -1185,7 +1185,7 @@ class TestRectangularFilterbankClass(unittest.TestCase):
         filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 101, 1000],
                                      unique_filters=False)
         self.assertTrue(np.allclose(filt.min(), 0))
-        self.assertTrue(np.allclose(filt.max(), 1./3))
+        self.assertTrue(np.allclose(filt.max(), 1. / 3))
         # second band must be 0
         self.assertTrue(np.allclose(filt[:, 1], np.zeros(100)))
         self.assertEqual(filt.shape, (100, 4))

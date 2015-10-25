@@ -336,11 +336,11 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
         result = sound_pressure_level(np.zeros(100))
         self.assertTrue(np.allclose(result, -np.finfo(float).max))
         # maximum float amplitude, alternating between -1 and 1
-        sig = np.cos(np.linspace(0, 2*np.pi*100, 2*100+1))
+        sig = np.cos(np.linspace(0, 2 * np.pi * 100, 2 * 100 + 1))
         result = sound_pressure_level(sig)
         self.assertTrue(np.allclose(result, 0.))
         # maximum float amplitude, alternating between -1 and 1
-        sig = (np.cos(np.linspace(0, 2*np.pi*100, 2*100+1)) *
+        sig = (np.cos(np.linspace(0, 2 * np.pi * 100, 2 * 100 + 1)) *
                np.iinfo(np.int16).max)
         result = sound_pressure_level(sig.astype(np.int16))
         self.assertTrue(np.allclose(result, 0.))
@@ -429,13 +429,15 @@ class TestLoadAudioFileFunction(unittest.TestCase):
     def test_start_stop(self):
         # test wave loader
         f = DATA_PATH + '/sample.wav'
-        signal, sample_rate = load_audio_file(f, start=1./44100, stop=5./44100)
+        signal, sample_rate = load_audio_file(f, start=1. / 44100,
+                                              stop=5. / 44100)
         self.assertTrue(np.allclose(signal, [-2510, -2484, -2678, -2833]))
         self.assertTrue(len(signal) == 4)
         self.assertTrue(sample_rate == 44100)
         # test ffmpeg loader
         f = DATA_PATH + '/stereo_sample.flac'
-        signal, sample_rate = load_audio_file(f, start=1./44100, stop=4./44100)
+        signal, sample_rate = load_audio_file(f, start=1. / 44100,
+                                              stop=4. / 44100)
         self.assertTrue(np.allclose(signal, [[35, 36], [29, 34], [36, 31]]))
         self.assertTrue(len(signal) == 3)
         self.assertTrue(sample_rate == 44100)
@@ -451,11 +453,11 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # test ffmpeg loader
         f = DATA_PATH + '/stereo_sample.flac'
         signal, sample_rate = load_audio_file(f, num_channels=1)
-        # TODO: is it a problem that the results are rounded differently?
-        self.assertTrue(np.allclose(signal[:5], [36, 36, 32, 34, 34]))
-        self.assertTrue(len(signal) == 182919)
+        # results are rounded differently, thus allow atol=1
+        self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33], atol=1))
+        # avconv results in a different length of 182909 samples
+        self.assertTrue(np.allclose(len(signal), 182919, atol=10))
         self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
 
     def test_upmix(self):
         f = DATA_PATH + '/sample.wav'
