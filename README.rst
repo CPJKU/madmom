@@ -45,8 +45,8 @@ Installation
 Prerequisites
 -------------
 
-To install the ``madmom`` package, you must have Python version 2.7 and the
-following packages installed:
+To install the ``madmom`` package, you must have either Python 2.7 or Python
+3.3 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
@@ -54,7 +54,8 @@ following packages installed:
 - `nose <https://github.com/nose-devs/nose>`_ (to run the tests)
 
 If you need support for audio files other than ``.wav`` with a sample rate of
-44.1kHz and 16 bit depth, you need ``ffmpeg`` (or ``avconv`` on Ubuntu Linux).
+44.1kHz and 16 bit depth, you need ``ffmpeg`` (``avconv`` on Ubuntu Linux has
+some decoding bugs, so we advise not to use it!).
 
 Please refer to the `requirements.txt <requirements.txt>`_ file for the minimum
 required versions and make sure that these modules are up to date, otherwise it
