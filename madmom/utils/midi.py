@@ -1448,7 +1448,6 @@ class MIDIFile(object):
         # close the file
         midi_file.close()
 
-
     @classmethod
     def from_file(cls, midi_file):
         """

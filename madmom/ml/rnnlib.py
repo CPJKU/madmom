@@ -1411,9 +1411,9 @@ def create_nc_files(files, annotations, out_dir, norm=False, att=0,
                            from the `diff_ratio`)
     :param diff_max_bins:  apply a maximum filter with this width (in bins in
                            frequency dimension) before calculating the diff;
-                           (e.g. for the difference spectrogram of the SuperFlux
-                           algorithm 3 `max_bins` are used together with a 24
-                           band logarithmic filterbank)
+                           (e.g. for the difference spectrogram of the
+                           SuperFlux algorithm 3 `max_bins` are used together
+                           with a 24 band logarithmic filterbank)
     :param positive_diffs: keep only the positive differences, i.e. set all
                            diff values < 0 to 0
 
