@@ -158,7 +158,7 @@ def load_events(filename):
     return events[:, 0]
 
 
-def write_events(events, filename, fmt='%.3f'):
+def write_events(events, filename, fmt='%.3f', header=''):
     """
     Write a list of events to a text file, one floating point number per line.
 
@@ -169,7 +169,7 @@ def write_events(events, filename, fmt='%.3f'):
 
     """
     # write the events to the output
-    np.savetxt(filename, np.asarray(events), fmt=fmt)
+    np.savetxt(filename, np.asarray(events), fmt=fmt, header=header)
     # also return them
     return events
 
