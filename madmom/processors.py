@@ -556,13 +556,12 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     sp = sub_parsers.add_parser('batch', help='batch file processing')
     sp.set_defaults(func=process_batch)
     sp.add_argument('files', nargs='+', help='files to be processed')
-    sp.add_argument('--out', dest='output_dir', default=None,
+    sp.add_argument('-o', dest='output_dir', default=None,
                     help='output directory [default=%(default)s]')
     sp.add_argument('-s', dest='output_suffix', default=output_suffix,
                     help='suffix appended to the files (dot must be included '
                          'if wanted) [default=%(default)s]')
     sp.add_argument('--ext', dest='strip_ext', action='store_false',
-                    default=True,
                     help='keep the extension of the input file [default='
                          'strip it off before appending the output suffix]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),

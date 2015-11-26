@@ -49,7 +49,7 @@ def main():
     This program can be run in 'single' file mode to process a single audio
     file and write the detected beats to STDOUT or the given output file.
 
-    $ CRFBeatDetector single INFILE [OUTFILE]
+    $ CRFBeatDetector single INFILE [-o OUTFILE]
 
     If multiple audio files should be processed, the program can also be run
     in 'batch' mode to save the detected beats to files with the given suffix.

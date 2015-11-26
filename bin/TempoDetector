@@ -39,7 +39,7 @@ def main():
     This program can be run in 'single' file mode to process a single audio
     file and write the detected tempi to STDOUT or the given output file.
 
-    $ TempoDetector single INFILE [OUTFILE]
+    $ TempoDetector single INFILE [-o OUTFILE]
 
     If multiple audio files should be processed, the program can also be run
     in 'batch' mode to save the detected tempi to files with the given suffix.
