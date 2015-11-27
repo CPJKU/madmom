@@ -714,7 +714,7 @@ class UnknownMetaEvent(MetaEvent):
         """
 
         """
-        super(MetaEvent, self).__init__(**kwargs)
+        super(UnknownMetaEvent, self).__init__(**kwargs)
         self.meta_command = kwargs['meta_command']
 
     def copy(self, **kwargs):

@@ -1,4 +1,5 @@
 # encoding: utf-8
+# pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
@@ -42,13 +43,10 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     :return:             the output file name
 
     """
-    # check input and output file type
-    if isinstance(infile, file):
+    # check input file type
+    if not isinstance(infile, str):
         raise ValueError("only file names are supported as 'infile', not %s."
                          % infile)
-    if isinstance(outfile, file):
-        raise ValueError("only file names are supported as 'outfile', not %s."
-                         % outfile)
     # create temp file if no outfile is given
     if outfile is None:
         # looks stupid, but is recommended over tempfile.mktemp()
@@ -59,6 +57,10 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         delete_on_fail = True
     else:
         delete_on_fail = False
+    # check output file type
+    if not isinstance(outfile, str):
+        raise ValueError("only file names are supported as 'outfile', not %s."
+                         % outfile)
     # call ffmpeg (throws exception on error)
     try:
         call = _assemble_ffmpeg_call(infile, outfile, fmt, sample_rate,
@@ -137,7 +139,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if isinstance(infile, file):
+    if not isinstance(infile, str):
         raise ValueError("only file names are supported as 'infile', not %s."
                          % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
@@ -263,7 +265,6 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     sample_type += str(8 * dtype.itemsize)
     # - little endian or big endian:
     if dtype.byteorder == '=':
-        import sys
         sample_type += sys.byteorder[0] + 'e'
     else:
         sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
