@@ -528,7 +528,7 @@ class ParallelProcess(mp.Process):
 
     """
     def __init__(self, task_queue):
-        mp.Process.__init__(self)
+        super(ParallelProcess, self).__init__()
         self.task_queue = task_queue
 
     def run(self):
