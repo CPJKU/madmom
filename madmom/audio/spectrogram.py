@@ -1227,22 +1227,22 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
     Parameters
     ----------
-    spectrogram : :class:`FilteredSpectrogram` instance
-        :class:`FilteredSpectrogram` instance.
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
     crossover_frequencies : list or numpy array
-        List of crossover frequencies at which the `spectrogram` is split into
-        bands.
+        List of crossover frequencies at which the `spectrogram` is split
+        into bands.
     norm_bands : bool, optional
-        Normalize the bands to area 1.
+        Normalize the filter bands to area 1.
     kwargs : dict, optional
-        If no :class:`FilteredSpectrogram` instance was given, one is
-        instantiated with these additional keyword arguments.
+        If no :class:`Spectrogram` instance was given, one is instantiated
+        with these additional keyword arguments.
 
     Notes
     -----
-    The MultiBandSpectrogram is implemented as a :class:`FilteredSpectrogram`
-    which uses a :class:`.audio.filters.RectangularFilterbank` to combine
-    multiple frequency bins.
+    The MultiBandSpectrogram is implemented as a :class:`Spectrogram` which
+    uses a :class:`.audio.filters.RectangularFilterbank` to combine multiple
+    frequency bins.
 
     """
     # pylint: disable=super-on-old-class
@@ -1257,9 +1257,9 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
                 **kwargs):
         from .filters import RectangularFilterbank
-        # instantiate a FilteredSpectrogram if needed
+        # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
-            spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
+            spectrogram = Spectrogram(spectrogram, **kwargs)
         # create a rectangular filterbank
         filterbank = RectangularFilterbank(spectrogram.bin_frequencies,
                                            crossover_frequencies,
@@ -1326,10 +1326,10 @@ class MultiBandSpectrogramProcessor(Processor):
     spectrogram : :class:`Spectrogram` instance
         :class:`Spectrogram` instance.
     crossover_frequencies : list or numpy array
-        List of crossover frequencies at which the `spectrogram` is split into
-        bands.
+        List of crossover frequencies at which the `spectrogram` is split
+        into bands.
     norm_bands : bool, optional
-        Normalize the filter band's area to 1.
+        Normalize the filter bands area to 1.
 
     """
 
@@ -1405,7 +1405,7 @@ class MultiBandSpectrogramProcessor(Processor):
             else:
                 g.add_argument('--norm_bands', action='store_true',
                                default=-norm_bands,
-                               help='normalize the bands')
+                               help='normalize the bands to area 1')
         # return the group
         return g
 
