@@ -743,8 +743,6 @@ class Filterbank(np.ndarray):
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
-    fref = None
-
     def __init__(self, data, bin_frequencies):
         # this method is for documentation purposes only
         pass
@@ -1411,13 +1409,13 @@ class PitchClassProfileFilterbank(Filterbank):
 
     @property
     def corner_frequencies(self):
-        """PCP does not have corner frequencies of the filter bands."""
-        return None
+        # TODO: property should return multiple corner frequencies
+        raise NotImplementedError('please implement if needed')
 
     @property
     def center_frequencies(self):
-        """PCP does not have center frequencies of the filter bands."""
-        return None
+        # TODO: property should return multiple center frequencies
+        raise NotImplementedError('please implement if needed')
 
 
 class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
