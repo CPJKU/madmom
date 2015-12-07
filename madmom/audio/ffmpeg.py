@@ -254,15 +254,17 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     call = [cmd, "-v", "quiet"]
     # infile options
     if skip is not None:
+        # use "%f" to avoid e-05 and the like
         call.extend(["-ss", "%f" % float(skip)])
     call.extend(["-i", infile, "-y", "-f", str(fmt)])
     if max_len is not None:
+        # use "%f" to avoid e-05 and the like
         call.extend(["-t", "%f" % float(max_len)])
     # output options
     if num_channels is not None:
-        call.extend(["-ac", str(num_channels)])
+        call.extend(["-ac", str(int(num_channels))])
     if sample_rate is not None:
-        call.extend(["-ar", str(sample_rate)])
+        call.extend(["-ar", str(int(sample_rate))])
     call.append(output)
     return call
 
@@ -298,7 +300,7 @@ def get_file_info(infile, cmd='ffprobe'):
         if line.startswith(b'channels='):
             info['num_channels'] = int(line[len('channels='):])
         if line.startswith(b'sample_rate='):
-            info['sample_rate'] = float(line[len('sample_rate='):])
+            info['sample_rate'] = int(line[len('sample_rate='):])
     # return the dictionary
     return info
 
@@ -339,7 +341,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     -------
     signal : numpy array
         Audio samples.
-    sample_rate : float
+    sample_rate : int
         Sample rate of the audio samples.
 
     """
