@@ -19,6 +19,7 @@ from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import BeatTrackingProcessor
+from madmom.features.tempo import TempoEstimationProcessor
 
 
 def main():
@@ -69,7 +70,9 @@ def main():
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, att=0)
     # beat tracking arguments
-    BeatTrackingProcessor.add_tempo_arguments(p)
+    TempoEstimationProcessor.add_arguments(p, method='comb', min_bpm=40,
+                                           max_bpm=240, act_smooth=0.09,
+                                           hist_smooth=7, alpha=0.79)
     BeatTrackingProcessor.add_arguments(p, look_ahead=10)
 
     # parse arguments
