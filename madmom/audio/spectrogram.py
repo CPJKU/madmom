@@ -365,22 +365,20 @@ class FilteredSpectrogram(Spectrogram):
     # we just want to inherit some properties from Spectrogram
     def __init__(self, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=unused-argument
         import inspect
         from .filters import Filterbank
-
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
-
         # instantiate a Filterbank if needed
         if inspect.isclass(filterbank) and issubclass(filterbank, Filterbank):
             # a Filterbank class is given, create a filterbank of this type
@@ -391,27 +389,6 @@ class FilteredSpectrogram(Spectrogram):
         if not isinstance(filterbank, Filterbank):
             raise TypeError('not a Filterbank type or instance: %s' %
                             filterbank)
-
-        # TODO: reactivate this or move this whole block/batch processing to
-        #       the processors?
-        # # init the return matrix
-        # num_frames = spectrogram.num_frames
-        # data = np.empty((num_frames, filterbank.num_bands), np.float32)
-        # # process in blocks of this size
-        # if block_size is None:
-        #     block_size = spectrogram.num_frames
-        # # iterate over the STFT in blocks of the given size
-        # for b, start in enumerate(range(0, num_frames, block_size)):
-        #     # determine stop index of the block
-        #     stop = min(start + block_size, num_frames)
-        #     # get the block
-        #     block = spectrogram[start: stop]
-        #     # determine the position inside the data to be returned
-        #     start = b * block_size
-        #     stop = start + len(block)
-        #     # filter it and put it in the return spectrogram
-        #     data[start: stop] = np.dot(block, filterbank)
-
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as FilteredSpectrogram
