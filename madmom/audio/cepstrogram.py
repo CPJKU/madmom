@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains all cepstrogram related functionality.
+This module contains all cepstrogram related functionality.
 
 """
 
@@ -23,29 +23,24 @@ class Cepstrogram(np.ndarray, PropertyMixin):
     The Cepstrogram class represents a transformed Spectrogram. This generic
     class applies some transformation (usually a DCT) on a spectrogram.
 
+    Parameters
+    ----------
+    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
+        :class:`.audio.spectrogram.Spectrogram` instance.
+    transform : numpy ufunc
+        Transformation applied to the `spectrogram`.
+    kwargs : dict
+        If no :class:`.audio.spectrogram.Spectrogram` instance was given,
+        one is instantiated with these additional keyword arguments.
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, transform=dct, **kwargs):
-        """
-
-        Creates a new Cepstrogram instance from the given Spectrogram.
-
-        :param spectrogram: Spectrogram instance (or anything a Spectrogram can
-                            be instantiated from)
-        :param transform:   transformation applied to the `spectrogram`
-                            [numpy ufunc]
-
-        If no Spectrogram instance was given, one is instantiated and
-        these arguments are passed:
-
-        :param kwargs:      keyword arguments passed to Spectrogram
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, transform=dct, **kwargs):
         # instantiate a Spectrogram if needed
@@ -98,41 +93,82 @@ class CepstrogramProcessor(Processor):
     """
     Cepstrogram processor class.
 
+    Parameters
+    ----------
+    transform : numpy ufunc
+        Transformation applied during processing.
+
     """
 
     def __init__(self, transform=dct, **kwargs):
-        """
-        Creates a new CepstrogramProcessor.
-
-        :param transform: transform
-
-        """
         # pylint: disable=unused-argument
-
         self.transform = transform
 
     def process(self, data):
         """
-        Create and return a Cepstrogram of the given data.
+        Return a Cepstrogram of the given data.
 
-        :param data: data to be processed
-        :return:     Cepstrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed (usually a spectrogram).
+
+        Returns
+        -------
+        :class:`Cepstrogram` instance
+            :class:`Cepstrogram` instance.
 
         """
-        return Cepstrogram(data)
+        return Cepstrogram(data, transform=self.transform)
 
 
 MFCC_BANDS = 30
 MFCC_FMIN = 40.
 MFCC_FMAX = 15000.
 MFCC_NORM_FILTERS = True
-MFCC_MUL = 1
-MFCC_ADD = 0
+MFCC_MUL = 1.
+MFCC_ADD = 0.
 
 
 class MFCC(Cepstrogram):
     """
     MFCC class.
+
+    Parameters
+    ----------
+    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
+        :class:`.audio.spectrogram.Spectrogram` instance.
+    transform : numpy ufunc, optional
+        Transformation applied to the `spectrogram`.
+    filterbank : :class:`.audio.filters.Filterbank` type or instance, optional
+        Filterbank used to filter the `spectrogram`; if a
+        :class:`.audio.filters.Filterbank` type (i.e. class) is given
+        (rather than an instance), one will be created with the given type
+        and following parameters:
+    num_bands : int, optional
+        Number of filter bands (per octave, depending on the type of the
+        filterbank).
+    fmin : float, optional
+        The minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        The maximum frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filters to area 1.
+    mul : float, optional
+        Multiply the magnitude spectrogram with this factor before taking the
+        logarithm.
+    add : float, optional
+        Add this value before taking the logarithm of the magnitudes.
+    kwargs : dict
+        If no :class:`.audio.spectrogram.Spectrogram` instance was given, one
+        is instantiated and these keyword arguments are passed.
+
+    Notes
+    -----
+
+    If a filtered or scaled Spectrogram is given, a new unfiltered and unscaled
+    Spectrogram will be computed and then the given filter and scaling will be
+    applied accordingly.
 
     From https://en.wikipedia.org/wiki/Mel-frequency_cepstrum:
 
@@ -155,45 +191,8 @@ class MFCC(Cepstrogram):
                  num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                  norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
                  **kwargs):
-        """
-        Creates a new MFCC instance from the given Spectrogram.
-
-        :param spectrogram: Spectrogram instance (or anything a Spectrogram
-                            can be instantiated from)
-        :param transform:   transformation to be applied to the
-                            spectrogram to obtain a cepstrogram
-
-        Filterbank parameters:
-
-        :param filterbank:  Filterbank type or instance [Filterbank]
-
-        If a Filterbank type is given rather than a Filterbank instance, one
-        will be created with the given type and these parameters:
-
-        :param num_bands:   number of filter bands (per octave, depending on
-                            the type of the filterbank) [int]
-        :param fmin:        the minimum frequency [Hz, float]
-        :param fmax:        the maximum frequency [Hz, float]
-
-        Logarithmic magnitude parameters:
-
-        :param mul:         multiply the magnitude spectrogram with this factor
-                            before taking the logarithm [float]
-        :param add:         add this value before taking the logarithm of the
-                            magnitudes [float]
-
-        If no Spectrogram instance was given, one is instantiated and
-        these arguments are passed:
-
-        :param kwargs:      keyword arguments passed to Spectrogram
-
-        Note: If a filtered or scaled Spectrogram is given, a new unfiltered
-              and unscaled Spectrogram will be computed and then the given
-              filter and scaling will be applied accordingly.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, transform=dct, filterbank=MelFilterbank,
                 num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
@@ -275,40 +274,36 @@ class MFCC(Cepstrogram):
 
 class MFCCProcessor(Processor):
     """
-    MFCC is a subclass of Cepstrogram which filters the magnitude spectrogram
-    of the spectrogram with a Mel filterbank, takes the logarithm and performs
-    a discrete cosine transform afterwards.
+    MFCCProcessor is CepstrogramProcessor which filters the magnitude
+    spectrogram of the spectrogram with a Mel filterbank, takes the logarithm
+    and performs a discrete cosine transform afterwards.
+
+    Parameters
+    ----------
+    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
+        :class:`.audio.spectrogram.Spectrogram` instance.
+    num_bands : int, optional
+        Number of Mel filter bands.
+    fmin : float, optional
+        Minimum frequency of the Mel filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the Mel filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filters to area 1.
+    mul : float, optional
+        Multiply the magnitude spectrogram with this factor before taking the
+        logarithm.
+    add : float, optional
+        Add this value before taking the logarithm of the magnitudes.
+    transform : numpy ufunc
+        Transformation applied to the Mel filtered spectrogram.
 
     """
 
     def __init__(self, num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                  norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
                  transform=dct, **kwargs):
-        """
-        Creates a new MFCC processor.
-
-        A Mel filterbank with these parameters:
-
-        :param num_bands:    number of Mel filter bands
-        :param fmin:         the minimum frequency [Hz]
-        :param fmax:         the maximum frequency [Hz]
-        :param norm_filters: normalize filter area to 1
-
-        is used to filter the spectrogram, and then scaled logarithmically
-        with these parameters:
-
-        :param mul:          multiply the spectrogram with this factor before
-                             taking the logarithm of the magnitudes [float]
-        :param add:          add this value before taking the logarithm of
-                             the magnitudes [float]
-
-        Finally the chosen transform is applied.
-
-        :param transform:    transformation to be applied on the spectrogram
-
-        """
         # pylint: disable=unused-argument
-
         self.num_bands = num_bands
         self.fmin = fmin
         self.fmax = fmax
@@ -321,8 +316,15 @@ class MFCCProcessor(Processor):
         """
         Process the data and return the MFCCs of it.
 
-        :param data: data to be processed
-        :return:     MFCCs of the data
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed (usually a spectrogram).
+
+        Returns
+        -------
+        :class:`MFCC` instance
+            MFCCs of the data.
 
         """
         return MFCC(data, num_bands=self.num_bands, fmin=self.fmin,

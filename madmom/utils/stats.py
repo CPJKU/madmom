@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains some statistical functionality.
+This module contains some statistical functionality.
 
 """
 
@@ -16,20 +16,34 @@ def mcnemar_test(test_1, test_2, significance=0.01):
     """
     Perform McNemar's statistical test.
 
-    :param test_1:       Test 1 sample [numpy array]
-    :param test_2:       Test 2 sample [numpy array]
-    :param significance: significance level
-    :return:             tuple (significance, p-value) [{-1, 0, +1}}, float]
+    Parameters
+    ----------
+    test_1 : numpy array
+        Test 1 sample(s).
+    test_2 : numpy array
+        Test 2 sample(s).
+    significance : float, optional
+        Significance level.
 
+    Returns
+    -------
+    significance : int
+        Significance {-1, 0, +1}.
+    p_value : float
+        P-value.
+
+    Notes
+    -----
     Please see: http://en.wikipedia.org/wiki/McNemar%27s_test
 
-
-                    | Test 2 positive | Test 2 negative | Row total
-    ----------------+-----------------+-----------------+----------
-    Test 1 positive |      a          |      b          |   a + b
-    Test 1 negative |      c          |      d          |   c + d
-    ----------------+-----------------+-----------------+----------
-    Column total    |    a + c        |    b + d        |     n
+    +-----------------+-----------------+-----------------+-----------+
+    |                 | Test 2 positive | Test 2 negative | Row total |
+    +-----------------+-----------------+-----------------+-----------+
+    | Test 1 positive |        a        |        b        |   a + b   |
+    | Test 1 negative |        c        |        d        |   c + d   |
+    +-----------------+-----------------+-----------------+-----------+
+    | Column total    |      a + c      |      b + d      |     n     |
+    +-----------------+-----------------+-----------------+-----------+
 
     """
     from scipy.stats import chi2

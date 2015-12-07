@@ -1,8 +1,21 @@
 # encoding: utf-8
 """
-This package includes audio handling functionality and lower level features.
-The definition of "lower" may vary, but all "higher" level features
-(e.g. beats, onsets, etc.) can be found in the `features` package.
+This module includes audio handling functionality and low-level features.
+The definition of "low" may vary, but all "high" level features (e.g. beats,
+onsets, etc.) should be in the madmom.features module.
+
+Notes
+-----
+Almost all functionality blocks are split into two classes:
+1) A data class: instances are signal dependent, i.e. they operate directly on
+   the signal and show different values for different signals.
+2) A processor class: for every data class there should be a processor class
+   with the exact same name and a "Processor" suffix. This class must inherit
+   from madmom.Processor and define a process() method which returns a data
+   class or inherit from madmom.SequentialProcessor or ParallelProcessor.
+
+The data classes should be either sub-classed from numpy arrays or be indexable
+and iterable. This way they can be used identically to numpy arrays.
 
 """
 

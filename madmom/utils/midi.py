@@ -4,7 +4,7 @@
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
 """
-This file contains MIDI functionality.
+This module contains MIDI functionality.
 
 Almost all code is taken from Giles Hall's python-midi package:
 https://github.com/vishnubob/python-midi
@@ -17,6 +17,7 @@ notes as simple numpy arrays. Also, the EventRegistry is handled differently.
 The last merged commit is 3053fefe.
 
 Since then the following commits have been added functionality-wise:
+
 - 0964c0b (prevent multiple tick conversions)
 - c43bf37 (add pitch and value properties to AfterTouchEvent)
 - 40111c6 (add 0x08 MetaEvent: ProgramNameEvent)
@@ -113,8 +114,15 @@ def read_variable_length(data):
     """
     Read a variable length variable from the given data.
 
-    :param data: data
-    :return:     length in bytes
+    Parameters
+    ----------
+    data : bytearray
+        Data of variable length.
+
+    Returns
+    -------
+    length : int
+        Length in bytes.
 
     """
     next_byte = 1
@@ -138,8 +146,15 @@ def write_variable_length(value):
     """
     Write a variable length variable.
 
-    :param value:
-    :return:
+    Parameters
+    ----------
+    value : bytearray
+        Value to be encoded as a variable of variable length.
+
+    Returns
+    -------
+    bytearray
+        Variable with variable length.
 
     """
     result = bytearray()
@@ -172,8 +187,15 @@ class EventRegistry(object):
         """
         Registers an event in the registry.
 
-        :param event:      the event to register
-        :raise ValueError: for unknown events
+        Parameters
+        ----------
+        event : :class:`Event` instance
+            Event to be registered.
+
+        Raises
+        ------
+        ValueError
+            For unknown events.
 
         """
         # normal events
@@ -264,8 +286,15 @@ class Event(AbstractEvent):
         """
         Indicates whether the given status message belongs to this event.
 
-        :param status_msg: status message
-        :return:           boolean
+        Parameters
+        ----------
+        status_msg : int
+            Status message.
+
+        Returns
+        -------
+        bool
+            True if the given status message belongs to this event.
 
         """
         return cls.status_msg == (status_msg & 0xF0)
@@ -288,8 +317,15 @@ class MetaEvent(AbstractEvent):
         """
         Indicates whether the given status message belongs to this event.
 
-        :param status_msg: status message
-        :return:           boolean
+        Parameters
+        ----------
+        status_msg : int
+            Status message.
+
+        Returns
+        -------
+        bool
+            True if the given status message belongs to this event.
 
         """
         return cls.status_msg == status_msg
@@ -334,7 +370,10 @@ class NoteEvent(Event):
         """
         Set the pitch of the note event.
 
-        :param pitch: pitch of the note.
+        Parameters
+        ----------
+        pitch : int
+            Pitch of the note.
 
         """
         self.data[0] = pitch
@@ -352,7 +391,10 @@ class NoteEvent(Event):
         """
         Set the velocity of the note event.
 
-        :param velocity: velocity of the note.
+        Parameters
+        ----------
+        velocity : int
+            Velocity of the note.
 
         """
         self.data[1] = velocity
@@ -404,7 +446,10 @@ class AfterTouchEvent(Event):
         """
         Set the pitch of the after touch event.
 
-        :param pitch: pitch of the after touch event.
+        Parameters
+        ----------
+        pitch : int
+            Pitch of the after touch event.
 
         """
         self.data[0] = pitch
@@ -422,7 +467,10 @@ class AfterTouchEvent(Event):
         """
         Set the value of the after touch event.
 
-        :param value: value of the after touch event.
+        Parameters
+        ----------
+        value : int
+            Value of the after touch event.
 
         """
         self.data[1] = value
@@ -452,7 +500,10 @@ class ControlChangeEvent(Event):
         """
         Set control ID.
 
-        :param control: control ID
+        Parameters
+        ----------
+        control : int
+            Control ID.
 
         """
         self.data[0] = control
@@ -470,7 +521,10 @@ class ControlChangeEvent(Event):
         """
         Set the value of the controller.
 
-        :param value: value
+        Parameters
+        ----------
+        value : int
+            Value of the controller.
 
         """
         self.data[1] = value
@@ -500,7 +554,11 @@ class ProgramChangeEvent(Event):
         """
         Set the value of the Program Change Event.
 
-        :param value: value
+        Parameters
+        ----------
+        value : int
+            Value of the Program Change Event.
+
         """
         self.data[0] = value
 
@@ -529,7 +587,11 @@ class ChannelAfterTouchEvent(Event):
         """
         Set the value of the Channel After Touch Event.
 
-        :param value: value
+        Parameters
+        ----------
+        value : int
+            Value of the Channel After Touch Event.
+
         """
         self.data[0] = value
 
@@ -556,9 +618,12 @@ class PitchWheelEvent(Event):
     @pitch.setter
     def pitch(self, pitch):
         """
-        Set the pitch of the note event.
+        Set the pitch of the Pitch Wheel Event.
 
-        :param pitch: pitch of the note.
+        Parameters
+        ----------
+        pitch : int
+            Pitch of the Pitch Wheel Event.
 
         """
         value = pitch + 0x2000
@@ -582,8 +647,15 @@ class SysExEvent(Event):
         """
         Indicates whether the given status message belongs to this event.
 
-        :param status_msg: status message
-        :return:           boolean
+        Parameters
+        ----------
+        status_msg : int
+            Status message.
+
+        Returns
+        -------
+        bool
+            True if the given status message belongs to this event.
 
         """
         return cls.status_msg == status_msg
@@ -706,14 +778,16 @@ class UnknownMetaEvent(MetaEvent):
     The `meta_command` class variable must be set by the constructor of
     inherited classes.
 
+    Parameters
+    ----------
+    meta_command : int
+        Value of the meta command.
+
     """
     meta_command = None
     name = 'Unknown'
 
     def __init__(self, **kwargs):
-        """
-
-        """
         super(UnknownMetaEvent, self).__init__(**kwargs)
         self.meta_command = kwargs['meta_command']
 
@@ -793,7 +867,10 @@ class SetTempoEvent(MetaEvent):
         """
         Set microseconds per quarter note.
 
-        :param microseconds: microseconds
+        Parameters
+        ----------
+        microseconds : int
+            Microseconds per quarter note.
 
         """
         self.data = [(microseconds >> (16 - (8 * x)) & 0xFF) for x in range(3)]
@@ -824,7 +901,7 @@ class TimeSignatureEvent(MetaEvent):
     @property
     def numerator(self):
         """
-        Numerator.
+        Numerator of the time signature.
 
         """
         return self.data[0]
@@ -832,16 +909,19 @@ class TimeSignatureEvent(MetaEvent):
     @numerator.setter
     def numerator(self, numerator):
         """
-        Set numerator.
+        Set numerator of the time signature.
 
-        :param numerator: numerator
+        Parameters
+        ----------
+        numerator : int
+            Numerator of the time signature.
         """
         self.data[0] = numerator
 
     @property
     def denominator(self):
         """
-        Denominator.
+        Denominator of the time signature.
 
         """
         return 2 ** self.data[1]
@@ -849,9 +929,13 @@ class TimeSignatureEvent(MetaEvent):
     @denominator.setter
     def denominator(self, denominator):
         """
-        Set denominator.
+        Set denominator of the time signature.
 
-        :param denominator: denominator
+        Parameters
+        ----------
+        denominator : int
+            Denominator of the time signature.
+
         """
         self.data[1] = int(math.log(denominator, 2))
 
@@ -866,16 +950,20 @@ class TimeSignatureEvent(MetaEvent):
     @metronome.setter
     def metronome(self, metronome):
         """
-        Set metronome.
+        Set metronome of the time signature.
 
-        :param metronome:
+        Parameters
+        ----------
+        metronome : int
+            Metronome of the time signature.
+
         """
         self.data[2] = metronome
 
     @property
     def thirty_seconds(self):
         """
-        Thirty-seconds.
+        Thirty-seconds of the time signature.
 
         """
         return self.data[3]
@@ -883,9 +971,13 @@ class TimeSignatureEvent(MetaEvent):
     @thirty_seconds.setter
     def thirty_seconds(self, thirty_seconds):
         """
-        Set thirty-seconds.
+        Set thirty-seconds of the time signature.
 
-        :param thirty_seconds: thirty-seconds
+        Parameters
+        ----------
+        thirty_seconds : int
+            Thirty-seconds of the time signature.
+
         """
         self.data[3] = thirty_seconds
 
@@ -904,7 +996,7 @@ class KeySignatureEvent(MetaEvent):
     @property
     def alternatives(self):
         """
-        Alternatives.
+        Alternatives of the key signature.
 
         """
         return self.data[0] - 256 if self.data[0] > 127 else self.data[0]
@@ -912,9 +1004,12 @@ class KeySignatureEvent(MetaEvent):
     @alternatives.setter
     def alternatives(self, alternatives):
         """
-        Set alternatives.
+        Set alternatives of the key signature.
 
-        :param alternatives: alternatives
+        Parameters
+        ----------
+        alternatives : int
+            Alternatives of the key signature.
 
         """
         self.data[0] = 256 + alternatives if alternatives < 0 else alternatives
@@ -930,9 +1025,12 @@ class KeySignatureEvent(MetaEvent):
     @minor.setter
     def minor(self, val):
         """
-        Major / minor.
+        Set major / minor.
 
-        :param val: value
+        Parameters
+        ----------
+        val : int
+            Major / minor.
 
         """
         self.data[1] = val
@@ -956,13 +1054,16 @@ class MIDITrack(object):
     """
     MIDI Track.
 
+    Parameters
+    ----------
+    events : list
+        MIDI events.
+    relative_timing : bool, optional
+        Indicate if the ticks of the events are in relative or absolute timing.
+
     """
 
     def __init__(self, events=None, relative_timing=True):
-        """
-        Instantiate a new MIDI track instance.
-
-        """
         if events is None:
             self.events = []
         else:
@@ -1036,10 +1137,17 @@ class MIDITrack(object):
     @classmethod
     def from_file(cls, midi_stream):
         """
-        Create a MIDITrack instance by reading the data from a stream.
+        Create a MIDI track by reading the data from a stream.
 
-        :param midi_stream: MIDI file stream (e.g. open MIDI file handle)
-        :return:            the MidiTrack object
+        Parameters
+        ----------
+        midi_stream : open file handle
+            MIDI file stream (e.g. open MIDI file handle)
+
+        Returns
+        -------
+        :class:`MIDITrack` instance
+            :class:`MIDITrack` instance
 
         """
         events = []
@@ -1116,10 +1224,20 @@ class MIDITrack(object):
     @classmethod
     def from_notes(cls, notes, resolution=RESOLUTION):
         """
-        Create a MIDITrack instance from the given notes.
+        Create a MIDI track from the given notes.
 
-        :param notes:      numpy array (onset time, pitch, duration, velocity)
-        :param resolution: resolution (i.e. microseconds per quarter note)
+        Parameters
+        ----------
+        notes : numpy array
+            Array with the notes, one per row. The columns must be:
+            (onset time, pitch, duration, velocity).
+        resolution : int
+            Resolution (i.e. microseconds per quarter note) of the MIDI track.
+
+        Returns
+        -------
+        :class:`MIDITrack` instance
+            :class:`MIDITrack` instance
 
         """
         events = []
@@ -1162,20 +1280,21 @@ class MIDIFile(object):
     """
     MIDI File.
 
+    Parameters
+    ----------
+    tracks : list
+        List of :class:`MIDITrack` instances.
+    resolution : int, optional
+        Resolution (i.e. microseconds per quarter note).
+    file_format : int, optional
+        Format of the MIDI file.
+    note_time_unit : {'s', 'b'}
+        Time unit for notes, seconds ('s') or beats ('b').
+
     """
 
     def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0,
                  note_time_unit='s'):
-        """
-        Instantiate a new MIDI file instance.
-
-        :param tracks:         list with MIDITrack instances
-        :param resolution:     resolution (i.e. microseconds per quarter note)
-        :param file_format:    format of the MIDI file
-        :param note_time_unit: sets the time unit for notes, seconds ('s') or
-                               beats ('b').
-
-        """
         # init variables
         if tracks is None:
             self.tracks = []
@@ -1201,9 +1320,12 @@ class MIDIFile(object):
     @property
     def tempi(self):
         """
-        Return a list with tempi.
+        Tempi of the MIDI file.
 
-        :return: numpy array (tick, seconds per tick, cumulative time)
+        Returns
+        -------
+        tempi : numpy array
+            Array with tempi (tick, seconds per tick, cumulative time).
 
         """
         # first convert all events to have absolute tick counts
@@ -1245,9 +1367,12 @@ class MIDIFile(object):
     @property
     def time_signatures(self):
         """
-        Return a list with time signatures.
+        Time signatures of the MIDI file.
 
-        :return: numpy array (tick, numerator, denominator)
+        Returns
+        -------
+        time_signatures : numpy array
+            Array with time signatures (tick, numerator, denominator).
 
         """
         self.make_ticks_abs()
@@ -1278,9 +1403,12 @@ class MIDIFile(object):
     @property
     def notes(self):
         """
-        Return a list with notes.
+        Notes of the MIDI file.
 
-        :return: numpy array (onset time, pitch, duration, velocity)
+        Returns
+        -------
+        notes : numpy array
+            Array with notes (onset time, pitch, duration, velocity).
 
         """
         self.make_ticks_abs()
@@ -1335,12 +1463,20 @@ class MIDIFile(object):
         # return the notes as numpy array
         return np.asarray(notes, np.float)
 
+    # TODO: should this be a classmethod?
     def note_ticks_to_beats(self, notes):
         """
         Converts onsets and offsets of notes from ticks to beats.
 
-        :param notes: list of notes tuples: (onset, pitch, offset, velocity)
-        :return:      list of notes with onsets and offsets in beats
+        Parameters
+        ----------
+        notes : numpy array or list of tuples
+            Notes (onset, pitch, offset, velocity).
+
+        Returns
+        -------
+        notes : numpy array
+            Notes with onsets and offsets in beats.
 
         """
         tpq = self.ticks_per_quarter_note
@@ -1377,12 +1513,20 @@ class MIDIFile(object):
         # return notes
         return notes
 
+    # TODO: should this be a classmethod?
     def note_ticks_to_seconds(self, notes):
         """
         Converts onsets and offsets of notes from ticks to seconds.
 
-        :param notes: list of notes tuples: (onset, pitch, offset, velocity)
-        :return:      list of notes with onsets and offsets in seconds
+        Parameters
+        ----------
+        notes : numpy array or list of tuples
+            Notes (onset, pitch, offset, velocity).
+
+        Returns
+        -------
+        notes : numpy array
+            Notes with onset and offset times in seconds.
 
         """
         # cache tempo
@@ -1437,7 +1581,10 @@ class MIDIFile(object):
         """
         Write a MIDI file.
 
-        :param midi_file: the MIDI file name
+        Parameters
+        ----------
+        midi_file : str
+            The MIDI file name.
 
         """
         # if we get a filename, open the file
@@ -1451,10 +1598,17 @@ class MIDIFile(object):
     @classmethod
     def from_file(cls, midi_file):
         """
-        Create a MIDIFile instance from a .mid file.
+        Create a MIDI file instance from a .mid file.
 
-        :param midi_file: .mid file to load
-        :return:          MIDIFile instance
+        Parameters
+        ----------
+        midi_file : str
+            Name of the .mid file to load.
+
+        Returns
+        -------
+        :class:`MIDIFile` instance
+            :class:`MIDIFile` instance
 
         """
         tracks = []
@@ -1517,8 +1671,15 @@ class MIDIFile(object):
         """
         Create a MIDIFile instance from a numpy array with notes.
 
-        :param notes: numpy array (onset time, pitch, duration, velocity)
-        :return:      MIDIFile instance with all notes collected in one track
+        Parameters
+        ----------
+        notes : numpy array or list of tuples
+            Notes (onset, pitch, offset, velocity).
+
+        Returns
+        -------
+        :class:`MIDIFile` instance
+            :class:`MIDIFile` instance with all notes collected in one track.
 
         """
         # create a new track from the notes and then a MIDIFile instance
@@ -1529,10 +1690,19 @@ class MIDIFile(object):
         """
         Add MIDI related arguments to an existing parser object.
 
-        :param parser:   existing argparse parser object
-        :param length:   default length of the notes
-        :param velocity: default velocity of the notes
-        :return:         MIDI argument parser group object
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        length : float, optional
+            Default length of the notes [seconds].
+        velocity : int, optional
+            Default velocity of the notes.
+
+        Returns
+        -------
+        argparse argument group
+            MIDI argument parser group object.
 
         """
         # add MIDI related options to the existing parser
@@ -1558,10 +1728,17 @@ def process_notes(data, output=None):
     The behaviour depends on the presence of the `output` argument, if 'None'
     is given, the notes are read, otherwise the notes are written to file.
 
-    :param data:   notes or MIDI file to be loaded
-                   [numpy array or file name or file handle]
-    :param output: output file [file name or file handle]
-    :return:       notes
+    Parameters
+    ----------
+    data : str or numpy array
+        MIDI file to be loaded (if `output` is 'None') / notes to be written.
+    output : str, optional
+        Output file name. If set, the notes given by `data` are written.
+
+    Returns
+    -------
+    notes : numpy array
+        Notes read/written.
 
     """
     if output is None:

@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains all beat tracking related functionality.
+This module contains beat tracking related functionality.
 
 """
 
@@ -18,26 +18,34 @@ from madmom.audio.signal import smooth as smooth_signal
 # classes for obtaining beat activation functions from (multiple) RNNs
 class MultiModelSelectionProcessor(Processor):
     """
-    Class for selecting the most suitable model (i.e. the predictions thereof)
-    from a multiple models (i.e. the predictions thereof).
+    Processor for selecting the most suitable model (i.e. the predictions
+    thereof) from a multiple models/predictions.
+
+    Parameters
+    ----------
+    num_ref_predictions : int
+        Number of reference predictions (see below).
+
+    Notes
+    -----
+    This processor selects the most suitable prediction from multiple models by
+    comparing them to the predictions of a reference model. The one with the
+    smallest mean squared error is chosen.
+
+    If `num_ref_predictions` is 0 or None, an averaged prediction is computed
+    from the given predictions and used as reference.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+           Music Styles",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2014.
 
     """
 
     def __init__(self, num_ref_predictions, **kwargs):
-        """
-        Use multiple RNNs to compute beat activation functions and then choose
-        the most appropriate one automatically by comparing them to a reference
-        model.
-
-        :param num_ref_predictions: number of reference predictions
-
-        "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
-         Music Styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
-
-        """
         # pylint: disable=unused-argument
 
         self.num_ref_predictions = num_ref_predictions
@@ -46,11 +54,20 @@ class MultiModelSelectionProcessor(Processor):
         """
         Selects the most appropriate predictions form the list of predictions.
 
-        :param predictions: list with predictions (beat activation functions)
-        :return:            most suitable prediction
+        Parameters
+        ----------
+        predictions : list
+            Predictions (beat activation functions) of multiple models.
 
-        Note: the reference beat activation function must be the first ones in
-              the list of given predictions
+        Returns
+        -------
+        numpy array
+            Most suitable prediction.
+
+        Notes
+        -----
+        The reference beat activation function must be the first one in the
+        list of given predictions.
 
         """
         from madmom.ml.rnn import average_predictions
@@ -86,21 +103,33 @@ class MultiModelSelectionProcessor(Processor):
 # function for detecting the beats based on the given dominant interval
 def detect_beats(activations, interval, look_aside=0.2):
     """
-    Detects the beats in the given activation function.
+    Detects the beats in the given activation function as in [1]_.
 
-    :param activations: array with beat activations
-    :param interval:    look for the next beat each N frames
-    :param look_aside:  look this fraction of the interval to the side to
-                        detect the beats
+    Parameters
+    ----------
+    activations : numpy array
+        Beat activations.
+    interval : int
+        Look for the next beat each `interval` frames.
+    look_aside : float
+        Look this fraction of the `interval` to each side to detect the beats.
 
-    Note: A Hamming window of 2 * `look_aside` * `interval` is applied around
-         the position where the beat is expected to prefer beats closer to the
-         centre.
+    Returns
+    -------
+    numpy array
+        Beat positions [frames].
 
-    "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    Sebastian Böck and Markus Schedl
-    Proceedings of the 14th International Conference on Digital Audio
-    Effects (DAFx-11), 2011
+    Notes
+    -----
+    A Hamming window of 2 * `look_aside` * `interval` is applied around the
+    position where the beat is expected to prefer beats closer to the centre.
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Markus Schedl,
+           "Enhanced Beat Tracking with Context-Aware Neural Networks",
+           Proceedings of the 14th International Conference on Digital Audio
+           Effects (DAFx), 2011.
 
     """
     # TODO: make this faster!
@@ -117,7 +146,10 @@ def detect_beats(activations, interval, look_aside=0.2):
         """
         Recursively detect the next beat.
 
-        :param position: start at this position
+        Parameters
+        ----------
+        position : int
+            Start at this position.
 
         """
         # detect the nearest beat around the actual position
@@ -166,7 +198,44 @@ def detect_beats(activations, interval, look_aside=0.2):
 # classes for detecting/tracking of beat inside a beat activation function
 class BeatTrackingProcessor(Processor):
     """
-    Class for tracking beats with a simple tempo estimation and beat aligning.
+    Track the beats according to previously determined (local) tempo by
+    iteratively aligning them around the estimated position [1]_.
+
+    Parameters
+    ----------
+    look_aside : float, optional
+        Look this fraction of the estimated beat interval to each side of the
+        assumed next beat position to look for the most likely position of the
+        next beat.
+    look_ahead : float, optional
+        Look `look_ahead` seconds in both directions to determine the local
+        tempo and align the beats accordingly.
+    fps : float, optional
+        Frames per second.
+
+    Notes
+    -----
+    If `look_ahead` is not set, a constant tempo throughout the whole piece
+    is assumed. If `look_ahead` is set, the local tempo (in a range +/-
+    `look_ahead` seconds around the actual position) is estimated and then
+    the next beat is tracked accordingly. This procedure is repeated from
+    the new position to the end of the piece.
+
+    Instead of the auto-correlation based method for tempo estimation proposed
+    in [1]_, it uses a comb filter based method [2]_ per default. The behaviour
+    can be controlled with the `tempo_method` parameter.
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Markus Schedl,
+           "Enhanced Beat Tracking with Context-Aware Neural Networks",
+           Proceedings of the 14th International Conference on Digital Audio
+           Effects (DAFx), 2011.
+    .. [2] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Accurate Tempo Estimation based on Recurrent Neural Networks and
+           Resonating Comb Filters",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
 
     """
     LOOK_ASIDE = 0.2
@@ -181,32 +250,6 @@ class BeatTrackingProcessor(Processor):
 
     def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=None,
                  **kwargs):
-        """
-        Track the beats according to the previously determined (local) tempo
-        by simply aligning them around the estimated position.
-
-        :param look_aside: look this fraction of a beat interval to each side
-                           of the assumed next beat position to look for the
-                           most likely position of the next beat
-        :param look_ahead: look N seconds in both directions to determine the
-                           local tempo and align the beats accordingly
-
-        If `look_ahead` is not set, a constant tempo throughout the whole piece
-        is assumed. If `look_ahead` is set, the local tempo (in a range +/-
-        look_ahead seconds around the actual position) is estimated and then
-        the next beat is tracked accordingly. This procedure is repeated from
-        the new position to the end of the piece.
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx), 2011
-
-        Instead of the auto-correlation based method for tempo estimation, it
-        uses a comb filter per default. The behaviour can be controlled with
-        the `tempo_method` parameter.
-
-        """
         # import the TempoEstimation here otherwise we have a loop
         from madmom.features.tempo import TempoEstimationProcessor
         # save variables
@@ -220,8 +263,14 @@ class BeatTrackingProcessor(Processor):
         """
         Detect the beats in the given activation function.
 
-        :param activations: beat activation function
-        :return:            detected beat positions [seconds]
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
 
         """
         # smooth activations
@@ -285,14 +334,25 @@ class BeatTrackingProcessor(Processor):
         """
         Add beat tracking related arguments to an existing parser.
 
-        :param parser:     existing argparse parser
-        :param look_aside: look this fraction of a beat interval to each side
-                           of the assumed next beat position to look for the
-                           most likely position of the next beat
-        :param look_ahead: look N seconds in both directions to determine the
-                           local tempo and align the beats accordingly
-        :return:           beat argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        look_aside : float, optional
+            Look this fraction of the estimated beat interval to each side of
+            the assumed next beat position to look for the most likely position
+            of the next beat.
+        look_ahead : float, optional
+            Look `look_ahead` seconds in both directions to determine the local
+            tempo and align the beats accordingly.
 
+        Returns
+        -------
+        parser_group : argparse argument group
+            Beat tracking argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
@@ -322,14 +382,27 @@ class BeatTrackingProcessor(Processor):
         """
         Add tempo arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param method:      tempo estimation method ['comb', 'acf']
-        :param min_bpm:     minimum tempo [bpm]
-        :param max_bpm:     maximum tempo [bpm]
-        :param act_smooth:  smooth the activations over N seconds
-        :param hist_smooth: smooth the tempo histogram over N bins
-        :param alpha:       scaling factor of the comb filter
-        :return:            tempo argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        method : {'comb', 'acf', 'dbn'}
+            Tempo estimation method.
+        min_bpm : float, optional
+            Minimum tempo [bpm].
+        max_bpm : float, optional
+            Maximum tempo [bpm].
+        act_smooth : float, optional
+            Smooth the activations over `act_smooth` seconds.
+        hist_smooth : int, optional
+            Smooth the tempo histogram over `hist_smooth` bins.
+        alpha : float, optional
+            Scaling factor of the comb filter.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            Tempo argument parser group.
 
         """
         # TODO: import the TempoEstimation here otherwise we have a
@@ -343,30 +416,46 @@ class BeatTrackingProcessor(Processor):
 
 class BeatDetectionProcessor(BeatTrackingProcessor):
     """
-    Class for detecting beats with a simple tempo estimation and beat aligning.
+    Class for detecting beats according to the previously determined global
+    tempo by iteratively aligning them around the estimated position [1]_.
+
+    Parameters
+    ----------
+    look_aside : float
+        Look this fraction of the estimated beat interval to each side of the
+        assumed next beat position to look for the most likely position of the
+        next beat.
+    fps : float, optional
+        Frames per second.
+
+    Notes
+    -----
+    A constant tempo throughout the whole piece is assumed.
+
+    Instead of the auto-correlation based method for tempo estimation proposed
+    in [1]_, it uses a comb filter based method [2]_ per default. The behaviour
+    can be controlled with the `tempo_method` parameter.
+
+    See Also
+    --------
+    :class:`BeatTrackingProcessor`
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Markus Schedl,
+           "Enhanced Beat Tracking with Context-Aware Neural Networks",
+           Proceedings of the 14th International Conference on Digital Audio
+           Effects (DAFx), 2011.
+    .. [2] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Accurate Tempo Estimation based on Recurrent Neural Networks and
+           Resonating Comb Filters",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
 
     """
     LOOK_ASIDE = 0.2
 
     def __init__(self, look_aside=LOOK_ASIDE, fps=None, **kwargs):
-        """
-        Detect the beats according to the previously determined global tempo
-        by simply aligning them around the estimated position.
-
-        :param look_aside: look this fraction of a beat interval to each side
-                           of the assumed next beat position to look for the
-                           most likely position of the next beat
-
-        "Enhanced Beat Tracking with Context-Aware Neural Networks"
-        Sebastian Böck and Markus Schedl
-        Proceedings of the 14th International Conference on Digital Audio
-        Effects (DAFx), 2011
-
-        Instead of the auto-correlation based method for tempo estimation, it
-        uses a comb filter per default. The behaviour can be controlled with
-        the `tempo_method` parameter.
-
-        """
         super(BeatDetectionProcessor, self).__init__(look_aside=look_aside,
                                                      look_ahead=None, fps=fps,
                                                      **kwargs)
@@ -376,17 +465,24 @@ def _process_crf(process_tuple):
     """
     Extract the best beat sequence for a piece.
 
-    This proxy function is necessary if we want to process different intervals
-    in parallel using the multiprocessing module.
+    This proxy function is necessary to process different intervals in parallel
+    using the multiprocessing module.
 
-    :param process_tuple: tuple with (activations, dominant_interval, allowed
-                          deviation from the dominant interval per beat)
-    :return:              tuple with extracted beat positions [frames]
-                          and log probability of beat sequence
+    Parameters
+    ----------
+    process_tuple : tuple
+        Tuple with (activations, dominant_interval, allowed deviation from the
+        dominant interval per beat).
+
+    Returns
+    -------
+    beats : numpy array
+        Extracted beat positions [frames].
+    log_prob : float
+        Log probability of the beat sequence.
 
     """
     # pylint: disable=no-name-in-module
-
     from .beats_crf import best_sequence
     # activations, dominant_interval, interval_sigma = process_tuple
     return best_sequence(*process_tuple)
@@ -395,6 +491,29 @@ def _process_crf(process_tuple):
 class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     """
     Conditional Random Field Beat Detection.
+
+    Tracks the beats according to the previously determined global tempo using
+    a conditional random field (CRF) model.
+
+    Parameters
+    ----------
+    interval_sigma : float, optional
+        Allowed deviation from the dominant beat interval per beat.
+    use_factors : bool, optional
+        Use dominant interval multiplied by factors instead of intervals
+        estimated by tempo estimator.
+    num_intervals : int, optional
+        Maximum number of estimated intervals to try.
+    factors : list or numpy array, optional
+        Factors of the dominant interval to try.
+
+    References
+    ----------
+    .. [1] Filip Korzeniowski, Sebastian Böck and Gerhard Widmer,
+           "Probabilistic Extraction of Beat Positions from a Beat Activation
+           Function",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2014.
 
     """
     INTERVAL_SIGMA = 0.18
@@ -409,35 +528,12 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
     def __init__(self, interval_sigma=INTERVAL_SIGMA, use_factors=USE_FACTORS,
                  num_intervals=NUM_INTERVALS, factors=FACTORS, **kwargs):
-        """
-        Track the beats according to the previously determined global tempo
-        using a conditional random field model.
-
-        :param interval_sigma: allowed deviation from the dominant beat
-                               interval per beat [float]
-        :param use_factors:    use dominant interval multiplied by factors
-                               instead of intervals estimated by
-                               tempo estimator.
-        :param num_intervals:  max number of estimated intervals to try. [int]
-        :param factors:        factors of the dominant interval to try
-                               [list of floats]
-
-        This method is based on the following work with some improvements:
-
-        "Probabilistic Extraction of Beat Positions from a Beat Activation
-         Function"
-        Filip Korzeniowski, Sebastian Böck and Gerhard Widmer
-        In Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014.
-
-        """
         super(CRFBeatDetectionProcessor, self).__init__(**kwargs)
-        # save variables
+        # save parameters
         self.interval_sigma = interval_sigma
         self.use_factors = use_factors
         self.num_intervals = num_intervals
         self.factors = factors
-
         # get num_threads from kwargs
         num_threads = min(len(factors) if use_factors else num_intervals,
                           kwargs.get('num_threads', 1))
@@ -451,8 +547,15 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         """
         Detect the beats in the given activation function.
 
-        :param activations: beat activation function
-        :return:            detected beat positions [seconds]
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        numpy array
+            Detected beat positions [seconds].
 
         """
         import itertools as it
@@ -502,16 +605,24 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         """
         Add CRFBeatDetection related arguments to an existing parser.
 
-        :param parser:         existing argparse parser
-        :param interval_sigma: allowed deviation from the dominant interval per
-                               beat
-        :param use_factors:    use dominant interval multiplied by factors
-                               instead of intervals estimated by
-                               tempo estimator.
-        :param num_intervals:  max number of estimated intervals to try. [int]
-        :param factors:        factors of the dominant interval to try
-                               [list of floats]
-        :return:               beat argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        interval_sigma : float, optional
+            allowed deviation from the dominant beat interval per beat
+        use_factors : bool, optional
+            use dominant interval multiplied by factors instead of intervals
+            estimated by tempo estimator
+        num_intervals : int, optional
+            max number of estimated intervals to try
+        factors : list or numpy array, optional
+            factors of the dominant interval to try
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            CRF beat tracking argument parser group.
 
         """
         # pylint: disable=arguments-differ
@@ -542,14 +653,24 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
     def add_tempo_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                             act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH):
         """
-        Add tempo related arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param min_bpm:     minimum tempo [bpm]
-        :param max_bpm:     maximum tempo [bpm]
-        :param act_smooth:  smooth the activations over N seconds
-        :param hist_smooth: smooth the tempo histogram over N bins
-        :return:            tempo argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        min_bpm : float, optional
+            Minimum tempo [bpm].
+        max_bpm : float, optional
+            Maximum tempo [bpm].
+        act_smooth : float, optional
+            Smooth the activations over `act_smooth` seconds.
+        hist_smooth : int, optional
+            Smooth the tempo histogram over `hist_smooth` bins.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            Tempo argument parser group.
 
         """
         # pylint: disable=arguments-differ
@@ -566,7 +687,48 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 # class for beat tracking
 class DBNBeatTrackingProcessor(Processor):
     """
-    Beat tracking with RNNs and a dynamic Bayesian network (DBN).
+    Beat tracking with RNNs and a dynamic Bayesian network (DBN) approximated
+    by a Hidden Markov Model (HMM).
+
+    Parameters
+    ----------
+    correct : bool, optional
+        Correct the beats (i.e. align them to the nearest peak of the beat
+        activation function).
+    min_bpm : float, optional
+        Minimum tempo used for beat tracking [bpm].
+    max_bpm : float, optional
+        Maximum tempo used for beat tracking [bpm].
+    num_tempo_states : int, optional
+        Number of tempo states; if set, limit the number of states and use a
+        log spacing, otherwise a linear spacing.
+    transition_lambda : float, optional
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one beat to the next one).
+    observation_lambda : int, optional
+        Split one beat period into `observation_lambda` parts, the first
+        representing beat states and the remaining non-beat states.
+    norm_observations : bool, optional
+        Normalize the observations.
+    fps : float, optional
+        Frames per second.
+
+    Notes
+    -----
+    Instead of the originally proposed state space and transition model for
+    the DBN [1]_, the more efficient version proposed in [2]_ is used.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+           Music Styles",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2014.
+    .. [2] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
 
     """
     CORRECT = True
@@ -574,56 +736,14 @@ class DBNBeatTrackingProcessor(Processor):
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
-    MIN_BPM = 55
-    MAX_BPM = 215
+    MIN_BPM = 55.
+    MAX_BPM = 215.
 
     def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
-        """
-        Track the beats with a dynamic Bayesian network (DBN) approximated
-        by a Hidden Markov Model (HMM).
-
-        :param correct:            correct the beats (i.e. align them
-                                   to the nearest peak of the beat
-                                   activation function)
-
-        Parameters for the transition model:
-
-        :param min_bpm:            minimum tempo used for beat tracking
-        :param max_bpm:            maximum tempo used for beat tracking
-        :param num_tempo_states:   number of tempo states (if set, limit the
-                                   number of states and use a log spacing,
-                                   otherwise a linear spacing)
-        :param transition_lambda:  lambda for the exponential tempo change
-                                   distribution (higher values prefer a
-                                   constant tempo over a tempo change from
-                                   one beat to the next one)
-
-        Parameters for the observation model:
-
-        :param observation_lambda: split one beat period into N parts, the
-                                   first representing beat states and the
-                                   remaining non-beat states
-        :param norm_observations:  normalize the observations
-
-        "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
-         Music Styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
-
-        Instead of the originally proposed state space and transition model
-        for the DBN, the following is used:
-
-        "An Efficient State Space Model for Joint Tempo and Meter Tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -650,8 +770,15 @@ class DBNBeatTrackingProcessor(Processor):
         """
         Detect the beats in the given activation function.
 
-        :param activations: beat activation function
-        :return:            detected beat positions [seconds]
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
 
         """
         # get the best state path by calling the viterbi algorithm
@@ -698,36 +825,37 @@ class DBNBeatTrackingProcessor(Processor):
         """
         Add HMM related arguments to an existing parser object.
 
-        :param parser: existing argparse parser object
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        min_bpm : float, optional
+            Minimum tempo used for beat tracking [bpm].
+        max_bpm : float, optional
+            Maximum tempo used for beat tracking [bpm].
+        num_tempo_states : int, optional
+            Number of tempo states; if set, limit the number of states and use
+            a log spacing, otherwise a linear spacing.
+        transition_lambda : float, optional
+            Lambda for the exponential tempo change distribution (higher values
+            prefer a constant tempo over a tempo change from one beat to the
+            next one).
+        observation_lambda : int, optional
+            Split one beat period into `observation_lambda` parts, the first
+            representing beat states and the remaining non-beat states.
+        norm_observations : bool, optional
+            Normalize the observations.
+        correct : bool, optional
+            Correct the beats (i.e. align them to the nearest peak of the beat
+            activation function).
 
-        Parameters for the transition model:
-
-        :param min_bpm:            minimum tempo used for beat tracking
-        :param max_bpm:            maximum tempo used for beat tracking
-        :param num_tempo_states:   number of tempo states (if set, limit the
-                                   number of states and use a log spacing,
-                                   otherwise a linear spacing)
-        :param transition_lambda:  lambda for the exponential tempo change
-                                   distribution (higher values prefer a
-                                   constant tempo over a tempo change from
-                                   one beat to the next one)
-
-        Parameters for the observation model:
-
-        :param observation_lambda: split one beat period into N parts, the
-                                   first representing beat states and the
-                                   remaining non-beat states
-        :param norm_observations:  normalize the observations
-
-        Post-processing parameters:
-
-        :param correct:            correct the beat positions
-
-        :return:                   beat argument parser group
+        Returns
+        -------
+        parser_group : argparse argument group
+            DBN beat tracking argument parser group
 
         """
         # pylint: disable=arguments-differ
-
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
         if correct:
@@ -776,7 +904,54 @@ class DBNBeatTrackingProcessor(Processor):
 # class for beat tracking
 class DownbeatTrackingProcessor(Processor):
     """
-    Beat and downbeat tracking with a dynamic Bayesian network (DBN).
+    Beat and downbeat tracking with a dynamic Bayesian network (DBN)
+    approximated by a Hidden Markov Model (HMM).
+
+    Parameters
+    ----------
+    pattern_files : list
+        List of files with the patterns (including the fitted GMMs and
+        information about the number of beats).
+    min_bpm : list, optional
+        Minimum tempi used for beat tracking [bpm].
+    max_bpm : list, optional
+        Maximum tempi used for beat tracking [bpm].
+    num_tempo_states : int or list, optional
+        Number of tempo states; if set, limit the number of states and use
+        log spacings, otherwise a linear spacings.
+    transition_lambda : float or list, optional
+        Lambdas for the exponential tempo change distributions (higher values
+        prefer constant tempi from one beat to the next .one)
+    norm_observations : bool, optional
+        Normalize the observations.
+    downbeats : bool, optional
+        Report only the downbeats instead of the beats and the respective
+        position inside the bar.
+    fps : float, optional
+        Frames per second.
+
+    Notes
+    -----
+    `min_bpm`, `max_bpm`, `num_tempo_states`, and `transition_lambda` must
+    contain as many items as rhythmic patterns are modeled (i.e. length of
+    `pattern_files`).
+    If a single value is given for `num_tempo_states` and `transition_lambda`,
+    this value is used for all rhythmic patterns.
+
+    Instead of the originally proposed state space and transition model for
+    the DBN [1]_, the more efficient version proposed in [2]_ is used.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
+           Audio",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2013.
+    .. [2] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
 
     """
     # TODO: this should not be lists (lists are mutable!)
@@ -791,58 +966,6 @@ class DownbeatTrackingProcessor(Processor):
                  transition_lambda=TRANSITION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, downbeats=False,
                  fps=None, **kwargs):
-        """
-
-        Track the beats and downbeats with a Dynamic Bayesian Network (DBN)
-        approximated by a Hidden Markov Model (HMM).
-
-        :param pattern_files:     list of files with the patterns
-                                  (including the fitted GMMs and information
-                                   about the number of beats)
-
-        Parameters for the transition model:
-
-        Each of the following arguments expect a list with as many items as
-        rhythmic patterns.
-
-        :param min_bpm:           list with minimum tempi used for tracking
-        :param max_bpm:           list with maximum tempi used for tracking
-        :param num_tempo_states:  list with number of tempo states (if set,
-                                  limit the number of states and use a log
-                                  spacing, otherwise a linear spacing). If a
-                                  single value is given, the same value is
-                                  assumed for all patterns.
-        :param transition_lambda: (list with) lambda(s) for the exponential
-                                  tempo change distribution (higher values
-                                  prefer a constant tempo over a tempo change
-                                  from one beat to the next one). If a single
-                                  value is given, the same value is assumed
-                                  for all patterns.
-
-        Parameters for the observation model:
-
-        :param norm_observations: normalise the observations
-
-        Other parameters:
-
-        :param downbeats:         report only the downbeats (default: beats
-                                  and the respective position)
-
-        "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
-         Audio"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2013
-
-        Instead of the originally proposed state space and transition model
-        for the DBN, the following is used:
-
-        "An Efficient State Space Model for Joint Tempo and Meter Tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -903,8 +1026,15 @@ class DownbeatTrackingProcessor(Processor):
         """
         Detect the beats in the given activation function.
 
-        :param activations: beat activation function
-        :return:            detected beat positions [seconds]
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
 
         """
         # get the best state path by calling the viterbi algorithm
@@ -937,34 +1067,35 @@ class DownbeatTrackingProcessor(Processor):
                       transition_lambda=TRANSITION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS):
         """
-        Add HMM related arguments to an existing parser.
 
-        :param parser:            existing argparse parser
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        pattern_files : list
+            Load the patterns from these files.
+        min_bpm : list, optional
+            Minimum tempi used for beat tracking [bpm].
+        max_bpm : list, optional
+            Maximum tempi used for beat tracking [bpm].
+        num_tempo_states : int or list, optional
+            Number of tempo states; if set, limit the number of states and use
+            log spacings, otherwise a linear spacings.
+        transition_lambda : float or list, optional
+            Lambdas for the exponential tempo change distribution (higher
+            values prefer constant tempi from one beat to the next one).
+        norm_observations : bool, optional
+            Normalize the observations.
 
-        Parameters for the patterns (i.e. fitted GMMs):
+        Returns
+        -------
+        parser_group : argparse argument group
+            Downbeat tracking argument parser group
 
-        :param pattern_files:     load the patterns from these files
-
-        Parameters for the transition model:
-
-        Each of the following arguments expect a list with as many items as
-        rhythmic patterns.
-
-        :param min_bpm:           list with minimum tempi used for tracking
-        :param max_bpm:           list with maximum tempi used for tracking
-        :param num_tempo_states:  list with number of tempo states (if set,
-                                  limit the number of states and use a log
-                                  spacing, otherwise a linear spacing)
-        :param transition_lambda: list with lambdas for the exponential tempo
-                                  change distribution (higher values prefer a
-                                  constant tempo over a tempo change from one
-                                  bar to the next one)
-
-        Parameters for the observation model:
-
-        :param norm_observations: normalize the observations
-
-        :return:                  downbeat argument parser group
+        Notes
+        -----
+        `pattern_files`, `min_bpm`, `max_bpm`, `num_tempo_states`, and
+        `transition_lambda` must the same number of items.
 
         """
         from madmom.utils import OverrideDefaultListAction

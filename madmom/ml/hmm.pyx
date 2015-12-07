@@ -1,7 +1,10 @@
 # encoding: utf-8
+# cython: embedsignature=True
 """
-This file contains Hidden Markov Model (HMM) functionality.
+This module contains Hidden Markov Model (HMM) functionality.
 
+Notes
+-----
 If you want to change this module and use it interactively, use pyximport.
 
 >>> import pyximport
@@ -27,30 +30,32 @@ class TransitionModel(object):
 
     The transition model is defined similar to a scipy compressed sparse row
     matrix and holds all transition probabilities from one state to an other.
+    This allows an efficient Viterbi decoding of the HMM.
 
-    All states transitioning to state s are stored in:
-    states[pointers[s]:pointers[s+1]]
+    Parameters
+    ----------
+    states : numpy array
+        All states transitioning to state s are stored in:
+        states[pointers[s]:pointers[s+1]]
+    pointers : numpy array
+        Pointers for the `states` array for state s.
+    probabilities : numpy array
+        The corresponding transition are stored in:
+        probabilities[pointers[s]:pointers[s+1]].
 
-    and their corresponding transition are stored in:
-    probabilities[pointers[s]:pointers[s+1]].
-
-    This allows for a parallel computation of the Viterbi path.
-
+    Notes
+    -----
     This class should be either used for loading saved transition models or
     being sub-classed to define a specific transition model.
+
+    See Also
+    --------
+    scipy.sparse.csr_matrix
 
     """
 
     def __init__(self, states, pointers, probabilities):
-        """
-        Construct a TransitionModel instance for HMMs.
-
-        :param states:        state indices
-        :param pointers:      corresponding pointers
-        :param probabilities: and probabilities
-
-        """
-        # init some variables
+        # save the parameters
         self.states = states
         self.pointers = pointers
         self.probabilities = probabilities
@@ -75,18 +80,39 @@ class TransitionModel(object):
         """
         Return a sparse representation of dense transitions.
 
+        This method removes all duplicate states and thus allows an efficient
+        Viterbi decoding of the HMM.
+
+        Parameters
+        ----------
+        states : numpy array, shape (num_transitions,)
+            Array with states (i.e. destination states).
+        prev_states : numpy array, shape (num_transitions,)
+            Array with previous states (i.e. origination states).
+        probabilities : numpy array, shape (num_transitions,)
+            Transition probabilities.
+
+        Returns
+        -------
+        states : numpy array
+            All states transitioning to state s are returned in:
+            states[pointers[s]:pointers[s+1]]
+        pointers : numpy array
+            Pointers for the `states` array for state s.
+        probabilities : numpy array
+            The corresponding transition are returned in:
+            probabilities[pointers[s]:pointers[s+1]].
+
+        See Also
+        --------
+        :class:`TransitionModel`
+
+        Notes
+        -----
         Three 1D numpy arrays of same length must be given. The indices
         correspond to each other, i.e. the first entry of all three arrays
         define the transition from the state defined prev_states[0] to that
         defined in states[0] with the probability defined in probabilities[0].
-
-        :param states:        corresponding states
-        :param prev_states:   corresponding previous states
-        :param probabilities: transition probabilities
-        :return:              tuple (states, pointers, probabilities)
-
-        This method removes all duplicate states and thus allows for parallel
-        Viterbi decoding of the HMM.
 
         """
         from scipy.sparse import csr_matrix
@@ -109,15 +135,19 @@ class TransitionModel(object):
         """
         Instantiate a TransitionModel from dense transitions.
 
-        Three 1D numpy arrays of same length must be given. The indices
-        correspond to each other, i.e. the first entry of all three arrays
-        define the transition from the state defined prev_states[0] to that
-        defined in states[0] with the probability defined in probabilities[0].
+        Parameters
+        ----------
+        states : numpy array, shape (num_transitions,)
+            Array with states (i.e. destination states).
+        prev_states : numpy array, shape (num_transitions,)
+            Array with previous states (i.e. origination states).
+        probabilities : numpy array, shape (num_transitions,)
+            Transition probabilities.
 
-        :param states:        corresponding states
-        :param prev_states:   corresponding previous states
-        :param probabilities: transition probabilities
-        :return:              TransitionModel instance
+        Returns
+        -------
+        :class:`TransitionModel` instance
+            TransitionModel instance.
 
         """
         # get a sparse representation of the transitions
@@ -130,55 +160,69 @@ class ObservationModel(object):
     """
     Observation model class for a HMM.
 
-    The observation model is defined as two plain numpy arrays, log_densities
-    and pointers.
+    The observation model is defined as a plain 1D numpy arrays `pointers` and
+    the methods `log_densities()` and `densities()` which return 2D numpy
+    arrays with the (log) densities of the observations.
 
-    The observation model must have an attribute 'pointers' containing a plain
-    1D numpy array of length equal to the number of states of the HMM and
-    pointing from each state to the corresponding column of the matrix returned
-    by one of the `log_densities(observations)` or `densities(observations)`
-    methods. The `pointers` type must be np.uint32.
+    Parameters
+    ----------
+    pointers : numpy array (num_states,)
+        Pointers from HMM states to the correct densities. The length of the
+        array must be equal to the number of states of the HMM and pointing
+        from each state to the corresponding column of the array returned
+        by one of the `log_densities()` or `densities()` methods. The
+        `pointers` type must be np.uint32.
 
-    The returned matrix must be a 2D numpy array with the number of rows being
-    equal to the length of the observations and the columns representing the
-    different observation probability (log) densities. Type must be np.float.
+    See Also
+    --------
+    ObservationModel.log_densities
+    ObservationModel.densities
 
     """
 
     def __init__(self, pointers):
-        """
-        Construct a ObservationModel instance for a HMM.
-
-        :param pointers: pointers from HMM states to the correct densities
-                         column [numpy array]
-        """
-
+        # save parameters
         self.pointers = pointers
 
     def log_densities(self, observations):
         """
         Log densities (or probabilities) of the observations for each state.
 
-        :param observations: observations (list, numpy array, ...)
-        :return:             log densities as a 2D numpy array with the number
-                             of rows being equal to the number of observations
-                             and the columns representing the different
-                             observation log probability densities. The type
-                             must be np.float.
+        Parameters
+        ----------
+        observations : numpy array
+            Observations.
+
+        Returns
+        -------
+        numpy array
+            Log densities as a 2D numpy array with the number of rows being
+            equal to the number of observations and the columns representing
+            the different observation log probability densities. The type must
+            be np.float.
+
         """
         raise NotImplementedError('must be implemented by subclass')
 
     def densities(self, observations):
         """
         Densities (or probabilities) of the observations for each state.
+
         This defaults to computing the exp of the `log_densities`.
         You can provide a special implementation to speed-up everything.
 
-        :param observations: observations (list, numpy array, ...)
-        :return:             densities as a 2D numpy array with the number
-                             of rows being equal to the number of observations
-                             and the columns representing the different
-                             observation probability densities.
+        Parameters
+        ----------
+        observations : numpy array
+            Observations.
+
+        Returns
+        -------
+        numpy array
+            Densities as a 2D numpy array with the number of rows being equal
+            to the number of observations and the columns representing the
+            different observation log probability densities. The type must be
+            np.float.
 
         """
         return np.exp(self.log_densities(observations))
@@ -189,16 +233,17 @@ class DiscreteObservationModel(ObservationModel):
     Simple discrete observation model that takes an observation matrix of the
     form (num_states x num_observations) containing P(observation | state).
 
+    Parameters
+    ----------
+    observation_probabilities : numpy array
+        Observation probabilities as a 2D array of shape (num_observations,
+        num_states). Has to sum to 1 over the second axis, since it
+        represents P(observation | state).
+
     """
 
     def __init__(self, observation_probabilities):
-        """
-        :param observation_probabilities: observation probabilities as 2D numpy
-                                          array of the form (num_states x
-                                          num_observations). Has to sum to 1
-                                          over the first axis, since it
-                                          represents P(observation | state).
-        """
+        # check that it is a probability distribution
         if not np.allclose(observation_probabilities.sum(axis=1), 1):
             raise ValueError('Not a probability distribution.')
         # instantiate an ObservationModel
@@ -211,8 +256,15 @@ class DiscreteObservationModel(ObservationModel):
         """
         Densities of the observations.
 
-        :param observations: observations
-        :return:             densities
+        Parameters
+        ----------
+        observations : numpy array
+            Observations.
+
+        Returns
+        -------
+        numpy array
+            Densities of the observations.
 
         """
         return self.observation_probabilities[:, observations].T
@@ -221,8 +273,15 @@ class DiscreteObservationModel(ObservationModel):
         """
         Log densities of the observations.
 
-        :param observations: observations
-        :return:             log densities
+        Parameters
+        ----------
+        observations : numpy array
+            Observations.
+
+        Returns
+        -------
+        numpy array
+            Log densities of the observations.
 
         """
         return np.log(self.densities(observations))
@@ -233,23 +292,23 @@ class HiddenMarkovModel(object):
     Hidden Markov Model
 
     To search for the best path through the state space with the Viterbi
-    algorithm, a `transition_model`, `observation_model` and
-    `initial_distribution` must be defined.
+    algorithm, the following parameters must be defined.
+
+    Parameters
+    ----------
+    transition_model : :class:`TransitionModel` instance
+        Transition model.
+    observation_model : :class:`ObservationModel` instance
+        Observation model.
+    initial_distribution : numpy array, optional
+        Initial state distribution; if 'None' a uniform distribution is
+        assumed.
 
     """
 
     def __init__(self, transition_model, observation_model,
                  initial_distribution=None):
-        """
-        Construct a new Hidden Markov Model.
-
-        :param transition_model:     transition model [TransitionModel]
-        :param observation_model:    observation model [ObservationModel]
-        :param initial_distribution: initial state distribution [numpy array];
-                                     if 'None' is given a uniform distribution
-                                     is assumed
-
-        """
+        # save the parameters
         self.transition_model = transition_model
         self.observation_model = observation_model
         if initial_distribution is None:
@@ -268,9 +327,17 @@ class HiddenMarkovModel(object):
         """
         Determine the best path with the Viterbi algorithm.
 
-        :param observations: observations to decode the optimal path for
-        :return:             tuple with best state-space path sequence and its
-                             log probability
+        Parameters
+        ----------
+        observations : numpy array
+            Observations to decode the optimal path for.
+
+        Returns
+        -------
+        path : numpy array
+            Best state-space path sequence.
+        log_prob : float
+            Corresponding log probability.
 
         """
         # transition model stuff
@@ -363,11 +430,17 @@ class HiddenMarkovModel(object):
         in the log domain, we normalise at each step, which is faster for
         the forward algorithm.
 
-        :param observations: observations to compute the forward variables for
-        :returns:            2D numpy array containing the forward variables
+        Parameters
+        ----------
+        observations : numpy array
+            Observations to compute the forward variables for.
+
+        Returns
+        -------
+        numpy array, shape (num_observations, num_states)
+            Forward variables.
 
         """
-
         # transition model stuff
         tm = self.transition_model
         cdef unsigned int [::1] tm_states = tm.states
@@ -427,14 +500,21 @@ class HiddenMarkovModel(object):
         in the log domain, we normalise at each step, which is faster for
         the forward algorithm. This function is a generator that yields the
         forward variables for each time step individually to save memory.
-        The observation densitites are computed blockwise to save Python calls
+        The observation densities are computed block-wise to save Python calls
         in the inner loops.
 
-        :param observations: observations to compute the forward variables for
-        :param block_size:   block size for the blockwise computation of
-                             observation densities. If None, all observation
-                             densities will be computed at once
-        :returns:            2D numpy array containing the forward variables
+        Parameters
+        ----------
+        observations : numpy array
+            Observations to compute the forward variables for.
+        block_size : int, optional
+            Block size for the block-wise computation of observation densities.
+            If 'None', all observation densities will be computed at once.
+
+        Yields
+        ------
+        numpy array, shape (num_states,)
+            Forward variables.
 
         """
         # transition model stuff

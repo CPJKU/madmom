@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains spectrogram related functionality.
+This module contains spectrogram related functionality.
 
 """
 
@@ -20,11 +20,18 @@ from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
 
 def spec(stft):
     """
-    Returns the magnitudes of the complex Short Time Fourier Transform of a
+    Computes the magnitudes of the complex Short Time Fourier Transform of a
     signal.
 
-    :param stft: complex STFT of a signal
-    :return:     magnitude spectrogram
+    Parameters
+    ----------
+    stft : numpy array
+        Complex STFT of a signal.
+
+    Returns
+    -------
+    spec : numpy array
+        Magnitude spectrogram.
 
     """
     return np.abs(stft)
@@ -35,14 +42,27 @@ def adaptive_whitening(spec, floor=0.5, relaxation=10):
     """
     Return an adaptively whitened version of the magnitude spectrogram.
 
-    :param spec:       magnitude spectrogram [numpy array]
-    :param floor:      floor coefficient [float]
-    :param relaxation: relaxation time [frames]
-    :return:           the whitened magnitude spectrogram
+    Parameters
+    ----------
+    spec : numpy array
+        Magnitude spectrogram.
+    floor : float, optional
+        Floor coefficient.
+    relaxation : int, optional
+        Relaxation time [frames].
 
-    "Adaptive Whitening For Improved Real-time Audio Onset Detection"
-    Dan Stowell and Mark Plumbley
-    Proceedings of the International Computer Music Conference (ICMC), 2007
+    Returns
+    -------
+    whitened_spec : numpy array
+        The whitened magnitude spectrogram.
+
+    References
+    ----------
+
+    .. [1] Dan Stowell and Mark Plumbley,
+           "Adaptive Whitening For Improved Real-time Audio Onset Detection",
+           Proceedings of the International Computer Music Conference (ICMC),
+           2007
 
     """
     raise NotImplementedError("check if adaptive_whitening returns meaningful "
@@ -63,14 +83,23 @@ def statistical_spectrum_descriptors(spectrogram):
     """
     Statistical Spectrum Descriptors of the STFT.
 
-    :param spectrogram: magnitude spectrogram [numpy array]
-    :return:            statistical spectrum descriptors of the spectrogram
+    Parameters
+    ----------
+    spectrogram : numpy array
+        Magnitude spectrogram.
 
-    "Evaluation of Feature Extractors and Psycho-acoustic Transformations
-     for Music Genre Classification."
-    Thomas Lidy and Andreas Rauber
-    Proceedings of the 6th International Conference on Music Information
-    Retrieval (ISMIR), 2005
+    Returns
+    -------
+    statistical_spectrum_descriptors : dict
+        Statistical spectrum descriptors of the spectrogram.
+
+    References
+    ----------
+    .. [1] Thomas Lidy and Andreas Rauber,
+           "Evaluation of Feature Extractors and Psycho-acoustic
+           Transformations for Music Genre Classification",
+           Proceedings of the 6th International Conference on Music Information
+           Retrieval (ISMIR), 2005.
 
     """
     from scipy.stats import skew, kurtosis
@@ -88,14 +117,23 @@ def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
     Determines the tuning frequency of the audio signal based on the given
     magnitude spectrogram.
 
-    :param spectrogram:     magnitude spectrogram [numpy array]
-    :param bin_frequencies: frequencies of the spectrogram bins [numpy array]
-    :param num_hist_bins:   number of histogram bins
-    :param fref:            reference tuning frequency [Hz]
-    :return:                tuning frequency
-
     To determine the tuning frequency, a weighted histogram of relative
     deviations of the spectrogram bins towards the closest semitones is built.
+
+    Parameters
+    ----------
+    spectrogram : numpy array
+        Magnitude spectrogram.
+    bin_frequencies : numpy array
+        Frequencies of the spectrogram bins [Hz].
+    num_hist_bins : int, optional
+        Number of histogram bins.
+    fref : float, optional
+        Reference tuning frequency [Hz].
+    Returns
+    -------
+    tuning_frequency : float
+        Tuning frequency [Hz].
 
     """
     from .filters import hz2midi
@@ -120,7 +158,23 @@ def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
 # magnitude spectrogram of STFT
 class Spectrogram(PropertyMixin, np.ndarray):
     """
-    Spectrogram class.
+    A :class:`Spectrogram` represents the magnitude spectrogram of a
+    :class:`.audio.stft.ShortTimeFourierTransform`.
+
+    Parameters
+    ----------
+    stft : :class:`.audio.stft.ShortTimeFourierTransform` instance
+        Short Time Fourier Transform.
+    kwargs : dict, optional
+        If no :class:`.audio.stft.ShortTimeFourierTransform` instance was
+        given, one is instantiated with these additional keyword arguments.
+
+    Attributes
+    ----------
+    stft : :class:`.audio.stft.ShortTimeFourierTransform` instance
+        Underlying ShortTimeFourierTransform instance.
+    frames : :class:`.audio.signal.FramedSignal` instance
+        Underlying FramedSignal instance.
 
     """
     # pylint: disable=super-on-old-class
@@ -128,21 +182,8 @@ class Spectrogram(PropertyMixin, np.ndarray):
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, stft, **kwargs):
-        """
-        Creates a new Spectrogram instance from the given
-        ShortTimeFourierTransform.
-
-        :param stft:   ShortTimeFourierTransform instance (or anything a
-                       ShortTimeFourierTransform can be instantiated from)
-
-        If no ShortTimeFourierTransform instance was given, one is instantiated
-        and these arguments are passed:
-
-        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, stft, **kwargs):
         # check stft type
@@ -177,41 +218,69 @@ class Spectrogram(PropertyMixin, np.ndarray):
 
     def diff(self, **kwargs):
         """
-        Compute the difference of the magnitude spectrogram.
+        Return the difference of the magnitude spectrogram.
 
-        :param kwargs: keyword arguments passed to SpectrogramDifference
-        :return:       SpectrogramDifference instance
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments passed to :class:`SpectrogramDifference`.
+
+        Returns
+        -------
+        diff : :class:`SpectrogramDifference` instance
+            The differences of the magnitude spectrogram.
 
         """
         return SpectrogramDifference(self, **kwargs)
 
     def filter(self, **kwargs):
         """
-        Compute a filtered version of the magnitude spectrogram.
+        Return a filtered version of the magnitude spectrogram.
 
-        :param kwargs: keyword arguments passed to FilteredSpectrogram
-        :return:       FilteredSpectrogram instance
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments passed to :class:`FilteredSpectrogram`.
+
+        Returns
+        -------
+        filt_spec : :class:`FilteredSpectrogram` instance
+            Filtered version of the magnitude spectrogram.
 
         """
         return FilteredSpectrogram(self, **kwargs)
 
     def log(self, **kwargs):
         """
-        Compute a logarithmically scaled version of the magnitude spectrogram.
+        Return a logarithmically scaled version of the magnitude spectrogram.
 
-        :param kwargs: keyword arguments passed to LogarithmicSpectrogram
-        :return:       LogarithmicSpectrogram instance
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments passed to :class:`LogarithmicSpectrogram`.
+
+        Returns
+        -------
+        log_spec : :class:`LogarithmicSpectrogram` instance
+            Logarithmically scaled version of the magnitude spectrogram.
 
         """
         return LogarithmicSpectrogram(self, **kwargs)
 
     def tuning_frequency(self, **kwargs):
         """
-        Determines the tuning frequency of the audio signal based on peaks
-        of the spectrogram.
+        Return the tuning frequency of the audio signal based on peaks of the
+        spectrogram.
 
-        :param kwargs: keyword arguments passed to tuning_frequency()
-        :return:       tuning frequency of the spectrogram
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments passed to :func:`tuning_frequency`.
+
+        Returns
+        -------
+        tuning_frequency : float
+            Tuning frequency of the spectrogram.
 
         """
         from scipy.ndimage.filters import maximum_filter
@@ -229,19 +298,23 @@ class SpectrogramProcessor(Processor):
 
     """
     def __init__(self, **kwargs):
-        """
-        Creates a new SpectrogramProcessor instance.
-
-        """
         pass
 
     def process(self, data, **kwargs):
         """
         Create a Spectrogram from the given data.
 
-        :param data:   data to be processed
-        :param kwargs: keyword arguments passed to Spectrogram
-        :return:       Spectrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to :class:`Spectrogram`.
+
+        Returns
+        -------
+        spec : :class:`Spectrogram` instance
+            :class:`Spectrogram` instance.
 
         """
         return Spectrogram(data, **kwargs)
@@ -257,58 +330,49 @@ class FilteredSpectrogram(Spectrogram):
     """
     FilteredSpectrogram class.
 
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    filterbank : :class:`.audio.filters.Filterbank`, optional
+        :class:`.audio.filters.Filterbank` class or instance; if a filterbank
+        class is given (rather than an instance), one will be created with
+        the given type and parameters.
+    num_bands : int, optional
+        Number of filter bands (per octave, depending on the type of the
+        `filterbank`).
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    fref : float, optional
+        Tuning frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter bands of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
+    kwargs : dict, optional
+        If no :class:`Spectrogram` instance was given, one is instantiated
+        with these additional keyword arguments.
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     # we just want to inherit some properties from Spectrogram
-
     def __init__(self, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
-        """
-        Creates a new FilteredSpectrogram instance from the given Spectrogram.
-
-        :param spectrogram:    Spectrogram instance (or anything a Spectrogram
-                               can be instantiated from)
-
-        Filterbank parameters:
-
-        :param filterbank:     Filterbank type or instance [Filterbank]
-
-        If a Filterbank type is given rather than a Filterbank instance, one
-        will be created with the given type and these parameters:
-
-        :param num_bands:      number of filter bands (per octave, depending
-                               on the type of the filterbank)
-        :param fmin:           the minimum frequency [Hz, float]
-        :param fmax:           the maximum frequency [Hz, float]
-        :param fref:           tuning frequency [Hz, float]
-        :param norm_filters:   normalize the filter to area 1 [bool]
-        :param unique_filters: keep only unique filters, i.e. remove duplicate
-                               filters resulting from insufficient resolution
-                               at low frequencies [bool]
-
-        Other filtering options:
-
-        :param block_size:     perform filtering in blocks of this size
-                               [int, power of 2]
-
-        If no Spectrogram instance was given, one is instantiated and
-        these arguments are passed:
-
-        :param kwargs:         keyword arguments passed to Spectrogram
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
         # pylint: disable=unused-argument
-
         import inspect
         from .filters import Filterbank
 
@@ -391,28 +455,30 @@ class FilteredSpectrogramProcessor(Processor):
     """
     FilteredSpectrogramProcessor class.
 
+    Parameters
+    ----------
+    filterbank : :class:`.audio.filters.Filterbank`
+        Filterbank used to filter a spectrogram.
+    num_bands : int
+        Number of bands (per octave).
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    fref : float, optional
+        Tuning frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
+
     """
 
     def __init__(self, filterbank=FILTERBANK, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, **kwargs):
-        """
-        Creates a new FilteredSpectrogramProcessor instance.
-
-        Magnitude spectrogram filtering parameters:
-
-        :param filterbank:     filter the magnitude spectrogram with a
-                               filterbank of this type [None or Filterbank]
-        :param num_bands:      number of filter bands (per octave) [int]
-        :param fmin:           minimum frequency of the filterbank [Hz, float]
-        :param fmax:           maximum frequency of the filterbank [Hz, float]
-        :param fref:           tuning frequency [Hz, float]
-        :param norm_filters:   normalize the filter to area 1 [bool]
-        :param unique_filters: keep only unique filters, i.e. remove duplicate
-                               filters resulting from insufficient resolution
-                               at low frequencies [bool]
-
-        """
         # pylint: disable=unused-argument
 
         self.filterbank = filterbank
@@ -425,11 +491,19 @@ class FilteredSpectrogramProcessor(Processor):
 
     def process(self, data, **kwargs):
         """
-        Perform filtering of a spectrogram.
+        Create a FilteredSpectrogram from the given data.
 
-        :param data:   data to be processed
-        :param kwargs: keyword arguments passed to FilteredSpectrogram
-        :return:       FilteredSpectrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to :class:`FilteredSpectrogram`.
+
+        Returns
+        -------
+        filt_spec : :class:`FilteredSpectrogram` instance
+            Filtered spectrogram.
 
         """
         # instantiate a FilteredSpectrogram and return it
@@ -447,18 +521,32 @@ class FilteredSpectrogramProcessor(Processor):
         """
         Add spectrogram filtering related arguments to an existing parser.
 
-        :param parser:         existing argparse parser
-        :param filterbank:     filter the magnitude spectrogram with a
-                               filterbank of that type [Filterbank]
-        :param num_bands:      number of filter bands (per octave) [int]
-        :param fmin:           minimum frequency of the filterbank [Hz, float]
-        :param fmax:           maximum frequency of the filterbank [Hz, float]
-        :param norm_filters:   normalize the filters to area 1 [bool]
-        :param unique_filters: keep only unique filters, i.e. remove duplicate
-                               filters resulting from insufficient resolution
-                               at low frequencies [bool]
-        :return:               spectrogram filtering argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        filterbank : :class:`.audio.filters.Filterbank`
+            Filter the magnitude spectrogram with a filterbank of that type.
+        num_bands : int
+            Number of bands (per octave).
+        fmin : float, optional
+            Minimum frequency of the filterbank [Hz].
+        fmax : float, optional
+            Maximum frequency of the filterbank [Hz].
+        norm_filters : bool, optional
+            Normalize the filter of the filterbank to area 1.
+        unique_filters : bool, optional
+            Indicate if the filterbank should contain only unique filters,
+            i.e. remove duplicate filters resulting from insufficient
+            resolution at low frequencies.
 
+        Returns
+        -------
+        argparse argument group
+            Spectrogram filtering argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
@@ -535,6 +623,19 @@ class LogarithmicSpectrogram(Spectrogram):
     """
     LogarithmicSpectrogram class.
 
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    mul : float, optional
+        Multiply the magnitude spectrogram with this factor before taking
+        the logarithm.
+    add : float, optional
+        Add this value before taking the logarithm of the magnitudes.
+    kwargs : dict, optional
+        If no :class:`Spectrogram` instance was given, one is instantiated
+        with these additional keyword arguments.
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -543,28 +644,8 @@ class LogarithmicSpectrogram(Spectrogram):
     # we just want to inherit some properties from Spectrogram
 
     def __init__(self, spectrogram, mul=MUL, add=ADD, **kwargs):
-        """
-        Creates a new LogarithmicSpectrogram instance from the given
-        Spectrogram.
-
-        :param spectrogram: Spectrogram instance (or anything a Spectrogram
-                            can be instantiated from)
-
-        Logarithmic magnitude parameters:
-
-        :param mul:         multiply the magnitude spectrogram with this factor
-                            before taking the logarithm [float]
-        :param add:         add this value before taking the logarithm of the
-                            magnitudes [float]
-
-        If no Spectrogram instance was given, one is instantiated and these
-        arguments are passed:
-
-        :param kwargs:      keyword arguments passed to Spectrogram
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, mul=MUL, add=ADD, **kwargs):
         # instantiate a Spectrogram if needed
@@ -617,22 +698,18 @@ class LogarithmicSpectrogramProcessor(Processor):
     """
     Logarithmic Spectrogram Processor class.
 
+    Parameters
+    ----------
+    mul : float, optional
+        Multiply the magnitude spectrogram with this factor before taking the
+        logarithm.
+    add : float, optional
+        Add this value before taking the logarithm of the magnitudes.
+
     """
 
     def __init__(self, mul=MUL, add=ADD, **kwargs):
-        """
-        Creates a new LogarithmicSpectrogramProcessor instance.
-
-        Magnitude spectrogram scaling parameters:
-
-        :param mul: multiply the spectrogram with this factor before taking
-                    the logarithm of the magnitudes [float]
-        :param add: add this value before taking the logarithm of the
-                    magnitudes [float]
-
-        """
         # pylint: disable=unused-argument
-
         self.mul = mul
         self.add = add
 
@@ -640,9 +717,17 @@ class LogarithmicSpectrogramProcessor(Processor):
         """
         Perform logarithmic scaling of a spectrogram.
 
-        :param data:   data to be processed
-        :param kwargs: keyword arguments passed to LogarithmicSpectrogram
-        :return:       LogarithmicSpectrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to :class:`LogarithmicSpectrogram`.
+
+        Returns
+        -------
+        log_spec : :class:`LogarithmicSpectrogram` instance
+            Logarithmically scaled spectrogram.
 
         """
         # instantiate a LogarithmicSpectrogram
@@ -654,14 +739,25 @@ class LogarithmicSpectrogramProcessor(Processor):
         """
         Add spectrogram scaling related arguments to an existing parser.
 
-        :param parser: existing argparse parser
-        :param log:    take the logarithm of the spectrogram [bool]
-        :param mul:    multiply the spectrogram with this factor before
-                       taking the logarithm of the magnitudes [float]
-        :param add:    add this value before taking the logarithm of the
-                       magnitudes [float]
-        :return:       spectrogram scaling argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        log : bool, optional
+            Take the logarithm of the spectrogram.
+        mul : float, optional
+            Multiply the magnitude spectrogram with this factor before taking
+            the logarithm.
+        add : float, optional
+            Add this value before taking the logarithm of the magnitudes.
 
+        Returns
+        -------
+        argparse argument group
+            Spectrogram scaling argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
@@ -694,28 +790,34 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
     """
     LogarithmicFilteredSpectrogram class.
 
+    Parameters
+    ----------
+    spectrogram : :class:`FilteredSpectrogram` instance
+        :class:`FilteredSpectrogram` instance.
+    kwargs : dict, optional
+        If no :class:`FilteredSpectrogram` instance was given, one is
+        instantiated with these additional keyword arguments and
+        logarithmically scaled afterwards, i.e. passed to
+        :class:`LogarithmicSpectrogram`.
+
+    Notes
+    -----
+    For the filtering and scaling parameters, please refer to
+    :class:`FilteredSpectrogram` and :class:`LogarithmicSpectrogram`.
+
+    See Also
+    --------
+    :class:`FilteredSpectrogram`
+    :class:`LogarithmicSpectrogram`
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, spectrogram, **kwargs):
-        """
-        Creates a new LogarithmicFilteredSpectrogram instance of the given
-        FilteredSpectrogram.
-
-        :param spectrogram: FilteredSpectrogram instance (or anything a
-                            FilteredSpectrogram can be instantiated from)
-
-        If no FilteredSpectrogram instance was given, one is instantiated and
-        logarithmically scaled afterwards. These arguments are passed:
-
-        :param kwargs:      keyword arguments passed to FilteredSpectrogram and
-                            LogarithmicSpectrogram
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, **kwargs):
         # get the log args
@@ -752,37 +854,36 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
     """
     Logarithmic Filtered Spectrogram Processor class.
 
+    Parameters
+    ----------
+    filterbank : :class:`.audio.filters.Filterbank`
+        Filterbank used to filter a spectrogram.
+    num_bands : int
+        Number of bands (per octave).
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    fref : float, optional
+        Tuning frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
+    mul : float, optional
+        Multiply the magnitude spectrogram with this factor before taking the
+        logarithm.
+    add : float, optional
+        Add this value before taking the logarithm of the magnitudes.
+
     """
 
     def __init__(self, filterbank=FILTERBANK, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, mul=MUL, add=ADD, **kwargs):
-        """
-        Creates a new LogarithmicFilteredSpectrogramProcessor instance.
-
-        Magnitude spectrogram filtering parameters:
-
-        :param filterbank:     filter the magnitude spectrogram with a
-                               filterbank of this type [None or Filterbank]
-        :param num_bands:      number of filter bands (per octave) [int]
-        :param fmin:           minimum frequency of the filterbank [Hz, float]
-        :param fmax:           maximum frequency of the filterbank [Hz, float]
-        :param fref:           tuning frequency [Hz, float]
-        :param norm_filters:   normalize the filter to area 1 [bool]
-        :param unique_filters: keep only unique filters, i.e. remove duplicate
-                               filters resulting from insufficient resolution
-                               at low frequencies [bool]
-
-        Magnitude spectrogram scaling parameters:
-
-        :param mul:            multiply the spectrogram with this factor before
-                               taking the logarithm of the magnitudes [float]
-        :param add:            add this value before taking the logarithm of
-                               the magnitudes [float]
-
-        """
         # pylint: disable=unused-argument
-
         self.filterbank = filterbank
         self.num_bands = num_bands
         self.fmin = fmin
@@ -795,12 +896,20 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
     def process(self, data, **kwargs):
         """
-        Perform logarithmic scaling of a filtered spectrogram.
+        Perform filtering and logarithmic scaling of a spectrogram.
 
-        :param data:   data to be processed
-        :param kwargs: keyword arguments passed to
-                       LogarithmicFilteredSpectrogram
-        :return:       LogarithmicFilteredSpectrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to
+            :class:`LogarithmicFilteredSpectrogram`.
+
+        Returns
+        -------
+        log_filt_spec : :class:`LogarithmicFilteredSpectrogram` instance
+            Logarithmically scaled filtered spectrogram.
 
         """
         # instantiate a LogarithmicFilteredSpectrogram
@@ -822,6 +931,44 @@ class SpectrogramDifference(Spectrogram):
     """
     SpectrogramDifference class.
 
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    diff_ratio : float, optional
+        Calculate the difference to the frame at which the window used for the
+        STFT yields this ratio of the maximum height.
+    diff_frames : int, optional
+        Calculate the difference to the `diff_frames`-th previous frame (if
+        set, this overrides the value calculated from the `diff_ratio`)
+    diff_max_bins : int, optional
+        Apply a maximum filter with this width (in bins in frequency dimension)
+        to the spectrogram the difference is calculated to.
+    positive_diffs : bool, optional
+        Keep only the positive differences, i.e. set all diff values < 0 to 0.
+    kwargs : dict, optional
+        If no :class:`Spectrogram` instance was given, one is instantiated with
+        these additional keyword arguments.
+
+    Notes
+    -----
+    The SuperFlux algorithm [1]_ uses a maximum filtered spectrogram with 3
+    `diff_max_bins` together with a 24 band logarithmic filterbank to calculate
+    the difference spectrogram with a `diff_ratio` of 0.5.
+
+    The effect of this maximum filter applied to the spectrogram is that the
+    magnitudes are "widened" in frequency direction, i.e. the following
+    difference calculation is less sensitive against frequency fluctuations.
+    This effect is exploitet to suppress false positive energy fragments for
+    onsets detection originating from vibrato.
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Gerhard Widmer
+           "Maximum Filter Vibrato Suppression for Onset Detection"
+           Proceedings of the 16th International Conference on Digital Audio
+           Effects (DAFx), 2013.
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -832,38 +979,8 @@ class SpectrogramDifference(Spectrogram):
     def __init__(self, spectrogram, diff_ratio=DIFF_RATIO,
                  diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
                  positive_diffs=POSITIVE_DIFFS, **kwargs):
-        """
-        Creates a new SpectrogramDifference instance from the given
-        spectrogram.
-
-        :param spectrogram:    Spectrogram instance (or anything a Spectrogram
-                               can be instantiated from)
-
-        Difference parameters:
-
-        :param diff_ratio:     calculate the difference to the frame at which
-                               the window used for the STFT yields this ratio
-                               of the maximum height [float]
-        :param diff_frames:    calculate the difference to the N-th previous
-                               frame (if set, this overrides the value
-                               calculated from the `diff_ratio`) [int]
-        :param diff_max_bins:  apply a maximum filter with this width (in bins
-                               in frequency dimension) [int]
-        :param positive_diffs: keep only the positive differences, i.e. set
-                               all diff values < 0 to 0. [bool]
-
-        If no Spectrogram instance was given, one is instantiated and these
-        arguments are passed:
-
-        :param kwargs:         keyword arguments passed to Spectrogram
-
-        Note: The SuperFlux algorithm uses a maximum filtered spectrogram with
-              3 `max_bins` together with a 24 band logarithmic filterbank to
-              calculate the difference spectrogram.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, diff_ratio=DIFF_RATIO,
                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
@@ -959,28 +1076,26 @@ class SpectrogramDifferenceProcessor(Processor):
     """
     Difference Spectrogram Processor class.
 
+    Parameters
+    ----------
+    diff_ratio : float, optional
+        Calculate the difference to the frame at which the window used for the
+        STFT yields this ratio of the maximum height.
+    diff_frames : int, optional
+        Calculate the difference to the `diff_frames`-th previous frame (if
+        set, this overrides the value calculated from the `diff_ratio`)
+    diff_max_bins : int, optional
+        Apply a maximum filter with this width (in bins in frequency dimension)
+        to the spectrogram the difference is calculated to.
+    positive_diffs : bool, optional
+        Keep only the positive differences, i.e. set all diff values < 0 to 0.
+
     """
 
     def __init__(self, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
                  **kwargs):
-        """
-        Spectrogram difference parameters:
-
-        :param diff_ratio:     calculate the difference to the frame at which
-                               the window used for the STFT yields this ratio
-                               of the maximum height [float]
-        :param diff_frames:    calculate the difference to the N-th previous
-                               frame [int] (if set, this overrides the value
-                               calculated from the `diff_ratio`)
-        :param diff_max_bins:  apply a maximum filter with this width (in bins
-                               in frequency dimension) [int]
-        :param positive_diffs: keep only the positive differences, i.e. set all
-                               diff values < 0 to 0
-
-        """
         # pylint: disable=unused-argument
-
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
@@ -990,9 +1105,17 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         Perform a temporal difference calculation on the given data.
 
-        :param data:   data to calculate the difference on
-        :param kwargs: keyword arguments passed to SpectrogramDifference
-        :return:       SpectrogramDifference instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to :class:`SpectrogramDifference`.
+
+        Returns
+        -------
+        diff : :class:`SpectrogramDifference` instance
+            Spectrogram difference.
 
         """
         # instantiate a SpectrogramDifference and return it
@@ -1009,21 +1132,34 @@ class SpectrogramDifferenceProcessor(Processor):
         """
         Add spectrogram difference related arguments to an existing parser.
 
-        :param parser:         existing argparse parser
-        :param diff:           take the difference of the spectrogram [bool]
-        :param diff_ratio:     calculate the difference to the frame at which
-                               the window used for the STFT yields this ratio
-                               of the maximum height [float]
-        :param diff_frames:    calculate the difference to the N-th previous
-                               frame [int] (if set, this overrides the value
-                               calculated from the `diff_ratio`)
-        :param diff_max_bins:  apply a maximum filter with this width (in bins
-                               in frequency dimension) [int]
-        :param positive_diffs: keep only the positive differences, i.e. set all
-                               diff values < 0 to 0
-        :return:               spectrogram difference argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        diff : bool, optional
+            Take the difference of the spectrogram.
+        diff_ratio : float, optional
+            Calculate the difference to the frame at which the window used for
+            the STFT yields this ratio of the maximum height.
+        diff_frames : int, optional
+            Calculate the difference to the `diff_frames`-th previous frame (if
+            set, this overrides the value calculated from the `diff_ratio`)
+        diff_max_bins : int, optional
+            Apply a maximum filter with this width (in bins in frequency
+            dimension) to the spectrogram the difference is calculated to.
+        positive_diffs : bool, optional
+            Keep only the positive differences, i.e. set all diff values < 0
+            to 0.
 
+        Returns
+        -------
+        argparse argument group
+            Spectrogram difference argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
+
         Only the `diff_frames` parameter behaves differently, it is included
         if either the `diff_ratio` is set or a value != 'None' is given.
 
@@ -1083,10 +1219,6 @@ class SuperFluxProcessor(SequentialProcessor):
     """
 
     def __init__(self, **kwargs):
-        """
-        Creates a new SuperFluxProcessor instance.
-
-        """
         # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
         filterbank = kwargs.pop('filterbank', FILTERBANK)
@@ -1116,6 +1248,25 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     """
     MultiBandSpectrogram class.
 
+    Parameters
+    ----------
+    spectrogram : :class:`FilteredSpectrogram` instance
+        :class:`FilteredSpectrogram` instance.
+    crossover_frequencies : list or numpy array
+        List of crossover frequencies at which the `spectrogram` is split into
+        bands.
+    norm_bands : bool, optional
+        Normalize the bands to area 1.
+    kwargs : dict, optional
+        If no :class:`FilteredSpectrogram` instance was given, one is
+        instantiated with these additional keyword arguments.
+
+    Notes
+    -----
+    The MultiBandSpectrogram is implemented as a :class:`FilteredSpectrogram`
+    which uses a :class:`.audio.filters.RectangularFilterbank` to combine
+    multiple frequency bins.
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -1123,28 +1274,8 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
     def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
                  **kwargs):
-        """
-        Creates a new MultiBandSpectrogram instance from the given
-        Spectrogram.
-
-        :param spectrogram:           Spectrogram instance (or anything a
-                                      Spectrogram can be instantiated from)
-
-        Multi-band parameters:
-
-        :param crossover_frequencies: list of crossover frequencies at which
-                                      the spectrogram is split into bands
-        :param norm_bands:            normalize the bands [bool]
-
-        If no Spectrogram instance was given, a FilteredSpectrogram is
-        instantiated and these arguments are passed:
-
-        :param kwargs:                keyword arguments passed to
-                                      FilteredSpectrogram
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
                 **kwargs):
@@ -1210,31 +1341,41 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
 class MultiBandSpectrogramProcessor(Processor):
     """
-    Spectrogram processor which combines the differences of a log filtered
-    spectrogram into multiple bands.
+    Spectrogram processor which combines the spectrogram magnitudes into
+    multiple bands.
+
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    crossover_frequencies : list or numpy array
+        List of crossover frequencies at which the `spectrogram` is split into
+        bands.
+    norm_bands : bool, optional
+        Normalize the filter band's area to 1.
 
     """
 
     def __init__(self, crossover_frequencies, norm_bands=False, **kwargs):
-        """
-
-        :param crossover_frequencies: list of crossover frequencies at which
-                                      the spectrogram is split into bands
-        :param norm_bands:            normalize the bands [bool]
-
-        """
         # pylint: disable=unused-argument
-
         self.crossover_frequencies = crossover_frequencies
         self.norm_bands = norm_bands
 
     def process(self, data, **kwargs):
         """
-        Return the a multi-band representation of the given spectrogram.
+        Return the a multi-band representation of the given data.
 
-        :param data:   spectrogram to be processed [Spectrogram]
-        :param kwargs: keyword arguments passed to MultiBandSpectrogram
-        :return:       MultiBandSpectrogram instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict
+            Keyword arguments passed to :class:`MultiBandSpectrogram`.
+
+        Returns
+        -------
+        multi_band_spec : :class:`MultiBandSpectrogram` instance
+            MultiBandSpectrogram instance.
 
         """
         # instantiate a MultiBandSpectrogram
@@ -1248,11 +1389,23 @@ class MultiBandSpectrogramProcessor(Processor):
         """
         Add multi-band spectrogram related arguments to an existing parser.
 
-        :param parser:                existing argparse parser
-        :param crossover_frequencies: list with crossover frequencies
-        :param norm_bands:            normalize the bands
-        :return:                      multi-band argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        crossover_frequencies : list or numpy array, optional
+            List of crossover frequencies at which the `spectrogram` is split
+            into bands.
+        norm_bands : bool, optional
+            Normalize the filter band's area to 1.
 
+        Returns
+        -------
+        argparse argument group
+            Multi-band spectrogram argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
@@ -1285,37 +1438,43 @@ class StackedSpectrogramProcessor(ParallelProcessor):
     Class to stack multiple spectrograms (and their differences) in a certain
     dimension.
 
+    Parameters
+    ----------
+    frame_size : list
+        List with frame sizes.
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    difference: :class:`SpectrogramDifference` instance
+        :class:`SpectrogramDifference` instance; if given the differences of
+        the spectrogram(s) are stacked as well.
+    stack : str or numpy stacking function
+        Stacking function to be used:
+
+        - ``np.vstack``
+          stack multiple spectrograms vertically, i.e. stack in time dimension,
+        - ``np.hstack``
+          stack multiple spectrograms horizontally, i.e. stack in the frequency
+          dimension,
+        - ``np.dstack``
+          stacks them in depth, i.e. returns them as a 3D representation.
+
+        Additionally, the literal values {'time', 'freq', 'frequency', 'depth'}
+        are supported.
+
+    Notes
+    -----
+    `frame_size` is used instead of the (probably) more meaningful
+    `frame_sizes`, this way the existing argument from
+    :class:`.audio.signal.FramedSignal` can be reused.
+
+    To be able to stack spectrograms in depth (i.e. use ``np.dstack`` as a
+    stacking function), they must have the same frequency dimensionality. If
+    filtered spectrograms are used, `unique_filters` must be set to 'False'.
+
     """
 
-    # Note: `frame_size` is used instead of the more meaningful `frame_sizes`,
-    #       this way the existing argument from `FramedSignal` can be reused
     def __init__(self, frame_size, spectrogram, difference=None,
                  stack=np.hstack, **kwargs):
-        """
-        Creates a new StackedSpectrogramProcessor instance.
-
-        :param frame_size:  list with frame sizes [list of int]
-        :param spectrogram: SpectrogramProcessor instance
-        :param difference:  SpectrogramDifferenceProcessor instance; if given
-                            the differences of the spectrogram(s) are stacked
-                            as well
-        :param stack:       stacking function to be used
-                            - 'np.vstack' stack multiple spectrograms
-                            vertically, i.e. stack in time dimension
-                            - 'np.hstack' stack multiple spectrograms
-                              horizontally, i.e. stack in the frequency
-                              dimension
-                            - 'np.dstack' stacks them in depth, i.e.
-                              returns them as a 3D representation
-                            Additionally, the literal values {'time',
-                            'freq' | 'frequency', 'depth'} are supported
-
-        Note: To be able to stack spectrograms in depth (i.e. use 'np.dstack'
-              as a stacking function), they must have the same frequency
-              dimensionality. If filtered spectrograms are used,
-              `unique_filters` must be set to 'False'.
-
-        """
         from .signal import FramedSignalProcessor
         # use the same spectrogram processor for all frame sizes, but use
         # different FramedSignal processors
@@ -1339,10 +1498,18 @@ class StackedSpectrogramProcessor(ParallelProcessor):
 
     def process(self, data):
         """
-        Stack the magnitudes spectrograms (and their differences).
+        Return a stacked representation of the magnitudes spectrograms
+        (and their differences).
 
-        :param data: Signal instance [Signal]
-        :return:     stacked specs (and diffs) [numpy array]
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+
+        Returns
+        -------
+        stack : numpy array
+            Stacked specs (and diffs).
 
         """
         # process everything
@@ -1364,11 +1531,23 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         """
         Add stacking related arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param stack:       stacking direction {'time', 'freq', 'depth'}
-        :param stack_diffs: also stack the differences [bool]
-        :return:            stacking argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        stack : {'freq', 'time', 'depth'}
+            Stacking direction.
+        stack_diffs : bool, optional
+            Also stack the differences.
 
+        Returns
+        -------
+        argparse argument group
+            Multi-band spectrogram argument parser group.
+
+        Notes
+        -----
+        Parameters are included in the group only if they are not 'None'.
 
         """
         # pylint: disable=arguments-differ

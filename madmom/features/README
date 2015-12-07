@@ -1,6 +1,0 @@
-This package includes higher level features. Your definition of "higher" may
-vary, but all "lower" level features can usually be found in madmom.audio.*
-
-All features should be implemented as classes which inherit from Processor
-(or provide a XYZProcessor(Processor) variant). This way, multiple Processor
-objects can be chained/combined to achieve the wanted functionality.

@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-Evaluation package.
+Evaluation module.
 
 """
 
@@ -17,11 +17,21 @@ def find_closest_matches(detections, annotations):
     """
     Find the closest annotation for each detection.
 
-    :param detections:  numpy array with the detected events [float, seconds]
-    :param annotations: numpy array with the annotated events [float, seconds]
-    :return:            numpy array with indices of the closest matches [int]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected events.
+    annotations : list or numpy array
+        Annotated events.
 
-    Note: The sequences must be ordered!
+    Returns
+    -------
+    indices : numpy array
+        Indices of the closest matches.
+
+    Notes
+    -----
+    The sequences must be ordered.
 
     """
     # make sure the arrays have the correct types
@@ -50,15 +60,26 @@ def find_closest_matches(detections, annotations):
 
 def calc_errors(detections, annotations, matches=None):
     """
-    Errors of the detections relative to the closest annotations.
+    Errors of the detections to the closest annotations.
 
-    :param detections:  numpy array with the detected events [float, seconds]
-    :param annotations: numpy array with the annotated events [float, seconds]
-    :param matches:     numpy array with indices of the closest events [int]
-    :return:            numpy array with the errors [seconds]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected events.
+    annotations : list or numpy array
+        Annotated events.
+    matches : list or numpy array
+        Indices of the closest events.
 
-    Note: The sequences must be ordered! To speed up the calculation, a list
-          of pre-computed indices of the closest matches can be used.
+    Returns
+    -------
+    errors : numpy array
+        Errors.
+
+    Notes
+    -----
+    The sequences must be ordered. To speed up the calculation, a list of
+    pre-computed indices of the closest matches can be used.
 
     """
     # make sure the arrays have the correct types
@@ -84,15 +105,26 @@ def calc_errors(detections, annotations, matches=None):
 
 def calc_absolute_errors(detections, annotations, matches=None):
     """
-    Absolute errors of the detections relative to the closest annotations.
+    Absolute errors of the detections to the closest annotations.
 
-    :param detections:  numpy array with the detected events [float, seconds]
-    :param annotations: numpy array with the annotated events [float, seconds]
-    :param matches:     numpy array with indices of the closest events [int]
-    :return:            numpy array with the absolute errors [seconds]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected events.
+    annotations : list or numpy array
+        Annotated events.
+    matches : list or numpy array
+        Indices of the closest events.
 
-    Note: The sequences must be ordered! To speed up the calculation, a list
-          of pre-computed indices of the closest matches can be used.
+    Returns
+    -------
+    errors : numpy array
+        Absolute errors.
+
+    Notes
+    -----
+    The sequences must be ordered. To speed up the calculation, a list of
+    pre-computed indices of the closest matches can be used.
 
     """
     # make sure the arrays have the correct types
@@ -111,13 +143,24 @@ def calc_relative_errors(detections, annotations, matches=None):
     """
     Relative errors of the detections to the closest annotations.
 
-    :param detections:  numpy array with the detected events [float, seconds]
-    :param annotations: numpy array with the annotated events [float, seconds]
-    :param matches:     numpy array with indices of the closest events [int]
-    :return:            numpy array with the relative errors [seconds]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected events.
+    annotations : list or numpy array
+        Annotated events.
+    matches : list or numpy array
+        Indices of the closest events.
 
-    Note: The sequences must be ordered! To speed up the calculation, a list of
-          pre-computed indices of the closest matches can be used.
+    Returns
+    -------
+    errors : numpy array
+        Relative errors.
+
+    Notes
+    -----
+    The sequences must be ordered. To speed up the calculation, a list of
+    pre-computed indices of the closest matches can be used.
 
     """
     # make sure the arrays have the correct types
@@ -152,12 +195,6 @@ class EvaluationMixin(object):
     `METRIC_NAMES` is a list of tuples, containing the attribute's name and the
     corresponding label, e.g.:
 
-    METRIC_NAMES = [
-        ('precision', 'Precision'),
-        ('recall', 'Recall'),
-        ('fmeasure', 'F-measure'),
-    ]
-
     The attributes defined in `METRIC_NAMES` will be provided as an ordered
     dictionary as the `metrics` property unless the subclass overwrites the
     property.
@@ -166,6 +203,12 @@ class EvaluationMixin(object):
 
     """
 
+    # Example:
+    # METRIC_NAMES = [
+    #     ('precision', 'Precision'),
+    #     ('recall', 'Recall'),
+    #     ('fmeasure', 'F-measure'),
+    # ]
     name = None
     METRIC_NAMES = []
     FLOAT_FORMAT = '{:.3f}'
@@ -188,16 +231,19 @@ class EvaluationMixin(object):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional keyword arguments
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
-        Note: This is a fallback method formatting the 'metrics' dictionary in
-              a human readable way. Classes inheriting from this mixin class
-              should provide a method better suitable.
+        Notes
+        -----
+        This is a fallback method formatting the `metrics` dictionary in a
+        human readable way. Classes inheriting from this mixin class should
+        provide a method better suitable.
 
         """
         # pylint: disable=unused-argument
-
         import pprint
         return pprint.pformat(dict(self.metrics), indent=4)
 
@@ -208,9 +254,25 @@ class SimpleEvaluation(EvaluationMixin):
     Simple Precision, Recall, F-measure and Accuracy evaluation based on the
     numbers of true/false positive/negative detections.
 
-    Note: This class is only suitable for a 1-class evaluation problem.
+    Parameters
+    ----------
+    num_tp : int
+        Number of true positive detections.
+    num_fp : int
+        Number of false positive detections.
+    num_tn : int
+        Number of true negative detections.
+    num_fn : int
+        Number of false negative detections.
+    name : str
+        Name to be displayed.
+
+    Notes
+    -----
+    This class is only suitable for a 1-class evaluation problem.
 
     """
+
     METRIC_NAMES = [
         ('num_tp', 'No. of true positives'),
         ('num_fp', 'No. of false positives'),
@@ -225,19 +287,7 @@ class SimpleEvaluation(EvaluationMixin):
 
     def __init__(self, num_tp=0, num_fp=0, num_tn=0, num_fn=0, name=None,
                  **kwargs):
-        """
-        Creates a new SimpleEvaluation instance.
-
-        :param num_tp: number of true positive detections
-        :param num_fp: number of false positive detections
-        :param num_tn: number of true negative detections
-        :param num_fn: number of false negative detections
-        :param name:   name to be displayed
-        :param kwargs: additional arguments will be ignored
-
-        """
         # pylint: disable=unused-argument
-
         # hidden variables, to be able to overwrite them in subclasses
         self._num_tp = int(num_tp)
         self._num_fp = int(num_fp)
@@ -320,8 +370,11 @@ class SimpleEvaluation(EvaluationMixin):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
+
 
         """
         ret = ''
@@ -343,6 +396,19 @@ class Evaluation(SimpleEvaluation):
     Evaluation class for measuring Precision, Recall and F-measure based on
     numpy arrays or lists with true/false positive/negative detections.
 
+    Parameters
+    ----------
+    tp : list or numpy array
+        True positive detections.
+    fp : list or numpy array
+        False positive detections.
+    tn : list or numpy array
+        True negative detections.
+    fn : list or numpy array
+        False negative detections.
+    name : str
+        Name to be displayed.
+
     """
     METRIC_NAMES = [
         ('tp', 'True positives'),
@@ -361,16 +427,6 @@ class Evaluation(SimpleEvaluation):
     ]
 
     def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
-        """
-        Creates a new Evaluation instance.
-
-        :param tp:     list/array with true positive detections
-        :param fp:     list/array with false positive detections
-        :param tn:     list/array with true negative detections
-        :param fn:     list/array with false negative detections
-        :param kwargs: keyword arguments passed to SimpleEvaluation()
-
-        """
         # set default values
         if tp is None:
             tp = []
@@ -415,21 +471,26 @@ class MultiClassEvaluation(Evaluation):
     Evaluation class for measuring Precision, Recall and F-measure based on
     2D numpy arrays with true/false positive/negative detections.
 
+    Parameters
+    ----------
+    tp : list of tuples or numpy array, shape (num_tp, 2)
+        True positive detections.
+    fp : list of tuples or numpy array, shape (num_fp, 2)
+        False positive detections.
+    tn : list of tuples or numpy array, shape (num_tn, 2)
+        True negative detections.
+    fn : list of tuples or numpy array, shape (num_fn, 2)
+        False negative detections.
+    name : str
+        Name to be displayed.
+
+    Notes
+    -----
+    The second item of the tuples or the second column of the arrays denote
+    the class the detection belongs to.
+
     """
     def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
-        """
-        Creates a new Evaluation instance.
-
-        :param tp:     list of tuples / 2D array with true positive detections
-        :param fp:     list of tuples / 2D array with false positive detections
-        :param tn:     list of tuples / 2D array with true negative detections
-        :param fn:     list of tuples / 2D array with false negative detections
-        :param kwargs: keyword arguments passed to Evaluation()
-
-        Note: The second item of the tuples or the second column of the arrays
-              denote the class the detection belongs to.
-
-        """
         # set default values
         if tp is None:
             tp = np.zeros((0, 2))
@@ -449,9 +510,15 @@ class MultiClassEvaluation(Evaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param verbose: add evaluation for individual classes
-        :param kwargs:  additional arguments will be ignored
-        :return:        evaluation metrics formatted as a human readable string
+        Parameters
+        ----------
+        verbose : bool
+            Add evaluation for individual classes.
+
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -491,18 +558,17 @@ class SumEvaluation(SimpleEvaluation):
     """
     Simple class for summing evaluations.
 
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    name : str
+        Name to be displayed.
+
     """
 
     def __init__(self, eval_objects, name=None):
-        """
-        Creates a new SumEvaluation instance.
-
-        :param eval_objects: list of evaluation objects
-        :param name:         name to be displayed
-
-        """
         # pylint: disable=super-init-not-called
-
         # Note: we want to inherit the evaluation functions/properties, no need
         #       to call __super__, but we need to take care of 'name'
         if not isinstance(eval_objects, list):
@@ -515,7 +581,7 @@ class SumEvaluation(SimpleEvaluation):
         # just use the length of the evaluation objects
         return len(self.eval_objects)
 
-    # redefine the counters (number of TP, FP, TN, FN & annotations)
+    # redefine the counters (number of TP, FP, TN, FN & number of annotations)
 
     @property
     def num_tp(self):
@@ -548,16 +614,16 @@ class MeanEvaluation(SumEvaluation):
     """
     Simple class for averaging evaluation.
 
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    name : str
+        Name to be displayed.
+
     """
 
     def __init__(self, eval_objects, name=None, **kwargs):
-        """
-        Creates a new MeanEvaluation instance.
-
-        :param eval_objects: list of evaluation objects.
-        :param name:         name to be displayed
-
-        """
         super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
         # handle the 'name' here to be able to set a different default value
         self.name = name or 'mean for %d files' % len(self)
@@ -623,8 +689,10 @@ class MeanEvaluation(SumEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -644,20 +712,28 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as human readable strings.
 
-    :param eval_objects: evaluation objects
-    :param metric_names: list of tuples defining the name of the property
-                         corresponding to the metric, and the metric label
-                         e.g. ('fp', 'False Positives')
-    :param float_format: how to format the metrics
-    :param kwargs:       additional arguments will be ignored
-    :return:             human readable output of the evaluation objects
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    metric_names : list of tuples, optional
+        List of tuples defining the name of the property corresponding to the
+        metric, and the metric label e.g. ('fp', 'False Positives').
+    float_format : str, optional
+        How to format the metrics.
 
-    Note: If no `metric_names` are given, they will be extracted from the first
-          evaluation object.
+    Returns
+    -------
+    str
+        Evaluation metrics formatted as a human readable string.
+
+    Notes
+    -----
+    If no `metric_names` are given, they will be extracted from the first
+    evaluation object.
 
     """
     # pylint: disable=unused-argument
-
     return '\n'.join([e.tostring() for e in eval_objects])
 
 
@@ -665,16 +741,25 @@ def tocsv(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as a CSV table.
 
-    :param eval_objects: evaluation objects
-    :param metric_names: list of tuples defining the name of the property
-                         corresponding to the metric, and the metric label
-                         e.g. ('fp', 'False Positives')
-    :param float_format: how to format the metrics
-    :param kwargs:       additional arguments will be ignored
-    :return:             CSV table representation of the evaluation objects
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    metric_names : list of tuples, optional
+        List of tuples defining the name of the property corresponding to the
+        metric, and the metric label e.g. ('fp', 'False Positives').
+    float_format : str, optional
+        How to format the metrics.
 
-    Note: If no `metric_names` are given, they will be extracted from the first
-          evaluation object.
+    Returns
+    -------
+    str
+        CSV table representation of the evaluation objects.
+
+    Notes
+    -----
+    If no `metric_names` are given, they will be extracted from the first
+    evaluation object.
 
     """
     # pylint: disable=unused-argument
@@ -698,16 +783,25 @@ def totex(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     """
     Format the given evaluation objects as a LaTeX table.
 
-    :param eval_objects: evaluation objects
-    :param metric_names: list of tuples defining the name of the property
-                         corresponding to the metric, and the metric label
-                         e.g. ('fp', 'False Positives')
-    :param float_format: how to format the metrics
-    :param kwargs:       additional arguments will be ignored
-    :return:             LaTeX table representation of the evaluation objects
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    metric_names : list of tuples, optional
+        List of tuples defining the name of the property corresponding to the
+        metric, and the metric label e.g. ('fp', 'False Positives').
+    float_format : str, optional
+        How to format the metrics.
 
-    Note: If no `metric_names` are given, they will be extracted from the first
-          evaluation object.
+    Returns
+    -------
+    str
+        LaTeX table representation of the evaluation objects.
+
+    Notes
+    -----
+    If no `metric_names` are given, they will be extracted from the first
+    evaluation object.
 
     """
     # pylint: disable=unused-argument
@@ -734,12 +828,25 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
     Add evaluation input/output and formatting related arguments to an existing
     parser object.
 
-    :param parser:     existing argparse parser object
-    :param ann_suffix: suffix for the annotation files
-    :param det_suffix: suffix for the detection files
-    :param ann_dir:    use only annotations from this folder (+ sub-folders)
-    :param det_dir:    use only detections from this folder (+ sub-folders)
-    :return:           evaluation input/output and formatter argument groups
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+    ann_suffix : str
+        Suffix of the annotation files.
+    det_suffix : str
+        Suffix of the detection files.
+    ann_dir : str, optional
+        Use only annotations from this folder (and sub-folders).
+    det_dir : str, optional
+        Use only detections from this folder (and sub-folders).
+
+    Returns
+    -------
+    io_group : argparse argument group
+        Evaluation input / output argument group.
+    formatter_group : argparse argument group
+        Evaluation formatter argument group.
 
     """
     import sys

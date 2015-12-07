@@ -1,8 +1,17 @@
 # encoding: utf-8
+# cython: embedsignature=True
 """
-This file contains the speed crucial Viterbi functionality for the
+This module contains the speed crucial Viterbi functionality for the
 CRFBeatDetector plus some functions computing the distributions and
-normalisation factors...
+normalisation factors.
+
+References
+----------
+.. [1] Filip Korzeniowski, Sebastian Böck and Gerhard Widmer,
+       "Probabilistic Extraction of Beat Positions from a Beat Activation
+       Function",
+       Proceedings of the 15th International Society for Music Information
+       Retrieval Conference (ISMIR), 2014.
 
 """
 
@@ -18,9 +27,17 @@ def initial_distribution(num_states, interval):
     """
     Compute the initial distribution.
 
-    :param num_states: number of states in the model
-    :param interval:   beat interval of the piece [frames]
-    :return:           initial distribution of the model
+    Parameters
+    ----------
+    num_states : int
+        Number of states in the model.
+    interval : int
+        Beat interval of the piece [frames].
+
+    Returns
+    -------
+    numpy array
+        Initial distribution of the model.
 
     """
     # We leave the initial distribution un-normalised because we want the
@@ -35,9 +52,17 @@ def transition_distribution(interval, interval_sigma):
     """
     Compute the transition distribution between beats.
 
-    :param interval:       interval of the piece [frames]
-    :param interval_sigma: allowed deviation from the interval per beat
-    :return:               transition distribution between beats
+    Parameters
+    ----------
+    interval : int
+        Interval of the piece [frames].
+    interval_sigma : float
+        Allowed deviation from the interval per beat.
+
+    Returns
+    -------
+    numpy array
+        Transition distribution between beats.
 
     """
     from scipy.stats import norm
@@ -57,9 +82,17 @@ def normalisation_factors(activations, transition_distribution):
     """
     Compute normalisation factors for model.
 
-    :param activations:             beat activation function of the piece
-    :param transition_distribution: transition distribution of the model
-    :return:                        normalisation factors for model
+    Parameters
+    ----------
+    activations : numpy array
+        Beat activation function of the piece.
+    transition_distribution : numpy array
+        Transition distribution of the model.
+
+    Returns
+    -------
+    numpy array
+        Normalisation factors for model.
 
     """
     from scipy.ndimage.filters import correlate1d
@@ -70,13 +103,24 @@ def normalisation_factors(activations, transition_distribution):
 
 def best_sequence(activations, interval, interval_sigma):
     """
-    Extract the best beat sequence for a piece.
+    Extract the best beat sequence for a piece with the Viterbi algorithm.
 
-    :param activations:    beat activation function
-    :param interval:       beat interval of the piece
-    :param interval_sigma: allowed deviation from the interval per beat
-    :return:               tuple with extracted beat positions [frames]
-                           and log probability of beat sequence
+    Parameters
+    ----------
+    activations : numpy array
+        Beat activation function of the piece.
+    interval : int
+        Beat interval of the piece.
+    interval_sigma : float
+        Allowed deviation from the interval per beat.
+
+    Returns
+    -------
+    beat_pos : numpy array
+        Extracted beat positions [frame indices].
+    log_prob : float
+        Log probability of the beat sequence.
+
     """
     init = initial_distribution(activations.shape[0],
                                     interval)
@@ -103,13 +147,25 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     Viterbi algorithm to compute the most likely beat sequence from the
     given activations and the dominant interval.
 
-    :param pi:          initial distribution
-    :param transition:  transition distribution
-    :param norm_factor: normalisation factors
-    :param activations: beat activations
-    :param tau:         dominant interval [frames]
-    :return:            tuple with extracted beat positions [frame indices]
-                        and log probability of beat sequence
+    Parameters
+    ----------
+    pi : numpy array
+        Initial distribution.
+    transition : numpy array
+        Transition distribution.
+    norm_factor : numpy array
+        Normalisation factors.
+    activations : numpy array
+        Beat activations.
+    tau : int
+        Dominant interval [frames].
+
+    Returns
+    -------
+    beat_pos : numpy array
+        Extracted beat positions [frame indices].
+    log_prob : float
+        Log probability of the beat sequence.
 
     """
     # number of states

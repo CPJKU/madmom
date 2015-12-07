@@ -1,8 +1,11 @@
 # encoding: utf-8
+# cython: embedsignature=True
 """
-This file contains HMM state space, transition and observation models used for
-beat and downbeat tracking.
+This module contains HMM state space, transition and observation models used
+for beat and downbeat tracking.
 
+Notes
+-----
 Please note that (almost) everything within this module is discretised to
 integer values because of performance reasons.
 
@@ -28,27 +31,26 @@ class BeatTrackingStateSpace(object):
     """
     State space for beat tracking with a HMM.
 
+    Parameters
+    ----------
+    min_interval : float
+        Minimum tempo (i.e. inter beat interval) to model.
+    max_interval : float
+        Maximum tempo (i.e. inter beat interval) to model.
+    num_tempo_states : int, optional
+        Number of tempo states; if set, limit the number of states and use a
+        log spacing, otherwise use a linear spacing.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
     """
 
     def __init__(self, min_interval, max_interval, num_tempo_states=None):
-        """
-        Construct a new BeatTrackingStateSpace.
-
-        :param min_interval:     minimum tempo (i.e. inter beat interval) to
-                                 model [float]
-        :param max_interval:     maximum tempo (i.e. inter beat interval) to
-                                 model [float]
-        :param num_tempo_states: number of tempo states [int] (if set, limit
-                                 the number of states and use a log spacing,
-                                 otherwise use a linear spacing defined by the
-                                 tempo range)
-
-        "An efficient state space model for joint tempo and meter tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         # use a linear spacing as default
         states = np.arange(np.round(min_interval), np.round(max_interval) + 1)
         # if num_tempo_states is given (and smaller than the number of states
@@ -96,7 +98,12 @@ class BeatTrackingStateSpace(object):
         """
         Compute the mapping from state numbers to position and tempo states.
 
-        :return: tuple with (position_mapping, tempo_mapping)
+        Returns
+        -------
+        position_mapping : numpy array
+            Mapping from state number to position inside beat.
+        tempo_mapping : numpy array
+            Mapping from state number to tempo (i.e. inter beat interval).
 
         """
         # counters etc.
@@ -138,8 +145,15 @@ class BeatTrackingStateSpace(object):
         """
         Position (inside one beat) for a given state sequence.
 
-        :param state: state (sequence) [int or numpy array]
-        :return:      corresponding beat state sequence
+        Parameters
+        ----------
+        state : numpy array
+            State (sequence).
+
+        Returns
+        -------
+        numpy array
+            Corresponding beat state sequence.
 
         """
         return self.position_mapping[state]
@@ -148,8 +162,15 @@ class BeatTrackingStateSpace(object):
         """
         Tempo (i.e. inter beat interval) for a given state sequence.
 
-        :param state: state (sequence) [int or numpy array]
-        :return:      corresponding tempo state sequence
+        Parameters
+        ----------
+        state : numpy array
+            State (sequence).
+
+        Returns
+        -------
+        numpy array
+            Corresponding tempo state sequence.
 
         """
         return self.tempo_mapping[state]
@@ -159,24 +180,24 @@ class BeatTrackingTransitionModel(TransitionModel):
     """
     Transition model for beat tracking with a HMM.
 
+    Parameters
+    ----------
+    state_space : :class:`BeatTrackingStateSpace` instance
+        BeatTrackingStateSpace instance.
+    transition_lambda : float
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one beat to the next one).
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
     """
 
     def __init__(self, state_space, transition_lambda):
-        """
-        Construct a new BeatTrackingTransitionModel.
-
-        :param state_space:       BeatTrackingStateSpace instance
-        :param transition_lambda: lambda for the exponential tempo change
-                                  distribution (higher values prefer a constant
-                                  tempo over a tempo change from one beat to
-                                  the next one)
-
-        "An efficient state space model for joint tempo and meter tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         # save attributes
         self.state_space = state_space
         self.transition_lambda = np.asarray(transition_lambda, dtype=np.float)
@@ -192,9 +213,16 @@ class BeatTrackingTransitionModel(TransitionModel):
         """
         Compute the transitions (i.e. the probabilities to move from any state
         to another one) and return them in a dense format understood by
-        'make_sparse()'.
+        :func:`.ml.hmm.TransitionModel.make_sparse`.
 
-        :return: tuple with (states, prev_states, probabilities)
+        Returns
+        -------
+        states : numpy array
+            Array with states (i.e. destination states).
+        prev_states : numpy array
+            Array with previous states (i.e. origination states).
+        probabilities : numpy array
+            Transition probabilities.
 
         """
         # cache variables
@@ -295,26 +323,28 @@ class BeatTrackingObservationModel(ObservationModel):
     """
     Observation model for beat tracking with a HMM.
 
+    Parameters
+    ----------
+    state_space : :class:`BeatTrackingStateSpace` instance
+        BeatTrackingStateSpace instance.
+    observation_lambda : int
+        Split one beat period into `observation_lambda` parts, the first
+        representing beat states and the remaining non-beat states.
+    norm_observations : bool, optional
+        Normalize the observations.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+           Music Styles",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2014.
+
     """
 
     def __init__(self, state_space, observation_lambda,
                  norm_observations=False):
-        """
-        Construct a new BeatTrackingDynamicObservationModel.
-
-        :param state_space:        BeatTrackingStateSpace instance
-        :param observation_lambda: split one beat period into N parts, the
-                                   first representing beat states and the
-                                   remaining non-beat states
-        :param norm_observations:  normalize the observations
-
-        "A multi-model approach to beat tracking considering heterogeneous
-         music styles"
-        Sebastian Böck, Florian Krebs and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2014
-
-        """
         self.observation_lambda = observation_lambda
         self.norm_observations = norm_observations
         # compute observation pointers
@@ -335,8 +365,15 @@ class BeatTrackingObservationModel(ObservationModel):
         """
         Computes the log densities of the observations.
 
-        :param observations: observations (i.e. activations of the NN)
-        :return:             log densities of the observations
+        Parameters
+        ----------
+        observations : numpy array
+            Observations (i.e. activations of the NN).
+
+        Returns
+        -------
+        numpy array
+            Log densities of the observations.
 
         """
         # init variables
@@ -362,28 +399,26 @@ class DownBeatTrackingStateSpace(object):
     """
     State space for down-beat tracking with a HMM.
 
+    Parameters
+    ----------
+    min_intervals : list or numpy array
+        Minimum tempi (i.e. inter beat intervals) to model.
+    max_intervals : list or numpy array
+        Maximum tempi (i.e. inter beat intervals) to model.
+    num_tempo_states : list or numpy array, optional
+        Corresponding number of tempo states; if set, limit the number of
+        states and use a log spacing, otherwise use a linear spacing.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
     """
 
     def __init__(self, min_intervals, max_intervals, num_tempo_states=None):
-        """
-        Construct a new BeatTrackingStateSpace (basically a stack of
-        BeatTrackingStateSpaces).
-
-        :param min_intervals:    list or array with minimum tempi (i.e. inter
-                                 beat intervals) to model [float]
-        :param max_intervals:    list or array with maximum tempi (i.e. inter
-                                 beat intervals) to model [float]
-        :param num_tempo_states: list or array with corresponding number of
-                                 tempo states [int] (if set, limit the number
-                                 of states and use a log spacing, otherwise use
-                                 a linear spacing defined by the tempo range)
-
-        "An efficient state space model for joint tempo and meter tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         if num_tempo_states is None:
             num_tempo_states = [None] * len(min_intervals)
         # for each pattern, compute a beat state space
@@ -424,8 +459,15 @@ class DownBeatTrackingStateSpace(object):
         """
         Position (inside one bar) for a given state sequence.
 
-        :param state: state (sequence) [int or numpy array]
-        :return:      corresponding beat state sequence
+        Parameters
+        ----------
+        state : numpy array
+            State (sequence).
+
+        Returns
+        -------
+        numpy array
+            Corresponding beat state sequence.
 
         """
         return self.position_mapping[state]
@@ -434,8 +476,15 @@ class DownBeatTrackingStateSpace(object):
         """
         Tempo for a given state sequence.
 
-        :param state: state (sequence) [int or numpy array]
-        :return:      corresponding tempo state sequence
+        Parameters
+        ----------
+        state : numpy array
+            State (sequence).
+
+        Returns
+        -------
+        numpy array
+            Corresponding tempo state sequence.
 
         """
         return self.tempo_mapping[state]
@@ -444,8 +493,15 @@ class DownBeatTrackingStateSpace(object):
         """
         Pattern for the given state sequence.
 
-        :param state: state (sequence) [int or numpy array]
-        :return:      corresponding pattern state sequence
+        Parameters
+        ----------
+        state : numpy array
+            State (sequence).
+
+        Returns
+        -------
+        numpy array
+            Corresponding pattern state sequence.
 
         """
         return self.pattern_mapping[state]
@@ -455,39 +511,44 @@ class DownBeatTrackingTransitionModel(TransitionModel):
     """
     Transition model for down-beat tracking with a HMM.
 
+    Instead of modelling a single pattern (as
+    :class:`BeatTrackingTransitionModel`), the
+    :class:`DownBeatTrackingTransitionModel` allows multiple patterns. It
+    accepts the same arguments as the :class:`BeatTrackingTransitionModel`,
+    but everything as lists, with the list entries at the same position
+    corresponding to one (rhythmic) pattern.
+
+    Parameters
+    ----------
+    state_space : :class:`DownBeatTrackingTransitionModel` instance
+        DownBeatTrackingTransitionModel instance.
+    transition_lambda : list
+        Lambda(s) for the exponential tempo change distribution of the patterns
+        (higher values prefer a constant tempo from one bar to the next one).
+        If a single value is given, the same value is assumed for all patterns.
+
+    See Also
+    --------
+    :class:`BeatTrackingTransitionModel`
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
     """
 
     def __init__(self, state_space, transition_lambda):
-        """
-        Construct a new DownBeatTrackingTransitionModel.
-
-        Instead of modelling a single pattern (as BeatTrackingTransitionModel),
-        it allows multiple patterns. It basically accepts the same arguments as
-        the BeatTrackingTransitionModel, but everything as lists, with the list
-        entries at the same position corresponding to one (rhythmic) pattern.
-
-        :param state_space:       DownBeatTrackingStateSpace
-        :param transition_lambda: (list with) lambda(s) for the exponential
-                                  tempo change distribution of the patterns
-                                  (higher values prefer a constant tempo over
-                                  a tempo change from one bar to the next one)
-                                  If a single value is given, the same value
-                                  is assumed for all patterns.
-
-        "An efficient state space model for joint tempo and meter tracking"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 16th International Society for Music Information
-        Retrieval Conference (ISMIR), 2015.
-
-        """
         # expand the transition lambda to a list if needed, i.e. use the same
         # value for all patterns
         if not isinstance(transition_lambda, list):
             transition_lambda = [transition_lambda] * state_space.num_patterns
         # check if all lists have the same length
         if not state_space.num_patterns == len(transition_lambda):
-            raise ValueError("number of patterns of the 'state_space' and the "
-                             "length 'transition_lambda' must be the same")
+            raise ValueError('number of patterns of the `state_space` and the '
+                             'length `transition_lambda` must be the same')
         # save the given arguments
         self.beat_states = state_space.beat_states
         self.transition_lambda = transition_lambda
@@ -526,25 +587,27 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
     """
     Observation model for GMM based beat tracking with a HMM.
 
+    Parameters
+    ----------
+    gmms : list
+        Fitted GMM(s), one entry per rhythmic pattern.
+    transition_model : :class:`DownBeatTrackingTransitionModel` instance
+        DownBeatTrackingTransitionModel instance.
+    norm_observations : bool
+        Normalize the observations.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
+           Audio",
+           Proceedings of the 14th International Society for Music Information
+           Retrieval Conference (ISMIR), 2013.
+
     """
 
     def __init__(self, gmms, transition_model, norm_observations):
-        """
-        Construct a observation model instance using Gaussian Mixture Models
-        (GMMs).
-
-        :param gmms:              list with fitted GMM(s), one entry per
-                                  rhythmic pattern
-        :param transition_model:  DownBeatTrackingTransitionModel instance
-        :param norm_observations: normalize the observations
-
-        "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
-         Audio"
-        Florian Krebs, Sebastian Böck and Gerhard Widmer
-        Proceedings of the 15th International Society for Music Information
-        Retrieval Conference (ISMIR), 2013
-
-        """
+        # save the parameters
         self.gmms = gmms
         self.transition_model = transition_model
         self.norm_observations = norm_observations
@@ -576,8 +639,15 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         """
         Computes the log densities of the observations using (a) GMM(s).
 
-        :param observations: observations (i.e. activations of the NN)
-        :return:             log densities of the observations
+        Parameters
+        ----------
+        observations : numpy array
+            Observations (i.e. activations of the NN).
+
+        Returns
+        -------
+        numpy array
+            Log densities of the observations.
 
         """
         # counter, etc.

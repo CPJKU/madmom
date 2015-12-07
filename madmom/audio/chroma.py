@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains chroma related functionality.
+This module contains chroma related functionality.
 
 """
 
@@ -20,16 +20,25 @@ from madmom.audio.filters import (A4, Filterbank,
 def pcp_chord_transcription(pcp):
     """
     Perform a simple chord transcription based on the given pitch class
-    profile (PCP)
+    profile (PCP).
 
-    :param pcp: pitch class profile
-    :return:    a chord transcription
+    Parameters
+    ----------
+    pcp : numpy array
+        Pitch class profile.
 
-    "Realtime chord recognition of musical sound: a system using Common Lisp
-     Music"
-    T. Fujishima
-    Proceedings of the International Computer Music Conference (ICMC 1999),
-    Beijing, China
+    Returns
+    -------
+    chords : numpy array
+        Chord transcription.
+
+    References
+    ----------
+    .. [1] T. Fujishima,
+           "Realtime chord recognition of musical sound: a system using Common
+           Lisp Music",
+           Proceedings of the International Computer Music Conference (ICMC),
+           1999.
 
     """
     raise NotImplementedError
@@ -41,11 +50,36 @@ class PitchClassProfile(FilteredSpectrogram):
     Simple class for extracting pitch class profiles (PCP), i.e. chroma
     vectors from a spectrogram.
 
-    "Realtime chord recognition of musical sound: a system using Common Lisp
-     Music"
-    T. Fujishima
-    Proceedings of the International Computer Music Conference (ICMC 1999),
-    Beijing, China
+    Parameters
+    ----------
+    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
+        :class:`.audio.spectrogram.Spectrogram` instance.
+    filterbank : :class:`.audio.filters.Filterbank` class or instance
+        :class:`.audio.filters.Filterbank` class or instance.
+    num_classes : int, optional
+        Number of pitch classes.
+    fmin : float, optional
+        Minimum frequency of the PCP filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the PCP filterbank [Hz].
+    fref : float, optional
+        Reference frequency for the first PCP bin [Hz].
+    kwargs : dict, optional
+        If no :class:`.audio.spectrogram.Spectrogram` instance was given,
+        one is instantiated with these additional keyword arguments.
+
+    Notes
+    -----
+    If `fref` is 'None', the reference frequency is estimated from the given
+    spectrogram.
+
+    References
+    ----------
+    .. [1] T. Fujishima,
+           "Realtime chord recognition of musical sound: a system using Common
+           Lisp Music",
+           Proceedings of the International Computer Music Conference (ICMC),
+           1999.
 
     """
     # pylint: disable=super-on-old-class
@@ -54,23 +88,8 @@ class PitchClassProfile(FilteredSpectrogram):
 
     def __init__(self, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
                  fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
-        """
-        Creates a new PitchClassProfile instance.
-
-        :param spectrogram: spectrogram to operate on [Spectrogram]
-        :param filterbank:  Filterbank instance or type [Filterbank]
-        :param num_classes: number of harmonic pitch classes [int]
-        :param fmin:        the minimum frequency [Hz, float]
-        :param fmax:        the maximum frequency [Hz, float]
-        :param fref:        reference frequency of the first PCP bin
-                            [Hz, float]
-
-        Note: If fref is 'None', the reference frequency is estimated from the
-              given spectrogram.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, filterbank=PCP, num_classes=PCP.CLASSES,
                 fmin=PCP.FMIN, fmax=PCP.FMAX, fref=A4, **kwargs):
@@ -112,9 +131,36 @@ class HarmonicPitchClassProfile(PitchClassProfile):
     Class for extracting harmonic pitch class profiles (HPCP) from a
     spectrogram.
 
-    "Tonal Description of Music Audio Signals"
-    E. Gómez
-    PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain
+    Parameters
+    ----------
+    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
+        :class:`.audio.spectrogram.Spectrogram` instance.
+    filterbank : :class:`.audio.filters.Filterbank` class or instance
+        Filterbank class or instance.
+    num_classes : int, optional
+        Number of harmonic pitch classes.
+    fmin : float, optional
+        Minimum frequency of the HPCP filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the HPCP filterbank [Hz].
+    fref : float, optional
+        Reference frequency for the first HPCP bin [Hz].
+    window : int, optional
+        Length of the weighting window [bins].
+    kwargs : dict, optional
+        If no :class:`.audio.spectrogram.Spectrogram` instance was given,
+        one is instantiated with these additional keyword arguments.
+
+    Notes
+    -----
+    If `fref` is 'None', the reference frequency is estimated from the given
+    spectrogram.
+
+    References
+    ----------
+    .. [1] Emilia Gómez,
+           "Tonal Description of Music Audio Signals",
+           PhD thesis, Universitat Pompeu Fabra, Barcelona, Spain, 2006.
 
     """
     # pylint: disable=super-on-old-class
@@ -124,24 +170,8 @@ class HarmonicPitchClassProfile(PitchClassProfile):
     def __init__(self, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
                  fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,
                  **kwargs):
-        """
-        Creates a new HarmonicPitchClassProfile instance.
-
-        :param spectrogram: spectrogram to operate on [Spectrogram]
-        :param filterbank:  Filterbank instance or type [Filterbank]
-        :param num_classes: number of harmonic pitch classes [int]
-        :param fmin:        the minimum frequency [Hz, float]
-        :param fmax:        the maximum frequency [Hz, float]
-        :param fref:        reference frequency for the first HPCP bin
-                            [Hz, float]
-        :param window:      length of the weighting window [bins]
-
-        Note: If fref is 'None', the reference frequency is estimated from the
-              given spectrogram.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, spectrogram, filterbank=HPCP, num_classes=HPCP.CLASSES,
                 fmin=HPCP.FMIN, fmax=HPCP.FMAX, fref=A4, window=HPCP.WINDOW,

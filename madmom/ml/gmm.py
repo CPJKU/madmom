@@ -3,15 +3,15 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains functionality needed for fitting and scoring Gaussian
-Mixture Models (GMMs) (needed e.g. in madmom.features.dbn).
+This module contains functionality needed for fitting and scoring Gaussian
+Mixture Models (GMMs) (needed e.g. in madmom.features.beats_hmm).
 
 The needed functionality is taken from sklearn.mixture.GMM which is released
 under the BSD license and was written by these authors:
 
-  Ron Weiss <ronweiss@gmail.com>
-  Fabian Pedregosa <fabian.pedregosa@inria.fr>
-  Bertrand Thirion <bertrand.thirion@inria.fr>
+- Ron Weiss <ronweiss@gmail.com>
+- Fabian Pedregosa <fabian.pedregosa@inria.fr>
+- Bertrand Thirion <bertrand.thirion@inria.fr>
 
 This version works with sklearn v0.16 an onwards.
 All commits until 0650d5502e01e6b4245ce99729fc8e7a71aacff3 are incorporated.
@@ -29,10 +29,21 @@ def logsumexp(arr, axis=0):
     """
     Computes the sum of arr assuming arr is in the log domain.
 
-    Returns log(sum(exp(arr))) while minimizing the possibility of
-    over/underflow.
+    Parameters
+    ----------
+    arr : numpy array
+        Input data [log domain].
+    axis : int, optional
+        Axis to operate on.
 
-    Note: function copied from sklearn.utils.extmath
+    Returns
+    -------
+    numpy array
+        log(sum(exp(arr))) while minimizing the possibility of over/underflow.
+
+    Notes
+    -----
+    Function copied from sklearn.utils.extmath.
 
     """
     arr = np.rollaxis(arr, axis)
@@ -54,16 +65,14 @@ def pinvh(a, cond=None, rcond=None, lower=True):
     Parameters
     ----------
     a : array, shape (N, N)
-        Real symmetric or complex hermetian matrix to be pseudo-inverted
+        Real symmetric or complex hermetian matrix to be pseudo-inverted.
     cond, rcond : float or None
-        Cutoff for 'small' eigenvalues.
-        Singular values smaller than rcond * largest_eigenvalue are considered
-        zero.
-
+        Cutoff for 'small' eigenvalues. Singular values smaller than rcond *
+        largest_eigenvalue are considered zero.
         If None or -1, suitable machine precision is used.
     lower : boolean
         Whether the pertinent array data is taken from the lower or upper
-        triangle of a. (Default: lower)
+        triangle of `a`.
 
     Returns
     -------
@@ -74,7 +83,9 @@ def pinvh(a, cond=None, rcond=None, lower=True):
     LinAlgError
         If eigenvalue does not converge
 
-    Note: function copied from sklearn.utils.extmath
+    Notes
+    -----
+    Function copied from sklearn.utils.extmath.
 
     """
     a = np.asarray_chkfinite(a)
@@ -104,28 +115,27 @@ def log_multivariate_normal_density(x, means, covars, covariance_type='diag'):
     x : array_like, shape (n_samples, n_features)
         List of n_features-dimensional data points.  Each row corresponds to a
         single data point.
-
     means : array_like, shape (n_components, n_features)
         List of n_features-dimensional mean vectors for n_components Gaussians.
         Each row corresponds to a single mean vector.
-
     covars : array_like
         List of n_components covariance parameters for each Gaussian. The shape
         depends on `covariance_type`:
-            (n_components, n_features)             if 'spherical',
-            (n_features, n_features)               if 'tied',
-            (n_components, n_features)             if 'diag',
-            (n_components, n_features, n_features) if 'full'
 
-    covariance_type : string
-        Type of the covariance parameters.  Must be one of
-        'spherical', 'tied', 'diag', 'full'.  Defaults to 'diag'.
+        - (n_components, n_features)             if 'spherical',
+        - (n_features, n_features)               if 'tied',
+        - (n_components, n_features)             if 'diag',
+        - (n_components, n_features, n_features) if 'full'.
+
+    covariance_type : {'diag', 'spherical', 'tied', 'full'}
+        Type of the covariance parameters. Defaults to 'diag'.
 
     Returns
     -------
     lpr : array_like, shape (n_samples, n_components)
-        Array containing the log probabilities of each data point in
-        x under each of the n_components multivariate Gaussian distributions.
+        Array containing the log probabilities of each data point in `x`
+        under each of the n_components multivariate Gaussian distributions.
+
     """
     log_multivariate_normal_density_dict = {
         'spherical': _log_multivariate_normal_density_spherical,
@@ -205,30 +215,26 @@ class GMM(object):
     ----------
     n_components : int, optional
         Number of mixture components. Defaults to 1.
-
-    covariance_type : string, optional
+    covariance_type : {'diag', 'spherical', 'tied', 'full'}
         String describing the type of covariance parameters to
-        use.  Must be one of 'spherical', 'tied', 'diag', 'full'.
-        Defaults to 'diag'.
+        use. Defaults to 'diag'.
 
     Attributes
     ----------
-    `weights_` : array, shape (`n_components`,)
+    weights_ : array, shape (n_components,)
         This attribute stores the mixing weights for each mixture component.
-
-    `means_` : array, shape (`n_components`, `n_features`)
+    means_ : array, shape (n_components, n_features)
         Mean parameters for each mixture component.
+    covars_ : array
+        Covariance parameters for each mixture component. The shape
+        depends on `covariance_type`.::
 
-    `covars_` : array
-        Covariance parameters for each mixture component.  The shape
-        depends on `covariance_type`::
+        - (n_components, n_features)             if 'spherical',
+        - (n_features, n_features)               if 'tied',
+        - (n_components, n_features)             if 'diag',
+        - (n_components, n_features, n_features) if 'full'.
 
-            (n_components, n_features)             if 'spherical',
-            (n_features, n_features)               if 'tied',
-            (n_components, n_features)             if 'diag',
-            (n_components, n_features, n_features) if 'full'
-
-    `converged_` : bool
+    converged_ : bool
         True when convergence was reached in fit(), False otherwise.
 
     """
@@ -258,17 +264,18 @@ class GMM(object):
         Parameters
         ----------
         x: array_like, shape (n_samples, n_features)
-            List of n_features-dimensional data points. Each row
-            corresponds to a single data point.
+            List of n_features-dimensional data points. Each row corresponds
+            to a single data point.
 
         Returns
         -------
         logprob : array_like, shape (n_samples,)
-            Log probabilities of each data point in x.
+            Log probabilities of each data point in `x`.
 
         responsibilities : array_like, shape (n_samples, n_components)
             Posterior probabilities of each mixture component for each
-            observation
+            observation.
+
         """
         x = np.asarray(x)
         if x.ndim == 1:
@@ -298,7 +305,8 @@ class GMM(object):
         Returns
         -------
         logprob : array_like, shape (n_samples,)
-            Log probabilities of each data point in x
+            Log probabilities of each data point in `x`.
+
         """
         logprob, _ = self.score_samples(x)
         return logprob
@@ -317,35 +325,28 @@ class GMM(object):
         Parameters
         ----------
         x : array_like, shape (n, n_features)
-            List of n_features-dimensional data points.  Each row
-            corresponds to a single data point.
-
+            List of n_features-dimensional data points.  Each row corresponds
+            to a single data point.
         random_state: RandomState or an int seed (0 by default)
-            A random number generator instance
-
+            A random number generator instance.
         min_covar : float, optional
             Floor on the diagonal of the covariance matrix to prevent
-            overfitting.  Defaults to 1e-3.
-
+            overfitting.
         tol : float, optional
             Convergence threshold. EM iterations will stop when average
-            gain in log-likelihood is below this threshold.  Defaults to 1e-3.
-
+            gain in log-likelihood is below this threshold.
         n_iter : int, optional
             Number of EM iterations to perform.
-
         n_init : int, optional
-            Number of initializations to perform. the best results is kept
-
+            Number of initializations to perform, the best results is kept.
         params : string, optional
-            Controls which parameters are updated in the training
-            process.  Can contain any combination of 'w' for weights,
-            'm' for means, and 'c' for covars.  Defaults to 'wmc'.
-
+            Controls which parameters are updated in the training process.
+            Can contain any combination of 'w' for weights, 'm' for means,
+            and 'c' for covars.
         init_params : string, optional
             Controls which parameters are updated in the initialization
             process.  Can contain any combination of 'w' for weights,
-            'm' for means, and 'c' for covars.  Defaults to 'wmc'.
+            'm' for means, and 'c' for covars.
 
         """
         import sklearn.mixture

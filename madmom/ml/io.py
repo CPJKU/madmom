@@ -3,31 +3,42 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains functionality needed for the conversion of from the
+This module contains functionality needed for the conversion of from the
 universal .h5 format to the .npz format understood by madmom.ml.rnn.
 
 The .h5 files must conform to this format:
 
 The `model` group contains just attributes.
-  - `type`:    the type of the model
-  - `comment`: free text for comments (optional)
+
+- `type`:
+  The type of the model.
+- `comment`:
+  Free text for comments (optional).
 
 The `layer` group contains a subgroup for each layer.
 
 The subgroups are numbered consecutively, starting with zero.
 
 Each layer subgroup contains the following attributes:
-  - `type`:              the type of the layer (e.g. FeedForward, Recurrent,
-                         LSTM; basically any Layer of madmom.ml.rnn)
-  - `transfer_fn`:       the transfer/activation function of the layer
-Each layer subgroup contains the following data sets:
-  - `bias`:              bias of the layer
-  - `weights`:           weights of the layer
-  - `recurrent_weights`: recurrent weights (optional for recurrent layers)
-  - `peephole_weights`:  peephole weights (optional for LSTM layers)
+
+- `type`:
+  The type of the layer (e.g. FeedForward, Recurrent, LSTM; basically any Layer
+  of madmom.ml.rnn).
+- `transfer_fn`:
+  The transfer/activation function of the layer.
+  Each layer subgroup contains the following data sets:
+
+  - `bias`:
+    Bias of the layer.
+  - `weights`:
+    Weights of the layer.
+  - `recurrent_weights`:
+    Recurrent weights (optional for recurrent layers).
+  - `peephole_weights`:
+    Peephole weights (optional for LSTM layers).
 
 Each of the previous layer subgroups data sets and attributes can contain the
-same named data sets with a 'reverse_' prefix to indicate that they belong to
+same named data sets with a `reverse_` prefix to indicate that they belong to
 the reverse/backward layer of bidirectional layers.
 
 """
@@ -42,9 +53,14 @@ def convert_model(infile, outfile=None, compressed=False):
     """
     Convert a neural network model from .h5 to .npz format.
 
-    :param infile:     file with the saved model (.h5 format)
-    :param outfile:    file to write the model (.npz format)
-    :param compressed: compress the resulting .npz file
+    Parameters
+    ----------
+    infile : str
+        File with the saved model (.h5 format).
+    outfile : str, optional
+        File to write the model (.npz format).
+    compressed : bool, optional
+        Compress the resulting .npz file?
 
     """
     import h5py

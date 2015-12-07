@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains tempo evaluation functionality.
+This module contains tempo evaluation functionality.
 
 """
 
@@ -20,27 +20,36 @@ def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
     """
     Load tempo information from the given values or file.
 
-    To make this function more universal, it also accepts lists or arrays.
+    Parameters
+    ----------
+    values : str, file handle, list of tuples or numpy array
+        Tempo values or file name/handle.
+    split_value : float, optional
+        Value to distinguish between tempi and strengths.
+        `values` > `split_value` are interpreted as tempi [bpm],
+        `values` <= `split_value` are interpreted as strengths.
+    sort : bool, optional
+        Sort the tempi by their strength.
+    norm_strengths : bool, optional
+        Normalize the strengths to sum 1.
+    max_len : int, optional
+        Return at most `max_len` tempi.
 
-    The tempo must have the following format (separated by whitespace):
-    `tempo_one tempo_two relative_strength` (of the first tempo)
-    `tempo_one tempo_two strength_one strength_two`
-    `tempo_one tempo_two strength_one strength_two`
+    Returns
+    -------
+    tempi : numpy array, shape (num_tempi, 2)
+        Array with tempi (rows, first column) and their relative strengths
+        (second column).
 
-    :param values:         name of the file, file handle, list or numpy array
-    :param split_value:    value for distinguishing tempi and strengths [float]
-                           values > split_value are interpreted as tempi in bpm
-                           values <= split_value are interpreted as strengths
-    :param max_len:        return at most N tempi [int]
-    :param norm_strengths: normalize the strengths to sum 1 [bool]
-    :param sort:           sort the tempi by their strength [bool]
-    :return:               2D array containing the tempi (rows) and their
-                           relative strengths as the second column
-                           [[tempo_1, strength_1],
-                            [tempo_2, strength_2]]
+    Notes
+    -----
+    The tempo must have the one of the following formats (separated by
+    whitespace if loaded from file):
 
-    Note: If no relative strength is given, uniformly distributed strengths are
-          assumed.
+    'tempo_one' 'tempo_two' 'relative_strength' (of the first tempo)
+    'tempo_one' 'tempo_two' 'strength_one' 'strength_two'
+
+    If no strengths are given, uniformly distributed strengths are returned.
 
     """
     # check max_len
@@ -98,20 +107,39 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     """
     Calculate the tempo P-Score, at least one or both tempi correct.
 
-    :param detections:  2D numpy array with (multiple) tempi [[bpm, strength]]
-    :param annotations: 2D numpy array with (multiple) tempi [[bpm, strength]]
-    :param tolerance:   evaluation tolerance
-    :return:            P-score, at least one tempo correctly identified, all
-                        tempi correctly identified (float, bool, bool)
+    Parameters
+    ----------
+    detections : list of tuples or numpy array
+        Detected tempi (rows, first column) and their relative strengths
+        (second column).
+    annotations : list or numpy array
+        Annotated tempi (rows, first column) and their relative strengths
+        (second column).
+    tolerance : float, optional
+        Evaluation tolerance (max. allowed deviation).
 
-    Note: All given detections are evaluated against all annotations according
-          to the relative strengths given. If no strengths are given, evenly
-          distributed strengths are assumed. If the strengths do not sum to 1,
-          they will be normalized.
+    Returns
+    -------
+    pscore : float
+        P-Score.
+    at_least_one : bool
+        At least one tempo correctly identified.
+    all : bool
+        All tempi correctly identified.
 
-    "Evaluation of audio beat tracking and music tempo extraction algorithms"
-    M. McKinney, D. Moelants, M. Davies and A. Klapuri
-    Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
+    Notes
+    -----
+    All given detections are evaluated against all annotations according to the
+    relative strengths given. If no strengths are given, evenly distributed
+    strengths are assumed. If the strengths do not sum to 1, they will be
+    normalized.
+
+    References
+    ----------
+    .. [1] M. McKinney, D. Moelants, M. Davies and A. Klapuri,
+           "Evaluation of audio beat tracking and music tempo extraction
+           algorithms",
+           Journal of New Music Research, vol. 36, no. 1, 2007.
 
     """
     # neither detections nor annotations are given
@@ -154,7 +182,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     # the P-Score is the sum of the strengths of the correctly identified tempi
     pscore = np.sum(strengths[correct])
     # return the scores
-    # TODO, also return the errors?
+    # TODO: also return the errors?
     return pscore, correct.any(), correct.all()
 
 
@@ -162,6 +190,34 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
 class TempoEvaluation(EvaluationMixin):
     """
     Tempo evaluation class.
+
+    Parameters
+    ----------
+    detections : str, list of tuples or numpy array
+        Detected tempi (rows) and their strengths (columns).
+        If a file name is given, load them from this file.
+    annotations : str, list or numpy array
+        Annotated ground truth tempi (rows) and their strengths (columns).
+        If a file name is given, load them from this file.
+    tolerance : float, optional
+        Evaluation tolerance (max. allowed deviation).
+    double : bool, optional
+        Include double and half tempo variations.
+    triple : bool, optional
+        Include triple and third tempo variations.
+    sort : bool, optional
+        Sort the tempi by their strengths (descending order).
+    max_len : bool, optional
+        Evaluate at most `max_len` tempi.
+    name : str, optional
+        Name of the evaluation to be displayed.
+
+    Notes
+    -----
+    For P-Score, the number of detected tempi will be limited to the number
+    of annotations (if not further limited by `max_len`).
+    For Accuracy 1 & 2 only one detected tempo is used. Depending on `sort`,
+    this can be either the first or the strongest one.
 
     """
     METRIC_NAMES = [
@@ -175,26 +231,7 @@ class TempoEvaluation(EvaluationMixin):
     def __init__(self, detections, annotations, tolerance=TOLERANCE,
                  double=DOUBLE, triple=TRIPLE, sort=True, max_len=None,
                  name=None, **kwargs):
-        """
-        Evaluate the given detection and annotation sequences.
-
-        :param detections:  array with detected tempi [[bpm, strength]]
-        :param annotations: array with the annotated tempi [[bpm, strength]]
-        :param tolerance:   allowed tempo deviation
-        :param double:      also evaluate double/half tempo [bool]
-        :param triple:      also evaluate triple/third tempo [bool]
-        :param sort:        sort the tempi by their strengths [bool]
-        :param max_len:     evaluate at most N tempi [int]
-        :param kwargs:      additional arguments will be ignored
-
-        Note: For P-Score, the number of detected tempi will be limited to the
-              number of annotations (if not further limited by `max_len`).
-              For Accuracy 1 & 2 only a one detected tempo is used. Depending
-              on the `sort` this can be either the first or the strongest one.
-
-        """
         # pylint: disable=unused-argument
-
         # load the tempo detections and annotations
         detections = load_tempo(detections, sort=sort, max_len=max_len)
         annotations = load_tempo(annotations, sort=sort, max_len=max_len)
@@ -231,8 +268,10 @@ class TempoEvaluation(EvaluationMixin):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         # pylint: disable=unused-argument
@@ -285,8 +324,10 @@ class TempoMeanEvaluation(MeanEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -305,8 +346,17 @@ def add_parser(parser):
     """
     Add a tempo evaluation sub-parser to an existing parser.
 
-    :param parser: existing argparse parser
-    :return:       tempo evaluation sub-parser and evaluation parameter group
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+
+    Returns
+    -------
+    sub_parser : argparse sub-parser instance
+        Tempo evaluation sub-parser.
+    parser_group : argparse argument group
+        Tempo evaluation argument group.
 
     """
     import argparse

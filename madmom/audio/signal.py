@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains basic signal processing functionality.
+This module contains basic signal processing functionality.
 
 """
 
@@ -17,14 +17,24 @@ from madmom.processors import Processor
 # signal functions
 def smooth(signal, kernel):
     """
-    Smooth the signal along the first axis.
+    Smooth the signal along its first axis.
 
-    :param signal: signal [numpy array]
-    :param kernel: smoothing kernel [numpy array or int]
-    :return:       smoothed signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be smoothed.
+    kernel : numpy array or int
+        Smoothing kernel (size).
 
-    Note: If `kernel` is an integer, a Hamming window of that length will be
-          used as a smoothing kernel.
+    Returns
+    -------
+    numpy array
+        Smoothed signal.
+
+    Notes
+    -----
+    If `kernel` is an integer, a Hamming window of that length will be used
+    as a smoothing kernel.
 
     """
     # check if a kernel is given
@@ -38,7 +48,7 @@ def smooth(signal, kernel):
             # use a Hamming window of given length
             kernel = np.hamming(kernel)
         else:
-            raise ValueError("can't create a smoothing window of size %d" %
+            raise ValueError("can't create a smoothing kernel of size %d" %
                              kernel)
     # otherwise use the given smoothing kernel directly
     elif isinstance(kernel, np.ndarray):
@@ -60,12 +70,24 @@ def attenuate(signal, attenuation):
     """"
     Attenuate the signal.
 
-    :param signal:      signal [numpy array]
-    :param attenuation: attenuation level [dB, float]
-    :return:            attenuated signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be attenuated.
+    attenuation :  float
+        Attenuation level [dB].
 
-    Note: The signal is returned with the same type, thus in case of integer
-          dtypes, rounding errors may occur.
+    Returns
+    -------
+    numpy array
+        Attenuated signal (same dtype as `signal`).
+
+    Notes
+    -----
+    Negative `attenuation` values amplify the signal.
+
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
 
     """
     # return the signal unaltered if no attenuation is given
@@ -83,12 +105,17 @@ def attenuate(signal, attenuation):
 
 def normalize(signal):
     """
-    Normalize the signal to the range -1..+1
+    Normalize the signal to the range [-1, +1]
 
-    :param signal: signal [numpy array]
-    :return:       normalized signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be normalized.
 
-    Note: The signal is always returned with np.float dtype.
+    Returns
+    -------
+    numpy array
+        Normalized signal (np.float dtype)
 
     """
     # Note: np.asanyarray returns the signal's ndarray subclass
@@ -99,14 +126,24 @@ def remix(signal, num_channels):
     """
     Remix the signal to have the desired number of channels.
 
-    :param signal:       signal [numpy array]
-    :param num_channels: desired number of channels
-    :return:             remixed signal (with same dtype)
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be remixed.
+    num_channels : int
+        Number of channels.
 
-    Note: This function does not support arbitrary channel number conversions.
-          Only down-mixing to and up-mixing from mono signals is supported.
-          The signal is returned with the same dtype, thus in case of
-          down-mixing signals with integer dtypes, rounding errors may occur.
+    Returns
+    -------
+    numpy array
+        Remixed signal (same dtype as `signal`).
+
+    Notes
+    -----
+    This function does not support arbitrary channel number conversions.
+    Only down-mixing to and up-mixing from mono signals is supported.
+    The signal is returned with the same dtype, thus in case of down-mixing
+    signals with integer dtypes, rounding errors may occur.
 
     """
     # convert to the desired number of channels
@@ -131,8 +168,15 @@ def trim(signal):
     """
     Trim leading and trailing zeros of the signal.
 
-    :param signal: signal [numpy array]
-    :return:       trimmed signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be trimmed.
+
+    Returns
+    -------
+    numpy array
+        Trimmed signal.
 
     """
     # signal must be mono
@@ -148,8 +192,15 @@ def root_mean_square(signal):
     Computes the root mean square of the signal. This can be used as a
     measurement of power.
 
-    :param signal: signal [numpy array]
-    :return:       root mean square of the signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal.
+
+    Returns
+    -------
+    rms : float
+        Root mean square of the signal.
 
     """
     # make sure the signal is a numpy array
@@ -170,16 +221,26 @@ def sound_pressure_level(signal, p_ref=None):
     """
     Computes the sound pressure level of a signal.
 
-    :param signal: signal [numpy array]
-    :param p_ref:  reference sound pressure level; if 'None', take the max
-                   amplitude value for the datatype, if the datatype is float,
-                   assume amplitudes are between -1 and +1.
-    :return:       sound pressure level of the signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal.
+    p_ref : float, optional
+        Reference sound pressure level; if 'None', take the max amplitude
+        value for the data-type, if the data-type is float, assume amplitudes
+        are between -1 and +1.
 
-    From http://en.wikipedia.org/wiki/Sound_pressure:
-    Sound pressure level (SPL) or sound level is a logarithmic measure of the
-    effective sound pressure of a sound relative to a reference value. It is
-    measured in decibels (dB) above a standard reference level.
+    Returns
+    -------
+    spl : float
+        Sound pressure level of the signal [dB].
+
+    Notes
+    -----
+    From http://en.wikipedia.org/wiki/Sound_pressure: Sound pressure level
+    (SPL) or sound level is a logarithmic measure of the effective sound
+    pressure of a sound relative to a reference value. It is measured in
+    decibels (dB) above a standard reference level.
 
     """
     # compute the RMS
@@ -207,19 +268,34 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     channel number conversions. Reads the data as a memory-mapped file with
     copy-on-write semantics to defer I/O costs until needed.
 
-    :param filename:     name of the file
-    :param sample_rate:  desired sample rate of the signal in Hz [int], or
-                         `None` to return the signal in its original rate
-    :param num_channels: reduce or expand the signal to N channels [int], or
-                         `None` to return the signal with its original channels
-    :param start:        start position (seconds) [float]
-    :param stop:         stop position (seconds) [float]
-    :return:             tuple (signal, sample_rate)
+    Parameters
+    ----------
+    filename : string
+        Name of the file.
+    sample_rate : int, optional
+        Desired sample rate of the signal [Hz], or 'None' to return the
+        signal in its original rate.
+    num_channels : int, optional
+        Reduce or expand the signal to `num_channels` channels, or 'None'
+        to return the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
 
-    Note: The `start` and `stop` positions are rounded to the closest sample;
-          the sample corresponding to the `stop` value is not returned, thus
-          consecutive segment starting with the previous `stop` can be
-          concatenated to obtain the original signal without gaps or overlaps.
+    Returns
+    -------
+    signal : numpy array
+        Audio signal.
+    sample_rate : int
+        Sample rate of the signal [Hz].
+
+    Notes
+    -----
+    The `start` and `stop` positions are rounded to the closest sample; the
+    sample corresponding to the `stop` value is not returned, thus consecutive
+    segment starting with the previous `stop` can be concatenated to obtain
+    the original signal without gaps or overlaps.
 
     """
     from scipy.io import wavfile
@@ -227,7 +303,7 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     # if the sample rate is not the desired one, raise exception
     if sample_rate is not None and sample_rate != file_sample_rate:
         raise ValueError('Requested sample rate of %f Hz, but got %f Hz and '
-                         'resampling is not implemented.' %
+                         're-sampling is not implemented.' %
                          (sample_rate, file_sample_rate))
     # only request the desired part of the signal
     if start is not None:
@@ -250,21 +326,35 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     Load the audio data from the given file and return it as a numpy array.
     This tries load_wave_file() load_ffmpeg_file() (for ffmpeg and avconv).
 
-    :param filename:     name of the file or file handle
-    :param sample_rate:  desired sample rate of the signal in Hz [int], or
-                         `None` to return the signal in its original rate
-    :param num_channels: reduce or expand the signal to N channels [int], or
-                         `None` to return the signal with its original channels
-    :param start:        start position (seconds) [float]
-    :param stop:         stop position (seconds) [float]
-    :return:             tuple (signal, sample_rate)
+    Parameters
+    ----------
+    filename : str or file handle
+        Name of the file or file handle.
+    sample_rate : int, optional
+        Desired sample rate of the signal [Hz], or 'None' to return the
+        signal in its original rate.
+    num_channels: int, optional
+        Reduce or expand the signal to `num_channels` channels, or 'None'
+        to return the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
 
-    Note: For wave files, the `start` and `stop` positions are rounded to the
-          closest sample; the sample corresponding to the `stop` value is not
-          returned, thus consecutive segment starting with the previous `stop`
-          can be concatenated to obtain the original signal without gaps or
-          overlaps.
-          For all other audio files, this can not be guaranteed.
+    Returns
+    -------
+    signal : numpy array
+        Audio signal.
+    sample_rate : int
+        Sample rate of the signal [Hz].
+
+    Notes
+    -----
+    For wave files, the `start` and `stop` positions are rounded to the closest
+    sample; the sample corresponding to the `stop` value is not returned, thus
+    consecutive segment starting with the previous `stop` can be concatenated
+    to obtain the original signal without gaps or overlaps.
+    For all other audio files, this can not be guaranteed.
 
     """
     from subprocess import CalledProcessError
@@ -308,8 +398,32 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
 # signal classes
 class Signal(np.ndarray):
     """
-    Signal extends a numpy ndarray with a 'sample_rate' and some other useful
-    attributes.
+    The :class:`Signal` class represents a signal as a (memmapped) numpy array
+    and enhances it with a number of attributes.
+
+    Parameters
+    ----------
+    data : numpy array, str or file handle
+        Signal data or file name or file handle.
+    sample_rate : int, optional
+        Desired sample rate of the signal [Hz], or 'None' to return the
+        signal in its original rate.
+    num_channels : int, optional
+        Reduce or expand the signal to `num_channels` channels, or 'None'
+        to return the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
+
+    Notes
+    -----
+    `sample_rate` or `num_channels` can be used to set the desired sample rate
+    and number of channels if the audio is read from file. If set to 'None'
+    the audio signal is used as is, i.e. the sample rate and number of channels
+    are determined directly from the audio file.
+    If the `data` is a numpy array, the `sample_rate` is set to the given value
+    and `num_channels` is set to the number of columns of the array.
 
     """
     # pylint: disable=super-on-old-class
@@ -318,27 +432,8 @@ class Signal(np.ndarray):
 
     def __init__(self, data, sample_rate=None, num_channels=None, start=None,
                  stop=None):
-        """
-        Creates a new Signal instance.
-
-        :param data:         numpy array or audio file name or file handle
-        :param sample_rate:  sample rate of the signal [int]
-        :param num_channels: number of channels [int]
-        :param start:        start position (seconds) [float]
-        :param stop:         stop position (seconds) [float]
-
-        Note: `sample_rate` or `num_channels` can be used to set the desired
-              sample rate and number of channels if the audio is read from
-              file. If set to 'None' the audio signal is used as is, i.e. the
-              sample rate and number of channels are determined directly from
-              the audio file.
-              If the `data` is a numpy array, the `sample_rate` is set to the
-              given value and `num_channels` is set to the number of columns
-              of the array.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
                 stop=None):
@@ -404,7 +499,26 @@ class Signal(np.ndarray):
 
 class SignalProcessor(Processor):
     """
-    SignalProcessor is a basic signal processor.
+    The :class:`SignalProcessor` class is a basic signal processor.
+
+    Parameters
+    ----------
+    sample_rate : int, optional
+        Sample rate of the signal [Hz]; if set the signal will be re-sampled
+        to that sample rate; if 'None' the sample rate of the audio file will
+        be used.
+    num_channels : int, optional
+        Number of channels of the signal; if set, the signal will be reduced
+        to that number of channels; if 'None' as many channels as present in
+        the audio file are returned.
+    norm : bool, optional
+        Normalize the signal to the range [-1, +1].
+    att : float, optional
+        Attenuate the signal [dB].
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
 
     """
     SAMPLE_RATE = None
@@ -416,26 +530,7 @@ class SignalProcessor(Processor):
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  norm=NORM, att=ATT, start=None, stop=None, **kwargs):
-        """
-        Creates a new SignalProcessor instance.
-
-        :param sample_rate:  sample rate of the signal [Hz]
-        :param num_channels: reduce the signal to N channels [int]
-        :param norm:         normalize the signal [bool]
-        :param att:          attenuate the signal [dB]
-        :param start:        start position (seconds) [float]
-        :param stop:         stop position (seconds) [float]
-
-        Note: If `sample_rate` is set, the signal will be re-sampled to that
-              sample rate; if 'None' the sample rate of the audio file will be
-              used.
-              If `num_channels` is set, the signal will be reduced to that
-              number of channels; if 'None' as many channels as present in the
-              audio file are returned.
-
-        """
         # pylint: disable=unused-argument
-
         self.sample_rate = sample_rate
         self.num_channels = num_channels
         self.norm = norm
@@ -447,15 +542,22 @@ class SignalProcessor(Processor):
         """
         Processes the given audio file.
 
-        :param data:   file name or handle
-        :param start:  start position (seconds) [float]
-        :param stop:   stop position (seconds) [float]
-        :param kwargs: additional keywords will be ignored
-        :return:       Signal instance with processed signal
+        Parameters
+        ----------
+        data : numpy array, str or file handle
+            Data to be processed.
+        start : float, optional
+            Start position [seconds].
+        stop : float, optional
+            Stop position [seconds].
+
+        Returns
+        -------
+        signal : :class:`Signal` instance
+            :class:`Signal` instance.
 
         """
         # pylint: disable=unused-argument
-
         # overwrite the default start & stop time
         if start is None:
             start = self.start
@@ -480,18 +582,33 @@ class SignalProcessor(Processor):
         """
         Add signal processing related arguments to an existing parser.
 
-        :param parser:      existing argparse parser object
-        :param sample_rate: re-sample the signal to this sample rate [Hz]
-        :param mono:        down-mix the signal to mono [bool]
-        :param start:       start position (seconds) [float]
-        :param stop:        stop position (seconds) [float]
-        :param norm:        normalize the signal [bool]
-        :param att:         attenuate the signal [dB, float]
-        :return:            signal processing argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        sample_rate : int, optional
+            Re-sample the signal to this sample rate [Hz].
+        mono : bool, optional
+            Down-mix the signal to mono.
+        start : float, optional
+            Start position [seconds].
+        stop : float, optional
+            Stop position [seconds].
+        norm : bool, optional
+            Normalize the signal to the range [-1, +1].
+        att : float, optional
+            Sttenuate the signal [dB].
 
-        Parameters are included in the group only if they are not 'None'.
-        To include `start` and `stop` arguments with a default value of 'None',
-        i.e. do not set any start or stop time, set them to 'True'.
+        Returns
+        -------
+        argparse argument group
+            Signal processing argument parser group.
+
+        Notes
+        -----
+        Parameters are included in the group only if they are not 'None'. To
+        include `start` and `stop` arguments with a default value of 'None',
+        i.e. do not set any start or stop time, they can be set to 'True'.
 
         """
         # add signal processing options to the existing parser
@@ -525,33 +642,49 @@ class SignalProcessor(Processor):
 # functions for splitting a signal into frames
 def signal_frame(signal, index, frame_size, hop_size, origin=0):
     """
-    This function returns frame[index] of the signal.
+    This function returns frame at `index` of the `signal`.
 
-    :param signal:     signal [numpy array]
-    :param index:      index of the frame to return [int]
-    :param frame_size: size of each frame in samples [int]
-    :param hop_size:   hop size in samples between adjacent frames [float]
-    :param origin:     location of the window center relative to the signal
-                       position [int]
-    :return:           the requested frame of the signal
+    Parameters
+    ----------
+    signal : numpy array
+        Signal.
+    index : int
+        Index of the frame to return.
+    frame_size : int
+        Size of each frame in samples.
+    hop_size : float
+        Hop size in samples between adjacent frames.
+    origin : int
+        Location of the window center relative to the signal position.
 
+    Returns
+    -------
+    frame : numpy array
+        Requested frame of the signal.
+
+    Notes
+    -----
     The reference sample of the first frame (index == 0) refers to the first
-    sample of the signal, and each following frame is placed `hop_size` samples
-    after the previous one.
+    sample of the `signal`, and each following frame is placed `hop_size`
+    samples after the previous one.
 
     The window is always centered around this reference sample. Its location
     relative to the reference sample can be set with the `origin` parameter.
     Arbitrary integer values can be given:
-      - zero centers the window on its reference sample
-      - negative values shift the window to the right
-      - positive values shift the window to the left
+
+    - zero centers the window on its reference sample
+    - negative values shift the window to the right
+    - positive values shift the window to the left
+
     An `origin` of half the size of the `frame_size` results in windows located
     to the left of the reference sample, i.e. the first frame starts at the
     first sample of the signal.
 
-    The part of the frame which is not covered by the signal is padded with 0s.
+    The part of the frame which is not covered by the signal is padded with
+    zeros.
 
     """
+
     # length of the signal
     num_samples = len(signal)
     # seek to the correct position in the audio signal
@@ -591,71 +724,74 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
 # classes for splitting a signal into frames
 class FramedSignal(object):
     """
-    FramedSignal splits a Signal into frames and makes it iterable and
-    indexable.
+    The :class:`FramedSignal` splits a :class:`Signal` into frames and makes it
+    iterable and indexable.
+
+    Parameters
+    ----------
+    signal : :class:`Signal` instance
+        Signal to be split into frames.
+    frame_size : int, optional
+        Size of one frame [samples].
+    hop_size : float, optional
+        Progress `hop_size` samples between adjacent frames.
+    fps : float, optional
+        Use given frames per second; if set, this computes and overwrites the
+        given `hop_size` value.
+    origin : int, optional
+        Location of the window relative to the reference sample of a frame.
+    end : int or str, optional
+        End of signal handling (see notes below).
+    num_frames : int, optional
+        Number of frames to return.
+    kwargs : dict, optional
+        If no :class:`Signal` instance was given, one is instantiated with
+        these additional keyword arguments.
+
+    Notes
+    -----
+    The :class:`FramedSignal` class is implemented as an iterator. It splits
+    the given `signal` automatically into frames of `frame_size` length with
+    `hop_size` samples (can be float, normal rounding applies) between the
+    frames. The reference sample of the first frame refers to the first sample
+    of the `signal`.
+
+    The location of the window relative to the reference sample of a frame can
+    be set with the `origin` parameter (with the same behaviour as used by
+    ``scipy.ndimage`` filters). Arbitrary integer values can be given:
+
+    - zero centers the window on its reference sample,
+    - negative values shift the window to the right,
+    - positive values shift the window to the left.
+
+    Additionally, it can have the following literal values:
+
+    - 'center', 'offline': the window is centered on its reference sample,
+    - 'left', 'past', 'online': the window is located to the left of its
+      reference sample (including the reference sample),
+    - 'right', 'future': the window is located to the right of its reference
+      sample.
+
+    The `end` parameter is used to handle the end of signal behaviour and
+    can have these values:
+
+    - 'normal': stop as soon as the whole signal got covered by at least one
+      frame (i.e. pad maximally one frame),
+    - 'extend': frames are returned as long as part of the frame overlaps
+      with the signal to cover the whole signal.
+
+    Alternatively, `num_frames` can be used to retrieve a fixed number of
+    frames.
+
+    In order to be able to stack multiple frames obtained with different frame
+    sizes, the number of frames to be returned must be independent from the set
+    `frame_size`. It is not guaranteed that every sample of the signal is
+    returned in a frame unless the `origin` is either 'right' or 'future'.
 
     """
 
     def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
                  origin=0, end='normal', num_frames=None, **kwargs):
-        """
-        Creates a new FramedSignal instance from the given Signal.
-
-        :param signal:     Signal instance (or anything a Signal can be
-                           instantiated from)
-        :param frame_size: size of one frame [int]
-        :param hop_size:   progress N samples between adjacent frames [float]
-        :param fps:        use given frames per second (if set, this
-                           overwrites the given `hop_size` value) [float]
-        :param origin:     location of the window relative to the reference
-                           sample of a frame [int]
-        :param end:        end of signal handling (see below)
-        :param num_frames: number of frames to return [int]
-
-        If no Signal instance was given, one is instantiated and these
-        arguments are passed:
-
-        :param kwargs:     additional keyword arguments passed to Signal()
-
-        The FramedSignal class is implemented as an iterator. It splits the
-        given Signal automatically into frames of `frame_size` length with
-        `hop_size` samples (can be float, normal rounding applies) between the
-        frames. The reference sample of the first frame refers to the first
-        sample of the signal
-
-        The location of the window relative to the reference sample of a frame
-        can be set with the `origin` parameter (with the same behaviour as used
-        by `scipy.ndimage` filters). Arbitrary integer values can be given:
-          - zero centers the window on its reference sample
-          - negative values shift the window to the right
-          - positive values shift the window to the left
-
-        Additionally, it can have the following literal values:
-          - 'center', 'offline':      the window is centered on its reference
-                                      sample
-          - 'left', 'past', 'online': the window is located to the left of its
-                                      reference sample (including the reference
-                                      sample)
-          - 'right', 'future':        the window is located to the right of its
-                                      reference sample
-
-        The `end` parameter is used to handle the end of signal behaviour and
-        can have these values:
-          - 'normal': stop as soon as the whole signal got covered by at least
-                      one frame, i.e. pad maximally one frame
-          - 'extend': frames are returned as long as part of the frame overlaps
-                      with the signal to cover the whole signal
-
-        Alternatively, `num_frames` can be used to retrieve a fixed number of
-        frames.
-
-        Note: We do not use the `frame_size` for the calculation of the number
-              of frames in order to be able to stack multiple frames obtained
-              with different frame sizes. Thus it is not guaranteed that every
-              sample of the signal is returned in a frame unless the `origin`
-              is either 'right' or 'future'.
-
-        """
         # signal handling
         if not isinstance(signal, Signal):
             # try to instantiate a Signal
@@ -704,16 +840,18 @@ class FramedSignal(object):
     # make the object indexable / iterable
     def __getitem__(self, index):
         """
-        This makes the FramedSignal class indexable and/or iterable.
+        This makes the :class:`FramedSignal` class indexable and/or iterable.
 
         The signal is split into frames (of length `frame_size`) automatically.
         Two frames are located `hop_size` samples apart. If `hop_size` is a
         float, normal rounding applies.
 
-        Note: Index -1 refers NOT to the last frame, but to the frame directly
-              left of frame 0. Although this is contrary to common behavior,
-              being able to access these frames can be important, e.g. if the
-              frames overlap, frame -1 contains parts of the signal of frame 0.
+        Notes
+        -----
+        Index -1 refers NOT to the last frame, but to the frame directly left
+        of frame 0. Although this is contrary to common behavior, being able to
+        access these frames can be important, e.g. if the frames overlap, frame
+        -1 contains parts of the signal of frame 0.
 
         """
         # a single index is given
@@ -751,7 +889,7 @@ class FramedSignal(object):
 
     @property
     def frame_rate(self):
-        """Frame rate."""
+        """Frame rate (same as fps)."""
         # n/a if the signal has no sample rate
         if self.signal.sample_rate is None:
             return None
@@ -785,6 +923,35 @@ class FramedSignalProcessor(Processor):
     """
     Slice a Signal into frames.
 
+    Parameters
+    ----------
+    frame_size : int, optional
+        Size of one frame [samples].
+    hop_size : float, optional
+        Progress `hop_size` samples between adjacent frames.
+    fps : float, optional
+        Use given frames per second; if set, this computes and overwrites the
+        given `hop_size` value.
+    online : bool, optional
+        Operate in online mode (see notes below).
+    end : int or str, optional
+        End of signal handling (see :class:`FramedSignal`).
+    num_frames : int, optional
+        Number of frames to return.
+    kwargs : dict, optional
+        If no :class:`Signal` instance was given, one is instantiated with
+        these additional keyword arguments.
+
+    Notes
+    -----
+    The location of the window relative to its reference sample can be set
+    with the `online` parameter:
+
+    - 'False': the window is centered on its reference sample,
+    - 'True': the window is located to the left of its reference sample
+      (including the reference sample), i.e. only past information is used.
+
+
     """
     FRAME_SIZE = 2048
     HOP_SIZE = 441.
@@ -794,33 +961,7 @@ class FramedSignalProcessor(Processor):
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
                  online=False, end=END_OF_SIGNAL, **kwargs):
-        """
-        Creates a new FramedSignalProcessor instance.
-
-        :param frame_size: size of one frame in samples [int]
-        :param hop_size:   progress N samples between adjacent frames [float]
-        :param fps:        use frames per second (compute the needed `hop_size`
-                           instead of using the given `hop_size` value) [float]
-        :param online:     operate in online mode (see below) [bool]
-        :param end:        end of signal handling (see below)
-
-        The location of the window relative to its reference sample can be set
-        with the `online` parameter:
-          - 'True':  the window is located to the left of its reference sample
-                     (including the reference sample), i.e. only past
-                     information is used
-          - 'False': the window is centered on its reference sample [default]
-
-        The end of the signal handling can be set with the `end` parameter,
-        it accepts the following literal values:
-          - 'normal': the origin of the last frame has to be within the signal
-                      [default]
-          - 'extend': frames are returned as long as part of the frame overlaps
-                      with the signal
-
-        """
         # pylint: disable=unused-argument
-
         self.frame_size = frame_size
         self.hop_size = hop_size
         self.fps = fps  # do not convert here, pass it to FramedSignal
@@ -831,9 +972,18 @@ class FramedSignalProcessor(Processor):
         """
         Slice the signal into (overlapping) frames.
 
-        :param data:   signal to be sliced into frames [Signal]
-        :param kwargs: keyword arguments passed to FramedSignal
-        :return:       FramedSignal instance
+        Parameters
+        ----------
+        data : :class:`Signal` instance
+            Signal to be sliced into frames.
+        kwargs : dict
+            Keyword arguments passed to :class:`FramedSignal` to instantiate
+            the returned object.
+
+        Returns
+        -------
+        frames : :class:`FramedSignal` instance
+            FramedSignal instance
 
         """
         # translate online / offline mode
@@ -852,12 +1002,25 @@ class FramedSignalProcessor(Processor):
         """
         Add signal framing related arguments to an existing parser.
 
-        :param parser:     existing argparse parser object
-        :param frame_size: size of one frame in samples [int]
-        :param fps:        frames per second [float]
-        :param online:     online mode [bool]
-        :return:           signal framing argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        frame_size : int, optional
+            Size of one frame in samples.
+        fps : float, optional
+            Frames per second.
+        online : bool, optional
+            Online mode (use only past signal information, i.e. align the
+            window to the left of the reference sample).
 
+        Returns
+        -------
+        argparse argument group
+            Signal framing argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
