@@ -616,7 +616,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         Fitted GMM(s), one entry per rhythmic pattern.
     transition_model : :class:`PatternTrackingTransitionModel` instance
         PatternTrackingTransitionModel instance.
-    norm_observations : bool
+    norm_observations : bool, optional
         Normalize the observations.
 
     References
@@ -629,7 +629,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, gmms, transition_model, norm_observations):
+    def __init__(self, gmms, transition_model, norm_observations=False):
         # save the parameters
         self.gmms = gmms
         self.transition_model = transition_model
