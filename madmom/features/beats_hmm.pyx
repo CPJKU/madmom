@@ -395,19 +395,27 @@ class BeatTrackingObservationModel(ObservationModel):
         return np.asarray(log_densities)
 
 
-class DownBeatTrackingStateSpace(object):
+class PatternTrackingStateSpace(object):
     """
-    State space for down-beat tracking with a HMM.
+    State space for rythmic pattern tracking with a HMM.
+
+    A rhythmic pattern is modeled similar to :class:`BeatTrackingStateSpace`,
+    but models multiple rhythmic patterns instead of a single beat. The
+    pattern's length can span multiple beats (e.g. 3 or 4 beats).
 
     Parameters
     ----------
     min_intervals : list or numpy array
-        Minimum tempi (i.e. inter beat intervals) to model.
+        Minimum intervals (i.e. rhythmic pattern length) to model.
     max_intervals : list or numpy array
-        Maximum tempi (i.e. inter beat intervals) to model.
+        Maximum intervals (i.e. rhythmic pattern length) to model.
     num_tempo_states : list or numpy array, optional
         Corresponding number of tempo states; if set, limit the number of
         states and use a log spacing, otherwise use a linear spacing.
+
+    See Also
+    --------
+    :class:`BeatTrackingStateSpace`
 
     References
     ----------
@@ -457,7 +465,7 @@ class DownBeatTrackingStateSpace(object):
 
     def position(self, state):
         """
-        Position (inside one bar) for a given state sequence.
+        Position (inside one pattern) for a given state sequence.
 
         Parameters
         ----------
@@ -507,21 +515,21 @@ class DownBeatTrackingStateSpace(object):
         return self.pattern_mapping[state]
 
 
-class DownBeatTrackingTransitionModel(TransitionModel):
+class PatternTrackingTransitionModel(TransitionModel):
     """
-    Transition model for down-beat tracking with a HMM.
+    Transition model for pattern tracking with a HMM.
 
-    Instead of modelling a single pattern (as
+    Instead of modelling only a single beat (as
     :class:`BeatTrackingTransitionModel`), the
-    :class:`DownBeatTrackingTransitionModel` allows multiple patterns. It
+    :class:`PatternTrackingTransitionModel` models rhythmic patterns. It
     accepts the same arguments as the :class:`BeatTrackingTransitionModel`,
     but everything as lists, with the list entries at the same position
-    corresponding to one (rhythmic) pattern.
+    corresponding to one rhythmic pattern.
 
     Parameters
     ----------
-    state_space : :class:`DownBeatTrackingTransitionModel` instance
-        DownBeatTrackingTransitionModel instance.
+    state_space : :class:`PatternTrackingTransitionModel` instance
+        PatternTrackingTransitionModel instance.
     transition_lambda : list
         Lambda(s) for the exponential tempo change distribution of the patterns
         (higher values prefer a constant tempo from one bar to the next one).
@@ -531,9 +539,24 @@ class DownBeatTrackingTransitionModel(TransitionModel):
     --------
     :class:`BeatTrackingTransitionModel`
 
+    Notes
+    -----
+    This transition model differs from the one described in [1]_ in the
+    following way:
+
+    - it allows transitions only at pattern boundaries instead of beat
+      boundaries,
+    - it uses the new state space discretisation and tempo change distribution
+      proposed in [2]_.
+
     References
     ----------
     .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
+           Audio",
+           Proceedings of the 14th International Society for Music Information
+           Retrieval Conference (ISMIR), 2013.
+    .. [2] Florian Krebs, Sebastian Böck and Gerhard Widmer,
            "An Efficient State Space Model for Joint Tempo and Meter Tracking",
            Proceedings of the 16th International Society for Music Information
            Retrieval Conference (ISMIR), 2015.
@@ -580,10 +603,10 @@ class DownBeatTrackingTransitionModel(TransitionModel):
                 probabilities = np.hstack((probabilities, tm.probabilities))
         # instantiate a TransitionModel with the transition arrays
         transitions = states, pointers, probabilities
-        super(DownBeatTrackingTransitionModel, self).__init__(*transitions)
+        super(PatternTrackingTransitionModel, self).__init__(*transitions)
 
 
-class GMMDownBeatTrackingObservationModel(ObservationModel):
+class GMMPatternTrackingObservationModel(ObservationModel):
     """
     Observation model for GMM based beat tracking with a HMM.
 
@@ -591,8 +614,8 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
     ----------
     gmms : list
         Fitted GMM(s), one entry per rhythmic pattern.
-    transition_model : :class:`DownBeatTrackingTransitionModel` instance
-        DownBeatTrackingTransitionModel instance.
+    transition_model : :class:`PatternTrackingTransitionModel` instance
+        PatternTrackingTransitionModel instance.
     norm_observations : bool
         Normalize the observations.
 
@@ -630,7 +653,7 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
             # increase the offset by the number of GMMs
             densities_idx_offset += num_gmms
         # instantiate a ObservationModel with the pointers
-        super(GMMDownBeatTrackingObservationModel, self).__init__(pointers)
+        super(GMMPatternTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)

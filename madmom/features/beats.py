@@ -901,11 +901,17 @@ class DBNBeatTrackingProcessor(Processor):
         return g
 
 
-# class for beat tracking
-class DownbeatTrackingProcessor(Processor):
+class DownbeatTrackingProcessor(object):
+    def __init__(self):
+        raise DeprecationWarning('Renamed to PatternTrackingProcessor in '
+                                 'v0.13. Will be removed in v0.14.')
+
+
+# class for pattern tracking
+class PatternTrackingProcessor(Processor):
     """
-    Beat and downbeat tracking with a dynamic Bayesian network (DBN)
-    approximated by a Hidden Markov Model (HMM).
+    Pattern tracking with a dynamic Bayesian network (DBN) approximated by a
+    Hidden Markov Model (HMM).
 
     Parameters
     ----------
@@ -913,9 +919,9 @@ class DownbeatTrackingProcessor(Processor):
         List of files with the patterns (including the fitted GMMs and
         information about the number of beats).
     min_bpm : list, optional
-        Minimum tempi used for beat tracking [bpm].
+        Minimum tempi used for pattern tracking [bpm].
     max_bpm : list, optional
-        Maximum tempi used for beat tracking [bpm].
+        Maximum tempi used for pattern tracking [bpm].
     num_tempo_states : int or list, optional
         Number of tempo states; if set, limit the number of states and use
         log spacings, otherwise a linear spacings.
@@ -972,9 +978,9 @@ class DownbeatTrackingProcessor(Processor):
         import pickle
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (DownBeatTrackingStateSpace as St,
-                                DownBeatTrackingTransitionModel as Tm,
-                                GMMDownBeatTrackingObservationModel as Om)
+        from .beats_hmm import (PatternTrackingStateSpace as St,
+                                PatternTrackingTransitionModel as Tm,
+                                GMMPatternTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
