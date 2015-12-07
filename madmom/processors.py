@@ -3,8 +3,10 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains all processor related functionality.
+This module contains all processor related functionality.
 
+Notes
+-----
 All features should be implemented as classes which inherit from Processor
 (or provide a XYZProcessor(Processor) variant). This way, multiple Processor
 objects can be chained/combined to achieve the wanted functionality.
@@ -36,8 +38,15 @@ class Processor(object):
         overwrite this method with a better performing solution if speed is an
         issue.
 
-        :param infile: file name or file handle
-        :return:       Processor instance
+        Parameters
+        ----------
+        infile : str or file handle
+            Pickled processor.
+
+        Returns
+        -------
+        :class:`Processor` instance
+            :class:`Processor` instance
 
         """
         import pickle
@@ -56,7 +65,10 @@ class Processor(object):
         overwrite this method with a better performing solution if speed is an
         issue.
 
-        :param outfile: output file name or file handle
+        Parameters
+        ----------
+        outfile : str or file handle
+            Output file for pickling the processor.
 
         """
         import pickle
@@ -78,14 +90,21 @@ class Processor(object):
         This method must be implemented by the derived class and should
         process the given data and return the processed output.
 
-        :param data: data to be processed
-        :return:     processed data
+        Parameters
+        ----------
+        data : depends on the implementation of subclass
+            Data to be processed.
+        Returns
+        -------
+        depends on the implementation of subclass
+            Processed data.
 
         """
         raise NotImplementedError('must be implemented by subclass.')
 
     def __call__(self, *args):
         """This magic method makes a Processor instance callable."""
+        # pylint: no-value-for-parameter
         return self.process(*args)
 
 
@@ -97,34 +116,54 @@ class OutputProcessor(Processor):
 
     def process(self, data, output):
         """
-        Processes the data and feeds it to output.
+        Processes the data and feed it to the output.
 
-        :param data:   data to be processed (e.g. written to file)
-        :param output: output file name or file handle
-        :return:       also return the processed data
+        This method must be implemented by the derived class and should
+        process the given data and return the processed output.
+
+        Parameters
+        ----------
+        data : depends on the implementation of subclass
+            Data to be processed (e.g. written to file).
+        output : str or file handle
+            Output file name or file handle.
+        Returns
+        -------
+        depends on the implementation of subclass
+            Processed data.
 
         """
         # pylint: disable=arguments-differ
-
         raise NotImplementedError('must be implemented by subclass.')
 
 
 # functions for processing file(s) with a Processor
 def _process(process_tuple):
     """
-    Function to process a Processor object (first tuple item) with the given
-    data (second tuple item). The processed data is returned and if a third
-    tuple item is given, the processed data is also outputted to the given
-    output file or file handle.
+    Function to process a Processor with data.
 
-    Instead of a Processor also a function accepting a single positional
-    argument (data) or two positional arguments (data, output) and returning
-    the processed data can be given.
+    The processed data is returned and if applicable also piped to the given
+    output.
 
-    :param process_tuple: tuple (Processor/function, data, [output])
-    :return:              processed data
+    Parameters
+    ----------
+    process_tuple : tuple (Processor/function, data, [output])
+        The tuple must contain a Processor object as the first item and the
+        data to be processed as the second tuple item. If a third tuple item
+        is given, it is used as an output.
+        Instead of a Processor also a function accepting a single positional
+        argument (data) or two positional arguments (data, output) can be
+        given. It must behave exactly as a :class:`Processor`, i.e. return
+        the processed data and optionally pipe it to the output.
 
-    Note: This must be a top-level function to be pickle-able.
+    Returns
+    -------
+    depends on the processor
+        Processed data.
+
+    Notes
+    -----
+    This must be a top-level function to be pickle-able.
 
     """
     if process_tuple[0] is None:
@@ -139,14 +178,18 @@ class SequentialProcessor(MutableSequence, Processor):
     """
     Processor class for sequential processing of data.
 
+    Parameters
+    ----------
+    processors : list
+         Processor instances to be processed sequentially.
+
+    Notes
+    -----
+    If the `processors` list contains lists or tuples, these get wrapped as a
+    SequentialProcessor itself.
+
     """
     def __init__(self, processors):
-        """
-        Instantiates a SequentialProcessor object.
-
-        :param processors: list of Processor objects
-
-        """
         self.processors = []
         # iterate over all given processors and save them
         for processor in processors:
@@ -160,7 +203,15 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Get the Processor at the given processing chain position.
 
-        :param index: position inside the processing chain
+        Parameters
+        ----------
+        index : int
+            Position inside the processing chain.
+
+        Returns
+        -------
+        :class:`Processor`
+            Processor at the given position.
 
         """
         return self.processors[index]
@@ -169,8 +220,12 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Set the Processor at the given processing chain position.
 
-        :param index:     position inside the processing chain
-        :param processor: Processor to set
+        Parameters
+        ----------
+        index : int
+            Position inside the processing chain.
+        processor : :class:`Processor`
+            Processor to set.
 
         """
         self.processors[index] = processor
@@ -179,7 +234,10 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Delete the Processor at the given processing chain position.
 
-        :param index: position inside the processing chain
+        Parameters
+        ----------
+        index : int
+            Position inside the processing chain.
 
         """
         del self.processors[index]
@@ -195,8 +253,12 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Insert a Processor at the given processing chain position.
 
-        :param index:     position inside the processing chain
-        :param processor: Processor to insert
+        Parameters
+        ----------
+        index : int
+            Position inside the processing chain.
+        processor : :class:`Processor`
+            Processor to insert.
 
         """
         self.processors.insert(index, processor)
@@ -205,7 +267,10 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Append another Processor to the processing chain.
 
-        :param other: the Processor to be appended.
+        Parameters
+        ----------
+        other : :class:`Processor`
+            Processor to append to the processing chain.
 
         """
         self.processors.append(other)
@@ -214,7 +279,10 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Extend the processing chain with a list of Processors.
 
-        :param other: list with Processors to be appended.
+        Parameters
+        ----------
+        other : list
+            Processors to be appended to the processing chain.
 
         """
         self.processors.extend(other)
@@ -223,8 +291,15 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         Process the data sequentially with the defined processing chain.
 
-        :param data: data to be processed
-        :return:     processed data
+        Parameters
+        ----------
+        data : depends on the first processor of the processing chain
+            Data to be processed.
+
+        Returns
+        -------
+        depends on the last processor of the processing chain
+            Processed data.
 
         """
         # sequentially process the data
@@ -238,23 +313,23 @@ class ParallelProcessor(SequentialProcessor):
     """
     Processor class for parallel processing of data.
 
+    Parameters
+    ----------
+    processors : list
+         Processor instances to be processed in parallel.
+    num_threads : int, optional
+        Number of parallel working threads.
+
+    Notes
+    -----
+    If the `processors` list contains lists or tuples, these get wrapped as a
+    :class:`SequentialProcessor`s.
+
     """
     NUM_THREADS = 1
 
     def __init__(self, processors, num_threads=NUM_THREADS):
-        """
-        Instantiates a ParallelProcessor object.
-
-        :param processors:  list with processing objects
-        :param num_threads: number of parallel working threads
-
-        Note: We use `**kwargs` instead of `num_threads` to be able to pass
-              an arbitrary number of processors which should get processed in
-              parallel as the first arguments.
-              Tuples or lists are wrapped as a `SequentialProcessor`.
-
-        """
-        # save the processing chain
+        # set the processing chain
         super(ParallelProcessor, self).__init__(processors)
         # number of threads
         if num_threads is None:
@@ -272,8 +347,15 @@ class ParallelProcessor(SequentialProcessor):
         """
         Process the data in parallel.
 
-        :param data: data to be processed
-        :return:     list with processed data
+        Parameters
+        ----------
+        data : depends on the processors
+            Data to be processed.
+
+        Returns
+        -------
+        list
+            Processed data.
 
         """
         import itertools as it
@@ -285,15 +367,25 @@ class ParallelProcessor(SequentialProcessor):
         """
         Add parallel processing options to an existing parser object.
 
-        :param parser:      existing argparse parser object
-        :param num_threads: number of threads to run in parallel [int]
-        :return:            parallel processing argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        num_threads : int, optional
+            Number of parallel working threads.
 
-        Note: A value of 0 or negative numbers for `num_threads` suppresses the
-              inclusion of the parallel option and 'None' is returned instead
-              of the parsing group.
-              Setting `num_threads` to 'None' sets the number to the number of
-              CPU cores.
+        Returns
+        -------
+        argparse argument group
+            Parallel processing argument parser group.
+
+        Notes
+        -----
+        A value of 0 or negative numbers for `num_threads` suppresses the
+        inclusion of the parallel option and 'None' is returned instead of
+        the parsing group.
+        Setting `num_threads` to 'None' sets the number to the number of CPU
+        cores.
 
         """
         if num_threads is None:
@@ -313,33 +405,28 @@ class ParallelProcessor(SequentialProcessor):
 class IOProcessor(OutputProcessor):
     """
     Input/Output Processor which processes the input data with the input
-    Processor and feeds everything into the given output Processor.
-
-    The output Processor is the only one ever called with two arguments
-    ('data', 'output').
+    processor and pipes everything into the given output processor.
 
     All Processors defined in the input chain are sequentially called with the
-    'data' argument only.
+    'data' argument only. The output Processor is the only one ever called with
+    two arguments ('data', 'output').
+
+    Parameters
+    ----------
+    in_processor : :class:`Processor`, function, tuple or list
+        Input processor. Can be a :class:`Processor` (or subclass thereof
+        like :class:`SequentialProcessor` or :class:`ParallelProcessor`), a
+        function accepting a single argument ('data'). If a tuple or list
+        is given, it is wrapped as a :class:`SequentialProcessor`.
+    out_processor : :class:`OutputProcessor`, function, tuple or list
+        OutputProcessor or function accepting two arguments ('data', 'output').
+        If a tuple or list is given, it is wrapped in an :class:`IOProcessor`
+        itself with the last element regarded as the `out_processor` and all
+        others as `in_processor`.
 
     """
 
     def __init__(self, in_processor, out_processor=None):
-        """
-        Creates a IOProcessor instance.
-
-        :param in_processor:  Processor or list or function
-        :param out_processor: OutputProcessor or function
-
-        Note: `in_processor` can be a Processor (or subclass thereof) or a
-              function accepting a single argument (data) or a list thereof
-              which gets wrapped as a SequentialProcessor.
-
-              `out_processor` can be a OutputProcessor or a function
-              accepting two arguments (data, output). If a tuple or list is
-              given, it is wrapped in an `IOProcessor` itself with the last
-              element regarded as the `out_processor`.
-
-        """
         # TODO: check the input and output processors!?
         #       as input a Processor, SequentialProcessor, ParallelProcessor
         #       or a function with only one argument should be accepted
@@ -365,10 +452,16 @@ class IOProcessor(OutputProcessor):
         """
         Get the Processor at the given position.
 
-        :param index: processor position
+        Parameters
+        ----------
+        index : int
+            Processor position. Index '0' refers to the `in_processor`,
+            index '1' to the `out_processor`.
 
-        Note: Index '0' refers to the `in_processor`,  index '1' to the
-              `out_processor`.
+        Returns
+        -------
+        :class:`Processor`
+            Processor at the given position.
 
         """
         if index == 0:
@@ -381,13 +474,21 @@ class IOProcessor(OutputProcessor):
 
     def process(self, data, output=None):
         """
-        Processes the data with the input Processor and outputs everything into
-        the output Processor.
+        Processes the data with the input processor and pipe everything into
+        the output processor, which also pipes it to `output`.
 
-        :param data:   input data or file to be loaded
-                       [numpy array or file name or file handle]
-        :param output: output file [file name or file handle]
-        :return:       Activations instance
+        Parameters
+        ----------
+        data : depends on the input processors
+            Data to be processed.
+        output: str or file handle
+            Output file (handle).
+
+        Returns
+        -------
+        depends on the output processors
+            Processed data.
+
 
         """
         # process the data by the input processor
@@ -400,14 +501,17 @@ def process_single(processor, infile, outfile, **kwargs):
     """
     Process a single file with the given Processor.
 
-    :param processor: pickled Processor
-    :param infile:    input file or file handle
-    :param outfile:   outfile file or file handle
-    :param kwargs:    additional keyword arguments will be ignored
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be processed.
+    infile : str or file handle
+        Input file (handle).
+    outfile : str or file handle
+        Output file (handle).
 
     """
     # pylint: disable=unused-argument
-
     processor.process(infile, outfile)
 
 
@@ -415,14 +519,18 @@ class ParallelProcess(mp.Process):
     """
     Parallel Process class.
 
+    Parameters
+    ----------
+    task_queue :
+        Queue with tasks, i.e. tuples ('processor', 'infile', 'outfile')
+
+    Notes
+    -----
+    A ParallelProcess is used to process to process tasks. Multiple instances
+    are created via :func:`process_batch`.
+
     """
     def __init__(self, task_queue):
-        """
-        Create a ParallelProcess, which processes tasks.
-
-        :param task_queue: queue with tasks
-
-        """
         mp.Process.__init__(self)
         self.task_queue = task_queue
 
@@ -433,9 +541,9 @@ class ParallelProcess(mp.Process):
         """
         while True:
             # get the task tuple
-            processor, input_file, output_file = self.task_queue.get()
+            processor, infile, outfile = self.task_queue.get()
             # process the Processor with the data
-            processor.process(input_file, output_file)
+            processor.process(infile, outfile)
             # signal that it is done
             self.task_queue.task_done()
 
@@ -446,19 +554,29 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     """
     Process a list of files with the given Processor in batch mode.
 
-    :param processor:     pickled Processor
-    :param files:         audio files [list]
-    :param output_dir:    output directory
-    :param output_suffix: output suffix
-    :param strip_ext:     strip off the extension from the files [bool]
-    :param num_workers:   number of parallel working threads [int]
-    :param kwargs:        additional keyword arguments will be ignored
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be processed.
+    files : list
+        Input file(s) (handles).
+    output_dir : str, optional
+        Output directory.
+    output_suffix : str, optional
+        Output suffix (e.g. '.txt' including the dot).
+    strip_ext : bool, optional
+        Strip off the extension from the input files.
+    num_workers : int, optional
+        Number of parallel working threads.
 
-    Note: Either `output_dir` or `output_suffix` must be set.
+    Notes
+    -----
+    Either `output_dir` and/or `output_suffix` must be set. If `strip_ext` is
+    True, the extension of the input file names is stripped off before the
+    `output_suffix` is appended to the input file names.
 
     """
     # pylint: disable=unused-argument
-
     # either output_dir or output_suffix must be given
     if output_dir is None and output_suffix is None:
         raise ValueError('either output directory or suffix must be given')
@@ -501,15 +619,17 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
 # function for pickling a processor
 def pickle_processor(processor, outfile, **kwargs):
     """
-    Pickle the Processor to file.
+    Pickle the Processor to a file.
 
-    :param processor: the Processor
-    :param outfile:   file where to pickle it
-    :param kwargs:    additional keyword arguments will be ignored
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be pickled.
+    outfile : str or file handle
+        Output file (handle) where to pickle it.
 
     """
     # pylint: disable=unused-argument
-
     processor.dump(outfile)
 
 
@@ -518,9 +638,14 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     """
     Add input / output related arguments to an existing parser.
 
-    :param parser:        existing argparse parser
-    :param output_suffix: suffix appended to the output files
-    :param pickle:        add 'pickle' subparser [bool]
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+    output_suffix : str, optional
+        Suffix appended to the output files.
+    pickle : bool, optional
+        Add a 'pickle' sub-parser to the parser?
 
     """
     # default output

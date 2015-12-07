@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains tempo related functionality.
+This module contains tempo related functionality.
 
 """
 
@@ -23,12 +23,25 @@ def smooth_histogram(histogram, smooth):
     """
     Smooth the given histogram.
 
-    :param histogram: histogram
-    :param smooth:    smoothing kernel [numpy array or int]
-    :return:          smoothed histogram
+    Parameters
+    ----------
+    histogram : tuple
+        Histogram (tuple of 2 numpy arrays, the first giving the strengths of
+        the bins and the second corresponding delay values).
+    smooth : int or numpy array
+        Smoothing kernel (size).
 
-    Note: If 'smooth' is an integer, a Hamming window of that length will be
-          used as a smoothing kernel.
+    Returns
+    -------
+    histogram_bins : numpy array
+        Bins of the smoothed histogram.
+    histogram_delays : numpy array
+        Corresponding delays.
+
+    Notes
+    -----
+    If `smooth` is an integer, a Hamming window of that length will be used as
+    a smoothing kernel.
 
     """
     # smooth only the the histogram bins, not the corresponding delays
@@ -38,18 +51,31 @@ def smooth_histogram(histogram, smooth):
 # interval detection
 def interval_histogram_acf(activations, min_tau=1, max_tau=None):
     """
-    Compute the interval histogram of the given activation function with via
-    auto-correlation.
+    Compute the interval histogram of the given (beat) activation function via
+    auto-correlation as in [1]_.
 
-    :param activations: the activation function
-    :param min_tau:     minimal delta for correlation function [frames]
-    :param max_tau:     maximal delta for correlation function [frames]
-    :return:            histogram
+    Parameters
+    ----------
+    activations : numpy array
+        Beat activation function.
+    min_tau : int, optional
+        Minimal delay for the auto-correlation function [frames].
+    max_tau : int, optional
+        Maximal delay for the auto-correlation function [frames].
 
-    "Enhanced Beat Tracking with Context-Aware Neural Networks"
-    Sebastian Böck and Markus Schedl
-    Proceedings of the 14th International Conference on Digital Audio
-    Effects (DAFx), 2011
+    Returns
+    -------
+    histogram_bins : numpy array
+        Bins of the tempo histogram.
+    histogram_delays : numpy array
+        Corresponding delays [frames].
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Markus Schedl,
+           "Enhanced Beat Tracking with Context-Aware Neural Networks",
+           Proceedings of the 14th International Conference on Digital Audio
+           Effects (DAFx), 2011.
 
     """
     # set the maximum delay
@@ -69,20 +95,35 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
 
 def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
     """
-    Compute the interval histogram of the given activation function via a
-    bank of comb filters.
+    Compute the interval histogram of the given (beat) activation function via
+    a bank of resonating comb filters as in [1]_.
 
-    :param activations: the activation function
-    :param alpha:       scaling factor for the comb filter
-    :param min_tau:     minimal delta for correlation function [frames]
-    :param max_tau:     maximal delta for correlation function [frames]
-    :return:            histogram
+    Parameters
+    ----------
+    activations : numpy array
+        Beat activation function.
+    alpha : float or numpy array
+        Scaling factor for the comb filter; if only a single value is given,
+        the same scaling factor for all delays is assumed.
+    min_tau : int, optional
+        Minimal delay for the comb filter [frames].
+    max_tau : int, optional
+        Maximal delta for comb filter [frames].
 
-    "Accurate Tempo Estimation based on Recurrent Neural Networks and
-     Resonating Comb Filters"
-    Sebastian Böck, Florian Krebs and Gerhard Widmer
-    Proceedings of the 16th International Society for Music Information
-    Retrieval Conference (ISMIR), 2015.
+    Returns
+    -------
+    histogram_bins : numpy array
+        Bins of the tempo histogram.
+    histogram_delays : numpy array
+        Corresponding delays [frames].
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Accurate Tempo Estimation based on Recurrent Neural Networks and
+           Resonating Comb Filters",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
 
     """
     # import comb filter
@@ -123,9 +164,23 @@ def dominant_interval(histogram, smooth=None):
     """
     Extract the dominant interval of the given histogram.
 
-    :param histogram: histogram with interval distribution
-    :param smooth:    smooth the histogram with the given kernel (size)
-    :return:          dominant interval
+    Parameters
+    ----------
+    histogram : tuple
+        Histogram (tuple of 2 numpy arrays, the first giving the strengths of
+        the bins and the second corresponding delay values).
+    smooth : int or numpy array, optional
+        Smooth the histogram with the given kernel (size).
+
+    Returns
+    -------
+    interval : int
+        Dominant interval.
+
+    Notes
+    -----
+    If `smooth` is an integer, a Hamming window of that length will be used as
+    a smoothing kernel.
 
     """
     # smooth the histogram bins
@@ -140,10 +195,19 @@ def detect_tempo(histogram, fps):
     """
     Extract the tempo from the given histogram.
 
-    :param histogram: tempo histogram
-    :param fps:       frames per second (needed for conversion to BPM)
-    :return:          numpy array with the dominant tempi (first column)
-                      and their relative strengths (second column)
+    Parameters
+    ----------
+    histogram : tuple
+        Histogram (tuple of 2 numpy arrays, the first giving the strengths of
+        the bins and the second corresponding delay values).
+    fps : float
+        Frames per second.
+
+    Returns
+    -------
+    tempi : numpy array
+        Numpy array with the dominant tempi [bpm] (first column) and their
+        relative strengths (second column).
 
     """
     # histogram of IBIs
@@ -181,11 +245,28 @@ class TempoEstimationProcessor(Processor):
     """
     Tempo Estimation Processor class.
 
+    Parameters
+    ----------
+    method : {'comb', 'acf', 'dbn'}
+        Method used for tempo estimation.
+    min_bpm : float, optional
+        Minimum tempo to detect [bpm].
+    max_bpm : float, optional
+        Maximum tempo to detect [bpm].
+    act_smooth : float, optional (default: 0.14)
+        Smooth the activation function over `act_smooth` seconds.
+    hist_smooth : int, optional (default: 7)
+        Smooth the tempo histogram over `hist_smooth` bins.
+    alpha : float, optional
+        Scaling factor for the comb filter.
+    fps : float, optional
+        Frames per second.
+
     """
     # default values for tempo estimation
     METHOD = 'comb'
-    MIN_BPM = 40
-    MAX_BPM = 250
+    MIN_BPM = 40.
+    MAX_BPM = 250.
     HIST_SMOOTH = 7
     ACT_SMOOTH = 0.14
     ALPHA = 0.79
@@ -193,19 +274,7 @@ class TempoEstimationProcessor(Processor):
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
                  fps=None, **kwargs):
-        """
-        Estimates the tempo of the signal.
-
-        :param method:      method used for tempo estimation {'acf', 'comb'}.
-        :param min_bpm:     minimum tempo to detect
-        :param max_bpm:     maximum tempo to detect
-        :param act_smooth:  smooth the activation function over N seconds
-        :param hist_smooth: smooth the activation function over N bins
-        :param alpha:       scaling factor for the comb filter
-
-        """
         # pylint: disable=unused-argument
-
         # save variables
         self.method = method
         self.min_bpm = min_bpm
@@ -227,11 +296,18 @@ class TempoEstimationProcessor(Processor):
 
     def process(self, activations):
         """
-        Detect the tempi from the beat activations.
+        Detect the tempi from the (beat) activations.
 
-        :param activations: RNN beat activation function
-        :return:            numpy array with the dominant tempi (first column)
-                            and their relative strengths (second column)
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
 
         """
         # smooth the activations
@@ -248,8 +324,17 @@ class TempoEstimationProcessor(Processor):
         """
         Compute the histogram of the beat intervals with the selected method.
 
-        :param activations: RNN beat activation function
-        :return:            beat interval histogram
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
 
         """
         # build the tempo (i.e. inter beat interval) histogram and return it
@@ -285,8 +370,16 @@ class TempoEstimationProcessor(Processor):
         """
         Extract the dominant interval of the given histogram.
 
-        :param histogram: histogram with interval distribution
-        :return:          dominant interval
+        Parameters
+        ----------
+        histogram : tuple
+            Histogram (tuple of 2 numpy arrays, the first giving the strengths
+            of the bins and the second corresponding delay values).
+
+        Returns
+        -------
+        interval : int
+            Dominant interval.
 
         """
         # return the dominant interval
@@ -299,14 +392,31 @@ class TempoEstimationProcessor(Processor):
         """
         Add tempo estimation related arguments to an existing parser.
 
-        :param parser:      existing argparse parser
-        :param method:      {'acf', 'comb', 'dbn'}
-        :param min_bpm:     minimum tempo [bpm]
-        :param max_bpm:     maximum tempo [bpm]
-        :param act_smooth:  smooth the activations over N seconds
-        :param hist_smooth: smooth the tempo histogram over N bins
-        :param alpha:       scaling factor of the comb filter
-        :return:            tempo argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser.
+        method : {'comb', 'acf', 'dbn'}
+            Method used for tempo estimation.
+        min_bpm : float, optional
+            Minimum tempo to detect [bpm].
+        max_bpm : float, optional
+            Maximum tempo to detect [bpm].
+        act_smooth : float, optional
+            Smooth the activation function over `act_smooth` seconds.
+        hist_smooth : int, optional
+            Smooth the tempo histogram over `hist_smooth` bins.
+        alpha : float, optional
+            Scaling factor for the comb filter.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            Tempo argument parser group.
+
+        Notes
+        -----
+        Parameters are included in the group only if they are not 'None'.
 
         """
         # add tempo estimation related options to the existing parser
@@ -347,10 +457,24 @@ def write_tempo(tempi, filename, mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
-    :param tempi:    array with the detected tempi and their strengths
-    :param filename: output file name or file handle
-    :param mirex:    report the lower tempo first (as required by MIREX)
-    :return:         the most dominant tempi and the relative strength
+    Parameters
+    ----------
+    tempi : numpy array
+        Array with the detected tempi (first column) and their strengths
+        (second column).
+    filename : str or file handle
+        Output file.
+    mirex : bool, optional
+        Report the lower tempo first (as required by MIREX).
+
+    Returns
+    -------
+    tempo_1 : float
+        The most dominant tempo.
+    tempo_2 : float
+        The second most dominant tempo.
+    strength : float
+        Their relative strength.
 
     """
     # default values

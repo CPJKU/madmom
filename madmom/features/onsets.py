@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains onset detection related functionality.
+This module contains onset detection related functionality.
 
 """
 
@@ -26,8 +26,15 @@ def wrap_to_pi(phase):
     """
     Wrap the phase information to the range -π...π.
 
-    :param phase: phase spectrogram
-    :return:      wrapped phase spectrogram
+    Parameters
+    ----------
+    phase : numpy array
+        Phase of the STFT.
+
+    Returns
+    -------
+    wrapped_phase : numpy array
+        Wrapped phase.
 
     """
     return np.mod(phase + np.pi, 2.0 * np.pi) - np.pi
@@ -39,22 +46,33 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     N-th previous frame shifted in frequency to achieve the highest
     correlation between these two frames.
 
-    :param spec:        the magnitude spectrogram
-    :param diff_frames: calculate the difference to the N-th previous frame
-    :param pos:         keep only positive values
-    :param diff_bins:   maximum number of bins shifted for correlation
-                        calculation
-    :return:            (positive) magnitude spectrogram differences
+    Parameters
+    ----------
+    spec : numpy array
+        Magnitude spectrogram.
+    diff_frames : int, optional
+        Calculate the difference to the `diff_frames`-th previous frame.
+    pos : bool, optional
+        Keep only positive values.
+    diff_bins : int, optional
+        Maximum number of bins shifted for correlation calculation.
 
-    Note: This function is only because of completeness, it is not intended to
-          be actually used, since it is extremely slow. Please consider the
-          superflux() function, since if performs equally well but much faster.
+    Returns
+    -------
+    correlation_diff : numpy array
+        (Positive) magnitude spectrogram differences.
+
+    Notes
+    -----
+    This function is only because of completeness, it is not intended to be
+    actually used, since it is extremely slow. Please consider the superflux()
+    function, since if performs equally well but much faster.
 
     """
     # init diff matrix
     diff_spec = np.zeros_like(spec)
     if diff_frames < 1:
-        raise ValueError("number of diff_frames must be >= 1")
+        raise ValueError("number of `diff_frames` must be >= 1")
     # calculate the diff
     frames, bins = diff_spec.shape
     corr = np.zeros((frames, diff_bins * 2 + 1))
@@ -86,13 +104,22 @@ def high_frequency_content(spectrogram):
     """
     High Frequency Content.
 
-    :param spectrogram: Spectrogram instance
-    :return:            high frequency content onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        Spectrogram instance.
 
-    "Computer Modeling of Sound for Transformation and Synthesis of Musical
-     Signals"
-    Paul Masri
-    PhD thesis, University of Bristol, 1996.
+    Returns
+    -------
+    high_frequency_content : numpy array
+        High frequency content onset detection function.
+
+    References
+    ----------
+    .. [1] Paul Masri,
+           "Computer Modeling of Sound for Transformation and Synthesis of
+           Musical Signals",
+           PhD thesis, University of Bristol, 1996.
 
     """
     # HFC emphasizes high frequencies by weighting the magnitude spectrogram
@@ -104,14 +131,24 @@ def spectral_diff(spectrogram, diff_frames=None):
     """
     Spectral Diff.
 
-    :param spectrogram: Spectrogram instance
-    :param diff_frames: number of frames to calculate the diff to [int]
-    :return:            spectral diff onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        Spectrogram instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
 
-    "A hybrid approach to musical note onset detection"
-    Chris Duxbury, Mark Sandler and Matthew Davis
-    Proceedings of the 5th International Conference on Digital Audio Effects
-    (DAFx), 2002.
+    Returns
+    -------
+    spectral_diff : numpy array
+        Spectral diff onset detection function.
+
+    References
+    ----------
+    .. [1] Chris Duxbury, Mark Sandler and Matthew Davis,
+           "A hybrid approach to musical note onset detection",
+           Proceedings of the 5th International Conference on Digital Audio
+           Effects (DAFx), 2002.
 
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
@@ -126,14 +163,24 @@ def spectral_flux(spectrogram, diff_frames=None):
     """
     Spectral Flux.
 
-    :param spectrogram: Spectrogram instance
-    :param diff_frames: number of frames to calculate the diff to [int]
-    :return:            spectral flux onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        Spectrogram instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
 
-    "Computer Modeling of Sound for Transformation and Synthesis of Musical
-     Signals"
-    Paul Masri
-    PhD thesis, University of Bristol, 1996.
+    Returns
+    -------
+    spectral_flux : numpy array
+        Spectral flux onset detection function.
+
+    References
+    ----------
+    .. [1] Paul Masri,
+           "Computer Modeling of Sound for Transformation and Synthesis of
+           Musical Signals",
+           PhD thesis, University of Bristol, 1996.
 
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
@@ -151,22 +198,34 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
     Calculates the difference of bin k of the magnitude spectrogram relative to
     the N-th previous frame with the maximum filtered spectrogram.
 
-    :param spectrogram:   Spectrogram instance
-    :param diff_frames:   number of frames to calculate the diff to [int]
-    :param diff_max_bins: number of bins used for maximum filter [int]
-    :return:              SuperFlux onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        Spectrogram instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
+    diff_max_bins : int, optional
+        Number of bins used for maximum filter.
 
-    "Maximum Filter Vibrato Suppression for Onset Detection"
-    Sebastian Böck and Gerhard Widmer
-    Proceedings of the 16th International Conference on Digital Audio Effects
-    (DAFx), 2013.
+    Returns
+    -------
+    superflux : numpy array
+        SuperFlux onset detection function.
 
-    Note: this method works only properly, if the spectrogram is filtered with
-          a filterbank of the right frequency spacing. Filter banks with 24
-          bands per octave (i.e. quarter-tone resolution) usually yield good
-          results. With `max_bins` = 3, the maximum of the bins k-1, k, k+1 of
-          the frame `diff_frames` to the left is used for the calculation of
-          the difference.
+    Notes
+    -----
+    This method works only properly, if the spectrogram is filtered with a
+    filterbank of the right frequency spacing. Filter banks with 24 bands per
+    octave (i.e. quarter-tone resolution) usually yield good results. With
+    `max_bins` = 3, the maximum of the bins k-1, k, k+1 of the frame
+    `diff_frames` to the left is used for the calculation of the difference.
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Gerhard Widmer,
+           "Maximum Filter Vibrato Suppression for Onset Detection",
+           Proceedings of the 16th International Conference on Digital Audio
+           Effects (DAFx), 2013.
 
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
@@ -183,20 +242,36 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
 def complex_flux(spectrogram, diff_frames=None, diff_max_bins=3,
                  temporal_filter=3, temporal_origin=0):
     """
-    Complex Flux with a local group delay based tremolo suppression.
+    ComplexFlux.
 
-    :param spectrogram:     Spectrogram instance
-    :param diff_frames:     number of frames to calculate the diff to [int]
-    :param diff_max_bins:   number of bins used for maximum filter [int]
-    :param temporal_filter: temporal maximum filtering of the local group delay
-    :param temporal_origin: origin of the temporal maximum filter
-    :return:                complex flux onset detection function
+    ComplexFlux is based on the SuperFlux, but adds an additional local group
+    delay based tremolo suppression.
 
-    "Local group delay based vibrato and tremolo suppression for onset
-     detection"
-    Sebastian Böck and Gerhard Widmer.
-    Proceedings of the 13th International Society for Music Information
-    Retrieval Conference (ISMIR), 2013.
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
+    diff_max_bins : int, optional
+        Number of bins used for maximum filter.
+    temporal_filter : int, optional
+        Temporal maximum filtering of the local group delay [frames].
+    temporal_origin : int, optional
+        Origin of the temporal maximum filter.
+
+    Returns
+    -------
+    complex_flux : numpy array
+        ComplexFlux onset detection function.
+
+    References
+    ----------
+    .. [1] Sebastian Böck and Gerhard Widmer,
+           "Local group delay based vibrato and tremolo suppression for onset
+           detection",
+           Proceedings of the 14th International Society for Music Information
+           Retrieval Conference (ISMIR), 2013.
 
     """
     # create a mask based on the local group delay information
@@ -243,20 +318,35 @@ def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
     """
     Modified Kullback-Leibler.
 
-    :param spectrogram: Spectrogram instance
-    :param diff_frames: number of frames to calculate the diff to [int]
-    :param epsilon:     add epsilon to avoid division by 0
-    :return:            MKL onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
+    epsilon : float, optional
+        Add `epsilon` to the `spectrogram` avoid division by 0.
 
-    Note: the implementation presented in:
-    "Automatic Annotation of Musical Audio for Interactive Applications"
-    Paul Brossier
-    PhD thesis, Queen Mary University of London, 2006
+    Returns
+    -------
+    modified_kullback_leibler : numpy array
+         MKL onset detection function.
 
-    is used instead of the original work:
-    "Onset Detection in Musical Audio Signals"
-    Stephen Hainsworth and Malcolm Macleod
-    Proceedings of the International Computer Music Conference (ICMC), 2003.
+    Notes
+    -----
+    The implementation presented in [1]_ is used instead of the original work
+    presented in [2]_.
+
+    References
+    ----------
+    .. [1] Paul Brossier,
+           "Automatic Annotation of Musical Audio for Interactive
+           Applications",
+           PhD thesis, Queen Mary University of London, 2006.
+    .. [2] Stephen Hainsworth and Malcolm Macleod,
+           "Onset Detection in Musical Audio Signals",
+           Proceedings of the International Computer Music Conference (ICMC),
+           2003.
 
     """
     if epsilon <= 0:
@@ -273,8 +363,15 @@ def _phase_deviation(phase):
     """
     Helper function used by phase_deviation() & weighted_phase_deviation().
 
-    :param phase: the phase spectrogram
-    :return:      phase deviation
+    Parameters
+    ----------
+    phase : numpy array
+        Phase of the STFT.
+
+    Returns
+    -------
+    numpy array
+        Phase deviation.
 
     """
     pd = np.zeros_like(phase)
@@ -291,13 +388,22 @@ def phase_deviation(spectrogram):
     """
     Phase Deviation.
 
-    :param spectrogram: Spectrogram instance
-    :return:            phase deviation onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
 
-    "On the use of phase and energy for musical onset detection in the complex
-     domain"
-    Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
-    IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
+    Returns
+    -------
+    phase_deviation : numpy array
+        Phase deviation onset detection function.
+
+    References
+    ----------
+    .. [1] Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler,
+           "On the use of phase and energy for musical onset detection in the
+           complex domain",
+           IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
 
     """
     # take the mean of the absolute changes in instantaneous frequency
@@ -308,13 +414,22 @@ def weighted_phase_deviation(spectrogram):
     """
     Weighted Phase Deviation.
 
-    :param spectrogram: Spectrogram instance
-    :return:            weighted phase deviation onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
 
-    "Onset Detection Revisited"
-    Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006.
+    Returns
+    -------
+    weighted_phase_deviation : numpy array
+        Weighted phase deviation onset detection function.
+
+    References
+    ----------
+    .. [1] Simon Dixon,
+           "Onset Detection Revisited",
+           Proceedings of the 9th International Conference on Digital Audio
+           Effects (DAFx), 2006.
 
     """
     # cache phase
@@ -330,15 +445,24 @@ def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
     """
     Normalized Weighted Phase Deviation.
 
-    :param spectrogram: Spectrogram instance
-    :param epsilon:     add epsilon to avoid division by 0
-    :return:            normalized weighted phase deviation onset detection
-                        function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    epsilon : float, optional
+        Add `epsilon` to the `spectrogram` avoid division by 0.
 
-    "Onset Detection Revisited"
-    Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006.
+    Returns
+    -------
+    normalized_weighted_phase_deviation : numpy array
+        Normalized weighted phase deviation onset detection function.
+
+    References
+    ----------
+    .. [1] Simon Dixon,
+           "Onset Detection Revisited",
+           Proceedings of the 9th International Conference on Digital Audio
+           Effects (DAFx), 2006.
 
     """
     if epsilon <= 0:
@@ -353,15 +477,26 @@ def _complex_domain(spectrogram):
     """
     Helper method used by complex_domain() & rectified_complex_domain().
 
-    :param spectrogram: Spectrogram instance
-    :return:            complex domain
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
 
-    Note: we use the simple implementation presented in:
+    Returns
+    -------
+    numpy array
+        Complex domain onset detection function.
 
-    "Onset Detection Revisited"
-    Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006.
+    Notes
+    -----
+    We use the simple implementation presented in [1]_.
+
+    References
+    ----------
+    .. [1] Simon Dixon,
+           "Onset Detection Revisited",
+           Proceedings of the 9th International Conference on Digital Audio
+           Effects (DAFx), 2006.
 
     """
     # cache phase
@@ -386,13 +521,22 @@ def complex_domain(spectrogram):
     """
     Complex Domain.
 
-    :param spectrogram: Spectrogram instance
-    :return:            complex domain onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
 
-    "On the use of phase and energy for musical onset detection in the complex
-     domain"
-    Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler
-    IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
+    Returns
+    -------
+    complex_domain : numpy array
+        Complex domain onset detection function.
+
+    References
+    ----------
+    .. [1] Juan Pablo Bello, Chris Duxbury, Matthew Davies and Mark Sandler,
+           "On the use of phase and energy for musical onset detection in the
+           complex domain",
+           IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
 
     """
     # take the sum of the absolute changes
@@ -403,14 +547,24 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
     """
     Rectified Complex Domain.
 
-    :param spectrogram: Spectrogram instance
-    :param diff_frames: number of frames to calculate the diff to [int]
-    :return:            rectified complex domain onset detection function
+    Parameters
+    ----------
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
+    diff_frames : int, optional
+        Number of frames to calculate the diff to.
 
-    "Onset Detection Revisited"
-    Simon Dixon
-    Proceedings of the 9th International Conference on Digital Audio Effects
-    (DAFx), 2006.
+    Returns
+    -------
+    rectified_complex_domain : numpy array
+        Rectified complex domain onset detection function.
+
+    References
+    ----------
+    .. [1] Simon Dixon,
+           "Onset Detection Revisited",
+           Proceedings of the 9th International Conference on Digital Audio
+           Effects (DAFx), 2006.
 
     """
     # if the diff of a spectrogram is given, do not calculate the diff twice
@@ -430,6 +584,11 @@ class SpectralOnsetProcessor(Processor):
     detection functions based on the magnitude or phase information of a
     spectrogram.
 
+    Parameters
+    ----------
+    onset_method : str, optional
+        Onset detection function. See `METHODS` for possible values.
+
     """
     FRAME_SIZE = 2048
     FPS = 200
@@ -445,22 +604,22 @@ class SpectralOnsetProcessor(Processor):
                'rectified_complex_domain']
 
     def __init__(self, onset_method='superflux', **kwargs):
-        """
-        Creates a new SpectralOnsetDetection instance.
-
-        :param onset_method:        onset detection function
-
-        """
         # pylint: disable=unused-argument
-
         self.method = onset_method
 
     def process(self, spectrogram):
         """
         Detect the onsets in the given activation function.
 
-        :param spectrogram: Spectrogram instance
-        :return:            onsets detection function
+        Parameters
+        ----------
+        spectrogram : :class:`Spectrogram` instance
+            :class:`Spectrogram` instance.
+
+        Returns
+        -------
+        odf : numpy array
+            Onset detection function.
 
         """
         return globals()[self.method](spectrogram)
@@ -470,9 +629,17 @@ class SpectralOnsetProcessor(Processor):
         """
         Add spectral onset detection arguments to an existing parser.
 
-        :param parser:       existing argparse parser
-        :param onset_method: default ODF method
-        :return:             spectral onset detection argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        onset_method : str, optional
+            Default onset detection method.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            Spectral onset detection argument parser group.
 
         """
         # add onset detection method arguments to the existing parser
@@ -492,27 +659,46 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     """
     Perform thresholding and peak-picking on the given activation function.
 
-    :param activations: the activation function
-    :param threshold:   threshold for peak-picking
-    :param smooth:      smooth the activation function with the kernel
-    :param pre_avg:     use N frames past information for moving average
-    :param post_avg:    use N frames future information for moving average
-    :param pre_max:     use N frames past information for moving maximum
-    :param post_max:    use N frames future information for moving maximum
-    :return:            indices of the detected peaks
+    Parameters
+    ----------
+    activations : numpy array
+        Activation function.
+    threshold : float
+        Threshold for peak-picking
+    smooth : int or numpy array
+        Smooth the activation function with the kernel (size).
+    pre_avg : int, optional
+        Use `pre_avg` frames past information for moving average.
+    post_avg : int, optional
+        Use `post_avg` frames future information for moving average.
+    pre_max : int, optional
+        Use `pre_max` frames past information for moving maximum.
+    post_max : int, optional
+        Use `post_max` frames future information for moving maximum.
 
-    Notes: If no moving average is needed (e.g. the activations are independent
-           of the signal's level as for neural network activations), set
-           `pre_avg` and `post_avg` to 0.
+    Returns
+    -------
+    peak_idx : numpy array
+        Indices of the detected peaks.
 
-           For offline peak picking, set `pre_max` and `post_max` to 1.
+    See Also
+    --------
+    :func:`smooth`
 
-           For online peak picking, set all `post_` parameters to 0.
+    Notes
+    -----
+    If no moving average is needed (e.g. the activations are independent of
+    the signal's level as for neural network activations), set `pre_avg` and
+    `post_avg` to 0.
+    For peak picking of local maxima, set `pre_max` and  `post_max` to 1.
+    For online peak picking, set all `post_` parameters to 0.
 
-    "Evaluating the Online Capabilities of Onset Detection Methods"
-    Sebastian Böck, Florian Krebs and Markus Schedl
-    Proceedings of the 13th International Society for Music Information
-    Retrieval Conference (ISMIR), 2012.
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Markus Schedl,
+           "Evaluating the Online Capabilities of Onset Detection Methods",
+           Proceedings of the 13th International Society for Music Information
+           Retrieval Conference (ISMIR), 2012.
 
     """
     # smooth activations
@@ -528,7 +714,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         elif activations.ndim == 2:
             filter_size = [avg_length, 1]
         else:
-            raise ValueError('activations must be either 1D or 2D')
+            raise ValueError('`activations` must be either 1D or 2D')
         mov_avg = uniform_filter(activations, filter_size, mode='constant',
                                  origin=avg_origin)
     else:
@@ -546,7 +732,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         elif activations.ndim == 2:
             filter_size = [max_length, 1]
         else:
-            raise ValueError('activations must be either 1D or 2D')
+            raise ValueError('`activations` must be either 1D or 2D')
         mov_max = maximum_filter(detections, filter_size, mode='constant',
                                  origin=max_origin)
         # detections are peak positions
@@ -557,7 +743,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
     elif activations.ndim == 2:
         return np.nonzero(detections)
     else:
-        raise ValueError('activations must be either 1D or 2D')
+        raise ValueError('`activations` must be either 1D or 2D')
 
 
 class PeakPickingProcessor(Processor):
@@ -565,6 +751,50 @@ class PeakPickingProcessor(Processor):
     This class implements the onset peak-picking functionality which can be
     used universally. It transparently converts the chosen values from seconds
     to frames.
+
+    Parameters
+    ----------
+    threshold : float
+        Threshold for peak-picking.
+    smooth : float, optional
+        Smooth the activation function over `smooth` seconds.
+    pre_avg : float, optional
+        Use `pre_avg` seconds past information for moving average.
+    post_avg : float, optional
+        Use `post_avg` seconds future information for moving average.
+    pre_max : float, optional
+        Use `pre_max` seconds past information for moving maximum.
+    post_max : float, optional
+        Use `post_max` seconds future information for moving maximum.
+    combine : float, optional
+        Only report one onset within `combine` seconds.
+    delay : float, optional
+        Report the detected onsets `delay` seconds delayed.
+    online : bool, optional
+        Use online peak-picking, i.e. no future information.
+    fps : float, optional
+        Frames per second used for conversion of timings.
+
+    Returns
+    -------
+    onsets : numpy array
+        Detected onsets [seconds].
+
+    Notes
+    -----
+    If no moving average is needed (e.g. the activations are independent of
+    the signal's level as for neural network activations), `pre_avg` and
+    `post_avg` should be set to 0.
+    For peak picking of local maxima, set `pre_max` >= 1. / `fps` and
+    `post_max` >= 1. / `fps`.
+    For online peak picking, all `post_` parameters are set to 0.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Markus Schedl,
+           "Evaluating the Online Capabilities of Onset Detection Methods",
+           Proceedings of the 13th International Society for Music Information
+           Retrieval Conference (ISMIR), 2012.
 
     """
     FPS = 100
@@ -582,40 +812,10 @@ class PeakPickingProcessor(Processor):
                  post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
                  combine=COMBINE, delay=DELAY, online=ONLINE, fps=FPS,
                  **kwargs):
-        """
-        Creates a new PeakPicking instance.
-
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param pre_avg:   use N seconds past information for moving average
-        :param post_avg:  use N seconds future information for moving average
-        :param pre_max:   use N seconds past information for moving maximum
-        :param post_max:  use N seconds future information for moving maximum
-        :param combine:   only report one onset within N seconds
-        :param delay:     report onsets N seconds delayed
-        :param online:    use online peak-picking (i.e. no future information)
-        :param fps:       frames per second used for conversion of timings
-
-        Notes: If no moving average is needed (e.g. the activations are
-               independent of the signal's level as for neural network
-               activations), `pre_avg` and `post_avg` should be set to 0.
-
-               For peak picking of local maxima set `pre_max` >= 1. / `fps` and
-               `post_max` >= 1. / `fps`.
-
-               For online peak picking, all `post_` parameters are set to 0.
-
-        "Evaluating the Online Capabilities of Onset Detection Methods"
-        Sebastian Böck, Florian Krebs and Markus Schedl
-        Proceedings of the 13th International Society for Music Information
-        Retrieval Conference (ISMIR), 2012.
-
-        """
         # pylint: disable=unused-argument
-
-        # # make this an IOProcessor by defining input and output processings
-        # super(PeakPicking, self).__init__(peak_picking, write_events)
-        # adjust some params for online mode
+        # TODO: make this an IOProcessor by defining input/output processings
+        #       super(PeakPicking, self).__init__(peak_picking, write_events)
+        #       adjust some params for online mode?
         if online:
             smooth = 0
             post_avg = 0
@@ -634,8 +834,15 @@ class PeakPickingProcessor(Processor):
         """
         Detect the onsets in the given activation function.
 
-        :param activations: onset activation function
-        :return:            detected onsets
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected onsets [seconds].
 
         """
         # convert timing information to frames and set default values
@@ -705,17 +912,34 @@ class PeakPickingProcessor(Processor):
         """
         Add onset peak-picking related arguments to an existing parser.
 
-        :param parser:    existing argparse parser
-        :param threshold: threshold for peak-picking
-        :param smooth:    smooth the activation function over N seconds
-        :param pre_avg:   use N seconds past information for moving average
-        :param post_avg:  use N seconds future information for moving average
-        :param pre_max:   use N seconds past information for moving maximum
-        :param post_max:  use N seconds future information for moving maximum
-        :param combine:   only report one event within N seconds
-        :param delay:     report events N seconds delayed
-        :return:          onset peak-picking argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        threshold : float
+            Threshold for peak-picking.
+        smooth : float, optional
+            Smooth the activation function over `smooth` seconds.
+        pre_avg : float, optional
+            Use `pre_avg` seconds past information for moving average.
+        post_avg : float, optional
+            Use `post_avg` seconds future information for moving average.
+        pre_max : float, optional
+            Use `pre_max` seconds past information for moving maximum.
+        post_max : float, optional
+            Use `post_max` seconds future information for moving maximum.
+        combine : float, optional
+            Only report one onset within `combine` seconds.
+        delay : float, optional
+            Report the detected onsets `delay` seconds delayed.
 
+        Returns
+        -------
+        parser_group : argparse argument group
+            Onset peak-picking argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """

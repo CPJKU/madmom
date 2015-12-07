@@ -4,7 +4,7 @@
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
 """
-This file contains recurrent neural network (RNN) related functionality.
+This module contains recurrent neural network (RNN) related functionality.
 
 It's main purpose is to serve as a substitute for testing neural networks
 which were trained by other ML packages or programs without requiring these
@@ -36,9 +36,17 @@ def linear(x, out=None):
     """
     Linear function.
 
-    :param x:   input data
-    :param out: numpy array to hold the output data
-    :return:    unaltered input data
+    Parameters
+    ----------
+    x : numpy array
+        Input data.
+    out : numpy array, optional
+        Array to hold the output data.
+
+    Returns
+    -------
+    numpy array
+        Unaltered input data.
 
     """
     if out is None or x is out:
@@ -54,9 +62,17 @@ def _sigmoid(x, out=None):
     """
     Logistic sigmoid function.
 
-    :param x:   input data
-    :param out: numpy array to hold the output data
-    :return:    logistic sigmoid of input data
+    Parameters
+    ----------
+    x : numpy array
+        Input data.
+    out : numpy array, optional
+        Array to hold the output data.
+
+    Returns
+    -------
+    numpy array
+        Logistic sigmoid of input data.
 
     """
     # sigmoid = 0.5 * (1. + np.tanh(0.5 * x))
@@ -94,9 +110,17 @@ def relu(x, out=None):
     """
     Rectified linear (unit) transfer function.
 
-    :param x:   input data
-    :param out: numpy array to hold the output data
-    :return:    rectified linear of input data
+    Parameters
+    ----------
+    x : numpy array
+        Input data.
+    out : numpy array, optional
+        Array to hold the output data.
+
+    Returns
+    -------
+    numpy array
+        Rectified linear of input data.
 
     """
     if out is None:
@@ -109,9 +133,17 @@ def softmax(x, out=None):
     """
     Softmax transfer function.
 
-    :param x:   input data
-    :param out: numpy array to hold the output data
-    :return:    softmax of input data
+    Parameters
+    ----------
+    x : numpy array
+        Input data.
+    out : numpy array, optional
+        Array to hold the output data.
+
+    Returns
+    -------
+    numpy array
+        Softmax of input data.
 
     """
     # determine maximum (over classes)
@@ -132,17 +164,18 @@ class FeedForwardLayer(object):
     """
     Feed-forward network layer.
 
+    Parameters
+    ----------
+    weights : numpy array, shape ()
+        Weights.
+    bias : scalar or numpy array, shape ()
+        Bias.
+    transfer_fn : numpy ufunc
+        Transfer function.
+
     """
 
     def __init__(self, weights, bias, transfer_fn):
-        """
-        Create a new Layer.
-
-        :param weights:     weights (2D matrix)
-        :param bias:        bias (1D vector or scalar)
-        :param transfer_fn: transfer function [numpy ufunc]
-
-        """
         self.weights = weights.copy()
         self.bias = bias.flatten()
         self.transfer_fn = transfer_fn
@@ -151,8 +184,15 @@ class FeedForwardLayer(object):
         """
         Activate the layer.
 
-        :param data: activate with this data
-        :return:     activations for this data
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
 
         """
         # weight the data, add bias and apply transfer function
@@ -163,18 +203,20 @@ class RecurrentLayer(FeedForwardLayer):
     """
     Recurrent network layer.
 
+    Parameters
+    ----------
+    weights : numpy array, shape ()
+        Weights.
+    bias : scalar or numpy array, shape ()
+        Bias.
+    recurrent_weights : numpy array, shape ()
+        Recurrent weights.
+    transfer_fn : numpy ufunc
+        Transfer function.
+
     """
 
     def __init__(self, weights, bias, recurrent_weights, transfer_fn):
-        """
-        Create a new Layer.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-        :param transfer_fn:       transfer function [numpy ufunc]
-
-        """
         super(RecurrentLayer, self).__init__(weights, bias, transfer_fn)
         self.recurrent_weights = recurrent_weights.copy()
 
@@ -182,8 +224,15 @@ class RecurrentLayer(FeedForwardLayer):
         """
         Activate the layer.
 
-        :param data: activate with this data
-        :return:     activations for this data
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
 
         """
         # if we don't have recurrent weights, we don't have to loop
@@ -214,16 +263,16 @@ class BidirectionalLayer(object):
     """
     Bidirectional network layer.
 
+    Parameters
+    ----------
+    fwd_layer : Layer instance
+        Forward layer.
+    bwd_layer : Layer instance
+        Backward layer.
+
     """
 
     def __init__(self, fwd_layer, bwd_layer):
-        """
-        Create a new BidirectionalLayer.
-
-        :param fwd_layer: forward layer
-        :param bwd_layer: backward layer
-
-        """
         self.fwd_layer = fwd_layer
         self.bwd_layer = bwd_layer
 
@@ -231,8 +280,19 @@ class BidirectionalLayer(object):
         """
         Activate the layer.
 
-        :param data: activate with this data
-        :return:     activations for this data
+        After activating the `fwd_layer` with the data and the `bwd_layer` with
+        the data in reverse temporal order, the two activations are stacked and
+        returned.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
 
         """
         # activate in forward direction
@@ -248,21 +308,25 @@ class Cell(object):
     """
     Cell as used by LSTM units.
 
+    Parameters
+    ----------
+    weights : numpy array, shape ()
+        Weights.
+    bias : scalar or numpy array, shape ()
+        Bias.
+    recurrent_weights : numpy array, shape ()
+        Recurrent weights.
+    transfer_fn : numpy ufunc, optional
+        Transfer function.
+
     """
 
     def __init__(self, weights, bias, recurrent_weights, transfer_fn=tanh):
-        """
-        Create a new cell as used by LSTM units.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-        :param transfer_fn:       transfer function [numpy ufunc]
-
-        """
         self.weights = weights.copy()
         self.bias = bias.flatten()
         self.recurrent_weights = recurrent_weights.copy()
+        # Note: define the peephole_weights here, so we don't have to define a
+        #       different activate() method for the Gate subclass
         self.peephole_weights = None
         self.transfer_fn = transfer_fn
         self.cell = np.zeros(self.bias.size, dtype=NN_DTYPE)
@@ -270,15 +334,23 @@ class Cell(object):
 
     def activate(self, data, prev, state=None):
         """
-        Activate the cell with the given data, state (if peephole connections
-        are used) and the output (if recurrent connections are used).
+        Activate the cell / gate with the given data, state (if peephole
+        connections are used) and the output (if recurrent connections are
+        used).
 
-        :param data:  input data for the cell (1D vector or scalar)
-        :param prev:  output data of the previous time step (1D vector or
-                      scalar)
-        :param state: state data of the {current | previous} time step (1D
-                      vector or scalar)
-        :return:      activations of the gate
+        Parameters
+        ----------
+        data : scalar or numpy array, shape ()
+            Input data for the cell.
+        prev : scalar or numpy array, shape ()
+            Output data of the previous time step.
+        state : scalar or numpy array, shape ()
+            State data of the {current | previous} time step.
+
+        Returns
+        -------
+        numpy array
+            Activations of the gare for this data.
 
         """
         # weight input and add bias
@@ -301,20 +373,23 @@ class Gate(Cell):
     """
     Gate as used by LSTM units.
 
+    Parameters
+    ----------
+    weights : numpy array, shape ()
+        Weights.
+    bias : scalar or numpy array, shape ()
+        Bias.
+    recurrent_weights : numpy array, shape ()
+        Recurrent weights.
+    peephole_weights : numpy array, shape ()
+        Peephole weights.
+    transfer_fn : numpy ufunc, optional
+        Transfer function.
+
     """
 
     def __init__(self, weights, bias, recurrent_weights, peephole_weights,
                  transfer_fn=sigmoid):
-        """
-        Create a new {input, forget, output} Gate as used by LSTM units.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-        :param peephole_weights:  peephole weights (1D vector or scalar)
-        :param transfer_fn:       transfer function [numpy ufunc]
-
-        """
         super(Gate, self).__init__(weights, bias, recurrent_weights,
                                    transfer_fn=transfer_fn)
         self.peephole_weights = peephole_weights.flatten()
@@ -324,20 +399,23 @@ class LSTMLayer(object):
     """
     Recurrent network layer with Long Short-Term Memory units.
 
+    Parameters
+    ----------
+    weights : numpy array, shape ()
+        Weights.
+    bias : scalar or numpy array, shape ()
+        Bias.
+    recurrent_weights : numpy array, shape ()
+        Recurrent weights.
+    peephole_weights : numpy array, shape ()
+        Peephole weights.
+    transfer_fn : numpy ufunc, optional
+        Transfer function.
+
     """
 
     def __init__(self, weights, bias, recurrent_weights, peephole_weights,
                  transfer_fn=tanh):
-        """
-        Create a new LSTMLayer.
-
-        :param weights:           weights (2D matrix)
-        :param bias:              bias (1D vector or scalar)
-        :param recurrent_weights: recurrent weights (2D matrix)
-        :param peephole_weights:  peephole weights (1D vector or scalar)
-        :param transfer_fn:       transfer function [numpy ufunc]
-
-        """
         # init the gates and memory cell
         self.input_gate = Gate(weights[0::4].T, bias[0::4].T,
                                recurrent_weights[0::4].T,
@@ -354,10 +432,17 @@ class LSTMLayer(object):
 
     def activate(self, data):
         """
-        Activate the layer.
+        Activate the LSTM layer.
 
-        :param data: activate with this data
-        :return:     activations for this data
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
 
         """
         # init arrays
@@ -400,15 +485,14 @@ class RecurrentNeuralNetwork(Processor):
     """
     Recurrent Neural Network (RNN) class.
 
+    Parameters
+    ----------
+    layers : list
+        Layers of the RNN.
+
     """
 
     def __init__(self, layers=None):
-        """
-        Create a new RecurrentNeuralNetwork object.
-
-        :param layers: build a RNN instance with the given layers
-
-        """
         self.layers = layers
 
     @classmethod
@@ -416,8 +500,15 @@ class RecurrentNeuralNetwork(Processor):
         """
         Instantiate a RecurrentNeuralNetwork from a .npz model file.
 
-        :param filename: name of the .npz file with the RNN model
-        :return:         RecurrentNeuralNetwork instance
+        Parameters
+        ----------
+        filename : str
+            Name of the .npz file with the RNN model.
+
+        Returns
+        -------
+        :class:`RecurrentNeuralNetwork` instance
+            RNN instance
 
         """
         import re
@@ -431,10 +522,16 @@ class RecurrentNeuralNetwork(Processor):
         # function for layer creation with the given parameters
         def create_layer(params):
             """
-            Create a new network layer according to the given parameters.
 
-            :param params: parameters for layer creation
-            :return:       a network layer
+            Parameters
+            ----------
+            params : dict
+                Parameters for layer creation.
+
+            Returns
+            -------
+            layer : Layer instance
+                A network layer.
 
             """
             # first check if we need to create a bidirectional layer
@@ -488,8 +585,15 @@ class RecurrentNeuralNetwork(Processor):
         """
         Process the given data with the RNN.
 
-        :param data: activate the network with this data
-        :return:     network predictions for this data
+        Parameters
+        ----------
+        data : numpy array
+            Activate the network with this data.
+
+        Returns
+        -------
+        numpy array
+            Network predictions for this data.
 
         """
         # check the dimensions of the data
@@ -513,18 +617,17 @@ class RNNProcessor(ParallelProcessor):
     """
     Recurrent Neural Network (RNN) processor class.
 
+    Parameters
+    ----------
+    nn_files : list
+        List of files with the RNN models.
+    num_threads : int, optional
+        Number of parallel working threads.
+
     """
 
     def __init__(self, nn_files, num_threads=None, **kwargs):
-        """
-        Instantiates a RNNProcessor, which loads the models from files.
-
-        :param nn_files:    list of files with the RNN models
-        :param num_threads: number of parallel working threads
-
-        """
         # pylint: disable=unused-argument
-
         if len(nn_files) == 0:
             raise ValueError('at least one RNN model must be given.')
         nn_models = []
@@ -536,15 +639,22 @@ class RNNProcessor(ParallelProcessor):
     @classmethod
     def add_arguments(cls, parser, nn_files):
         """
-        Add neural network testing options to an existing parser.
+        Add recurrent neural network testing options to an existing parser.
 
-        :param parser:   existing argparse parser
-        :param nn_files: list with files of RNN models
-        :return:         neural network argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        nn_files : list
+            RNN model files.
+
+        Returns
+        -------
+        argparse argument group
+            Recurrent neural network argument parser group.
 
         """
         # pylint: disable=signature-differs
-
         from madmom.utils import OverrideDefaultListAction
         # add neural network options
         g = parser.add_argument_group('neural network arguments')
@@ -559,10 +669,17 @@ class RNNProcessor(ParallelProcessor):
 
 def average_predictions(predictions):
     """
-    Returns the average of all predictions from the list.
+    Returns the average of all predictions.
 
-    :param predictions: list with predictions (i.e. NN activation functions)
-    :return:            averaged prediction
+    Parameters
+    ----------
+    predictions : list
+        Predictions (i.e. NN activation functions).
+
+    Returns
+    -------
+    numpy array
+        Averaged prediction.
 
     """
     # average predictions if needed

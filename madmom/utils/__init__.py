@@ -17,10 +17,17 @@ import numpy as np
 # decorator to suppress warnings
 def suppress_warnings(function):
     """
-    Decorate the given function to suppress any warnings
+    Decorate the given function to suppress any warnings.
 
-    :param function: function to be decorated
-    :return:         decorated function
+    Parameters
+    ----------
+    function : function
+        Function to be decorated.
+
+    Returns
+    -------
+    decorated function
+        Decorated function.
 
     """
 
@@ -28,9 +35,17 @@ def suppress_warnings(function):
         """
         Decorator function to suppress warnings.
 
-        :param args:   arguments passed to function to be decorated
-        :param kwargs: keyword arguments passed to function to be decorated
-        :return:       decorated function
+        Parameters
+        ----------
+        args : arguments, optional
+            Arguments passed to function to be decorated.
+        kwargs : keyword arguments, optional
+            Keyword arguments passed to function to be decorated.
+
+        Returns
+        -------
+        decorated function
+            Decorated function.
 
         """
         import warnings
@@ -44,12 +59,20 @@ def suppress_warnings(function):
 # file handling routines
 def search_files(path, suffix=None):
     """
-    Returns a list of files in path matching the given suffix or filters
+    Returns a list of files in `path` matching the given `suffix` or filters
     the given list to include only those matching the given suffix.
 
-    :param path:   path or list of files to be searched / filtered
-    :param suffix: only return files with this suffix [string, list]
-    :return:       list of files
+    Parameters
+    ----------
+    path : str or list
+        Path or list of files to be searched / filtered.
+    suffix : str, optional
+        Return only files matching this suffix.
+
+    Returns
+    -------
+    list
+        List of files.
 
     """
     import os
@@ -97,11 +120,18 @@ def search_files(path, suffix=None):
 
 def strip_suffix(filename, suffix=None):
     """
-    Strip of the suffix of the given filename or string.
+    Strip off the suffix of the given filename or string.
 
-    :param filename: filename or string to process
-    :param suffix:   suffix to be stripped off
-    :return:         filename or string without suffix
+    Parameters
+    ----------
+    filename : str
+        Filename or string to strip.
+    suffix : str, optional
+        Suffix to be stripped off (e.g. '.txt' including the dot).
+    Returns
+    -------
+    str
+        Filename or string without suffix.
 
     """
     if suffix is not None and filename.endswith(suffix):
@@ -113,11 +143,21 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     """
     Match a filename or string against a list of other filenames or strings.
 
-    :param filename:     filename or string to be matched
-    :param match_list:   match to this list of filenames or strings
-    :param suffix:       ignore this suffix of the filename when matching
-    :param match_suffix: only match files with this suffix
-    :return:             list of matched files
+    Parameters
+    ----------
+    filename : str
+        Filename or string to strip.
+    match_list : list
+        Match to this list of filenames or strings.
+    suffix : str, optional
+        Suffix of `filename` to be ignored.
+    match_suffix
+        Match only files from `match_list` with this suffix.
+
+    Returns
+    -------
+    list
+        List of matched files.
 
     """
     import os
@@ -143,13 +183,22 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
 @suppress_warnings
 def load_events(filename):
     """
-    Load a list of events from a text file, one floating point number per line.
+    Load a events from a text file, one floating point number per line.
 
-    :param filename: name of the file or file handle
-    :return:         numpy array of events
+    Parameters
+    ----------
+    filename : str or file handle
+        File to load the events from.
 
-    Note: Comments (i.e. lines starting with '#') and additional columns are
-          ignored (i.e. only the first column is returned).
+    Returns
+    -------
+    numpy array
+        Events.
+
+    Notes
+    -----
+    Comments (lines starting with '#') and additional columns are ignored,
+    i.e. only the first column is returned.
 
     """
     # read in the events, one per line
@@ -160,12 +209,28 @@ def load_events(filename):
 
 def write_events(events, filename, fmt='%.3f', header=''):
     """
-    Write a list of events to a text file, one floating point number per line.
+    Write events to a text file, one floating point number per line.
 
-    :param events:   events [seconds, list or numpy array]
-    :param filename: output file name or open file handle
-    :param fmt:      format to be written
-    :return:         return the events
+    Parameters
+    ----------
+    events : numpy array
+        Events.
+    filename : str or file handle
+        File to write the events to.
+    fmt : str, optional
+        How to format the events.
+    header : str, optional
+        Header to be written (as a comment).
+
+    Returns
+    -------
+    numpy array
+        Events.
+
+    Notes
+    -----
+    This function is just a wrapper to ``np.savetxt``, but reorders the
+    arguments in a way it can be used as an :class:`OutputProcessor`.
 
     """
     # write the events to the output
@@ -178,9 +243,18 @@ def combine_events(events, delta):
     """
     Combine all events within a certain range.
 
-    :param events: list of events [seconds]
-    :param delta:  combination length [seconds]
-    :return:       list of combined events
+    Parameters
+    ----------
+    events : list or numpy array
+        Events to be combined.
+    delta : float
+        Combination delta. All events within this `delta` are combined, i.e.
+        replaced by the mean of the two events.
+
+    Returns
+    -------
+    numpy array
+        Combined events.
 
     """
     # add a small value to delta, otherwise we end up in floating point hell
@@ -211,11 +285,21 @@ def quantize_events(events, fps, length=None, shift=None):
     """
     Quantize the events with the given resolution.
 
-    :param events: sequence of events [seconds]
-    :param fps:    quantize with N frames per second
-    :param length: length of the returned array [frames]
-    :param shift:  shift the events by N seconds before quantisation
-    :return:       a quantized numpy array
+    Parameters
+    ----------
+    events : numpy array
+        Events to be quantized.
+    fps : float
+        Quantize with `fps` frames per second.
+    length : int, optional
+        Length of the returned array.
+    shift : float, optional
+        Shift the events by this value before quantisation
+
+    Returns
+    -------
+    numpy array
+        Quantized events.
 
     """
     # convert to numpy array if needed
@@ -251,7 +335,10 @@ class OverrideDefaultListAction(argparse.Action):
     The default value is deleted when a new value is specified. The 'append'
     action would append the new value to the default.
 
-    Multiple values can be parsed from a list with the specified separator.
+    Parameters
+    ----------
+    sep : str, optional
+        Separator to be used if multiple values should be parsed from a list.
 
     """
     def __init__(self, sep=None, *args, **kwargs):
@@ -287,24 +374,44 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
     Generate a new array that chops the given array along the given axis into
     (overlapping) frames.
 
-    :param signal:     signal [numpy array]
-    :param frame_size: size of each frame in samples [int]
-    :param hop_size:   hop size in samples between adjacent frames [int]
-    :param axis:       axis to operate on; if None, act on the flattened array
-    :param end:        what to do with the last frame, if the array is not
-                       evenly divisible into pieces; possible values:
-                       'cut'  simply discard the extra values
-                       'wrap' copy values from the beginning of the array
-                       'pad'  pad with a constant value
-    :param end_value:  value to use for end='pad'
-    :return:           2D array with overlapping frames
+    Parameters
+    ----------
+    signal : numpy array
+        Signal.
+    frame_size : int
+        Size of each frame [samples].
+    hop_size : int, optional
+        Hop size between adjacent frames [samples].
+    axis : int, optional
+        Axis to operate on; if 'None', operate on the flattened array.
+    end : {'cut', 'wrap', 'pad'}, optional
+        What to do with the last frame, if the array is not evenly divisible
+        into pieces; possible values:
 
+        - 'cut'
+          simply discard the extra values,
+        - 'wrap'
+          copy values from the beginning of the array,
+        - 'pad'
+          pad with a constant value.
+
+    end_value : float, optional
+        Value used to pad if `end` is 'pad'.
+
+    Returns
+    -------
+    numpy array, shape (num_frames, frame_size)
+        Array with overlapping frames
+
+    Notes
+    -----
     The array is not copied unless necessary (either because it is unevenly
     strided and being flattened or because end is set to 'pad' or 'wrap').
 
     The returned array is always of type np.ndarray.
 
-    Example:
+    Examples
+    --------
     >>> segment_axis(np.arange(10), 4, 2)
     array([[0, 1, 2, 3],
            [2, 3, 4, 5],

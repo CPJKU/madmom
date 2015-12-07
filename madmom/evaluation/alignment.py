@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains global alignment evaluation functionality.
+This module contains global alignment evaluation functionality.
 
 """
 
@@ -28,9 +28,10 @@ HISTOGRAM_BINS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.]
 
 class AlignmentFormatError(Exception):
     """
-    Exception to be raised whenever an incorrect alignment format is given
+    Exception to be raised whenever an incorrect alignment format is given.
 
     """
+    # pylint: disable=super-init-not-called
 
     def __init__(self, value=None):
         if value is None:
@@ -46,18 +47,24 @@ def load_alignment(values):
     """
     Load the alignment from given values or file.
 
-    :param values: name of the file, file handle, list of numpy array
-    :return:       2D numpy array time and score position columns
+    Parameters
+    ----------
+    values : str, file handle, list or numpy array
+        Alignment values.
+
+    Returns
+    -------
+    numpy array
+        Time and score position columns.
 
     """
     if values is None:
         # return 'empty' alignment
         return np.array([[0, -1]])
-
-    if isinstance(values, (str, file)):
-        values = np.loadtxt(values)
-
-    values = np.atleast_2d(values)
+    elif isinstance(values, (list, np.ndarray)):
+        values = np.atleast_2d(values)
+    else:
+        values = np.loadtxt(values, ndmin=2)
 
     if values.shape[0] < 1 or values.shape[1] < 2 or len(values.shape) > 2:
         raise AlignmentFormatError()
@@ -72,18 +79,22 @@ def compute_event_alignment(alignment, ground_truth):
     alignment positions than events in the score, e.g. if it is designed to
     output the current alignment at constant intervals.
 
-    :param alignment:    The score follower's resulting alignment.
-                         2D NumPy array, first value is the time in seconds,
-                         second value is the beat position.
-    :param ground_truth: Ground truth of the aligned performance.
-                         2D numpy array of similar. First value is the time in
-                         seconds, second value is the beat position. It can
-                         contain the alignment positions for each individual
-                         note. In this case, the deviation for each note is
-                         taken into account.
-    :return:             2D numpy array of the same size as ground_truth, with
-                         each row representing the alignment of the
-                         corresponding ground truth element.
+    Parameters
+    ----------
+    alignment : 2D numpy array
+        The score follower's resulting alignment. 2D array, first value is the
+        time in seconds, second value is the beat position.
+    ground_truth : 2D numpy array
+        Ground truth of the aligned performance. 2D array, first value is the
+        time in seconds, second value is the beat position. It can contain the
+        alignment positions for each individual note. In this case, the
+        deviation for each note is taken into account.
+
+    Returns
+    -------
+    numpy array
+        Array of the same size as `ground_truth`, with each row representing
+        the alignment of the corresponding ground truth element..
 
     """
     # find the spots where the alignment passes the score
@@ -111,7 +122,17 @@ def compute_event_alignment(alignment, ground_truth):
 
 def _attr_name(histogram_bin):
     """
-    :return: attribute name for the histogram_bin
+    Returns the attribute name for the histogram bin.
+
+    Parameters
+    ----------
+    histogram_bin : int
+        Histogram bin.
+
+    Returns
+    -------
+    str
+        Attribute name for the `histogram_bin`.
 
     """
     return 'below_{:.2f}'.format(histogram_bin).replace('.', '_')
@@ -119,7 +140,17 @@ def _attr_name(histogram_bin):
 
 def _label(histogram_bin):
     """
-    :return: label for the histogram_bin
+    Returns the label for the histogram bin.
+
+    Parameters
+    ----------
+    histogram_bin : int
+        Histogram bin.
+
+    Returns
+    -------
+    str
+        Label for the `histogram_bin`.
 
     """
     return '<{:.2f}'.format(histogram_bin)
@@ -127,35 +158,43 @@ def _label(histogram_bin):
 
 def compute_metrics(event_alignment, ground_truth, window, err_hist_bins):
     """
-    This function computes the evaluation metrics based on the paper
-    "Evaluation of Real-Time Audio-to-Score Alignment" by Arshia Cont et al.
-    plus an cumulative histogram of absolute errors
+    This function computes the evaluation metrics based on the paper [1]_ plus
+    an cumulative histogram of absolute errors.
 
-    :param event_alignment: sequence alignment as computed by the score
-                            follower. 2D numpy array, where the first column is
-                            the alignment time in seconds and the second column
-                            the position in beats.
-                            Needs to be the same length as `ground_truth`,
-                            hence for each element in the ground truth the
-                            corresponding alignment has to be available. You
-                            can use the `compute_event_alignment()` function
-                            to compute this.
-    :param ground_truth:    ground truth of the aligned performance.
-                            2D numpy array, first value is the time in seconds,
-                            second value is the beat position. It can contain
-                            the alignment positions for each individual note.
-                            In this case, the deviation for each note is taken
-                            into account.
-    :param window:          tolerance window in seconds. Alignments off less
-                            than this amount from the ground truth will be
-                            considered correct.
-    :param err_hist_bins:   list of error bounds for which the cumulative
-                            histogram of absolute error will be computed (e.g.
-                            [0.1, 0.3] will give the percentage of events
-                            aligned with an error smaller than 0.1 and 0.3)
-    :return:                dictionary containing (some) of the metrics
-                            described in the paper mentioned above and the
-                            error histogram
+    Parameters
+    ----------
+    event_alignment : 2D numpy array
+        Sequence alignment as computed by the score follower. 2D array, where
+        the first column is the alignment time in seconds and the second column
+        the position in beats. Needs to be the same length as `ground_truth`,
+        hence for each element in the ground truth the corresponding alignment
+        has to be available. Use the `compute_event_alignment()` function to
+        compute this.
+    ground_truth : 2D numpy array
+        Ground truth of the aligned performance. 2D array, first value is the
+        time in seconds, second value is the beat position. It can contain the
+        alignment positions for each individual note. In this case, the
+        deviation for each note is taken into account.
+    window : float
+        Tolerance window in seconds. Alignments off less than this amount from
+        the ground truth will be considered correct.
+    err_hist_bins : list
+        List of error bounds for which the cumulative histogram of absolute
+        error will be computed (e.g. [0.1, 0.3] will give the percentage of
+        events aligned with an error smaller than 0.1 and 0.3).
+
+    Returns
+    -------
+    metrics : dict
+        (Some) of the metrics described in [1]_ and the error histogram.
+
+    References
+    ----------
+    .. [1]  Arshia Cont, Diemo Schwarz, Norbert Schnell and
+            Christopher Raphael,
+            "Evaluation of Real-Time Audio-to-Score Alignment",
+            Proceedings of the 8th International Conference on Music
+            Information Retrieval (ISMIR), 2007.
 
     """
     abs_error = np.abs(event_alignment[:, _TIME] - ground_truth[:, _TIME])
@@ -210,33 +249,44 @@ class AlignmentEvaluation(EvaluationMixin):
     for each individual event in the score. The following metrics are
     available:
 
-    miss_rate:
+    Parameters
+    ----------
+    alignment : 2D numpy array or list of tuples
+        Computed alignment; first value is the time in seconds, second value is
+        the beat position.
+    ground_truth : 2D numpy array or list of tuples
+        Ground truth of the aligned file; first value is the time in seconds,
+        second value is the beat position. It can contain the alignment
+        positions for each individual event. In this case, the deviation for
+        each event is taken into account.
+    window : float
+        Tolerance window in seconds. Alignments off less than this amount from
+        the ground truth will be considered correct.
+    name : str
+        Name to be displayed.
+
+    Attributes
+    ----------
+    miss_rate : float
         Percentage of missed events (events that exist in the reference score,
         but are not reported).
-
-    misalign_rate:
+    misalign_rate : float
         Percentage of misaligned events (events with an alignment that is off
-        by more than a defined threshold (window)).
-
-    avg_imprecision:
+        by more than a defined `window`).
+    avg_imprecision : float
         Average alignment error of non-misaligned events.
-
-    stddev_imprecision:
+    stddev_imprecision : float
         Standard deviation of alignment error of non-misaligned events.
-
-    avg_error:
+    avg_error : float
         Average alignment error.
-
-    stddev_error:
+    stddev_error : float
         Standard deviation of alignment error.
-
-    piece_completion:
+    piece_completion : float
         Percentage of events that was followed until the aligner hangs, i.e
         from where on there are only misaligned or missed events.
-
-    below_{x}_{yy}:
-        Percentage of events that are aligned with an
-        error smaller than x.yy seconds
+    below_{x}_{yy} : float
+        Percentage of events that are aligned with an error smaller than x.yy
+        seconds.
 
     """
 
@@ -254,25 +304,6 @@ class AlignmentEvaluation(EvaluationMixin):
 
     def __init__(self, alignment, ground_truth, window=WINDOW, name=None,
                  **kwargs):
-        """
-        Initializes the evaluation with the given data.
-
-        :param alignment:     computed alignment. List of tuples, 2D numpy
-                              array or similar. First value is the time in
-                              seconds, second value is the beat position.
-        :param ground_truth:  ground truth of the aligned file. List of tuples,
-                              2D numpy array of similar. First value is the
-                              time in seconds, second value is the beat
-                              position. It can contain the alignment positions
-                              for each individual event. In this case, the
-                              deviation for each event is taken into account.
-        :param window:        tolerance window in seconds. Alignments further
-                              apart than this value will be considered as
-                              errors.
-        :param name:          name of the evaluation to be displayed
-        :param kwargs:        additional arguments will be ignored
-
-        """
         # pylint: disable=unused-argument
 
         alignment = load_alignment(alignment)
@@ -298,20 +329,23 @@ class AlignmentEvaluation(EvaluationMixin):
             setattr(self, attr_name, metrics[attr_name])
 
     def __len__(self):
-        """
-        :return: number of ground truth events
-
-        """
+        """Number of ground truth events."""
         return self._length
 
     def tostring(self, histogram=False, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param histogram: also output the error histogram [bool]
-        :param kwargs:    additional arguments will be ignored
-        :return:          evaluation metrics formatted as a human readable
-                          string
+        Parameters
+        ----------
+        histogram : bool
+            Also output the error histogram.
+
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
+
         """
         ret = ''
         if self.name is not None:
@@ -336,11 +370,18 @@ def _combine_metrics(eval_objects, piecewise):
     """
     Combine the metrics of the given evaluation objects.
 
-    :param eval_objects: evaluation objects
-    :param piecewise:    if 'True' all evaluation objects are weighted the same
-                         if 'False' the evaluation objects are weighted by the
-                         number of their events
-    :return:             combined metrics
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    piecewise : bool
+        If 'True' all evaluation objects are weighted the same; if 'False' the
+        evaluation objects are weighted by the number of their events.
+
+    Returns
+    -------
+    dict
+        Combined metrics.
 
     """
     if len(eval_objects) == 0:
@@ -366,16 +407,16 @@ class AlignmentSumEvaluation(AlignmentEvaluation):
     of the aligned pieces. For a detailed description of the available metrics,
     refer to AlignmentEvaluation.
 
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    name : str
+        Name to be displayed.
+
     """
 
     def __init__(self, eval_objects, name=None):
-        """
-        Creates a new MeanEvaluation instance.
-
-        :param eval_objects: list of evaluation objects.
-        :param name:         name to be displayed
-
-        """
         self.name = name or 'piecewise mean for %d files' % len(eval_objects)
         self.window = eval_objects[0].window
         self._length = sum(len(e) for e in eval_objects)
@@ -390,6 +431,13 @@ class AlignmentMeanEvaluation(AlignmentEvaluation):
     Class for averaging alignment evaluation scores, averaging piecewise (i.e.
     ignoring the lengths of the pieces). For a detailed description of the
     available metrics, refer to AlignmentEvaluation.
+
+    Parameters
+    ----------
+    eval_objects : list
+        Evaluation objects.
+    name : str
+        Name to be displayed.
 
     """
 
@@ -407,9 +455,17 @@ def add_parser(parser):
     """
     Add an alignment evaluation sub-parser to an existing parser.
 
-    :param parser: existing argparse parser
-    :return:       alignment evaluation sub-parser and evaluation parameter
-                   group
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+
+    Returns
+    -------
+    sub_parser : argparse sub-parser instance
+        Alignment evaluation sub-parser.
+    parser_group : argparse argument group
+        Alignment evaluation argument group.
 
     """
     import argparse

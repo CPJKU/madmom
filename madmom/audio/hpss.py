@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains all harmonic/percussive source separation functionality.
+This module contains all harmonic/percussive source separation functionality.
 
 """
 
@@ -22,10 +22,22 @@ class HarmonicPercussiveSourceSeparation(Processor):
     magnitude spectrogram into its harmonic and percussive components with
     median filters.
 
-    "Harmonic/percussive separation using median filtering."
-    Derry FitzGerald.
-    Proceedings of the 13th International Conference on Digital Audio Effects
-    (DAFx-10), Graz, Austria, September 2010.
+    Parameters
+    ----------
+    masking : float or str
+        Can be either the literal 'binary' or any float coefficient resulting
+        in a soft mask. 'None' translates to a binary mask, too.
+    harmonic_filter : tuple of ints
+        Tuple with harmonic filter size (frames, bins).
+    percussive_filter : tuple of ints
+        Tuple with percussive filter size (frames, bins).
+
+    References
+    ----------
+    .. [1] Derry FitzGerald,
+           "Harmonic/percussive separation using median filtering.",
+           Proceedings of the 13th International Conference on Digital Audio
+           Effects (DAFx), Graz, Austria, 2010.
 
     """
     MASKING = 'binary'
@@ -34,23 +46,6 @@ class HarmonicPercussiveSourceSeparation(Processor):
 
     def __init__(self, masking=MASKING, harmonic_filter=HARMONIC_FILTER,
                  percussive_filter=PERCUSSIVE_FILTER):
-        """
-        Creates a new HarmonicPercussiveSourceSeparation instance.
-
-        The magnitude spectrogram are separated with median filters with the
-        given sizes into their harmonic and percussive parts.
-
-        :param masking:           masking (see below)
-        :param harmonic_filter:   tuple with harmonic filter size
-                                  (frames, bins)
-        :param percussive_filter: tuple with percussive filter size
-                                  (frames, bins)
-
-        Note: `masking` can be either the literal 'binary' or any float
-              coefficient resulting in a soft mask. `None` translates to a
-              binary mask, too.
-
-        """
         # set the parameters, so they get used for computation
         self.masking = masking
         self.harmonic_filter = np.asarray(harmonic_filter, dtype=int)
@@ -58,10 +53,19 @@ class HarmonicPercussiveSourceSeparation(Processor):
 
     def slices(self, data):
         """
-        Compute the harmonic and percussive slices of the data.
+        Returns the harmonic and percussive slices of the data.
 
-        :param data: magnitude spectrogram [numpy array]
-        :return:     tuple (harmonic slice, percussive slice)
+        Parameters
+        ----------
+        data : numpy array
+            Data to be sliced (usually a magnitude spectrogram).
+
+        Returns
+        -------
+        harmonic_slice : numpy array
+            Harmonic slice.
+        percussive_slice : numpy array
+            Percussive slice.
 
         """
         from scipy.ndimage.filters import median_filter
@@ -73,11 +77,21 @@ class HarmonicPercussiveSourceSeparation(Processor):
 
     def masks(self, harmonic_slice, percussive_slice):
         """
-        Compute the masks given the harmonic and percussive slices.
+        Returns the masks given the harmonic and percussive slices.
 
-        :param harmonic_slice:   harmonic slice
-        :param percussive_slice: percussive slice
-        :return:                 tuple (harmonic mask, percussive mask)
+        Parameters
+        ----------
+        harmonic_slice : numpy array
+            Harmonic slice.
+        percussive_slice : numpy array
+            Percussive slice.
+
+        Returns
+        -------
+        harmonic_mask : numpy array
+            Harmonic mask.
+        percussive_mask : numpy array
+            Percussive mask.
 
         """
         # compute the masks
@@ -96,20 +110,28 @@ class HarmonicPercussiveSourceSeparation(Processor):
         # return the masks
         return harmonic_mask, percussive_mask
 
-    def process(self, spectrogram):
+    def process(self, data):
         """
-        Compute the harmonic and percussive components of the given data.
+        Returns the harmonic and percussive components of the given data.
 
-        :param spectrogram: Spectrogram instance or numpy array with the
-                            magnitude spectrogram
-        :return:            tuple (harmonic components, percussive components)
+        Parameters
+        ----------
+        data : numpy array
+            Data to be split into harmonic and percussive components.
+
+        Returns
+        -------
+        harmonic components : numpy array
+            Harmonic components.
+        percussive components : numpy array
+            Percussive components.
 
         """
         from .spectrogram import Spectrogram
         # data must be in the right format
-        if isinstance(spectrogram, Spectrogram):
+        if isinstance(data, Spectrogram):
             # use the magnitude spectrogram of the Spectrogram
-            spectrogram = spectrogram.spec
+            spectrogram = data.spec
         # compute the harmonic and percussive slices
         slices = self.slices(spectrogram)
         # compute the corresponding masks
@@ -127,19 +149,28 @@ class HarmonicPercussiveSourceSeparation(Processor):
         Add harmonic/percussive source separation related arguments to an
         existing parser object.
 
-        :param parser:            existing argparse parser object
-        :param masking:           masking [float]
-                                  (if not set, binary masking is used)
-        :param harmonic_filter:   harmonic filter [tuple (frames, bins)]
-        :param percussive_filter: percussive filter [tuple (frames, bins)]
-        :return:                  harmonic/percussive source separation
-                                  argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        masking : float, optional
+            Masking; if 'None', binary masking is used.
+        harmonic_filter : tuple, optional
+            Harmonic filter (frames, bins).
+        percussive_filter : tuple, optional
+            Percussive filter (frames, bins).
 
+        Returns
+        -------
+        argparse argument group
+            Harmonic/percussive source separation argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
-        # TODO: split this among the individual classes
-        # add filter related options to the existing parser
+        # add harmonic/percussive related options to the existing parser
         g = parser.add_argument_group('harmonic/percussive source separation '
                                       'related arguments')
         if masking is not None:

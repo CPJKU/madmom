@@ -3,23 +3,26 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This software serves as a Python implementation of the beat evaluation toolkit,
-which can be downloaded from:
+This module contains beat evaluation functionality.
+
+The measures are described in [1]_, a Matlab implementation exists here:
 http://code.soundsoftware.ac.uk/projects/beat-evaluation/repository
 
-The used measures are described in:
-
-"Evaluation Methods for Musical Audio Beat Tracking Algorithms"
-Matthew E. P. Davies, Norberto Degara, and Mark D. Plumbley
-Technical Report C4DM-TR-09-06
-Centre for Digital Music, Queen Mary University of London, 2009
-
+Notes
+-----
 Please note that this is a complete re-implementation, which took some other
 design decisions. For example, the beat detections and annotations are not
 quantised before being evaluated with F-measure, P-score and other metrics.
 Hence these evaluation functions DO NOT report the exact same results/scores.
 This approach was chosen, because it is simpler and produces more accurate
 results.
+
+References
+----------
+.. [1] Matthew E. P. Davies, Norberto Degara, and Mark D. Plumbley,
+       "Evaluation Methods for Musical Audio Beat Tracking Algorithms",
+       Technical Report C4DM-TR-09-06,
+       Centre for Digital Music, Queen Mary University of London, 2009.
 
 """
 
@@ -39,6 +42,7 @@ class BeatIntervalError(Exception):
     Exception to be raised whenever an interval cannot be computed.
 
     """
+    # pylint: disable=super-init-not-called
 
     def __init__(self, value=None):
         if value is None:
@@ -57,10 +61,20 @@ def load_beats(values):
 
     To make this function more universal, it also accepts lists or arrays.
 
-    :param values: name of the file, file handle, list or numpy array
-    :return:       1D numpy array with notes
+    Parameters
+    ----------
+    values : str, file handle, list or numpy array
+        Name / values to be loaded.
+    Returns
+    -------
+    numpy array
+        Beats.
 
-    Expected format: beat_time [additional information will be ignored]
+    Notes
+    -----
+    Expected format:
+
+    'beat_time' [additional information will be ignored]
 
     """
     # load the beats from the given representation
@@ -86,13 +100,24 @@ def variations(sequence, offbeat=False, double=False, half=False,
     """
     Create variations of the given beat sequence.
 
-    :param sequence: numpy array with the beat sequence [float, seconds]
-    :param offbeat:  create offbeat sequence
-    :param double:   create double tempo sequence
-    :param half:     create half tempo sequences (includes offbeat version)
-    :param triple:   create triple/third tempo sequence
-    :param third:    create third tempo sequence (includes offbeat version)
-    :return:         list with sequence variations
+    Parameters
+    ----------
+    sequence : numpy array
+        Beat sequence.
+    offbeat : bool, optional
+        Create an offbeat sequence.
+    double : bool, optional
+        Create a double tempo sequence.
+    half : bool, optional
+        Create half tempo sequences (includes offbeat version).
+    triple : bool, optional
+        Create triple tempo sequence.
+    third : bool, optional
+        Create third tempo sequences (includes offbeat versions).
+    Returns
+    -------
+    list
+        Beat sequence variations.
 
     """
     # create different variants of the annotations
@@ -149,13 +174,23 @@ def calc_intervals(events, fwd=False):
     """
     Calculate the intervals of all events to the previous/next event.
 
-    :param events: numpy array with the detected events [float, seconds]
-    :param fwd:    calculate the intervals towards the next event [bool]
-    :return:       the intervals [seconds]
+    Parameters
+    ----------
+    events : numpy array
+        Beat sequence.
+    fwd : bool, optional
+        Calculate the intervals towards the next event (instead of previous).
 
-    Note: The sequences must be ordered!
-          The first (last) interval will be set to the same value as the
-          second (second to last) interval (when used in forward mode).
+    Returns
+    -------
+    numpy array
+        Beat intervals.
+
+    Notes
+    -----
+    The sequence must be ordered. The first (last) interval will be set to
+    the same value as the second (second to last) interval (when used in
+    `fwd` mode).
 
     """
     # at least 2 events must be given to calculate an interval
@@ -176,20 +211,29 @@ def calc_intervals(events, fwd=False):
 
 def find_closest_intervals(detections, annotations, matches=None):
     """
-    Find the closest annotated interval for each beat detection. For each
-    detection the interval of the annotations surrounding this detection is
-    returned.
+    Find the closest annotated interval to each beat detection.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param matches:     numpy array with indices of the closest beats [int]
-    :return:            numpy array with closest annotated intervals [seconds]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    matches : list or numpy array
+        Indices of the closest beats.
 
-    Note: The sequences must be ordered! To speed up the calculation, a list of
-          pre-computed indices of the closest matches can be used.
+    Returns
+    -------
+    numpy array
+        Closest annotated beat intervals.
 
-          The function does NOT test if each detection has a surrounding
-          interval, it always returns the closest interval.
+    Notes
+    -----
+    The sequences must be ordered. To speed up the calculation, a list of
+    pre-computed indices of the closest matches can be used.
+
+    The function does NOT test if each detection has a surrounding interval,
+    it always returns the closest interval.
 
     """
     # if no detection are given, return an empty interval array
@@ -231,11 +275,19 @@ def find_closest_intervals(detections, annotations, matches=None):
 
 def find_longest_continuous_segment(sequence_indices):
     """
-    Find the longest consecutive segment in the given sequence_indices.
+    ind the longest consecutive segment in the given sequence.
 
-    :param sequence_indices: numpy array with the indices of the events [int]
-    :return:                 length and start position of the longest
-                             continuous segment [(int, int)]
+    Parameters
+    ----------
+    sequence_indices : numpy array
+        Indices of the beats
+
+    Returns
+    -------
+    length : int
+        Length of the longest consecutive segment.
+    start : int
+        Start position of the longest continuous segment.
 
     """
     # continuous segments have consecutive indices, i.e. diffs =! 1 are
@@ -256,14 +308,24 @@ def calc_relative_errors(detections, annotations, matches=None):
     """
     Errors of the detections relative to the closest annotated interval.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param matches:     numpy array with indices of the closest beats [int]
-    :return:            numpy array with errors relative to surrounding
-                        annotated interval [seconds]
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    matches : list or numpy array
+        Indices of the closest beats.
 
-    Note: The sequences must be ordered! To speed up the calculation, a list of
-          pre-computed indices of the closest matches can be used.
+    Returns
+    -------
+    numpy array
+        Errors relative to the closest annotated beat interval.
+
+    Notes
+    -----
+    The sequences must be ordered! To speed up the calculation, a list of
+    pre-computed indices of the closest matches can be used.
 
     """
     # if no detection are given, return an empty interval array
@@ -303,23 +365,36 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     """
     Calculate the P-score accuracy for the given detections and annotations.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param tolerance:   tolerance window (fraction of the median beat interval)
-    :return:            p-score
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    tolerance : float, optional
+        Evaluation tolerance (fraction of the median beat interval).
+
+    Returns
+    -------
+    pscore : float
+        P-Score.
 
     The P-score is determined by taking the sum of the cross-correlation
     between two impulse trains, representing the detections and annotations
-    allowing for a small window of 20% of the median annotated interval.
+    allowing for a tolerance of 20% of the median annotated interval [1]_.
 
-    "Evaluation of audio beat tracking and music tempo extraction algorithms"
-    M. McKinney, D. Moelants, M. Davies and A. Klapuri
-    Journal of New Music Research, vol. 36, no. 1, pp. 1–16, 2007.
+    Notes
+    -----
+    Contrary to the original implementation which samples the two impulse
+    trains with 100Hz, we do not quantise the annotations and detections but
+    rather count all detections falling withing the defined tolerance window.
 
-    Note: Contrary to the original implementation which samples the two impulse
-          trains with 100Hz, we do not quantise the annotations and detections
-          but rather count all detections falling withing the defined tolerance
-          window.
+    References
+    ----------
+    .. [1] M. McKinney, D. Moelants, M. Davies and A. Klapuri,
+           "Evaluation of audio beat tracking and music tempo extraction
+           algorithms",
+           Journal of New Music Research, vol. 36, no. 1, 2007.
 
     """
     # neither detections nor annotations are given, perfect score
@@ -331,11 +406,11 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
         raise BeatIntervalError("At least 2 annotations are needed for"
-                                "P-score.")
+                                "P-Score.")
 
     # tolerance must be greater than 0
     if float(tolerance) <= 0:
-        raise ValueError("Tolerance must be greater than 0.")
+        raise ValueError("`tolerance` must be greater than 0.")
 
     # make sure the annotations and detections have a float dtype
     detections = np.asarray(detections, dtype=np.float)
@@ -357,14 +432,25 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     """
     Calculate the Cemgil accuracy for the given detections and annotations.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param sigma:       sigma for Gaussian error function [float]
-    :return:            beat tracking accuracy
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    sigma : float, optional
+        Sigma for Gaussian error function.
 
-    "On tempo tracking: Tempogram representation and Kalman filtering"
-    A.T. Cemgil, B. Kappen, P. Desain, and H. Honing
-    Journal Of New Music Research, vol. 28, no. 4, pp. 259–273, 2001
+    Returns
+    -------
+    cemgil : float
+        Cemgil beat tracking accuracy.
+
+    References
+    ----------
+    .. [1] A.T. Cemgil, B. Kappen, P. Desain, and H. Honing,
+           "On tempo tracking: Tempogram representation and Kalman filtering",
+           Journal Of New Music Research, vol. 28, no. 4, 2001.
 
     """
     # neither detections nor annotations are given, perfect score
@@ -376,7 +462,7 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
 
     # sigma must be greater than 0
     if float(sigma) <= 0:
-        raise ValueError("Sigma must be greater than 0.")
+        raise ValueError("`sigma` must be greater than 0.")
 
     # make sure the annotations and detections have a float dtype
     detections = np.asarray(detections, dtype=np.float)
@@ -404,17 +490,41 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
     Calculate the Goto and Muraoka accuracy for the given detections and
     annotations.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param threshold:  threshold [float]
-    :param sigma:      sigma for Gaussian error function [float]
-    :param mu:         respective µ [float]
-    :return:           beat tracking accuracy
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    threshold : float, optional
+        Threshold.
+    sigma : float, optional
+        Allowed std. dev. of the errors in the longest segment.
+    mu : float, optional
+        Allowed mean. of the errors in the longest segment.
 
-    "Issues in evaluating beat tracking systems"
-    M. Goto and Y. Muraoka
-    Working Notes of the IJCAI-97 Workshop on Issues in AI and Music -
-    Evaluation and Assessment, pp. 9–16, 1997
+    Returns
+    -------
+    goto : float
+        Goto beat tracking accuracy.
+
+    Notes
+    -----
+    [1]_ requires that the first correct beat detection must occur within the
+    first 3/4 of the excerpt. In order to be able to deal with audio with
+    varying tempo, this was altered that the length of the longest continuously
+    tracked segment must be at least 1/4 of the total length [2]_.
+
+    References
+    ----------
+    .. [1] M. Goto and Y. Muraoka,
+           "Issues in evaluating beat tracking systems",
+           Working Notes of the IJCAI-97 Workshop on Issues in AI and Music -
+           Evaluation and Assessment, 1997.
+    .. [2] Matthew E. P. Davies, Norberto Degara, and Mark D. Plumbley,
+           "Evaluation Methods for Musical Audio Beat Tracking Algorithms",
+           Technical Report C4DM-TR-09-06,
+           Centre for Digital Music, Queen Mary University of London, 2009.
 
     """
     # neither detections nor annotations are given, perfect score
@@ -478,22 +588,35 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
     Calculate the cmlc and cmlt scores for the given detections and
     annotations.
 
-    :param detections:      numpy array with the detected beats
-                            [float, seconds]
-    :param annotations:     numpy array with the annotated beats
-                            [float, seconds]
-    :param phase_tolerance: phase tolerance window [float]
-    :param tempo_tolerance: tempo tolerance window [float]
-    :return:                cmlc, cmlt
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    phase_tolerance : float, optional
+        Allowed phase tolerance.
+    tempo_tolerance : float, optional
+        Allowed tempo tolerance.
 
-    "Techniques for the automated analysis of musical audio"
-    S. Hainsworth
-    Ph.D. dissertation, Department of Engineering, Cambridge University, 2004.
+    Returns
+    -------
+    cmlc : float
+        Longest continuous segment of correct detections normalized by the
+        maximum length of both sequences (detection and annotations).
+    cmlt : float
+        Same as cmlc, but no continuity required.
 
-    "Analysis of the meter of acoustic musical signals"
-    A. P. Klapuri, A. Eronen, and J. Astola
-    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1,
-    pp. 342–355, 2006.
+    References
+    ----------
+    .. [1] S. Hainsworth,
+           "Techniques for the automated analysis of musical audio",
+           PhD. dissertation, Department of Engineering, Cambridge University,
+           2004.
+    .. [2] A.P. Klapuri, A. Eronen, and J. Astola,
+           "Analysis of the meter of acoustic musical signals",
+           IEEE Transactions on Audio, Speech and Language Processing, vol. 14,
+           no. 1, 2006.
 
     """
     # neither detections nor annotations are given
@@ -565,30 +688,37 @@ def continuity(detections, annotations,
     Calculate the cmlc, cmlt, amlc and amlt scores for the given detections and
     annotations.
 
-    :param detections:      numpy array with the detected beats
-                            [float, seconds]
-    :param annotations:     numpy array with the annotated beats
-                            [float, seconds]
-    :param phase_tolerance: phase tolerance window [float]
-    :param tempo_tolerance: tempo tolerance window [float]
-    :param offbeat:         include offbeat variation
-    :param double:          include 2x and 1/2x tempo variations
-    :param triple:          include 3x and 1/3x tempo variations
-    :return:                cmlc, cmlt, amlc, amlt beat tracking accuracies
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    phase_tolerance : float, optional
+        Allowed phase tolerance.
+    tempo_tolerance : float, optional
+        Allowed tempo tolerance.
+    offbeat : bool, optional
+        Include offbeat variation.
+    double  : bool, optional
+        Include double and half tempo variations (and offbeat thereof).
+    triple  : bool, optional
+        Include triple and third tempo variations (and offbeats thereof).
 
-    cmlc: tracking accuracy, continuity at the correct metrical level required
-    cmlt: tracking accuracy, continuity at the correct metrical level not req.
-    amlc: tracking accuracy, continuity at allowed metrical levels required
-    amlt: tracking accuracy, continuity at allowed metrical levels not req.
+    Returns
+    -------
+    cmlc : float
+        Tracking accuracy, continuity at the correct metrical level required.
+    cmlt : float
+        Same as cmlc, continuity at the correct metrical level not required.
+    amlc : float
+        Same as cmlc, alternate metrical levels allowed.
+    amlt : float
+        Same as cmlt, alternate metrical levels allowed.
 
-    "Techniques for the automated analysis of musical audio"
-    S. Hainsworth
-    Ph.D. dissertation, Department of Engineering, Cambridge University, 2004.
-
-    "Analysis of the meter of acoustic musical signals"
-    A. P. Klapuri, A. Eronen, and J. Astola
-    IEEE Transactions on Audio, Speech and Language Processing, vol. 14, no. 1,
-    pp. 342–355, 2006.
+    See Also
+    --------
+    :func:`cml`
 
     """
     # neither detections nor annotations are given
@@ -634,14 +764,21 @@ def _histogram_bins(num_bins):
     Helper function to generate the histogram bins used to calculate the error
     histogram of the information gain.
 
-    :param num_bins: number of bins
-    :return:         histogram bin edges
+    Parameters
+    ----------
+    num_bins : int
+        Number of histogram bins.
+    Returns
+    -------
+    numpy array
+        Histogram bin edges.
 
-    Note: This functions returns the bin edges for a histogram with one more
-          bin than the requested number of bins, because the fist and last bins
-          are added together (to make the histogram circular) later on. Because
-          of the same reason, the first and the last bin are only half as wide
-          as the others.
+    Notes
+    -----
+    This functions returns the bin edges for a histogram with one more bin than
+    the requested number of bins, because the fist and last bins are added
+    together (to make the histogram circular) later on. Because of the same
+    reason, the first and the last bin are only half as wide as the others.
 
     """
     # allow only even numbers and require at least 2 bins
@@ -664,16 +801,25 @@ def _error_histogram(detections, annotations, histogram_bins):
     Helper function to calculate the relative errors of the given detections
     and annotations and map them to an histogram with the given bins edges.
 
-    :param detections:     numpy array with the detected beats [float, seconds]
-    :param annotations:    numpy array with the annotated beats
-                           [float, seconds]
-    :param histogram_bins: histogram bin edges for mapping
-    :return:               error histogram
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    histogram_bins : numpy array
+        Beat error histogram bin edges.
 
-    Note: The returned error histogram is circular, i.e. it contains 1 bin less
-          than a histogram built normally with the given histogram bin edges.
-          The values of the last and first bin are summed and mapped to the
-          first bin.
+    Returns
+    -------
+    error_histogram : numpy array
+        Beat error histogram.
+
+    Notes
+    -----
+    The returned error histogram is circular, i.e. it contains 1 bin less than
+    a histogram built normally with the given histogram bin edges. The values
+    of the last and first bin are summed and mapped to the first bin.
 
     """
     # get the relative errors of the detections to the annotations
@@ -692,8 +838,15 @@ def _entropy(error_histogram):
     """
     Helper function to calculate the entropy of the given error histogram.
 
-    :param error_histogram: error histogram
-    :return:                entropy
+    Parameters
+    ----------
+    error_histogram : numpy array
+        Error histogram.
+
+    Returns
+    -------
+    entropy : float
+        Entropy of the error histogram.
 
     """
     # copy the error_histogram, because it must not be altered
@@ -711,8 +864,15 @@ def _information_gain(error_histogram):
     Helper function to calculate the information gain of the given error
     histogram.
 
-    :param error_histogram: error histogram
-    :return:                information gain
+    Parameters
+    ----------
+    error_histogram : numpy array
+        Error histogram.
+
+    Returns
+    -------
+    information_gain : float
+        Information gain.
 
     """
     # calculate the entropy of th error histogram
@@ -729,15 +889,28 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     """
     Calculate information gain for the given detections and annotations.
 
-    :param detections:  numpy array with the detected beats [float, seconds]
-    :param annotations: numpy array with the annotated beats [float, seconds]
-    :param num_bins:    number of bins for the error histogram [int, even]
-    :return:            information gain, beat error histogram
+    Parameters
+    ----------
+    detections : list or numpy array
+        Detected beats.
+    annotations : list or numpy array
+        Annotated beats.
+    num_bins : int, optional
+        Number of bins for the beat error histogram.
 
-    "Measuring the performance of beat tracking algorithms algorithms using a
-    beat error histogram"
-    M. E. P. Davies, N. Degara and M. D. Plumbley
-    IEEE Signal Processing Letters, vol. 18, vo. 3, 2011
+    Returns
+    -------
+    information_gain : float
+        Information gain.
+    error_histogram : numpy array
+        Error histogram.
+
+    References
+    ----------
+    .. [1] M. E.P. Davies, N. Degara and M. D. Plumbley,
+           "Measuring the performance of beat tracking algorithms algorithms
+           using a beat error histogram",
+           IEEE Signal Processing Letters, vol. 18, vo. 3, 2011.
 
     """
     # neither detections nor annotations are given, perfect score
@@ -792,6 +965,44 @@ class BeatEvaluation(OnsetEvaluation):
     """
     Beat evaluation class.
 
+    Parameters
+    ----------
+    detections : str, list or numpy array
+        Detected beats.
+    annotations : str, list or numpy array
+        Annotated ground truth beats.
+    fmeasure_window : float, optional
+        F-measure evaluation window [seconds]
+    pscore_tolerance : float, optional
+        P-Score tolerance [fraction of the median beat interval].
+    cemgil_sigma : float, optional
+        Sigma of Gaussian window for Cemgil accuracy.
+    goto_threshold : float, optional
+        Threshold for Goto error.
+    goto_sigma : float, optional
+        Sigma for Goto error.
+    goto_mu : float, optional
+        Mu for Goto error.
+    continuity_phase_tolerance : float, optional
+        Continuity phase tolerance.
+    continuity_tempo_tolerance : float, optional
+        Ccontinuity tempo tolerance.
+    information_gain_bins : int, optional
+        Number of bins for for the information gain beat error histogram.
+    offbeat : bool, optional
+        Include offbeat variation.
+    double : bool, optional
+        Include double and half tempo variations (and offbeat thereof).
+    triple : bool, optional
+        Include triple and third tempo variations (and offbeats thereof).
+    skip : float, optional
+        Skip the first `skip` seconds for evaluation.
+
+    Notes
+    -----
+    The `offbeat`, `double`, and `triple` variations of the beat sequences are
+    used only for AMLc/AMLt.
+
     """
     METRIC_NAMES = [
         ('fmeasure', 'F-measure'),
@@ -815,38 +1026,6 @@ class BeatEvaluation(OnsetEvaluation):
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
                  information_gain_bins=INFORMATION_GAIN_BINS,
                  offbeat=True, double=True, triple=True, skip=0, **kwargs):
-        """
-        Evaluate the given detections and annotations.
-
-        :param detections:  detected beats [file or list or numpy array]
-        :param annotations: annotated ground truth beats [file or list or
-                            numpy array]
-
-        Evaluation parameters:
-
-        :param fmeasure_window:            F-measure evaluation window
-                                           [seconds, float]
-        :param pscore_tolerance:           P-score tolerance [fraction of
-                                           median beat interval, float]
-        :param cemgil_sigma:               sigma of Gaussian window for Cemgil
-                                           accuracy [float]
-        :param goto_threshold:             threshold for Goto error [float]
-        :param goto_sigma:                 sigma for Goto error [float]
-        :param goto_mu:                    mu for Goto error [float]
-        :param continuity_phase_tolerance: continuity phase tolerance [float]
-        :param continuity_tempo_tolerance: continuity tempo tolerance [float]
-        :param information_gain_bins:      number of bins for the information
-                                           gain error histogram
-
-        Sequence manipulation parameters
-
-        :param offbeat: include offbeat variations
-        :param double:  include double/half tempo variations
-        :param triple:  include triple/third tempo variations
-
-        :param kwargs:  additional keywords
-
-        """
         # load the beat detections and annotations
         detections = load_beats(detections)
         annotations = load_beats(annotations)
@@ -895,8 +1074,10 @@ class BeatEvaluation(OnsetEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -985,8 +1166,10 @@ class BeatMeanEvaluation(MeanEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -1005,8 +1188,17 @@ def add_parser(parser):
     """
     Add a beat evaluation sub-parser to an existing parser.
 
-    :param parser: existing argparse parser
-    :return:       beat evaluation sub-parser and evaluation parameter group
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+
+    Returns
+    -------
+    sub_parser : argparse sub-parser instance
+        Beat evaluation sub-parser.
+    parser_group : argparse argument group
+        Beat evaluation argument group.
 
     """
     import argparse

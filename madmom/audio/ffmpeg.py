@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains audio handling via ffmpeg functionality.
+This module contains audio handling via ffmpeg functionality.
 
 """
 
@@ -24,28 +24,43 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     it to another file as a sequence of samples. Returns the file name of the
     output file.
 
-    :param infile:       the audio sound file to decode
-    :param fmt:          the format of the samples:
-                         'f32le' for float32, little-endian
-                         's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample the signal to
-    :param num_channels: the number of channels to reduce the signal to
-    :param skip:         number of seconds to skip at beginning of file
-    :param max_len:      maximum number of seconds to decode
-    :param outfile:      the file to decode the sound file to; if not given,
-                         a temporary file will be created
-    :param tmp_dir:      the directory to create the temporary file in
-                         (if no `outfile` was given)
-    :param tmp_suffix:   fhe file suffix for the temporary file if no outfile
-                         was given; example: ".pcm" (including the dot!)
-    :param cmd:          command line tool to use (defaults to ffmpeg,
-                         alternatively supports avconv)
-    :return:             the output file name
+    Parameters
+    ----------
+    infile : str
+        Name of the audio sound file to decode.
+    fmt : {'f32le', 's16le'}, optional
+        Format of the samples:
+        - 'f32le' for float32, little-endian,
+        - 's16le' for signed 16-bit int, little-endian.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to (if set) [Hz].
+    num_channels : int, optional
+        Number of channels to reduce the signal to.
+    skip : float, optional
+        Number of seconds to skip at beginning of file.
+    max_len : float, optional
+        Maximum length in seconds to decode.
+    outfile : str, optional
+        The file to decode the sound file to; if not given, a temporary file
+        will be created.
+    tmp_dir : str, optional
+        The directory to create the temporary file in (if no `outfile` is
+        given).
+    tmp_suffix : str, optional
+        The file suffix for the temporary file if no `outfile` is given; e.g.
+        ".pcm" (including the dot).
+    cmd : {'ffmpeg', 'avconv'}
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+
+    Returns
+    -------
+    outfile : str
+        The output file name.
 
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as 'infile', not %s."
+        raise ValueError("only file names are supported as `infile`, not %s."
                          % infile)
     # create temp file if no outfile is given
     if outfile is None:
@@ -59,7 +74,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         delete_on_fail = False
     # check output file type
     if not isinstance(outfile, str):
-        raise ValueError("only file names are supported as 'outfile', not %s."
+        raise ValueError("only file names are supported as `outfile`, not %s."
                          % outfile)
     # call ffmpeg (throws exception on error)
     try:
@@ -79,17 +94,29 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     Decodes the given audio file, down-mixes it to mono and returns it as a
     binary string of a sequence of samples.
 
-    :param infile:       the audio sound file to decode
-    :param fmt:          the format of the samples:
-                         'f32le' for float32, little-endian
-                         's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample the signal to
-    :param num_channels: the number of channels to reduce the signal to
-    :param skip:         number of seconds to skip at beginning of file
-    :param max_len:      maximum number of seconds to decode
-    :param cmd:          command line tool to use (defaults to ffmpeg,
-                         alternatively supports avconv)
-    :return:             a binary string of samples
+    Parameters
+    ----------
+    infile : str
+        Name of the audio sound file to decode.
+    fmt : {'f32le', 's16le'}, optional
+        Format of the samples:
+        - 'f32le' for float32, little-endian,
+        - 's16le' for signed 16-bit int, little-endian.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to (if set) [Hz].
+    num_channels : int, optional
+        Number of channels to reduce the signal to.
+    skip : float, optional
+        Number of seconds to skip at beginning of file.
+    max_len : float, optional
+        Maximum length in seconds to decode.
+    cmd : {'ffmpeg', 'avconv'}
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+
+    Returns
+    -------
+    samples : str
+        a binary string of samples
 
     """
     # check input file type
@@ -119,23 +146,36 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     decoding the file, call close() on the returned file-like object, then
     call wait() on the returned process object.
 
-    :param infile:       the audio sound file to decode
-    :param fmt:          the format of the samples:
-                         'f32le' for float32, little-endian
-                         's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample the signal to
-    :param num_channels: the number of channels to reduce the signal to
-    :param skip:         number of seconds to skip at beginning of file
-    :param max_len:      maximum number of seconds to decode
-    :param buf_size:     size of buffer for the file-like object:
-                         '-1' means OS default,
-                         '0' means unbuffered,
-                         '1' means line-buffered,
-                         any other value is the buffer size in bytes.
-    :param cmd:          command line tool to use (defaults to ffmpeg,
-                         alternatively supports avconv)
-    :return:             tuple (file-like object for reading the decoded
-                         samples, process object for the decoding process)
+    Parameters
+    ----------
+    infile : str
+        Name of the audio sound file to decode.
+    fmt : {'f32le', 's16le'}, optional
+        Format of the samples:
+        - 'f32le' for float32, little-endian,
+        - 's16le' for signed 16-bit int, little-endian.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to (if set) [Hz].
+    num_channels : int, optional
+        Number of channels to reduce the signal to.
+    skip : float, optional
+        Number of seconds to skip at beginning of file.
+    max_len : float, optional
+        Maximum length in seconds to decode.
+    buf_size : int, optional
+        Size of buffer for the file-like object:
+        - '-1' means OS default (default),
+        - '0' means unbuffered,
+        - '1' means line-buffered, any other value is the buffer size in bytes.
+    cmd : {'ffmpeg','avconv'}
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+
+    Returns
+    -------
+    pipe : file-like object
+        File-like object for reading the decoded samples.
+    proc : process object
+        Process object for the decoding process.
 
     """
     # check input file type
@@ -162,18 +202,42 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     given input file to the given format, at the given offset and for the given
     length to the given output.
 
-    :param infile:       the audio sound file to decode
-    :param output:       where to decode to
-    :param fmt:          the format of the samples:
-                         'f32le' for float32, little-endian
-                         's16le' for signed 16-bit int, little-endian
-    :param sample_rate:  the sample rate to re-sample to
-    :param num_channels: the number of channels to reduce to
-    :param skip:         number of seconds to skip at beginning of file
-    :param max_len:      maximum number of seconds to decode
-    :param cmd:          command line tool to use (defaults to ffmpeg,
-                         alternatively supports avconv)
-    :return:             assembled ffmpeg call
+    Parameters
+    ----------
+    infile : str
+        Name of the audio sound file to decode.
+    output : str
+        Where to decode to.
+    fmt : {'f32le', 's16le'}, optional
+        Format of the samples:
+        - 'f32le' for float32, little-endian,
+        - 's16le' for signed 16-bit int, little-endian.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to (if set) [Hz].
+    num_channels : int, optional
+        Number of channels to reduce the signal to.
+    skip : float, optional
+        Number of seconds to skip at beginning of file.
+    max_len : float, optional
+        Maximum length in seconds to decode.
+    buf_size : int, optional
+        Size of buffer for the file-like object:
+        - '-1' means OS default (default),
+        - '0' means unbuffered,
+        - '1' means line-buffered, any other value is the buffer size in bytes.
+    cmd : {'ffmpeg','avconv'}
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+
+    Returns
+    -------
+    list
+        Assembled ffmpeg call.
+
+    Notes
+    -----
+    'avconv' rounds decoding positions and decodes in blocks of 4096 length
+    resulting in incorrect start and stop positions. Thus it should only be
+    used to decode complete files.
 
     """
     # Note: avconv rounds decoding positions and decodes in blocks of 4096
@@ -207,10 +271,17 @@ def get_file_info(infile, cmd='ffprobe'):
     """
     Extract and return information about audio files.
 
-    :param infile: name of the audio file
-    :param cmd:    command line tool to use (defaults to ffprobe,
-                   alternatively supports avprobe)
-    :return:       dictionary containing audio file information
+    Parameters
+    ----------
+    infile : str
+        Name of the audio file.
+    cmd : {'ffprobe', 'avprobe'}
+        Probing command (defaults to ffprobe, alternatively supports avprobe).
+
+    Returns
+    -------
+    dict
+        Audio file information.
 
     """
     # check input file type
@@ -241,19 +312,35 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     formats, resampling and channel conversions. The file will be fully decoded
     into memory if no start and stop positions are given.
 
-    :param filename:     name of the file
-    :param sample_rate:  desired sample rate of the signal in Hz [int], or
-                         `None` to return the signal in its original rate
-    :param num_channels: reduce or expand the signal to N channels [int], or
-                         `None` to return the signal with its original channels
-    :param start:        start position (seconds) [float]
-    :param stop:         stop position (seconds) [float]
-    :param dtype:        numpy dtype to return the signal in (supports signed
-                         and unsigned 8/16/32-bit integers, and single and
-                         double precision floats, each in little or big endian)
-    :param cmd_decode:   command used for decoding audio
-    :param cmd_probe:    command used for probing audio (i.e. get file info)
-    :return:             tuple (signal, sample_rate)
+    Parameters
+    ----------
+    filename : str
+        Name of the audio sound file to load.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to [Hz]; 'None' returns the signal
+        in its original rate.
+    num_channels : int, optional
+        Reduce or expand the signal to `num_channels` channels; 'None' returns
+        the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
+    dtype : numpy dtype
+        Numpy dtype to return the signal in (supports signed and unsigned
+        8/16/32-bit integers, and single and double precision floats,
+        each in little or big endian).
+    cmd_decode : {'ffmpeg', 'avconv'}
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    cmd_probe : {'ffprobe', 'avprobe'}
+        Probing command (defaults to ffprobe, alternatively supports avprobe).
+
+    Returns
+    -------
+    signal : numpy array
+        Audio samples.
+    sample_rate : float
+        Sample rate of the audio samples.
 
     """
     # convert dtype to sample type

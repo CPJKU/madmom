@@ -1,4 +1,5 @@
 # encoding: utf-8
+# pylint: disable=no-member
 """
 Madmom is an audio signal processing library.
 

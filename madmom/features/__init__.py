@@ -3,8 +3,15 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This package includes higher level features. Your definition of "higher" may
+This module includes higher level features. Your definition of "higher" may
 vary, but all "lower" level features can be found the `audio` package.
+
+Notes
+-----
+All features should be implemented as classes which inherit from Processor
+(or provide a XYZProcessor(Processor) variant). This way, multiple Processor
+objects can be chained/combined to achieve the wanted functionality.
+
 
 """
 
@@ -20,31 +27,38 @@ class Activations(np.ndarray):
     The Activations class extends a numpy ndarray with a frame rate (fps)
     attribute.
 
+    Parameters
+    ----------
+    data : str, file handle or numpy array
+        Either file name/handle to read the data from or array.
+    fps : float, optional
+        Frames per second (must be set if `data` is given as an array).
+    sep : str, optional
+        Separator between activation values (if read from file).
+    dtype : numpy dtype
+        Data-type the activations are stored/saved/kept.
+
+    Attributes
+    ----------
+    fps : float
+        Frames per second.
+
+    Notes
+    -----
+    If a filename or file handle is given, an undefined or empty (“”) separator
+    means that the file should be treated as a numpy binary file.
+    Only binary files can store the frame rate of the activations.
+    Text files should not be used for anything else but manual inspection
+    or I/O with other programs.
+
     """
     # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, fps=None, sep=None, dtype=np.float32):
-        """
-        Instantiate a new Activations object.
-
-        :param data: either a numpy array or filename or file handle
-        :param fps:  frames per second
-        :param sep:  separator between activation values
-        :return:     Activations instance
-
-        Note: If a filename or file handle is given, an undefined or empty (“”)
-              separator means that the file should be treated as a numpy binary
-              file.
-              Only binary files can store the frame rate of the activations.
-              Text files should not be used for anything else but manual
-              inspection or I/O with other programs.
-
-              The activations are stored/saved/kept as np.float32.
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, data, fps=None, sep=None, dtype=np.float32):
         import io
@@ -93,17 +107,27 @@ class Activations(np.ndarray):
         """
         Load the activations from a file.
 
-        :param infile: input file name or file handle
-        :param fps:    frame rate of the activations
-                       if set, it overwrites the saved frame rate
-        :param sep:    separator between activation values
-        :return:       Activations instance
+        Parameters
+        ----------
+        infile : str or file handle
+            Input file name or file handle.
+        fps : float, optional
+            Frames per second; if set, it overwrites the saved frame rate.
+        sep : str, optional
+            Separator between activation values.
 
-        Note: An undefined or empty (“”) separator means that the file should
-              be treated as a numpy binary file.
-              Only binary files can store the frame rate of the activations.
-              Text files should not be used for anything else but manual
-              inspection or I/O with other programs.
+        Returns
+        -------
+        :class:`Activations` instance
+            :class:`Activations` instance.
+
+        Notes
+        -----
+        An undefined or empty (“”) separator means that the file should be
+        treated as a numpy binary file.
+        Only binary files can store the frame rate of the activations.
+        Text files should not be used for anything else but manual inspection
+        or I/O with other programs.
 
         """
         # load the activations
@@ -130,26 +154,35 @@ class Activations(np.ndarray):
         """
         Save the activations to a file.
 
-        :param outfile: output file name or file handle
-        :param sep:     separator between activation values (see below)
-        :param fmt:     format of the values if stored as text file
+        Parameters
+        ----------
+        outfile : str or file handle
+            Output file name or file handle.
+        sep : str, optional
+            Separator between activation values if saved as text file.
+        fmt : str, optional
+            Format of the values if saved as text file.
 
-        Note: An undefined or empty (“”) separator means that the file should
-              be written as a numpy binary file.
-              Only binary files can store the frame rate of the activations.
-              Text files should not be used for anything else but manual
-              inspection or I/O with other programs.
-              If the activations are a 1d array, its values are interpreted as
-              features of a single time step, i.e. all values are printed in a
-              single line. If you want each value to appear in an individual
-              line, use '\n' as a separator.
-              If the activations are a 2d array, the first axis corresponds to
-              the time dimension, i.e. the features are separated by `sep` and
-              the time steps are printed in separate lines. If you like to swap
-              the dimensions, please use the '.T' operator.
-              Arrays of other dimensions are not supported.
+        Notes
+        -----
+        An undefined or empty (“”) separator means that the file should be
+        treated as a numpy binary file.
+        Only binary files can store the frame rate of the activations.
+        Text files should not be used for anything else but manual inspection
+        or I/O with other programs.
+
+        If the activations are a 1D array, its values are interpreted as
+        features of a single time step, i.e. all values are printed in a single
+        line. If you want each value to appear in an individual line, use '\n'
+        as a separator.
+
+        If the activations are a 2D array, the first axis corresponds to the
+        time dimension, i.e. the features are separated by `sep` and the time
+        steps are printed in separate lines. If you like to swap the
+        dimensions, please use the `T` attribute.
 
         """
+
         # save the activations
         if sep in [None, '']:
             # numpy binary format
@@ -170,36 +203,48 @@ class ActivationsProcessor(Processor):
     """
     ActivationsProcessor processes a file and returns an Activations instance.
 
+    Parameters
+    ----------
+    mode : {'r', 'w', 'in', 'out', 'load', 'save'}
+        Mode of the Processor: read/write.
+    fps : float, optional
+        Frame rate of the activations (if set, it overwrites the saved frame
+        rate).
+    sep : str, optional
+        Separator between activation values if saved as text file.
+
+    Notes
+    -----
+    An undefined or empty (“”) separator means that the file should be treated
+    as a numpy binary file. Only binary files can store the frame rate of the
+    activations.
+
     """
 
     def __init__(self, mode, fps=None, sep=None, **kwargs):
-        """
-
-        :param mode: read/write mode of the Processor ['r', 'w']
-        :param fps:  frame rate of the activations
-                     (if set, it overwrites the saved frame rate)
-        :param sep:  separator between activation values
-
-        Note: An undefined or empty (“”) separator means that the file should
-              be treated as a numpy binary file.
-              Only binary files can store the frame rate of the activations.
-
-        """
         # pylint: disable=unused-argument
-
         self.mode = mode
         self.fps = fps
         self.sep = sep
 
     def process(self, data, output=None):
         """
-        Loads the data stored in the given file and returns it as an
-        Activations instance.
+        Depending on the mode, either loads the data stored in the given file
+        and returns it as an Activations instance or save the data to the given
+        output.
 
-        :param data:   input data or file to be loaded
-                       [numpy array or file name or file handle]
-        :param output: output file [file name or file handle]
-        :return:       Activations instance
+        Parameters
+        ----------
+        data : str, file handle or numpy array
+            Data or file to be loaded (if `mode` is 'r') or data to be saved
+            to file (if `mode` is 'w').
+        output : str or file handle, optional
+            output file (only in write-mode)
+
+        Returns
+        -------
+        :class:`Activations` instance
+            :class:`Activations` instance (only in read-mode)
 
         """
         # pylint: disable=arguments-differ
@@ -207,6 +252,7 @@ class ActivationsProcessor(Processor):
         if self.mode in ('r', 'in', 'load'):
             return Activations.load(data, fps=self.fps, sep=self.sep)
         if self.mode in ('w', 'out', 'save'):
+            # TODO: should we return the data or the Activations instance?
             Activations(data, fps=self.fps).save(output, sep=self.sep)
         else:
             raise ValueError("wrong mode %s; choose {'r', 'w', 'in', 'out', "
@@ -218,8 +264,15 @@ class ActivationsProcessor(Processor):
         """
         Add options to save/load activations to an existing parser.
 
-        :param parser: existing argparse parser
-        :return:       input/output argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            Input/output argument parser group.
 
         """
         # add onset detection related options to the existing parser

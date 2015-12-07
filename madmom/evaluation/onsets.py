@@ -3,14 +3,14 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains onset evaluation functionality.
+This module contains onset evaluation functionality described in [1]_:
 
-It is described in:
-
-"Evaluating the Online Capabilities of Onset Detection Methods"
-Sebastian Böck, Florian Krebs and Markus Schedl.
-Proceedings of the 13th International Society for Music Information Retrieval
-Conference (ISMIR), 2012.
+References
+----------
+.. [1] Sebastian Böck, Florian Krebs and Markus Schedl,
+       "Evaluating the Online Capabilities of Onset Detection Methods",
+       Proceedings of the 13th International Society for Music Information
+       Retrieval Conference (ISMIR), 2012.
 
 """
 
@@ -27,12 +27,21 @@ def load_onsets(values):
     """
     Load the onsets from the given values or file.
 
-    To make this function more universal, it also accepts lists or arrays.
+    Parameters
+    ----------
+    values: str, file handle, list of tuples or numpy array
+        Onsets values.
 
-    :param values: name of the file, file handle, list or numpy array
-    :return:       1D numpy array with onsets times
+    Returns
+    -------
+    numpy array, shape (num_onsets,)
+        Onsets.
 
-    Expected format: onset_time [additional information will be ignored]
+    Notes
+    -----
+    Expected file/tuple/row format:
+
+    'onset_time' [additional information will be ignored]
 
     """
     # load the onsets from the given representation
@@ -62,19 +71,32 @@ def onset_evaluation(detections, annotations, window=WINDOW):
     """
     Determine the true/false positive/negative detections.
 
-    :param detections:  numpy array with detected onsets [seconds]
-    :param annotations: numpy array with annotated onsets [seconds]
-    :param window:      detection window [seconds, float]
-    :return:            tuple of arrays (tp, fp, tn, fn, errors)
-                        tp:     array with true positive detections
-                        fp:     array with false positive detections
-                        tn:     array with true negative detections
-                        fn:     array with false negative detections
-                        errors: array with the errors of the true positive
-                                detections wrt. the annotations
+    Parameters
+    ----------
+    detections : numpy array
+        Detected notes.
+    annotations : numpy array
+        Annotated ground truth notes.
+    window : float, optional
+        Evaluation window [seconds].
 
-    Note: The true negative list is empty, because we are not interested in
-          this class, since it is ~20 times as big as the onset class.
+    Returns
+    -------
+    tp : numpy array, shape (num_tp,)
+        True positive detections.
+    fp : numpy array, shape (num_fp,)
+        False positive detections.
+    tn : numpy array, shape (0,)
+        True negative detections (empty, see notes).
+    fn : numpy array, shape (num_fn,)
+        False negative detections.
+    errors : numpy array, shape (num_tp,)
+        Errors of the true positive detections wrt. the annotations.
+
+    Notes
+    -----
+    The returned true negative array is empty, because we are not interested
+    in this class, since it is magnitudes bigger than true positives array.
 
     """
     # make sure the arrays have the correct types and dimensions
@@ -165,23 +187,25 @@ def onset_evaluation(detections, annotations, window=WINDOW):
 # class and just define the evaluation and error functions
 class OnsetEvaluation(Evaluation):
     """
-    Simple class for measuring Precision, Recall and F-measure.
+    Evaluation class for measuring Precision, Recall and F-measure of onsets.
+
+    Parameters
+    ----------
+    detections : str, list or numpy array
+        Detected notes.
+    annotations : str, list or numpy array
+        Annotated ground truth notes.
+    window : float, optional
+        F-measure evaluation window [seconds]
+    combine : float, optional
+        Combine all annotated onsets within `combine` seconds.
+    delay : float, optional
+        Delay the detections `delay` seconds for evaluation.
 
     """
 
     def __init__(self, detections, annotations, window=WINDOW, combine=0,
                  delay=0, **kwargs):
-        """
-        Evaluates onset detections against annotations.
-
-        :param detections:  onset detections [file or list or numpy array]
-        :param annotations: onset annotations [file or list or numpy array]
-        :param window:      evaluation window [seconds, float]
-        :param combine:     combine the detections within N seconds [float]
-        :param delay:       delay the detections N seconds [float]
-        :param kwargs:      additional keywords
-
-        """
         # load the onset detections and annotations
         detections = load_onsets(detections)
         annotations = load_onsets(annotations)
@@ -217,8 +241,10 @@ class OnsetEvaluation(Evaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -270,8 +296,10 @@ class OnsetMeanEvaluation(MeanEvaluation, OnsetSumEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         # format with floats instead of integers
@@ -291,8 +319,17 @@ def add_parser(parser):
     """
     Add an onset evaluation sub-parser to an existing parser.
 
-    :param parser: existing argparse parser
-    :return:       onset evaluation sub-parser and evaluation parameter group
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+
+    Returns
+    -------
+    sub_parser : argparse sub-parser instance
+        Onset evaluation sub-parser.
+    parser_group : argparse argument group
+        Onset evaluation argument group.
 
     """
     import argparse

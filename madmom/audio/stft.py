@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains Short-Time Fourier Transform (STFT) related functionality.
+This module contains Short-Time Fourier Transform (STFT) related functionality.
 
 """
 
@@ -22,9 +22,17 @@ def fft_frequencies(num_fft_bins, sample_rate):
     """
     Frequencies of the FFT bins.
 
-    :param num_fft_bins: number of FFT bins (i.e. half the FFT length)
-    :param sample_rate:  sample rate of the signal
-    :return:             frequencies of the FFT bins
+    Parameters
+    ----------
+    num_fft_bins : int
+        Number of FFT bins (i.e. half the FFT length).
+    sample_rate : float
+        Sample rate of the signal.
+
+    Returns
+    -------
+    fft_frequencies : numpy array
+        Frequencies of the FFT bins [Hz].
 
     """
     return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
@@ -35,23 +43,24 @@ def stft(frames, window=None, fft_size=None, circular_shift=False):
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
     framed signal.
 
-    :param frames:         framed signal [2D numpy array or iterable]
-    :param window:         window function [numpy ufunc or 1D numpy array]
-    :param fft_size:       FFT size [int, should be a power of 2];
-                           if 'None' is given the `frame_size` of the
-                           `FramedSignal` is used, if the given `fft_size` is
-                           greater than the `frame_size`, the frames are
-                           zero-padded accordingly; `fft_size` must not be
-                           smaller than `frame_size`
-    :param circular_shift: circular shift for correct phase [bool]
-    :return:               the complex STFT of the signal
+    Parameters
+    ----------
+    frames : numpy array or iterable, shape (num_frames, frame_size)
+        Framed signal (e.g. :class:`FramedSignal` instance)
+    window : numpy array, shape (frame_size,)
+        Window (function).
+    fft_size : int, optional
+        FFT size (should be a power of 2); if 'None', the 'frame_size' given
+        by the `frames` is used; if the given `fft_size` is greater than the
+        'frame_size', the frames are zero-padded accordingly.
+    circular_shift : bool, optional
+        Circular shift the individual frames before performing the FFT;
+        needed for correct phase.
 
-    Note: `frames` must be a 2D numpy array or iterable with the time as the
-          first dimension (axis=0). If given, he size of the `window` must
-          match the second dimension of `frames`.
-          `window` must be either a numpy window function (size of the window
-          is inferred from the frame size) or a 1D numpy array with a size
-          equal to the size of the frames.
+    Returns
+    -------
+    stft : numpy array, shape (num_frames, frame_size)
+        The complex STFT of the framed signal.
 
     """
     # check for correct shape of input
@@ -116,8 +125,15 @@ def phase(stft):
     """
     Returns the phase of the complex STFT of a signal.
 
-    :param stft: complex STFT of a signal
-    :return:     phase
+    Parameters
+    ----------
+    stft : numpy array, shape (num_frames, frame_size)
+        The complex STFT of a signal.
+
+    Returns
+    -------
+    phase : numpy array
+        Phase of the STFT.
 
     """
     return np.angle(stft)
@@ -127,8 +143,15 @@ def local_group_delay(phase):
     """
     Returns the local group delay of the phase of a signal.
 
-    :param phase: phase of the STFT of a signal
-    :return:      local group delay
+    Parameters
+    ----------
+    phase : numpy array, shape (num_frames, frame_size)
+        Phase of the STFT of a signal.
+
+    Returns
+    -------
+    lgd : numpy array
+        Local group delay of the phase.
 
     """
     # check for correct shape of input
@@ -180,46 +203,47 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     """
     ShortTimeFourierTransform class.
 
+    Parameters
+    ----------
+    frames : :class:`.audio.signal.FramedSignal` instance
+        :class:`.audio.signal.FramedSignal` instance.
+    window : numpy ufunc or numpy array, optional
+        Window (function); if a function (e.g. np.hanning) is given, a window
+        of the given shape of size of the `frames` is used.
+    fft_size : int, optional
+        FFT size (should be a power of 2); if 'None', the `frame_size` given by
+        the `frames` is used, if the given `fft_size` is greater than the
+        `frame_size`, the frames are zero-padded accordingly.
+    circular_shift : bool, optional
+        Circular shift the individual frames before performing the FFT;
+        needed for correct phase.
+    kwargs : dict, optional
+        If no :class:`.audio.signal.FramedSignal` instance was given, one is
+        instantiated with these additional keyword arguments.
+
+    Notes
+    -----
+    If the :class:`Signal` (wrapped in the :class:`FramedSignal`) has an
+    integer dtype, it is automatically scaled as if it has a float dtype with
+    the values being in the range [-1, 1]. This results in same valued STFTs
+    independently of the dtype of the signal. On the other hand, this prevents
+    extra memory consumption since the data-type of the signal does not need to
+    be converted (and if no decoding is needed, the audio signal can be memory
+    mapped).
+
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
                  circular_shift=False, **kwargs):
-        """
-        Creates a new ShortTimeFourierTransform instance from the given
-        FramedSignal.
-
-        :param frames:         FramedSignal instance (or anything a
-                               FramedSignal can be instantiated from)
-
-        FFT parameters:
-
-        :param window:         window function [numpy ufunc or numpy array]
-        :param fft_size:       FFT size [int, should be a power of 2];
-                               if 'None' is given the `frame_size` of the
-                               `FramedSignal` is used, if the given `fft_size`
-                               is greater than the `frame_size`, the frames
-                               are zero-padded accordingly.
-        :param circular_shift: circular shift the signal before performing the
-                               FFT; needed for correct phase
-
-        If no FramedSignal instance was given, one is instantiated and these
-        arguments are passed:
-
-        :param kwargs:         keyword arguments passed to FramedSignal
-
-        Note: If the Signal (wrapped in the FramedSignal) has an integer dtype,
-              it is automatically scaled as if it has a float dtype with the
-              values being in the range [-1, 1].
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
                 circular_shift=False, **kwargs):
         # pylint: disable=unused-argument
-
         from .signal import FramedSignal
         # take the FramedSignal from the given STFT
         if isinstance(frames, ShortTimeFourierTransform):
@@ -298,10 +322,18 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
 
     def spec(self, **kwargs):
         """
-        Compute the magnitude spectrogram of the STFT.
+        Returns the magnitude spectrogram of the STFT.
 
-        :param kwargs: keyword arguments passed to Spectrogram
-        :return:       Spectrogram instance
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Keyword arguments passed to
+            :class:`.audio.spectrogram.Spectrogram`.
+
+        Returns
+        -------
+        spec : :class:`.audio.spectrogram.Spectrogram`
+            :class:`.audio.spectrogram.Spectrogram` instance.
 
         """
         # import Spectrogram here, otherwise we have circular imports
@@ -310,10 +342,17 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
 
     def phase(self, **kwargs):
         """
-        Compute the phase of the STFT.
+        Returns the phase of the STFT.
 
-        :param kwargs: keyword arguments passed to Phase
-        :return:       Phase instance
+        Parameters
+        ----------
+        kwargs : dict, optional
+            keyword arguments passed to :class:`Phase`.
+
+        Returns
+        -------
+        phase : :class:`Phase`
+            :class:`Phase` instance.
 
         """
         return Phase(self, **kwargs)
@@ -326,21 +365,23 @@ class ShortTimeFourierTransformProcessor(Processor):
     """
     ShortTimeFourierTransformProcessor class.
 
+    Parameters
+    ----------
+    window : numpy ufunc, optional
+        Window function.
+    fft_size : int, optional
+        FFT size (should be a power of 2); if 'None', it is determined by the
+        size of the frames; if is greater than the frame size, the frames are
+        zero-padded accordingly.
+    circular_shift : bool, optional
+        Circular shift the individual frames before performing the FFT;
+        needed for correct phase.
+
     """
 
     def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
                  **kwargs):
-        """
-        Creates a new ShortTimeFourierTransformProcessor instance.
-
-        :param window:         window function [numpy ufunc or numpy array]
-        :param fft_size:       use this size for the FFT [int, power of 2]
-        :param circular_shift: circular shift the signal before performing the
-                               FFT; needed for correct phase
-
-        """
         # pylint: disable=unused-argument
-
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
@@ -349,9 +390,17 @@ class ShortTimeFourierTransformProcessor(Processor):
         """
         Perform FFT on a framed signal and return the STFT.
 
-        :param data:   data to be processed
-        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
-        :return:       ShortTimeFourierTransform instance
+        Parameters
+        ----------
+        data : numpy array
+            Data to be processed.
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`ShortTimeFourierTransform`.
+
+        Returns
+        -------
+        stft : :class:`ShortTimeFourierTransform`
+            :class:`ShortTimeFourierTransform` instance.
 
         """
         # instantiate a STFT
@@ -365,11 +414,22 @@ class ShortTimeFourierTransformProcessor(Processor):
         """
         Add STFT related arguments to an existing parser.
 
-        :param parser:   existing argparse parser
-        :param window:   window function
-        :param fft_size: use this size for FFT [int, should be a power of 2]
-        :return:         STFT argument parser group
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser.
+        window : numpy ufunc, optional
+            Window function.
+        fft_size : int, optional
+            Use this size for FFT (should be a power of 2).
 
+        Returns
+        -------
+        argpase argument group
+            STFT argument parser group.
+
+        Notes
+        -----
         Parameters are included in the group only if they are not 'None'.
 
         """
@@ -396,28 +456,25 @@ class Phase(PropertyMixin, np.ndarray):
     """
     Phase class.
 
+    Parameters
+    ----------
+    stft : :class:`ShortTimeFourierTransform` instance
+         :class:`ShortTimeFourierTransform` instance.
+    kwargs : dict, optional
+        If no :class:`ShortTimeFourierTransform` instance was given, one is
+        instantiated with these additional keyword arguments.
+
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, stft, **kwargs):
-        """
-        Creates a new Phase instance from the given ShortTimeFourierTransform.
-
-        :param stft:   ShortTimeFourierTransform instance (or anything a
-                       ShortTimeFourierTransform can be instantiated from)
-
-        If no ShortTimeFourierTransform instance was given, one is instantiated
-        and these arguments are passed:
-
-        :param kwargs: keyword arguments passed to ShortTimeFourierTransform
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, stft, **kwargs):
         # pylint: disable=unused-argument
-
         # if a Phase object is given use its STFT
         if isinstance(stft, Phase):
             stft = stft.stft
@@ -450,10 +507,17 @@ class Phase(PropertyMixin, np.ndarray):
 
     def local_group_delay(self, **kwargs):
         """
-        Compute the local group delay of the phase.
+        Returns the local group delay of the phase.
 
-        :param kwargs: keyword arguments passed to LocalGroupDelay
-        :return:       LocalGroupDelay instance
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`LocalGroupDelay`.
+
+        Returns
+        -------
+        lgd : :class:`LocalGroupDelay` instance
+            :class:`LocalGroupDelay` instance.
 
         """
         return LocalGroupDelay(self, **kwargs)
@@ -466,28 +530,25 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
     """
     Local Group Delay class.
 
+    Parameters
+    ----------
+    stft : :class:`Phase` instance
+         :class:`Phase` instance.
+    kwargs : dict, optional
+        If no :class:`Phase` instance was given, one is instantiated with
+        these additional keyword arguments.
+
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, phase, **kwargs):
-        """
-        Creates a new LocalGroupDelay instance from the given Phase.
-
-        :param stft:   Phase instance (or anything a Phase can be instantiated
-                       from)
-
-        If no Phase instance was given, one is instantiated and these arguments
-        are passed:
-
-        :param kwargs: keyword arguments passed to Phase
-
-        """
-        # this method exists only for argument documentation purposes
-        # the initialisation is done in __new__() and __array_finalize__()
+        # this method is for documentation purposes only
+        pass
 
     def __new__(cls, phase, **kwargs):
         # pylint: disable=unused-argument
-
         # try to instantiate a Phase object
         if not isinstance(stft, Phase):
             phase = Phase(phase, circular_shift=True, **kwargs)

@@ -3,7 +3,7 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This file contains note evaluation functionality.
+This module contains note evaluation functionality.
 
 """
 
@@ -23,12 +23,21 @@ def load_notes(values):
     """
     Load the notes from the given values or file.
 
-    To make this function more universal, it also accepts lists or arrays.
+    Parameters
+    ----------
+    values: str, file handle, list of tuples or numpy array
+        Notes values.
 
-    :param values: name of the file, file handle, list or numpy array
-    :return:       2D array with notes
+    Returns
+    -------
+    numpy array
+        Notes.
 
-    Expected format: onset_time MIDI_note [duration [velocity]]
+    Notes
+    -----
+    Expected file/tuple/row format:
+
+    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
     # load the notes from the given representation
@@ -43,12 +52,21 @@ def load_notes(values):
 
 def remove_duplicate_notes(data):
     """
-    Remove duplicate notes from a numpy array.
+    Remove duplicate rows from the array.
 
-    :param data: 2D numpy array
-    :return:     array with duplicate rows removed
+    Parameters
+    ----------
+    data : numpy array
+        Data.
 
-    Note: This function removes only exact duplicates.
+    Returns
+    -------
+    numpy array
+        Data array with duplicate rows removed.
+
+    Notes
+    -----
+    This function removes only exact duplicates.
 
     """
     if data.size == 0:
@@ -72,22 +90,36 @@ def note_onset_evaluation(detections, annotations, window=WINDOW):
     """
     Determine the true/false positive/negative note onset detections.
 
-    :param detections:  array with detected notes (duration and velocity are
-                        optional), times in seconds
-                        [[onset, MIDI note, duration, velocity]]
-    :param annotations: array with annotated notes (same format as detections)
-    :param window:      detection window [seconds]
-    :return:            tuple of tp, fp, tn, fn, errors numpy arrays
+    Parameters
+    ----------
+    detections : numpy array
+        Detected notes.
+    annotations : numpy array
+        Annotated ground truth notes.
+    window : float, optional
+        Evaluation window [seconds].
 
-    tp:     array with true positive detections
-    fp:     array with false positive detections
-    tn:     array with true negative detections (this one is empty!)
-    fn:     array with false negative detections
-    errors: array with errors of the true positive detections wrt. the
-            annotations
+    Returns
+    -------
+    tp : numpy array, shape (num_tp, 2)
+        True positive detections.
+    fp : numpy array, shape (num_fp, 2)
+        False positive detections.
+    tn : numpy array, shape (0, 2)
+        True negative detections (empty, see notes).
+    fn : numpy array, shape (num_fn, 2)
+        False negative detections.
+    errors : numpy array, shape (num_tp, 2)
+        Errors of the true positive detections wrt. the annotations.
 
-    Note: the true negative array is empty, because we are not interested in
-          this class, since it is magnitudes as big as the note class.
+    Notes
+    -----
+    The expected note row format is:
+
+    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
+
+    The returned true negative array is empty, because we are not interested
+    in this class, since it is magnitudes bigger than true positives array.
 
     """
     # make sure the arrays have the correct types and dimensions
@@ -164,20 +196,21 @@ class NoteEvaluation(MultiClassEvaluation):
     """
     Evaluation class for measuring Precision, Recall and F-measure of notes.
 
+    Parameters
+    ----------
+    detections : str, list or numpy array
+        Detected notes.
+    annotations : str, list or numpy array
+        Annotated ground truth notes.
+    window : float, optional
+        F-measure evaluation window [seconds]
+    delay : float, optional
+        Delay the detections `delay` seconds for evaluation.
+
     """
 
     def __init__(self, detections, annotations, window=WINDOW, delay=0,
                  **kwargs):
-        """
-        Evaluates note detections against annotations.
-
-        :param detections:  note detections [2D numpy array]
-        :param annotations: onset annotations [2D numpy array]
-        :param window:      evaluation window [seconds, float]
-        :param delay:       delay the detections N seconds [float]
-        :param kwargs:      additional keywords passed to MultiClassEvaluation
-
-        """
         # load the note detections and annotations
         detections = load_notes(detections)
         annotations = load_notes(annotations)
@@ -212,11 +245,16 @@ class NoteEvaluation(MultiClassEvaluation):
 
     def tostring(self, notes=False, **kwargs):
         """
-        Format the evaluation metrics as a human readable string.
 
-        :param notes:  detailed output for all individual notes [bool]
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Parameters
+        ----------
+        notes : bool, optional
+            Display detailed output for all individual notes.
+
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = ''
@@ -291,8 +329,10 @@ class NoteMeanEvaluation(MeanEvaluation, NoteSumEvaluation):
         """
         Format the evaluation metrics as a human readable string.
 
-        :param kwargs: additional arguments will be ignored
-        :return:       evaluation metrics formatted as a human readable string
+        Returns
+        -------
+        str
+            Evaluation metrics formatted as a human readable string.
 
         """
         # format with floats instead of integers
@@ -312,8 +352,17 @@ def add_parser(parser):
     """
     Add a note evaluation sub-parser to an existing parser.
 
-    :param parser: existing argparse parser
-    :return:       note evaluation sub-parser and evaluation parameter group
+    Parameters
+    ----------
+    parser : argparse parser instance
+        Existing argparse parser object.
+
+    Returns
+    -------
+    sub_parser : argparse sub-parser instance
+        Note evaluation sub-parser.
+    parser_group : argparse argument group
+        Note evaluation argument group.
 
     """
     import argparse
