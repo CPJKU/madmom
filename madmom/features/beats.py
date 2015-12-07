@@ -692,9 +692,6 @@ class DBNBeatTrackingProcessor(Processor):
 
     Parameters
     ----------
-    correct : bool, optional
-        Correct the beats (i.e. align them to the nearest peak of the beat
-        activation function).
     min_bpm : float, optional
         Minimum tempo used for beat tracking [bpm].
     max_bpm : float, optional
@@ -710,6 +707,9 @@ class DBNBeatTrackingProcessor(Processor):
         representing beat states and the remaining non-beat states.
     norm_observations : bool, optional
         Normalize the observations.
+    correct : bool, optional
+        Correct the beats (i.e. align them to the nearest peak of the beat
+        activation function).
     fps : float, optional
         Frames per second.
 
@@ -739,11 +739,12 @@ class DBNBeatTrackingProcessor(Processor):
     MIN_BPM = 55.
     MAX_BPM = 215.
 
-    def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
+                 norm_observations=NORM_OBSERVATIONS, correct=CORRECT,
+                 fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -763,8 +764,8 @@ class DBNBeatTrackingProcessor(Processor):
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
-        self.fps = fps
         self.correct = correct
+        self.fps = fps
 
     def process(self, activations):
         """
@@ -858,14 +859,6 @@ class DBNBeatTrackingProcessor(Processor):
         # pylint: disable=arguments-differ
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        if correct:
-            g.add_argument('--no_correct', dest='correct',
-                           action='store_false', default=correct,
-                           help='do not correct the beat positions')
-        else:
-            g.add_argument('--correct', dest='correct',
-                           action='store_true', default=correct,
-                           help='correct the beat positions')
         # add a transition parameters
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
@@ -897,6 +890,19 @@ class DBNBeatTrackingProcessor(Processor):
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalize the observations of the DBN')
+        # option to correct the beat positions
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions (i.e. do '
+                                'not align them to the nearest peak of the '
+                                'beat activation function)')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions (i.e. align them '
+                                'to the nearest peak of the beat activation'
+                                'function)')
         # return the argument group so it can be modified if needed
         return g
 
