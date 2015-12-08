@@ -9,13 +9,13 @@ This module contains note evaluation functionality.
 
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import warnings
+import numpy as np
 
-from ..utils import suppress_warnings
 from . import (evaluation_io, MultiClassEvaluation, SumEvaluation,
                MeanEvaluation)
 from .onsets import onset_evaluation, OnsetEvaluation
+from ..utils import suppress_warnings
 
 
 @suppress_warnings

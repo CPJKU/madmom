@@ -10,7 +10,6 @@ This module contains Short-Time Fourier Transform (STFT) related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import scipy.fftpack as fft
 
 from madmom.processors import Processor
 
@@ -63,6 +62,7 @@ def stft(frames, window=None, fft_size=None, circular_shift=False):
         The complex STFT of the framed signal.
 
     """
+    import scipy.fftpack as fft
     # check for correct shape of input
     if frames.ndim != 2:
         # TODO: add multi-channel support

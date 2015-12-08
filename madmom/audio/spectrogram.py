@@ -11,9 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from .stft import (PropertyMixin, ShortTimeFourierTransform,
-                   ShortTimeFourierTransformProcessor)
+from ..processors import Processor, SequentialProcessor, ParallelProcessor
+from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS)
 
@@ -186,6 +185,7 @@ class Spectrogram(PropertyMixin, np.ndarray):
         pass
 
     def __new__(cls, stft, **kwargs):
+        from .stft import ShortTimeFourierTransform
         # check stft type
         if isinstance(stft, Spectrogram):
             # already a Spectrogram
@@ -318,8 +318,6 @@ class SpectrogramProcessor(Processor):
 
         """
         return Spectrogram(data, **kwargs)
-
-    add_arguments = ShortTimeFourierTransformProcessor.add_arguments
 
 
 # filtered spectrogram stuff
@@ -1196,6 +1194,7 @@ class SuperFluxProcessor(SequentialProcessor):
     """
 
     def __init__(self, **kwargs):
+        from .stft import ShortTimeFourierTransformProcessor
         # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
         filterbank = kwargs.pop('filterbank', FILTERBANK)

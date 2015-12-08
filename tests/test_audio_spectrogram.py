@@ -14,6 +14,7 @@ from . import DATA_PATH
 from madmom.audio.spectrogram import *
 from madmom.audio.signal import FramedSignal
 from madmom.audio.filters import Filterbank, LogarithmicFilterbank
+from madmom.audio.stft import ShortTimeFourierTransform
 
 
 # test functions

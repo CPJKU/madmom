@@ -16,12 +16,11 @@ If you want to change this module and use it interactively, use pyximport.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+
 cimport numpy as np
 cimport cython
 
-
-cdef extern from "math.h":
-    float INFINITY
+from libc.math cimport INFINITY
 
 
 class TransitionModel(object):

@@ -18,8 +18,10 @@ References
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+
 cimport numpy as np
 cimport cython
+
 from libc.math cimport INFINITY
 
 

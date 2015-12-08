@@ -2,6 +2,7 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
+# pylint: disable=wrong-import-position
 """
 This module includes higher level features. Your definition of "higher" may
 vary, but all "lower" level features can be found the `audio` package.

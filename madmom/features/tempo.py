@@ -10,7 +10,6 @@ This module contains tempo related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from scipy.signal import argrelmax
 
 from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
@@ -210,6 +209,7 @@ def detect_tempo(histogram, fps):
         relative strengths (second column).
 
     """
+    from scipy.signal import argrelmax
     # histogram of IBIs
     bins = histogram[0]
     # convert the histogram bin delays to tempi in beats per minute

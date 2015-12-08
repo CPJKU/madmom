@@ -2,6 +2,7 @@
 # pylint: disable=no-member
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
+# pylint: disable=wrong-import-position
 """
 Evaluation module.
 
