@@ -89,6 +89,8 @@ def _sigmoid(x, out=None):
 
 try:
     # pylint: disable=no-name-in-module
+    # pylint: disable=wrong-import-order
+    # pylint: disable=wrong-import-position
 
     # try to use a faster sigmoid function
     from distutils.version import LooseVersion

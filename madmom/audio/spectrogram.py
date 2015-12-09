@@ -11,9 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from .stft import (PropertyMixin, ShortTimeFourierTransform,
-                   ShortTimeFourierTransformProcessor)
+from ..processors import Processor, SequentialProcessor, ParallelProcessor
+from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS)
 
@@ -186,6 +185,7 @@ class Spectrogram(PropertyMixin, np.ndarray):
         pass
 
     def __new__(cls, stft, **kwargs):
+        from .stft import ShortTimeFourierTransform
         # check stft type
         if isinstance(stft, Spectrogram):
             # already a Spectrogram
@@ -319,8 +319,6 @@ class SpectrogramProcessor(Processor):
         """
         return Spectrogram(data, **kwargs)
 
-    add_arguments = ShortTimeFourierTransformProcessor.add_arguments
-
 
 # filtered spectrogram stuff
 FILTERBANK = LogarithmicFilterbank
@@ -365,22 +363,20 @@ class FilteredSpectrogram(Spectrogram):
     # we just want to inherit some properties from Spectrogram
     def __init__(self, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, spectrogram, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, block_size=2048, **kwargs):
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=unused-argument
         import inspect
         from .filters import Filterbank
-
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
-
         # instantiate a Filterbank if needed
         if inspect.isclass(filterbank) and issubclass(filterbank, Filterbank):
             # a Filterbank class is given, create a filterbank of this type
@@ -391,27 +387,6 @@ class FilteredSpectrogram(Spectrogram):
         if not isinstance(filterbank, Filterbank):
             raise TypeError('not a Filterbank type or instance: %s' %
                             filterbank)
-
-        # TODO: reactivate this or move this whole block/batch processing to
-        #       the processors?
-        # # init the return matrix
-        # num_frames = spectrogram.num_frames
-        # data = np.empty((num_frames, filterbank.num_bands), np.float32)
-        # # process in blocks of this size
-        # if block_size is None:
-        #     block_size = spectrogram.num_frames
-        # # iterate over the STFT in blocks of the given size
-        # for b, start in enumerate(range(0, num_frames, block_size)):
-        #     # determine stop index of the block
-        #     stop = min(start + block_size, num_frames)
-        #     # get the block
-        #     block = spectrogram[start: stop]
-        #     # determine the position inside the data to be returned
-        #     start = b * block_size
-        #     stop = start + len(block)
-        #     # filter it and put it in the return spectrogram
-        #     data[start: stop] = np.dot(block, filterbank)
-
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as FilteredSpectrogram
@@ -1219,6 +1194,7 @@ class SuperFluxProcessor(SequentialProcessor):
     """
 
     def __init__(self, **kwargs):
+        from .stft import ShortTimeFourierTransformProcessor
         # set the default values (can be overwritten if set)
         # we need an un-normalized LogarithmicFilterbank with 24 bands
         filterbank = kwargs.pop('filterbank', FILTERBANK)
@@ -1250,22 +1226,22 @@ class MultiBandSpectrogram(FilteredSpectrogram):
 
     Parameters
     ----------
-    spectrogram : :class:`FilteredSpectrogram` instance
-        :class:`FilteredSpectrogram` instance.
+    spectrogram : :class:`Spectrogram` instance
+        :class:`Spectrogram` instance.
     crossover_frequencies : list or numpy array
-        List of crossover frequencies at which the `spectrogram` is split into
-        bands.
+        List of crossover frequencies at which the `spectrogram` is split
+        into bands.
     norm_bands : bool, optional
-        Normalize the bands to area 1.
+        Normalize the filter bands to area 1.
     kwargs : dict, optional
-        If no :class:`FilteredSpectrogram` instance was given, one is
-        instantiated with these additional keyword arguments.
+        If no :class:`Spectrogram` instance was given, one is instantiated
+        with these additional keyword arguments.
 
     Notes
     -----
-    The MultiBandSpectrogram is implemented as a :class:`FilteredSpectrogram`
-    which uses a :class:`.audio.filters.RectangularFilterbank` to combine
-    multiple frequency bins.
+    The MultiBandSpectrogram is implemented as a :class:`Spectrogram` which
+    uses a :class:`.audio.filters.RectangularFilterbank` to combine multiple
+    frequency bins.
 
     """
     # pylint: disable=super-on-old-class
@@ -1280,9 +1256,9 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
                 **kwargs):
         from .filters import RectangularFilterbank
-        # instantiate a FilteredSpectrogram if needed
+        # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
-            spectrogram = FilteredSpectrogram(spectrogram, **kwargs)
+            spectrogram = Spectrogram(spectrogram, **kwargs)
         # create a rectangular filterbank
         filterbank = RectangularFilterbank(spectrogram.bin_frequencies,
                                            crossover_frequencies,
@@ -1349,10 +1325,10 @@ class MultiBandSpectrogramProcessor(Processor):
     spectrogram : :class:`Spectrogram` instance
         :class:`Spectrogram` instance.
     crossover_frequencies : list or numpy array
-        List of crossover frequencies at which the `spectrogram` is split into
-        bands.
+        List of crossover frequencies at which the `spectrogram` is split
+        into bands.
     norm_bands : bool, optional
-        Normalize the filter band's area to 1.
+        Normalize the filter bands area to 1.
 
     """
 
@@ -1428,7 +1404,7 @@ class MultiBandSpectrogramProcessor(Processor):
             else:
                 g.add_argument('--norm_bands', action='store_true',
                                default=-norm_bands,
-                               help='normalize the bands')
+                               help='normalize the bands to area 1')
         # return the group
         return g
 

@@ -49,7 +49,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     tmp_suffix : str, optional
         The file suffix for the temporary file if no `outfile` is given; e.g.
         ".pcm" (including the dot).
-    cmd : {'ffmpeg', 'avconv'}
+    cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
 
     Returns
@@ -110,7 +110,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Number of seconds to skip at beginning of file.
     max_len : float, optional
         Maximum length in seconds to decode.
-    cmd : {'ffmpeg', 'avconv'}
+    cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
 
     Returns
@@ -121,7 +121,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as 'infile', not %s."
+        raise ValueError("only file names are supported as `infile`, not %s."
                          % infile)
     # assemble ffmpeg call
     call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
@@ -167,7 +167,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
         - '-1' means OS default (default),
         - '0' means unbuffered,
         - '1' means line-buffered, any other value is the buffer size in bytes.
-    cmd : {'ffmpeg','avconv'}
+    cmd : {'ffmpeg','avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
 
     Returns
@@ -180,7 +180,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as 'infile', not %s."
+        raise ValueError("only file names are supported as `infile`, not %s."
                          % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
     #       reacts on that. A cleaner solution would be calling
@@ -220,12 +220,7 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
         Number of seconds to skip at beginning of file.
     max_len : float, optional
         Maximum length in seconds to decode.
-    buf_size : int, optional
-        Size of buffer for the file-like object:
-        - '-1' means OS default (default),
-        - '0' means unbuffered,
-        - '1' means line-buffered, any other value is the buffer size in bytes.
-    cmd : {'ffmpeg','avconv'}
+    cmd : {'ffmpeg','avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
 
     Returns
@@ -254,15 +249,17 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     call = [cmd, "-v", "quiet"]
     # infile options
     if skip is not None:
+        # use "%f" to avoid e-05 and the like
         call.extend(["-ss", "%f" % float(skip)])
     call.extend(["-i", infile, "-y", "-f", str(fmt)])
     if max_len is not None:
+        # use "%f" to avoid e-05 and the like
         call.extend(["-t", "%f" % float(max_len)])
     # output options
     if num_channels is not None:
-        call.extend(["-ac", str(num_channels)])
+        call.extend(["-ac", str(int(num_channels))])
     if sample_rate is not None:
-        call.extend(["-ar", str(sample_rate)])
+        call.extend(["-ar", str(int(sample_rate))])
     call.append(output)
     return call
 
@@ -275,7 +272,7 @@ def get_file_info(infile, cmd='ffprobe'):
     ----------
     infile : str
         Name of the audio file.
-    cmd : {'ffprobe', 'avprobe'}
+    cmd : {'ffprobe', 'avprobe'}, optional
         Probing command (defaults to ffprobe, alternatively supports avprobe).
 
     Returns
@@ -286,7 +283,7 @@ def get_file_info(infile, cmd='ffprobe'):
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as 'infile', not %s."
+        raise ValueError("only file names are supported as `infile`, not %s."
                          % infile)
     # init dictionary
     info = {'num_channels': None, 'sample_rate': None}
@@ -298,7 +295,7 @@ def get_file_info(infile, cmd='ffprobe'):
         if line.startswith(b'channels='):
             info['num_channels'] = int(line[len('channels='):])
         if line.startswith(b'sample_rate='):
-            info['sample_rate'] = float(line[len('sample_rate='):])
+            info['sample_rate'] = int(line[len('sample_rate='):])
     # return the dictionary
     return info
 
@@ -326,20 +323,20 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
         Start position [seconds].
     stop : float, optional
         Stop position [seconds].
-    dtype : numpy dtype
+    dtype : numpy dtype, optional
         Numpy dtype to return the signal in (supports signed and unsigned
         8/16/32-bit integers, and single and double precision floats,
         each in little or big endian).
-    cmd_decode : {'ffmpeg', 'avconv'}
+    cmd_decode : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
-    cmd_probe : {'ffprobe', 'avprobe'}
+    cmd_probe : {'ffprobe', 'avprobe'}, optional
         Probing command (defaults to ffprobe, alternatively supports avprobe).
 
     Returns
     -------
     signal : numpy array
         Audio samples.
-    sample_rate : float
+    sample_rate : int
         Sample rate of the audio samples.
 
     """

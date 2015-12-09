@@ -21,6 +21,7 @@ All commits until 0650d5502e01e6b4245ce99729fc8e7a71aacff3 are incorporated.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+
 from scipy import linalg
 
 

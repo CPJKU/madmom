@@ -1232,8 +1232,10 @@ class TestPitchClassProfileFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
         self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
         self.assertTrue(filt.fref == 440)
-        self.assertTrue(filt.center_frequencies is None)
-        self.assertTrue(filt.corner_frequencies is None)
+        with self.assertRaises(NotImplementedError):
+            filt.center_frequencies
+        with self.assertRaises(NotImplementedError):
+            filt.corner_frequencies
 
     def test_pickling(self):
         filt = PitchClassProfileFilterbank(FFT_FREQS_1024)
@@ -1274,8 +1276,10 @@ class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
         self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
         self.assertTrue(filt.fref == 440)
-        self.assertTrue(filt.center_frequencies is None)
-        self.assertTrue(filt.corner_frequencies is None)
+        with self.assertRaises(NotImplementedError):
+            filt.center_frequencies
+        with self.assertRaises(NotImplementedError):
+            filt.corner_frequencies
 
     def test_pickling(self):
         filt = HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)

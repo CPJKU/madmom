@@ -367,8 +367,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         signal, sample_rate = load_audio_file(f)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
-        # TODO: ffmpeg returns a float sample_rate, convert it?
-        self.assertTrue(type(sample_rate) == float)
+        self.assertTrue(type(sample_rate) == int)
 
     def test_file_handle(self):
         # test wave loader
@@ -392,13 +391,13 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == float)
+        self.assertTrue(type(sample_rate) == int)
         file_handle.close()
         # closed file handle
         signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == float)
+        self.assertTrue(type(sample_rate) == int)
 
     def test_values(self):
         # test wave loader
@@ -507,7 +506,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
         self.assertIsInstance(result.num_samples, int)
-        self.assertIsInstance(result.sample_rate, float)
+        self.assertIsInstance(result.sample_rate, int)
         self.assertIsInstance(result.num_channels, int)
         self.assertIsInstance(result.length, float)
         self.assertIsInstance(result.ndim, int)
@@ -541,6 +540,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result, sig_2d))
         self.assertTrue(len(result) == 9)
         self.assertTrue(result.num_samples == 9)
+        # not officially supported, but Signal can handle float sample rates
         self.assertTrue(result.sample_rate == 12.3)
         self.assertTrue(result.num_channels == 2)
         self.assertTrue(result.length == 9 / 12.3)

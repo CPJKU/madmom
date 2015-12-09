@@ -445,7 +445,7 @@ class Signal(np.ndarray):
         # cast as Signal
         obj = np.asarray(data).view(cls)
         if sample_rate is not None:
-            sample_rate = float(sample_rate)
+            sample_rate = sample_rate
         obj.sample_rate = sample_rate
         # return the object
         return obj

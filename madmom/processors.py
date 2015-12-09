@@ -381,18 +381,15 @@ class ParallelProcessor(SequentialProcessor):
 
         Notes
         -----
-        A value of 0 or negative numbers for `num_threads` suppresses the
-        inclusion of the parallel option and 'None' is returned instead of
-        the parsing group.
-        Setting `num_threads` to 'None' sets the number to the number of CPU
-        cores.
+        The group is only returned if only if `num_threads` is not 'None'.
+        Setting it smaller or equal to 0 sets it the number of CPU cores.
 
         """
         if num_threads is None:
-            num_threads = cls.NUM_THREADS
+            return None
         # do not include the group
         if num_threads <= 0:
-            return None
+            num_threads = cls.NUM_THREADS
         # add parallel processing options
         g = parser.add_argument_group('parallel processing arguments')
         g.add_argument('-j', '--threads', dest='num_threads',
@@ -531,7 +528,7 @@ class ParallelProcess(mp.Process):
 
     """
     def __init__(self, task_queue):
-        mp.Process.__init__(self)
+        super(ParallelProcess, self).__init__()
         self.task_queue = task_queue
 
     def run(self):

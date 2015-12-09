@@ -375,44 +375,6 @@ class BeatTrackingProcessor(Processor):
         # return the argument group so it can be modified if needed
         return g
 
-    @classmethod
-    def add_tempo_arguments(cls, parser, method=TEMPO_METHOD, min_bpm=MIN_BPM,
-                            max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                            hist_smooth=HIST_SMOOTH, alpha=ALPHA):
-        """
-        Add tempo arguments to an existing parser.
-
-        Parameters
-        ----------
-        parser : argparse parser instance
-            Existing argparse parser object.
-        method : {'comb', 'acf', 'dbn'}
-            Tempo estimation method.
-        min_bpm : float, optional
-            Minimum tempo [bpm].
-        max_bpm : float, optional
-            Maximum tempo [bpm].
-        act_smooth : float, optional
-            Smooth the activations over `act_smooth` seconds.
-        hist_smooth : int, optional
-            Smooth the tempo histogram over `hist_smooth` bins.
-        alpha : float, optional
-            Scaling factor of the comb filter.
-
-        Returns
-        -------
-        parser_group : argparse argument group
-            Tempo argument parser group.
-
-        """
-        # TODO: import the TempoEstimation here otherwise we have a
-        #       loop. This is super ugly, but right now I can't think of a
-        #       better solution...
-        from madmom.features.tempo import TempoEstimationProcessor as Tempo
-        return Tempo.add_arguments(parser, method=method, min_bpm=min_bpm,
-                                   max_bpm=max_bpm, act_smooth=act_smooth,
-                                   hist_smooth=hist_smooth, alpha=alpha)
-
 
 class BeatDetectionProcessor(BeatTrackingProcessor):
     """
@@ -649,40 +611,6 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
                             'interval to try [default=%(default)s]')
         return g
 
-    @classmethod
-    def add_tempo_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                            act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH):
-        """
-
-        Parameters
-        ----------
-        parser : argparse parser instance
-            Existing argparse parser object.
-        min_bpm : float, optional
-            Minimum tempo [bpm].
-        max_bpm : float, optional
-            Maximum tempo [bpm].
-        act_smooth : float, optional
-            Smooth the activations over `act_smooth` seconds.
-        hist_smooth : int, optional
-            Smooth the tempo histogram over `hist_smooth` bins.
-
-        Returns
-        -------
-        parser_group : argparse argument group
-            Tempo argument parser group.
-
-        """
-        # pylint: disable=arguments-differ
-
-        # TODO: import the TempoEstimation here otherwise we have a
-        #       loop. This is super ugly, but right now I can't think of a
-        #       better solution...
-        from madmom.features.tempo import TempoEstimationProcessor as tempo
-        tempo.add_arguments(parser, method=None, min_bpm=min_bpm,
-                            max_bpm=max_bpm, act_smooth=act_smooth,
-                            hist_smooth=hist_smooth, alpha=None)
-
 
 # class for beat tracking
 class DBNBeatTrackingProcessor(Processor):
@@ -692,9 +620,6 @@ class DBNBeatTrackingProcessor(Processor):
 
     Parameters
     ----------
-    correct : bool, optional
-        Correct the beats (i.e. align them to the nearest peak of the beat
-        activation function).
     min_bpm : float, optional
         Minimum tempo used for beat tracking [bpm].
     max_bpm : float, optional
@@ -710,6 +635,9 @@ class DBNBeatTrackingProcessor(Processor):
         representing beat states and the remaining non-beat states.
     norm_observations : bool, optional
         Normalize the observations.
+    correct : bool, optional
+        Correct the beats (i.e. align them to the nearest peak of the beat
+        activation function).
     fps : float, optional
         Frames per second.
 
@@ -739,11 +667,12 @@ class DBNBeatTrackingProcessor(Processor):
     MIN_BPM = 55.
     MAX_BPM = 215.
 
-    def __init__(self, correct=CORRECT, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempo_states=NUM_TEMPO_STATES,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, fps=None, **kwargs):
+                 norm_observations=NORM_OBSERVATIONS, correct=CORRECT,
+                 fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -763,8 +692,8 @@ class DBNBeatTrackingProcessor(Processor):
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
-        self.fps = fps
         self.correct = correct
+        self.fps = fps
 
     def process(self, activations):
         """
@@ -858,14 +787,6 @@ class DBNBeatTrackingProcessor(Processor):
         # pylint: disable=arguments-differ
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
-        if correct:
-            g.add_argument('--no_correct', dest='correct',
-                           action='store_false', default=correct,
-                           help='do not correct the beat positions')
-        else:
-            g.add_argument('--correct', dest='correct',
-                           action='store_true', default=correct,
-                           help='correct the beat positions')
         # add a transition parameters
         g.add_argument('--min_bpm', action='store', type=float,
                        default=min_bpm,
@@ -897,15 +818,34 @@ class DBNBeatTrackingProcessor(Processor):
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
                            help='normalize the observations of the DBN')
+        # option to correct the beat positions
+        if correct:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the beat positions (i.e. do '
+                                'not align them to the nearest peak of the '
+                                'beat activation function)')
+        else:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the beat positions (i.e. align them '
+                                'to the nearest peak of the beat activation'
+                                'function)')
         # return the argument group so it can be modified if needed
         return g
 
 
-# class for beat tracking
-class DownbeatTrackingProcessor(Processor):
+class DownbeatTrackingProcessor(object):
+    def __init__(self):
+        raise DeprecationWarning('Renamed to PatternTrackingProcessor in '
+                                 'v0.13. Will be removed in v0.14.')
+
+
+# class for pattern tracking
+class PatternTrackingProcessor(Processor):
     """
-    Beat and downbeat tracking with a dynamic Bayesian network (DBN)
-    approximated by a Hidden Markov Model (HMM).
+    Pattern tracking with a dynamic Bayesian network (DBN) approximated by a
+    Hidden Markov Model (HMM).
 
     Parameters
     ----------
@@ -913,9 +853,9 @@ class DownbeatTrackingProcessor(Processor):
         List of files with the patterns (including the fitted GMMs and
         information about the number of beats).
     min_bpm : list, optional
-        Minimum tempi used for beat tracking [bpm].
+        Minimum tempi used for pattern tracking [bpm].
     max_bpm : list, optional
-        Maximum tempi used for beat tracking [bpm].
+        Maximum tempi used for pattern tracking [bpm].
     num_tempo_states : int or list, optional
         Number of tempo states; if set, limit the number of states and use
         log spacings, otherwise a linear spacings.
@@ -972,9 +912,9 @@ class DownbeatTrackingProcessor(Processor):
         import pickle
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (DownBeatTrackingStateSpace as St,
-                                DownBeatTrackingTransitionModel as Tm,
-                                GMMDownBeatTrackingObservationModel as Om)
+        from .beats_hmm import (PatternTrackingStateSpace as St,
+                                PatternTrackingTransitionModel as Tm,
+                                GMMPatternTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed
         if not isinstance(num_tempo_states, list):
