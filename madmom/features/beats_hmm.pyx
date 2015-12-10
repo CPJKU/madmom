@@ -67,6 +67,8 @@ class BeatTrackingStateSpace(object):
                 # quantize to integer tempo states
                 states = np.unique(np.round(states))
                 num_log_states += 1
+        # beat_states is the number of states each tempo has
+        # TODO: refactor this or find a better name
         self.beat_states = np.ascontiguousarray(states, dtype=np.uint32)
         # compute the position and tempo mapping
         self.position_mapping, self.tempo_mapping = self.compute_mapping()
@@ -74,7 +76,7 @@ class BeatTrackingStateSpace(object):
     @property
     def num_states(self):
         """Number of states."""
-        return np.sum(self.beat_states)
+        return int(np.sum(self.beat_states))
 
     @property
     def num_tempo_states(self):
