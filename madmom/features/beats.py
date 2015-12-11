@@ -677,9 +677,9 @@ class DBNBeatTrackingProcessor(Processor):
         # pylint: disable=no-name-in-module
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (BeatTrackingStateSpace as St,
-                                BeatTrackingTransitionModel as Tm,
-                                BeatTrackingObservationModel as Om)
+        from .beats_hmm import (BeatStateSpace as St,
+                                BeatTransitionModel as Tm,
+                                RNNBeatTrackingObservationModel as Om)
 
         # convert timing information to construct state space
         min_interval = 60. * fps / max_bpm
@@ -912,8 +912,8 @@ class PatternTrackingProcessor(Processor):
         import pickle
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (PatternTrackingStateSpace as St,
-                                PatternTrackingTransitionModel as Tm,
+        from .beats_hmm import (MultiPatternStateSpace as St,
+                                MultiPatternTransitionModel as Tm,
                                 GMMPatternTrackingObservationModel as Om)
 
         # expand num_tempo_states and transition_lambda to lists if needed

@@ -12,52 +12,52 @@ from madmom.ml.hmm import *
 from madmom.features.beats_hmm import *
 
 
-class TestBeatTrackingStateSpaceClass(unittest.TestCase):
+class TestBeatStateSpaceClass(unittest.TestCase):
 
     def setUp(self):
-        self.btss = BeatTrackingStateSpace(1, 4)
+        self.btss = BeatStateSpace(1, 4)
 
     def test_types(self):
-        self.assertIsInstance(self.btss.beat_states, np.ndarray)
+        self.assertIsInstance(self.btss.intervals, np.ndarray)
         self.assertIsInstance(self.btss.position_mapping, np.ndarray)
-        self.assertIsInstance(self.btss.tempo_mapping, np.ndarray)
+        self.assertIsInstance(self.btss.interval_mapping, np.ndarray)
         self.assertIsInstance(self.btss.num_states, int)
-        self.assertIsInstance(self.btss.num_tempo_states, int)
-        self.assertIsInstance(self.btss.first_beat_positions, np.ndarray)
-        self.assertIsInstance(self.btss.last_beat_positions, np.ndarray)
+        self.assertIsInstance(self.btss.num_intervals, int)
+        self.assertIsInstance(self.btss.first_states, np.ndarray)
+        self.assertIsInstance(self.btss.last_states, np.ndarray)
 
     def test_values(self):
-        print(self.btss.beat_states)
-        self.assertTrue(np.allclose(self.btss.beat_states,
+        print(self.btss.intervals)
+        self.assertTrue(np.allclose(self.btss.intervals,
                                     [1, 2, 3, 4]))
         self.assertTrue(np.allclose(self.btss.position_mapping,
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.btss.tempo_mapping,
+        self.assertTrue(np.allclose(self.btss.interval_mapping,
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
-        self.assertTrue(np.allclose(self.btss.first_beat_positions,
+        self.assertTrue(np.allclose(self.btss.first_states,
                                     [0, 1, 3, 6]))
-        self.assertTrue(np.allclose(self.btss.last_beat_positions,
+        self.assertTrue(np.allclose(self.btss.last_states,
                                     [0, 2, 5, 9]))
         self.assertTrue(self.btss.num_states == 10)
-        self.assertTrue(self.btss.num_tempo_states == 4)
+        self.assertTrue(self.btss.num_intervals == 4)
         self.assertTrue(np.allclose(self.btss.position(np.arange(10)),
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.btss.tempo(np.arange(10)),
+        self.assertTrue(np.allclose(self.btss.interval(np.arange(10)),
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
 
 
-class TestBeatTrackingTransitionModelClass(unittest.TestCase):
+class TestBeatTransitionModelClass(unittest.TestCase):
 
     def setUp(self):
-        btss = BeatTrackingStateSpace(1, 4)
-        self.tm = BeatTrackingTransitionModel(btss, 100)
+        btss = BeatStateSpace(1, 4)
+        self.tm = BeatTransitionModel(btss, 100)
 
     def test_types(self):
-        self.assertIsInstance(self.tm, BeatTrackingTransitionModel)
+        self.assertIsInstance(self.tm, BeatTransitionModel)
         self.assertIsInstance(self.tm, TransitionModel)
-        self.assertIsInstance(self.tm.state_space, BeatTrackingStateSpace)
+        self.assertIsInstance(self.tm.state_space, BeatStateSpace)
         self.assertIsInstance(self.tm.transition_lambda, np.ndarray)
         self.assertIsInstance(self.tm.states, np.ndarray)
         self.assertIsInstance(self.tm.pointers, np.ndarray)
@@ -84,11 +84,11 @@ class TestBeatTrackingTransitionModelClass(unittest.TestCase):
         self.assertTrue(self.tm.num_transitions == 13)
 
 
-class TestBeatTrackingObservationModelClass(unittest.TestCase):
+class TestRNNBeatTrackingObservationModelClass(unittest.TestCase):
 
     def setUp(self):
-        btss = BeatTrackingStateSpace(1, 4)
-        self.om = BeatTrackingObservationModel(btss, 4)
+        btss = BeatStateSpace(1, 4)
+        self.om = RNNBeatTrackingObservationModel(btss, 4)
         self.obs = np.asarray([1, 0.1, 0.01, 0], dtype=np.float32)
 
     def test_types(self):
@@ -111,30 +111,32 @@ class TestBeatTrackingObservationModelClass(unittest.TestCase):
                                      [-np.inf, -1.09861229]]))
 
 
-class TestPatternTrackingStateSpaceClass(unittest.TestCase):
+class TestMultiPatternStateSpaceClass(unittest.TestCase):
 
     def setUp(self):
-        self.ptss = PatternTrackingStateSpace([1, 2], [4, 6])
+        self.ptss = MultiPatternStateSpace([1, 2], [4, 6])
 
     def test_types(self):
-        self.assertIsInstance(self.ptss.beat_states, list)
+        self.assertIsInstance(self.ptss.bar_state_spaces, list)
         self.assertIsInstance(self.ptss.position_mapping, np.ndarray)
-        self.assertIsInstance(self.ptss.tempo_mapping, np.ndarray)
+        self.assertIsInstance(self.ptss.interval_mapping, np.ndarray)
         self.assertIsInstance(self.ptss.num_states, int)
-        self.assertIsInstance(self.ptss.num_tempo_states, list)
+        # self.assertIsInstance(self.ptss.num_intervals, list)
         self.assertIsInstance(self.ptss.num_patterns, int)
 
     def test_values(self):
-        self.assertTrue(np.allclose(self.ptss.beat_states[0], [1, 2, 3, 4]))
-        self.assertTrue(np.allclose(self.ptss.beat_states[1], [2, 3, 4, 5, 6]))
+        self.assertTrue(np.allclose(self.ptss.bar_state_spaces[0].intervals,
+                                    [1, 2, 3, 4]))
+        self.assertTrue(np.allclose(self.ptss.bar_state_spaces[1].intervals,
+                                    [2, 3, 4, 5, 6]))
         self.assertTrue(self.ptss.num_states == 30)
-        self.assertTrue(self.ptss.num_tempo_states == [4, 5])
+        # self.assertTrue(self.ptss.num_intervals == [4, 5])
         self.assertTrue(self.ptss.num_patterns == 2)
         # first pattern
         self.assertTrue(np.allclose(self.ptss.position(np.arange(10)),
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.ptss.tempo(np.arange(10)),
+        self.assertTrue(np.allclose(self.ptss.interval(np.arange(10)),
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
         self.assertTrue(np.allclose(self.ptss.pattern(np.arange(10)),
                                     np.zeros(10)))
@@ -145,7 +147,7 @@ class TestPatternTrackingStateSpaceClass(unittest.TestCase):
                                      0, 0.25, 0.5, 0.75,
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
-        self.assertTrue(np.allclose(self.ptss.tempo(np.arange(10, 30)),
+        self.assertTrue(np.allclose(self.ptss.interval(np.arange(10, 30)),
                                     [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
                                      4, 4, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(self.ptss.pattern(np.arange(10, 30)),
@@ -155,11 +157,11 @@ class TestPatternTrackingStateSpaceClass(unittest.TestCase):
 class TestPatternTrackingTransitionModelClass(unittest.TestCase):
 
     def setUp(self):
-        ptss = PatternTrackingStateSpace([1, 2], [4, 6])
-        self.tm = PatternTrackingTransitionModel(ptss, 100)
+        ptss = MultiPatternStateSpace([1, 2], [4, 6])
+        self.tm = MultiPatternTransitionModel(ptss, 100)
 
     def test_types(self):
-        self.assertIsInstance(self.tm, PatternTrackingTransitionModel)
+        self.assertIsInstance(self.tm, MultiPatternTransitionModel)
         self.assertIsInstance(self.tm, TransitionModel)
         # self.assertIsInstance(self.tm.state_space, PatternTrackingStateSpace)
         self.assertIsInstance(self.tm.transition_lambda, list)

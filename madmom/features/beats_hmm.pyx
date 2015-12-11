@@ -27,19 +27,20 @@ from libc.math cimport log, exp
 from madmom.ml.hmm import TransitionModel, ObservationModel
 
 
-class BeatTrackingStateSpace(object):
+# state spaces
+class BeatStateSpace(object):
     """
     State space for beat tracking with a HMM.
 
     Parameters
     ----------
     min_interval : float
-        Minimum tempo (i.e. inter beat interval) to model.
+        Minimum interval to model.
     max_interval : float
-        Maximum tempo (i.e. inter beat interval) to model.
-    num_tempo_states : int, optional
-        Number of tempo states; if set, limit the number of states and use a
-        log spacing, otherwise use a linear spacing.
+        Maximum interval to model.
+    num_intervals : int, optional
+        Number of intervals to model; if set, limit the number of intervals
+        and use a log spacing instead of the default linear spacing.
 
     References
     ----------
@@ -50,142 +51,137 @@ class BeatTrackingStateSpace(object):
 
     """
 
-    def __init__(self, min_interval, max_interval, num_tempo_states=None):
-        # use a linear spacing as default
-        states = np.arange(np.round(min_interval), np.round(max_interval) + 1)
-        # if num_tempo_states is given (and smaller than the number of states
-        # of the linear spacing) use a log spacing and limit the number of
-        # states to the given value
-        if num_tempo_states is not None and num_tempo_states < len(states):
-            # we must approach num_tempo_states iteratively
-            num_log_states = num_tempo_states
-            states = []
-            while len(states) < num_tempo_states:
-                states = np.logspace(np.log2(min_interval),
+    def __init__(self, min_interval, max_interval, num_intervals=None):
+        # per default, use a linear spacing of the tempi
+        intervals = np.arange(np.round(min_interval),
+                              np.round(max_interval) + 1)
+        # if num_intervals is given (and smaller than the length of the linear
+        # spacing of the intervals) use a log spacing and limit the number of
+        # intervals to the given value
+        if num_intervals is not None and num_intervals < len(intervals):
+            # we must approach intervals iteratively
+            num_log_tempi = num_intervals
+            intervals = []
+            while len(intervals) < num_intervals:
+                intervals = np.logspace(np.log2(min_interval),
                                      np.log2(max_interval),
-                                     num_log_states, base=2)
+                                     num_log_tempi, base=2)
                 # quantize to integer tempo states
-                states = np.unique(np.round(states))
-                num_log_states += 1
-        # beat_states is the number of states each tempo has
-        # TODO: refactor this or find a better name
-        self.beat_states = np.ascontiguousarray(states, dtype=np.uint32)
-        # compute the position and tempo mapping
-        self.position_mapping, self.tempo_mapping = self.compute_mapping()
+                intervals = np.unique(np.round(intervals))
+                num_log_tempi += 1
+        # intervals to model
+        self.intervals = np.ascontiguousarray(intervals, dtype=np.uint32)
+        # compute the position and interval mapping
+        self.position_mapping, self.interval_mapping = self.compute_mapping()
 
     @property
     def num_states(self):
         """Number of states."""
-        return int(np.sum(self.beat_states))
+        return int(np.sum(self.intervals))
 
     @property
-    def num_tempo_states(self):
-        """Number of tempo states."""
-        return len(self.beat_states)
+    def num_intervals(self):
+        """Number of different intervals."""
+        return len(self.intervals)
 
     @property
-    def first_beat_positions(self):
-        """First state for each tempo."""
-        return np.cumsum(np.r_[0, self.beat_states[:-1]]).astype(np.uint32)
+    def first_states(self):
+        """First state for each interval."""
+        return np.cumsum(np.r_[0, self.intervals[:-1]]).astype(np.uint32)
 
     @property
-    def last_beat_positions(self):
-        """Last state for each tempo."""
-        return np.cumsum(self.beat_states).astype(np.uint32) - 1
+    def last_states(self):
+        """Last state for each interval."""
+        return np.cumsum(self.intervals).astype(np.uint32) - 1
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
     def compute_mapping(self):
         """
-        Compute the mapping from state numbers to position and tempo states.
+        Compute the mapping from state numbers to position inside the beat
+        and interval states.
 
         Returns
         -------
         position_mapping : numpy array
             Mapping from state number to position inside beat.
-        tempo_mapping : numpy array
-            Mapping from state number to tempo (i.e. inter beat interval).
+        interval_mapping : numpy array
+            Mapping from state number to interval.
 
         """
         # counters etc.
-        cdef unsigned int tempo_state, first_beat, last_beat
-        cdef unsigned int num_states = np.sum(self.beat_states)
-        cdef float pos, num_beat_states
-
-        # mapping arrays from state numbers to tempo / position
-        cdef unsigned int [::1] tempo = \
+        cdef unsigned int interval, first_state, last_state
+        cdef unsigned int num_states = np.sum(self.intervals)
+        cdef float pos
+        # mapping arrays from state numbers to interval / position
+        cdef unsigned int [::1] interval_mapping = \
             np.empty(num_states, dtype=np.uint32)
-        cdef double [::1] position = \
+        cdef double [::1] position_mapping = \
             np.empty(num_states, dtype=np.float)
         # cache variables
-        cdef unsigned int [::1] beat_states = \
-            self.beat_states
-        cdef unsigned int [::1] first_beat_positions = \
-            self.first_beat_positions
-        cdef unsigned int [::1] last_beat_positions = \
-            self.last_beat_positions
-        # loop over all tempi
-        for tempo_state in range(self.num_tempo_states):
-            # first and last beat (exclusive) for tempo
-            first_beat = first_beat_positions[tempo_state]
-            last_beat = last_beat_positions[tempo_state]
-            # number of beats for tempo
-            num_beat_states = float(beat_states[tempo_state])
+        cdef unsigned int [::1] intervals = self.intervals
+        cdef unsigned int [::1] first_states = self.first_states
+        cdef unsigned int [::1] last_states = self.last_states
+        # loop over all intervals
+        for interval in range(self.num_intervals):
+            # first and last state of interval
+            first_state = first_states[interval]
+            last_state = last_states[interval]
             # reset position counter
             pos = 0
-            for state in range(first_beat, last_beat + 1):
-                # tempo state mapping
-                tempo[state] = tempo_state
+            for state in range(first_state, last_state + 1):
+                # interval state mapping
+                interval_mapping[state] = interval
                 # position inside beat mapping
-                position[state] = pos / num_beat_states
+                position_mapping[state] = pos / float(intervals[interval])
                 pos += 1
         # return the mappings
-        return np.asarray(position), np.asarray(tempo)
+        return np.asarray(position_mapping), np.asarray(interval_mapping)
 
     def position(self, state):
         """
-        Position (inside one beat) for a given state sequence.
+        Position (inside one beat) of the given states.
 
         Parameters
         ----------
         state : numpy array
-            State (sequence).
+            States.
 
         Returns
         -------
         numpy array
-            Corresponding beat state sequence.
+            Corresponding position.
 
         """
         return self.position_mapping[state]
 
-    def tempo(self, state):
+    def interval(self, state):
         """
-        Tempo (i.e. inter beat interval) for a given state sequence.
+        Intervals of the given states.
 
         Parameters
         ----------
         state : numpy array
-            State (sequence).
+            States.
 
         Returns
         -------
         numpy array
-            Corresponding tempo state sequence.
+            Corresponding intervals.
 
         """
-        return self.tempo_mapping[state]
+        return self.interval_mapping[state]
 
 
-class BeatTrackingTransitionModel(TransitionModel):
+class BeatTransitionModel(TransitionModel):
     """
     Transition model for beat tracking with a HMM.
 
     Parameters
     ----------
-    state_space : :class:`BeatTrackingStateSpace` instance
-        BeatTrackingStateSpace instance.
+    state_space : :class:`BeatStateSpace` instance
+        BeatStateSpace instance.
     transition_lambda : float
         Lambda for the exponential tempo change distribution (higher values
         prefer a constant tempo from one beat to the next one).
@@ -206,7 +202,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         # compute the transitions
         transitions = self.make_sparse(*self.compute_transitions())
         # instantiate a TransitionModel with the transitions
-        super(BeatTrackingTransitionModel, self).__init__(*transitions)
+        super(BeatTransitionModel, self).__init__(*transitions)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -228,13 +224,16 @@ class BeatTrackingTransitionModel(TransitionModel):
 
         """
         # cache variables
-        cdef unsigned int [::1] beat_states = self.state_space.beat_states
+        # Note: convert all intervals to float here
+        cdef float [::1] intervals = \
+            self.state_space.intervals.astype(np.float32)
+        # cdef unsigned int [::1] tempo_states = self.state_space.tempo_states
         cdef double transition_lambda = self.transition_lambda
         # number of tempo & total states
-        cdef unsigned int num_tempo_states = self.state_space.num_tempo_states
+        cdef unsigned int num_intervals = self.state_space.num_intervals
         cdef unsigned int num_states = self.state_space.num_states
         # counters etc.
-        cdef unsigned int state, prev_state, old_tempo, new_tempo
+        cdef unsigned int state, prev_state, old_interval, new_interval
         cdef double ratio, u, prob, prob_sum
         cdef double threshold = np.spacing(1)
 
@@ -244,29 +243,29 @@ class BeatTrackingTransitionModel(TransitionModel):
 
         # tempo changes can only occur at the beginning of a beat
         # transition matrix for the tempo changes
-        cdef double [:, ::1] trans_prob = np.zeros((num_tempo_states,
-                                                    num_tempo_states),
+        cdef double [:, ::1] trans_prob = np.zeros((num_intervals,
+                                                    num_intervals),
                                                    dtype=np.float)
         # iterate over all tempo states
-        for old_tempo in range(num_tempo_states):
+        for old_interval in range(num_intervals):
             # reset probability sum
             prob_sum = 0
             # compute transition probabilities to all other tempo states
-            for new_tempo in range(num_tempo_states):
+            for new_interval in range(num_intervals):
                 # compute the ratio of the two tempi
-                ratio = beat_states[new_tempo] / float(beat_states[old_tempo])
+                ratio = intervals[new_interval] / intervals[old_interval]
                 # compute the probability for the tempo change following an
                 # exponential distribution
                 prob = exp(-transition_lambda * abs(ratio - 1))
                 # keep only transition probabilities > threshold
                 if prob > threshold:
                     # save the probability
-                    trans_prob[old_tempo, new_tempo] = prob
+                    trans_prob[old_interval, new_interval] = prob
                     # collect normalization data
                     prob_sum += prob
             # normalize the tempo transitions to other tempi
-            for new_tempo in range(num_tempo_states):
-                trans_prob[old_tempo, new_tempo] /= prob_sum
+            for new_interval in range(num_intervals):
+                trans_prob[old_interval, new_interval] /= prob_sum
 
         # number of tempo transitions (= non-zero probabilities)
         cdef unsigned int num_tempo_transitions = \
@@ -277,7 +276,7 @@ class BeatTrackingTransitionModel(TransitionModel):
         # plus the number of tempo transitions minus the number of tempo states
         # since these transitions are already included in the tempo transitions
         cdef int num_transitions = num_states + num_tempo_transitions - \
-                                   num_tempo_states
+                                   num_intervals
         # arrays for transition matrix creation
         cdef unsigned int [::1] states = \
             np.empty(num_transitions, dtype=np.uint32)
@@ -290,26 +289,26 @@ class BeatTrackingTransitionModel(TransitionModel):
 
         # cache first and last positions
         cdef unsigned int [::1] first_beat_positions = \
-            self.state_space.first_beat_positions
-        cdef unsigned int [::1] last_beat_positions =\
-            self.state_space.last_beat_positions
+            self.state_space.first_states
+        cdef unsigned int [::1] last_beat_positions = \
+            self.state_space.last_states
         # state counter
         cdef int i = 0
         # loop over all tempi
-        for new_tempo in range(num_tempo_states):
+        for new_interval in range(num_intervals):
             # generate all transitions from other tempi
-            for old_tempo in range(num_tempo_states):
+            for old_interval in range(num_intervals):
                 # but only if it is a probable transition
-                if trans_prob[old_tempo, new_tempo] != 0:
+                if trans_prob[old_interval, new_interval] != 0:
                     # generate a transition
-                    prev_states[i] = last_beat_positions[old_tempo]
-                    states[i] = first_beat_positions[new_tempo]
-                    probabilities[i] = trans_prob[old_tempo, new_tempo]
+                    prev_states[i] = last_beat_positions[old_interval]
+                    states[i] = first_beat_positions[new_interval]
+                    probabilities[i] = trans_prob[old_interval, new_interval]
                     # increase counter
                     i += 1
             # transitions within the same tempo
-            for prev_state in range(first_beat_positions[new_tempo],
-                                    last_beat_positions[new_tempo]):
+            for prev_state in range(first_beat_positions[new_interval],
+                                    last_beat_positions[new_interval]):
                 # generate a transition with probability 1
                 prev_states[i] = prev_state
                 states[i] = prev_state + 1
@@ -321,14 +320,14 @@ class BeatTrackingTransitionModel(TransitionModel):
         return states, prev_states, probabilities
 
 
-class BeatTrackingObservationModel(ObservationModel):
+class RNNBeatTrackingObservationModel(ObservationModel):
     """
     Observation model for beat tracking with a HMM.
 
     Parameters
     ----------
-    state_space : :class:`BeatTrackingStateSpace` instance
-        BeatTrackingStateSpace instance.
+    state_space : :class:`BeatStateSpace` instance
+        BeatStateSpace instance.
     observation_lambda : int
         Split one beat period into `observation_lambda` parts, the first
         representing beat states and the remaining non-beat states.
@@ -358,7 +357,7 @@ class BeatTrackingObservationModel(ObservationModel):
                                                   dtype=np.int)) < border
         pointers[beat_idx] = 0
         # instantiate a ObservationModel with the pointers
-        super(BeatTrackingObservationModel, self).__init__(pointers)
+        super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -370,7 +369,7 @@ class BeatTrackingObservationModel(ObservationModel):
         Parameters
         ----------
         observations : numpy array
-            Observations (i.e. activations of the NN).
+            Observations (i.e. activations of the RNN).
 
         Returns
         -------
@@ -397,11 +396,11 @@ class BeatTrackingObservationModel(ObservationModel):
         return np.asarray(log_densities)
 
 
-class PatternTrackingStateSpace(object):
+class MultiPatternStateSpace(object):
     """
     State space for rythmic pattern tracking with a HMM.
 
-    A rhythmic pattern is modeled similar to :class:`BeatTrackingStateSpace`,
+    A rhythmic pattern is modeled similar to :class:`BeatStateSpace`,
     but models multiple rhythmic patterns instead of a single beat. The
     pattern's length can span multiple beats (e.g. 3 or 4 beats).
 
@@ -411,13 +410,13 @@ class PatternTrackingStateSpace(object):
         Minimum intervals (i.e. rhythmic pattern length) to model.
     max_intervals : list or numpy array
         Maximum intervals (i.e. rhythmic pattern length) to model.
-    num_tempo_states : list or numpy array, optional
-        Corresponding number of tempo states; if set, limit the number of
-        states and use a log spacing, otherwise use a linear spacing.
+    num_intervals : list or numpy array, optional
+        Corresponding number of intervals; if set, limit the number of
+        intervals and use a log spacing instead of the default linear spacing.
 
     See Also
     --------
-    :class:`BeatTrackingStateSpace`
+    :class:`BeatStateSpace`
 
     References
     ----------
@@ -428,110 +427,104 @@ class PatternTrackingStateSpace(object):
 
     """
 
-    def __init__(self, min_intervals, max_intervals, num_tempo_states=None):
-        if num_tempo_states is None:
-            num_tempo_states = [None] * len(min_intervals)
-        # for each pattern, compute a beat state space
-        state_spaces = []
-        enum = enumerate(zip(min_intervals, max_intervals, num_tempo_states))
+    def __init__(self, min_intervals, max_intervals, num_intervals=None):
+        if num_intervals is None:
+            num_intervals = [None] * len(min_intervals)
+        # for each pattern, compute a bar state space (i.e. a beat state space
+        # which spans a complete bar)
+        bar_state_spaces = []
+        enum = enumerate(zip(min_intervals, max_intervals, num_intervals))
         for pattern, (min_, max_, num_) in enum:
-            # create a BeatTrackingStateSpace and append it to the list
-            state_spaces.append(BeatTrackingStateSpace(min_, max_, num_))
-        self.pattern_state_spaces = state_spaces
+            # create a BeatStateSpace and append it to the list
+            bar_state_spaces.append(BeatStateSpace(min_, max_, num_))
+        self.bar_state_spaces = bar_state_spaces
         # define mappings
         self.position_mapping = \
             np.hstack([st.position(np.arange(st.num_states, dtype=np.int))
-                       for st in self.pattern_state_spaces])
-        self.tempo_mapping = \
-            np.hstack([st.tempo(np.arange(st.num_states, dtype=np.int))
-                       for st in self.pattern_state_spaces])
+                       for st in self.bar_state_spaces])
+        self.interval_mapping = \
+            np.hstack([st.interval(np.arange(st.num_states, dtype=np.int))
+                       for st in self.bar_state_spaces])
         self.pattern_mapping = \
             np.hstack([np.repeat(i, st.num_states)
-                       for i, st in enumerate(self.pattern_state_spaces)])
-        self.beat_states = [st.beat_states for st in self.pattern_state_spaces]
+                       for i, st in enumerate(self.bar_state_spaces)])
 
     @property
     def num_states(self):
         """Number of states."""
-        return int(sum([st.num_states for st in self.pattern_state_spaces]))
-
-    @property
-    def num_tempo_states(self):
-        """Number of tempo states for each pattern."""
-        return [len(t) for t in self.beat_states]
+        return int(sum([st.num_states for st in self.bar_state_spaces]))
 
     @property
     def num_patterns(self):
         """Number of rhythmic patterns"""
-        return len(self.beat_states)
+        return len(self.bar_state_spaces)
 
     def position(self, state):
         """
-        Position (inside one pattern) for a given state sequence.
+        Position (inside one pattern) for the given states.
 
         Parameters
         ----------
         state : numpy array
-            State (sequence).
+            States.
 
         Returns
         -------
         numpy array
-            Corresponding beat state sequence.
+            Corresponding positions.
 
         """
         return self.position_mapping[state]
 
-    def tempo(self, state):
+    def interval(self, state):
         """
-        Tempo for a given state sequence.
+        Interval for a given states.
 
         Parameters
         ----------
         state : numpy array
-            State (sequence).
+            States.
 
         Returns
         -------
         numpy array
-            Corresponding tempo state sequence.
+            Corresponding intervals.
 
         """
-        return self.tempo_mapping[state]
+        return self.interval_mapping[state]
 
     def pattern(self, state):
         """
-        Pattern for the given state sequence.
+        Pattern for the given states.
 
         Parameters
         ----------
         state : numpy array
-            State (sequence).
+            States.
 
         Returns
         -------
         numpy array
-            Corresponding pattern state sequence.
+            Corresponding patterns.
 
         """
         return self.pattern_mapping[state]
 
 
-class PatternTrackingTransitionModel(TransitionModel):
+class MultiPatternTransitionModel(TransitionModel):
     """
     Transition model for pattern tracking with a HMM.
 
-    Instead of modelling only a single beat (as
-    :class:`BeatTrackingTransitionModel`), the
-    :class:`PatternTrackingTransitionModel` models rhythmic patterns. It
-    accepts the same arguments as the :class:`BeatTrackingTransitionModel`,
-    but everything as lists, with the list entries at the same position
+    Instead of modelling only a single beat (as :class:`BeatTransitionModel`),
+    the :class:`MultiPatternTransitionModel` models rhythmic patterns. It
+    accepts the same arguments as the :class:`BeatTransitionModel`, but
+    everything as lists, with the list entries at the same position
     corresponding to one rhythmic pattern.
 
     Parameters
     ----------
-    state_space : :class:`PatternTrackingTransitionModel` instance
-        PatternTrackingTransitionModel instance.
+    state_space : :class:`MultiPatternTransitionModel` instance
+        MultiPatternTransitionModel instance.
     transition_lambda : list
         Lambda(s) for the exponential tempo change distribution of the patterns
         (higher values prefer a constant tempo from one bar to the next one).
@@ -539,7 +532,7 @@ class PatternTrackingTransitionModel(TransitionModel):
 
     See Also
     --------
-    :class:`BeatTrackingTransitionModel`
+    :class:`BeatTransitionModel`
 
     Notes
     -----
@@ -575,14 +568,13 @@ class PatternTrackingTransitionModel(TransitionModel):
             raise ValueError('number of patterns of the `state_space` and the '
                              'length `transition_lambda` must be the same')
         # save the given arguments
-        self.beat_states = state_space.beat_states
+        self.state_space = state_space
         self.transition_lambda = transition_lambda
         # compute the transitions for each pattern and stack them
-        enum = enumerate(zip(state_space.pattern_state_spaces,
-                             transition_lambda))
+        enum = enumerate(zip(state_space.bar_state_spaces, transition_lambda))
         for pattern, (state_space, transition_lambda) in enum:
-            # create a BeatTrackingTransitionModel
-            tm = BeatTrackingTransitionModel(state_space, transition_lambda)
+            # create a BeatTransitionModel
+            tm = BeatTransitionModel(state_space, transition_lambda)
             seq = np.arange(tm.num_states, dtype=np.int)
             # set/update the probabilities, states and pointers
             if pattern == 0:
@@ -605,7 +597,7 @@ class PatternTrackingTransitionModel(TransitionModel):
                 probabilities = np.hstack((probabilities, tm.probabilities))
         # instantiate a TransitionModel with the transition arrays
         transitions = states, pointers, probabilities
-        super(PatternTrackingTransitionModel, self).__init__(*transitions)
+        super(MultiPatternTransitionModel, self).__init__(*transitions)
 
 
 class GMMPatternTrackingObservationModel(ObservationModel):
@@ -616,8 +608,8 @@ class GMMPatternTrackingObservationModel(ObservationModel):
     ----------
     gmms : list
         Fitted GMM(s), one entry per rhythmic pattern.
-    transition_model : :class:`PatternTrackingTransitionModel` instance
-        PatternTrackingTransitionModel instance.
+    transition_model : :class:`MultiPatternTransitionModel` instance
+        MultiPatternTransitionModel instance.
     norm_observations : bool, optional
         Normalize the observations.
 

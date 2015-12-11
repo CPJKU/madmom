@@ -353,16 +353,15 @@ class TempoEstimationProcessor(Processor):
                                            num_tempo_states=None, fps=self.fps)
             # get the best state path by calling the viterbi algorithm
             path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
-            intervals = dbn.st.tempo(path)
+            intervals = dbn.st.interval(path)
             # add the minimum interval of the beat state space
-            intervals += dbn.st.beat_states.min()
+            intervals += dbn.st.intervals.min()
             # get the counts of the bins
-            bins = np.bincount(intervals,
-                               minlength=dbn.st.beat_states.max() + 1)
+            bins = np.bincount(intervals, minlength=dbn.st.intervals.max() + 1)
             # truncate everything below the minimum interval of the state space
-            bins = bins[dbn.st.beat_states.min():]
-            # build a histogram together with the beat states and return it
-            return bins, dbn.st.beat_states
+            bins = bins[dbn.st.intervals.min():]
+            # build a histogram together with the intervals and return it
+            return bins, dbn.st.intervals
         else:
             raise ValueError('tempo estimation method unknown')
 
