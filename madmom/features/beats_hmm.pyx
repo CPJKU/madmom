@@ -174,6 +174,122 @@ class BeatStateSpace(object):
         return self.interval_mapping[state]
 
 
+class MultiPatternStateSpace(object):
+    """
+    State space for rythmic pattern tracking with a HMM.
+
+    A rhythmic pattern is modeled similar to :class:`BeatStateSpace`,
+    but models multiple rhythmic patterns instead of a single beat. The
+    pattern's length can span multiple beats (e.g. 3 or 4 beats).
+
+    Parameters
+    ----------
+    min_intervals : list or numpy array
+        Minimum intervals (i.e. rhythmic pattern length) to model.
+    max_intervals : list or numpy array
+        Maximum intervals (i.e. rhythmic pattern length) to model.
+    num_intervals : list or numpy array, optional
+        Corresponding number of intervals; if set, limit the number of
+        intervals and use a log spacing instead of the default linear spacing.
+
+    See Also
+    --------
+    :class:`BeatStateSpace`
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
+    """
+
+    def __init__(self, min_intervals, max_intervals, num_intervals=None):
+        if num_intervals is None:
+            num_intervals = [None] * len(min_intervals)
+        # for each pattern, compute a bar state space (i.e. a beat state space
+        # which spans a complete bar)
+        bar_state_spaces = []
+        enum = enumerate(zip(min_intervals, max_intervals, num_intervals))
+        for pattern, (min_, max_, num_) in enum:
+            # create a BeatStateSpace and append it to the list
+            bar_state_spaces.append(BeatStateSpace(min_, max_, num_))
+        self.bar_state_spaces = bar_state_spaces
+        # define mappings
+        self.position_mapping = \
+            np.hstack([st.position(np.arange(st.num_states, dtype=np.int))
+                       for st in self.bar_state_spaces])
+        self.interval_mapping = \
+            np.hstack([st.interval(np.arange(st.num_states, dtype=np.int))
+                       for st in self.bar_state_spaces])
+        self.pattern_mapping = \
+            np.hstack([np.repeat(i, st.num_states)
+                       for i, st in enumerate(self.bar_state_spaces)])
+
+    @property
+    def num_states(self):
+        """Number of states."""
+        return int(sum([st.num_states for st in self.bar_state_spaces]))
+
+    @property
+    def num_patterns(self):
+        """Number of rhythmic patterns"""
+        return len(self.bar_state_spaces)
+
+    def position(self, state):
+        """
+        Position (inside one pattern) for the given states.
+
+        Parameters
+        ----------
+        state : numpy array
+            States.
+
+        Returns
+        -------
+        numpy array
+            Corresponding positions.
+
+        """
+        return self.position_mapping[state]
+
+    def interval(self, state):
+        """
+        Interval for a given states.
+
+        Parameters
+        ----------
+        state : numpy array
+            States.
+
+        Returns
+        -------
+        numpy array
+            Corresponding intervals.
+
+        """
+        return self.interval_mapping[state]
+
+    def pattern(self, state):
+        """
+        Pattern for the given states.
+
+        Parameters
+        ----------
+        state : numpy array
+            States.
+
+        Returns
+        -------
+        numpy array
+            Corresponding patterns.
+
+        """
+        return self.pattern_mapping[state]
+
+
+# transition models
 class BeatTransitionModel(TransitionModel):
     """
     Transition model for beat tracking with a HMM.
@@ -320,197 +436,6 @@ class BeatTransitionModel(TransitionModel):
         return states, prev_states, probabilities
 
 
-class RNNBeatTrackingObservationModel(ObservationModel):
-    """
-    Observation model for beat tracking with a HMM.
-
-    Parameters
-    ----------
-    state_space : :class:`BeatStateSpace` instance
-        BeatStateSpace instance.
-    observation_lambda : int
-        Split one beat period into `observation_lambda` parts, the first
-        representing beat states and the remaining non-beat states.
-    norm_observations : bool, optional
-        Normalize the observations.
-
-    References
-    ----------
-    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
-           "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
-           Music Styles",
-           Proceedings of the 15th International Society for Music Information
-           Retrieval Conference (ISMIR), 2014.
-
-    """
-
-    def __init__(self, state_space, observation_lambda,
-                 norm_observations=False):
-        self.observation_lambda = observation_lambda
-        self.norm_observations = norm_observations
-        # compute observation pointers
-        # always point to the non-beat densities
-        pointers = np.ones(state_space.num_states, dtype=np.uint32)
-        # unless they are in the beat range of the state space
-        border = 1. / observation_lambda
-        beat_idx = state_space.position(np.arange(state_space.num_states,
-                                                  dtype=np.int)) < border
-        pointers[beat_idx] = 0
-        # instantiate a ObservationModel with the pointers
-        super(RNNBeatTrackingObservationModel, self).__init__(pointers)
-
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def log_densities(self, float [::1] observations):
-        """
-        Computes the log densities of the observations.
-
-        Parameters
-        ----------
-        observations : numpy array
-            Observations (i.e. activations of the RNN).
-
-        Returns
-        -------
-        numpy array
-            Log densities of the observations.
-
-        """
-        # init variables
-        cdef unsigned int i
-        cdef unsigned int num_observations = len(observations)
-        cdef float observation_lambda = self.observation_lambda
-        # norm observations
-        if self.norm_observations:
-            observations /= np.max(observations)
-        # init densities
-        cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
-                                                      dtype=np.float)
-        # define the observation densities
-        for i in range(num_observations):
-            log_densities[i, 0] = log(observations[i])
-            log_densities[i, 1] = log((1. - observations[i]) /
-                                      (observation_lambda - 1))
-        # return the densities
-        return np.asarray(log_densities)
-
-
-class MultiPatternStateSpace(object):
-    """
-    State space for rythmic pattern tracking with a HMM.
-
-    A rhythmic pattern is modeled similar to :class:`BeatStateSpace`,
-    but models multiple rhythmic patterns instead of a single beat. The
-    pattern's length can span multiple beats (e.g. 3 or 4 beats).
-
-    Parameters
-    ----------
-    min_intervals : list or numpy array
-        Minimum intervals (i.e. rhythmic pattern length) to model.
-    max_intervals : list or numpy array
-        Maximum intervals (i.e. rhythmic pattern length) to model.
-    num_intervals : list or numpy array, optional
-        Corresponding number of intervals; if set, limit the number of
-        intervals and use a log spacing instead of the default linear spacing.
-
-    See Also
-    --------
-    :class:`BeatStateSpace`
-
-    References
-    ----------
-    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
-           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
-           Proceedings of the 16th International Society for Music Information
-           Retrieval Conference (ISMIR), 2015.
-
-    """
-
-    def __init__(self, min_intervals, max_intervals, num_intervals=None):
-        if num_intervals is None:
-            num_intervals = [None] * len(min_intervals)
-        # for each pattern, compute a bar state space (i.e. a beat state space
-        # which spans a complete bar)
-        bar_state_spaces = []
-        enum = enumerate(zip(min_intervals, max_intervals, num_intervals))
-        for pattern, (min_, max_, num_) in enum:
-            # create a BeatStateSpace and append it to the list
-            bar_state_spaces.append(BeatStateSpace(min_, max_, num_))
-        self.bar_state_spaces = bar_state_spaces
-        # define mappings
-        self.position_mapping = \
-            np.hstack([st.position(np.arange(st.num_states, dtype=np.int))
-                       for st in self.bar_state_spaces])
-        self.interval_mapping = \
-            np.hstack([st.interval(np.arange(st.num_states, dtype=np.int))
-                       for st in self.bar_state_spaces])
-        self.pattern_mapping = \
-            np.hstack([np.repeat(i, st.num_states)
-                       for i, st in enumerate(self.bar_state_spaces)])
-
-    @property
-    def num_states(self):
-        """Number of states."""
-        return int(sum([st.num_states for st in self.bar_state_spaces]))
-
-    @property
-    def num_patterns(self):
-        """Number of rhythmic patterns"""
-        return len(self.bar_state_spaces)
-
-    def position(self, state):
-        """
-        Position (inside one pattern) for the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding positions.
-
-        """
-        return self.position_mapping[state]
-
-    def interval(self, state):
-        """
-        Interval for a given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding intervals.
-
-        """
-        return self.interval_mapping[state]
-
-    def pattern(self, state):
-        """
-        Pattern for the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding patterns.
-
-        """
-        return self.pattern_mapping[state]
-
-
 class MultiPatternTransitionModel(TransitionModel):
     """
     Transition model for pattern tracking with a HMM.
@@ -598,6 +523,83 @@ class MultiPatternTransitionModel(TransitionModel):
         # instantiate a TransitionModel with the transition arrays
         transitions = states, pointers, probabilities
         super(MultiPatternTransitionModel, self).__init__(*transitions)
+
+
+# observation models
+class RNNBeatTrackingObservationModel(ObservationModel):
+    """
+    Observation model for beat tracking with a HMM.
+
+    Parameters
+    ----------
+    state_space : :class:`BeatStateSpace` instance
+        BeatStateSpace instance.
+    observation_lambda : int
+        Split one beat period into `observation_lambda` parts, the first
+        representing beat states and the remaining non-beat states.
+    norm_observations : bool, optional
+        Normalize the observations.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "A Multi-Model Approach to Beat Tracking Considering Heterogeneous
+           Music Styles",
+           Proceedings of the 15th International Society for Music Information
+           Retrieval Conference (ISMIR), 2014.
+
+    """
+
+    def __init__(self, state_space, observation_lambda,
+                 norm_observations=False):
+        self.observation_lambda = observation_lambda
+        self.norm_observations = norm_observations
+        # compute observation pointers
+        # always point to the non-beat densities
+        pointers = np.ones(state_space.num_states, dtype=np.uint32)
+        # unless they are in the beat range of the state space
+        border = 1. / observation_lambda
+        beat_idx = state_space.position(np.arange(state_space.num_states,
+                                                  dtype=np.int)) < border
+        pointers[beat_idx] = 0
+        # instantiate a ObservationModel with the pointers
+        super(RNNBeatTrackingObservationModel, self).__init__(pointers)
+
+    @cython.cdivision(True)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    def log_densities(self, float [::1] observations):
+        """
+        Computes the log densities of the observations.
+
+        Parameters
+        ----------
+        observations : numpy array
+            Observations (i.e. activations of the RNN).
+
+        Returns
+        -------
+        numpy array
+            Log densities of the observations.
+
+        """
+        # init variables
+        cdef unsigned int i
+        cdef unsigned int num_observations = len(observations)
+        cdef float observation_lambda = self.observation_lambda
+        # norm observations
+        if self.norm_observations:
+            observations /= np.max(observations)
+        # init densities
+        cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
+                                                      dtype=np.float)
+        # define the observation densities
+        for i in range(num_observations):
+            log_densities[i, 0] = log(observations[i])
+            log_densities[i, 1] = log((1. - observations[i]) /
+                                      (observation_lambda - 1))
+        # return the densities
+        return np.asarray(log_densities)
 
 
 class GMMPatternTrackingObservationModel(ObservationModel):
