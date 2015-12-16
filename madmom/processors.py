@@ -316,14 +316,14 @@ class ParallelProcessor(SequentialProcessor):
     Parameters
     ----------
     processors : list
-         Processor instances to be processed in parallel.
+        Processor instances to be processed in parallel.
     num_threads : int, optional
         Number of parallel working threads.
 
     Notes
     -----
     If the `processors` list contains lists or tuples, these get wrapped as a
-    :class:`SequentialProcessor`s.
+    :class:`SequentialProcessor`.
 
     """
     NUM_THREADS = 1

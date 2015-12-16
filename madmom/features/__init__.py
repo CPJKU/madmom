@@ -46,7 +46,7 @@ class Activations(np.ndarray):
 
     Notes
     -----
-    If a filename or file handle is given, an undefined or empty (“”) separator
+    If a filename or file handle is given, an undefined or empty separator
     means that the file should be treated as a numpy binary file.
     Only binary files can store the frame rate of the activations.
     Text files should not be used for anything else but manual inspection
@@ -124,8 +124,8 @@ class Activations(np.ndarray):
 
         Notes
         -----
-        An undefined or empty (“”) separator means that the file should be
-        treated as a numpy binary file.
+        An undefined or empty separator means that the file should be treated
+        as a numpy binary file.
         Only binary files can store the frame rate of the activations.
         Text files should not be used for anything else but manual inspection
         or I/O with other programs.
@@ -166,15 +166,15 @@ class Activations(np.ndarray):
 
         Notes
         -----
-        An undefined or empty (“”) separator means that the file should be
-        treated as a numpy binary file.
+        An undefined or empty separator means that the file should be treated
+        as a numpy binary file.
         Only binary files can store the frame rate of the activations.
         Text files should not be used for anything else but manual inspection
         or I/O with other programs.
 
         If the activations are a 1D array, its values are interpreted as
         features of a single time step, i.e. all values are printed in a single
-        line. If you want each value to appear in an individual line, use '\n'
+        line. If you want each value to appear in an individual line, use '\\n'
         as a separator.
 
         If the activations are a 2D array, the first axis corresponds to the

@@ -204,7 +204,7 @@ def log_frequencies(bands_per_octave, fmin, fmax, fref=A4):
 
     Notes
     -----
-    If `bands_per_octave`=12 and `fref`=440 are used, the frequencies are
+    If `bands_per_octave` = 12 and `fref` = 440 are used, the frequencies are
     equivalent to MIDI notes.
 
     """
@@ -722,15 +722,15 @@ class Filterbank(np.ndarray):
     A Filterbank is a simple numpy array enhanced with several additional
     attributes, e.g. number of bands.
 
-    A Filterbank has a shape of (num_bins x num_bands) and can be used to
-    filter a spectrogram of shape (num_frames x num_bins) to (num_frames x
+    A Filterbank has a shape of (num_bins, num_bands) and can be used to
+    filter a spectrogram of shape (num_frames, num_bins) to (num_frames,
     num_bands).
 
     Parameters
     ----------
-    data : numpy array, shape ('num_bins' x 'num_bands')
+    data : numpy array, shape (num_bins, num_bands)
         Data of the filterbank .
-    bin_frequencies : numpy array, shape ('num_bins')
+    bin_frequencies : numpy array, shape (num_bins, )
         Frequencies of the bins [Hz].
 
     Notes

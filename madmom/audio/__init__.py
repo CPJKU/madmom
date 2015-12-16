@@ -7,6 +7,7 @@ onsets, etc.) should be in the madmom.features module.
 Notes
 -----
 Almost all functionality blocks are split into two classes:
+
 1) A data class: instances are signal dependent, i.e. they operate directly on
    the signal and show different values for different signals.
 2) A processor class: for every data class there should be a processor class
