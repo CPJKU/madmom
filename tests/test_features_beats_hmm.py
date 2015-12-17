@@ -12,6 +12,7 @@ from madmom.ml.hmm import *
 from madmom.features.beats_hmm import *
 
 
+# state spaces
 class TestBeatStateSpaceClass(unittest.TestCase):
 
     def test_types(self):
@@ -54,69 +55,6 @@ class TestBeatStateSpaceClass(unittest.TestCase):
         self.assertTrue(bss.num_intervals == 5)
 
 
-class TestBeatTransitionModelClass(unittest.TestCase):
-
-    def setUp(self):
-        btss = BeatStateSpace(1, 4)
-        self.tm = BeatTransitionModel(btss, 100)
-
-    def test_types(self):
-        self.assertIsInstance(self.tm, BeatTransitionModel)
-        self.assertIsInstance(self.tm, TransitionModel)
-        self.assertIsInstance(self.tm.state_space, BeatStateSpace)
-        self.assertIsInstance(self.tm.transition_lambda, np.ndarray)
-        self.assertIsInstance(self.tm.states, np.ndarray)
-        self.assertIsInstance(self.tm.pointers, np.ndarray)
-        self.assertIsInstance(self.tm.probabilities, np.ndarray)
-        self.assertIsInstance(self.tm.log_probabilities, np.ndarray)
-        self.assertIsInstance(self.tm.num_states, int)
-        self.assertIsInstance(self.tm.num_transitions, int)
-        self.assertTrue(self.tm.states.dtype == np.uint32)
-        self.assertTrue(self.tm.pointers.dtype == np.uint32)
-        self.assertTrue(self.tm.probabilities.dtype == np.float)
-        self.assertTrue(self.tm.log_probabilities.dtype == np.float)
-
-    def test_values(self):
-        self.assertTrue(np.allclose(self.tm.states,
-                                    [0, 2, 5, 1, 5, 9, 3, 4, 5, 9, 6, 7, 8]))
-        self.assertTrue(np.allclose(self.tm.pointers,
-                                    [0, 1, 3, 4, 6, 7, 8, 10, 11, 12, 13]))
-        self.assertTrue(np.allclose(self.tm.probabilities,
-                                    [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]))
-        self.assertTrue(np.allclose(self.tm.log_probabilities,
-                                    [0, 0, -33.3333333, 0, 0, -25, 0, 0,
-                                     -33.3333333, 0, 0, 0, 0]))
-        self.assertTrue(self.tm.num_states == 10)
-        self.assertTrue(self.tm.num_transitions == 13)
-
-
-class TestRNNBeatTrackingObservationModelClass(unittest.TestCase):
-
-    def setUp(self):
-        btss = BeatStateSpace(1, 4)
-        self.om = RNNBeatTrackingObservationModel(btss, 4)
-        self.obs = np.asarray([1, 0.1, 0.01, 0], dtype=np.float32)
-
-    def test_types(self):
-        self.assertIsInstance(self.om.pointers, np.ndarray)
-        self.assertIsInstance(self.om.densities(self.obs), np.ndarray)
-        self.assertIsInstance(self.om.log_densities(self.obs), np.ndarray)
-        self.assertTrue(self.om.pointers.dtype == np.uint32)
-        self.assertTrue(self.om.densities(self.obs).dtype == np.float)
-        self.assertTrue(self.om.log_densities(self.obs).dtype == np.float)
-
-    def test_values(self):
-        self.assertTrue(np.allclose(self.om.pointers,
-                                    [0, 0, 1, 0, 1, 1, 0, 1, 1, 1]))
-        self.assertTrue(np.allclose(self.om.densities(self.obs),
-                                    [[1, 0], [0.1, 0.3],
-                                     [0.01, 0.33], [0, 1. / 3]]))
-        self.assertTrue(np.allclose(self.om.log_densities(self.obs),
-                                    [[0, -np.inf], [-2.30258508, -1.20397281],
-                                     [-4.60517021, -1.10866262],
-                                     [-np.inf, -1.09861229]]))
-
-
 class TestMultiPatternStateSpaceClass(unittest.TestCase):
 
     def setUp(self):
@@ -156,6 +94,43 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
                                     [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
                                      4, 4, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(self.ptss.pattern[10:], 1))
+
+
+# transition models
+class TestBeatTransitionModelClass(unittest.TestCase):
+
+    def setUp(self):
+        btss = BeatStateSpace(1, 4)
+        self.tm = BeatTransitionModel(btss, 100)
+
+    def test_types(self):
+        self.assertIsInstance(self.tm, BeatTransitionModel)
+        self.assertIsInstance(self.tm, TransitionModel)
+        self.assertIsInstance(self.tm.state_space, BeatStateSpace)
+        self.assertIsInstance(self.tm.transition_lambda, np.ndarray)
+        self.assertIsInstance(self.tm.states, np.ndarray)
+        self.assertIsInstance(self.tm.pointers, np.ndarray)
+        self.assertIsInstance(self.tm.probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.log_probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.num_states, int)
+        self.assertIsInstance(self.tm.num_transitions, int)
+        self.assertTrue(self.tm.states.dtype == np.uint32)
+        self.assertTrue(self.tm.pointers.dtype == np.uint32)
+        self.assertTrue(self.tm.probabilities.dtype == np.float)
+        self.assertTrue(self.tm.log_probabilities.dtype == np.float)
+
+    def test_values(self):
+        self.assertTrue(np.allclose(self.tm.states,
+                                    [0, 2, 5, 1, 5, 9, 3, 4, 5, 9, 6, 7, 8]))
+        self.assertTrue(np.allclose(self.tm.pointers,
+                                    [0, 1, 3, 4, 6, 7, 8, 10, 11, 12, 13]))
+        self.assertTrue(np.allclose(self.tm.probabilities,
+                                    [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]))
+        self.assertTrue(np.allclose(self.tm.log_probabilities,
+                                    [0, 0, -33.3333333, 0, 0, -25, 0, 0,
+                                     -33.3333333, 0, 0, 0, 0]))
+        self.assertTrue(self.tm.num_states == 10)
+        self.assertTrue(self.tm.num_transitions == 13)
 
 
 class TestPatternTrackingTransitionModelClass(unittest.TestCase):
@@ -210,3 +185,31 @@ class TestPatternTrackingTransitionModelClass(unittest.TestCase):
                                      0, -20, -5.78e-08, 0, 0, 0, 0, 0]))
         self.assertTrue(self.tm.num_states == 30)
         self.assertTrue(self.tm.num_transitions == 41)
+
+
+# observation models
+class TestRNNBeatTrackingObservationModelClass(unittest.TestCase):
+
+    def setUp(self):
+        btss = BeatStateSpace(1, 4)
+        self.om = RNNBeatTrackingObservationModel(btss, 4)
+        self.obs = np.asarray([1, 0.1, 0.01, 0], dtype=np.float32)
+
+    def test_types(self):
+        self.assertIsInstance(self.om.pointers, np.ndarray)
+        self.assertIsInstance(self.om.densities(self.obs), np.ndarray)
+        self.assertIsInstance(self.om.log_densities(self.obs), np.ndarray)
+        self.assertTrue(self.om.pointers.dtype == np.uint32)
+        self.assertTrue(self.om.densities(self.obs).dtype == np.float)
+        self.assertTrue(self.om.log_densities(self.obs).dtype == np.float)
+
+    def test_values(self):
+        self.assertTrue(np.allclose(self.om.pointers,
+                                    [0, 0, 1, 0, 1, 1, 0, 1, 1, 1]))
+        self.assertTrue(np.allclose(self.om.densities(self.obs),
+                                    [[1, 0], [0.1, 0.3],
+                                     [0.01, 0.33], [0, 1. / 3]]))
+        self.assertTrue(np.allclose(self.om.log_densities(self.obs),
+                                    [[0, -np.inf], [-2.30258508, -1.20397281],
+                                     [-4.60517021, -1.10866262],
+                                     [-np.inf, -1.09861229]]))
