@@ -71,8 +71,16 @@ class BeatStateSpace(object):
                 num_log_tempi += 1
         # intervals to model
         self.intervals = np.ascontiguousarray(intervals, dtype=np.uint32)
-        # compute the position and interval mapping
-        self.position_mapping, self.interval_mapping = self.compute_mapping()
+        # define the position and interval states
+        self.position = np.empty(self.num_states)
+        self.interval = np.empty(self.num_states, dtype=np.uint32)
+        idx = interval = 0
+        for i in self.intervals:
+            self.position[idx: idx + i] = np.linspace(0, 1, i, endpoint=False)
+            self.interval[idx: idx + i] = interval
+            # increase counters
+            idx += i
+            interval += 1
 
     @property
     def num_states(self):
@@ -94,89 +102,10 @@ class BeatStateSpace(object):
         """Last state for each interval."""
         return np.cumsum(self.intervals).astype(np.uint32) - 1
 
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def compute_mapping(self):
-        """
-        Compute the mapping from state numbers to position inside the beat
-        and interval states.
-
-        Returns
-        -------
-        position_mapping : numpy array
-            Mapping from state number to position inside beat.
-        interval_mapping : numpy array
-            Mapping from state number to interval.
-
-        """
-        # counters etc.
-        cdef unsigned int interval, first_state, last_state
-        cdef unsigned int num_states = np.sum(self.intervals)
-        cdef float pos
-        # mapping arrays from state numbers to interval / position
-        cdef unsigned int [::1] interval_mapping = \
-            np.empty(num_states, dtype=np.uint32)
-        cdef double [::1] position_mapping = \
-            np.empty(num_states, dtype=np.float)
-        # cache variables
-        cdef unsigned int [::1] intervals = self.intervals
-        cdef unsigned int [::1] first_states = self.first_states
-        cdef unsigned int [::1] last_states = self.last_states
-        # loop over all intervals
-        for interval in range(self.num_intervals):
-            # first and last state of interval
-            first_state = first_states[interval]
-            last_state = last_states[interval]
-            # reset position counter
-            pos = 0
-            for state in range(first_state, last_state + 1):
-                # interval state mapping
-                interval_mapping[state] = interval
-                # position inside beat mapping
-                position_mapping[state] = pos / float(intervals[interval])
-                pos += 1
-        # return the mappings
-        return np.asarray(position_mapping), np.asarray(interval_mapping)
-
-    def position(self, state):
-        """
-        Position (inside one beat) of the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding position.
-
-        """
-        return self.position_mapping[state]
-
-    def interval(self, state):
-        """
-        Intervals of the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding intervals.
-
-        """
-        return self.interval_mapping[state]
-
 
 class MultiPatternStateSpace(object):
     """
-    State space for rythmic pattern tracking with a HMM.
+    State space for rhythmic pattern tracking with a HMM.
 
     A rhythmic pattern is modeled similar to :class:`BeatStateSpace`,
     but models multiple rhythmic patterns instead of a single beat. The
@@ -216,14 +145,14 @@ class MultiPatternStateSpace(object):
             # create a BeatStateSpace and append it to the list
             bar_state_spaces.append(BeatStateSpace(min_, max_, num_))
         self.bar_state_spaces = bar_state_spaces
-        # define mappings
-        self.position_mapping = \
-            np.hstack([st.position(np.arange(st.num_states, dtype=np.int))
+        # define the position, interval and pattern states
+        self.position = \
+            np.hstack([st.position[np.arange(st.num_states, dtype=np.int)]
                        for st in self.bar_state_spaces])
-        self.interval_mapping = \
-            np.hstack([st.interval(np.arange(st.num_states, dtype=np.int))
+        self.interval = \
+            np.hstack([st.interval[np.arange(st.num_states, dtype=np.int)]
                        for st in self.bar_state_spaces])
-        self.pattern_mapping = \
+        self.pattern = \
             np.hstack([np.repeat(i, st.num_states)
                        for i, st in enumerate(self.bar_state_spaces)])
 
@@ -236,57 +165,6 @@ class MultiPatternStateSpace(object):
     def num_patterns(self):
         """Number of rhythmic patterns"""
         return len(self.bar_state_spaces)
-
-    def position(self, state):
-        """
-        Position (inside one pattern) for the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding positions.
-
-        """
-        return self.position_mapping[state]
-
-    def interval(self, state):
-        """
-        Interval for a given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding intervals.
-
-        """
-        return self.interval_mapping[state]
-
-    def pattern(self, state):
-        """
-        Pattern for the given states.
-
-        Parameters
-        ----------
-        state : numpy array
-            States.
-
-        Returns
-        -------
-        numpy array
-            Corresponding patterns.
-
-        """
-        return self.pattern_mapping[state]
 
 
 # transition models
@@ -343,7 +221,6 @@ class BeatTransitionModel(TransitionModel):
         # Note: convert all intervals to float here
         cdef float [::1] intervals = \
             self.state_space.intervals.astype(np.float32)
-        # cdef unsigned int [::1] tempo_states = self.state_space.tempo_states
         cdef double transition_lambda = self.transition_lambda
         # number of tempo & total states
         cdef unsigned int num_intervals = self.state_space.num_intervals
@@ -559,8 +436,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         pointers = np.ones(state_space.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
-        beat_idx = state_space.position(np.arange(state_space.num_states,
-                                                  dtype=np.int)) < border
+        beat_idx = state_space.position[:state_space.num_states] < border
         pointers[beat_idx] = 0
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
@@ -632,9 +508,8 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         self.norm_observations = norm_observations
         # define the pointers of the log densities
         pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
-        states = np.arange(self.transition_model.num_states)
-        pattern = self.transition_model.pattern(states)
-        position = self.transition_model.position(states)
+        pattern = self.transition_model.pattern
+        position = self.transition_model.position
         # Note: the densities of all GMMs are just stacked on top of each
         #       other, so we have to to keep track of the total number of GMMs
         densities_idx_offset = 0

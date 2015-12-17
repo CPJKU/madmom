@@ -350,10 +350,10 @@ class TempoEstimationProcessor(Processor):
             # instantiate a DBN for beat tracking
             dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
                                            max_bpm=self.max_bpm,
-                                           num_tempo_states=None, fps=self.fps)
+                                           num_tempi=None, fps=self.fps)
             # get the best state path by calling the viterbi algorithm
             path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
-            intervals = dbn.st.interval(path)
+            intervals = dbn.st.interval[path]
             # add the minimum interval of the beat state space
             intervals += dbn.st.intervals.min()
             # get the counts of the bins

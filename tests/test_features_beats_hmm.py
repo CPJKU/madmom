@@ -14,38 +14,44 @@ from madmom.features.beats_hmm import *
 
 class TestBeatStateSpaceClass(unittest.TestCase):
 
-    def setUp(self):
-        self.btss = BeatStateSpace(1, 4)
-
     def test_types(self):
-        self.assertIsInstance(self.btss.intervals, np.ndarray)
-        self.assertIsInstance(self.btss.position_mapping, np.ndarray)
-        self.assertIsInstance(self.btss.interval_mapping, np.ndarray)
-        self.assertIsInstance(self.btss.num_states, int)
-        self.assertIsInstance(self.btss.num_intervals, int)
-        self.assertIsInstance(self.btss.first_states, np.ndarray)
-        self.assertIsInstance(self.btss.last_states, np.ndarray)
+        bss = BeatStateSpace(1, 4)
+        self.assertIsInstance(bss.intervals, np.ndarray)
+        self.assertIsInstance(bss.position, np.ndarray)
+        self.assertIsInstance(bss.interval, np.ndarray)
+        self.assertIsInstance(bss.num_states, int)
+        self.assertIsInstance(bss.num_intervals, int)
+        self.assertIsInstance(bss.first_states, np.ndarray)
+        self.assertIsInstance(bss.last_states, np.ndarray)
 
     def test_values(self):
-        print(self.btss.intervals)
-        self.assertTrue(np.allclose(self.btss.intervals,
-                                    [1, 2, 3, 4]))
-        self.assertTrue(np.allclose(self.btss.position_mapping,
+        bss = BeatStateSpace(1, 4)
+        self.assertTrue(np.allclose(bss.intervals, [1, 2, 3, 4]))
+        self.assertTrue(np.allclose(bss.position,
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.btss.interval_mapping,
+        self.assertTrue(np.allclose(bss.interval,
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
-        self.assertTrue(np.allclose(self.btss.first_states,
-                                    [0, 1, 3, 6]))
-        self.assertTrue(np.allclose(self.btss.last_states,
-                                    [0, 2, 5, 9]))
-        self.assertTrue(self.btss.num_states == 10)
-        self.assertTrue(self.btss.num_intervals == 4)
-        self.assertTrue(np.allclose(self.btss.position(np.arange(10)),
-                                    [0, 0, 0.5, 0, 1. / 3, 2. / 3,
-                                     0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.btss.interval(np.arange(10)),
-                                    [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
+        self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
+        self.assertTrue(np.allclose(bss.last_states, [0, 2, 5, 9]))
+        self.assertTrue(bss.num_states == 10)
+        self.assertTrue(bss.num_intervals == 4)
+        # other intervals
+        bss = BeatStateSpace(2, 6)
+        self.assertTrue(np.allclose(bss.intervals, [2, 3, 4, 5, 6]))
+        self.assertTrue(np.allclose(bss.position,
+                                    [0, 0.5,
+                                     0, 1. / 3, 2. / 3,
+                                     0, 0.25, 0.5, 0.75,
+                                     0, 0.2, 0.4, 0.6, 0.8,
+                                     0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
+        self.assertTrue(np.allclose(bss.interval,
+                                    [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
+                                     4, 4, 4, 4, 4, 4]))
+        self.assertTrue(np.allclose(bss.first_states, [0, 2, 5, 9, 14]))
+        self.assertTrue(np.allclose(bss.last_states, [1, 4, 8, 13, 19]))
+        self.assertTrue(bss.num_states == 20)
+        self.assertTrue(bss.num_intervals == 5)
 
 
 class TestBeatTransitionModelClass(unittest.TestCase):
@@ -118,8 +124,8 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
 
     def test_types(self):
         self.assertIsInstance(self.ptss.bar_state_spaces, list)
-        self.assertIsInstance(self.ptss.position_mapping, np.ndarray)
-        self.assertIsInstance(self.ptss.interval_mapping, np.ndarray)
+        self.assertIsInstance(self.ptss.position, np.ndarray)
+        self.assertIsInstance(self.ptss.interval, np.ndarray)
         self.assertIsInstance(self.ptss.num_states, int)
         # self.assertIsInstance(self.ptss.num_intervals, list)
         self.assertIsInstance(self.ptss.num_patterns, int)
@@ -133,25 +139,23 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
         # self.assertTrue(self.ptss.num_intervals == [4, 5])
         self.assertTrue(self.ptss.num_patterns == 2)
         # first pattern
-        self.assertTrue(np.allclose(self.ptss.position(np.arange(10)),
+        self.assertTrue(np.allclose(self.ptss.position[:10],
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.ptss.interval(np.arange(10)),
+        self.assertTrue(np.allclose(self.ptss.interval[:10],
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
-        self.assertTrue(np.allclose(self.ptss.pattern(np.arange(10)),
-                                    np.zeros(10)))
+        self.assertTrue(np.allclose(self.ptss.pattern[:10], 0))
         # second pattern
-        self.assertTrue(np.allclose(self.ptss.position(np.arange(10, 30)),
+        self.assertTrue(np.allclose(self.ptss.position[10:],
                                     [0, 0.5,
                                      0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75,
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
-        self.assertTrue(np.allclose(self.ptss.interval(np.arange(10, 30)),
+        self.assertTrue(np.allclose(self.ptss.interval[10:],
                                     [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
                                      4, 4, 4, 4, 4, 4]))
-        self.assertTrue(np.allclose(self.ptss.pattern(np.arange(10, 30)),
-                                    np.ones(20)))
+        self.assertTrue(np.allclose(self.ptss.pattern[10:], 1))
 
 
 class TestPatternTrackingTransitionModelClass(unittest.TestCase):
