@@ -734,7 +734,7 @@ class DBNBeatTrackingProcessor(Processor):
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
-            beats = argrelmin(self.st.position[path], mode='wrap')[0]
+            beats = argrelmin(self.st.state_positions[path], mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the pointers
             # of the observation model for that state must be 0
             # Note: interpolation and alignment of the beats to be at state 0
@@ -977,9 +977,9 @@ class PatternTrackingProcessor(Processor):
         path, _ = self.hmm.viterbi(activations)
         # get the corresponding pattern (use only the first state, since it
         # doesn't change throughout the sequence)
-        pattern = self.st.pattern[path[0]]
+        pattern = self.st.state_patterns[path[0]]
         # the position inside the pattern (0..1)
-        position = self.st.position[path]
+        position = self.st.state_positions[path]
         # beat position (= weighted by number of beats in bar)
         beat_counter = (position * self.num_beats[pattern]).astype(int)
         # transitions are the points where the beat counters change

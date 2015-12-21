@@ -18,20 +18,26 @@ class TestBeatStateSpaceClass(unittest.TestCase):
     def test_types(self):
         bss = BeatStateSpace(1, 4)
         self.assertIsInstance(bss.intervals, np.ndarray)
-        self.assertIsInstance(bss.position, np.ndarray)
-        self.assertIsInstance(bss.interval, np.ndarray)
-        self.assertIsInstance(bss.num_states, int)
-        self.assertIsInstance(bss.num_intervals, int)
+        self.assertIsInstance(bss.state_positions, np.ndarray)
+        self.assertIsInstance(bss.state_intervals, np.ndarray)
         self.assertIsInstance(bss.first_states, np.ndarray)
         self.assertIsInstance(bss.last_states, np.ndarray)
+        self.assertIsInstance(bss.num_states, int)
+        self.assertIsInstance(bss.num_intervals, int)
+        # dtypes
+        self.assertTrue(bss.intervals.dtype == np.uint32)
+        self.assertTrue(bss.state_positions.dtype == np.float)
+        self.assertTrue(bss.state_intervals.dtype == np.uint32)
+        self.assertTrue(bss.first_states.dtype == np.uint32)
+        self.assertTrue(bss.last_states.dtype == np.uint32)
 
     def test_values(self):
         bss = BeatStateSpace(1, 4)
         self.assertTrue(np.allclose(bss.intervals, [1, 2, 3, 4]))
-        self.assertTrue(np.allclose(bss.position,
+        self.assertTrue(np.allclose(bss.state_positions,
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(bss.interval,
+        self.assertTrue(np.allclose(bss.state_intervals,
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
         self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
         self.assertTrue(np.allclose(bss.last_states, [0, 2, 5, 9]))
@@ -40,13 +46,13 @@ class TestBeatStateSpaceClass(unittest.TestCase):
         # other intervals
         bss = BeatStateSpace(2, 6)
         self.assertTrue(np.allclose(bss.intervals, [2, 3, 4, 5, 6]))
-        self.assertTrue(np.allclose(bss.position,
+        self.assertTrue(np.allclose(bss.state_positions,
                                     [0, 0.5,
                                      0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75,
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
-        self.assertTrue(np.allclose(bss.interval,
+        self.assertTrue(np.allclose(bss.state_intervals,
                                     [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
                                      4, 4, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(bss.first_states, [0, 2, 5, 9, 14]))
@@ -55,45 +61,91 @@ class TestBeatStateSpaceClass(unittest.TestCase):
         self.assertTrue(bss.num_intervals == 5)
 
 
-class TestMultiPatternStateSpaceClass(unittest.TestCase):
-
-    def setUp(self):
-        self.ptss = MultiPatternStateSpace([1, 2], [4, 6])
+class TestBarStateSpaceClass(unittest.TestCase):
 
     def test_types(self):
-        self.assertIsInstance(self.ptss.bar_state_spaces, list)
-        self.assertIsInstance(self.ptss.position, np.ndarray)
-        self.assertIsInstance(self.ptss.interval, np.ndarray)
-        self.assertIsInstance(self.ptss.num_states, int)
-        # self.assertIsInstance(self.ptss.num_intervals, list)
-        self.assertIsInstance(self.ptss.num_patterns, int)
+        bss = BarStateSpace(2, 1, 4)
+        self.assertIsInstance(bss.num_beats, int)
+        self.assertIsInstance(bss.num_states, int)
+        # self.assertIsInstance(bss.intervals, np.ndarray)
+        self.assertIsInstance(bss.state_positions, np.ndarray)
+        self.assertIsInstance(bss.state_intervals, np.ndarray)
+        self.assertIsInstance(bss.first_states, np.ndarray)
+        self.assertIsInstance(bss.last_states, np.ndarray)
+        self.assertIsInstance(bss.beat_state_offsets, np.ndarray)
+        # dtypes
+        # self.assertTrue(bss.intervals.dtype == np.uint32)
+        self.assertTrue(bss.state_positions.dtype == np.float)
+        self.assertTrue(bss.state_intervals.dtype == np.uint32)
+        self.assertTrue(bss.first_states.dtype == np.uint32)
+        self.assertTrue(bss.last_states.dtype == np.uint32)
+        print(bss.beat_state_offsets.dtype)
+        self.assertTrue(bss.beat_state_offsets.dtype == np.int)
 
     def test_values(self):
-        self.assertTrue(np.allclose(self.ptss.bar_state_spaces[0].intervals,
+        bss = BarStateSpace(2, 1, 4)
+        self.assertTrue(bss.num_beats == 2)
+        self.assertTrue(bss.num_states == 20)
+        # self.assertTrue(np.allclose(bss.intervals, [1, 2, 3, 4]))
+        # self.assertTrue(np.allclose(bss.beat[:10], 0))
+        # self.assertTrue(np.allclose(bss.beat[10:], 1))
+        self.assertTrue(np.allclose(bss.state_positions,
+                                    [0, 0, 0.5, 0, 1. / 3, 2. / 3,
+                                     0, 0.25, 0.5, 0.75,
+                                     1, 1, 1.5, 1, 4. / 3, 5. / 3,
+                                     1, 1.25, 1.5, 1.75]))
+        self.assertTrue(np.allclose(bss.state_intervals,
+                                    [0, 1, 1, 2, 2, 2, 3, 3, 3, 3,
+                                     0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
+        self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
+        self.assertTrue(np.allclose(bss.last_states, [10, 12, 15, 19]))
+        # self.assertTrue(bss.num_intervals == 4)
+
+
+class TestMultiPatternStateSpaceClass(unittest.TestCase):
+
+    def test_types(self):
+        mpss = MultiPatternStateSpace([1, 2], [4, 6])
+        self.assertIsInstance(mpss.state_spaces, list)
+        self.assertIsInstance(mpss.state_positions, np.ndarray)
+        self.assertIsInstance(mpss.state_intervals, np.ndarray)
+        self.assertIsInstance(mpss.num_states, int)
+        # self.assertIsInstance(mpss.num_intervals, list)
+        self.assertIsInstance(mpss.num_patterns, int)
+        # dtypes
+        # self.assertTrue(mpss.intervals.dtype == np.uint32)
+        self.assertTrue(mpss.state_positions.dtype == np.float)
+        self.assertTrue(mpss.state_intervals.dtype == np.uint32)
+        # self.assertTrue(mpss.first_states.dtype == np.uint32)
+        # self.assertTrue(mpss.last_states.dtype == np.uint32)
+
+    def test_values(self):
+        mpss = MultiPatternStateSpace([1, 2], [4, 6])
+        self.assertTrue(np.allclose(mpss.state_spaces[0].intervals,
                                     [1, 2, 3, 4]))
-        self.assertTrue(np.allclose(self.ptss.bar_state_spaces[1].intervals,
+        self.assertTrue(np.allclose(mpss.state_spaces[1].intervals,
                                     [2, 3, 4, 5, 6]))
-        self.assertTrue(self.ptss.num_states == 30)
-        # self.assertTrue(self.ptss.num_intervals == [4, 5])
-        self.assertTrue(self.ptss.num_patterns == 2)
+        self.assertTrue(mpss.num_states == 30)
+        # self.assertTrue(mpss.num_intervals == [4, 5])
+        self.assertTrue(mpss.num_patterns == 2)
         # first pattern
-        self.assertTrue(np.allclose(self.ptss.position[:10],
+        self.assertTrue(np.allclose(mpss.state_positions[:10],
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
-        self.assertTrue(np.allclose(self.ptss.interval[:10],
+        self.assertTrue(np.allclose(mpss.state_intervals[:10],
                                     [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
-        self.assertTrue(np.allclose(self.ptss.pattern[:10], 0))
+        self.assertTrue(np.allclose(mpss.state_patterns[:10], 0))
         # second pattern
-        self.assertTrue(np.allclose(self.ptss.position[10:],
+        self.assertTrue(np.allclose(mpss.state_positions[10:],
                                     [0, 0.5,
                                      0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75,
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
-        self.assertTrue(np.allclose(self.ptss.interval[10:],
+        self.assertTrue(np.allclose(mpss.state_intervals[10:],
                                     [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
                                      4, 4, 4, 4, 4, 4]))
-        self.assertTrue(np.allclose(self.ptss.pattern[10:], 1))
+        self.assertTrue(np.allclose(mpss.state_patterns[10:], 1))
 
 
 # transition models

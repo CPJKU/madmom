@@ -42,6 +42,23 @@ class BeatStateSpace(object):
         Number of intervals to model; if set, limit the number of intervals
         and use a log spacing instead of the default linear spacing.
 
+    Attributes
+    ----------
+    num_states : int
+        Number of states.
+    intervals : numpy array
+        Modeled intervals.
+    num_intervals : int
+        Number of intervals.
+    state_positions : numpy array
+        Positions of the states.
+    state_intervals : numpy array
+        Intervals of the states.
+    first_states : numpy array
+        First states for each interval.
+    last_states : numpy array
+        Last states for each interval.
+
     References
     ----------
     .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
@@ -51,7 +68,8 @@ class BeatStateSpace(object):
 
     """
 
-    def __init__(self, min_interval, max_interval, num_intervals=None):
+    def __init__(self, min_interval, max_interval, num_intervals=None,
+                 offset=0):
         # per default, use a linear spacing of the tempi
         intervals = np.arange(np.round(min_interval),
                               np.round(max_interval) + 1)
@@ -69,38 +87,101 @@ class BeatStateSpace(object):
                 # quantize to integer tempo states
                 intervals = np.unique(np.round(intervals))
                 num_log_tempi += 1
-        # intervals to model
+        # save the intervals
         self.intervals = np.ascontiguousarray(intervals, dtype=np.uint32)
+        # number of states and intervals
+        self.num_states = int(np.sum(intervals))
+        self.num_intervals = len(intervals)
+        # define first and last states
+        first_states = np.cumsum(np.r_[0, self.intervals[:-1]])
+        self.first_states = first_states.astype(np.uint32)
+        self.last_states = np.cumsum(self.intervals).astype(np.uint32) - 1
         # define the position and interval states
-        self.position = np.empty(self.num_states)
-        self.interval = np.empty(self.num_states, dtype=np.uint32)
+        self.state_positions = np.empty(self.num_states)
+        self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
         idx = interval = 0
         for i in self.intervals:
-            self.position[idx: idx + i] = np.linspace(0, 1, i, endpoint=False)
-            self.interval[idx: idx + i] = interval
+            self.state_positions[idx: idx + i] = np.linspace(0, 1, i,
+                                                             endpoint=False)
+            self.state_intervals[idx: idx + i] = interval
             # increase counters
             idx += i
             interval += 1
 
-    @property
-    def num_states(self):
-        """Number of states."""
-        return int(np.sum(self.intervals))
 
-    @property
-    def num_intervals(self):
-        """Number of different intervals."""
-        return len(self.intervals)
+class BarStateSpace(object):
+    """
+    State space for bar tracking with a HMM.
 
-    @property
-    def first_states(self):
-        """First state for each interval."""
-        return np.cumsum(np.r_[0, self.intervals[:-1]]).astype(np.uint32)
+    Parameters
+    ----------
+    num_beats : int
+        Number of beats per bar.
+    min_interval : float
+        Minimum beat interval to model.
+    max_interval : float
+        Maximum beat interval to model.
+    num_intervals : int, optional
+        Number of beat intervals to model; if set, limit the number of
+        intervals and use a log spacing instead of the default linear spacing.
 
-    @property
-    def last_states(self):
-        """Last state for each interval."""
-        return np.cumsum(self.intervals).astype(np.uint32) - 1
+    Attributes
+    ----------
+    num_beats : int.
+        Number of beats.
+    num_states : int
+        Number of states.
+    num_intervals : int
+        Number of intervals.
+    state_positions : numpy array
+        Positions of the states.
+    state_intervals : numpy array
+        Intervals of the states.
+    beat_state_offsets : numpy array
+        State offsets of the beats.
+    first_states : numpy array
+        First states for each interval.
+    last_states : numpy array
+        Last states for each interval.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
+    """
+
+    def __init__(self, num_beats, min_interval, max_interval,
+                 num_intervals=None):
+        # model N beats as a bar
+        self.num_beats = int(num_beats)
+        self.state_positions = np.empty(0, dtype=np.uint32)
+        self.state_intervals = np.empty(0, dtype=np.uint32)
+        self.beat_state_offsets = np.empty(0, dtype=np.int)
+        self.num_states = 0
+        self._first_states = []
+        self._last_states = []
+        # create a beat state space
+        bss = BeatStateSpace(min_interval, max_interval, num_intervals)
+        offset = 0
+        for n in range(self.num_beats):
+            # define position and interval states
+            self.state_positions = np.hstack((self.state_positions,
+                                              bss.state_positions + n))
+            self.state_intervals = np.hstack((self.state_intervals,
+                                              bss.state_intervals))
+            self.num_states += bss.num_states
+            self._first_states.append(bss.first_states + offset)
+            self._last_states.append(bss.last_states + offset)
+            # save the offsets and increase afterwards
+            self.beat_state_offsets = np.hstack((self.beat_state_offsets,
+                                                 offset))
+            offset += bss.num_states
+        # save the first / last interval states
+        self.first_states = self._first_states[0]
+        self.last_states = self._last_states[-1]
 
 
 class MultiPatternStateSpace(object):
@@ -139,32 +220,30 @@ class MultiPatternStateSpace(object):
             num_intervals = [None] * len(min_intervals)
         # for each pattern, compute a bar state space (i.e. a beat state space
         # which spans a complete bar)
-        bar_state_spaces = []
+        state_spaces = []
         enum = enumerate(zip(min_intervals, max_intervals, num_intervals))
         for pattern, (min_, max_, num_) in enum:
             # create a BeatStateSpace and append it to the list
-            bar_state_spaces.append(BeatStateSpace(min_, max_, num_))
-        self.bar_state_spaces = bar_state_spaces
+            state_spaces.append(BeatStateSpace(min_, max_, num_))
+        self.state_spaces = state_spaces
         # define the position, interval and pattern states
-        self.position = \
-            np.hstack([st.position[np.arange(st.num_states, dtype=np.int)]
-                       for st in self.bar_state_spaces])
-        self.interval = \
-            np.hstack([st.interval[np.arange(st.num_states, dtype=np.int)]
-                       for st in self.bar_state_spaces])
-        self.pattern = \
+        self.state_positions = \
+            np.hstack([st.state_positions for st in self.state_spaces])
+        self.state_intervals = \
+            np.hstack([st.state_intervals for st in self.state_spaces])
+        self.state_patterns = \
             np.hstack([np.repeat(i, st.num_states)
-                       for i, st in enumerate(self.bar_state_spaces)])
+                       for i, st in enumerate(self.state_spaces)])
 
     @property
     def num_states(self):
         """Number of states."""
-        return int(sum([st.num_states for st in self.bar_state_spaces]))
+        return int(sum([st.num_states for st in self.state_spaces]))
 
     @property
     def num_patterns(self):
         """Number of rhythmic patterns"""
-        return len(self.bar_state_spaces)
+        return len(self.state_spaces)
 
 
 # transition models
@@ -219,7 +298,7 @@ class BeatTransitionModel(TransitionModel):
         """
         # cache variables
         # Note: convert all intervals to float here
-        cdef float [::1] intervals = \
+        cdef float [::1] intervals =\
             self.state_space.intervals.astype(np.float32)
         cdef double transition_lambda = self.transition_lambda
         # number of tempo & total states
@@ -239,14 +318,15 @@ class BeatTransitionModel(TransitionModel):
         cdef double [:, ::1] trans_prob = np.zeros((num_intervals,
                                                     num_intervals),
                                                    dtype=np.float)
-        # iterate over all tempo states
+        # iterate over all interval states
         for old_interval in range(num_intervals):
             # reset probability sum
             prob_sum = 0
-            # compute transition probabilities to all other tempo states
+            # compute transition probabilities to all other interval states
             for new_interval in range(num_intervals):
                 # compute the ratio of the two tempi
-                ratio = intervals[new_interval] / intervals[old_interval]
+                ratio = intervals[new_interval] / \
+                        intervals[old_interval]
                 # compute the probability for the tempo change following an
                 # exponential distribution
                 prob = exp(-transition_lambda * abs(ratio - 1))
@@ -373,7 +453,7 @@ class MultiPatternTransitionModel(TransitionModel):
         self.state_space = state_space
         self.transition_lambda = transition_lambda
         # compute the transitions for each pattern and stack them
-        enum = enumerate(zip(state_space.bar_state_spaces, transition_lambda))
+        enum = enumerate(zip(state_space.state_spaces, transition_lambda))
         for pattern, (state_space, transition_lambda) in enum:
             # create a BeatTransitionModel
             tm = BeatTransitionModel(state_space, transition_lambda)
@@ -436,8 +516,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         pointers = np.ones(state_space.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
-        beat_idx = state_space.position[:state_space.num_states] < border
-        pointers[beat_idx] = 0
+        pointers[state_space.state_positions < border] = 0
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
@@ -508,8 +587,8 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         self.norm_observations = norm_observations
         # define the pointers of the log densities
         pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
-        pattern = self.transition_model.pattern
-        position = self.transition_model.position
+        patterns = self.transition_model.state_patterns
+        positions = self.transition_model.state_positions
         # Note: the densities of all GMMs are just stacked on top of each
         #       other, so we have to to keep track of the total number of GMMs
         densities_idx_offset = 0
@@ -519,8 +598,8 @@ class GMMPatternTrackingObservationModel(ObservationModel):
             # distribute the observation densities defined by the GMMs
             # uniformly across the entire state space (for this pattern)
             # since the densities are just stacked, add the offset
-            pointers[pattern == p] = (position[pattern == p] * num_gmms +
-                                      densities_idx_offset)
+            pointers[patterns == p] = (positions[patterns == p] * num_gmms +
+                                       densities_idx_offset)
             # increase the offset by the number of GMMs
             densities_idx_offset += num_gmms
         # instantiate a ObservationModel with the pointers
