@@ -56,11 +56,6 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
-# installation requirements
-install_requires = ['numpy>=1.8.1',
-                    'scipy>=0.14',
-                    'cython>=0.22.1']
-
 # the actual setup routine
 setup(name='madmom',
       version=version,
@@ -79,5 +74,4 @@ setup(name='madmom',
       scripts=scripts,
       cmdclass={'build_ext': build_ext},
       test_suite='nose.collector',
-      install_requires=install_requires,
       classifiers=classifiers)
