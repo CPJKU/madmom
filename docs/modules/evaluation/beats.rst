@@ -1,5 +1,5 @@
-madmom.evaluation.beats module
-==============================
+madmom.evaluation.beats
+=======================
 
 .. automodule:: madmom.evaluation.beats
     :members:

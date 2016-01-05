@@ -1,5 +1,5 @@
-madmom.ml.rnn module
-====================
+madmom.ml.rnn
+=============
 
 .. automodule:: madmom.ml.rnn
     :members:

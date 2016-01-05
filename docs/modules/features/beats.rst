@@ -1,5 +1,5 @@
-madmom.features.beats module
-============================
+madmom.features.beats
+=====================
 
 .. automodule:: madmom.features.beats
     :members:

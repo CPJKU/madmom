@@ -1,5 +1,5 @@
-madmom.features.onsets module
-=============================
+madmom.features.onsets
+======================
 
 .. automodule:: madmom.features.onsets
     :members:

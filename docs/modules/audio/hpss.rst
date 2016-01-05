@@ -1,5 +1,5 @@
-madmom.audio.hpss module
-========================
+madmom.audio.hpss
+=================
 
 .. automodule:: madmom.audio.hpss
     :members:

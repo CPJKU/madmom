@@ -1,5 +1,5 @@
-madmom.utils package
-====================
+madmom.utils
+============
 
 .. automodule:: madmom.utils
     :members:

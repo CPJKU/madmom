@@ -1,5 +1,5 @@
-madmom.processors module
-========================
+madmom.processors
+=================
 
 .. automodule:: madmom.processors
     :members:

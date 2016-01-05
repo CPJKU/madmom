@@ -1,5 +1,5 @@
-madmom.audio.cepstrogram module
-===============================
+madmom.audio.cepstrogram
+========================
 
 .. automodule:: madmom.audio.cepstrogram
     :members:

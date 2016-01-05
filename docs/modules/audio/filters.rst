@@ -1,5 +1,5 @@
-madmom.audio.filters module
-===========================
+madmom.audio.filters
+====================
 
 .. automodule:: madmom.audio.filters
     :members:

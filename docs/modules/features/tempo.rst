@@ -1,5 +1,5 @@
-madmom.features.tempo module
-============================
+madmom.features.tempo
+=====================
 
 .. automodule:: madmom.features.tempo
     :members:

@@ -1,5 +1,5 @@
-madmom.ml.hmm module
-====================
+madmom.ml.hmm
+=============
 
 .. automodule:: madmom.ml.hmm
     :members:

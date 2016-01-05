@@ -1,5 +1,5 @@
-madmom.audio.stft module
-========================
+madmom.audio.stft
+=================
 
 .. automodule:: madmom.audio.stft
     :members:

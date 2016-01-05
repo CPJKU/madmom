@@ -1,5 +1,5 @@
-madmom.evaluation package
-=========================
+madmom.evaluation
+=================
 
 .. automodule:: madmom.evaluation
     :members:

@@ -1,5 +1,5 @@
-madmom.audio.spectrogram module
-===============================
+madmom.audio.spectrogram
+========================
 
 .. automodule:: madmom.audio.spectrogram
     :members:

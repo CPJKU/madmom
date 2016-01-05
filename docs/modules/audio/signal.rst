@@ -1,5 +1,5 @@
-madmom.audio.signal module
-==========================
+madmom.audio.signal
+===================
 
 .. automodule:: madmom.audio.signal
     :members:

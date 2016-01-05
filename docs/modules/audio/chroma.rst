@@ -1,5 +1,5 @@
-madmom.audio.chroma module
-==========================
+madmom.audio.chroma
+===================
 
 .. automodule:: madmom.audio.chroma
     :members:

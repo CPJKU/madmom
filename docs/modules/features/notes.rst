@@ -1,5 +1,5 @@
-madmom.features.notes module
-============================
+madmom.features.notes
+=====================
 
 .. automodule:: madmom.features.notes
     :members:

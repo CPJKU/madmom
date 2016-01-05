@@ -1,5 +1,5 @@
-madmom.evaluation.onsets module
-===============================
+madmom.evaluation.onsets
+========================
 
 .. automodule:: madmom.evaluation.onsets
     :members:

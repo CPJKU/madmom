@@ -1,5 +1,5 @@
-madmom.evaluation.notes module
-==============================
+madmom.evaluation.notes
+=======================
 
 .. automodule:: madmom.evaluation.notes
     :members:

@@ -1,5 +1,5 @@
-madmom.evaluation.tempo module
-==============================
+madmom.evaluation.tempo
+=======================
 
 .. automodule:: madmom.evaluation.tempo
     :members:

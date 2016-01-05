@@ -1,5 +1,5 @@
-madmom.audio.ffmpeg module
-==========================
+madmom.audio.ffmpeg
+===================
 
 .. automodule:: madmom.audio.ffmpeg
     :members:

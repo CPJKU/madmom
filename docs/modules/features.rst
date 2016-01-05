@@ -1,5 +1,5 @@
-madmom.features package
-=======================
+madmom.features
+===============
 
 .. automodule:: madmom.features
     :members:

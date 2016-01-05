@@ -1,5 +1,5 @@
-madmom.audio package
-====================
+madmom.audio
+============
 
 .. automodule:: madmom.audio
     :members:

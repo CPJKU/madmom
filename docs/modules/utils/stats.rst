@@ -1,5 +1,5 @@
-madmom.utils.stats module
-=========================
+madmom.utils.stats
+==================
 
 .. automodule:: madmom.utils.stats
     :members:
