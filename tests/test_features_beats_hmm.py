@@ -38,7 +38,7 @@ class TestBeatStateSpaceClass(unittest.TestCase):
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
         self.assertTrue(np.allclose(bss.state_intervals,
-                                    [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
+                                    [1, 2, 2, 3, 3, 3, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
         self.assertTrue(np.allclose(bss.last_states, [0, 2, 5, 9]))
         self.assertTrue(bss.num_states == 10)
@@ -53,8 +53,8 @@ class TestBeatStateSpaceClass(unittest.TestCase):
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
         self.assertTrue(np.allclose(bss.state_intervals,
-                                    [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
-                                     4, 4, 4, 4, 4, 4]))
+                                    [2, 2, 3, 3, 3, 4, 4, 4, 4,
+                                     5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6]))
         self.assertTrue(np.allclose(bss.first_states, [0, 2, 5, 9, 14]))
         self.assertTrue(np.allclose(bss.last_states, [1, 4, 8, 13, 19]))
         self.assertTrue(bss.num_states == 20)
@@ -95,8 +95,8 @@ class TestBarStateSpaceClass(unittest.TestCase):
                                      1, 1, 1.5, 1, 4. / 3, 5. / 3,
                                      1, 1.25, 1.5, 1.75]))
         self.assertTrue(np.allclose(bss.state_intervals,
-                                    [0, 1, 1, 2, 2, 2, 3, 3, 3, 3,
-                                     0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
+                                    [1, 2, 2, 3, 3, 3, 4, 4, 4, 4,
+                                     1, 2, 2, 3, 3, 3, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
         self.assertTrue(np.allclose(bss.last_states, [10, 12, 15, 19]))
         # self.assertTrue(bss.num_intervals == 4)
@@ -133,7 +133,7 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75]))
         self.assertTrue(np.allclose(mpss.state_intervals[:10],
-                                    [0, 1, 1, 2, 2, 2, 3, 3, 3, 3]))
+                                    [1, 2, 2, 3, 3, 3, 4, 4, 4, 4]))
         self.assertTrue(np.allclose(mpss.state_patterns[:10], 0))
         # second pattern
         self.assertTrue(np.allclose(mpss.state_positions[10:],
@@ -143,8 +143,8 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
                                      0, 0.2, 0.4, 0.6, 0.8,
                                      0, 1. / 6, 2. / 6, 0.5, 4. / 6, 5. / 6]))
         self.assertTrue(np.allclose(mpss.state_intervals[10:],
-                                    [0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3,
-                                     4, 4, 4, 4, 4, 4]))
+                                    [2, 2, 3, 3, 3, 4, 4, 4, 4,
+                                     5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6]))
         self.assertTrue(np.allclose(mpss.state_patterns[10:], 1))
 
 

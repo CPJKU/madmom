@@ -354,8 +354,6 @@ class TempoEstimationProcessor(Processor):
             # get the best state path by calling the viterbi algorithm
             path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
             intervals = dbn.st.state_intervals[path]
-            # add the minimum interval of the beat state space
-            intervals += dbn.st.intervals.min()
             # get the counts of the bins
             bins = np.bincount(intervals, minlength=dbn.st.intervals.max() + 1)
             # truncate everything below the minimum interval of the state space

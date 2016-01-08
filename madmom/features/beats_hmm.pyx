@@ -68,8 +68,7 @@ class BeatStateSpace(object):
 
     """
 
-    def __init__(self, min_interval, max_interval, num_intervals=None,
-                 offset=0):
+    def __init__(self, min_interval, max_interval, num_intervals=None):
         # per default, use a linear spacing of the tempi
         intervals = np.arange(np.round(min_interval),
                               np.round(max_interval) + 1)
@@ -99,14 +98,13 @@ class BeatStateSpace(object):
         # define the position and interval states
         self.state_positions = np.empty(self.num_states)
         self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
-        idx = interval = 0
+        idx = 0
         for i in self.intervals:
             self.state_positions[idx: idx + i] = np.linspace(0, 1, i,
                                                              endpoint=False)
-            self.state_intervals[idx: idx + i] = interval
-            # increase counters
+            self.state_intervals[idx: idx + i] = i
+            # increase counter
             idx += i
-            interval += 1
 
 
 class BarStateSpace(object):
