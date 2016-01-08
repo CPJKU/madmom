@@ -243,13 +243,10 @@ class MultiPatternStateSpace(object):
 
 
 # transition distributions
-@cython.cdivision(True)
-@cython.boundscheck(False)
-@cython.wraparound(False)
-def exponential_transition(double [::1] from_intervals,
-                           double [::1] to_intervals, double transition_lambda,
-                           double threshold=np.spacing(1)):
+def exponential_transition(from_intervals, to_intervals, transition_lambda,
+                           threshold=np.spacing(1), norm=True):
     """
+    Exponential tempo transition.
 
     Parameters
     ----------
@@ -262,6 +259,8 @@ def exponential_transition(double [::1] from_intervals,
         prefer a constant tempo from one beat/bar to the next one).
     threshold : float, optional
         Set transition probabilities below this threshold to zero.
+    norm : bool, optional
+        Normalize the emission probabilities to sum 1.
 
     Returns
     -------
@@ -276,37 +275,15 @@ def exponential_transition(double [::1] from_intervals,
            Retrieval Conference (ISMIR), 2015.
 
     """
-    # define variables
-    cdef unsigned int from_int, to_int
-    cdef double prob_sum, ratio, prob
-    cdef unsigned int num_to = len(to_intervals)
-    cdef unsigned int num_from = len(from_intervals)
-    # transition matrix for the tempo changes
-    cdef double [:, ::1] trans_prob = np.zeros((num_from, num_to),
-                                               dtype=np.float)
-    # iterate over all interval states
-    for from_int in range(num_from):
-        # reset probability sum
-        prob_sum = 0
-        # compute transition probabilities to all other interval states
-        for to_int in range(num_to):
-            # compute the ratio of the two intervals
-            ratio = to_intervals[to_int] / from_intervals[from_int]
-            # compute the probability for the tempo change following an
-            # exponential distribution
-            prob = exp(-transition_lambda * abs(ratio - 1))
-            # keep only transition probabilities > threshold
-            if prob > threshold:
-                # save the probability
-                trans_prob[from_int, to_int] = prob
-                # collect normalization data
-                prob_sum += prob
-        # normalize the interval transitions to other intervals
-        # TODO: make the normailsation optional!?
-        for to_int in range(num_to):
-            trans_prob[from_int, to_int] /= prob_sum
-    # return the transition probabilities
-    return np.asarray(trans_prob)
+    # compute the transition probabilities
+    ratio = to_intervals / from_intervals[:, np.newaxis]
+    prob = np.exp(-transition_lambda * abs(ratio - 1.))
+    # set values below threshold to 0
+    prob[prob <= threshold] = 0
+    # normalize the emission probabilities
+    if norm:
+        prob /= np.sum(prob, axis=1)[:, np.newaxis]
+    return prob
 
 
 # transition models
@@ -635,7 +612,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         Parameters
         ----------
         observations : numpy array
-            Observations (i.e. activations of the NN).
+            Observations (i.e. multiband spectral flux features).
 
         Returns
         -------
