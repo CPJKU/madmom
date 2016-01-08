@@ -159,7 +159,7 @@ class TestBeatTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(self.tm, BeatTransitionModel)
         self.assertIsInstance(self.tm, TransitionModel)
         self.assertIsInstance(self.tm.state_space, BeatStateSpace)
-        self.assertIsInstance(self.tm.transition_lambda, np.ndarray)
+        self.assertIsInstance(self.tm.transition_lambda, float)
         self.assertIsInstance(self.tm.states, np.ndarray)
         self.assertIsInstance(self.tm.pointers, np.ndarray)
         self.assertIsInstance(self.tm.probabilities, np.ndarray)

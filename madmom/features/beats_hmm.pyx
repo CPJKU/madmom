@@ -159,6 +159,7 @@ class BarStateSpace(object):
         self.state_intervals = np.empty(0, dtype=np.uint32)
         self.beat_state_offsets = np.empty(0, dtype=np.int)
         self.num_states = 0
+        # save the first and last states of the individual beats in a list
         self._first_states = []
         self._last_states = []
         # create a beat state space
@@ -244,6 +245,73 @@ class MultiPatternStateSpace(object):
         return len(self.state_spaces)
 
 
+# transition distributions
+@cython.cdivision(True)
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def exponential_transition(double [::1] from_intervals,
+                           double [::1] to_intervals, double transition_lambda,
+                           double threshold=np.spacing(1)):
+    """
+
+    Parameters
+    ----------
+    from_intervals : numpy array
+        Intervals where the transitions originate from.
+    to_intervals :  : numpy array
+        Intervals where the transitions destinate to.
+    transition_lambda : float
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one beat/bar to the next one).
+    threshold : float, optional
+        Set transition probabilities below this threshold to zero.
+
+    Returns
+    -------
+    probabilities : numpy array, shape (num_from_intervals, num_to_intervals)
+        Probability of each transition from an interval to another.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
+    """
+    # define variables
+    cdef unsigned int from_int, to_int
+    cdef double prob_sum, ratio, prob
+    cdef unsigned int num_to = len(to_intervals)
+    cdef unsigned int num_from = len(from_intervals)
+    # transition matrix for the tempo changes
+    cdef double [:, ::1] trans_prob = np.zeros((num_from, num_to),
+                                               dtype=np.float)
+    # iterate over all interval states
+    for from_int in range(num_from):
+        # reset probability sum
+        prob_sum = 0
+        # compute transition probabilities to all other interval states
+        for to_int in range(num_to):
+            # compute the ratio of the two intervals
+            ratio = to_intervals[to_int] / from_intervals[from_int]
+            # compute the probability for the tempo change following an
+            # exponential distribution
+            prob = exp(-transition_lambda * abs(ratio - 1))
+            # keep only transition probabilities > threshold
+            if prob > threshold:
+                # save the probability
+                trans_prob[from_int, to_int] = prob
+                # collect normalization data
+                prob_sum += prob
+        # normalize the interval transitions to other intervals
+        # TODO: make the normailsation optional!?
+        for to_int in range(num_to):
+            trans_prob[from_int, to_int] /= prob_sum
+    # return the transition probabilities
+    return np.asarray(trans_prob)
+
+
 # transition models
 class BeatTransitionModel(TransitionModel):
     """
@@ -269,126 +337,31 @@ class BeatTransitionModel(TransitionModel):
     def __init__(self, state_space, transition_lambda):
         # save attributes
         self.state_space = state_space
-        self.transition_lambda = np.asarray(transition_lambda, dtype=np.float)
-        # compute the transitions
-        transitions = self.make_sparse(*self.compute_transitions())
-        # instantiate a TransitionModel with the transitions
+        self.transition_lambda = float(transition_lambda)
+        # intra state space connections (i.e. same tempi)
+        states = np.arange(state_space.num_states, dtype=np.uint32)
+        # remove the transitions into the first states
+        states = np.setdiff1d(states, state_space.first_states)
+        prev_states = states - 1
+        probabilities = np.ones_like(states, dtype=np.float)
+        # self connection of the state space (i.e. tempo changes)
+        to_states = state_space.first_states
+        from_states = state_space.last_states
+        # generate an exponential tempo transition
+        from_int = state_space.state_intervals[from_states].astype(np.float)
+        to_int = state_space.state_intervals[to_states].astype(np.float)
+        prob = exponential_transition(from_int, to_int, self.transition_lambda)
+        # use only the states with transitions to/from != 0
+        from_states = state_space.last_states[np.nonzero(prob)[0]]
+        to_states = state_space.first_states[np.nonzero(prob)[1]]
+        # append to the arrays
+        states = np.hstack((states, to_states))
+        prev_states = np.hstack((prev_states, from_states))
+        probabilities = np.hstack((probabilities, prob[prob != 0]))
+        # make the transitions sparse
+        transitions = self.make_sparse(states, prev_states, probabilities)
+        # instantiate a TransitionModel
         super(BeatTransitionModel, self).__init__(*transitions)
-
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def compute_transitions(self):
-        """
-        Compute the transitions (i.e. the probabilities to move from any state
-        to another one) and return them in a dense format understood by
-        :func:`.ml.hmm.TransitionModel.make_sparse`.
-
-        Returns
-        -------
-        states : numpy array
-            Array with states (i.e. destination states).
-        prev_states : numpy array
-            Array with previous states (i.e. origination states).
-        probabilities : numpy array
-            Transition probabilities.
-
-        """
-        # cache variables
-        # Note: convert all intervals to float here
-        cdef float [::1] intervals =\
-            self.state_space.intervals.astype(np.float32)
-        cdef double transition_lambda = self.transition_lambda
-        # number of tempo & total states
-        cdef unsigned int num_intervals = self.state_space.num_intervals
-        cdef unsigned int num_states = self.state_space.num_states
-        # counters etc.
-        cdef unsigned int state, prev_state, old_interval, new_interval
-        cdef double ratio, u, prob, prob_sum
-        cdef double threshold = np.spacing(1)
-
-        # to determine the number of transitions, we need to determine the
-        # number of tempo change transitions first; also compute their
-        # probabilities for later use
-
-        # tempo changes can only occur at the beginning of a beat
-        # transition matrix for the tempo changes
-        cdef double [:, ::1] trans_prob = np.zeros((num_intervals,
-                                                    num_intervals),
-                                                   dtype=np.float)
-        # iterate over all interval states
-        for old_interval in range(num_intervals):
-            # reset probability sum
-            prob_sum = 0
-            # compute transition probabilities to all other interval states
-            for new_interval in range(num_intervals):
-                # compute the ratio of the two tempi
-                ratio = intervals[new_interval] / \
-                        intervals[old_interval]
-                # compute the probability for the tempo change following an
-                # exponential distribution
-                prob = exp(-transition_lambda * abs(ratio - 1))
-                # keep only transition probabilities > threshold
-                if prob > threshold:
-                    # save the probability
-                    trans_prob[old_interval, new_interval] = prob
-                    # collect normalization data
-                    prob_sum += prob
-            # normalize the tempo transitions to other tempi
-            for new_interval in range(num_intervals):
-                trans_prob[old_interval, new_interval] /= prob_sum
-
-        # number of tempo transitions (= non-zero probabilities)
-        cdef unsigned int num_tempo_transitions = \
-            len(np.nonzero(trans_prob)[0])
-
-        # apart from the very beginning of a beat, the tempo stays the same,
-        # thus the number of transitions is equal to the total number of states
-        # plus the number of tempo transitions minus the number of tempo states
-        # since these transitions are already included in the tempo transitions
-        cdef int num_transitions = num_states + num_tempo_transitions - \
-                                   num_intervals
-        # arrays for transition matrix creation
-        cdef unsigned int [::1] states = \
-            np.empty(num_transitions, dtype=np.uint32)
-        cdef unsigned int [::1] prev_states = \
-            np.empty(num_transitions, dtype=np.uint32)
-        # init the probabilities with ones, so we have to care only about the
-        # probabilities of the tempo transitions
-        cdef double [::1] probabilities = \
-            np.ones(num_transitions, dtype=np.float)
-
-        # cache first and last positions
-        cdef unsigned int [::1] first_beat_positions = \
-            self.state_space.first_states
-        cdef unsigned int [::1] last_beat_positions = \
-            self.state_space.last_states
-        # state counter
-        cdef int i = 0
-        # loop over all tempi
-        for new_interval in range(num_intervals):
-            # generate all transitions from other tempi
-            for old_interval in range(num_intervals):
-                # but only if it is a probable transition
-                if trans_prob[old_interval, new_interval] != 0:
-                    # generate a transition
-                    prev_states[i] = last_beat_positions[old_interval]
-                    states[i] = first_beat_positions[new_interval]
-                    probabilities[i] = trans_prob[old_interval, new_interval]
-                    # increase counter
-                    i += 1
-            # transitions within the same tempo
-            for prev_state in range(first_beat_positions[new_interval],
-                                    last_beat_positions[new_interval]):
-                # generate a transition with probability 1
-                prev_states[i] = prev_state
-                states[i] = prev_state + 1
-                # Note: skip setting the probability here, since they were
-                #       initialised with 1
-                # increase counter
-                i += 1
-        # return the arrays
-        return states, prev_states, probabilities
 
 
 class MultiPatternTransitionModel(TransitionModel):
