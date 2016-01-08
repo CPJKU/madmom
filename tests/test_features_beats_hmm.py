@@ -70,15 +70,15 @@ class TestBarStateSpaceClass(unittest.TestCase):
         # self.assertIsInstance(bss.intervals, np.ndarray)
         self.assertIsInstance(bss.state_positions, np.ndarray)
         self.assertIsInstance(bss.state_intervals, np.ndarray)
-        self.assertIsInstance(bss.first_states, np.ndarray)
-        self.assertIsInstance(bss.last_states, np.ndarray)
+        self.assertIsInstance(bss.first_states, list)
+        self.assertIsInstance(bss.last_states, list)
         self.assertIsInstance(bss.beat_state_offsets, np.ndarray)
         # dtypes
         # self.assertTrue(bss.intervals.dtype == np.uint32)
         self.assertTrue(bss.state_positions.dtype == np.float)
         self.assertTrue(bss.state_intervals.dtype == np.uint32)
-        self.assertTrue(bss.first_states.dtype == np.uint32)
-        self.assertTrue(bss.last_states.dtype == np.uint32)
+        # self.assertTrue(bss.first_states.dtype == np.uint32)
+        # self.assertTrue(bss.last_states.dtype == np.uint32)
         print(bss.beat_state_offsets.dtype)
         self.assertTrue(bss.beat_state_offsets.dtype == np.int)
 
@@ -97,8 +97,10 @@ class TestBarStateSpaceClass(unittest.TestCase):
         self.assertTrue(np.allclose(bss.state_intervals,
                                     [1, 2, 2, 3, 3, 3, 4, 4, 4, 4,
                                      1, 2, 2, 3, 3, 3, 4, 4, 4, 4]))
-        self.assertTrue(np.allclose(bss.first_states, [0, 1, 3, 6]))
-        self.assertTrue(np.allclose(bss.last_states, [10, 12, 15, 19]))
+        self.assertTrue(np.allclose(bss.first_states, [[0, 1, 3, 6],
+                                                       [10, 11, 13, 16]]))
+        self.assertTrue(np.allclose(bss.last_states, [[0, 2, 5, 9],
+                                                      [10, 12, 15, 19]]))
         # self.assertTrue(bss.num_intervals == 4)
 
 
@@ -152,8 +154,8 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
 class TestBeatTransitionModelClass(unittest.TestCase):
 
     def setUp(self):
-        btss = BeatStateSpace(1, 4)
-        self.tm = BeatTransitionModel(btss, 100)
+        bss = BeatStateSpace(1, 4)
+        self.tm = BeatTransitionModel(bss, 100)
 
     def test_types(self):
         self.assertIsInstance(self.tm, BeatTransitionModel)
@@ -183,6 +185,48 @@ class TestBeatTransitionModelClass(unittest.TestCase):
                                      -33.3333333, 0, 0, 0, 0]))
         self.assertTrue(self.tm.num_states == 10)
         self.assertTrue(self.tm.num_transitions == 13)
+
+
+class TestBarTransitionModelClass(unittest.TestCase):
+
+    def setUp(self):
+        bss = BarStateSpace(2, 1, 4)
+        self.tm = BarTransitionModel(bss, 100)
+
+    def test_types(self):
+        self.assertIsInstance(self.tm, BarTransitionModel)
+        self.assertIsInstance(self.tm, TransitionModel)
+        self.assertIsInstance(self.tm.state_space, BarStateSpace)
+        self.assertIsInstance(self.tm.transition_lambda, float)
+        self.assertIsInstance(self.tm.states, np.ndarray)
+        self.assertIsInstance(self.tm.pointers, np.ndarray)
+        self.assertIsInstance(self.tm.probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.log_probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.num_states, int)
+        self.assertIsInstance(self.tm.num_transitions, int)
+        self.assertTrue(self.tm.states.dtype == np.uint32)
+        self.assertTrue(self.tm.pointers.dtype == np.uint32)
+        self.assertTrue(self.tm.probabilities.dtype == np.float)
+        self.assertTrue(self.tm.log_probabilities.dtype == np.float)
+
+    def test_values(self):
+        self.assertTrue(np.allclose(self.tm.states,
+                                    [10, 12, 15, 1, 15, 19, 3, 4, 15, 19, 6, 7,
+                                     8, 0, 2, 5, 11, 5, 9, 13, 14, 5, 9, 16,
+                                     17, 18]))
+        self.assertTrue(np.allclose(self.tm.pointers,
+                                    [0, 1, 3, 4, 6, 7, 8, 10, 11, 12, 13, 14,
+                                     16, 17, 19, 20, 21, 23, 24, 25, 26]))
+        self.assertTrue(np.allclose(self.tm.probabilities,
+                                    [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1,
+                                     1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1]))
+        self.assertTrue(np.allclose(self.tm.log_probabilities,
+                                    [0, 0, -33.3333333, 0, 0, -25,
+                                     0, 0, -33.3333333, 0, 0, 0, 0,
+                                     0, 0, -33.3333333, 0, 0, -25,
+                                     0, 0, -33.3333333, 0, 0, 0, 0]))
+        self.assertTrue(self.tm.num_states == 20)
+        self.assertTrue(self.tm.num_transitions == 26)
 
 
 class TestPatternTrackingTransitionModelClass(unittest.TestCase):

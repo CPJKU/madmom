@@ -137,10 +137,10 @@ class BarStateSpace(object):
         Intervals of the states.
     beat_state_offsets : numpy array
         State offsets of the beats.
-    first_states : numpy array
-        First states for each interval.
-    last_states : numpy array
-        Last states for each interval.
+    first_states : list
+        First interval states for each beat.
+    last_states : list
+        Last interval states for each beat.
 
     References
     ----------
@@ -160,8 +160,8 @@ class BarStateSpace(object):
         self.beat_state_offsets = np.empty(0, dtype=np.int)
         self.num_states = 0
         # save the first and last states of the individual beats in a list
-        self._first_states = []
-        self._last_states = []
+        self.first_states = []
+        self.last_states = []
         # create a beat state space
         bss = BeatStateSpace(min_interval, max_interval, num_intervals)
         offset = 0
@@ -172,15 +172,12 @@ class BarStateSpace(object):
             self.state_intervals = np.hstack((self.state_intervals,
                                               bss.state_intervals))
             self.num_states += bss.num_states
-            self._first_states.append(bss.first_states + offset)
-            self._last_states.append(bss.last_states + offset)
+            self.first_states.append(bss.first_states + offset)
+            self.last_states.append(bss.last_states + offset)
             # save the offsets and increase afterwards
             self.beat_state_offsets = np.hstack((self.beat_state_offsets,
                                                  offset))
             offset += bss.num_states
-        # save the first / last interval states
-        self.first_states = self._first_states[0]
-        self.last_states = self._last_states[-1]
 
 
 class MultiPatternStateSpace(object):
@@ -352,16 +349,68 @@ class BeatTransitionModel(TransitionModel):
         to_int = state_space.state_intervals[to_states].astype(np.float)
         prob = exponential_transition(from_int, to_int, self.transition_lambda)
         # use only the states with transitions to/from != 0
-        from_states = state_space.last_states[np.nonzero(prob)[0]]
-        to_states = state_space.first_states[np.nonzero(prob)[1]]
-        # append to the arrays
-        states = np.hstack((states, to_states))
-        prev_states = np.hstack((prev_states, from_states))
+        prev_states = np.hstack((prev_states,
+                                 from_states[np.nonzero(prob)[0]]))
+        states = np.hstack((states, to_states[np.nonzero(prob)[1]]))
         probabilities = np.hstack((probabilities, prob[prob != 0]))
         # make the transitions sparse
         transitions = self.make_sparse(states, prev_states, probabilities)
         # instantiate a TransitionModel
         super(BeatTransitionModel, self).__init__(*transitions)
+
+
+class BarTransitionModel(TransitionModel):
+    """
+    Transition model for bar tracking with a HMM.
+
+    Parameters
+    ----------
+    state_space : :class:`BarStateSpace` instance
+        BarStateSpace instance.
+    transition_lambda : float
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one beat to the next one).
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
+           Proceedings of the 16th International Society for Music Information
+           Retrieval Conference (ISMIR), 2015.
+
+    """
+
+    def __init__(self, state_space, transition_lambda):
+        # save attributes
+        self.state_space = state_space
+        self.transition_lambda = float(transition_lambda)
+        # intra state space connections (i.e. same tempi within the beats)
+        states = np.arange(state_space.num_states, dtype=np.uint32)
+        # remove the transitions into the first states of the individual beats
+        states = np.setdiff1d(states, state_space.first_states)
+        prev_states = states - 1
+        probabilities = np.ones_like(states, dtype=np.float)
+        # tempo transition at the beat boundaries
+        for beat in range(state_space.num_beats):
+            # connect to the first states of the actual beat
+            to_states = state_space.first_states[beat]
+            # connect from the last states of the previous beat
+            from_states = state_space.last_states[beat - 1]
+            # generate an exponential tempo transition
+            from_int = state_space.state_intervals[from_states]
+            to_int = state_space.state_intervals[to_states]
+            prob = exponential_transition(from_int.astype(np.float),
+                                          to_int.astype(np.float),
+                                          self.transition_lambda)
+            # use only the states with transitions to/from != 0
+            prev_states = np.hstack((prev_states,
+                                     from_states[np.nonzero(prob)[0]]))
+            states = np.hstack((states, to_states[np.nonzero(prob)[1]]))
+            probabilities = np.hstack((probabilities, prob[prob != 0]))
+        # make the transitions sparse
+        transitions = self.make_sparse(states, prev_states, probabilities)
+        # instantiate a TransitionModel
+        super(BarTransitionModel, self).__init__(*transitions)
 
 
 class MultiPatternTransitionModel(TransitionModel):
