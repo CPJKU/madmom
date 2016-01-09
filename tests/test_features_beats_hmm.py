@@ -72,23 +72,16 @@ class TestBarStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(bss.state_intervals, np.ndarray)
         self.assertIsInstance(bss.first_states, list)
         self.assertIsInstance(bss.last_states, list)
-        self.assertIsInstance(bss.beat_state_offsets, np.ndarray)
         # dtypes
         # self.assertTrue(bss.intervals.dtype == np.uint32)
         self.assertTrue(bss.state_positions.dtype == np.float)
         self.assertTrue(bss.state_intervals.dtype == np.uint32)
-        # self.assertTrue(bss.first_states.dtype == np.uint32)
-        # self.assertTrue(bss.last_states.dtype == np.uint32)
-        print(bss.beat_state_offsets.dtype)
-        self.assertTrue(bss.beat_state_offsets.dtype == np.int)
 
     def test_values(self):
         bss = BarStateSpace(2, 1, 4)
         self.assertTrue(bss.num_beats == 2)
         self.assertTrue(bss.num_states == 20)
         # self.assertTrue(np.allclose(bss.intervals, [1, 2, 3, 4]))
-        # self.assertTrue(np.allclose(bss.beat[:10], 0))
-        # self.assertTrue(np.allclose(bss.beat[10:], 1))
         self.assertTrue(np.allclose(bss.state_positions,
                                     [0, 0, 0.5, 0, 1. / 3, 2. / 3,
                                      0, 0.25, 0.5, 0.75,
@@ -112,7 +105,7 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(mpss.state_positions, np.ndarray)
         self.assertIsInstance(mpss.state_intervals, np.ndarray)
         self.assertIsInstance(mpss.num_states, int)
-        # self.assertIsInstance(mpss.num_intervals, list)
+        # self.assertIsInstance(mpss.num_intervals, int)
         self.assertIsInstance(mpss.num_patterns, int)
         # dtypes
         # self.assertTrue(mpss.intervals.dtype == np.uint32)
