@@ -98,7 +98,7 @@ class BeatStateSpace(object):
         # define the positions and intervals of the states
         self.state_positions = np.empty(self.num_states)
         self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
-        # Note: having an idx counter is faster than ndenumerate
+        # Note: having an index counter is faster than ndenumerate
         idx = 0
         for i in self.intervals:
             self.state_positions[idx: idx + i] = np.linspace(0, 1, i,
@@ -178,23 +178,10 @@ class MultiPatternStateSpace(object):
     """
     State space for rhythmic pattern tracking with a HMM.
 
-    A rhythmic pattern is modeled similar to :class:`BeatStateSpace`,
-    but models multiple rhythmic patterns instead of a single beat. The
-    pattern's length can span multiple beats (e.g. 3 or 4 beats).
-
     Parameters
     ----------
-    min_intervals : list or numpy array
-        Minimum intervals (i.e. rhythmic pattern length) to model.
-    max_intervals : list or numpy array
-        Maximum intervals (i.e. rhythmic pattern length) to model.
-    num_intervals : list or numpy array, optional
-        Corresponding number of intervals; if set, limit the number of
-        intervals and use a log spacing instead of the default linear spacing.
-
-    See Also
-    --------
-    :class:`BeatStateSpace`
+    state_spaces : list
+        List with state spaces to model.
 
     References
     ----------
@@ -205,35 +192,31 @@ class MultiPatternStateSpace(object):
 
     """
 
-    def __init__(self, min_intervals, max_intervals, num_intervals=None):
-        if num_intervals is None:
-            num_intervals = [None] * len(min_intervals)
-        # for each pattern, compute a bar state space (i.e. a beat state space
-        # which spans a complete bar)
-        state_spaces = []
-        enum = enumerate(zip(min_intervals, max_intervals, num_intervals))
-        for pattern, (min_, max_, num_) in enum:
-            # create a BeatStateSpace and append it to the list
-            state_spaces.append(BeatStateSpace(min_, max_, num_))
+    def __init__(self, state_spaces):
         self.state_spaces = state_spaces
-        # define the position, interval and pattern states
-        self.state_positions = \
-            np.hstack([st.state_positions for st in self.state_spaces])
-        self.state_intervals = \
-            np.hstack([st.state_intervals for st in self.state_spaces])
-        self.state_patterns = \
-            np.hstack([np.repeat(i, st.num_states)
-                       for i, st in enumerate(self.state_spaces)])
-
-    @property
-    def num_states(self):
-        """Number of states."""
-        return int(sum([st.num_states for st in self.state_spaces]))
-
-    @property
-    def num_patterns(self):
-        """Number of rhythmic patterns"""
-        return len(self.state_spaces)
+        # model the patterns as a whole
+        self.num_patterns = len(self.state_spaces)
+        self.state_positions = np.empty(0)
+        self.state_intervals = np.empty(0, dtype=np.uint32)
+        self.state_patterns = np.empty(0, dtype=np.uint32)
+        self.num_states = 0
+        # save the first and last states of the individual patterns in a list
+        # self.first_states = []
+        # self.last_states = []
+        for p in range(self.num_patterns):
+            pattern = self.state_spaces[p]
+            # define position, interval and pattern states
+            self.state_positions = np.hstack((self.state_positions,
+                                              pattern.state_positions))
+            self.state_intervals = np.hstack((self.state_intervals,
+                                              pattern.state_intervals))
+            self.state_patterns = np.hstack((self.state_patterns,
+                                             np.repeat(p, pattern.num_states)))
+            # TODO: first and last states should both be lists to work easily
+            # self.first_states.append()
+            # self.last_states.append()
+            # finally increase the number of states
+            self.num_states += pattern.num_states
 
 
 # transition distributions
@@ -250,7 +233,8 @@ def exponential_transition(from_intervals, to_intervals, transition_lambda,
         Intervals where the transitions destinate to.
     transition_lambda : float
         Lambda for the exponential tempo change distribution (higher values
-        prefer a constant tempo from one beat/bar to the next one).
+        prefer a constant tempo from one beat/bar to the next one). If None,
+        allow only transitions from/to the same interval.
     threshold : float, optional
         Set transition probabilities below this threshold to zero.
     norm : bool, optional
@@ -269,6 +253,11 @@ def exponential_transition(from_intervals, to_intervals, transition_lambda,
            Retrieval Conference (ISMIR), 2015.
 
     """
+    # no transition lambda
+    if transition_lambda is None:
+        # return a diagonal matrix
+        return np.diag(np.diag(np.ones((len(from_intervals),
+                                        len(to_intervals)))))
     # compute the transition probabilities
     ratio = to_intervals / from_intervals[:, np.newaxis]
     prob = np.exp(-transition_lambda * abs(ratio - 1.))
@@ -285,7 +274,7 @@ class BeatTransitionModel(TransitionModel):
     """
     Transition model for beat tracking with a HMM.
 
-    Within the beat, the tempo stays the same; at beat boundaries transitions
+    Within the beat the tempo stays the same; at beat boundaries transitions
     from one tempo (i.e. interval) to another following an exponential
     distribution are allowed.
 
@@ -341,7 +330,7 @@ class BarTransitionModel(TransitionModel):
     """
     Transition model for bar tracking with a HMM.
 
-    Within the beats of the bar, the tempo stays the same; at beat boundaries
+    Within the beats of the bar the tempo stays the same; at beat boundaries
     transitions from one tempo (i.e. interval) to another following an
     exponential distribution are allowed.
 
@@ -349,9 +338,18 @@ class BarTransitionModel(TransitionModel):
     ----------
     state_space : :class:`BarStateSpace` instance
         BarStateSpace instance.
-    transition_lambda : float
+    transition_lambda : float or list
         Lambda for the exponential tempo change distribution (higher values
         prefer a constant tempo from one beat to the next one).
+        None can be used to set the tempo change probability to 0.
+        If a list is given, the individual values represent the lambdas for
+        each transition into the beat at this index position.
+
+    Notes
+    -----
+    Bars performing tempo changes only at bar boundaries (and not at the beat
+    boundaries) must have set all but the first `transition_lambda` values to
+    None, e.g. [100, None, None] for a bar with 3 beats.
 
     References
     ----------
@@ -363,10 +361,16 @@ class BarTransitionModel(TransitionModel):
     """
 
     def __init__(self, state_space, transition_lambda):
+        # expand transition_lambda to a list if a single value is given
+        if not isinstance(transition_lambda, list):
+            transition_lambda = [transition_lambda] * state_space.num_beats
+        if state_space.num_beats != len(transition_lambda):
+            raise ValueError('length of `transition_lambda` must be equal to '
+                             '`num_beats` of `state_space`.')
         # save attributes
         self.state_space = state_space
-        self.transition_lambda = float(transition_lambda)
-        # TODO: this could be unified with the BeatStateSpace
+        self.transition_lambda = transition_lambda
+        # TODO: this could be unified with the BeatTransitionModel
         # same tempo transitions probabilities within the state space is 1
         # Note: use all states, but remove all first states of the individual
         #       beats, because there are no same tempo transitions into them
@@ -374,21 +378,19 @@ class BarTransitionModel(TransitionModel):
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
         probabilities = np.ones_like(states, dtype=np.float)
-        # tempo transitions occur at the boundary between beats
-        # Note: connect the first states of each beat state space to the last
-        #       states of the previous beat with an exponential tempo
-        #       transition (with the tempi given as intervals)
+        # tempo transitions occur at the boundary between beats (unless the
+        # corresponding transition_lambda is set to None)
         for beat in range(state_space.num_beats):
             # connect to the first states of the actual beat
             to_states = state_space.first_states[beat]
             # connect from the last states of the previous beat
             from_states = state_space.last_states[beat - 1]
-            # generate an exponential tempo transition
+            # transition follow an exponential tempo distribution
             from_int = state_space.state_intervals[from_states]
             to_int = state_space.state_intervals[to_states]
             prob = exponential_transition(from_int.astype(np.float),
                                           to_int.astype(np.float),
-                                          self.transition_lambda)
+                                          transition_lambda[beat])
             # use only the states with transitions to/from != 0
             from_prob, to_prob = np.nonzero(prob)
             states = np.hstack((states, to_states[to_prob]))
@@ -404,69 +406,36 @@ class MultiPatternTransitionModel(TransitionModel):
     """
     Transition model for pattern tracking with a HMM.
 
-    Instead of modelling only a single beat (as :class:`BeatTransitionModel`),
-    the :class:`MultiPatternTransitionModel` models rhythmic patterns. It
-    accepts the same arguments as the :class:`BeatTransitionModel`, but
-    everything as lists, with the list entries at the same position
-    corresponding to one rhythmic pattern.
-
     Parameters
     ----------
-    state_space : :class:`MultiPatternTransitionModel` instance
-        MultiPatternTransitionModel instance.
-    transition_lambda : list
-        Lambda(s) for the exponential tempo change distribution of the patterns
-        (higher values prefer a constant tempo from one bar to the next one).
-        If a single value is given, the same value is assumed for all patterns.
-
-    See Also
-    --------
-    :class:`BeatTransitionModel`
+    transition_models : list
+        List with :class:`TransitionModel` instances.
+    transition_prob : numpy array, optional
+        Matrix with transition probabilities from one pattern to another.
+    transition_lambda : float, optional
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one pattern to the next one).
 
     Notes
     -----
-    This transition model differs from the one described in [1]_ in the
-    following way:
-
-    - it allows transitions only at pattern boundaries instead of beat
-      boundaries,
-    - it uses the new state space discretisation and tempo change distribution
-      proposed in [2]_.
-
-    References
-    ----------
-    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
-           "Rhythmic Pattern Modeling for Beat and Downbeat Tracking in Musical
-           Audio",
-           Proceedings of the 14th International Society for Music Information
-           Retrieval Conference (ISMIR), 2013.
-    .. [2] Florian Krebs, Sebastian Böck and Gerhard Widmer,
-           "An Efficient State Space Model for Joint Tempo and Meter Tracking",
-           Proceedings of the 16th International Society for Music Information
-           Retrieval Conference (ISMIR), 2015.
+    Right now, no transitions from one pattern to another are allowed.
 
     """
 
-    def __init__(self, state_space, transition_lambda):
-        # expand the transition lambda to a list if needed, i.e. use the same
-        # value for all patterns
-        if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * state_space.num_patterns
-        # check if all lists have the same length
-        if not state_space.num_patterns == len(transition_lambda):
-            raise ValueError('number of patterns of the `state_space` and the '
-                             'length `transition_lambda` must be the same')
-        # save the given arguments
-        self.state_space = state_space
+    def __init__(self, transition_models, transition_prob=None,
+                 transition_lambda=None):
+        # TODO: implement pattern transitions
+        if transition_prob is not None or transition_lambda is not None:
+            raise NotImplementedError("please implement pattern transitions")
+        # save attributes
+        self.transition_models = transition_models
+        self.transition_prob = transition_prob
         self.transition_lambda = transition_lambda
-        # compute the transitions for each pattern and stack them
-        enum = enumerate(zip(state_space.state_spaces, transition_lambda))
-        for pattern, (state_space, transition_lambda) in enum:
-            # create a BeatTransitionModel
-            tm = BeatTransitionModel(state_space, transition_lambda)
-            seq = np.arange(tm.num_states, dtype=np.int)
+        # stack the pattern transitions
+        for p in range(len(self.transition_models)):
+            tm = self.transition_models[p]
             # set/update the probabilities, states and pointers
-            if pattern == 0:
+            if p == 0:
                 # for the first pattern, just set the TM arrays
                 states = tm.states
                 pointers = tm.pointers
@@ -484,9 +453,9 @@ class MultiPatternTransitionModel(TransitionModel):
                                       max(pointers)))
                 # probabilities: just stack them
                 probabilities = np.hstack((probabilities, tm.probabilities))
-        # instantiate a TransitionModel with the transition arrays
-        transitions = states, pointers, probabilities
-        super(MultiPatternTransitionModel, self).__init__(*transitions)
+        # instantiate a TransitionModel
+        super(MultiPatternTransitionModel, self).__init__(states, pointers,
+                                                          probabilities)
 
 
 # observation models

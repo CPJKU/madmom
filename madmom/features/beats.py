@@ -895,6 +895,9 @@ class PatternTrackingProcessor(Processor):
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
     NUM_TEMPI = [None, None]
+    # TODO: make this parametric
+    # Note: if lambda is given as a list, the individual values represent the
+    #       lambdas for each transition into the beat at this index position
     TRANSITION_LAMBDA = [100, 100]
     NORM_OBSERVATIONS = False
 
@@ -906,11 +909,11 @@ class PatternTrackingProcessor(Processor):
         # pylint: disable=no-name-in-module
 
         import pickle
-
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (MultiPatternStateSpace as St,
-                                MultiPatternTransitionModel as Tm,
-                                GMMPatternTrackingObservationModel as Om)
+        from .beats_hmm import (BarStateSpace, BarTransitionModel,
+                                MultiPatternStateSpace,
+                                MultiPatternTransitionModel,
+                                GMMPatternTrackingObservationModel)
 
         # expand num_tempi and transition_lambda to lists if needed
         if not isinstance(num_tempi, list):
@@ -923,7 +926,6 @@ class PatternTrackingProcessor(Processor):
             raise ValueError('`min_bpm`, `max_bpm`, `num_tempi` and '
                              '`transition_lambda` must have the same length '
                              'as number of patterns.')
-
         # load the patterns
         patterns = []
         for pattern_file in pattern_files:
@@ -944,17 +946,24 @@ class PatternTrackingProcessor(Processor):
         # save additional variables
         self.downbeats = downbeats
         self.fps = fps
-        # convert timing information to construct state space
-        # Note: since we model a complete bar, we must multiply the intervals
-        #       by the number of beats in that pattern
-        min_interval = 60. * self.fps / np.asarray(max_bpm) * self.num_beats
-        max_interval = 60. * self.fps / np.asarray(min_bpm) * self.num_beats
-        # state space
-        self.st = St(min_interval, max_interval, num_tempi)
-        # transition model
-        self.tm = Tm(self.st, transition_lambda)
+        # convert timing information to construct a state space
+        min_interval = 60. * self.fps / np.asarray(max_bpm)
+        max_interval = 60. * self.fps / np.asarray(min_bpm)
+        # construct a multi pattern state space and transition model
+        state_spaces = []
+        transition_models = []
+        for p in range(len(patterns)):
+            # model each rhythmic pattern as a bar
+            st = BarStateSpace(self.num_beats[p], min_interval[p],
+                               max_interval[p], num_tempi[p])
+            tm = BarTransitionModel(st, transition_lambda[p])
+            state_spaces.append(st)
+            transition_models.append(tm)
+        self.st = MultiPatternStateSpace(state_spaces)
+        self.tm = MultiPatternTransitionModel(transition_models)
         # observation model
-        self.om = Om(gmms, self.st, norm_observations)
+        self.om = GMMPatternTrackingObservationModel(gmms, self.st,
+                                                     norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
@@ -975,27 +984,23 @@ class PatternTrackingProcessor(Processor):
         """
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
-        # get the corresponding pattern (use only the first state, since it
-        # doesn't change throughout the sequence)
-        pattern = self.st.state_patterns[path[0]]
-        # the position inside the pattern (0..1)
-        position = self.st.state_positions[path]
-        # beat position (= weighted by number of beats in bar)
-        beat_counter = (position * self.num_beats[pattern]).astype(int)
-        # transitions are the points where the beat counters change
+        # the positions inside the pattern (0..num_beats)
+        positions = self.st.state_positions[path]
+        # corresponding beats (add 1 for natural counting)
+        beat_numbers = positions.astype(int) + 1
+        # transitions are the points where the beat numbers change
         # FIXME: we might miss the first or last beat!
         #        we could calculate the interval towards the beginning/end to
         #        decide whether to include these points
-        beat_positions = np.nonzero(np.diff(beat_counter))[0] + 1
-        # the beat numbers are the counters + 1 at the transition points
-        beat_numbers = beat_counter[beat_positions] + 1
-        # convert the detected beats to a list of timestamps
-        beats = np.asarray(beat_positions) / float(self.fps)
+        beat_positions = np.nonzero(np.diff(beat_numbers))[0] + 1
+        # stack the beat positions (converted to seconds) and beat numbers
+        beats = np.vstack((beat_positions / float(self.fps),
+                           beat_numbers[beat_positions])).T
         # return the downbeats or beats and their beat number
         if self.downbeats:
-            return beats[beat_numbers == 1]
+            return beats[beats[:, 1] == 1][0, :]
         else:
-            return np.vstack(zip(beats, beat_numbers))
+            return beats
 
     @staticmethod
     def add_arguments(parser, pattern_files=None, min_bpm=MIN_BPM,
