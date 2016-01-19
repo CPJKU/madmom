@@ -14,6 +14,7 @@
 
 import sys
 import os
+import pkg_resources
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -66,7 +67,6 @@ author = u'madmom development team'
 # built documents.
 #
 # The short X.Y version.
-import pkg_resources
 version = pkg_resources.get_distribution("madmom").version
 # The full version, including alpha/beta/rc tags.
 release = version
@@ -117,18 +117,11 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ----------------------------------------------
 
-# Read the docs style:
+# only import and set the theme if we're building docs locally
 if os.environ.get('READTHEDOCS') != 'True':
-    try:
-        import sphinx_rtd_theme
-    except ImportError:
-        pass  # assume we have sphinx >= 1.3
-    else:
-        html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+    import sphinx_rtd_theme
     html_theme = 'sphinx_rtd_theme'
-
-def setup(app):
-    app.add_stylesheet("fix_rtd.css")
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
