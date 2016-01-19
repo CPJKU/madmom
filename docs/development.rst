@@ -42,6 +42,8 @@ and/or guide you through the implementation.
 Alternatively, you can look for anything tagged with "feature request" or
 "enhancement" on the `issue tracker on GitHub`_.
 
+.. _write_documentation:
+
 Write documentation
 ~~~~~~~~~~~~~~~~~~~
 
@@ -60,7 +62,7 @@ As a very easy way of just fixing issues in the documentation, use the *Edit
 on GitHub* link on the top right of a documentation page or the *[source]* link
 of an entity in the API reference to open the corresponding source file in
 GitHub, then click the *Edit this file* link to edit the file in your browser
-and send us a Pull Request. All you need for this is a free GitHub account.
+and send us a Pull Request.
 
 For any more substantial changes, please follow the steps below.
 
@@ -78,9 +80,7 @@ Documentation
 
 The documentation is generated with `Sphinx
 <http://sphinx-doc.org/latest/index.html>`_. To build it locally, run the
-following commands:
-
-.. code:: bash
+following commands::
 
     cd docs
     make html
