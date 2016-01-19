@@ -325,3 +325,12 @@ References
     Florian Krebs, Sebastian Böck and Gerhard Widmer.
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
+
+Acknowledgements
+================
+
+Supported by the European Commission through the `GiantSteps project
+<http://www.giantsteps-project.eu>`_ (FP7 grant agreement no. 610591) and the
+`Phenicx project <http://phenicx.upf.edu>`_ (FP7 grant agreement no. 601166)
+as well as the `Austrian Science Fund (FWF) <https://www.fwf.ac.at>`_ project
+Z159.
