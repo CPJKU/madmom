@@ -46,7 +46,7 @@ class Processor(object):
         Returns
         -------
         :class:`Processor` instance
-            :class:`Processor` instance
+            Processor.
 
         """
         import pickle
@@ -94,6 +94,7 @@ class Processor(object):
         ----------
         data : depends on the implementation of subclass
             Data to be processed.
+
         Returns
         -------
         depends on the implementation of subclass
@@ -127,6 +128,7 @@ class OutputProcessor(Processor):
             Data to be processed (e.g. written to file).
         output : str or file handle
             Output file name or file handle.
+
         Returns
         -------
         depends on the implementation of subclass

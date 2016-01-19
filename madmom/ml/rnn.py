@@ -352,7 +352,7 @@ class Cell(object):
         Returns
         -------
         numpy array
-            Activations of the gare for this data.
+            Activations of the gate for this data.
 
         """
         # weight input and add bias

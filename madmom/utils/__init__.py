@@ -31,7 +31,10 @@ def suppress_warnings(function):
         Decorated function.
 
     """
+    # needed to preserve docstring of the decorated function
+    from functools import wraps
 
+    @wraps(function)
     def decorator_function(*args, **kwargs):
         """
         Decorator function to suppress warnings.
@@ -129,6 +132,7 @@ def strip_suffix(filename, suffix=None):
         Filename or string to strip.
     suffix : str, optional
         Suffix to be stripped off (e.g. '.txt' including the dot).
+
     Returns
     -------
     str
@@ -231,7 +235,8 @@ def write_events(events, filename, fmt='%.3f', header=''):
     Notes
     -----
     This function is just a wrapper to ``np.savetxt``, but reorders the
-    arguments in a way it can be used as an :class:`OutputProcessor`.
+    arguments in a way it can be used as an
+    :class:`.processors.OutputProcessor`.
 
     """
     # write the events to the output

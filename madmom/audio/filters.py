@@ -637,7 +637,7 @@ class RectangularFilter(Filter):
     Rectangular filter class.
 
     Create a rectangular shaped filter with length `stop`, height 1 (unless
-    normalized) with indices <= `start` set to 0.
+    normalized) with indices < `start` set to 0.
 
     Parameters
     ----------

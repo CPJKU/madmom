@@ -67,7 +67,7 @@ def smooth(signal, kernel):
 
 
 def attenuate(signal, attenuation):
-    """"
+    """
     Attenuate the signal.
 
     Parameters

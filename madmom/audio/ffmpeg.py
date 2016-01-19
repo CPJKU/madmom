@@ -305,6 +305,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
                      cmd_decode='ffmpeg', cmd_probe='ffprobe'):
     """
     Load the audio data from the given file and return it as a numpy array.
+
     This uses ffmpeg (or avconv) and thus supports a lot of different file
     formats, resampling and channel conversions. The file will be fully decoded
     into memory if no start and stop positions are given.
