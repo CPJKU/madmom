@@ -50,6 +50,7 @@ SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import math
 import struct
 import numpy as np
@@ -109,6 +110,19 @@ SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
 SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
 
+# Ensure Python2/3 compatibility when reading bytes from MIDI files
+if sys.version_info[0] == 2:
+    int2byte = chr
+
+    def byte2int(bs):
+        return ord(bs[0])
+else:
+    int2byte = struct.Struct(">B").pack
+    import operator
+    byte2int = operator.itemgetter(0)
+    del operator
+
+
 # functions for packing / unpacking variable length data
 def read_variable_length(data):
     """
@@ -128,7 +142,7 @@ def read_variable_length(data):
     next_byte = 1
     value = 0
     while next_byte:
-        next_value = next(data)
+        next_value = byte2int(next(data))
         # is the hi-bit set?
         if not next_value & 0x80:
             # no next BYTE
@@ -1165,10 +1179,10 @@ class MIDITrack(object):
                 # first datum is variable length representing the delta-time
                 tick = read_variable_length(track_data)
                 # next byte is status message
-                status_msg = next(track_data)
+                status_msg = byte2int(next(track_data))
                 # is the event a MetaEvent?
                 if MetaEvent.is_event(status_msg):
-                    cmd = next(track_data)
+                    cmd = byte2int(next(track_data))
                     if cmd not in EventRegistry.MetaEvents:
                         import warnings
                         warnings.warn("Unknown Meta MIDI Event: %s" % cmd)
@@ -1176,7 +1190,7 @@ class MIDITrack(object):
                     else:
                         event_cls = EventRegistry.MetaEvents[cmd]
                     data_len = read_variable_length(track_data)
-                    data = [next(track_data) for _ in range(data_len)]
+                    data = [byte2int(next(track_data)) for _ in range(data_len)]
                     # create an event and append it to the list
                     events.append(event_cls(tick=tick, data=data,
                                             meta_command=cmd))
@@ -1184,7 +1198,7 @@ class MIDITrack(object):
                 elif SysExEvent.is_event(status_msg):
                     data = []
                     while True:
-                        datum = next(track_data)
+                        datum = byte2int(next(track_data))
                         if datum == 0xF7:
                             break
                         data.append(datum)
@@ -1200,7 +1214,7 @@ class MIDITrack(object):
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
-                        data += [next(track_data) for _ in
+                        data += [byte2int(next(track_data)) for _ in
                                  range(event_cls.length - 1)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,
@@ -1209,7 +1223,7 @@ class MIDITrack(object):
                         status = status_msg
                         event_cls = EventRegistry.Events[key]
                         channel = status & 0x0F
-                        data = [next(track_data) for _ in
+                        data = [byte2int(next(track_data)) for _ in
                                 range(event_cls.length)]
                         # create an event and append it to the list
                         events.append(event_cls(tick=tick, channel=channel,
