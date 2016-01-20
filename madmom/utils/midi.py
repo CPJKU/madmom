@@ -76,18 +76,18 @@ for index in range(128):
     if len(note_name) == 2:
         # sharp note
         flat = NOTE_NAMES[note_idx + 1] + 'b'
-        NOTE_NAME_MAP_FLAT['%s_%d' % (flat, oct_idx)] = index
-        NOTE_NAME_MAP_SHARP['%s_%d' % (note_name, oct_idx)] = index
-        NOTE_VALUE_MAP_FLAT.append('%s_%d' % (flat, oct_idx))
-        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (note_name, oct_idx))
-        globals()['%s_%d' % (note_name[0] + 's', oct_idx)] = index
-        globals()['%s_%d' % (flat, oct_idx)] = index
+        NOTE_NAME_MAP_FLAT['{0!s}_{1:d}'.format(flat, oct_idx)] = index
+        NOTE_NAME_MAP_SHARP['{0!s}_{1:d}'.format(note_name, oct_idx)] = index
+        NOTE_VALUE_MAP_FLAT.append('{0!s}_{1:d}'.format(flat, oct_idx))
+        NOTE_VALUE_MAP_SHARP.append('{0!s}_{1:d}'.format(note_name, oct_idx))
+        globals()['{0!s}_{1:d}'.format(note_name[0] + 's', oct_idx)] = index
+        globals()['{0!s}_{1:d}'.format(flat, oct_idx)] = index
     else:
-        NOTE_NAME_MAP_FLAT['%s_%d' % (note_name, oct_idx)] = index
-        NOTE_NAME_MAP_SHARP['%s_%d' % (note_name, oct_idx)] = index
-        NOTE_VALUE_MAP_FLAT.append('%s_%d' % (note_name, oct_idx))
-        NOTE_VALUE_MAP_SHARP.append('%s_%d' % (note_name, oct_idx))
-        globals()['%s_%d' % (note_name, oct_idx)] = index
+        NOTE_NAME_MAP_FLAT['{0!s}_{1:d}'.format(note_name, oct_idx)] = index
+        NOTE_NAME_MAP_SHARP['{0!s}_{1:d}'.format(note_name, oct_idx)] = index
+        NOTE_VALUE_MAP_FLAT.append('{0!s}_{1:d}'.format(note_name, oct_idx))
+        NOTE_VALUE_MAP_SHARP.append('{0!s}_{1:d}'.format(note_name, oct_idx))
+        globals()['{0!s}_{1:d}'.format(note_name, oct_idx)] = index
 
 BEAT_NAMES = ['whole', 'half', 'quarter', 'eighth', 'sixteenth',
               'thirty-second', 'sixty-fourth']
@@ -202,8 +202,8 @@ class EventRegistry(object):
         if any(b in (Event, NoteEvent) for b in event.__bases__):
             # raise an error if the event class is registered already
             if event.status_msg in cls.Events:
-                raise AssertionError("Event %s already registered" %
-                                     event.name)
+                raise AssertionError("Event {0!s} already registered".format(
+                                     event.name))
             # register the Event
             cls.Events[event.status_msg] = event
         # meta events
@@ -211,14 +211,14 @@ class EventRegistry(object):
             # raise an error if the meta event class is registered already
             if event.meta_command is not None:
                 if event.meta_command in EventRegistry.MetaEvents:
-                    raise AssertionError("Event %s already registered" %
-                                         event.name)
+                    raise AssertionError("Event {0!s} already registered".format(
+                                         event.name))
             # register the MetaEvent
             cls.MetaEvents[event.meta_command] = event
         else:
             # raise an error
-            raise ValueError("Unknown base class in event type: %s" %
-                             event.__bases__)
+            raise ValueError("Unknown base class in event type: {0!s}".format(
+                             event.__bases__))
 
 
 class AbstractEvent(object):
@@ -250,7 +250,7 @@ class AbstractEvent(object):
         return self.tick > other.tick
 
     def __str__(self):
-        return "%s: tick: %s data: %s" % (self.__class__.__name__, self.tick,
+        return "{0!s}: tick: {1!s} data: {2!s}".format(self.__class__.__name__, self.tick,
                                           self.data)
 
 # do not register AbstractEvent
@@ -278,7 +278,7 @@ class Event(AbstractEvent):
         return 0
 
     def __str__(self):
-        return "%s: tick: %s channel: %s" % (self.__class__.__name__,
+        return "{0!s}: tick: {1!s} channel: {2!s}".format(self.__class__.__name__,
                                              self.tick, self.channel)
 
     @classmethod
@@ -344,7 +344,7 @@ class MetaEventWithText(MetaEvent):
             self.text = ''.join(chr(datum) for datum in self.data)
 
     def __str__(self):
-        return "%s: %s" % (self.__class__.__name__, self.text)
+        return "{0!s}: {1!s}".format(self.__class__.__name__, self.text)
 
 # do not register MetaEventWithText
 
@@ -1130,7 +1130,7 @@ class MIDITrack(object):
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepare the track header
-        track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
+        track_header = b'MTrk{0!s}'.format(struct.pack(">L", len(track_data)))
         # return the track header + data
         return track_header + track_data
 
@@ -1156,7 +1156,7 @@ class MIDITrack(object):
         # first four bytes are Track header
         chunk = midi_stream.read(4)
         if chunk != b'MTrk':
-            raise TypeError("Bad track header in MIDI file: %s" % chunk)
+            raise TypeError("Bad track header in MIDI file: {0!s}".format(chunk))
         # next four bytes are track size
         track_size = struct.unpack(">L", midi_stream.read(4))[0]
         track_data = iter(midi_stream.read(track_size))
@@ -1172,7 +1172,7 @@ class MIDITrack(object):
                     cmd = next(track_data)
                     if cmd not in EventRegistry.MetaEvents:
                         import warnings
-                        warnings.warn("Unknown Meta MIDI Event: %s" % cmd)
+                        warnings.warn("Unknown Meta MIDI Event: {0!s}".format(cmd))
                         event_cls = UnknownMetaEvent
                     else:
                         event_cls = EventRegistry.MetaEvents[cmd]
@@ -1569,8 +1569,8 @@ class MIDIFile(object):
 
         """
         # generate a MIDI header
-        data = b'MThd%s' % struct.pack(">LHHH", 6, self.format,
-                                       len(self.tracks), self.resolution)
+        data = b'MThd{0!s}'.format(struct.pack(">LHHH", 6, self.format,
+                                       len(self.tracks), self.resolution))
         # append the tracks
         for track in self.tracks:
             data += track.data_stream
@@ -1661,7 +1661,7 @@ class MIDIFile(object):
                 track = MIDITrack.from_file(midi_file)
                 tracks.append(track)
         if resolution is None or midi_format is None:
-            raise IOError('unable to read MIDI file %s.' % midi_file)
+            raise IOError('unable to read MIDI file {0!s}.'.format(midi_file))
         # return a newly created object
         return cls(tracks=tracks, resolution=resolution,
                    file_format=midi_format)

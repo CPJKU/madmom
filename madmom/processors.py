@@ -598,7 +598,7 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     for input_file in files:
         # set the output file name
         if output_dir is not None:
-            output_file = "%s/%s" % (output_dir, os.path.basename(input_file))
+            output_file = "{0!s}/{1!s}".format(output_dir, os.path.basename(input_file))
         else:
             output_file = input_file
         # strip off the extension

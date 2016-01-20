@@ -249,7 +249,7 @@ class OnsetEvaluation(Evaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'Onsets: %5d TP: %5d FP: %5d FN: %5d Precision: %.3f ' \
                'Recall: %.3f F-measure: %.3f mean: %5.1f ms std: %5.1f ms' % \
                (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
@@ -305,7 +305,7 @@ class OnsetMeanEvaluation(MeanEvaluation, OnsetSumEvaluation):
         # format with floats instead of integers
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'Onsets: %5.2f TP: %5.2f FP: %5.2f FN: %5.2f ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f ' \
                'mean: %5.1f ms std: %5.1f ms' % \

@@ -539,17 +539,17 @@ class RecurrentNeuralNetwork(Processor):
             # first check if we need to create a bidirectional layer
             bwd_layer = None
 
-            if '%s_type' % REVERSE in list(params.keys()):
+            if '{0!s}_type'.format(REVERSE) in list(params.keys()):
                 # pop the parameters needed for the reverse (backward) layer
-                bwd_type = bytes(params.pop('%s_type' % REVERSE))
-                bwd_transfer_fn = bytes(params.pop('%s_transfer_fn' %
-                                                   REVERSE))
+                bwd_type = bytes(params.pop('{0!s}_type'.format(REVERSE)))
+                bwd_transfer_fn = bytes(params.pop('{0!s}_transfer_fn'.format(
+                                                   REVERSE)))
                 bwd_params = dict((k.split('_', 1)[1], params.pop(k))
                                   for k in list(params.keys()) if
-                                  k.startswith('%s_' % REVERSE))
+                                  k.startswith('{0!s}_'.format(REVERSE)))
                 bwd_params['transfer_fn'] = globals()[bwd_transfer_fn.decode()]
                 # construct the layer
-                bwd_layer = globals()['%sLayer' % bwd_type.decode()](
+                bwd_layer = globals()['{0!s}Layer'.format(bwd_type.decode())](
                     **bwd_params)
 
             # pop the parameters needed for the normal (forward) layer
@@ -558,7 +558,7 @@ class RecurrentNeuralNetwork(Processor):
             fwd_params = params
             fwd_params['transfer_fn'] = globals()[fwd_transfer_fn.decode()]
             # construct the layer
-            fwd_layer = globals()['%sLayer' % fwd_type.decode()](**fwd_params)
+            fwd_layer = globals()['{0!s}Layer'.format(fwd_type.decode())](**fwd_params)
 
             # return the (bidirectional) layer
             if bwd_layer is not None:
@@ -575,7 +575,7 @@ class RecurrentNeuralNetwork(Processor):
             # get all parameters for that layer
             layer_params = dict((k.split('_', 2)[2], data[k])
                                 for k in list(data.keys()) if
-                                k.startswith('layer_%d' % i))
+                                k.startswith('layer_{0:d}'.format(i)))
             # create a layer from these parameters
             layer = create_layer(layer_params)
             # add to the model

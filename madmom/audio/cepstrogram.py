@@ -222,8 +222,8 @@ class MFCC(Cepstrogram):
                                     norm_filters=norm_filters,
                                     duplicate_filters=False)
         if not isinstance(filterbank, Filterbank):
-            raise ValueError('not a Filterbank type or instance: %s' %
-                             filterbank)
+            raise ValueError('not a Filterbank type or instance: {0!s}'.format(
+                             filterbank))
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # logarithmically scale the magnitudes

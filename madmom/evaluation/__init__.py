@@ -380,7 +380,7 @@ class SimpleEvaluation(EvaluationMixin):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'Annotations: %5d TP: %5d FP: %5d FN: %5d ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
                (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
@@ -542,9 +542,9 @@ class MultiClassEvaluation(Evaluation):
                 tn = self.tn[self.tn[:, 1] == cls]
                 fn = self.fn[self.fn[:, 1] == cls]
                 # evaluate them
-                e = Evaluation(tp, fp, tn, fn, name='Class %s' % cls)
+                e = Evaluation(tp, fp, tn, fn, name='Class {0!s}'.format(cls))
                 # append to the output string
-                ret += '  %s\n' % e.tostring(verbose=False)
+                ret += '  {0!s}\n'.format(e.tostring(verbose=False))
         # normal formatting
         ret += 'Annotations: %5d TP: %5d FP: %4d FN: %4d ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
@@ -576,7 +576,7 @@ class SumEvaluation(SimpleEvaluation):
             # wrap the given eval_object in a list
             eval_objects = [eval_objects]
         self.eval_objects = eval_objects
-        self.name = name or 'sum for %d files' % len(self)
+        self.name = name or 'sum for {0:d} files'.format(len(self))
 
     def __len__(self):
         # just use the length of the evaluation objects
@@ -627,7 +627,7 @@ class MeanEvaluation(SumEvaluation):
     def __init__(self, eval_objects, name=None, **kwargs):
         super(MeanEvaluation, self).__init__(eval_objects, **kwargs)
         # handle the 'name' here to be able to set a different default value
-        self.name = name or 'mean for %d files' % len(self)
+        self.name = name or 'mean for {0:d} files'.format(len(self))
 
     # overwrite the properties to calculate the mean instead of the sum
 
@@ -698,7 +698,7 @@ class MeanEvaluation(SumEvaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         # TODO: unify this with SimpleEvaluation but
         #       add option to provide field formatters (e.g. 3d or 5.2f)
         # format with floats instead of integers

@@ -77,7 +77,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
         new_columns = np.ones((rows, 2)) * velocity
         new_columns[:, 0] = duration
     else:
-        raise ValueError('unable to handle `notes` with %d columns' % columns)
+        raise ValueError('unable to handle `notes` with {0:d} columns'.format(columns))
     # return the notes
     notes = np.hstack((notes, new_columns))
     return notes
