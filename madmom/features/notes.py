@@ -84,7 +84,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
 
 
 def write_notes(notes, filename, sep='\t',
-                fmt=list(('%.3f', '%d', '%.3f', '%d'))):
+                fmt=None):
     """
     Write the notes to a file (as many columns as given).
 
@@ -111,6 +111,8 @@ def write_notes(notes, filename, sep='\t',
     'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
+    if fmt is None:
+        fmt = list(('%.3f', '%d', '%.3f', '%d'))
     from madmom.utils import write_events
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
