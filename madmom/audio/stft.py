@@ -409,8 +409,8 @@ class ShortTimeFourierTransformProcessor(Processor):
                                          circular_shift=self.circular_shift,
                                          **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, window=None, fft_size=None):
+    @staticmethod
+    def add_arguments(parser, window=None, fft_size=None):
         """
         Add STFT related arguments to an existing parser.
 

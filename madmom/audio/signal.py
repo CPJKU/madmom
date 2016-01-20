@@ -575,8 +575,8 @@ class SignalProcessor(Processor):
         # return processed data
         return data
 
-    @classmethod
-    def add_arguments(cls, parser, sample_rate=None, mono=None, start=None,
+    @staticmethod
+    def add_arguments(parser, sample_rate=None, mono=None, start=None,
                       stop=None, norm=None, att=None):
         """
         Add signal processing related arguments to an existing parser.
@@ -995,8 +995,8 @@ class FramedSignalProcessor(Processor):
                             hop_size=self.hop_size, fps=self.fps,
                             origin=origin, end=self.end, **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, frame_size=FRAME_SIZE, fps=FPS,
+    @staticmethod
+    def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS,
                       online=None):
         """
         Add signal framing related arguments to an existing parser.

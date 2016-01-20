@@ -259,8 +259,8 @@ class ActivationsProcessor(Processor):
                              "'load', 'save'}")
         return data
 
-    @classmethod
-    def add_arguments(cls, parser):
+    @staticmethod
+    def add_arguments(parser):
         """
         Add options to save/load activations to an existing parser.
 

@@ -638,8 +638,8 @@ class RNNProcessor(ParallelProcessor):
         # instantiate ParallelProcessor
         super(RNNProcessor, self).__init__(nn_models, num_threads=num_threads)
 
-    @classmethod
-    def add_arguments(cls, parser, nn_files):
+    @staticmethod
+    def add_arguments(parser, nn_files):
         """
         Add recurrent neural network testing options to an existing parser.
 
