@@ -29,8 +29,8 @@ class Processor(object):
 
     """
 
-    @classmethod
-    def load(cls, infile):
+    @staticmethod
+    def load(infile):
         """
         Instantiate a new Processor from a file.
 

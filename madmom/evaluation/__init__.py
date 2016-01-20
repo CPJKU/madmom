@@ -634,35 +634,35 @@ class MeanEvaluation(SumEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_tp for e in self.eval_objects])
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_fp for e in self.eval_objects])
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_tn for e in self.eval_objects])
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_fn for e in self.eval_objects])
 
     @property
     def num_annotations(self):
         """Number of annotations."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_annotations for e in self.eval_objects])
 
@@ -709,7 +709,7 @@ class MeanEvaluation(SumEvaluation):
         return ret
 
 
-def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
+def tostring(eval_objects, **kwargs):
     """
     Format the given evaluation objects as human readable strings.
 
@@ -717,21 +717,11 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     ----------
     eval_objects : list
         Evaluation objects.
-    metric_names : list of tuples, optional
-        List of tuples defining the name of the property corresponding to the
-        metric, and the metric label e.g. ('fp', 'False Positives').
-    float_format : str, optional
-        How to format the metrics.
 
     Returns
     -------
     str
         Evaluation metrics formatted as a human readable string.
-
-    Notes
-    -----
-    If no `metric_names` are given, they will be extracted from the first
-    evaluation object.
 
     """
     # pylint: disable=unused-argument

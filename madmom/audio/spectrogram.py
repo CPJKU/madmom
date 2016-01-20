@@ -489,8 +489,8 @@ class FilteredSpectrogramProcessor(Processor):
                                    unique_filters=self.unique_filters,
                                    **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, filterbank=FILTERBANK, num_bands=NUM_BANDS,
+    @staticmethod
+    def add_arguments(parser, filterbank=FILTERBANK, num_bands=NUM_BANDS,
                       fmin=FMIN, fmax=FMAX, norm_filters=NORM_FILTERS,
                       unique_filters=UNIQUE_FILTERS):
         """
@@ -709,8 +709,8 @@ class LogarithmicSpectrogramProcessor(Processor):
         return LogarithmicSpectrogram(data, mul=self.mul, add=self.add,
                                       **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, log=None, mul=None, add=None):
+    @staticmethod
+    def add_arguments(parser, log=None, mul=None, add=None):
         """
         Add spectrogram scaling related arguments to an existing parser.
 
@@ -1100,8 +1100,8 @@ class SpectrogramDifferenceProcessor(Processor):
                                      positive_diffs=self.positive_diffs,
                                      **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, diff=None, diff_ratio=None,
+    @staticmethod
+    def add_arguments(parser, diff=None, diff_ratio=None,
                       diff_frames=None, diff_max_bins=None,
                       positive_diffs=None):
         """
@@ -1357,8 +1357,8 @@ class MultiBandSpectrogramProcessor(Processor):
             data, crossover_frequencies=self.crossover_frequencies,
             norm_bands=self.norm_bands, **kwargs)
 
-    @classmethod
-    def add_arguments(cls, parser, crossover_frequencies=None,
+    @staticmethod
+    def add_arguments(parser, crossover_frequencies=None,
                       norm_bands=None):
         """
         Add multi-band spectrogram related arguments to an existing parser.
@@ -1500,8 +1500,8 @@ class StackedSpectrogramProcessor(ParallelProcessor):
         # stack them along given axis and return them
         return self.stack(stack)
 
-    @classmethod
-    def add_arguments(cls, parser, stack='freq', stack_diffs=None):
+    @staticmethod
+    def add_arguments(parser, stack='freq', stack_diffs=None):
         """
         Add stacking related arguments to an existing parser.
 
