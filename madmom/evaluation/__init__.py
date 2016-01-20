@@ -709,7 +709,7 @@ class MeanEvaluation(SumEvaluation):
         return ret
 
 
-def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
+def tostring(eval_objects, **kwargs):
     """
     Format the given evaluation objects as human readable strings.
 
@@ -717,21 +717,11 @@ def tostring(eval_objects, metric_names=None, float_format='{:.3f}', **kwargs):
     ----------
     eval_objects : list
         Evaluation objects.
-    metric_names : list of tuples, optional
-        List of tuples defining the name of the property corresponding to the
-        metric, and the metric label e.g. ('fp', 'False Positives').
-    float_format : str, optional
-        How to format the metrics.
 
     Returns
     -------
     str
         Evaluation metrics formatted as a human readable string.
-
-    Notes
-    -----
-    If no `metric_names` are given, they will be extracted from the first
-    evaluation object.
 
     """
     # pylint: disable=unused-argument
