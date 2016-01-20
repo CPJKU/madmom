@@ -301,7 +301,7 @@ class NoteSumEvaluation(SumEvaluation, NoteEvaluation):
     @property
     def errors(self):
         """Errors of the true positive detections wrt. the ground truth."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             # return empty array
             return np.zeros((0, 2))
         return np.concatenate([e.errors for e in self.eval_objects])

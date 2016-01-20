@@ -634,35 +634,35 @@ class MeanEvaluation(SumEvaluation):
     @property
     def num_tp(self):
         """Number of true positive detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_tp for e in self.eval_objects])
 
     @property
     def num_fp(self):
         """Number of false positive detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_fp for e in self.eval_objects])
 
     @property
     def num_tn(self):
         """Number of true negative detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_tn for e in self.eval_objects])
 
     @property
     def num_fn(self):
         """Number of false negative detections."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_fn for e in self.eval_objects])
 
     @property
     def num_annotations(self):
         """Number of annotations."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             return 0.
         return np.nanmean([e.num_annotations for e in self.eval_objects])
 

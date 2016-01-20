@@ -940,7 +940,7 @@ class PatternTrackingProcessor(Processor):
                 except TypeError:
                     # Python 2 doesn't have/need the encoding
                     patterns.append(pickle.load(f))
-        if len(patterns) == 0:
+        if not patterns:
             raise ValueError('at least one rhythmical pattern must be given.')
         # extract the GMMs and number of beats
         gmms = [p['gmms'] for p in patterns]

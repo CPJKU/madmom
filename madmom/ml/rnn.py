@@ -630,7 +630,7 @@ class RNNProcessor(ParallelProcessor):
 
     def __init__(self, nn_files, num_threads=None, **kwargs):
         # pylint: disable=unused-argument
-        if len(nn_files) == 0:
+        if not nn_files:
             raise ValueError('at least one RNN model must be given.')
         nn_models = []
         for nn_file in nn_files:
