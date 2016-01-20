@@ -905,9 +905,9 @@ class PeakPickingProcessor(Processor):
         # return the detections
         return detections
 
-    @classmethod
-    def add_arguments(cls, parser, threshold=THRESHOLD, smooth=None,
-                      pre_avg=None, post_avg=None, pre_max=None, post_max=None,
+    @staticmethod
+    def add_arguments(parser, threshold=THRESHOLD, smooth=None, pre_avg=None,
+                      post_avg=None, pre_max=None, post_max=None,
                       combine=COMBINE, delay=DELAY):
         """
         Add onset peak-picking related arguments to an existing parser.

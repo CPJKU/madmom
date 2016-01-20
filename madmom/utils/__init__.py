@@ -365,7 +365,7 @@ class OverrideDefaultListAction(argparse.Action):
             cur_values.extend([self.list_type(v)
                                for v in value.split(self.sep)])
         except ValueError as e:
-            raise argparse.ArgumentError(self, e)
+            raise argparse.ArgumentError(self, str(e) + value)
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
@@ -500,7 +500,7 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
 
 
 # keep namespace clean
-del argparse, contextlib
+del contextlib
 
 # finally import the submodules
 from . import midi, stats

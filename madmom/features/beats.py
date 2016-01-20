@@ -328,8 +328,8 @@ class BeatTrackingProcessor(Processor):
         # return np.append(detections[0], detections[1:][np.diff(detections) >
         #                                                (60. / max_bpm)])
 
-    @classmethod
-    def add_arguments(cls, parser, look_aside=LOOK_ASIDE,
+    @staticmethod
+    def add_arguments(parser, look_aside=LOOK_ASIDE,
                       look_ahead=LOOK_AHEAD):
         """
         Add beat tracking related arguments to an existing parser.
@@ -560,8 +560,8 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         # convert the detected beat positions to seconds and return them
         return best_seq.astype(np.float) / self.fps
 
-    @classmethod
-    def add_arguments(cls, parser, interval_sigma=INTERVAL_SIGMA,
+    @staticmethod
+    def add_arguments(parser, interval_sigma=INTERVAL_SIGMA,
                       use_factors=USE_FACTORS, num_intervals=NUM_INTERVALS,
                       factors=FACTORS):
         """
@@ -745,8 +745,8 @@ class DBNBeatTrackingProcessor(Processor):
         # convert the detected beats to seconds
         return beats / float(self.fps)
 
-    @classmethod
-    def add_arguments(cls, parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+    @staticmethod
+    def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempo_states=NUM_TEMPO_STATES,
                       transition_lambda=TRANSITION_LAMBDA,
                       observation_lambda=OBSERVATION_LAMBDA,
@@ -940,7 +940,7 @@ class PatternTrackingProcessor(Processor):
                 except TypeError:
                     # Python 2 doesn't have/need the encoding
                     patterns.append(pickle.load(f))
-        if len(patterns) == 0:
+        if not patterns:
             raise ValueError('at least one rhythmical pattern must be given.')
         # extract the GMMs and number of beats
         gmms = [p['gmms'] for p in patterns]
@@ -1001,8 +1001,8 @@ class PatternTrackingProcessor(Processor):
         else:
             return np.vstack(zip(beats, beat_numbers))
 
-    @classmethod
-    def add_arguments(cls, parser, pattern_files=None, min_bpm=MIN_BPM,
+    @staticmethod
+    def add_arguments(parser, pattern_files=None, min_bpm=MIN_BPM,
                       max_bpm=MAX_BPM, num_tempo_states=NUM_TEMPO_STATES,
                       transition_lambda=TRANSITION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS):

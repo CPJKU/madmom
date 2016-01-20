@@ -385,10 +385,10 @@ class TempoEstimationProcessor(Processor):
         # return the dominant interval
         return dominant_interval(histogram, self.hist_smooth)
 
-    @classmethod
-    def add_arguments(cls, parser, method=METHOD, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                      hist_smooth=HIST_SMOOTH, alpha=ALPHA):
+    @staticmethod
+    def add_arguments(parser, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
+                      alpha=ALPHA):
         """
         Add tempo estimation related arguments to an existing parser.
 

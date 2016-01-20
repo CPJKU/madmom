@@ -125,7 +125,7 @@ def variations(sequence, offbeat=False, double=False, half=False,
     # double/half and offbeat variation
     if double or offbeat:
         if len(sequence) == 0:
-            # if we don't a sequence, there's nothing to interpolate
+            # if we have an empty sequence, there's nothing to interpolate
             double_sequence = []
         else:
             # create a sequence with double tempo
@@ -148,7 +148,7 @@ def variations(sequence, offbeat=False, double=False, half=False,
     # triple/third tempo variations
     if triple:
         if len(sequence) == 0:
-            # if we don't a sequence, there's nothing to interpolate
+            # if we have an empty sequence, there's nothing to interpolate
             triple_sequence = []
         else:
             # create a annotation sequence with triple tempo
@@ -1147,7 +1147,7 @@ class BeatMeanEvaluation(MeanEvaluation):
     @property
     def error_histogram(self):
         """Error histogram."""
-        if len(self.eval_objects) == 0:
+        if not self.eval_objects:
             # return an empty error histogram of length 0
             return np.zeros(0)
         # sum all error histograms to gather a global one

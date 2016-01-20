@@ -384,7 +384,7 @@ def _combine_metrics(eval_objects, piecewise):
         Combined metrics.
 
     """
-    if len(eval_objects) == 0:
+    if not eval_objects:
         raise AssertionError('cannot handle empty eval_objects list yet')
     metrics = {}
     if piecewise:

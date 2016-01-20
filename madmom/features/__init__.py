@@ -144,10 +144,9 @@ class Activations(np.ndarray):
         else:
             # simple text format
             data = np.loadtxt(infile, delimiter=sep)
-        if data.ndim > 1:
+        if data.ndim > 1 and data.shape[1] == 1:
             # flatten the array if it has only 1 real dimension
-            if data.shape[1] == 1:
-                data = data.flatten()
+            data = data.flatten()
         # instantiate a new object
         return cls(data, fps)
 
@@ -260,8 +259,8 @@ class ActivationsProcessor(Processor):
                              "'load', 'save'}")
         return data
 
-    @classmethod
-    def add_arguments(cls, parser):
+    @staticmethod
+    def add_arguments(parser):
         """
         Add options to save/load activations to an existing parser.
 
