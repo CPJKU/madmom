@@ -89,13 +89,13 @@ def search_files(path, suffix=None):
     elif os.path.isdir(path):
         # use all files in the given path
         if suffix is None:
-            file_list = glob.glob("%s/*" % path)
+            file_list = glob.glob("{0!s}/*".format(path))
         elif isinstance(suffix, list):
             file_list = []
             for s in suffix:
-                file_list.extend(glob.glob("%s/*%s" % (path, s)))
+                file_list.extend(glob.glob("{0!s}/*{1!s}".format(path, s)))
         else:
-            file_list = glob.glob("%s/*%s" % (path, suffix))
+            file_list = glob.glob("{0!s}/*{1!s}".format(path, suffix))
     elif os.path.isfile(path):
         file_list = []
         # no matching needed
@@ -110,7 +110,7 @@ def search_files(path, suffix=None):
         elif path.endswith(suffix):
             file_list = [path]
     else:
-        raise IOError("%s does not exist." % path)
+        raise IOError("{0!s} does not exist.".format(path))
     # remove duplicates
     file_list = list(set(file_list))
     # sort files
@@ -170,9 +170,9 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     matches = []
     # look for files with the same base name in the files_list
     if match_suffix is not None:
-        pattern = "*%s*%s" % (basename, match_suffix)
+        pattern = "*{0!s}*{1!s}".format(basename, match_suffix)
     else:
-        pattern = "*%s" % basename
+        pattern = "*{0!s}".format(basename)
     for match in fnmatch.filter(match_list, pattern):
         # base names must match exactly
         if basename == os.path.basename(strip_suffix(match, match_suffix)):

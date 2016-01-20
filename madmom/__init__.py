@@ -18,7 +18,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import pkg_resources
 
-MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
+MODELS_PATH = '{0!s}/models'.format((os.path.dirname(__file__)))
 
 __version__ = pkg_resources.get_distribution("madmom").version
 

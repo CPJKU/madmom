@@ -243,8 +243,8 @@ class GMM(object):
     def __init__(self, n_components=1, covariance_type='full'):
 
         if covariance_type not in ['spherical', 'tied', 'diag', 'full']:
-            raise ValueError('Invalid value for covariance_type: %s' %
-                             covariance_type)
+            raise ValueError('Invalid value for covariance_type: {0!s}'.format(
+                             covariance_type))
         # save parameters
         self.n_components = n_components
         self.covariance_type = covariance_type

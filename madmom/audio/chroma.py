@@ -110,8 +110,8 @@ class PitchClassProfile(FilteredSpectrogram):
                                     num_classes=num_classes, fmin=fmin,
                                     fmax=fmax, fref=fref)
         if not isinstance(filterbank, Filterbank):
-            raise ValueError('not a Filterbank type or instance: %s' %
-                             filterbank)
+            raise ValueError('not a Filterbank type or instance: {0!s}'.format(
+                             filterbank))
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as PitchClassProfile
@@ -193,8 +193,8 @@ class HarmonicPitchClassProfile(PitchClassProfile):
                                     num_classes=num_classes, fmin=fmin,
                                     fmax=fmax, fref=fref, window=window)
         if not isinstance(filterbank, Filterbank):
-            raise ValueError('not a Filterbank type or instance: %s' %
-                             filterbank)
+            raise ValueError('not a Filterbank type or instance: {0!s}'.format(
+                             filterbank))
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as PitchClassProfile

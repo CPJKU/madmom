@@ -60,8 +60,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
+        raise ValueError("only file names are supported as `infile`, not {0!s}.".format(infile))
     # create temp file if no outfile is given
     if outfile is None:
         # looks stupid, but is recommended over tempfile.mktemp()
@@ -74,8 +73,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         delete_on_fail = False
     # check output file type
     if not isinstance(outfile, str):
-        raise ValueError("only file names are supported as `outfile`, not %s."
-                         % outfile)
+        raise ValueError("only file names are supported as `outfile`, not {0!s}.".format(outfile))
     # call ffmpeg (throws exception on error)
     try:
         call = _assemble_ffmpeg_call(infile, outfile, fmt, sample_rate,
@@ -121,8 +119,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
+        raise ValueError("only file names are supported as `infile`, not {0!s}.".format(infile))
     # assemble ffmpeg call
     call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
                                  num_channels, skip, max_len, cmd)
@@ -180,8 +177,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
+        raise ValueError("only file names are supported as `infile`, not {0!s}.".format(infile))
     # Note: closing the file-like object only stops decoding because ffmpeg
     #       reacts on that. A cleaner solution would be calling
     #       proc.terminate explicitly, but this is only available in
@@ -250,11 +246,11 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
     # infile options
     if skip is not None:
         # use "%f" to avoid e-05 and the like
-        call.extend(["-ss", "%f" % float(skip)])
+        call.extend(["-ss", "{0:f}".format(float(skip))])
     call.extend(["-i", infile, "-y", "-f", str(fmt)])
     if max_len is not None:
         # use "%f" to avoid e-05 and the like
-        call.extend(["-t", "%f" % float(max_len)])
+        call.extend(["-t", "{0:f}".format(float(max_len))])
     # output options
     if num_channels is not None:
         call.extend(["-ac", str(int(num_channels))])
@@ -283,8 +279,7 @@ def get_file_info(infile, cmd='ffprobe'):
     """
     # check input file type
     if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
+        raise ValueError("only file names are supported as `infile`, not {0!s}.".format(infile))
     # init dictionary
     info = {'num_channels': None, 'sample_rate': None}
     # call ffprobe

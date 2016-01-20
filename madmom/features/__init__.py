@@ -195,7 +195,7 @@ class Activations(np.ndarray):
                 raise ValueError('Only 1D and 2D activations can be saved in '
                                  'human readable text format.')
             # simple text format
-            header = "FPS:%f" % self.fps
+            header = "FPS:{0:f}".format(self.fps)
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
 

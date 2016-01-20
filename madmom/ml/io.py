@@ -69,16 +69,16 @@ def convert_model(infile, outfile=None, compressed=False):
     with h5py.File(infile, 'r') as h5:
         # model attributes
         for attr in list(h5['model'].attrs.keys()):
-            npz['model_%s' % attr] = h5['model'].attrs[attr]
+            npz['model_{0!s}'.format(attr)] = h5['model'].attrs[attr]
         # layers
         for l in list(h5['layer'].keys()):
             layer = h5['layer'][l]
             # each layer has some attributes
             for attr in list(layer.attrs.keys()):
-                npz['layer_%s_%s' % (l, attr)] = layer.attrs[attr]
+                npz['layer_{0!s}_{1!s}'.format(l, attr)] = layer.attrs[attr]
             # and some data sets (i.e. different weights)
             for data in list(layer.keys()):
-                npz['layer_%s_%s' % (l, data)] = layer[data].value
+                npz['layer_{0!s}_{1!s}'.format(l, data)] = layer[data].value
     # save the model to .npz format
     if outfile is None:
         outfile = os.path.splitext(infile)[0]

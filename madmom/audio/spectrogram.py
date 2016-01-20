@@ -385,8 +385,8 @@ class FilteredSpectrogram(Spectrogram):
                                     fref=fref, norm_filters=norm_filters,
                                     unique_filters=unique_filters)
         if not isinstance(filterbank, Filterbank):
-            raise TypeError('not a Filterbank type or instance: %s' %
-                            filterbank)
+            raise TypeError('not a Filterbank type or instance: {0!s}'.format(
+                            filterbank))
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as FilteredSpectrogram

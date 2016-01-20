@@ -278,7 +278,7 @@ class TempoEvaluation(EvaluationMixin):
 
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'pscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
                'acc1=%.3f acc2=%.3f' % \
                (self.pscore, self.any, self.all, self.acc1, self.acc2)
@@ -332,7 +332,7 @@ class TempoMeanEvaluation(MeanEvaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'pscore=%.3f (one tempo: %.3f, all tempi: %.3f) ' \
                'acc1=%.3f acc2=%.3f' % \
                (self.pscore, self.any, self.all, self.acc1, self.acc2)

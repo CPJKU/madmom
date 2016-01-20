@@ -259,7 +259,7 @@ class NoteEvaluation(MultiClassEvaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         # add statistics for the individual note
         if notes:
             # determine which notes are present
@@ -277,10 +277,10 @@ class NoteEvaluation(MultiClassEvaluation):
                 # detections and annotations for this note (only onset times)
                 det = self.detections[self.detections[:, 1] == note][:, 0]
                 ann = self.annotations[self.annotations[:, 1] == note][:, 0]
-                name = 'MIDI note %s' % note
+                name = 'MIDI note {0!s}'.format(note)
                 e = OnsetEvaluation(det, ann, self.window, name=name)
                 # append to the output string
-                ret += '  %s\n' % e.tostring(notes=False)
+                ret += '  {0!s}\n'.format(e.tostring(notes=False))
         # normal formatting
         ret += 'Notes: %5d TP: %5d FP: %4d FN: %4d ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f ' \
@@ -338,7 +338,7 @@ class NoteMeanEvaluation(MeanEvaluation, NoteSumEvaluation):
         # format with floats instead of integers
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'Notes: %5.2f TP: %5.2f FP: %5.2f FN: %5.2f ' \
                'Precision: %.3f Recall: %.3f F-measure: %.3f ' \
                'Acc: %.3f mean: %5.1f ms std: %5.1f ms' % \

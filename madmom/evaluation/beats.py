@@ -936,8 +936,7 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
 
     # check if there are enough beat annotations for the number of bins
     if num_bins > len(annotations):
-        warnings.warn("Not enough beat annotations (%d) for %d histogram bins."
-                      % (len(annotations), num_bins))
+        warnings.warn("Not enough beat annotations ({0:d}) for {1:d} histogram bins.".format(len(annotations), num_bins))
 
     # create bins edges for the error histogram
     histogram_bins = _histogram_bins(num_bins)
@@ -1082,7 +1081,7 @@ class BeatEvaluation(OnsetEvaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
                'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
                'Dg: %.3f' % \
@@ -1174,7 +1173,7 @@ class BeatMeanEvaluation(MeanEvaluation):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
         ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
                'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
                'Dg: %.3f' % \

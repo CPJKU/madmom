@@ -48,14 +48,14 @@ def smooth(signal, kernel):
             # use a Hamming window of given length
             kernel = np.hamming(kernel)
         else:
-            raise ValueError("can't create a smoothing kernel of size %d" %
-                             kernel)
+            raise ValueError("can't create a smoothing kernel of size {0:d}".format(
+                             kernel))
     # otherwise use the given smoothing kernel directly
     elif isinstance(kernel, np.ndarray):
         if len(kernel) > 1:
             kernel = kernel
     else:
-        raise ValueError("can't smooth signal with %s" % kernel)
+        raise ValueError("can't smooth signal with {0!s}".format(kernel))
     # convolve with the kernel and return
     if signal.ndim == 1:
         return np.convolve(signal, kernel, 'same')
@@ -367,7 +367,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
         # use the file name
         filename = filename.name
     # try reading as a wave file
-    error = "All attempts to load audio file %r failed." % filename
+    error = "All attempts to load audio file {0!r} failed.".format(filename)
     try:
         return load_wave_file(filename, sample_rate=sample_rate,
                               num_channels=num_channels, start=start,
@@ -833,8 +833,8 @@ class FramedSignal(object):
                 # return frames as long as the origin sample covers the signal
                 num_frames = np.ceil(len(self.signal) / float(self.hop_size))
             else:
-                raise ValueError("end of signal handling '%s' unknown" %
-                                 end)
+                raise ValueError("end of signal handling '{0!s}' unknown".format(
+                                 end))
         self.num_frames = int(num_frames)
 
     # make the object indexable / iterable

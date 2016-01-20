@@ -349,7 +349,7 @@ class AlignmentEvaluation(EvaluationMixin):
         """
         ret = ''
         if self.name is not None:
-            ret += '%s\n  ' % self.name
+            ret += '{0!s}\n  '.format(self.name)
 
         ret += 'misalign-rate: %.3f miss-rate: %.3f piece-compl.: %.3f '\
                'avg-imprecision: %.3f stddev-imprecision %.3f '\
@@ -417,7 +417,7 @@ class AlignmentSumEvaluation(AlignmentEvaluation):
     """
 
     def __init__(self, eval_objects, name=None):
-        self.name = name or 'piecewise mean for %d files' % len(eval_objects)
+        self.name = name or 'piecewise mean for {0:d} files'.format(len(eval_objects))
         self.window = eval_objects[0].window
         self._length = sum(len(e) for e in eval_objects)
 
@@ -442,7 +442,7 @@ class AlignmentMeanEvaluation(AlignmentEvaluation):
     """
 
     def __init__(self, eval_objects, name=None):
-        self.name = name or 'mean for %d files' % len(eval_objects)
+        self.name = name or 'mean for {0:d} files'.format(len(eval_objects))
         self.window = eval_objects[0].window
         self._length = len(eval_objects)
 
