@@ -209,10 +209,9 @@ class EventRegistry(object):
         # meta events
         elif any(b in (MetaEvent, MetaEventWithText) for b in event.__bases__):
             # raise an error if the meta event class is registered already
-            if event.meta_command is not None:
-                if event.meta_command in EventRegistry.MetaEvents:
-                    raise AssertionError("Event %s already registered" %
-                                         event.name)
+            if event.meta_command in EventRegistry.MetaEvents:
+                raise AssertionError("Event %s already registered" %
+                                     event.name)
             # register the MetaEvent
             cls.MetaEvents[event.meta_command] = event
         else:
