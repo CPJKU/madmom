@@ -10,11 +10,12 @@ from setuptools import setup, find_packages
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
+import io
 import glob
 import numpy as np
 
 # define version
-version = '0.12'
+version = '0.12.1'
 
 # define which extensions need to be compiled
 extensions = [Extension('madmom.ml.rnn',
@@ -58,11 +59,19 @@ install_requires = ['numpy>=1.8.1',
                     'scipy>=0.14',
                     'cython>=0.22.1']
 
+# obtain a long description from README
+try:
+    # needed to be able to read unicode files in Python 2 and 3
+    with io.open('README.rst', encoding='utf-8') as f:
+        long_description = f.read()
+except IOError:
+    long_description = ''
+
 # the actual setup routine
 setup(name='madmom',
       version=version,
       description='Python audio signal processing library',
-      long_description=open('README.rst').read(),
+      long_description=long_description,
       author='Department of Computational Perception, Johannes Kepler '
              'University, Linz, Austria and Austrian Research Institute for '
              'Artificial Intelligence (OFAI), Vienna, Austria',
