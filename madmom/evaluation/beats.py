@@ -65,6 +65,7 @@ def load_beats(values):
     ----------
     values : str, file handle, list or numpy array
         Name / values to be loaded.
+
     Returns
     -------
     numpy array
@@ -114,6 +115,7 @@ def variations(sequence, offbeat=False, double=False, half=False,
         Create triple tempo sequence.
     third : bool, optional
         Create third tempo sequences (includes offbeat versions).
+
     Returns
     -------
     list
@@ -365,6 +367,10 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     """
     Calculate the P-score accuracy for the given detections and annotations.
 
+    The P-score is determined by taking the sum of the cross-correlation
+    between two impulse trains, representing the detections and annotations
+    allowing for a tolerance of 20% of the median annotated interval [1]_.
+
     Parameters
     ----------
     detections : list or numpy array
@@ -378,10 +384,6 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     -------
     pscore : float
         P-Score.
-
-    The P-score is determined by taking the sum of the cross-correlation
-    between two impulse trains, representing the detections and annotations
-    allowing for a tolerance of 20% of the median annotated interval [1]_.
 
     Notes
     -----

@@ -26,7 +26,7 @@ class Cepstrogram(np.ndarray, PropertyMixin):
     Parameters
     ----------
     spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
-        :class:`.audio.spectrogram.Spectrogram` instance.
+        Spectrogram.
     transform : numpy ufunc
         Transformation applied to the `spectrogram`.
     kwargs : dict
@@ -116,7 +116,7 @@ class CepstrogramProcessor(Processor):
         Returns
         -------
         :class:`Cepstrogram` instance
-            :class:`Cepstrogram` instance.
+            Cepstrogram.
 
         """
         return Cepstrogram(data, transform=self.transform)
@@ -137,7 +137,7 @@ class MFCC(Cepstrogram):
     Parameters
     ----------
     spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
-        :class:`.audio.spectrogram.Spectrogram` instance.
+        Spectrogram.
     transform : numpy ufunc, optional
         Transformation applied to the `spectrogram`.
     filterbank : :class:`.audio.filters.Filterbank` type or instance, optional
@@ -280,8 +280,6 @@ class MFCCProcessor(Processor):
 
     Parameters
     ----------
-    spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
-        :class:`.audio.spectrogram.Spectrogram` instance.
     num_bands : int, optional
         Number of Mel filter bands.
     fmin : float, optional

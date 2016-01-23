@@ -129,6 +129,7 @@ def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
         Number of histogram bins.
     fref : float, optional
         Reference tuning frequency [Hz].
+
     Returns
     -------
     tuning_frequency : float
@@ -314,7 +315,7 @@ class SpectrogramProcessor(Processor):
         Returns
         -------
         spec : :class:`Spectrogram` instance
-            :class:`Spectrogram` instance.
+            Spectrogram.
 
         """
         return Spectrogram(data, **kwargs)
@@ -331,11 +332,10 @@ class FilteredSpectrogram(Spectrogram):
     Parameters
     ----------
     spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
+        Spectrogram.
     filterbank : :class:`.audio.filters.Filterbank`, optional
-        :class:`.audio.filters.Filterbank` class or instance; if a filterbank
-        class is given (rather than an instance), one will be created with
-        the given type and parameters.
+        Filterbank class or instance; if a class is given (rather than an
+        instance), one will be created with the given type and parameters.
     num_bands : int, optional
         Number of filter bands (per octave, depending on the type of the
         `filterbank`).
@@ -601,7 +601,7 @@ class LogarithmicSpectrogram(Spectrogram):
     Parameters
     ----------
     spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
+        Spectrogram.
     mul : float, optional
         Multiply the magnitude spectrogram with this factor before taking
         the logarithm.
@@ -768,7 +768,7 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
     Parameters
     ----------
     spectrogram : :class:`FilteredSpectrogram` instance
-        :class:`FilteredSpectrogram` instance.
+        Filtered spectrogram.
     kwargs : dict, optional
         If no :class:`FilteredSpectrogram` instance was given, one is
         instantiated with these additional keyword arguments and
@@ -909,7 +909,7 @@ class SpectrogramDifference(Spectrogram):
     Parameters
     ----------
     spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
+        Spectrogram.
     diff_ratio : float, optional
         Calculate the difference to the frame at which the window used for the
         STFT yields this ratio of the maximum height.
@@ -1227,10 +1227,10 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     Parameters
     ----------
     spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
+        Spectrogram.
     crossover_frequencies : list or numpy array
         List of crossover frequencies at which the `spectrogram` is split
-        into bands.
+        into multiple bands.
     norm_bands : bool, optional
         Normalize the filter bands to area 1.
     kwargs : dict, optional
@@ -1322,11 +1322,9 @@ class MultiBandSpectrogramProcessor(Processor):
 
     Parameters
     ----------
-    spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
     crossover_frequencies : list or numpy array
-        List of crossover frequencies at which the `spectrogram` is split
-        into bands.
+        List of crossover frequencies at which a spectrogram is split into
+        the individual bands.
     norm_bands : bool, optional
         Normalize the filter bands area to 1.
 
@@ -1351,7 +1349,7 @@ class MultiBandSpectrogramProcessor(Processor):
         Returns
         -------
         multi_band_spec : :class:`MultiBandSpectrogram` instance
-            MultiBandSpectrogram instance.
+            Spectrogram split into multiple bands.
 
         """
         # instantiate a MultiBandSpectrogram

@@ -4,7 +4,7 @@
 # pylint: disable=too-many-arguments
 # pylint: disable=wrong-import-position
 """
-Evaluation module.
+Evaluation package.
 
 """
 

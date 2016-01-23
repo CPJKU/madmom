@@ -46,7 +46,7 @@ class Processor(object):
         Returns
         -------
         :class:`Processor` instance
-            :class:`Processor` instance
+            Processor.
 
         """
         import pickle
@@ -94,6 +94,7 @@ class Processor(object):
         ----------
         data : depends on the implementation of subclass
             Data to be processed.
+
         Returns
         -------
         depends on the implementation of subclass
@@ -127,6 +128,7 @@ class OutputProcessor(Processor):
             Data to be processed (e.g. written to file).
         output : str or file handle
             Output file name or file handle.
+
         Returns
         -------
         depends on the implementation of subclass
@@ -316,14 +318,14 @@ class ParallelProcessor(SequentialProcessor):
     Parameters
     ----------
     processors : list
-         Processor instances to be processed in parallel.
+        Processor instances to be processed in parallel.
     num_threads : int, optional
         Number of parallel working threads.
 
     Notes
     -----
     If the `processors` list contains lists or tuples, these get wrapped as a
-    :class:`SequentialProcessor`s.
+    :class:`SequentialProcessor`.
 
     """
     NUM_THREADS = 1
