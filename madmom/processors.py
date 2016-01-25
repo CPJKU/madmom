@@ -511,7 +511,7 @@ def process_single(processor, infile, outfile, **kwargs):
 
     """
     # pylint: disable=unused-argument
-    processor.process(infile, outfile)
+    processor(infile, outfile)
 
 
 class ParallelProcess(mp.Process):
@@ -542,7 +542,7 @@ class ParallelProcess(mp.Process):
             # get the task tuple
             processor, infile, outfile = self.task_queue.get()
             # process the Processor with the data
-            processor.process(infile, outfile)
+            processor(infile, outfile)
             # signal that it is done
             self.task_queue.task_done()
 
