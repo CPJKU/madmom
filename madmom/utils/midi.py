@@ -114,13 +114,15 @@ SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 if sys.version_info[0] == 2:
     int2byte = chr
 
-    def byte2int(bs):
-        return ord(bs[0])
+    def byte2int(byte):
+        """Convert a byte-character to an integer."""
+        return ord(byte)
 else:
     int2byte = struct.Struct(">B").pack
-    import operator
-    byte2int = operator.itemgetter(0)
-    del operator
+
+    def byte2int(byte):
+        """Convert a byte-character to an integer."""
+        return byte
 
 
 # functions for packing / unpacking variable length data
@@ -1190,7 +1192,8 @@ class MIDITrack(object):
                     else:
                         event_cls = EventRegistry.MetaEvents[cmd]
                     data_len = read_variable_length(track_data)
-                    data = [byte2int(next(track_data)) for _ in range(data_len)]
+                    data = [byte2int(next(track_data)) for _ in
+                            range(data_len)]
                     # create an event and append it to the list
                     events.append(event_cls(tick=tick, data=data,
                                             meta_command=cmd))
