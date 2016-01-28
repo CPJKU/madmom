@@ -539,10 +539,11 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
     Parameters
     ----------
-    gmms : list
-        Fitted GMM(s), one entry per rhythmic pattern.
-    transition_model : :class:`MultiPatternTransitionModel` instance
-        MultiPatternTransitionModel instance.
+    pattern_files : list
+        List with files representing the rhythmic patterns, one entry per
+        pattern; each pattern being a list with fitted GMMs.
+    state_space : :class:`MultiPatternStateSpeac` instance
+        Multi pattern state space.
     norm_observations : bool, optional
         Normalize the observations.
 
@@ -556,26 +557,30 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, gmms, transition_model, norm_observations=False):
+    def __init__(self, pattern_files, state_space, norm_observations=False):
         # save the parameters
-        self.gmms = gmms
-        self.transition_model = transition_model
+        self.pattern_files = pattern_files
+        self.state_space = state_space
         self.norm_observations = norm_observations
         # define the pointers of the log densities
-        pointers = np.zeros(transition_model.num_states, dtype=np.uint32)
-        patterns = self.transition_model.state_patterns
-        positions = self.transition_model.state_positions
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
+        patterns = self.state_space.state_patterns
+        positions = self.state_space.state_positions
         # Note: the densities of all GMMs are just stacked on top of each
         #       other, so we have to to keep track of the total number of GMMs
         densities_idx_offset = 0
-        for p in range(len(gmms)):
+        for p, gmms in enumerate(pattern_files):
             # number of fitted GMMs for this pattern
-            num_gmms = len(gmms[p])
+            num_gmms = len(gmms)
+            # number of beats in this pattern
+            num_beats = self.state_space.state_spaces[p].num_beats
             # distribute the observation densities defined by the GMMs
             # uniformly across the entire state space (for this pattern)
             # since the densities are just stacked, add the offset
-            pointers[patterns == p] = (positions[patterns == p] * num_gmms +
-                                       densities_idx_offset)
+            # Note: we have to divide by the number of beats, since the
+            #       positions range is [0, num_beats]
+            pointers[patterns == p] = (positions[patterns == p] * num_gmms /
+                                       num_beats + densities_idx_offset)
             # increase the offset by the number of GMMs
             densities_idx_offset += num_gmms
         # instantiate a ObservationModel with the pointers
@@ -602,22 +607,22 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         # counter, etc.
         cdef unsigned int i, j
         cdef unsigned int num_observations = len(observations)
-        cdef unsigned int num_patterns = len(self.gmms)
+        cdef unsigned int num_patterns = len(self.pattern_files)
         cdef unsigned int num_gmms = 0
         # norm observations
         if self.norm_observations:
             observations /= np.max(observations)
         # maximum number of GMMs of all patterns
-        for i in range(num_patterns):
-            num_gmms += len(self.gmms[i])
+        for pattern in self.pattern_files:
+            num_gmms += len(pattern)
         # init the densities
         log_densities = np.empty((num_observations, num_gmms), dtype=np.float)
         # define the observation densities
         cdef unsigned int c = 0
-        for i in range(num_patterns):
-            for j in range(len(self.gmms[i])):
+        for pattern in self.pattern_files:
+            for gmm in pattern:
                 # get the predictions of each GMM for the observations
-                log_densities[:, c] = self.gmms[i][j].score(observations)
+                log_densities[:, c] = gmm.score(observations)
                 c += 1
         # return the densities
         return log_densities
