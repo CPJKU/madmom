@@ -27,10 +27,15 @@ before_install:
   - deps='pip cython numpy scipy nose pep8'
   - conda create -q -n test-environment "python=$TRAVIS_PYTHON_VERSION" $deps
   - source activate test-environment
+  - pip install codecov
 install:
   - pip install -e .
+  - pip install coveralls
 before_script:
   - pep8 --ignore=E402 madmom tests bin
 script:
-  - nosetests
+  - nosetests --with-coverage
   # TODO: add executable programs
+after_success:
+  - codecov
+  - coveralls
