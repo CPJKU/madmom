@@ -1,7 +1,6 @@
 # encoding: utf-8
-# cython: embedsignature=True
 """
-This module contains HMM state space, transition and observation models used
+This module contains HMM state spaces, transition and observation models used
 for beat and downbeat tracking.
 
 Notes
@@ -9,20 +8,11 @@ Notes
 Please note that (almost) everything within this module is discretised to
 integer values because of performance reasons.
 
-If you want to change this module and use it interactively, use pyximport.
-
->>> import pyximport
->>> pyximport.install(reload_support=True,
-                      setup_args={'include_dirs': np.get_include()})
-
 """
 
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-cimport numpy as np
-cimport cython
-from libc.math cimport log, exp
 
 from madmom.ml.hmm import TransitionModel, ObservationModel
 
@@ -318,7 +308,7 @@ class BeatTransitionModel(TransitionModel):
         # use only the states with transitions to/from != 0
         from_prob, to_prob = np.nonzero(prob)
         states = np.hstack((states, to_states[to_prob]))
-        prev_states = np.hstack((prev_states,from_states[from_prob]))
+        prev_states = np.hstack((prev_states, from_states[from_prob]))
         probabilities = np.hstack((probabilities, prob[prob != 0]))
         # make the transitions sparse
         transitions = self.make_sparse(states, prev_states, probabilities)
@@ -394,7 +384,7 @@ class BarTransitionModel(TransitionModel):
             # use only the states with transitions to/from != 0
             from_prob, to_prob = np.nonzero(prob)
             states = np.hstack((states, to_states[to_prob]))
-            prev_states = np.hstack((prev_states,from_states[from_prob]))
+            prev_states = np.hstack((prev_states, from_states[from_prob]))
             probabilities = np.hstack((probabilities, prob[prob != 0]))
         # make the transitions sparse
         transitions = self.make_sparse(states, prev_states, probabilities)
@@ -432,10 +422,9 @@ class MultiPatternTransitionModel(TransitionModel):
         self.transition_prob = transition_prob
         self.transition_lambda = transition_lambda
         # stack the pattern transitions
-        for p in range(len(self.transition_models)):
-            tm = self.transition_models[p]
+        for i, tm in enumerate(self.transition_models):
             # set/update the probabilities, states and pointers
-            if p == 0:
+            if i == 0:
                 # for the first pattern, just set the TM arrays
                 states = tm.states
                 pointers = tm.pointers
@@ -496,10 +485,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    def log_densities(self, float [::1] observations):
+    def log_densities(self, observations):
         """
         Computes the log densities of the observations.
 
@@ -514,23 +500,18 @@ class RNNBeatTrackingObservationModel(ObservationModel):
             Log densities of the observations.
 
         """
-        # init variables
-        cdef unsigned int i
-        cdef unsigned int num_observations = len(observations)
-        cdef float observation_lambda = self.observation_lambda
         # norm observations
         if self.norm_observations:
             observations /= np.max(observations)
         # init densities
-        cdef double [:, ::1] log_densities = np.empty((num_observations, 2),
-                                                      dtype=np.float)
-        # define the observation densities
-        for i in range(num_observations):
-            log_densities[i, 0] = log(observations[i])
-            log_densities[i, 1] = log((1. - observations[i]) /
-                                      (observation_lambda - 1))
+        log_densities = np.empty((len(observations), 2), dtype=np.float)
+        # Note: it's faster to call np.log 2 times instead of once on the
+        #       whole 2d array
+        log_densities[:, 0] = np.log(observations)
+        log_densities[:, 1] = np.log((1. - observations) /
+                                     (self.observation_lambda - 1))
         # return the densities
-        return np.asarray(log_densities)
+        return log_densities
 
 
 class GMMPatternTrackingObservationModel(ObservationModel):
@@ -586,9 +567,6 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         # instantiate a ObservationModel with the pointers
         super(GMMPatternTrackingObservationModel, self).__init__(pointers)
 
-    @cython.cdivision(True)
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
     def log_densities(self, observations):
         """
         Computes the log densities of the observations using (a) GMM(s).
@@ -604,25 +582,19 @@ class GMMPatternTrackingObservationModel(ObservationModel):
             Log densities of the observations.
 
         """
-        # counter, etc.
-        cdef unsigned int i, j
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int num_patterns = len(self.pattern_files)
-        cdef unsigned int num_gmms = 0
         # norm observations
         if self.norm_observations:
             observations /= np.max(observations)
-        # maximum number of GMMs of all patterns
-        for pattern in self.pattern_files:
-            num_gmms += len(pattern)
+        # number of GMMs of all patterns
+        num_gmms = sum([len(pattern) for pattern in self.pattern_files])
         # init the densities
-        log_densities = np.empty((num_observations, num_gmms), dtype=np.float)
+        log_densities = np.empty((len(observations), num_gmms), dtype=np.float)
         # define the observation densities
-        cdef unsigned int c = 0
+        i = 0
         for pattern in self.pattern_files:
             for gmm in pattern:
                 # get the predictions of each GMM for the observations
-                log_densities[:, c] = gmm.score(observations)
-                c += 1
+                log_densities[:, i] = gmm.score(observations)
+                i += 1
         # return the densities
         return log_densities
