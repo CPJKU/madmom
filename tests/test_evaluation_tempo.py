@@ -11,7 +11,7 @@ import unittest
 import math
 
 from madmom.evaluation.tempo import *
-from . import DATA_PATH
+from . import ANNOTATIONS_PATH
 
 ANNOTATIONS = np.asarray([[87.5, 0.7], [175, 0.3]])
 ANN_TEMPI = np.asarray([87.5, 175])
@@ -25,17 +25,17 @@ DET_STRENGTHS = np.asarray([0.6, 0.4])
 class TestLoadTempoFunction(unittest.TestCase):
 
     def test_load_tempo_from_file(self):
-        annotations = load_tempo(DATA_PATH + 'sample.tempo')
+        annotations = load_tempo(ANNOTATIONS_PATH + 'sample.tempo')
         self.assertIsInstance(annotations, np.ndarray)
 
     def test_load_tempo_from_file_handle(self):
-        file_handle = open(DATA_PATH + 'sample.tempo')
+        file_handle = open(ANNOTATIONS_PATH + 'sample.tempo')
         annotations = load_tempo(file_handle)
         self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()
 
     def test_load_tempo_annotations(self):
-        annotations = load_tempo(DATA_PATH + 'sample.tempo')
+        annotations = load_tempo(ANNOTATIONS_PATH + 'sample.tempo')
         self.assertIsInstance(annotations, np.ndarray)
         self.assertEqual(annotations.shape, (2, 2))
         self.assertTrue(np.allclose(annotations, ANNOTATIONS))

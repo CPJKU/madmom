@@ -61,7 +61,7 @@ def suppress_warnings(function):
 
 
 # file handling routines
-def filter_files(files, suffix=None):
+def filter_files(files, suffix):
     """
     Filter the list to contain only files matching the given `suffix`.
 
@@ -69,7 +69,7 @@ def filter_files(files, suffix=None):
     ----------
     files : list
         List of files to be filtered.
-    suffix : str, optional
+    suffix : str
         Return only files matching this suffix.
 
     Returns
@@ -79,6 +79,9 @@ def filter_files(files, suffix=None):
 
     """
     import fnmatch
+    # make sure files is a list
+    if not isinstance(files, list):
+        files = [files]
     # no suffix given, return the list unaltered
     if suffix is None:
         return files
@@ -130,8 +133,8 @@ def search_path(path, recursion_depth=0):
         # remove all subdirs exceeding the wanted recursion depth
         if initial_depth + recursion_depth <= root.count(os.path.sep):
             del dirs[:]
-    # return the files
-    return file_list
+    # return the sorted file list
+    return sorted(file_list)
 
 
 def search_files(files, suffix=None, recursion_depth=0):
@@ -177,10 +180,8 @@ def search_files(files, suffix=None, recursion_depth=0):
         file_list = filter_files(file_list, suffix)
     # remove duplicates
     file_list = list(set(file_list))
-    # sort files
-    file_list.sort()
-    # return the file list
-    return file_list
+    # return the sorted file list
+    return sorted(file_list)
 
 
 def strip_suffix(filename, suffix=None):
