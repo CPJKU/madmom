@@ -83,8 +83,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
     return notes
 
 
-def write_notes(notes, filename, sep='\t',
-                fmt=None):
+def write_notes(notes, filename, sep='\t', fmt=None, header=''):
     """
     Write the notes to a file (as many columns as given).
 
@@ -98,6 +97,8 @@ def write_notes(notes, filename, sep='\t',
         Separator for the fields.
     fmt : list, optional
         Format of the fields (i.e. columns, see notes)
+    header : str, optional
+        Header to be written (as a comment).
 
     Returns
     -------
@@ -119,7 +120,7 @@ def write_notes(notes, filename, sep='\t',
     # truncate to the number of colums given
     fmt = sep.join(fmt[:notes.shape[1]])
     # write the notes
-    write_events(notes, filename, fmt=fmt)
+    write_events(notes, filename, fmt=fmt, header=header)
     # also return them
     return notes
 

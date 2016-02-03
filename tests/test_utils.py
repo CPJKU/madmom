@@ -35,9 +35,11 @@ ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
                     ANNOTATIONS_PATH + 'sample.tempo',
                     ANNOTATIONS_PATH + 'stereo_sample.mid',
                     ANNOTATIONS_PATH + 'stereo_sample.notes',
+                    ANNOTATIONS_PATH + 'stereo_sample.notes.mirex',
                     ANNOTATIONS_PATH + 'stereo_sample.sv']
 
-DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt']
+DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt',
+                   DETECTIONS_PATH + 'sample.tempo.txt']
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 

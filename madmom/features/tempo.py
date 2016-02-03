@@ -477,6 +477,8 @@ def write_tempo(tempi, filename, mirex=False):
         Their relative strength.
 
     """
+    # make the given tempi a 2d array
+    tempi = np.array(tempi, ndmin=2)
     # default values
     t1, t2, strength = 0., 0., 1.
     # only one tempo was detected
