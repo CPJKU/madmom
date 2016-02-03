@@ -61,16 +61,15 @@ def suppress_warnings(function):
 
 
 # file handling routines
-def search_files(path, suffix=None):
+def filter_files(files, suffix):
     """
-    Returns a list of files in `path` matching the given `suffix` or filters
-    the given list to include only those matching the given suffix.
+    Filter the list to contain only files matching the given `suffix`.
 
     Parameters
     ----------
-    path : str or list
-        Path or list of files to be searched / filtered.
-    suffix : str, optional
+    files : list
+        List of files to be filtered.
+    suffix : str
         Return only files matching this suffix.
 
     Returns
@@ -79,47 +78,110 @@ def search_files(path, suffix=None):
         List of files.
 
     """
-    import os
-    import glob
-
-    # determine the files
-    if isinstance(path, list):
-        # a list of files or paths is given
-        file_list = []
-        # recursively call the function
-        for f in path:
-            file_list.extend(search_files(f, suffix))
-    elif os.path.isdir(path):
-        # use all files in the given path
-        if suffix is None:
-            file_list = glob.glob("%s/*" % path)
-        elif isinstance(suffix, list):
-            file_list = []
-            for s in suffix:
-                file_list.extend(glob.glob("%s/*%s" % (path, s)))
-        else:
-            file_list = glob.glob("%s/*%s" % (path, suffix))
-    elif os.path.isfile(path):
-        file_list = []
-        # no matching needed
-        if suffix is None:
-            file_list = [path]
+    import fnmatch
+    # make sure files is a list
+    if not isinstance(files, list):
+        files = [files]
+    # no suffix given, return the list unaltered
+    if suffix is None:
+        return files
+    # filter the files with the given suffix
+    file_list = []
+    if isinstance(suffix, list):
         # a list of suffices is given
-        elif isinstance(suffix, list):
-            for s in suffix:
-                if path.endswith(s):
-                    file_list = [path]
-        # a single suffix is given
-        elif path.endswith(suffix):
-            file_list = [path]
+        for s in suffix:
+            file_list.extend(fnmatch.filter(files, "*%s" % s))
     else:
-        raise IOError("%s does not exist." % path)
+        # a single suffix is given
+        file_list.extend(fnmatch.filter(files, "*%s" % suffix))
+    # return the filtered list
+    return file_list
+
+
+def search_path(path, recursion_depth=0):
+    """
+    Returns a list of files in a directory (recursively).
+
+    Parameters
+    ----------
+    path : str or list
+        Directory to be searched.
+    recursion_depth : int, optional
+        Recursively search sub-directories up to this depth.
+
+    Returns
+    -------
+    list
+        List of files.
+
+    """
+    # adapted from http://stackoverflow.com/a/234329
+    import os
+    # remove the rightmost path separator (needed for recursion depth count)
+    path = path.rstrip(os.path.sep)
+    # we can only handle directories
+    if not os.path.isdir(path):
+        raise IOError("%s is not a directory." % path)
+    # files to be returned
+    file_list = []
+    # keep track of the initial recursion depth
+    initial_depth = path.count(os.path.sep)
+    for root, dirs, files in os.walk(path):
+        # add all files of this directory to the list
+        for f in files:
+            file_list.append(os.path.join(root, f))
+        # remove all subdirs exceeding the wanted recursion depth
+        if initial_depth + recursion_depth <= root.count(os.path.sep):
+            del dirs[:]
+    # return the sorted file list
+    return sorted(file_list)
+
+
+def search_files(files, suffix=None, recursion_depth=0):
+    """
+    Returns the files matching the given `suffix`.
+
+    Parameters
+    ----------
+    files : str or list
+        File, path or a list thereof to be searched / filtered.
+    suffix : str, optional
+        Return only files matching this suffix.
+    recursion_depth : int, optional
+        Recursively search sub-directories up to this depth.
+
+    Returns
+    -------
+    list
+        List of files.
+
+    Notes
+    -----
+    The list of returned files is sorted.
+
+    """
+    import os
+    file_list = []
+    # determine the files
+    if isinstance(files, list):
+        # a list is given, recursively call the function on each element
+        for f in files:
+            file_list.extend(search_files(f))
+    elif os.path.isdir(files):
+        # add all files in the given path (up to the given recursion depth)
+        file_list.extend(search_path(files, recursion_depth))
+    elif os.path.isfile(files):
+        # add the given file
+        file_list.append(files)
+    else:
+        raise IOError("%s does not exist." % files)
+    # filter with the given sufix
+    if suffix is not None:
+        file_list = filter_files(file_list, suffix)
     # remove duplicates
     file_list = list(set(file_list))
-    # sort files
-    file_list.sort()
-    # return the file list
-    return file_list
+    # return the sorted file list
+    return sorted(file_list)
 
 
 def strip_suffix(filename, suffix=None):

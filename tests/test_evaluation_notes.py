@@ -11,7 +11,7 @@ import unittest
 import math
 
 from madmom.evaluation.notes import *
-from . import DATA_PATH
+from . import ANNOTATIONS_PATH
 
 DETECTIONS = np.asarray([[0.147, 72],  # TP
                          [0.147, 80],  # FP
@@ -37,17 +37,17 @@ ANNOTATIONS = np.asarray([[0.147, 72, 3.323, 63],
 class TestLoadNotesFunction(unittest.TestCase):
 
     def test_load_notes_from_file(self):
-        annotations = load_notes(DATA_PATH + 'stereo_sample.notes')
+        annotations = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
         self.assertIsInstance(annotations, np.ndarray)
 
     def test_load_notes_from_file_handle(self):
-        file_handle = open(DATA_PATH + 'stereo_sample.notes')
+        file_handle = open(ANNOTATIONS_PATH + 'stereo_sample.notes')
         annotations = load_notes(file_handle)
         self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()
 
     def test_load_notes_annotations(self):
-        annotations = load_notes(DATA_PATH + 'stereo_sample.notes')
+        annotations = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
         self.assertIsInstance(annotations, np.ndarray)
         self.assertEqual(annotations.shape, (8, 4))
         self.assertTrue(np.allclose(annotations, ANNOTATIONS))

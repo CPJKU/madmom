@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 
-from . import DATA_PATH
+from . import AUDIO_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
 from madmom.audio.signal import *
 
@@ -98,7 +98,7 @@ class TestAttenuateFunction(unittest.TestCase):
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == np.int16)
         # from file
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = attenuate(signal, 0)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
@@ -153,7 +153,7 @@ class TestNormalizeFunction(unittest.TestCase):
         self.assertTrue(result.shape == sig_1d.shape)
         self.assertTrue(result.dtype == np.float)
         # from file
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = normalize(signal)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
@@ -217,7 +217,7 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(result.shape == (len(sig_1d), 2))
         self.assertTrue(result.dtype == np.int)
         # from file
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = remix(signal, 1)
         self.assertTrue(isinstance(result, Signal))
         self.assertTrue(isinstance(result, np.ndarray))
@@ -232,7 +232,7 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(result.shape == sig_2d.shape)
         self.assertTrue(result.dtype == sig_2d.dtype)
         # from file
-        signal = Signal(DATA_PATH + '/stereo_sample.wav')
+        signal = Signal(AUDIO_PATH + '/stereo_sample.wav')
         result = remix(signal, 1)
         self.assertTrue(isinstance(result, Signal))
         self.assertTrue(isinstance(result, np.ndarray))
@@ -276,7 +276,7 @@ class TestTrimFunction(unittest.TestCase):
         self.assertTrue(type(result) == type(sig_1d))
         self.assertTrue(len(result) == len(sig_1d) - 2)
         self.assertTrue(result.ndim == sig_1d.ndim)
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = trim(signal)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
@@ -357,13 +357,13 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_types(self):
         # test wave loader
-        f = DATA_PATH + '/sample.wav'
+        f = AUDIO_PATH + '/sample.wav'
         signal, sample_rate = load_audio_file(f)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         # test ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.flac'
+        f = AUDIO_PATH + '/stereo_sample.flac'
         signal, sample_rate = load_audio_file(f)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
@@ -371,7 +371,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # test wave loader
-        f = DATA_PATH + '/sample.wav'
+        f = AUDIO_PATH + '/sample.wav'
         # open file handle
         file_handle = open(f)
         signal, sample_rate = load_audio_file(file_handle)
@@ -385,7 +385,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         # test ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.flac'
+        f = AUDIO_PATH + '/stereo_sample.flac'
         # open file handle
         file_handle = open(f)
         signal, sample_rate = load_audio_file(file_handle)
@@ -401,7 +401,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_values(self):
         # test wave loader
-        f = DATA_PATH + '/sample.wav'
+        f = AUDIO_PATH + '/sample.wav'
         signal, sample_rate = load_audio_file(f)
         self.assertTrue(np.allclose(signal[:5],
                                     [-2494, -2510, -2484, -2678, -2833]))
@@ -409,7 +409,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (123481,))
         # stereo
-        f = DATA_PATH + '/stereo_sample.wav'
+        f = AUDIO_PATH + '/stereo_sample.wav'
         signal, sample_rate = load_audio_file(f)
         self.assertTrue(np.allclose(signal[:4],
                                     [[33, 38], [35, 36], [29, 34], [36, 31]]))
@@ -417,7 +417,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, 2))
         # test ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.flac'
+        f = AUDIO_PATH + '/stereo_sample.flac'
         signal, sample_rate = load_audio_file(f)
         self.assertTrue(np.allclose(signal[:4],
                                     [[33, 38], [35, 36], [29, 34], [36, 31]]))
@@ -427,14 +427,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_start_stop(self):
         # test wave loader
-        f = DATA_PATH + '/sample.wav'
+        f = AUDIO_PATH + '/sample.wav'
         signal, sample_rate = load_audio_file(f, start=1. / 44100,
                                               stop=5. / 44100)
         self.assertTrue(np.allclose(signal, [-2510, -2484, -2678, -2833]))
         self.assertTrue(len(signal) == 4)
         self.assertTrue(sample_rate == 44100)
         # test ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.flac'
+        f = AUDIO_PATH + '/stereo_sample.flac'
         signal, sample_rate = load_audio_file(f, start=1. / 44100,
                                               stop=4. / 44100)
         self.assertTrue(np.allclose(signal, [[35, 36], [29, 34], [36, 31]]))
@@ -443,14 +443,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_downmix(self):
         # test wave loader
-        f = DATA_PATH + '/stereo_sample.wav'
+        f = AUDIO_PATH + '/stereo_sample.wav'
         signal, sample_rate = load_audio_file(f, num_channels=1)
         self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, ))
         # test ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.flac'
+        f = AUDIO_PATH + '/stereo_sample.flac'
         signal, sample_rate = load_audio_file(f, num_channels=1)
         # results are rounded differently, thus allow atol=1
         self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33], atol=1))
@@ -459,7 +459,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
 
     def test_upmix(self):
-        f = DATA_PATH + '/sample.wav'
+        f = AUDIO_PATH + '/sample.wav'
         signal, sample_rate = load_audio_file(f, num_channels=2)
         self.assertTrue(np.allclose(signal[:5],
                                     [[-2494, -2494], [-2510, -2510],
@@ -471,7 +471,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_resample(self):
         # method must chose ffmpeg loader
-        f = DATA_PATH + '/stereo_sample.wav'
+        f = AUDIO_PATH + '/stereo_sample.wav'
         signal, sample_rate = load_audio_file(f, sample_rate=22050)
         self.assertEqual(sample_rate, 22050)
         # avconv does round differently, thus allow atol=1
@@ -512,7 +512,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertIsInstance(result.ndim, int)
 
     def test_types_file(self):
-        result = Signal(DATA_PATH + '/sample.wav')
+        result = Signal(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
@@ -547,7 +547,7 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.ndim == 2)
 
     def test_values_file(self):
-        result = Signal(DATA_PATH + '/sample.wav')
+        result = Signal(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[:5],
                                     [-2494, -2510, -2484, -2678, -2833]))
         self.assertTrue(len(result) == 123481)
@@ -560,7 +560,7 @@ class TestSignalClass(unittest.TestCase):
     def test_pickling(self):
         import pickle
         import tempfile
-        result = Signal(DATA_PATH + '/sample.wav')
+        result = Signal(AUDIO_PATH + '/sample.wav')
         f, filename = tempfile.mkstemp()
         pickle.dump(result, open(filename, 'wb'),
                     protocol=pickle.HIGHEST_PROTOCOL)
@@ -575,7 +575,7 @@ class TestSignalProcessorClass(unittest.TestCase):
         processor = SignalProcessor()
         self.assertIsInstance(processor, SignalProcessor)
         self.assertIsInstance(processor, Processor)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
@@ -584,11 +584,11 @@ class TestSignalProcessorClass(unittest.TestCase):
         processor = SignalProcessor(num_channels=1)
         self.assertIsInstance(processor, SignalProcessor)
         self.assertIsInstance(processor, Processor)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
-        result = processor.process(DATA_PATH + '/stereo_sample.wav')
+        result = processor.process(AUDIO_PATH + '/stereo_sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
@@ -597,7 +597,7 @@ class TestSignalProcessorClass(unittest.TestCase):
         processor = SignalProcessor(norm=True)
         self.assertIsInstance(processor, SignalProcessor)
         self.assertIsInstance(processor, Processor)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
@@ -606,7 +606,7 @@ class TestSignalProcessorClass(unittest.TestCase):
         processor = SignalProcessor(att=10)
         self.assertIsInstance(processor, SignalProcessor)
         self.assertIsInstance(processor, Processor)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
@@ -626,7 +626,7 @@ class TestSignalProcessorClass(unittest.TestCase):
     def test_values_file(self):
         processor = SignalProcessor()
 
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[:5],
                                     [-2494, -2510, -2484, -2678, -2833]))
         self.assertTrue(len(result) == 123481)
@@ -649,7 +649,7 @@ class TestSignalProcessorClass(unittest.TestCase):
 
     def test_values_file_norm(self):
         processor = SignalProcessor(norm=True)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[:5],
                                     [-0.138733, -0.139623, -0.138177,
                                      -0.148968, -0.157590]))
@@ -661,7 +661,7 @@ class TestSignalProcessorClass(unittest.TestCase):
 
     def test_values_file_att(self):
         processor = SignalProcessor(att=10)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[:5],
                                     [-788, -793, -785, -846, -895]))
         self.assertTrue(len(result) == 123481)
@@ -681,7 +681,7 @@ class TestSignalFrameFunction(unittest.TestCase):
         result = signal_frame(np.arange(10, dtype=np.float), 0, 4, 2)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.float)
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = signal_frame(signal, 0, 4, 2)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
@@ -813,7 +813,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.ndim, int)
 
     def test_types_signal(self):
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = FramedSignal(signal)
         self.assertIsInstance(result, FramedSignal)
         self.assertIsInstance(result.signal, Signal)
@@ -830,7 +830,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result.ndim, int)
 
     def test_types_file(self):
-        result = FramedSignal(DATA_PATH + '/sample.wav')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, FramedSignal)
         self.assertIsInstance(result.signal, Signal)
         self.assertIsInstance(result.frame_size, int)
@@ -915,8 +915,8 @@ class TestFramedSignalClass(unittest.TestCase):
             FramedSignal(np.arange(10), 4, 2, sample_rate=4)['bar']
 
     def test_values_file(self):
-        signal = Signal(DATA_PATH + '/sample.wav')
-        result = FramedSignal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav')
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 441.)
         self.assertTrue(result.origin == 0)
@@ -929,8 +929,8 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.ndim == 2)
 
     def test_values_stereo_file(self):
-        signal = Signal(DATA_PATH + '/stereo_sample.wav')
-        result = FramedSignal(DATA_PATH + '/stereo_sample.wav')
+        signal = Signal(AUDIO_PATH + '/stereo_sample.wav')
+        result = FramedSignal(AUDIO_PATH + '/stereo_sample.wav')
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 441.)
         self.assertTrue(result.origin == 0)
@@ -944,35 +944,35 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(result.shape == (415, 2048, 2))
 
     def test_values_file_origin(self):
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         # literal origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='online')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='online')
         self.assertTrue(result.origin == 1023)
         self.assertTrue(result.num_frames == 281)
         # 6th frame should start at 6 * 441 - 2048 + 1 (ref sample) = 599
         self.assertTrue(np.allclose(result[6], signal[599: 599 + 2048]))
         # literal left origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='left')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='left')
         self.assertTrue(result.origin == 1023)
         # positive origin shifts the window to the left
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin=10)
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin=10)
         self.assertTrue(result.origin == 10)
         # literal offline origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='offline')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='offline')
         self.assertTrue(result.origin == 0)
         # literal center origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='center')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='center')
         self.assertTrue(result.origin == 0)
         # literal right origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='right')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='right')
         self.assertTrue(result.origin == -1024)
         # literal future origin
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin='future')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin='future')
         self.assertTrue(result.origin == -1024)
 
     def test_values_file_start(self):
-        signal = Signal(DATA_PATH + '/sample.wav')
-        result = FramedSignal(DATA_PATH + '/sample.wav', origin=-10)
+        signal = Signal(AUDIO_PATH + '/sample.wav')
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', origin=-10)
         # start sample shifted to the right
         self.assertTrue(result.origin == -10)
         self.assertTrue(result.num_frames == 281)
@@ -980,10 +980,10 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[3], signal[309: 309 + 2048]))
 
     def test_values_file_fps(self):
-        result = FramedSignal(DATA_PATH + '/sample.wav', fps=200)
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', fps=200)
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 220.5)
-        result = FramedSignal(DATA_PATH + '/sample.wav', fps=50)
+        result = FramedSignal(AUDIO_PATH + '/sample.wav', fps=50)
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 882.)
 
@@ -994,7 +994,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         processor = FramedSignalProcessor()
         self.assertIsInstance(processor, FramedSignalProcessor)
         self.assertIsInstance(processor, Processor)
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, FramedSignal)
 
     def test_values(self):
@@ -1004,7 +1004,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         self.assertTrue(processor.fps is None)
         self.assertTrue(processor.online is False)
         self.assertTrue(processor.end == 'normal')
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[0][:1023], np.zeros(1023)))
         self.assertTrue(np.allclose(result[0][1024], -2494))
         self.assertTrue(len(result) == 281)
@@ -1030,7 +1030,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         self.assertTrue(processor.fps is None)
         self.assertTrue(processor.online is True)
         self.assertTrue(processor.end == 'normal')
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[0][-1], -2494))
         self.assertTrue(len(result) == 281)
         self.assertTrue(result.num_frames == 281)
@@ -1042,7 +1042,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         self.assertTrue(processor.fps == 200)
         self.assertTrue(processor.online is False)
         self.assertTrue(processor.end == 'normal')
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[0][:1023], np.zeros(1023)))
         self.assertTrue(np.allclose(result[0][1024], -2494))
         self.assertTrue(len(result) == 561)
@@ -1056,7 +1056,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         self.assertTrue(processor.online is False)
         self.assertTrue(processor.end == 'normal')
         # test with a file
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[0][:1023], np.zeros(1023)))
         self.assertTrue(np.allclose(result[0][1024], -2494))
         self.assertTrue(len(result) == 281)
@@ -1075,7 +1075,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         # test with incorrect end value
         with self.assertRaises(ValueError):
             processor = FramedSignalProcessor(end='bla')
-            processor.process(DATA_PATH + '/sample.wav')
+            processor.process(AUDIO_PATH + '/sample.wav')
 
     def test_constant_types(self):
         self.assertIsInstance(FramedSignalProcessor.FRAME_SIZE, int)
@@ -1093,7 +1093,7 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
 
     def test_values_file(self):
         processor = FramedSignalProcessor()
-        result = processor.process(DATA_PATH + '/sample.wav')
+        result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(np.allclose(result[0][:100], np.zeros(100)))
         self.assertTrue(len(result) == 281)
         self.assertTrue(result.num_frames == 281)

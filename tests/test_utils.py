@@ -11,29 +11,82 @@ import unittest
 
 from madmom.utils import *
 
-from . import DATA_PATH
+from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
+               DETECTIONS_PATH)
 
 FILE_LIST = [DATA_PATH + 'README',
              DATA_PATH + 'commented_txt',
-             DATA_PATH + 'events.txt',
-             DATA_PATH + 'sample.beats',
-             DATA_PATH + 'sample.onsets',
-             DATA_PATH + 'sample.onsets.txt',
-             DATA_PATH + 'sample.sv',
-             DATA_PATH + 'sample.tempo',
-             DATA_PATH + 'sample.wav',
-             DATA_PATH + 'stereo_sample.mid',
-             DATA_PATH + 'stereo_sample.notes',
-             DATA_PATH + 'stereo_sample.sv',
-             DATA_PATH + 'stereo_sample.flac',
-             DATA_PATH + 'stereo_sample.wav']
+             DATA_PATH + 'events.txt']
+
+AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
+               AUDIO_PATH + 'stereo_sample.flac',
+               AUDIO_PATH + 'stereo_sample.wav']
+
+ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.logfiltspecflux.npz',
+                    ACTIVATIONS_PATH + 'sample.superflux.npz',
+                    ACTIVATIONS_PATH + 'sample.complexflux.npz',
+                    ACTIVATIONS_PATH + 'sample.multiband_spectral_flux.npz',
+                    ACTIVATIONS_PATH + 'stereo_sample.transcription.npz']
+
+ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
+                    ANNOTATIONS_PATH + 'sample.onsets',
+                    ANNOTATIONS_PATH + 'sample.sv',
+                    ANNOTATIONS_PATH + 'sample.tempo',
+                    ANNOTATIONS_PATH + 'stereo_sample.mid',
+                    ANNOTATIONS_PATH + 'stereo_sample.notes',
+                    ANNOTATIONS_PATH + 'stereo_sample.notes.mirex',
+                    ANNOTATIONS_PATH + 'stereo_sample.sv']
+
+DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt',
+                   DETECTIONS_PATH + 'sample.tempo.txt']
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 
-ANNOTATIONS = [0.0943, 0.2844, 0.4528, 0.6160, 0.7630, 0.8025, 0.9847, 1.1233,
-               1.4820, 1.6276, 1.8032, 2.1486, 2.3351, 2.4918, 2.6710]
-DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115, 1.365,
-              1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+ONSET_ANNOTATIONS = [0.0943, 0.2844, 0.4528, 0.6160, 0.7630, 0.8025, 0.9847,
+                     1.1233, 1.4820, 1.6276, 1.8032, 2.1486, 2.3351, 2.4918,
+                     2.6710]
+ONSET_DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115, 1.365,
+                    1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+
+
+class TestFilterFilesFunction(unittest.TestCase):
+
+    def test_single_file(self):
+        # no suffix
+        result = filter_files(DATA_PATH + 'README', None)
+        self.assertEqual(result, [DATA_PATH + 'README'])
+        # single suffix
+        result = filter_files(DATA_PATH + 'README', suffix='.txt')
+        self.assertEqual(result, [])
+        # suffix list
+        result = filter_files(DATA_PATH + 'events.txt', suffix=['.txt', None])
+        self.assertEqual(result, [DATA_PATH + 'events.txt'])
+
+    def test_file_list(self):
+        # no suffix
+        result = filter_files(FILE_LIST, None)
+        self.assertEqual(result, FILE_LIST)
+        # single suffix
+        result = filter_files(FILE_LIST, suffix='txt')
+        self.assertEqual(result, [DATA_PATH + 'commented_txt',
+                                  DATA_PATH + 'events.txt'])
+        # suffix list
+        result = filter_files(FILE_LIST, suffix=['.txt'])
+        self.assertEqual(result, [DATA_PATH + 'events.txt'])
+
+
+class TestSearchPathFunction(unittest.TestCase):
+
+    def test_path(self):
+        result = search_path(DATA_PATH)
+        self.assertEqual(result, FILE_LIST)
+
+    def test_recursion(self):
+        result = search_path(DATA_PATH, 1)
+        all_files = (FILE_LIST + AUDIO_FILES + ANNOTATION_FILES +
+                     DETECTION_FILES + ACTIVATION_FILES)
+        self.assertEqual(result, sorted(all_files))
 
 
 class TestSearchFilesFunction(unittest.TestCase):
@@ -59,19 +112,16 @@ class TestSearchFilesFunction(unittest.TestCase):
         # single suffix
         result = search_files(DATA_PATH, suffix='txt')
         file_list = [DATA_PATH + 'commented_txt',
-                     DATA_PATH + 'events.txt',
-                     DATA_PATH + 'sample.onsets.txt']
+                     DATA_PATH + 'events.txt']
         self.assertEqual(result, sorted(file_list))
         # another suffix
         result = search_files(DATA_PATH, suffix='.txt')
-        file_list = [DATA_PATH + 'events.txt',
-                     DATA_PATH + 'sample.onsets.txt']
+        file_list = [DATA_PATH + 'events.txt']
         self.assertEqual(result, sorted(file_list))
         # suffix list
         result = search_files(DATA_PATH, suffix=['.txt', 'txt'])
         file_list = [DATA_PATH + 'commented_txt',
-                     DATA_PATH + 'events.txt',
-                     DATA_PATH + 'sample.onsets.txt']
+                     DATA_PATH + 'events.txt']
         self.assertEqual(result, sorted(file_list))
 
     def test_file_list(self):
@@ -80,15 +130,11 @@ class TestSearchFilesFunction(unittest.TestCase):
         self.assertEqual(result, sorted(FILE_LIST))
         # single suffix
         result = search_files(FILE_LIST, suffix='.txt')
-        file_list = [DATA_PATH + 'events.txt',
-                     DATA_PATH + 'sample.onsets.txt']
-        self.assertEqual(result, sorted(file_list))
+        self.assertEqual(result, [DATA_PATH + 'events.txt'])
         # suffix list
         result = search_files(FILE_LIST, suffix=['.txt', 'txt'])
-        file_list = [DATA_PATH + 'events.txt',
-                     DATA_PATH + 'commented_txt',
-                     DATA_PATH + 'sample.onsets.txt']
-        self.assertEqual(result, sorted(file_list))
+        self.assertEqual(result, [DATA_PATH + 'commented_txt',
+                                  DATA_PATH + 'events.txt'])
 
 
 class TestStripSuffixFunction(unittest.TestCase):
@@ -133,11 +179,11 @@ class TestLoadEventsFunction(unittest.TestCase):
         file_handle.close()
 
     def test_read_onset_annotations(self):
-        events = load_events(DATA_PATH + 'sample.onsets')
-        self.assertTrue(np.allclose(events, ANNOTATIONS))
+        events = load_events(ANNOTATIONS_PATH + 'sample.onsets')
+        self.assertTrue(np.allclose(events, ONSET_ANNOTATIONS))
 
     def test_read_file_without_comments(self):
-        events = load_events(DATA_PATH + 'sample.onsets.txt')
+        events = load_events(DETECTIONS_PATH + 'sample.onsets.txt')
         self.assertTrue(np.allclose(events, [0.01, 0.085, 0.275, 0.445, 0.61,
                                              0.795, 0.98, 1.115, 1.365, 1.475,
                                              1.62, 1.795, 2.14, 2.33, 2.485,
@@ -148,7 +194,7 @@ class TestLoadEventsFunction(unittest.TestCase):
         self.assertTrue(np.allclose(events, [1.1, 2.1]))
 
     def test_load_only_timestamps(self):
-        events = load_events(DATA_PATH + 'stereo_sample.notes')
+        events = load_events(ANNOTATIONS_PATH + 'stereo_sample.notes')
         self.assertTrue(np.allclose(events, [0.147, 1.567, 2.526, 2.549, 2.563,
                                              2.577, 3.369, 3.449]))
 
@@ -258,7 +304,7 @@ class TestSegmentAxisFunction(unittest.TestCase):
         self.assertTrue(result.dtype == np.float)
         # test with a Signal
         from madmom.audio.signal import Signal
-        signal = Signal(DATA_PATH + '/sample.wav')
+        signal = Signal(AUDIO_PATH + '/sample.wav')
         result = segment_axis(signal, 4, 2)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)
