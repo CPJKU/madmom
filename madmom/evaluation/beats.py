@@ -55,7 +55,7 @@ class BeatIntervalError(Exception):
 
 
 @suppress_warnings
-def load_beats(values):
+def load_beats(values, downbeats=False):
     """
     Load the beats from the given values or file.
 
@@ -65,6 +65,8 @@ def load_beats(values):
     ----------
     values : str, file handle, list or numpy array
         Name / values to be loaded.
+    downbeats : bool, optional
+        Load downbeats instead of beats.
 
     Returns
     -------
@@ -89,9 +91,13 @@ def load_beats(values):
     else:
         # try to load the data from file
         values = np.loadtxt(values, ndmin=1)
-    # 1st column is the beat time, the rest is ignored
     if values.ndim > 1:
-        return values[:, 0]
+        if downbeats:
+            # rows with a "1" in the 2nd column are the downbeats.
+            return values[values[:, 1] == 1][:, 0]
+        else:
+            # 1st column is the beat time, the rest is ignored
+            return values[:, 0]
     return values
 
 
@@ -999,6 +1005,8 @@ class BeatEvaluation(OnsetEvaluation):
         Include triple and third tempo variations (and offbeats thereof).
     skip : float, optional
         Skip the first `skip` seconds for evaluation.
+    downbeats : bool, optional
+        Evaluate downbeats instead of beats.
 
     Notes
     -----
@@ -1027,10 +1035,11 @@ class BeatEvaluation(OnsetEvaluation):
                  continuity_phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
                  information_gain_bins=INFORMATION_GAIN_BINS,
-                 offbeat=True, double=True, triple=True, skip=0, **kwargs):
+                 offbeat=True, double=True, triple=True, skip=0,
+                 downbeats=False, **kwargs):
         # load the beat detections and annotations
-        detections = load_beats(detections)
-        annotations = load_beats(annotations)
+        detections = load_beats(detections, downbeats)
+        annotations = load_beats(annotations, downbeats)
         # if these are 2D, use only the first column (i.e. the time stamp)
         if detections.ndim > 1:
             detections = detections[:, 0]
@@ -1239,6 +1248,8 @@ def add_parser(parser):
     s.add_argument('--skip', action='store', type=float, default=0,
                    help='skip first N seconds for evaluation '
                         '[default=%(default).3f]')
+    s.add_argument('--downbeats', action='store_true',
+                   help='evaluate only downbeats')
     # evaluation parameters
     g = p.add_argument_group('beat evaluation arguments')
     g.add_argument('--window', dest='fmeasure_window', action='store',

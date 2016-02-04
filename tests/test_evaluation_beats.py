@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function
 import unittest
 import math
 
+from . import ANNOTATIONS_PATH
 from madmom.evaluation.beats import *
 # noinspection PyProtectedMember
 from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
@@ -25,9 +26,26 @@ TRIPLE_ANNOTATIONS = np.asarray([1, 1.333333, 1.666667, 2, 2.333333, 2.666667,
                                  7, 7.333333, 7.666667, 8, 8.333333, 8.666667,
                                  9, 9.333333, 9.666667, 10])
 DETECTIONS = np.asarray([1.01, 2, 2.95, 4, 6, 7, 8, 9.1, 10, 11])
+SAMPLE_BEAT_ANNOTATIONS = np.asarray([0.0913, 0.7997, 1.4806, 2.1478])
 
 
 # test functions
+class TestLoadBeatsFunction(unittest.TestCase):
+
+    def test_load_beats_from_file(self):
+        beats = load_beats(ANNOTATIONS_PATH + '/sample.beats')
+        self.assertTrue(np.allclose(beats, SAMPLE_BEAT_ANNOTATIONS))
+
+    def test_load_downbeats_from_file(self):
+        downbeats = load_beats(ANNOTATIONS_PATH + '/sample.beats',
+                               downbeats=True)
+        self.assertTrue(np.allclose(downbeats, 0.0913))
+
+    def test_load_None(self):
+        beats = load_beats(None)
+        self.assertTrue(beats.size == 0)
+
+
 class TestVariationsFunction(unittest.TestCase):
 
     def test_types(self):
