@@ -758,16 +758,16 @@ class DBNBeatTrackingProcessor(Processor):
         if self.correct:
             beats = []
             # for each detection determine the "beat range", i.e. states where
-            # the pointers of the observation model are 0
+            # the pointers of the observation model are 1
             beat_range = self.om.pointers[path]
             # get all change points between True and False
             idx = np.nonzero(np.diff(beat_range))[0] + 1
             # if the first frame is in the beat range, add a change at frame 0
-            if not beat_range[0]:
+            if beat_range[0]:
                 idx = np.r_[0, idx]
             # if the last frame is in the beat range, append the length of the
             # array
-            if not beat_range[-1]:
+            if beat_range[-1]:
                 idx = np.r_[idx, beat_range.size]
             # iterate over all regions
             for left, right in idx.reshape((-1, 2)):
@@ -779,10 +779,10 @@ class DBNBeatTrackingProcessor(Processor):
             from scipy.signal import argrelmin
             beats = argrelmin(self.st.state_positions[path], mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the pointers
-            # of the observation model for that state must be 0
+            # of the observation model for that state must be 1
             # Note: interpolation and alignment of the beats to be at state 0
             #       does not improve results over this simple method
-            beats = beats[self.om.pointers[path[beats]] == 0]
+            beats = beats[self.om.pointers[path[beats]] == 1]
         # convert the detected beats to seconds
         return beats / float(self.fps)
 

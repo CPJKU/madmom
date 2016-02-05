@@ -477,10 +477,10 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         self.observation_lambda = observation_lambda
         # compute observation pointers
         # always point to the non-beat densities
-        pointers = np.ones(state_space.num_states, dtype=np.uint32)
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
-        pointers[state_space.state_positions < border] = 0
+        pointers[state_space.state_positions < border] = 1
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
@@ -503,9 +503,9 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         log_densities = np.empty((len(observations), 2), dtype=np.float)
         # Note: it's faster to call np.log 2 times instead of once on the
         #       whole 2d array
-        log_densities[:, 0] = np.log(observations)
-        log_densities[:, 1] = np.log((1. - observations) /
+        log_densities[:, 0] = np.log((1. - observations) /
                                      (self.observation_lambda - 1))
+        log_densities[:, 1] = np.log(observations)
         # return the densities
         return log_densities
 

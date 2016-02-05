@@ -415,11 +415,11 @@ class TestRNNBeatTrackingObservationModelClass(unittest.TestCase):
 
     def test_values(self):
         self.assertTrue(np.allclose(self.om.pointers,
-                                    [0, 0, 1, 0, 1, 1, 0, 1, 1, 1]))
+                                    [1, 1, 0, 1, 0, 0, 1, 0, 0, 0]))
         self.assertTrue(np.allclose(self.om.densities(self.obs),
-                                    [[1, 0], [0.1, 0.3],
-                                     [0.01, 0.33], [0, 1. / 3]]))
+                                    [[0, 1], [0.3, 0.1],
+                                     [0.33, 0.01], [1. / 3, 0]]))
         self.assertTrue(np.allclose(self.om.log_densities(self.obs),
-                                    [[0, -np.inf], [-2.30258508, -1.20397281],
-                                     [-4.60517021, -1.10866262],
-                                     [-np.inf, -1.09861229]]))
+                                    [[-np.inf, 0], [-1.20397281, -2.30258508],
+                                     [-1.10866262, -4.60517021],
+                                     [-1.09861229, -np.inf]]))
