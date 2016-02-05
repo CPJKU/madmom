@@ -55,23 +55,72 @@ CORRECT_FWD = np.array([[0.6754386, 0.23684211, 0.0877193],
                         [0.58171672, 0.30436365, 0.11391962]])
 
 
-class TestHmmInference(unittest.TestCase):
+class TestTransitionModelClass(unittest.TestCase):
 
     def setUp(self):
         frm, to, prob = list(zip(*TRANSITIONS))
+        self.tm = TransitionModel.from_dense(to, frm, prob)
 
+    def test_types(self):
+        self.assertIsInstance(self.tm.states, np.ndarray)
+        self.assertIsInstance(self.tm.pointers, np.ndarray)
+        self.assertIsInstance(self.tm.probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.log_probabilities, np.ndarray)
+        self.assertIsInstance(self.tm.num_states, int)
+        self.assertIsInstance(self.tm.num_transitions, int)
+        self.assertTrue(self.tm.states.dtype == np.uint32)
+        self.assertTrue(self.tm.pointers.dtype == np.uint32)
+        self.assertTrue(self.tm.probabilities.dtype == np.float)
+        self.assertTrue(self.tm.log_probabilities.dtype == np.float)
+
+    def test_values(self):
+        self.assertTrue(np.allclose(self.tm.states, [0, 1, 0, 1, 2, 1, 2]))
+        self.assertTrue(np.allclose(self.tm.pointers, [0, 2, 5, 7]))
+        self.assertTrue(np.allclose(self.tm.probabilities,
+                                    [0.7, 0.1, 0.3, 0.6, 0.3, 0.3, 0.7]))
+        log_prob = [-0.35667494, -2.30258509, -1.2039728, -0.51082562,
+                    -1.2039728, -1.2039728, -0.35667494]
+        self.assertTrue(np.allclose(self.tm.log_probabilities, log_prob))
+        self.assertTrue(self.tm.num_states == 3)
+        self.assertTrue(self.tm.num_transitions == 7)
+
+
+class TestDiscreteObservationModelClass(unittest.TestCase):
+
+    def setUp(self):
+        self.om = DiscreteObservationModel(OBS_PROB)
+
+    def test_types(self):
+        self.assertIsInstance(self.om.pointers, np.ndarray)
+        self.assertIsInstance(self.om.densities(OBS_SEQ), np.ndarray)
+        self.assertIsInstance(self.om.log_densities(OBS_SEQ), np.ndarray)
+        self.assertTrue(self.om.pointers.dtype == np.uint32)
+        self.assertTrue(self.om.densities(OBS_SEQ).dtype == np.float)
+        self.assertTrue(self.om.log_densities(OBS_SEQ).dtype == np.float)
+
+    def test_values(self):
+        self.assertTrue(np.allclose(self.om.pointers, [0, 1, 2]))
+        self.assertTrue(np.allclose(self.om.observation_probabilities,
+                                    OBS_PROB))
+        self.assertTrue(np.allclose(self.om.densities(OBS_SEQ),
+                                    OBS_PROB[:, OBS_SEQ].T))
+        self.assertTrue(np.allclose(self.om.log_densities(OBS_SEQ),
+                                    np.log(OBS_PROB[:, OBS_SEQ].T)))
+
+
+class TestHiddenMarkovModelClass(unittest.TestCase):
+
+    def setUp(self):
+        frm, to, prob = list(zip(*TRANSITIONS))
         tm = TransitionModel.from_dense(to, frm, prob)
         om = DiscreteObservationModel(OBS_PROB)
-
         self.hmm = HiddenMarkovModel(tm, om, PRIOR)
 
     def test_viterbi(self):
         correct_state_seq = np.array([0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2,
                                       2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0])
         correct_log_p = -35.2104311327
-
         state_seq, log_p = self.hmm.viterbi(OBS_SEQ)
-
         self.assertTrue((state_seq == correct_state_seq).all())
         self.assertAlmostEqual(log_p, correct_log_p)
 

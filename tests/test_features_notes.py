@@ -49,8 +49,7 @@ class TestExpandNotesFunction(unittest.TestCase):
 class TestWriteNotesFunction(unittest.TestCase):
 
     def test_values(self):
-        header = "MIDI notes for the stereo_sample.[flac|wav] file in the " \
-                 "same directory"
+        header = "MIDI notes for the stereo_sample.[flac|wav] file"
         result = write_notes(NOTES, ANNOTATIONS_PATH + 'stereo_sample.notes',
                              header=header)
         self.assertTrue(np.allclose(result, NOTES))

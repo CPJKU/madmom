@@ -624,8 +624,8 @@ class DBNBeatTrackingProcessor(Processor):
         Minimum tempo used for beat tracking [bpm].
     max_bpm : float, optional
         Maximum tempo used for beat tracking [bpm].
-    num_tempo_states : int, optional
-        Number of tempo states; if set, limit the number of states and use a
+    num_tempi : int, optional
+        Number of tempi to model; if set, limit the number of tempi and use a
         log spacing, otherwise a linear spacing.
     transition_lambda : float, optional
         Lambda for the exponential tempo change distribution (higher values
@@ -659,16 +659,15 @@ class DBNBeatTrackingProcessor(Processor):
            Retrieval Conference (ISMIR), 2015.
 
     """
-    CORRECT = True
-    NUM_TEMPO_STATES = None
+    MIN_BPM = 55.
+    MAX_BPM = 215.
+    NUM_TEMPI = None
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     NORM_OBSERVATIONS = False
-    MIN_BPM = 55.
-    MAX_BPM = 215.
+    CORRECT = True
 
-    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 num_tempo_states=NUM_TEMPO_STATES,
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, correct=CORRECT,
@@ -677,14 +676,14 @@ class DBNBeatTrackingProcessor(Processor):
         # pylint: disable=no-name-in-module
 
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (BeatTrackingStateSpace as St,
-                                BeatTrackingTransitionModel as Tm,
-                                BeatTrackingObservationModel as Om)
+        from .beats_hmm import (BeatStateSpace as St,
+                                BeatTransitionModel as Tm,
+                                RNNBeatTrackingObservationModel as Om)
 
-        # convert timing information to construct state space
+        # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
         max_interval = 60. * fps / min_bpm
-        self.st = St(min_interval, max_interval, num_tempo_states)
+        self.st = St(min_interval, max_interval, num_tempi)
         # transition model
         self.tm = Tm(self.st, transition_lambda)
         # observation model
@@ -735,8 +734,7 @@ class DBNBeatTrackingProcessor(Processor):
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
-            beats = argrelmin(self.st.position(path),
-                              mode='wrap')[0]
+            beats = argrelmin(self.st.state_positions[path], mode='wrap')[0]
             # recheck if they are within the "beat range", i.e. the pointers
             # of the observation model for that state must be 0
             # Note: interpolation and alignment of the beats to be at state 0
@@ -747,12 +745,11 @@ class DBNBeatTrackingProcessor(Processor):
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      num_tempo_states=NUM_TEMPO_STATES,
-                      transition_lambda=TRANSITION_LAMBDA,
+                      num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
                       observation_lambda=OBSERVATION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
         """
-        Add HMM related arguments to an existing parser object.
+        Add DBN related arguments to an existing parser object.
 
         Parameters
         ----------
@@ -762,8 +759,8 @@ class DBNBeatTrackingProcessor(Processor):
             Minimum tempo used for beat tracking [bpm].
         max_bpm : float, optional
             Maximum tempo used for beat tracking [bpm].
-        num_tempo_states : int, optional
-            Number of tempo states; if set, limit the number of states and use
+        num_tempi : int, optional
+            Number of tempi to model; if set, limit the number of tempi and use
             a log spacing, otherwise a linear spacing.
         transition_lambda : float, optional
             Lambda for the exponential tempo change distribution (higher values
@@ -794,12 +791,12 @@ class DBNBeatTrackingProcessor(Processor):
         g.add_argument('--max_bpm', action='store', type=float,
                        default=max_bpm,
                        help='maximum tempo [bpm,  default=%(default).2f]')
-        g.add_argument('--num_tempo_states', action='store', type=int,
-                       default=num_tempo_states,
-                       help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly')
-        g.add_argument('--transition_lambda', action='store',
-                       type=float, default=transition_lambda,
+        g.add_argument('--num_tempi', action='store', type=int,
+                       default=num_tempi,
+                       help='limit the number of tempi; if set, align the '
+                            'tempi with a log spacing, otherwise linearly')
+        g.add_argument('--transition_lambda', action='store', type=float,
+                       default=transition_lambda,
                        help='lambda of the tempo transition distribution; '
                             'higher values prefer a constant tempo over a '
                             'tempo change from one beat to the next one '
@@ -856,8 +853,8 @@ class PatternTrackingProcessor(Processor):
         Minimum tempi used for pattern tracking [bpm].
     max_bpm : list, optional
         Maximum tempi used for pattern tracking [bpm].
-    num_tempo_states : int or list, optional
-        Number of tempo states; if set, limit the number of states and use
+    num_tempi : int or list, optional
+        Number of tempi to model; if set, limit the number of tempi and use a
         log spacings, otherwise a linear spacings.
     transition_lambda : float or list, optional
         Lambdas for the exponential tempo change distributions (higher values
@@ -897,79 +894,90 @@ class PatternTrackingProcessor(Processor):
     # TODO: this should not be lists (lists are mutable!)
     MIN_BPM = [55, 60]
     MAX_BPM = [205, 225]
-    NUM_TEMPO_STATES = [None, None]
+    NUM_TEMPI = [None, None]
+    # TODO: make this parametric
+    # Note: if lambda is given as a list, the individual values represent the
+    #       lambdas for each transition into the beat at this index position
     TRANSITION_LAMBDA = [100, 100]
     NORM_OBSERVATIONS = False
 
     def __init__(self, pattern_files, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 num_tempo_states=NUM_TEMPO_STATES,
-                 transition_lambda=TRANSITION_LAMBDA,
+                 num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
                  norm_observations=NORM_OBSERVATIONS, downbeats=False,
                  fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
         import pickle
-
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (PatternTrackingStateSpace as St,
-                                PatternTrackingTransitionModel as Tm,
-                                GMMPatternTrackingObservationModel as Om)
+        from .beats_hmm import (BarStateSpace, BarTransitionModel,
+                                MultiPatternStateSpace,
+                                MultiPatternTransitionModel,
+                                GMMPatternTrackingObservationModel)
 
-        # expand num_tempo_states and transition_lambda to lists if needed
-        if not isinstance(num_tempo_states, list):
-            num_tempo_states = [num_tempo_states] * len(num_tempo_states)
+        # expand num_tempi and transition_lambda to lists if needed
+        if not isinstance(num_tempi, list):
+            num_tempi = [num_tempi] * len(pattern_files)
         if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * len(num_tempo_states)
+            transition_lambda = [transition_lambda] * len(pattern_files)
         # check if all lists have the same length
-        if not (len(min_bpm) == len(max_bpm) == len(num_tempo_states) ==
+        if not (len(min_bpm) == len(max_bpm) == len(num_tempi) ==
                 len(transition_lambda) == len(pattern_files)):
-            raise ValueError('`min_bpm`, `max_bpm`, `num_tempo_states` and '
+            raise ValueError('`min_bpm`, `max_bpm`, `num_tempi` and '
                              '`transition_lambda` must have the same length '
                              'as number of patterns.')
-
+        # save some variables
+        self.downbeats = downbeats
+        self.fps = fps
+        self.num_beats = []
+        # convert timing information to construct a state space
+        min_interval = 60. * self.fps / np.asarray(max_bpm)
+        max_interval = 60. * self.fps / np.asarray(min_bpm)
+        # collect beat/bar state spaces, transition models, and GMMs
+        state_spaces = []
+        transition_models = []
+        gmms = []
+        # check that at least one pattern is given
+        if not pattern_files:
+            raise ValueError('at least one rhythmical pattern must be given.')
         # load the patterns
-        patterns = []
-        for pattern_file in pattern_files:
+        for p, pattern_file in enumerate(pattern_files):
             with open(pattern_file, 'rb') as f:
                 # Python 2 and 3 behave differently
                 # TODO: use some other format to save the GMMs (.npz, .hdf5)
                 try:
                     # Python 3
-                    patterns.append(pickle.load(f, encoding='latin1'))
+                    pattern = pickle.load(f, encoding='latin1')
                 except TypeError:
                     # Python 2 doesn't have/need the encoding
-                    patterns.append(pickle.load(f))
-        if not patterns:
-            raise ValueError('at least one rhythmical pattern must be given.')
-        # extract the GMMs and number of beats
-        gmms = [p['gmms'] for p in patterns]
-        self.num_beats = [p['num_beats'] for p in patterns]
-        # save additional variables
-        self.downbeats = downbeats
-        self.fps = fps
-        # convert timing information to construct state space
-        # Note: since we model a complete bar, we must multiply the intervals
-        #       by the number of beats in that pattern
-        min_interval = 60. * self.fps / np.asarray(max_bpm) * self.num_beats
-        max_interval = 60. * self.fps / np.asarray(min_bpm) * self.num_beats
-        # state space
-        self.st = St(min_interval, max_interval, num_tempo_states)
-        # transition model
-        self.tm = Tm(self.st, transition_lambda)
-        # observation model
-        self.om = Om(gmms, self.st, norm_observations)
+                    pattern = pickle.load(f)
+            # get the fitted GMMs and number of beats
+            gmms.append(pattern['gmms'])
+            num_beats = pattern['num_beats']
+            self.num_beats.append(num_beats)
+            # model each rhythmic pattern as a bar
+            state_space = BarStateSpace(num_beats, min_interval[p],
+                                        max_interval[p], num_tempi[p])
+            transition_model = BarTransitionModel(state_space,
+                                                  transition_lambda[p])
+            state_spaces.append(state_space)
+            transition_models.append(transition_model)
+        # create multi pattern state space, transition and observation model
+        self.st = MultiPatternStateSpace(state_spaces)
+        self.tm = MultiPatternTransitionModel(transition_models)
+        self.om = GMMPatternTrackingObservationModel(gmms, self.st,
+                                                     norm_observations)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
     def process(self, activations):
         """
-        Detect the beats in the given activation function.
+        Detect the beats based on the given activations.
 
         Parameters
         ----------
         activations : numpy array
-            Beat activation function.
+            Activations (i.e. multi-band spectral features).
 
         Returns
         -------
@@ -979,34 +987,32 @@ class PatternTrackingProcessor(Processor):
         """
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
-        # get the corresponding pattern (use only the first state, since it
-        # doesn't change throughout the sequence)
-        pattern = self.st.pattern(path[0])
-        # the position inside the pattern (0..1)
-        position = self.st.position(path)
-        # beat position (= weighted by number of beats in bar)
-        beat_counter = (position * self.num_beats[pattern]).astype(int)
-        # transitions are the points where the beat counters change
+        # the positions inside the pattern (0..num_beats)
+        positions = self.st.state_positions[path]
+        # corresponding beats (add 1 for natural counting)
+        beat_numbers = positions.astype(int) + 1
+        # transitions are the points where the beat numbers change
         # FIXME: we might miss the first or last beat!
         #        we could calculate the interval towards the beginning/end to
         #        decide whether to include these points
-        beat_positions = np.nonzero(np.diff(beat_counter))[0] + 1
-        # the beat numbers are the counters + 1 at the transition points
-        beat_numbers = beat_counter[beat_positions] + 1
-        # convert the detected beats to a list of timestamps
-        beats = np.asarray(beat_positions) / float(self.fps)
+        beat_positions = np.nonzero(np.diff(beat_numbers))[0] + 1
+        # stack the beat positions (converted to seconds) and beat numbers
+        beats = np.vstack((beat_positions / float(self.fps),
+                           beat_numbers[beat_positions])).T
         # return the downbeats or beats and their beat number
         if self.downbeats:
-            return beats[beat_numbers == 1]
+            return beats[beats[:, 1] == 1][0, :]
         else:
-            return np.vstack(zip(beats, beat_numbers))
+            return beats
 
     @staticmethod
     def add_arguments(parser, pattern_files=None, min_bpm=MIN_BPM,
-                      max_bpm=MAX_BPM, num_tempo_states=NUM_TEMPO_STATES,
+                      max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                       transition_lambda=TRANSITION_LAMBDA,
                       norm_observations=NORM_OBSERVATIONS):
         """
+        Add DBN related arguments for pattern tracking to an existing parser
+        object.
 
         Parameters
         ----------
@@ -1018,9 +1024,9 @@ class PatternTrackingProcessor(Processor):
             Minimum tempi used for beat tracking [bpm].
         max_bpm : list, optional
             Maximum tempi used for beat tracking [bpm].
-        num_tempo_states : int or list, optional
-            Number of tempo states; if set, limit the number of states and use
-            log spacings, otherwise a linear spacings.
+        num_tempi : int or list, optional
+            Number of tempi to model; if set, limit the number of states and
+            use log spacings, otherwise a linear spacings.
         transition_lambda : float or list, optional
             Lambdas for the exponential tempo change distribution (higher
             values prefer constant tempi from one beat to the next one).
@@ -1030,11 +1036,11 @@ class PatternTrackingProcessor(Processor):
         Returns
         -------
         parser_group : argparse argument group
-            Downbeat tracking argument parser group
+            Pattern tracking argument parser group
 
         Notes
         -----
-        `pattern_files`, `min_bpm`, `max_bpm`, `num_tempo_states`, and
+        `pattern_files`, `min_bpm`, `max_bpm`, `num_tempi`, and
         `transition_lambda` must the same number of items.
 
         """
@@ -1056,10 +1062,10 @@ class PatternTrackingProcessor(Processor):
                        default=max_bpm, type=float, sep=',',
                        help='maximum tempo (comma separated list with one '
                             'value per pattern) [bpm, default=%(default)s]')
-        g.add_argument('--num_tempo_states', action=OverrideDefaultListAction,
-                       default=num_tempo_states, type=int, sep=',',
-                       help='limit the number of tempo states; if set, align '
-                            'them with a log spacing, otherwise linearly '
+        g.add_argument('--num_tempi', action=OverrideDefaultListAction,
+                       default=num_tempi, type=int, sep=',',
+                       help='limit the number of tempi; if set, align the '
+                            'tempi with log spacings, otherwise linearly '
                             '(comma separated list with one value per pattern)'
                             ' [default=%(default)s]')
         g.add_argument('--transition_lambda', action=OverrideDefaultListAction,
@@ -1073,11 +1079,11 @@ class PatternTrackingProcessor(Processor):
         if norm_observations:
             g.add_argument('--no_norm_obs', dest='norm_observations',
                            action='store_false', default=norm_observations,
-                           help='do not normalize the observations of the HMM')
+                           help='do not normalize the observations of the DBN')
         else:
             g.add_argument('--norm_obs', dest='norm_observations',
                            action='store_true', default=norm_observations,
-                           help='normalize the observations of the HMM')
+                           help='normalize the observations of the DBN')
         # add output format stuff
         g = parser.add_argument_group('output arguments')
         g.add_argument('--downbeats', action='store_true', default=False,
