@@ -135,24 +135,27 @@ def remix(signal, num_channels):
     Returns
     -------
     numpy array
-        Remixed signal (same dtype as `signal`).
+        Remixed signal (with floating point dtype).
 
     Notes
     -----
     This function does not support arbitrary channel number conversions.
     Only down-mixing to and up-mixing from mono signals is supported.
-    The signal is returned with the same dtype, thus in case of down-mixing
-    signals with integer dtypes, rounding errors may occur.
+    If the signal's dtype is integer, it will be casted to np.float32.
 
     """
+    # cast to np.float32 if signal is of integer type
+    # to prevent clipping when downmixing
+    if np.issubdtype(signal.dtype, np.integer):
+        signal = signal.astype(np.float32)
     # convert to the desired number of channels
     if num_channels == signal.ndim or num_channels is None:
-        # return as many channels as there are
+        # return as many channels as there are.
         return signal
     elif num_channels == 1 and signal.ndim > 1:
-        # down-mix to mono (keep the original dtype)
+        # down-mix to mono
         # TODO: add weighted mixing
-        return np.mean(signal, axis=-1, dtype=signal.dtype)
+        return np.mean(signal, axis=-1)
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
         return np.tile(signal[:, np.newaxis], num_channels)
