@@ -57,9 +57,10 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
 
     def test_types(self):
         self.assertIsInstance(self.processor.correct, bool)
-        self.assertIsInstance(self.processor.st, BeatTrackingStateSpace)
-        self.assertIsInstance(self.processor.tm, BeatTrackingTransitionModel)
-        self.assertIsInstance(self.processor.om, BeatTrackingObservationModel)
+        self.assertIsInstance(self.processor.st, BeatStateSpace)
+        self.assertIsInstance(self.processor.tm, BeatTransitionModel)
+        self.assertIsInstance(self.processor.om,
+                              RNNBeatTrackingObservationModel)
         self.assertIsInstance(self.processor.hmm, HiddenMarkovModel)
 
     def test_values(self):
@@ -69,12 +70,11 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
                                                 2035, 2036, 1968, 1969, 1970,
                                                 1971, 1972, 1973, 1974, 1975]))
         self.assertTrue(np.allclose(prob, -772.03353))
-        position = self.processor.st.position(path)
-        self.assertTrue(np.allclose(position[:11], [0.89855075, 0.9130435,
-                                                    0.92753625, 0.942029,
-                                                    0.95652175, 0.9710145,
-                                                    0.98550725, 0, 0.01449275,
-                                                    0.02898551, 0.04347826]))
+        positions = self.processor.st.state_positions[path]
+        self.assertTrue(np.allclose(positions[:10],
+                                    [0.89855075, 0.9130435, 0.92753625,
+                                     0.942029, 0.95652175, 0.9710145,
+                                     0.98550725, 0, 0.01449275, 0.02898551]))
 
     def test_process(self):
         beats = self.processor(act)
@@ -95,30 +95,30 @@ class TestPatternTrackingProcessorClass(unittest.TestCase):
     def test_types(self):
         self.assertIsInstance(self.processor.downbeats, bool)
         self.assertIsInstance(self.processor.num_beats, list)
-        self.assertIsInstance(self.processor.st, PatternTrackingStateSpace)
-        self.assertIsInstance(self.processor.tm,
-                              PatternTrackingTransitionModel)
+        self.assertIsInstance(self.processor.st, MultiPatternStateSpace)
+        self.assertIsInstance(self.processor.tm, MultiPatternTransitionModel)
         self.assertIsInstance(self.processor.om,
                               GMMPatternTrackingObservationModel)
         self.assertIsInstance(self.processor.hmm, HiddenMarkovModel)
 
     def test_values(self):
+        self.assertTrue(self.processor.fps == 50)
         self.assertTrue(self.processor.downbeats is False)
         self.assertTrue(np.allclose(self.processor.num_beats, [3, 4]))
         path, prob = self.processor.hmm.viterbi(self.act)
-        self.assertTrue(np.allclose(path[:12], [13497, 13498, 13499, 13500,
-                                                13501, 13502, 13503, 13504,
-                                                13505, 13506, 13507, 13508]))
-        self.assertTrue(np.allclose(prob, -463.3286))
-        pattern = self.processor.st.pattern(path)
-        self.assertTrue(np.allclose(pattern, np.ones(len(self.act))))
-        position = self.processor.st.position(path)
-        self.assertTrue(np.allclose(position[:6], [0.19117647, 0.20588236,
-                                                   0.22058824, 0.23529412,
-                                                   0.25, 0.2647059]))
+        self.assertTrue(np.allclose(path[:12], [5573, 5574, 5575, 5576, 6757,
+                                                6758, 6759, 6760, 6761, 6762,
+                                                6763, 6764]))
+        self.assertTrue(np.allclose(prob, -468.8014))
+        patterns = self.processor.st.state_patterns[path]
+        self.assertTrue(np.allclose(patterns, np.ones(len(self.act))))
+        positions = self.processor.st.state_positions[path]
+        self.assertTrue(np.allclose(positions[:6], [1.76470588, 1.82352944,
+                                                    1.88235296, 1.94117648,
+                                                    2, 2.0588236]))
 
     def test_process(self):
         beats = self.processor(self.act)
-        self.assertTrue(np.allclose(beats, [[0.08, 2], [0.42, 3], [0.76, 4],
-                                            [1.1, 1], [1.46, 2], [1.8, 3],
-                                            [2.14, 4], [2.48, 1]]))
+        self.assertTrue(np.allclose(beats, [[0.08, 3], [0.42, 4], [0.76, 1],
+                                            [1.1, 2], [1.44, 3], [1.78, 4],
+                                            [2.12, 1], [2.46, 2], [2.8, 3]]))

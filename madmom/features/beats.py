@@ -917,9 +917,9 @@ class PatternTrackingProcessor(Processor):
 
         # expand num_tempi and transition_lambda to lists if needed
         if not isinstance(num_tempi, list):
-            num_tempi = [num_tempi] * len(num_tempi)
+            num_tempi = [num_tempi] * len(pattern_files)
         if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * len(num_tempi)
+            transition_lambda = [transition_lambda] * len(pattern_files)
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempi) ==
                 len(transition_lambda) == len(pattern_files)):
