@@ -926,42 +926,45 @@ class PatternTrackingProcessor(Processor):
             raise ValueError('`min_bpm`, `max_bpm`, `num_tempi` and '
                              '`transition_lambda` must have the same length '
                              'as number of patterns.')
+        # save some variables
+        self.downbeats = downbeats
+        self.fps = fps
+        self.num_beats = []
+        # convert timing information to construct a state space
+        min_interval = 60. * self.fps / np.asarray(max_bpm)
+        max_interval = 60. * self.fps / np.asarray(min_bpm)
+        # collect beat/bar state spaces, transition models, and GMMs
+        state_spaces = []
+        transition_models = []
+        gmms = []
+        # check that at least one pattern is given
+        if not pattern_files:
+            raise ValueError('at least one rhythmical pattern must be given.')
         # load the patterns
-        patterns = []
-        for pattern_file in pattern_files:
+        for p, pattern_file in enumerate(pattern_files):
             with open(pattern_file, 'rb') as f:
                 # Python 2 and 3 behave differently
                 # TODO: use some other format to save the GMMs (.npz, .hdf5)
                 try:
                     # Python 3
-                    patterns.append(pickle.load(f, encoding='latin1'))
+                    pattern = pickle.load(f, encoding='latin1')
                 except TypeError:
                     # Python 2 doesn't have/need the encoding
-                    patterns.append(pickle.load(f))
-        if not patterns:
-            raise ValueError('at least one rhythmical pattern must be given.')
-        # extract the GMMs and number of beats
-        gmms = [p['gmms'] for p in patterns]
-        self.num_beats = [p['num_beats'] for p in patterns]
-        # save additional variables
-        self.downbeats = downbeats
-        self.fps = fps
-        # convert timing information to construct a state space
-        min_interval = 60. * self.fps / np.asarray(max_bpm)
-        max_interval = 60. * self.fps / np.asarray(min_bpm)
-        # construct a multi pattern state space and transition model
-        state_spaces = []
-        transition_models = []
-        for p in range(len(patterns)):
+                    pattern = pickle.load(f)
+            # get the fitted GMMs and number of beats
+            gmms.append(pattern['gmms'])
+            num_beats = pattern['num_beats']
+            self.num_beats.append(num_beats)
             # model each rhythmic pattern as a bar
-            st = BarStateSpace(self.num_beats[p], min_interval[p],
-                               max_interval[p], num_tempi[p])
-            tm = BarTransitionModel(st, transition_lambda[p])
-            state_spaces.append(st)
-            transition_models.append(tm)
+            state_space = BarStateSpace(num_beats, min_interval[p],
+                                        max_interval[p], num_tempi[p])
+            transition_model = BarTransitionModel(state_space,
+                                                  transition_lambda[p])
+            state_spaces.append(state_space)
+            transition_models.append(transition_model)
+        # create multi pattern state space, transition and observation model
         self.st = MultiPatternStateSpace(state_spaces)
         self.tm = MultiPatternTransitionModel(transition_models)
-        # observation model
         self.om = GMMPatternTrackingObservationModel(gmms, self.st,
                                                      norm_observations)
         # instantiate a HMM
