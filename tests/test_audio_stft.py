@@ -44,26 +44,26 @@ class TestBinFrequenciesFunction(unittest.TestCase):
 class TestStftFunction(unittest.TestCase):
 
     def test_types(self):
-        result = stft(np.arange(10).reshape(5, 2))
+        result = stft(np.arange(10).reshape(5, 2), window=None)
         self.assertIsInstance(result, np.ndarray)
         self.assertEqual(result.dtype, np.complex64)
 
     def test_dimensionality(self):
         # input must be 2D
         with self.assertRaises(ValueError):
-            stft(np.arange(10))
+            stft(np.arange(10), window=None)
         # like this:
-        result = stft(np.arange(10).reshape(5, 2))
+        result = stft(np.arange(10).reshape(5, 2), window=None)
         self.assertEqual(result.shape, (5, 1))
         # window size must match frame size
         with self.assertRaises(ValueError):
             stft(np.arange(10).reshape(5, 2), window=[1, 2, 3])
         # fft size must be greater or equal frame size
         with self.assertRaises(ValueError):
-            stft(np.arange(10).reshape(5, 2), fft_size=1)
+            stft(np.arange(10).reshape(5, 2), window=None, fft_size=1)
 
     def test_value(self):
-        result = stft(sig_2d)
+        result = stft(sig_2d, window=None)
         # signal length and FFT size = 12
         # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
         # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
@@ -78,7 +78,7 @@ class TestStftFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result[2], res))
 
     def test_circular_shift(self):
-        result = stft(sig_2d, circular_shift=True)
+        result = stft(sig_2d, window=None, circular_shift=True)
         # signal length and FFT size = 12
         # fft_freqs: 0, 1/12, 2/12, 3/12, 4/12, 5/12
         # [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] every 4th bin => 3/12
