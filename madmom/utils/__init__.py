@@ -436,7 +436,7 @@ class OverrideDefaultListAction(argparse.Action):
 
 
 # taken from: http://www.scipy.org/Cookbook/SegmentAxis
-def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
+def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                  end_value=0):
     """
     Generate a new array that chops the given array along the given axis into
@@ -448,7 +448,7 @@ def segment_axis(signal, frame_size, hop_size=1, axis=None, end='cut',
         Signal.
     frame_size : int
         Size of each frame [samples].
-    hop_size : int, optional
+    hop_size : int
         Hop size between adjacent frames [samples].
     axis : int, optional
         Axis to operate on; if 'None', operate on the flattened array.
