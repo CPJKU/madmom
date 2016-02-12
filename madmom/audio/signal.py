@@ -252,7 +252,7 @@ def sound_pressure_level(signal, p_ref=None):
         if p_ref is None:
             # find a reasonable default reference value
             if np.issubdtype(signal.dtype, np.integer):
-                p_ref = np.iinfo(signal.dtype).max
+                p_ref = float(np.iinfo(signal.dtype).max)
             else:
                 p_ref = 1.0
         # normal SPL computation
@@ -675,7 +675,9 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     start = ref_sample - frame_size // 2 - int(origin)
     stop = start + frame_size
     # return the requested portion of the signal
-    # Note: usually np.zeros_like(signal[:frame_size]) is exactly what we want
+    # Note: np.pad(signal[from: to], (pad_left, pad_right), mode='constant')
+    #       always returns a ndarray, not the subclass (and is slower);
+    #       usually np.zeros_like(signal[:frame_size]) is exactly what we want
     #       (i.e. zeros of frame_size length and the same type/class as the
     #       signal and not just the dtype), but since we have no guarantee that
     #       the signal is that long, we have to use the np.repeat workaround

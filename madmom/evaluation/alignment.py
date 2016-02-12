@@ -415,6 +415,7 @@ class AlignmentSumEvaluation(AlignmentEvaluation):
         Name to be displayed.
 
     """
+    # pylint: disable=super-init-not-called
 
     def __init__(self, eval_objects, name=None):
         self.name = name or 'piecewise mean for %d files' % len(eval_objects)
@@ -440,6 +441,7 @@ class AlignmentMeanEvaluation(AlignmentEvaluation):
         Name to be displayed.
 
     """
+    # pylint: disable=super-init-not-called
 
     def __init__(self, eval_objects, name=None):
         self.name = name or 'mean for %d files' % len(eval_objects)

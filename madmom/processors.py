@@ -104,8 +104,7 @@ class Processor(object):
         raise NotImplementedError('must be implemented by subclass.')
 
     def __call__(self, *args):
-        """This magic method makes a Processor instance callable."""
-        # pylint: no-value-for-parameter
+        # this magic method makes a Processor callable
         return self.process(*args)
 
 
@@ -191,6 +190,7 @@ class SequentialProcessor(MutableSequence, Processor):
     SequentialProcessor itself.
 
     """
+
     def __init__(self, processors):
         self.processors = []
         # iterate over all given processors and save them
@@ -328,6 +328,8 @@ class ParallelProcessor(SequentialProcessor):
     :class:`SequentialProcessor`.
 
     """
+    # pylint: disable=too-many-ancestors
+
     NUM_THREADS = 1
 
     def __init__(self, processors, num_threads=NUM_THREADS):

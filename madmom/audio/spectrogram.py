@@ -69,11 +69,11 @@ def adaptive_whitening(spec, floor=0.5, relaxation=10):
     relaxation = 10.0 ** (-6. * relaxation)
     p = np.zeros_like(spec)
     # iterate over all frames
-    for f in range(len(spec)):
+    for f, frame in enumerate(spec):
         if f > 0:
-            p[f] = np.maximum(spec[f], floor, relaxation * p[f - 1])
+            p[f] = np.maximum(frame, floor, relaxation * p[f - 1])
         else:
-            p[f] = np.maximum(spec[f], floor)
+            p[f] = np.maximum(frame, floor)
     # return the whitened spectrogram
     return spec / p
 
@@ -1156,6 +1156,7 @@ class SuperFluxProcessor(SequentialProcessor):
     SuperFlux algorithm.
 
     """
+    # pylint: disable=too-many-ancestors
 
     def __init__(self, **kwargs):
         from .stft import ShortTimeFourierTransformProcessor
