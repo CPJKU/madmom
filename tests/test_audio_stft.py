@@ -8,7 +8,6 @@ This file contains tests for the madmom.audio.stft module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import pickle
 
 from . import AUDIO_PATH
 from madmom.audio.stft import *
@@ -148,44 +147,32 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, ShortTimeFourierTransform)
         self.assertIsInstance(result, np.ndarray)
+        # attributes
         self.assertIsInstance(result.frames, FramedSignal)
+        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.window, np.ndarray)
         self.assertIsInstance(result.fft_window, np.ndarray)
         self.assertIsInstance(result.fft_size, int)
         self.assertIsInstance(result.circular_shift, bool)
         # properties
-        self.assertIsInstance(result.num_frames, int)
-        self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.num_bins, int)
+        self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
         result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
+        self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(result.fft_size == 2048)
+        self.assertTrue(result.circular_shift is False)
+        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
         self.assertTrue(np.allclose(result.fft_window,
                                     np.hanning(2048) / 32767))
-        # properties
-        self.assertTrue(result.num_frames == 281)
         self.assertTrue(np.allclose(result.bin_frequencies,
                                     fft_frequencies(1024, 44100)))
+        # properties
+        self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result.shape == (281, 1024))
         # from STFT
         self.assertTrue(np.allclose(ShortTimeFourierTransform(result), result))
-
-    def test_pickle(self):
-        # test with non-default values
-        result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav',
-                                           window=np.hamming, fft_size=4096,
-                                           circular_shift=True)
-        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
-        dump = pickle.loads(dump)
-        self.assertTrue(np.allclose(result, dump))
-        # additional attributes
-        self.assertTrue(np.allclose(result.window, dump.window))
-        self.assertTrue(np.allclose(result.fft_window, dump.fft_window))
-        self.assertTrue(result.fft_size == dump.fft_size)
-        self.assertTrue(result.circular_shift == dump.circular_shift)
 
     def test_methods(self):
         result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
@@ -214,26 +201,32 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
 
 class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
 
+    def setUp(self):
+        self.processor = ShortTimeFourierTransformProcessor()
+
     def test_types(self):
-        processor = ShortTimeFourierTransformProcessor()
-        self.assertIsInstance(processor, ShortTimeFourierTransformProcessor)
+        self.assertIsInstance(self.processor,
+                              ShortTimeFourierTransformProcessor)
 
     def test_values(self):
-        processor = ShortTimeFourierTransformProcessor()
-        self.assertTrue(processor.window == np.hanning)
-        self.assertTrue(processor.fft_size is None)
-        self.assertTrue(processor.circular_shift is False)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
+        self.assertTrue(self.processor.window == np.hanning)
+        self.assertTrue(self.processor.fft_size is None)
+        self.assertTrue(self.processor.circular_shift is False)
+
+    def test_process(self):
+        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        # attributes
+        self.assertTrue(result.shape == (281, 1024))
+        self.assertTrue(np.allclose(result.bin_frequencies,
+                                    fft_frequencies(1024, 44100)))
         self.assertIsInstance(result, ShortTimeFourierTransform)
         self.assertTrue(result.fft_size == 2048)
         self.assertTrue(np.allclose(result.fft_window,
                                     np.hanning(2048) / 32767))
+
         # properties
-        self.assertTrue(result.num_frames == 281)
-        self.assertTrue(np.allclose(result.bin_frequencies,
-                                    fft_frequencies(1024, 44100)))
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result.shape == (281, 1024))
+        self.assertTrue(result.num_frames == 281)
 
 
 class PhaseClass(unittest.TestCase):
@@ -242,27 +235,22 @@ class PhaseClass(unittest.TestCase):
         result = Phase(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Phase)
         self.assertIsInstance(result, np.ndarray)
+        # attributes
         self.assertIsInstance(result.stft, ShortTimeFourierTransform)
-        self.assertIsInstance(result.frames, FramedSignal)
-        # properties
-        self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        # properties
         self.assertIsInstance(result.num_bins, int)
+        self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
         result = Phase(AUDIO_PATH + '/sample.wav')
-        # properties
-        self.assertTrue(result.num_frames == 281)
+        # attributes
+        self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.allclose(result.bin_frequencies,
                                     fft_frequencies(1024, 44100)))
+        # properties
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result.shape == (281, 1024))
-
-    def test_pickle(self):
-        result = Phase(AUDIO_PATH + '/sample.wav')
-        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
-        dump = pickle.loads(dump)
-        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(result.num_frames == 281)
 
     def test_methods(self):
         result = Phase(AUDIO_PATH + '/sample.wav')
@@ -280,25 +268,20 @@ class LocalGroupDelayClass(unittest.TestCase):
         result = LocalGroupDelay(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, LocalGroupDelay)
         self.assertIsInstance(result, np.ndarray)
+        # attributes
         self.assertIsInstance(result.phase, Phase)
         self.assertIsInstance(result.stft, ShortTimeFourierTransform)
-        self.assertIsInstance(result.frames, FramedSignal)
-        # properties
-        self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
+        # properties
         self.assertIsInstance(result.num_bins, int)
+        self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
         result = LocalGroupDelay(AUDIO_PATH + '/sample.wav')
-        # properties
-        self.assertTrue(result.num_frames == 281)
+        # attributes
+        self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.allclose(result.bin_frequencies,
                                     fft_frequencies(1024, 44100)))
+        # properties
         self.assertTrue(result.num_bins == 1024)
-        self.assertTrue(result.shape == (281, 1024))
-
-    def test_pickle(self):
-        result = LocalGroupDelay(AUDIO_PATH + '/sample.wav')
-        dump = pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL)
-        dump = pickle.loads(dump)
-        self.assertTrue(np.allclose(result, dump))
+        self.assertTrue(result.num_frames == 281)

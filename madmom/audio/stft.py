@@ -173,8 +173,7 @@ lgd = local_group_delay
 # mixin for some basic properties of all classes
 class PropertyMixin(object):
     """
-    Mixin which provides `num_frames`, `num_bins` and `bin_frequencies`
-    properties to classes.
+    Mixin which provides `num_frames`, `num_bins` properties to classes.
 
     """
 
@@ -188,17 +187,8 @@ class PropertyMixin(object):
         """Number of bins."""
         return self.shape[1]
 
-    @property
-    def bin_frequencies(self):
-        """Frequencies of the bins."""
-        try:
-            return self.filterbank.center_frequencies
-        except AttributeError:
-            return fft_frequencies(self.num_bins,
-                                   self.frames.signal.sample_rate)
 
-
-# short-time Fourier transform classes
+# short-time Fourier transform class
 class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     """
     ShortTimeFourierTransform class.
@@ -206,7 +196,7 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     Parameters
     ----------
     frames : :class:`.audio.signal.FramedSignal` instance
-        :class:`.audio.signal.FramedSignal` instance.
+        FramedSignal instance.
     window : numpy ufunc or numpy array, optional
         Window (function); if a function (e.g. np.hanning) is given, a window
         of the given shape of size of the `frames` is used.
@@ -265,10 +255,11 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
             # if the audio signal is not scaled, scale the window accordingly
             max_range = float(np.iinfo(frames.signal.dtype).max)
             try:
-                # if the window is None, we can't scale it
+                # scale the window by the max_range
                 fft_window = window / max_range
             except TypeError:
-                # create a uniform window and scale it accordingly
+                # if the window is None we can't scale it, thus create a
+                # uniform window and scale it accordingly
                 fft_window = np.ones(frame_size) / max_range
         except ValueError:
             # no scaling needed, use the window as is (can also be None)
@@ -282,6 +273,8 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
         obj = np.asarray(data).view(cls)
         # save the other parameters
         obj.frames = frames
+        obj.bin_frequencies = fft_frequencies(obj.shape[1],
+                                              frames.signal.sample_rate)
         obj.window = window
         obj.fft_window = fft_window
         obj.fft_size = fft_size if fft_size else frame_size
@@ -294,31 +287,11 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
             return
         # set default values here, also needed for views
         self.frames = getattr(obj, 'frames', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.window = getattr(obj, 'window', np.hanning)
         self.fft_window = getattr(obj, 'fft_window', None)
         self.fft_size = getattr(obj, 'fft_size', None)
         self.circular_shift = getattr(obj, 'circular_shift', False)
-
-    def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
-        # get the parent's __reduce__ tuple
-        pickled_state = super(ShortTimeFourierTransform, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.window, self.fft_window,
-                                        self.fft_size, self.circular_shift)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        # needed for correct un-pickling
-        # set the attributes
-        self.window = state[-4]
-        self.fft_window = state[-3]
-        self.fft_size = state[-2]
-        self.circular_shift = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(ShortTimeFourierTransform, self).__setstate__(state[0:-4])
 
     def spec(self, **kwargs):
         """
@@ -494,7 +467,7 @@ class Phase(PropertyMixin, np.ndarray):
         obj = np.asarray(phase(stft)).view(cls)
         # save additional attributes
         obj.stft = stft
-        obj.frames = stft.frames
+        obj.bin_frequencies = stft.bin_frequencies
         # return the object
         return obj
 
@@ -503,7 +476,7 @@ class Phase(PropertyMixin, np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
 
     def local_group_delay(self, **kwargs):
         """
@@ -561,7 +534,7 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
         # save additional attributes
         obj.phase = phase
         obj.stft = phase.stft
-        obj.frames = phase.stft.frames
+        obj.bin_frequencies = phase.bin_frequencies
         # return the object
         return obj
 
@@ -571,7 +544,7 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
         # set default values here, also needed for views
         self.phase = getattr(obj, 'phase', None)
         self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
 
 
 LGD = LocalGroupDelay

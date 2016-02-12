@@ -119,11 +119,15 @@ class PitchClassProfile(FilteredSpectrogram):
         # save additional attributes
         obj.filterbank = filterbank
         obj.spectrogram = spectrogram
-        # and those from the given spectrogram
-        obj.stft = spectrogram.stft
-        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here, also needed for views
+        self.filterbank = getattr(obj, 'filterbank', None)
+        self.spectrogram = getattr(obj, 'spectrogram', None)
 
 
 class HarmonicPitchClassProfile(PitchClassProfile):
@@ -202,8 +206,5 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         # save additional attributes
         obj.filterbank = filterbank
         obj.spectrogram = spectrogram
-        # and those from the given spectrogram
-        obj.stft = spectrogram.stft
-        obj.frames = spectrogram.stft.frames
         # return the object
         return obj

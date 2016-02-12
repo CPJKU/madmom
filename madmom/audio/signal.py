@@ -455,23 +455,6 @@ class Signal(np.ndarray):
         # set default values here, also needed for views of the Signal
         self.sample_rate = getattr(obj, 'sample_rate', None)
 
-    def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
-        # get the parent's __reduce__ tuple
-        pickled_state = super(Signal, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.sample_rate,)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        # needed for correct un-pickling
-        # set the sample_rate
-        self.sample_rate = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(Signal, self).__setstate__(state[0:-1])
-
     @property
     def num_samples(self):
         """Number of samples."""
