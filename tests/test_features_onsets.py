@@ -135,9 +135,8 @@ class TestRectifiedComplexDomainFunction(unittest.TestCase):
 
     def test_values(self):
         odf = rectified_complex_domain(spec)
-        self.assertTrue(np.allclose(odf[:6], [0, 648.42370605, 856.32275391,
-                                              365.96682739, 284.34420776,
-                                              313.95132446]))
+        self.assertTrue(np.allclose(odf[:6], [0, 394.165222, 119.79425,
+                                              96.70564, 122.52311, 92.61698]))
 
     def test_errors(self):
         with self.assertRaises(ValueError):
@@ -151,9 +150,8 @@ class TestSpectralOnsetProcessorClass(unittest.TestCase):
 
     def test_process(self):
         odf = self.processor(log_filt_spec)
-        self.assertTrue(np.allclose(odf[:6], [0, 2.08680153, 0.6411702,
-                                              0.38634294, 0.40202433,
-                                              0.63349575]))
+        self.assertTrue(np.allclose(odf[:6], [0, 2.0868, 0.64117,
+                                              0.386343, 0.402024, 0.6335]))
 
 
 class TestPeakPickingFunction(unittest.TestCase):

@@ -567,13 +567,11 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
            Effects (DAFx), 2006.
 
     """
-    # if the diff of a spectrogram is given, do not calculate the diff twice
-    if not isinstance(spectrogram, SpectrogramDifference):
-        spectrogram = spectrogram.diff(diff_frames=diff_frames)
     # rectified complex domain
     rcd = _complex_domain(spectrogram)
     # only keep values where the magnitude rises
-    rcd *= spectrogram
+    pos_diff = spectrogram.diff(diff_frames=diff_frames, positive_diffs=True)
+    rcd *= pos_diff.astype(bool)
     # take the sum of the absolute changes
     return np.sum(np.abs(rcd), axis=1)
 
