@@ -422,7 +422,7 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         self.assertIsInstance(result, SpectrogramDifference)
         self.assertIsInstance(result, Spectrogram)
         # attributes
-        self.assertIsInstance(result.stft, ShortTimeFourierTransform)
+        self.assertIsInstance(result.spectrogram, Spectrogram)
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
         self.assertIsInstance(result.diff_ratio, float)
         self.assertIsInstance(result.diff_frames, int)
@@ -463,6 +463,7 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.diff_frames is None)
         self.assertTrue(self.processor.diff_max_bins is None)
         self.assertIsInstance(self.processor.positive_diffs, bool)
+        self.assertTrue(self.processor.stack_diffs is None)
 
     def test_values(self):
         self.assertTrue(self.processor.diff_ratio == 0.5)
@@ -471,23 +472,36 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.positive_diffs is False)
 
     def test_process(self):
-        # default values
         result = self.processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
-        self.assertTrue(np.min(result) <= 0)
+        self.assertTrue(np.max(result[:2]) >= 0)
+        self.assertTrue(np.min(result) < 0)
         # change diff frames
         self.processor.diff_frames = 2
         result = self.processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
-        self.assertTrue(np.min(result) <= 0)
+        self.assertTrue(np.min(result) < 0)
         # change positive diffs
         self.processor.positive_diffs = True
         result = self.processor.process(AUDIO_PATH + '/sample.wav')
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
-        self.assertTrue(np.min(result) <= 0)
+        self.assertTrue(np.min(result) >= 0)
+        # change stacking
+        self.processor.stack_diffs = np.hstack
+        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 1024 * 2))
+        self.assertTrue(np.min(result) >= 0)
+        self.processor.stack_diffs = np.vstack
+        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281 * 2, 1024))
+        self.assertTrue(np.min(result) >= 0)
+        self.processor.stack_diffs = np.dstack
+        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        self.assertTrue(result.shape == (281, 1024, 2))
+        self.assertTrue(np.min(result) >= 0)
 
 
 class TestSuperFluxProcessorClass(unittest.TestCase):
@@ -582,7 +596,6 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         # properties
         self.assertTrue(result.num_bins == 2)
         self.assertTrue(result.num_frames == 281)
-
         # test norm bands
         self.processor.norm_bands = True
         result = self.processor.process(AUDIO_PATH + '/sample.wav')
@@ -592,89 +605,3 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
                                     [236.865, 8720.947]))
         self.assertTrue(np.allclose(np.max(result.filterbank, axis=0),
                                     [0.04545455, 0.00130548]))
-
-
-class TestStackedSpectrogramProcessorClass(unittest.TestCase):
-
-    def test_types(self):
-        frame_sizes = [512, 1024, 2048]
-        spec_processor = SpectrogramProcessor()
-        processor = StackedSpectrogramProcessor(frame_sizes, spec_processor)
-        self.assertIsInstance(processor, StackedSpectrogramProcessor)
-        self.assertIsInstance(processor, Processor)
-
-    def test_stack_specs(self):
-        # stack only the specs
-        spec_processor = LogarithmicFilteredSpectrogramProcessor()
-        processor = StackedSpectrogramProcessor([512], spec_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 58))
-        processor = StackedSpectrogramProcessor([1024], spec_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 69))
-        processor = StackedSpectrogramProcessor([2048], spec_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 81))
-        processor = StackedSpectrogramProcessor([512, 1024, 2048],
-                                                spec_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 58 + 69 + 81))
-
-    def test_stack_diffs(self):
-        # also include the differences
-        spec_processor = LogarithmicFilteredSpectrogramProcessor()
-        diff_processor = SpectrogramDifferenceProcessor()
-        processor = StackedSpectrogramProcessor([512], spec_processor,
-                                                diff_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 116))
-        processor = StackedSpectrogramProcessor([1024], spec_processor,
-                                                diff_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 138))
-        processor = StackedSpectrogramProcessor([2048], spec_processor,
-                                                diff_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 162))
-        processor = StackedSpectrogramProcessor([512, 1024, 2048],
-                                                spec_processor,
-                                                diff_processor)
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 116 + 138 + 162))
-
-    def test_stack_depth(self):
-        # stack in depth
-        spec_processor = LogarithmicFilteredSpectrogramProcessor(
-            unique_filters=False)
-        processor = StackedSpectrogramProcessor([512], spec_processor,
-                                                stack='depth')
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackedSpectrogramProcessor([1024], spec_processor,
-                                                stack='depth')
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackedSpectrogramProcessor([2048], spec_processor,
-                                                stack='depth')
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 108, 1))
-        processor = StackedSpectrogramProcessor([512, 1024, 2048],
-                                                spec_processor,
-                                                stack='depth')
-        result = processor.process(AUDIO_PATH + '/sample.wav')
-        self.assertTrue(result.shape == (281, 108, 3))
-
-    def test_stack_literals(self):
-        spec_processor = LogarithmicFilteredSpectrogramProcessor()
-        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
-                                                stack='time')
-        self.assertEqual(processor.stack, np.vstack)
-        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
-                                                stack='freq')
-        self.assertEqual(processor.stack, np.hstack)
-        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
-                                                stack='frequency')
-        self.assertEqual(processor.stack, np.hstack)
-        processor = StackedSpectrogramProcessor([512, 1024], spec_processor,
-                                                stack='depth')
-        self.assertEqual(processor.stack, np.dstack)
