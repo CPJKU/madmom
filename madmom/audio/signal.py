@@ -318,6 +318,22 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     return signal, file_sample_rate
 
 
+class LoadAudioFileError(Exception):
+    """
+    Exception to be raised whenever an audio file could not be loaded.
+
+    """
+    # pylint: disable=super-init-not-called
+
+    def __init__(self, value=None):
+        if value is None:
+            value = 'Could not load audio file.'
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
+
 # function for automatically determining how to open audio files
 def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
                     stop=None):
@@ -391,7 +407,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
             pass
     except CalledProcessError:
         pass
-    raise RuntimeError(error)
+    raise LoadAudioFileError(error)
 
 
 # signal classes
