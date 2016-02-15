@@ -41,7 +41,7 @@ def feed_forward_comb_filter(signal, tau, alpha):
     """
     # y[n] = x[n] + α * x[n - τ]
     if tau <= 0:
-        raise ValueError('tau must be greater than 0')
+        raise ValueError('`tau` must be greater than 0')
     y = np.copy(signal)
     # add the delayed signal
     y[tau:] += alpha * signal[:-tau]
@@ -83,14 +83,13 @@ def feed_backward_comb_filter(signal, tau, alpha):
 
 @cython.boundscheck(False)
 def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
-                                 unsigned int tau,
-                                 float alpha):
+                                 unsigned int tau, float alpha):
     """
     Filter the signal with a feed backward comb filter.
 
     Parameters
     ----------
-    signal : 1D numpy array
+    signal : 1D numpy array, float dtype
         Signal.
     tau : int
         Delay length.
@@ -109,7 +108,7 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
     """
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
-        raise ValueError('tau must be greater than 0')
+        raise ValueError('`tau` must be greater than 0')
     # type definitions
     cdef np.ndarray[np.float_t, ndim=1] y = signal.copy()
     cdef unsigned int n
@@ -126,14 +125,13 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
 
 @cython.boundscheck(False)
 def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
-                                 unsigned int tau,
-                                 float alpha):
+                                 unsigned int tau, float alpha):
     """
     Filter the signal with a feed backward comb filter.
 
     Parameters
     ----------
-    signal : 2D numpy array
+    signal : 2D numpy array, float dtype
         Signal.
     tau : int
         Delay length.
@@ -152,7 +150,7 @@ def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
     """
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
-        raise ValueError('tau must be greater than 0')
+        raise ValueError('`tau` must be greater than 0')
     # type definitions
     cdef np.ndarray[np.float_t, ndim=2] y = signal.copy()
     cdef unsigned int d, n
@@ -195,16 +193,19 @@ def comb_filter(signal, filter_function, tau, alpha):
 
     """
     # convert tau to a integer numpy array
-    tau = np.asarray(tau, dtype=int)
+    tau = np.array(tau, dtype=np.int, ndmin=1)
     if tau.ndim != 1:
-        raise ValueError('tau must be a 1D numpy array')
+        raise ValueError('`tau` must be a 1D numpy array')
     # convert alpha to a numpy array
-    alpha = np.asarray(alpha, dtype=float)
+    alpha = np.array(alpha, dtype=np.float, ndmin=1)
+    # expand a single alpha value to same length as tau
+    if len(alpha) == 1:
+        alpha = np.repeat(alpha, len(tau))
     if alpha.ndim != 1:
-        raise ValueError('alpha must be a 1D numpy array')
-    # alpha & tau must have the same size
-    if tau.size != alpha.size:
-        raise AssertionError('alpha & tau must have the same size')
+        raise ValueError('`alpha` must be a 1D numpy array')
+    # tau and alpha must have the same length
+    if len(tau) != len(alpha):
+        raise ValueError('`tau` and `alpha` must have the same length')
     # determine output array size
     size = list(signal.shape)
     # add dimension of tau range size (new 1st dim)
@@ -232,34 +233,21 @@ class CombFilterbankProcessor(Processor):
 
     Notes
     -----
-    `tau` and `alpha` must be of same length.
+    `tau` and `alpha` must have the same length.
 
     """
 
     def __init__(self, filter_function, tau, alpha):
-        # convert tau to a numpy array
-        if isinstance(tau, int):
-            self.tau = np.asarray([tau], dtype=int)
-        elif isinstance(tau, (list, np.ndarray)):
-            self.tau = np.asarray(tau, dtype=int)
-        else:
-            raise ValueError('`tau` must be cast-able as an int numpy array')
-
+        # convert tau and alpha to a numpy arrays
+        self.tau = np.array(tau, dtype=np.int, ndmin=1)
+        self.alpha = np.array(alpha, dtype=np.float, ndmin=1)
         # set the filter function
         if filter_function in ['forward', feed_forward_comb_filter]:
-            self.comb_filter_function = feed_forward_comb_filter
+            self.filter_function = feed_forward_comb_filter
         elif filter_function in ['backward', feed_backward_comb_filter]:
-            self.comb_filter_function = feed_backward_comb_filter
+            self.filter_function = feed_backward_comb_filter
         else:
             raise ValueError('unknown `filter_function`: %s' % filter_function)
-
-        # convert alpha to a numpy array
-        if isinstance(alpha, (float, int)):
-            self.alpha = np.asarray([alpha] * len(tau), dtype=float)
-        elif isinstance(alpha, (list, np.ndarray)):
-            self.alpha = np.asarray(alpha, dtype=float)
-        else:
-            raise ValueError('`alpha` must be cast-able as float numpy array')
 
     def process(self, data):
         """
@@ -277,5 +265,4 @@ class CombFilterbankProcessor(Processor):
             first dimension.
 
         """
-        return comb_filter(data, self.comb_filter_function, self.tau,
-                           self.alpha)
+        return comb_filter(data, self.filter_function, self.tau, self.alpha)
