@@ -9,13 +9,14 @@ from __future__ import absolute_import, division, print_function
 
 import glob
 import argparse
+import numpy as np
 
 from madmom import MODELS_PATH
-from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor
+from madmom.processors import (SequentialProcessor, ParallelProcessor,
+                               IOProcessor, io_arguments)
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      StackedSpectrogramProcessor)
+                                      SpectrogramDifferenceProcessor)
 from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import BeatTrackingProcessor
@@ -82,7 +83,7 @@ def main():
     args.num_channels = 1
     args.sample_rate = 44100
     args.fps = 100
-    args.frame_size = [1024, 2048, 4096]
+    args.frame_sizes = [1024, 2048, 4096]
     args.num_bands = 3
     args.fmin = 30
     args.fmax = 17000
@@ -92,6 +93,7 @@ def main():
     args.add = 1
     args.diff_ratio = 0.5
     args.positive_diffs = True
+    args.stack_diffs = np.hstack
     args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].npz" %
                               MODELS_PATH)
 
@@ -106,16 +108,22 @@ def main():
     else:
         # define processing chain
         sig = SignalProcessor(**vars(args))
-        # we need to define how specs and diffs should be stacked
-        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
-        diff = SpectrogramDifferenceProcessor(**vars(args))
-        stack = StackedSpectrogramProcessor(spectrogram=spec, difference=diff,
-                                            **vars(args))
+        # multi-resolution spec & diff
+        multi = []
+        for args.frame_size in args.frame_sizes:
+            frames = FramedSignalProcessor(**vars(args))
+            spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
+            diff = SpectrogramDifferenceProcessor(**vars(args))
+            # wrap each frame size with spec and diff in a SequentialProcessor
+            multi.append(SequentialProcessor((frames, spec, diff)))
+        # wrap everything in a ParallelProcessor and stack the features
+        multi = ParallelProcessor(multi)
+        stack = np.hstack
         # process everything with an RNN and average the predictions
         rnn = RNNProcessor(**vars(args))
         avg = average_predictions
         # sequentially process everything
-        in_processor = [sig, stack, rnn, avg]
+        in_processor = [sig, multi, stack, rnn, avg]
 
     # output processor
     if args.save:

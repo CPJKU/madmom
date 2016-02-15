@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from ..processors import Processor, SequentialProcessor, ParallelProcessor
+from ..processors import Processor, SequentialProcessor
 from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS)
@@ -958,17 +958,17 @@ class SpectrogramDifference(Spectrogram):
                               diff_spec[: -diff_frames])
         # positive differences only?
         if positive_diffs:
-            np.maximum(diff, 0, diff)
+            np.maximum(diff, 0, out=diff)
 
         # cast as FilteredSpectrogram
         obj = np.asarray(diff).view(cls)
         # save additional attributes
+        obj.spectrogram = spectrogram
         obj.diff_ratio = diff_ratio
         obj.diff_frames = diff_frames
         obj.diff_max_bins = diff_max_bins
         obj.positive_diffs = positive_diffs
         # and those from the given spectrogram
-        obj.stft = spectrogram.stft
         obj.filterbank = spectrogram.filterbank
         obj.bin_frequencies = spectrogram.bin_frequencies
         obj.mul = spectrogram.mul
@@ -1008,17 +1008,32 @@ class SpectrogramDifferenceProcessor(Processor):
         to the spectrogram the difference is calculated to.
     positive_diffs : bool, optional
         Keep only the positive differences, i.e. set all diff values < 0 to 0.
+    stack_diffs : numpy stacking function, optional
+        If 'None', only the differences are returned. If set, the diffs are
+        stacked with the underlying spectrogram data according to the `stack`
+        function:
+
+        - ``np.vstack``
+          the differences and spectrogram are stacked vertically, i.e. in time
+          direction,
+        - ``np.hstack``
+          the differences and spectrogram are stacked horizontally, i.e. in
+          frequency direction,
+        - ``np.dstack``
+          the differences and spectrogram are stacked in depth, i.e. return
+          them as a 3D representation with depth as the third dimension.
 
     """
 
     def __init__(self, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
-                 **kwargs):
+                 stack_diffs=None, **kwargs):
         # pylint: disable=unused-argument
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
         self.positive_diffs = positive_diffs
+        self.stack_diffs = stack_diffs
 
     def process(self, data, **kwargs):
         """
@@ -1037,17 +1052,23 @@ class SpectrogramDifferenceProcessor(Processor):
             Spectrogram difference.
 
         """
-        # instantiate a SpectrogramDifference and return it
-        return SpectrogramDifference(data, diff_ratio=self.diff_ratio,
+        # instantiate a SpectrogramDifference
+        diff = SpectrogramDifference(data, diff_ratio=self.diff_ratio,
                                      diff_frames=self.diff_frames,
                                      diff_max_bins=self.diff_max_bins,
                                      positive_diffs=self.positive_diffs,
                                      **kwargs)
+        # decide if we need to stack the diff on the data or just return it
+        if self.stack_diffs is None:
+            return diff
+        else:
+            # we can't use `data` directly, because it could be a str
+            # we ave to access diff.spectrogram (i.e. converted data)
+            return self.stack_diffs((diff.spectrogram, diff))
 
     @staticmethod
-    def add_arguments(parser, diff=None, diff_ratio=None,
-                      diff_frames=None, diff_max_bins=None,
-                      positive_diffs=None):
+    def add_arguments(parser, diff=None, diff_ratio=None, diff_frames=None,
+                      diff_max_bins=None, positive_diffs=None):
         """
         Add spectrogram difference related arguments to an existing parser.
 
@@ -1125,7 +1146,6 @@ class SpectrogramDifferenceProcessor(Processor):
                            dest='diff_max_bins', default=diff_max_bins,
                            help='apply a maximum filter with this width (in '
                                 'frequency bins) [default=%(default)d]')
-
         # return the group
         return g
 
@@ -1324,141 +1344,13 @@ class MultiBandSpectrogramProcessor(Processor):
         return g
 
 
-class StackedSpectrogramProcessor(ParallelProcessor):
+class StackedSpectrogramProcessor(object):
     """
-    Class to stack multiple spectrograms (and their differences) in a certain
-    dimension.
+    Deprecated in v0.13, will be removed in v0.14.
 
-    Parameters
-    ----------
-    frame_size : list
-        List with frame sizes.
-    spectrogram : :class:`Spectrogram` instance
-        :class:`Spectrogram` instance.
-    difference: :class:`SpectrogramDifference` instance
-        :class:`SpectrogramDifference` instance; if given the differences of
-        the spectrogram(s) are stacked as well.
-    stack : str or numpy stacking function
-        Stacking function to be used:
-
-        - ``np.vstack``
-          stack multiple spectrograms vertically, i.e. stack in time dimension,
-        - ``np.hstack``
-          stack multiple spectrograms horizontally, i.e. stack in the frequency
-          dimension,
-        - ``np.dstack``
-          stacks them in depth, i.e. returns them as a 3D representation.
-
-        Additionally, the literal values {'time', 'freq', 'frequency', 'depth'}
-        are supported.
-
-    Notes
-    -----
-    `frame_size` is used instead of the (probably) more meaningful
-    `frame_sizes`, this way the existing argument from
-    :class:`.audio.signal.FramedSignal` can be reused.
-
-    To be able to stack spectrograms in depth (i.e. use ``np.dstack`` as a
-    stacking function), they must have the same frequency dimensionality. If
-    filtered spectrograms are used, `unique_filters` must be set to 'False'.
+    Functionality added to SpectrogramDifferenceProcessor as `stack_diffs`
+    argument.
 
     """
-
-    def __init__(self, frame_size, spectrogram, difference=None,
-                 stack=np.hstack, **kwargs):
-        from .signal import FramedSignalProcessor
-        # use the same spectrogram processor for all frame sizes, but use
-        # different FramedSignal processors
-        processors = []
-        for frame_size_ in frame_size:
-            fs = FramedSignalProcessor(frame_size=frame_size_, **kwargs)
-            processors.append([fs, spectrogram])
-        # FIXME: works only with a single thread
-        super(StackedSpectrogramProcessor, self).__init__(processors,
-                                                          num_threads=1)
-        # literal stacking directions
-        if stack == 'time':
-            stack = np.vstack
-        elif stack in ('freq', 'frequency'):
-            stack = np.hstack
-        elif stack == 'depth':
-            stack = np.dstack
-        self.stack = stack
-        # TODO: it is a bit hackish to define another processor here
-        self.diff_processor = difference
-
-    def process(self, data):
-        """
-        Return a stacked representation of the magnitudes spectrograms
-        (and their differences).
-
-        Parameters
-        ----------
-        data : numpy array
-            Data to be processed.
-
-        Returns
-        -------
-        stack : numpy array
-            Stacked specs (and diffs).
-
-        """
-        # process everything
-        specs = super(StackedSpectrogramProcessor, self).process(data)
-        # stack everything (a list of Spectrogram instances was returned)
-        stack = []
-        for s in specs:
-            # always append the spec
-            stack.append(s)
-            # and the differences only if needed
-            if self.diff_processor is not None:
-                diffs = self.diff_processor.process(s)
-                stack.append(diffs)
-        # stack them along given axis and return them
-        return self.stack(stack)
-
-    @staticmethod
-    def add_arguments(parser, stack='freq', stack_diffs=None):
-        """
-        Add stacking related arguments to an existing parser.
-
-        Parameters
-        ----------
-        parser : argparse parser instance
-            Existing argparse parser object.
-        stack : {'freq', 'time', 'depth'}
-            Stacking direction.
-        stack_diffs : bool, optional
-            Also stack the differences.
-
-        Returns
-        -------
-        argparse argument group
-            Multi-band spectrogram argument parser group.
-
-        Notes
-        -----
-        Parameters are included in the group only if they are not 'None'.
-
-        """
-        # pylint: disable=arguments-differ
-
-        # add diff related options to the existing parser
-        g = parser.add_argument_group('stacking arguments')
-        # stacking axis
-        if stack is not None:
-            g.add_argument('--stack', action='store', type=str,
-                           default=stack, choices=['time', 'freq', 'depth'],
-                           help="stacking direction [default=%(default)s]")
-        # stack diffs?
-        if stack_diffs is True:
-            g.add_argument('--no_stack_diffs', dest='stack_diffs',
-                           action='store_false',
-                           help='no not stack the differences of the '
-                                'spectrograms')
-        elif stack_diffs is False:
-            g.add_argument('--stack_diffs', action='store_true',
-                           help='in addition to the spectrograms, also stack '
-                                'their differences')
-        # return the group
-        return g
+    def __init__(self):
+        raise DeprecationWarning(self.__doc__)
