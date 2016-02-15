@@ -18,7 +18,7 @@ from .filters import MelFilterbank
 from .spectrogram import Spectrogram
 
 
-class Cepstrogram(np.ndarray, PropertyMixin):
+class Cepstrogram(PropertyMixin, np.ndarray):
     """
     The Cepstrogram class represents a transformed Spectrogram. This generic
     class applies some transformation (usually a DCT) on a spectrogram.
@@ -53,11 +53,10 @@ class Cepstrogram(np.ndarray, PropertyMixin):
         # cast as Cepstrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
-        obj.transform = transform
         obj.spectrogram = spectrogram
-        # and those from the given spectrogram
-        obj.stft = spectrogram.stft
-        obj.frames = spectrogram.stft.frames
+        # TODO: what are the frequencies of the bins?
+        # obj.bin_frequencies = ???
+        obj.transform = transform
         # return the object
         return obj
 
@@ -65,28 +64,9 @@ class Cepstrogram(np.ndarray, PropertyMixin):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.transform = getattr(obj, 'transform', None)
         self.spectrogram = getattr(obj, 'spectrogram', None)
-
-    def __reduce__(self):
-        # get the parent's __reduce__ tuple
-        pickled_state = super(Cepstrogram, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.transform,)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        # set the attributes
-        self.transform = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(Cepstrogram, self).__setstate__(state[0:-1])
-
-    @property
-    def bin_frequencies(self):
-        """Frequencies of the bins."""
-        # TODO: what are the frequencies of the bins?
-        raise NotImplementedError('please implement!')
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
+        self.transform = getattr(obj, 'transform', None)
 
 
 class CepstrogramProcessor(Processor):
@@ -238,9 +218,6 @@ class MFCC(Cepstrogram):
         obj.filterbank = filterbank
         obj.mul = mul
         obj.add = add
-        # and those from the given spectrogram
-        obj.stft = spectrogram.stft
-        obj.frames = spectrogram.stft.frames
         # return the object
         return obj
 
@@ -248,28 +225,10 @@ class MFCC(Cepstrogram):
         if obj is None:
             return
         # set default values here, also needed for views
-        self.transform = getattr(obj, 'transform', None)
-        self.spectrogram = getattr(obj, 'spectrogram', None)
         self.filterbank = getattr(obj, 'filterbank', None)
+        self.mul = getattr(obj, 'mul', MFCC_MUL)
+        self.add = getattr(obj, 'add', MFCC_ADD)
         super(MFCC, self).__array_finalize__(obj)
-
-    def __reduce__(self):
-        # get the parent's __reduce__ tuple
-        pickled_state = super(MFCC, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.transform, self.filterbank,
-                                        self.mul, self.add)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        # set the attributes
-        self.transform = state[-4]
-        self.filterbank = state[-3]
-        self.mul = state[-2]
-        self.add = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(MFCC, self).__setstate__(state[0:-4])
 
 
 class MFCCProcessor(Processor):

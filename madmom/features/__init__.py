@@ -86,23 +86,6 @@ class Activations(np.ndarray):
         # set default values here
         self.fps = getattr(obj, 'fps', None)
 
-    def __reduce__(self):
-        # needed for correct pickling
-        # source: http://stackoverflow.com/questions/26598109/
-        # get the parent's __reduce__ tuple
-        pickled_state = super(Activations, self).__reduce__()
-        # create our own tuple to pass to __setstate__
-        new_state = pickled_state[2] + (self.fps,)
-        # return a tuple that replaces the parent's __reduce__ tuple
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        # needed for correct un-pickling
-        # set the attributes
-        self.fps = state[-1]
-        # call the parent's __setstate__ with the other tuple elements
-        super(Activations, self).__setstate__(state[0:-1])
-
     @classmethod
     def load(cls, infile, fps=None, sep=None):
         """

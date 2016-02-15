@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 import types
-import pickle
 import tempfile
 
 from madmom.audio.filters import *
@@ -18,8 +17,64 @@ from madmom.audio.filters import *
 # Mel frequency scale
 HZ = np.asarray([20, 258.7484, 576.6645, 1000])
 MEL = np.asarray([31.749, 354.5, 677.25, 1000])
-
 FFT_FREQS_1024 = np.fft.fftfreq(2048, 1. / 44100)[:1024]
+LOG_FILTERBANK_CENTER_FREQS = np.array(
+    [43.066406, 64.5996093, 86.1328125, 107.6660156, 129.199218, 150.732421,
+     172.265625, 193.798828, 215.332031, 236.865234, 258.398437, 279.931640,
+     301.464843, 322.998046, 344.531250, 366.064453, 387.597656, 409.130859,
+     430.664062, 452.197265, 495.263671, 516.796875, 538.330078, 581.396484,
+     624.462890, 645.996093, 689.062500, 732.128906, 775.195312, 839.794921,
+     882.861328, 925.927734, 990.527343, 1055.126953, 1098.193359, 1184.326171,
+     1248.925781, 1313.525390, 1399.658203, 1485.791015, 1571.923828,
+     1658.056640, 1765.722656, 1873.388671, 1981.054687, 2088.720703,
+     2217.919921, 2347.119140, 2497.851562, 2627.050781, 2799.316406,
+     2950.048828, 3143.847656, 3316.113281, 3509.912109, 3725.244140,
+     3940.576171, 4177.441406, 4435.839843, 4694.238281, 4974.169921,
+     5275.634765, 5577.099609, 5921.630859, 6266.162109, 6653.759765,
+     7041.357421, 7450.488281, 7902.685546, 8376.416015, 8871.679687,
+     9388.476562, 9948.339843, 10551.269531, 11175.732421, 11843.261718,
+     12553.857421, 13285.986328, 14082.714843, 14922.509765, 15805.37109375])
+LOG_FILTERBANK_CORNER_FREQS = np.array(
+    [[43.066406, 43.066406], [64.599609, 64.599609], [86.132812, 86.132812],
+     [107.666015, 107.666015], [129.199218, 129.199218],
+     [150.732421, 150.732421], [172.265625, 172.265625],
+     [193.798828, 193.798828], [215.332031, 215.332031],
+     [236.865234, 236.865234], [258.398437, 258.398437],
+     [279.931640, 279.931640], [301.464843, 301.464843],
+     [322.998046, 322.998046], [344.531250, 344.531250],
+     [366.064453, 366.064453], [387.597656, 387.597656],
+     [409.130859, 409.130859], [430.664062, 452.197265],
+     [452.197265, 473.730468], [495.263671, 495.263671],
+     [516.796875, 538.330078], [538.330078, 559.863281],
+     [581.396484, 602.929687], [602.929687, 645.996093],
+     [645.996093, 667.529296], [689.062500, 710.595703],
+     [710.595703, 753.662109], [753.662109, 818.261718],
+     [796.728515, 861.328125], [861.328125, 904.394531],
+     [904.394531, 968.994140], [947.460937, 1033.59375],
+     [1012.060546, 1076.660156], [1076.660156, 1162.792968],
+     [1119.726562, 1227.392578], [1205.859375, 1291.992187],
+     [1270.458984, 1378.125000], [1335.058593, 1464.257812],
+     [1421.191406, 1550.390625], [1507.324218, 1636.523437],
+     [1593.457031, 1744.189453], [1679.589843, 1851.855468],
+     [1787.255859, 1959.521484], [1894.921875, 2067.187500],
+     [2002.587890, 2196.386718], [2110.253906, 2325.585937],
+     [2239.453125, 2476.318359], [2368.652343, 2605.517578],
+     [2519.384765, 2777.783203], [2648.583984, 2928.515625],
+     [2820.849609, 3122.314453], [2971.582031, 3294.580078],
+     [3165.380859, 3488.378906], [3337.646484, 3703.710937],
+     [3531.445312, 3919.042968], [3746.777343, 4155.908203],
+     [3962.109375, 4414.306640], [4198.974609, 4672.705078],
+     [4457.373046, 4952.636718], [4715.771484, 5254.101562],
+     [4995.703125, 5555.566406], [5297.167968, 5900.097656],
+     [5598.632812, 6244.628906], [5943.164062, 6632.226562],
+     [6287.695312, 7019.824218], [6675.292968, 7428.955078],
+     [7062.890625, 7881.152343], [7472.021484, 8354.882812],
+     [7924.218750, 8850.146484], [8397.949218, 9366.943359],
+     [8893.212890, 9926.806640], [9410.009765, 10529.736328],
+     [9969.873046, 11154.199218], [10572.802734, 11821.728515],
+     [11197.265625, 12532.324218], [11864.794921, 13264.453125],
+     [12575.390625, 14061.181640], [13307.519531, 14900.976562],
+     [14104.248046, 15783.837890], [14944.042968, 16731.298828]])
 
 
 class TestHz2MelFunction(unittest.TestCase):
@@ -435,15 +490,6 @@ class TestFilterClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt.min(), 0))
         self.assertTrue(np.allclose(filt.max(), 0.4))
 
-    def test_pickling(self):
-        f, filename = tempfile.mkstemp()
-        filt = Filter(np.arange(5))
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.start, filt_.start))
-
     def test_filters_method(self):
         with self.assertRaises(NotImplementedError):
             # TODO: write test when implemented
@@ -506,17 +552,6 @@ class TestTriangularFilterClass(unittest.TestCase):
         self.assertTrue(filt.start == 0)
         self.assertTrue(filt.center == 0)
         self.assertTrue(filt.stop == 1)
-
-    def test_pickling(self):
-        f, filename = tempfile.mkstemp()
-        filt = TriangularFilter(1, 4, 10)
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.start, filt_.start))
-        self.assertTrue(np.allclose(filt.stop, filt_.stop))
-        self.assertTrue(np.allclose(filt.center, filt_.center))
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
@@ -611,16 +646,6 @@ class TestRectangularFilterClass(unittest.TestCase):
         self.assertTrue(np.allclose(filt, [0.2, 0.2, 0.2, 0.2, 0.2]))
         self.assertTrue(filt.start == 4)
         self.assertTrue(filt.stop == 9)
-
-    def test_pickling(self):
-        f, filename = tempfile.mkstemp()
-        filt = RectangularFilter(5, 10)
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.start, filt_.start))
-        self.assertTrue(np.allclose(filt.stop, filt_.stop))
 
     def test_band_bins_method_too_few_bins(self):
         with self.assertRaises(ValueError):
@@ -812,16 +837,6 @@ class TestFilterbankClass(unittest.TestCase):
                                     [[1, 69], [0, 99]]))
         self.assertTrue(np.allclose(filt.center_frequencies, [6, 49]))
 
-    def test_pickling(self):
-        filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
-
     def test_process(self):
         filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
         result = filt.process(np.zeros((20, 100)))
@@ -866,16 +881,6 @@ class TestMelFilterbankClass(unittest.TestCase):
                                      [1040, 2360], [1620, 3400], [2400, 4800],
                                      [3440, 6680], [4840, 9160], [6720, 12500],
                                      [9200, 16980]]))
-
-    def test_pickling(self):
-        filt = MelFilterbank(np.arange(1000) * 20, 10)
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
 
     def test_default_values(self):
         filt = MelFilterbank(np.fft.fftfreq(2048, 1. / 44100)[:1024])
@@ -940,16 +945,6 @@ class TestBarkFilterbankClass(unittest.TestCase):
         self.assertEqual(BarkFilterbank.NUM_BANDS, 'normal')
         self.assertEqual(BarkFilterbank.NORM_FILTERS, True)
         self.assertEqual(BarkFilterbank.UNIQUE_FILTERS, True)
-
-    def test_pickling(self):
-        filt = BarkFilterbank(FFT_FREQS_1024)
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
 
     def test_default_values(self):
         filt = BarkFilterbank(FFT_FREQS_1024)
@@ -1054,19 +1049,6 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
         # self.assertEqual(LogarithmicFilterbank.NORM_FILTERS, True)
         # self.assertEqual(LogarithmicFilterbank.UNIQUE_FILTERS, False)
 
-    def test_pickling(self):
-        filt = LogarithmicFilterbank(FFT_FREQS_1024)
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
-        self.assertTrue(filt.num_bands_per_octave ==
-                        filt_.num_bands_per_octave)
-        self.assertTrue(filt.fref == filt_.fref)
-
     def test_values_unique_filters(self):
         filt = LogarithmicFilterbank(np.arange(0, 20000, 20), num_bands=12)
         self.assertTrue(np.allclose(filt.min(), 0))
@@ -1080,74 +1062,17 @@ class TestLogarithmicFilterbankClass(unittest.TestCase):
 
     def test_default_values(self):
         filt = LogarithmicFilterbank(FFT_FREQS_1024)
-        center = [43.066406, 64.5996093, 86.1328125, 107.6660156, 129.199218,
-                  150.732421, 172.265625, 193.798828, 215.332031, 236.865234,
-                  258.398437, 279.931640, 301.464843, 322.998046, 344.531250,
-                  366.064453, 387.597656, 409.130859, 430.664062, 452.197265,
-                  495.263671, 516.796875, 538.330078, 581.396484, 624.462890,
-                  645.996093, 689.062500, 732.128906, 775.195312, 839.794921,
-                  882.861328, 925.927734, 990.527343, 1055.126953, 1098.193359,
-                  1184.326171, 1248.925781, 1313.525390, 1399.658203,
-                  1485.791015, 1571.923828, 1658.056640, 1765.722656,
-                  1873.388671, 1981.054687, 2088.720703, 2217.919921,
-                  2347.119140, 2497.851562, 2627.050781, 2799.316406,
-                  2950.048828, 3143.847656, 3316.113281, 3509.912109,
-                  3725.244140, 3940.576171, 4177.441406, 4435.839843,
-                  4694.238281, 4974.169921, 5275.634765, 5577.099609,
-                  5921.630859, 6266.162109, 6653.759765, 7041.357421,
-                  7450.488281, 7902.685546, 8376.416015, 8871.679687,
-                  9388.476562, 9948.339843, 10551.269531, 11175.732421,
-                  11843.261718, 12553.857421, 13285.986328, 14082.714843,
-                  14922.509765, 15805.37109375]
-        corner = [[43.066406, 43.066406], [64.599609, 64.599609],
-                  [86.132812, 86.132812], [107.666015, 107.666015],
-                  [129.199218, 129.199218], [150.732421, 150.732421],
-                  [172.265625, 172.265625], [193.798828, 193.798828],
-                  [215.332031, 215.332031], [236.865234, 236.865234],
-                  [258.398437, 258.398437], [279.931640, 279.931640],
-                  [301.464843, 301.464843], [322.998046, 322.998046],
-                  [344.531250, 344.531250], [366.064453, 366.064453],
-                  [387.597656, 387.597656], [409.130859, 409.130859],
-                  [430.664062, 452.197265], [452.197265, 473.730468],
-                  [495.263671, 495.263671], [516.796875, 538.330078],
-                  [538.330078, 559.863281], [581.396484, 602.929687],
-                  [602.929687, 645.996093], [645.996093, 667.529296],
-                  [689.062500, 710.595703], [710.595703, 753.662109],
-                  [753.662109, 818.261718], [796.728515, 861.328125],
-                  [861.328125, 904.394531], [904.394531, 968.994140],
-                  [947.460937, 1033.59375], [1012.060546, 1076.660156],
-                  [1076.660156, 1162.792968], [1119.726562, 1227.392578],
-                  [1205.859375, 1291.992187], [1270.458984, 1378.125000],
-                  [1335.058593, 1464.257812], [1421.191406, 1550.390625],
-                  [1507.324218, 1636.523437], [1593.457031, 1744.189453],
-                  [1679.589843, 1851.855468], [1787.255859, 1959.521484],
-                  [1894.921875, 2067.187500], [2002.587890, 2196.386718],
-                  [2110.253906, 2325.585937], [2239.453125, 2476.318359],
-                  [2368.652343, 2605.517578], [2519.384765, 2777.783203],
-                  [2648.583984, 2928.515625], [2820.849609, 3122.314453],
-                  [2971.582031, 3294.580078], [3165.380859, 3488.378906],
-                  [3337.646484, 3703.710937], [3531.445312, 3919.042968],
-                  [3746.777343, 4155.908203], [3962.109375, 4414.306640],
-                  [4198.974609, 4672.705078], [4457.373046, 4952.636718],
-                  [4715.771484, 5254.101562], [4995.703125, 5555.566406],
-                  [5297.167968, 5900.097656], [5598.632812, 6244.628906],
-                  [5943.164062, 6632.226562], [6287.695312, 7019.824218],
-                  [6675.292968, 7428.955078], [7062.890625, 7881.152343],
-                  [7472.021484, 8354.882812], [7924.218750, 8850.146484],
-                  [8397.949218, 9366.943359], [8893.212890, 9926.806640],
-                  [9410.009765, 10529.736328], [9969.873046, 11154.199218],
-                  [10572.802734, 11821.728515], [11197.265625, 12532.324218],
-                  [11864.794921, 13264.453125], [12575.390625, 14061.181640],
-                  [13307.519531, 14900.976562], [14104.248046, 15783.837890],
-                  [14944.042968, 16731.298828]]
+
         self.assertTrue(filt.num_bands == 81)
         self.assertTrue(filt.num_bands_per_octave == 12)
         self.assertTrue(filt.num_bins == 1024)
         self.assertTrue(np.allclose(filt.min(), 0))
         self.assertTrue(np.allclose(filt.fmin, 43.066406))
         self.assertTrue(np.allclose(filt.fmax, 16731.298828))
-        self.assertTrue(np.allclose(filt.center_frequencies, center))
-        self.assertTrue(np.allclose(filt.corner_frequencies, corner))
+        self.assertTrue(np.allclose(filt.center_frequencies,
+                                    LOG_FILTERBANK_CENTER_FREQS))
+        self.assertTrue(np.allclose(filt.corner_frequencies,
+                                    LOG_FILTERBANK_CORNER_FREQS))
 
 
 class TestRectangularFilterbankClass(unittest.TestCase):
@@ -1158,18 +1083,6 @@ class TestRectangularFilterbankClass(unittest.TestCase):
         self.assertTrue(filt.dtype == FILTER_DTYPE)
         self.assertTrue(filt.bin_frequencies.dtype == np.float)
         self.assertTrue(filt.crossover_frequencies.dtype == np.float)
-
-    def test_pickling(self):
-        filt = RectangularFilterbank(FFT_FREQS_1024, [100, 1000])
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
-        self.assertTrue(np.allclose(filt.crossover_frequencies,
-                                    filt_.crossover_frequencies))
 
     def test_values(self):
         filt = RectangularFilterbank(np.arange(0, 2000, 20), [100, 1000],
@@ -1237,17 +1150,6 @@ class TestPitchClassProfileFilterbankClass(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             filt.corner_frequencies
 
-    def test_pickling(self):
-        filt = PitchClassProfileFilterbank(FFT_FREQS_1024)
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
-        self.assertEqual(filt.fref, filt_.fref)
-
 
 class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
 
@@ -1280,15 +1182,3 @@ class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
             filt.center_frequencies
         with self.assertRaises(NotImplementedError):
             filt.corner_frequencies
-
-    def test_pickling(self):
-        filt = HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)
-        f, filename = tempfile.mkstemp()
-        pickle.dump(filt, open(filename, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
-        filt_ = pickle.load(open(filename, 'rb'))
-        self.assertTrue(np.allclose(filt, filt_))
-        self.assertTrue(np.allclose(filt.bin_frequencies,
-                                    filt_.bin_frequencies))
-        self.assertEqual(filt.fref, filt_.fref)
-        self.assertEqual(filt.window, filt_.window)
