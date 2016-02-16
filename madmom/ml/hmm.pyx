@@ -20,6 +20,7 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
+from libc.stdint cimport uint32_t
 from libc.math cimport INFINITY
 
 
@@ -360,9 +361,9 @@ class HiddenMarkovModel(object):
         cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
 
         # back-tracking pointers
-        cdef unsigned int [:, ::1] bt_pointers = np.empty((num_observations,
-                                                           num_states),
-                                                          dtype=np.uint32)
+        cdef uint32_t [:, ::1] bt_pointers = np.empty((num_observations,
+                                                       num_states),
+                                                      dtype=np.uint32)
         # define counters etc.
         cdef unsigned int state, frame, prev_state, pointer
         cdef double density, transition_prob
