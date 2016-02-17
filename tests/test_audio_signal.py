@@ -211,17 +211,17 @@ class TestMixFunction(unittest.TestCase):
         result = remix(sig_1d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == sig_1d.shape)
-        self.assertTrue(result.dtype == np.int)
+        self.assertTrue(result.dtype == np.float32)
         result = remix(sig_1d.astype(np.int), 2)
         self.assertTrue(len(result) == len(sig_1d))
         self.assertTrue(result.shape == (len(sig_1d), 2))
-        self.assertTrue(result.dtype == np.int)
+        self.assertTrue(result.dtype == np.float32)
         # from file
         signal = Signal(AUDIO_PATH + '/sample.wav')
         result = remix(signal, 1)
         self.assertTrue(isinstance(result, Signal))
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.int16)
+        self.assertTrue(result.dtype == np.float32)
         # multi-channel signals
         result = remix(sig_2d, 1)
         self.assertTrue(len(result) == len(sig_2d))
@@ -236,22 +236,22 @@ class TestMixFunction(unittest.TestCase):
         result = remix(signal, 1)
         self.assertTrue(isinstance(result, Signal))
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.int16)
+        self.assertTrue(result.dtype == np.float32)
         result = remix(signal, 2)
         self.assertTrue(isinstance(result, Signal))
         self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.int16)
+        self.assertTrue(result.dtype == np.float32)
         with self.assertRaises(NotImplementedError):
             remix(sig_2d, 3)
         # same as int dtype
         result = remix(sig_2d.astype(np.int), 1)
         self.assertTrue(len(result) == len(sig_2d))
         self.assertTrue(result.shape == sig_1d.shape)
-        self.assertTrue(result.dtype == np.int)
+        self.assertTrue(result.dtype == np.float32)
         result = remix(sig_2d.astype(np.int), 2)
         self.assertTrue(len(result) == len(sig_2d))
         self.assertTrue(result.shape == sig_2d.shape)
-        self.assertTrue(result.dtype == np.int)
+        self.assertTrue(result.dtype == np.float32)
 
     def test_values(self):
         # mono signals
@@ -259,7 +259,7 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, sig_1d))
         # same as int dtype
         result = remix(sig_2d.astype(np.int), 1)
-        self.assertTrue(np.allclose(result, self.mono_2d.astype(np.int)))
+        self.assertTrue(np.allclose(result, self.mono_2d.astype(np.float32)))
         # multi-channel signals
         result = remix(sig_2d, 1)
         self.assertTrue(np.allclose(result, self.mono_2d))
@@ -445,7 +445,9 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # test wave loader
         f = AUDIO_PATH + '/stereo_sample.wav'
         signal, sample_rate = load_audio_file(f, num_channels=1)
-        self.assertTrue(np.allclose(signal[:5], [35, 35, 31, 33, 33]))
+        signal_s, sample_rate = load_audio_file(f)
+        self.assertTrue(np.allclose(signal[:5],
+                                    [35.5, 35.5, 31.5, 33.5, 33.5]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, ))
@@ -457,6 +459,16 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # avconv results in a different length of 182909 samples
         self.assertTrue(np.allclose(len(signal), 182919, atol=10))
         self.assertTrue(sample_rate == 44100)
+        # test clipping
+        f = AUDIO_PATH + '/stereo_chirp.wav'
+        signal, _ = load_audio_file(f, num_channels=1)
+        signal_stereo, _ = load_audio_file(f)
+        # sanity checks
+        self.assertTrue(np.allclose(signal_stereo[:, 0], signal_stereo[:, 1]))
+        self.assertTrue(np.allclose(signal_stereo.mean(axis=1),
+                                    signal_stereo[:, 0]))
+        # check clipping
+        self.assertTrue(np.allclose(signal, signal_stereo[:, 1]))
 
     def test_upmix(self):
         f = AUDIO_PATH + '/sample.wav'
@@ -584,11 +596,11 @@ class TestSignalProcessorClass(unittest.TestCase):
         result = processor.process(AUDIO_PATH + '/sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int16)
+        self.assertTrue(result.dtype == np.float32)
         result = processor.process(AUDIO_PATH + '/stereo_sample.wav')
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int16)
+        self.assertTrue(result.dtype == np.float32)
 
     def test_types_norm(self):
         processor = SignalProcessor(norm=True)
