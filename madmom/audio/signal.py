@@ -214,6 +214,36 @@ def remix(signal, num_channels):
                                   % (num_channels, signal.shape[1]))
 
 
+def rescale(signal, dtype=np.float32):
+    """
+    Rescale the signal to range [-1, 1] and float dtype.
+
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be remixed.
+    dtype : numpy dtype
+        Data type of the signal.
+
+    Returns
+    -------
+    numpy array
+        Signal rescaled to range [-1, 1].
+
+    """
+    # allow only float dtypes
+    if not np.issubdtype(dtype, np.float):
+        raise ValueError('only float dtypes are supported, not %s.' % dtype)
+    # float signals don't need rescaling
+    if np.issubdtype(signal.dtype, np.float):
+        return signal.astype(dtype)
+    elif np.issubdtype(signal.dtype, np.int):
+        return signal.astype(dtype) / np.iinfo(signal.dtype).max
+    else:
+        raise NotImplementedError('unsupported signal dtypes: %s, please add'
+                                  'functionality or write test' % signal.dtype)
+
+
 def trim(signal):
     """
     Trim leading and trailing zeros of the signal.

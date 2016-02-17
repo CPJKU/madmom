@@ -344,6 +344,62 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, 2 * self.mono_2d))
 
 
+class TestRescaleFunction(unittest.TestCase):
+
+    def test_types(self):
+        # mono signals
+        result = rescale(sig_1d, np.float)
+        self.assertTrue(len(result) == len(sig_1d))
+        self.assertTrue(result.shape == sig_1d.shape)
+        self.assertTrue(result.dtype == np.float)
+        # from file
+        signal = Signal(AUDIO_PATH + 'sample.wav')
+        result = rescale(signal)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.float32)
+        # multi-channel signals
+        result = rescale(sig_2d, np.float16)
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.shape == sig_2d.shape)
+        self.assertTrue(result.dtype == np.float16)
+        # from file
+        signal = Signal(AUDIO_PATH + 'stereo_sample.wav')
+        result = rescale(signal, np.float)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == np.float)
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            rescale(sig_2d, np.complex)
+        with self.assertRaises(ValueError):
+            rescale(sig_2d, np.int)
+
+    def test_values(self):
+        # mono signals
+        result = rescale(sig_1d, np.float)
+        self.assertTrue(np.allclose(result, sig_1d))
+        # from file
+        signal = Signal(AUDIO_PATH + 'sample.wav')
+        result = rescale(signal)
+        self.assertTrue(np.allclose(result[:6],
+                                    [-0.07611316, -0.07660146, -0.07580798,
+                                     -0.08172857, -0.08645894, -0.08212531]))
+        # multi-channel signals
+        result = rescale(sig_2d, np.float16)
+        self.assertTrue(np.allclose(result, sig_2d))
+        # from file
+        signal = Signal(AUDIO_PATH + 'stereo_sample.wav')
+        result = rescale(signal, np.float)
+        self.assertTrue(np.allclose(result[:6], [[0.00100711, 0.0011597],
+                                                 [0.00106815, 0.00109867],
+                                                 [0.00088504, 0.00103763],
+                                                 [0.00109867, 0.00094607],
+                                                 [0.00112918, 0.00091556],
+                                                 [0.00109867, 0.00103763]]))
+
+
 class TestTrimFunction(unittest.TestCase):
 
     def test_types(self):
