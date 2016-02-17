@@ -1,4 +1,7 @@
 # encoding: utf-8
+# pylint: disable=no-member
+# pylint: disable=invalid-name
+# pylint: disable=too-many-arguments
 """
 This module contains HMM state spaces, transition and observation models used
 for beat and downbeat tracking.

@@ -833,6 +833,10 @@ class DBNBeatTrackingProcessor(Processor):
 
 
 class DownbeatTrackingProcessor(object):
+    """
+    Renamed to PatternTrackingProcessor in v0.13. Will be removed in v0.14.
+
+    """
     def __init__(self):
         raise DeprecationWarning('Renamed to PatternTrackingProcessor in '
                                  'v0.13. Will be removed in v0.14.')

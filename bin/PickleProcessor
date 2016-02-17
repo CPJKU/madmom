@@ -26,7 +26,7 @@ def main():
 
     ''')
     # add options
-    parser.add_argument('processor', type=argparse.FileType('r'),
+    parser.add_argument('processor', type=argparse.FileType('rb'),
                         help='pickled processor')
     parser.add_argument('--version', action='version',
                         version='PickleProcessor v0.1')

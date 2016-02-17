@@ -71,12 +71,19 @@ def main():
     # list to collect the individual evaluation objects
     eval_objects = []
 
+    # progress
+    progress = ''
+
     # evaluate all files
     num_files = len(ann_files)
     for num_file, ann_file in enumerate(ann_files):
         # print progress
-        sys.stderr.write('\revaluated %d of %d files' %
-                         (num_file + 1, num_files))
+        progress_len = len(progress)
+        if args.verbose >= 2:
+            progress = 'evaluating %s' % os.path.basename(ann_file)
+        else:
+            progress = 'evaluating file %d of %d' % (num_file + 1, num_files)
+        sys.stderr.write('\r%s' % progress.ljust(progress_len))
         sys.stderr.flush()
 
         #  get the matching detection files
@@ -104,9 +111,8 @@ def main():
         # add this file's evaluation to the global evaluation list
         eval_objects.append(e)
 
-    # clear progress information
-    # TODO: is there a more elegant way of clearing the progress line?
-    sys.stderr.write("\r                                                  \r")
+    # clear progress
+    sys.stderr.write('\r%s\r' % ' '.ljust(len(progress)))
     sys.stderr.flush()
 
     # output every evaluation object individually

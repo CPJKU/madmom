@@ -145,19 +145,15 @@ class TestCombFilterbankClass(unittest.TestCase):
                                             [2, 3], [0.5, 0.5])
         self.assertIsInstance(processor, CombFilterbankProcessor)
         self.assertIsInstance(processor, Processor)
-        self.assertTrue(processor.comb_filter_function ==
-                        feed_backward_comb_filter)
+        self.assertTrue(processor.filter_function == feed_backward_comb_filter)
         processor = CombFilterbankProcessor('backward', [2, 3], [0.5, 0.5])
-        self.assertTrue(processor.comb_filter_function ==
-                        feed_backward_comb_filter)
+        self.assertTrue(processor.filter_function == feed_backward_comb_filter)
         # forward function
         processor = CombFilterbankProcessor(feed_forward_comb_filter,
                                             [2, 3], [0.5, 0.5])
-        self.assertTrue(processor.comb_filter_function ==
-                        feed_forward_comb_filter)
+        self.assertTrue(processor.filter_function == feed_forward_comb_filter)
         processor = CombFilterbankProcessor('forward', [2, 3], [0.5, 0.5])
-        self.assertTrue(processor.comb_filter_function ==
-                        feed_forward_comb_filter)
+        self.assertTrue(processor.filter_function == feed_forward_comb_filter)
 
     def test_errors(self):
         with self.assertRaises(ValueError):

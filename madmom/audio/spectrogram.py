@@ -69,11 +69,11 @@ def adaptive_whitening(spec, floor=0.5, relaxation=10):
     relaxation = 10.0 ** (-6. * relaxation)
     p = np.zeros_like(spec)
     # iterate over all frames
-    for f in range(len(spec)):
+    for f, frame in enumerate(spec):
         if f > 0:
-            p[f] = np.maximum(spec[f], floor, relaxation * p[f - 1])
+            p[f] = np.maximum(frame, floor, relaxation * p[f - 1])
         else:
-            p[f] = np.maximum(spec[f], floor)
+            p[f] = np.maximum(frame, floor)
     # return the whitened spectrogram
     return spec / p
 
@@ -1156,6 +1156,7 @@ class SuperFluxProcessor(SequentialProcessor):
     SuperFlux algorithm.
 
     """
+    # pylint: disable=too-many-ancestors
 
     def __init__(self, **kwargs):
         from .stft import ShortTimeFourierTransformProcessor
@@ -1195,8 +1196,16 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     crossover_frequencies : list or numpy array
         List of crossover frequencies at which the `spectrogram` is split
         into multiple bands.
-    norm_bands : bool, optional
-        Normalize the filter bands to area 1.
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter bands of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
     kwargs : dict, optional
         If no :class:`Spectrogram` instance was given, one is instantiated
         with these additional keyword arguments.
@@ -1212,12 +1221,14 @@ class MultiBandSpectrogram(FilteredSpectrogram):
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
-    def __init__(self, spectrogram, crossover_frequencies, norm_bands=False,
-                 **kwargs):
+    def __init__(self, spectrogram, crossover_frequencies, fmin=FMIN,
+                 fmax=FMAX, norm_filters=NORM_FILTERS,
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, spectrogram, crossover_frequencies, norm_bands=False,
+    def __new__(cls, spectrogram, crossover_frequencies, fmin=FMIN, fmax=FMAX,
+                norm_filters=NORM_FILTERS, unique_filters=UNIQUE_FILTERS,
                 **kwargs):
         from .filters import RectangularFilterbank
         # instantiate a Spectrogram if needed
@@ -1226,17 +1237,18 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         # create a rectangular filterbank
         filterbank = RectangularFilterbank(spectrogram.bin_frequencies,
                                            crossover_frequencies,
-                                           norm_filters=norm_bands)
+                                           fmin=fmin, fmax=fmax,
+                                           norm_filters=norm_filters,
+                                           unique_filters=unique_filters)
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # cast as FilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
+        obj.spectrogram = spectrogram
         obj.filterbank = filterbank
         obj.bin_frequencies = filterbank.center_frequencies
         obj.crossover_frequencies = crossover_frequencies
-        obj.norm_bands = norm_bands
-        obj.stft = spectrogram.stft
         # return the object
         return obj
 
@@ -1244,12 +1256,11 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
+        self.spectrogram = getattr(obj, 'spectrogram', None)
+        self.filterbank = getattr(obj, 'filterbank', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.crossover_frequencies = getattr(obj, 'crossover_frequencies',
                                              None)
-        self.norm_bands = getattr(obj, 'norm_bands', False)
-        self.filterbank = getattr(obj, 'norm_bands', None)
-        self.stft = getattr(obj, 'stft', None)
-        self.frames = getattr(obj, 'frames', None)
 
 
 class MultiBandSpectrogramProcessor(Processor):
@@ -1262,15 +1273,28 @@ class MultiBandSpectrogramProcessor(Processor):
     crossover_frequencies : list or numpy array
         List of crossover frequencies at which a spectrogram is split into
         the individual bands.
-    norm_bands : bool, optional
-        Normalize the filter bands area to 1.
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter bands of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
 
     """
 
-    def __init__(self, crossover_frequencies, norm_bands=False, **kwargs):
+    def __init__(self, crossover_frequencies, fmin=FMIN, fmax=FMAX,
+                 norm_filters=NORM_FILTERS, unique_filters=UNIQUE_FILTERS,
+                 **kwargs):
         # pylint: disable=unused-argument
         self.crossover_frequencies = np.array(crossover_frequencies)
-        self.norm_bands = norm_bands
+        self.fmin = fmin
+        self.fmax = fmax
+        self.norm_filters = norm_filters
+        self.unique_filters = unique_filters
 
     def process(self, data, **kwargs):
         """
@@ -1292,11 +1316,12 @@ class MultiBandSpectrogramProcessor(Processor):
         # instantiate a MultiBandSpectrogram
         return MultiBandSpectrogram(
             data, crossover_frequencies=self.crossover_frequencies,
-            norm_bands=self.norm_bands, **kwargs)
+            fmin=self.fmin, fmax=self.fmax, norm_filters=self.norm_filters,
+            unique_filters=self.unique_filters, **kwargs)
 
     @staticmethod
-    def add_arguments(parser, crossover_frequencies=None,
-                      norm_bands=None):
+    def add_arguments(parser, crossover_frequencies=None, fmin=None, fmax=None,
+                      norm_filters=None, unique_filters=None):
         """
         Add multi-band spectrogram related arguments to an existing parser.
 
@@ -1307,8 +1332,16 @@ class MultiBandSpectrogramProcessor(Processor):
         crossover_frequencies : list or numpy array, optional
             List of crossover frequencies at which the `spectrogram` is split
             into bands.
-        norm_bands : bool, optional
-            Normalize the filter band's area to 1.
+        fmin : float, optional
+            Minimum frequency of the filterbank [Hz].
+        fmax : float, optional
+            Maximum frequency of the filterbank [Hz].
+        norm_filters : bool, optional
+            Normalize the filter bands of the filterbank to area 1.
+        unique_filters : bool, optional
+            Indicate if the filterbank should contain only unique filters, i.e.
+            remove duplicate filters resulting from insufficient resolution at
+            low frequencies.
 
         Returns
         -------
@@ -1330,16 +1363,44 @@ class MultiBandSpectrogramProcessor(Processor):
                            default=crossover_frequencies,
                            help='(comma separated) list with crossover '
                                 'frequencies [Hz, default=%(default)s]')
-        # normalization of bands
-        if norm_bands is not None:
-            if norm_bands:
-                g.add_argument('--no_norm_bands', dest='norm_bands',
-                               action='store_false', default=norm_bands,
-                               help='no not normalize the bands')
-            else:
-                g.add_argument('--norm_bands', action='store_true',
-                               default=-norm_bands,
-                               help='normalize the bands to area 1')
+        # minimum frequency
+        if fmin is not None:
+            g.add_argument('--fmin', action='store', type=float,
+                           default=fmin,
+                           help='minimum frequency of the filterbank '
+                                '[Hz, default=%(default).1f]')
+        # maximum frequency
+        if fmax is not None:
+            g.add_argument('--fmax', action='store', type=float,
+                           default=fmax,
+                           help='maximum frequency of the filterbank '
+                                '[Hz, default=%(default).1f]')
+        # normalize filters
+        if norm_filters is True:
+            g.add_argument('--no_norm_filters', dest='norm_filters',
+                           action='store_false', default=norm_filters,
+                           help='do not normalize the filters to area 1 '
+                                '[default=True]')
+        elif norm_filters is False:
+            g.add_argument('--norm_filters', dest='norm_filters',
+                           action='store_true', default=norm_filters,
+                           help='normalize the filters to area 1 '
+                                '[default=False]')
+        # unique or duplicate filters
+        if unique_filters is True:
+            # add option to keep the duplicate filters
+            g.add_argument('--duplicate_filters', dest='unique_filters',
+                           action='store_false', default=unique_filters,
+                           help='keep duplicate filters resulting from '
+                                'insufficient resolution at low frequencies '
+                                '[default=only unique filters are kept]')
+        elif unique_filters is False:
+            g.add_argument('--unique_filters', action='store_true',
+                           default=unique_filters,
+                           help='keep only unique filters, i.e. remove '
+                                'duplicate filters resulting from '
+                                'insufficient resolution at low frequencies '
+                                '[default=duplicate filters are kept]')
         # return the group
         return g
 

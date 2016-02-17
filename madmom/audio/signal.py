@@ -252,7 +252,7 @@ def sound_pressure_level(signal, p_ref=None):
         if p_ref is None:
             # find a reasonable default reference value
             if np.issubdtype(signal.dtype, np.integer):
-                p_ref = np.iinfo(signal.dtype).max
+                p_ref = float(np.iinfo(signal.dtype).max)
             else:
                 p_ref = 1.0
         # normal SPL computation
@@ -316,6 +316,22 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
         signal = remix(signal, num_channels)
     # return the signal
     return signal, file_sample_rate
+
+
+class LoadAudioFileError(Exception):
+    """
+    Exception to be raised whenever an audio file could not be loaded.
+
+    """
+    # pylint: disable=super-init-not-called
+
+    def __init__(self, value=None):
+        if value is None:
+            value = 'Could not load audio file.'
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
 
 
 # function for automatically determining how to open audio files
@@ -391,7 +407,7 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
             pass
     except CalledProcessError:
         pass
-    raise RuntimeError(error)
+    raise LoadAudioFileError(error)
 
 
 # signal classes
@@ -675,7 +691,9 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     start = ref_sample - frame_size // 2 - int(origin)
     stop = start + frame_size
     # return the requested portion of the signal
-    # Note: usually np.zeros_like(signal[:frame_size]) is exactly what we want
+    # Note: np.pad(signal[from: to], (pad_left, pad_right), mode='constant')
+    #       always returns a ndarray, not the subclass (and is slower);
+    #       usually np.zeros_like(signal[:frame_size]) is exactly what we want
     #       (i.e. zeros of frame_size length and the same type/class as the
     #       signal and not just the dtype), but since we have no guarantee that
     #       the signal is that long, we have to use the np.repeat workaround

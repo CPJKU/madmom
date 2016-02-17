@@ -37,7 +37,7 @@ def fft_frequencies(num_fft_bins, sample_rate):
     return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
 
 
-def stft(frames, window=None, fft_size=None, circular_shift=False):
+def stft(frames, window, fft_size=None, circular_shift=False):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
     framed signal.

@@ -9,7 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 
-from . import AUDIO_PATH
+from . import AUDIO_PATH, DATA_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
 from madmom.audio.signal import *
 
@@ -484,6 +484,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33], atol=1))
         # avconv results in a different length of 91450 samples
         self.assertTrue(np.allclose(len(signal), 91460, atol=10))
+
+    def test_errors(self):
+        # file not found
+        with self.assertRaises(IOError):
+            load_audio_file(AUDIO_PATH + 'sample.flac')
+        # not an audio file
+        with self.assertRaises(LoadAudioFileError):
+            load_audio_file(DATA_PATH + 'README')
 
 
 # signal classes

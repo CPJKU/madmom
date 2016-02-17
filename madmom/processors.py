@@ -104,8 +104,7 @@ class Processor(object):
         raise NotImplementedError('must be implemented by subclass.')
 
     def __call__(self, *args):
-        """This magic method makes a Processor instance callable."""
-        # pylint: no-value-for-parameter
+        # this magic method makes a Processor callable
         return self.process(*args)
 
 
@@ -191,6 +190,7 @@ class SequentialProcessor(MutableSequence, Processor):
     SequentialProcessor itself.
 
     """
+
     def __init__(self, processors):
         self.processors = []
         # iterate over all given processors and save them
@@ -245,10 +245,7 @@ class SequentialProcessor(MutableSequence, Processor):
         del self.processors[index]
 
     def __len__(self):
-        """
-        Length of the processing chain.
-
-        """
+        """Length of the processing chain."""
         return len(self.processors)
 
     def insert(self, index, processor):
@@ -328,6 +325,8 @@ class ParallelProcessor(SequentialProcessor):
     :class:`SequentialProcessor`.
 
     """
+    # pylint: disable=too-many-ancestors
+
     NUM_THREADS = 1
 
     def __init__(self, processors, num_threads=NUM_THREADS):
@@ -496,6 +495,7 @@ class IOProcessor(OutputProcessor):
         return _process((self.out_processor, data, output))
 
 
+# functions and classes to process files with a Processor
 def process_single(processor, infile, outfile, **kwargs):
     """
     Process a single file with the given Processor.
@@ -514,9 +514,9 @@ def process_single(processor, infile, outfile, **kwargs):
     processor(infile, outfile)
 
 
-class ParallelProcess(mp.Process):
+class _ParallelProcess(mp.Process):
     """
-    Parallel Process class.
+    Class for processing tasks in a queue.
 
     Parameters
     ----------
@@ -525,24 +525,24 @@ class ParallelProcess(mp.Process):
 
     Notes
     -----
-    A ParallelProcess is used to process to process tasks. Multiple instances
-    are created via :func:`process_batch`.
+    Usually, multiple instances are created via :func:`process_batch`.
 
     """
     def __init__(self, task_queue):
-        super(ParallelProcess, self).__init__()
+        super(_ParallelProcess, self).__init__()
         self.task_queue = task_queue
 
     def run(self):
-        """
-        Process all tasks from the task queue.
-
-        """
+        """Process all tasks from the task queue."""
+        from .audio.signal import LoadAudioFileError
         while True:
             # get the task tuple
             processor, infile, outfile = self.task_queue.get()
-            # process the Processor with the data
-            processor(infile, outfile)
+            try:
+                # process the Processor with the data
+                processor.process(infile, outfile)
+            except LoadAudioFileError as e:
+                print(e)
             # signal that it is done
             self.task_queue.task_done()
 
@@ -591,7 +591,7 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     # create task queue
     tasks = mp.JoinableQueue()
     # create working threads
-    processes = [ParallelProcess(tasks) for _ in range(num_workers)]
+    processes = [_ParallelProcess(tasks) for _ in range(num_workers)]
     for p in processes:
         p.daemon = True
         p.start()
