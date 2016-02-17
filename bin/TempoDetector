@@ -60,7 +60,7 @@ def main():
     io_arguments(p, output_suffix='.bpm.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
     # tempo arguments
     TempoEstimationProcessor.add_arguments(p)
     # mirex stuff

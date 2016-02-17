@@ -70,7 +70,7 @@ def main():
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
     # RNN processing arguments (including option for reference files)
     g = RNNProcessor.add_arguments(p, nn_files='')
     g.add_argument('--nn_ref_files', action='append', type=str, default=None,

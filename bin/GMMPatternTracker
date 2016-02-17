@@ -67,7 +67,7 @@ def main():
     # add arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
     PatternTrackingProcessor.add_arguments(p)
 
     # parse arguments

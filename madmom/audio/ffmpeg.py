@@ -304,7 +304,7 @@ def get_file_info(infile, cmd='ffprobe'):
 
 
 def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
-                     start=None, stop=None, dtype=np.int16,
+                     start=None, stop=None, dtype=None,
                      cmd_decode='ffmpeg', cmd_probe='ffprobe'):
     """
     Load the audio data from the given file and return it as a numpy array.
@@ -330,7 +330,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     dtype : numpy dtype, optional
         Numpy dtype to return the signal in (supports signed and unsigned
         8/16/32-bit integers, and single and double precision floats,
-        each in little or big endian).
+        each in little or big endian). If 'None', np.int16 is used.
     cmd_decode : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
     cmd_probe : {'ffprobe', 'avprobe'}, optional
@@ -346,6 +346,8 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     """
     # convert dtype to sample type
     # (all ffmpeg PCM sample types: ffmpeg -formats | grep PCM)
+    if dtype is None:
+        dtype = np.int16
     dtype = np.dtype(dtype)
     # - unsigned int, signed int, floating point:
     sample_type = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
