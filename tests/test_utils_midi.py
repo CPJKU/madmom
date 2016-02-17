@@ -20,4 +20,8 @@ class TestMIDIFileClass(unittest.TestCase):
         # poor man's test to make sure we can read the MIDI file
         midi = MIDIFile.from_file(ANNOTATIONS_PATH + 'stereo_sample.mid')
         notes = np.loadtxt(ANNOTATIONS_PATH + 'stereo_sample.notes')
-        self.assertTrue(np.allclose(midi.notes, notes, atol=1e-3))
+        self.assertTrue(np.allclose(midi.notes(), notes, atol=1e-3))
+
+        midi = MIDIFile.from_file(ANNOTATIONS_PATH + 'piano_sample.mid')
+        notes = np.loadtxt(ANNOTATIONS_PATH + 'piano_sample.notes_in_beats')
+        self.assertTrue(np.allclose(midi.notes(note_time_unit='b'), notes))

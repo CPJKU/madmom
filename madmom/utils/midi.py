@@ -1270,17 +1270,16 @@ class MIDITrack(object):
         # beats per second
         bps = 2
         # add the notes
-        for note in range(len(notes)):
+        for note in notes:
             # add NoteOn
             e_on = NoteOnEvent()
-            e_on.tick = int(notes[note, 0] * resolution * bps)
-            e_on.pitch = int(notes[note, 1])
-            e_on.velocity = int(notes[note, 3])
+            e_on.tick = int(note[0] * resolution * bps)
+            e_on.pitch = int(note[1])
+            e_on.velocity = int(note[3])
             # and NoteOff
             e_off = NoteOffEvent()
-            e_off.tick = int((notes[note, 0] + notes[note, 2]) *
-                             resolution * bps)
-            e_off.pitch = int(notes[note, 1])
+            e_off.tick = int((note[0] + note[2]) * resolution * bps)
+            e_off.pitch = int(note[1])
             events.append(e_on)
             events.append(e_off)
         # sort the events and prepend the tempo and time signature events
@@ -1304,13 +1303,10 @@ class MIDIFile(object):
         Resolution (i.e. microseconds per quarter note).
     file_format : int, optional
         Format of the MIDI file.
-    note_time_unit : {'s', 'b'}
-        Time unit for notes, seconds ('s') or beats ('b').
 
     """
 
-    def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0,
-                 note_time_unit='s'):
+    def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0):
         # init variables
         if tracks is None:
             self.tracks = []
@@ -1321,7 +1317,6 @@ class MIDIFile(object):
         else:
             raise ValueError('file_format of `tracks` not supported.')
         self.resolution = resolution  # i.e. microseconds per quarter note
-        self.note_time_unit = note_time_unit
         # FIXME: right now we can write only format 0 files...
         self.format = file_format
 
@@ -1333,7 +1328,6 @@ class MIDIFile(object):
         """
         return self.resolution
 
-    @property
     def tempi(self):
         """
         Tempi of the MIDI file.
@@ -1370,7 +1364,7 @@ class MIDIFile(object):
         # sort (just to be sure)
         tempi.sort()
         # re-iterate over the list to calculate the cumulative time
-        for i in range(len(tempi)):
+        for i, _ in enumerate(tempi):
             if i == 0:
                 tempi[i] = (tempi[i][0], tempi[i][1], 0)
             else:
@@ -1380,7 +1374,6 @@ class MIDIFile(object):
         # return tempo
         return np.asarray(tempi, np.float)
 
-    @property
     def time_signatures(self):
         """
         Time signatures of the MIDI file.
@@ -1413,13 +1406,17 @@ class MIDIFile(object):
         if signatures[0][0] > 0:
             signatures.insert(0, (0, TIME_SIGNATURE_NUMERATOR,
                                   TIME_SIGNATURE_DENOMINATOR))
-        # return tempo
+        # return time signatures
         return np.asarray(signatures, dtype=int)
 
-    @property
-    def notes(self):
+    def notes(self, note_time_unit='s'):
         """
         Notes of the MIDI file.
+
+        Parameters
+        ----------
+        note_time_unit : {'s', 'b'}
+            Time unit for notes, seconds ('s') or beats ('b').
 
         Returns
         -------
@@ -1464,23 +1461,20 @@ class MIDIFile(object):
                     raise TypeError('unexpected NoteEvent')
                 tick = e.tick
 
-        # sort the notes
+        # sort the notes and convert to numpy array
         notes.sort()
+        notes = np.asarray(notes, dtype=np.float)
 
         # convert onset times and durations from ticks to a meaningful unit
-        if self.note_time_unit == 's':
-            self.note_ticks_to_seconds(notes)
-        elif self.note_time_unit == 'b':
-            self.note_ticks_to_beats(notes)
+        if note_time_unit == 's':
+            return self._note_ticks_to_seconds(notes)
+        elif note_time_unit == 'b':
+            return self._note_ticks_to_beats(notes)
         else:
             raise ValueError("note_time_unit must be either 's' (seconds) or "
-                             "'b' (beats), not %s." % self.note_time_unit)
+                             "'b' (beats), not %s." % note_time_unit)
 
-        # return the notes as numpy array
-        return np.asarray(notes, np.float)
-
-    # TODO: should this be a classmethod?
-    def note_ticks_to_beats(self, notes):
+    def _note_ticks_to_beats(self, notes):
         """
         Converts onsets and offsets of notes from ticks to beats.
 
@@ -1496,7 +1490,7 @@ class MIDIFile(object):
 
         """
         tpq = self.ticks_per_quarter_note
-        time_signatures = self.time_signatures.astype(np.float)
+        time_signatures = self.time_signatures().astype(np.float)
 
         # change the second column of time_signatures to beat position of the
         # signature change, the first column is now the tick position, the
@@ -1512,25 +1506,20 @@ class MIDIFile(object):
         time_signatures[1:, 1] = bbtsc.cumsum()
 
         # iterate over all notes
-        for i in range(len(notes)):
-            onset, pitch, offset, velocity = notes[i]
+        for note in notes:
+            onset, _, offset, _ = note
             # get info about last time signature change
             tsc = time_signatures[np.argmax(time_signatures[:, 0] > onset) - 1]
-            # adjust onsets
+            # adjust onset
             onset_ticks_since_tsc = onset - tsc[0]
-            onset_beats = tsc[1] + (onset_ticks_since_tsc / tpq) * (tsc[2] /
-                                                                    4.0)
+            note[0] = tsc[1] + (onset_ticks_since_tsc / tpq) * (tsc[2] / 4.)
             # adjust offsets
             offset_ticks_since_tsc = offset - tsc[0]
-            offset_beats = tsc[1] + (offset_ticks_since_tsc / tpq) * (tsc[2] /
-                                                                      4.0)
-            # update the note
-            notes[i] = (onset_beats, pitch, offset_beats, velocity)
+            note[2] = tsc[1] + (offset_ticks_since_tsc / tpq) * (tsc[2] / 4.)
         # return notes
         return notes
 
-    # TODO: should this be a classmethod?
-    def note_ticks_to_seconds(self, notes):
+    def _note_ticks_to_seconds(self, notes):
         """
         Converts onsets and offsets of notes from ticks to seconds.
 
@@ -1546,18 +1535,16 @@ class MIDIFile(object):
 
         """
         # cache tempo
-        tempi = self.tempi
+        tempi = self.tempi()
         # iterate over all notes
-        for i in range(len(notes)):
-            onset, pitch, offset, velocity = notes[i]
+        for note in notes:
+            onset, _, offset, _ = note
             # get last tempo for the onset and offset
-            t1 = tempi[np.argmax(tempi[:, 0] > onset) - 1]
-            t2 = tempi[np.argmax(tempi[:, 0] > offset) - 1]
-            # onset/offset calculation
-            onset = (onset - t1[0]) * t1[1] + t1[2]
-            offset = (offset - t2[0]) * t2[1] + t2[2]
-            # update the note
-            notes[i] = (onset, pitch, offset, velocity)
+            t_on = tempi[np.argmax(tempi[:, 0] > onset) - 1]
+            t_off = tempi[np.argmax(tempi[:, 0] > offset) - 1]
+            # adjust the note onset and offset
+            note[0] = (onset - t_on[0]) * t_on[1] + t_on[2]
+            note[2] = (offset - t_off[0]) * t_off[1] + t_off[2]
         # return notes
         return notes
 
@@ -1759,7 +1746,7 @@ def process_notes(data, output=None):
     """
     if output is None:
         # load the notes
-        return MIDIFile.from_file(data).notes
+        return MIDIFile.from_file(data).notes()
     else:
         MIDIFile.from_notes(data).write(output)
         return data

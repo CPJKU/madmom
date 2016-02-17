@@ -37,7 +37,9 @@ ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
                     ANNOTATIONS_PATH + 'stereo_sample.mid',
                     ANNOTATIONS_PATH + 'stereo_sample.notes',
                     ANNOTATIONS_PATH + 'stereo_sample.notes.mirex',
-                    ANNOTATIONS_PATH + 'stereo_sample.sv']
+                    ANNOTATIONS_PATH + 'stereo_sample.sv',
+                    ANNOTATIONS_PATH + 'piano_sample.mid',
+                    ANNOTATIONS_PATH + 'piano_sample.notes_in_beats']
 
 DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt',
                    DETECTIONS_PATH + 'sample.tempo.txt']
