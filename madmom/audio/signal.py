@@ -130,7 +130,7 @@ def attenuate(signal, attenuation):
 
 def normalize(signal):
     """
-    Normalize the signal to the range [-1, +1] and return with float dtype.
+    Normalize the signal to have maximum amplitude.
 
     Parameters
     ----------
@@ -140,11 +140,28 @@ def normalize(signal):
     Returns
     -------
     numpy array
-        Normalized signal with float dtype.
+        Normalized signal.
+
+    Notes
+    -----
+    Signals with float dtypes cover the range [-1, +1], signals with integer
+    dtypes will cover the maximally possible range, e.g. [-32768, 32767] for
+    np.int16.
+
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
 
     """
+    # scaling factor to be applied
+    scaling = float(np.max(np.abs(signal)))
+    if np.issubdtype(signal.dtype, np.int):
+        if signal.dtype in (np.int16, np.int32):
+            scaling /= np.iinfo(signal.dtype).max
+        else:
+            raise ValueError('only float and np.int16/32 dtypes supported, '
+                             'not %s.' % signal.dtype)
     # Note: np.asanyarray returns the signal's ndarray subclass
-    return np.asanyarray(signal.astype(np.float32) / np.max(signal))
+    return np.asanyarray(signal / scaling, dtype=signal.dtype)
 
 
 def remix(signal, num_channels):
@@ -167,18 +184,26 @@ def remix(signal, num_channels):
     -----
     This function does not support arbitrary channel number conversions.
     Only down-mixing to and up-mixing from mono signals is supported.
-    The signal is returned with the same dtype, thus in case of down-mixing
-    signals with integer dtypes, rounding errors may occur.
+
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
+
+    If the signal should be down-mixed to mono and has an integer dtype, it
+    will be converted to float internally and then back to the original dtype
+    to prevent clipping of the signal. To avoid this double conversion,
+    convert the dtype first.
 
     """
     # convert to the desired number of channels
     if num_channels == signal.ndim or num_channels is None:
-        # return as many channels as there are
+        # return as many channels as there are.
         return signal
     elif num_channels == 1 and signal.ndim > 1:
-        # down-mix to mono (keep the original dtype)
+        # down-mix to mono
+        # Note: to prevent clipping, the signal is converted to float first
+        #       and then converted back to the original dtype
         # TODO: add weighted mixing
-        return np.mean(signal, axis=-1, dtype=signal.dtype)
+        return np.mean(signal, axis=-1).astype(signal.dtype)
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
         return np.tile(signal[:, np.newaxis], num_channels)
