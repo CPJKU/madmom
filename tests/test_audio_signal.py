@@ -406,25 +406,46 @@ class TestTrimFunction(unittest.TestCase):
         # mono signals
         result = trim(sig_1d)
         self.assertTrue(type(result) == type(sig_1d))
-        self.assertTrue(len(result) == len(sig_1d) - 2)
         self.assertTrue(result.ndim == sig_1d.ndim)
+        self.assertTrue(result.dtype == sig_1d.dtype)
         signal = Signal(AUDIO_PATH + 'sample.wav')
         result = trim(signal)
         self.assertIsInstance(result, Signal)
         self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.ndim == signal.ndim)
         self.assertTrue(result.dtype == np.int16)
         # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            trim(sig_2d)
+        result = trim(sig_2d)
+        self.assertTrue(type(result) == type(sig_2d))
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.ndim == sig_2d.ndim)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        signal = Signal(AUDIO_PATH + 'stereo_sample.wav')
+        result = trim(signal)
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.ndim == signal.ndim)
+        self.assertTrue(result.dtype == np.int16)
 
     def test_values(self):
         # mono signals
         result = trim(sig_1d)
         trimmed_1d = [1, 0, 0, 1, 0, 0, 1]
         self.assertTrue(np.allclose(result, trimmed_1d))
+        self.assertTrue(len(result) == len(sig_1d) - 2)
         # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            trim(sig_2d)
+        # signal has leading zeros only in one channel
+        result = trim(sig_2d)
+        self.assertTrue(result.shape == sig_2d.shape)
+        signal = Signal(AUDIO_PATH + 'stereo_sample.wav')
+        result = trim(signal)
+        self.assertTrue(result.shape == signal.shape)
+        # signal with leading zeros only in both channels
+        signal = np.tile(np.arange(5), 2).reshape(2, 5).T
+        result = trim(signal)
+        self.assertTrue(result.shape == (4, 2))
+        self.assertTrue(np.allclose(result[:, 0], np.arange(1, 5)))
+        self.assertTrue(np.allclose(result[:, 1], np.arange(1, 5)))
 
 
 class TestRootMeanSquareFunction(unittest.TestCase):
@@ -434,19 +455,20 @@ class TestRootMeanSquareFunction(unittest.TestCase):
         result = root_mean_square(sig_1d)
         self.assertIsInstance(result, float)
         # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            root_mean_square(sig_2d)
+        result = root_mean_square(sig_2d)
+        self.assertIsInstance(result, float)
 
     def test_values(self):
         # mono signals
         result = root_mean_square(sig_1d)
-        rms_1d = 0.57735026919
-        self.assertTrue(np.allclose(result, rms_1d))
+        self.assertTrue(np.allclose(result, 0.57735026919))
         result = root_mean_square(np.zeros(100))
         self.assertTrue(np.allclose(result, 0))
         # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            root_mean_square(sig_2d)
+        result = root_mean_square(sig_2d)
+        self.assertTrue(np.allclose(result, 2. / 3))
+        result = root_mean_square(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, 0))
 
 
 class TestSoundPressureLevelFunction(unittest.TestCase):
@@ -456,29 +478,39 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
         result = sound_pressure_level(sig_1d)
         self.assertIsInstance(result, float)
         # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            sound_pressure_level(sig_2d)
+        result = sound_pressure_level(sig_2d)
+        self.assertIsInstance(result, float)
 
     def test_values(self):
         # mono signals
         result = sound_pressure_level(sig_1d)
-        spl_1d = -4.7712125472
-        self.assertTrue(np.allclose(result, spl_1d))
+        self.assertTrue(np.allclose(result, -4.7712125472))
         # silence
         result = sound_pressure_level(np.zeros(100))
         self.assertTrue(np.allclose(result, -np.finfo(float).max))
         # maximum float amplitude, alternating between -1 and 1
-        sig = np.cos(np.linspace(0, 2 * np.pi * 100, 2 * 100 + 1))
+        sinus = np.cos(np.linspace(0, 2 * np.pi * 100, 2 * 100 + 1))
+        result = sound_pressure_level(sinus)
+        self.assertTrue(np.allclose(result, 0.))
+        # maximum int16 amplitude, alternating between -1 and 1
+        sinus_int16 = (sinus * np.iinfo(np.int16).max).astype(np.int16)
+        result = sound_pressure_level(sinus_int16)
+        self.assertTrue(np.allclose(result, 0.))
+
+        # multi-channel signals
+        result = sound_pressure_level(sig_2d)
+        self.assertTrue(np.allclose(result, -3.52182518111))
+        # silence
+        result = sound_pressure_level(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, -np.finfo(float).max))
+        # maximum float amplitude, alternating between -1 and 1
+        sig = remix(sinus, 2)
         result = sound_pressure_level(sig)
         self.assertTrue(np.allclose(result, 0.))
-        # maximum float amplitude, alternating between -1 and 1
-        sig = (np.cos(np.linspace(0, 2 * np.pi * 100, 2 * 100 + 1)) *
-               np.iinfo(np.int16).max)
-        result = sound_pressure_level(sig.astype(np.int16))
+        # maximum int16 amplitude, alternating between -1 and 1
+        sig = remix(sinus_int16, 2)
+        result = sound_pressure_level(sig)
         self.assertTrue(np.allclose(result, 0.))
-        # multi-channel signals
-        with self.assertRaises(NotImplementedError):
-            sound_pressure_level(sig_2d)
 
 
 class TestLoadWaveFileFunction(unittest.TestCase):
@@ -821,7 +853,6 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[:5],
                                     [-2494, -2510, -2484, -2678, -2833]))
         self.assertTrue(len(result) == 123481)
-        print(result.min(), result.max(), result.mean())
         self.assertTrue(result.min() == -20603)
         self.assertTrue(result.max() == 17977)
         self.assertTrue(result.mean() == -172.88385257650975)
@@ -850,7 +881,6 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[:5],
                                     [-3966, -3991, -3950, -4259, -4505]))
         self.assertTrue(len(result) == 123481)
-        print(result.min(), result.max(), result.mean())
         self.assertTrue(result.min() == -32767)
         self.assertTrue(result.max() == 28590)
         self.assertTrue(result.mean() == -274.92599671204476)

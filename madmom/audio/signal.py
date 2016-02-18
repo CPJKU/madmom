@@ -216,7 +216,7 @@ def remix(signal, num_channels):
 
 def rescale(signal, dtype=np.float32):
     """
-    Rescale the signal to range [-1, 1] and float dtype.
+    Rescale the signal to range [-1, 1] and return as float dtype.
 
     Parameters
     ----------
@@ -240,11 +240,12 @@ def rescale(signal, dtype=np.float32):
     elif np.issubdtype(signal.dtype, np.int):
         return signal.astype(dtype) / np.iinfo(signal.dtype).max
     else:
-        raise NotImplementedError('unsupported signal dtypes: %s, please add'
-                                  'functionality or write test' % signal.dtype)
+        # TODO: not sure if this can happen or not. Either add the
+        #       functionality if it is supposed to work or add a test
+        raise ValueError('unsupported signal dtypes: %s.' % signal.dtype)
 
 
-def trim(signal):
+def trim(signal, where='fb'):
     """
     Trim leading and trailing zeros of the signal.
 
@@ -252,6 +253,9 @@ def trim(signal):
     ----------
     signal : numpy array
         Signal to be trimmed.
+    where : str, optional
+        A string with 'f' representing trim from front and 'b' to trim from
+        back. Default is 'fb', trim zeros from both ends of the signal.
 
     Returns
     -------
@@ -259,12 +263,23 @@ def trim(signal):
         Trimmed signal.
 
     """
-    # signal must be mono
-    if signal.ndim > 1:
-        # FIXME: please implement stereo (or multi-channel) handling
-        #        maybe it works, haven't checked
-        raise NotImplementedError("please implement multi-dim functionality")
-    return np.trim_zeros(signal)
+    # code borrowed from np.trim_zeros()
+    first = 0
+    where = where.upper()
+    if 'F' in where:
+        for i in signal:
+            if np.sum(i) != 0.:
+                break
+            else:
+                first += 1
+    last = len(signal)
+    if 'B' in where:
+        for i in signal[::-1]:
+            if np.sum(i) != 0.:
+                break
+            else:
+                last -= 1
+    return signal[first:last]
 
 
 def root_mean_square(signal):
@@ -286,15 +301,11 @@ def root_mean_square(signal):
     # make sure the signal is a numpy array
     if not isinstance(signal, np.ndarray):
         raise TypeError("Invalid type for signal, must be a numpy array.")
-    # signal must be mono
-    if signal.ndim > 1:
-        # FIXME: please implement stereo (or multi-channel) handling
-        raise NotImplementedError("please implement multi-dim functionality")
     # Note: type conversion needed because of integer overflows
     if signal.dtype != np.float:
         signal = signal.astype(np.float)
     # return
-    return np.sqrt(np.dot(signal, signal) / signal.size)
+    return np.sqrt(np.dot(signal.flatten(), signal.flatten()) / signal.size)
 
 
 def sound_pressure_level(signal, p_ref=None):
