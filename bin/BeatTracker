@@ -69,7 +69,7 @@ def main():
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
     # beat tracking arguments
     TempoEstimationProcessor.add_arguments(p, method='comb', min_bpm=40,
                                            max_bpm=240, act_smooth=0.09,

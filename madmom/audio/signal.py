@@ -65,6 +65,41 @@ def smooth(signal, kernel):
         raise ValueError('signal must be either 1D or 2D')
 
 
+def adjust_gain(signal, gain):
+    """"
+    Adjust the gain of the signal.
+
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be adjusted.
+    gain : float
+        Gain adjustment level [dB].
+
+    Returns
+    -------
+    numpy array
+        Signal with adjusted gain.
+
+    Notes
+    -----
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
+
+    `gain` values > 0 amplify the signal and are only supported for signals
+    with float dtype to prevent clipping and integer overflows.
+
+    """
+    # convert the gain in dB to a scaling factor
+    gain = np.power(np.sqrt(10.), 0.1 * gain)
+    # prevent overflow and clipping
+    if gain > 1 and np.issubdtype(signal.dtype, np.int):
+        raise ValueError('positive gain adjustments are only supported for '
+                         'float dtypes.')
+    # Note: np.asanyarray returns the signal's ndarray subclass
+    return np.asanyarray(signal * gain, dtype=signal.dtype)
+
+
 def attenuate(signal, attenuation):
     """
     Attenuate the signal.
@@ -83,8 +118,6 @@ def attenuate(signal, attenuation):
 
     Notes
     -----
-    Negative `attenuation` values amplify the signal.
-
     The signal is returned with the same dtype, thus rounding errors may occur
     with integer dtypes.
 
@@ -92,19 +125,12 @@ def attenuate(signal, attenuation):
     # return the signal unaltered if no attenuation is given
     if attenuation == 0:
         return signal
-    # FIXME: attenuating the signal and keeping the original dtype makes the
-    #        following signal processing steps well-behaved, since these rely
-    #        on the dtype of the array to determine the correct value range.
-    #        This introduces rounding (truncating) errors in case of signals
-    #        with integer dtypes. But these errors should be negligible.
-    # Note: np.asanyarray returns the signal's ndarray subclass
-    return np.asanyarray(signal / np.power(np.sqrt(10.), attenuation / 10.),
-                         dtype=signal.dtype)
+    return adjust_gain(signal, -attenuation)
 
 
 def normalize(signal):
     """
-    Normalize the signal to the range [-1, +1]
+    Normalize the signal to have maximum amplitude.
 
     Parameters
     ----------
@@ -114,11 +140,28 @@ def normalize(signal):
     Returns
     -------
     numpy array
-        Normalized signal (np.float dtype)
+        Normalized signal.
+
+    Notes
+    -----
+    Signals with float dtypes cover the range [-1, +1], signals with integer
+    dtypes will cover the maximally possible range, e.g. [-32768, 32767] for
+    np.int16.
+
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
 
     """
+    # scaling factor to be applied
+    scaling = float(np.max(np.abs(signal)))
+    if np.issubdtype(signal.dtype, np.int):
+        if signal.dtype in (np.int16, np.int32):
+            scaling /= np.iinfo(signal.dtype).max
+        else:
+            raise ValueError('only float and np.int16/32 dtypes supported, '
+                             'not %s.' % signal.dtype)
     # Note: np.asanyarray returns the signal's ndarray subclass
-    return np.asanyarray(signal.astype(np.float) / np.max(signal))
+    return np.asanyarray(signal / scaling, dtype=signal.dtype)
 
 
 def remix(signal, num_channels):
@@ -141,18 +184,26 @@ def remix(signal, num_channels):
     -----
     This function does not support arbitrary channel number conversions.
     Only down-mixing to and up-mixing from mono signals is supported.
-    The signal is returned with the same dtype, thus in case of down-mixing
-    signals with integer dtypes, rounding errors may occur.
+
+    The signal is returned with the same dtype, thus rounding errors may occur
+    with integer dtypes.
+
+    If the signal should be down-mixed to mono and has an integer dtype, it
+    will be converted to float internally and then back to the original dtype
+    to prevent clipping of the signal. To avoid this double conversion,
+    convert the dtype first.
 
     """
     # convert to the desired number of channels
     if num_channels == signal.ndim or num_channels is None:
-        # return as many channels as there are
+        # return as many channels as there are.
         return signal
     elif num_channels == 1 and signal.ndim > 1:
-        # down-mix to mono (keep the original dtype)
+        # down-mix to mono
+        # Note: to prevent clipping, the signal is converted to float first
+        #       and then converted back to the original dtype
         # TODO: add weighted mixing
-        return np.mean(signal, axis=-1, dtype=signal.dtype)
+        return np.mean(signal, axis=-1).astype(signal.dtype)
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
         return np.tile(signal[:, np.newaxis], num_channels)
@@ -163,7 +214,38 @@ def remix(signal, num_channels):
                                   % (num_channels, signal.shape[1]))
 
 
-def trim(signal):
+def rescale(signal, dtype=np.float32):
+    """
+    Rescale the signal to range [-1, 1] and return as float dtype.
+
+    Parameters
+    ----------
+    signal : numpy array
+        Signal to be remixed.
+    dtype : numpy dtype
+        Data type of the signal.
+
+    Returns
+    -------
+    numpy array
+        Signal rescaled to range [-1, 1].
+
+    """
+    # allow only float dtypes
+    if not np.issubdtype(dtype, np.float):
+        raise ValueError('only float dtypes are supported, not %s.' % dtype)
+    # float signals don't need rescaling
+    if np.issubdtype(signal.dtype, np.float):
+        return signal.astype(dtype)
+    elif np.issubdtype(signal.dtype, np.int):
+        return signal.astype(dtype) / np.iinfo(signal.dtype).max
+    else:
+        # TODO: not sure if this can happen or not. Either add the
+        #       functionality if it is supposed to work or add a test
+        raise ValueError('unsupported signal dtypes: %s.' % signal.dtype)
+
+
+def trim(signal, where='fb'):
     """
     Trim leading and trailing zeros of the signal.
 
@@ -171,6 +253,9 @@ def trim(signal):
     ----------
     signal : numpy array
         Signal to be trimmed.
+    where : str, optional
+        A string with 'f' representing trim from front and 'b' to trim from
+        back. Default is 'fb', trim zeros from both ends of the signal.
 
     Returns
     -------
@@ -178,12 +263,23 @@ def trim(signal):
         Trimmed signal.
 
     """
-    # signal must be mono
-    if signal.ndim > 1:
-        # FIXME: please implement stereo (or multi-channel) handling
-        #        maybe it works, haven't checked
-        raise NotImplementedError("please implement multi-dim functionality")
-    return np.trim_zeros(signal)
+    # code borrowed from np.trim_zeros()
+    first = 0
+    where = where.upper()
+    if 'F' in where:
+        for i in signal:
+            if np.sum(i) != 0.:
+                break
+            else:
+                first += 1
+    last = len(signal)
+    if 'B' in where:
+        for i in signal[::-1]:
+            if np.sum(i) != 0.:
+                break
+            else:
+                last -= 1
+    return signal[first:last]
 
 
 def root_mean_square(signal):
@@ -205,15 +301,11 @@ def root_mean_square(signal):
     # make sure the signal is a numpy array
     if not isinstance(signal, np.ndarray):
         raise TypeError("Invalid type for signal, must be a numpy array.")
-    # signal must be mono
-    if signal.ndim > 1:
-        # FIXME: please implement stereo (or multi-channel) handling
-        raise NotImplementedError("please implement multi-dim functionality")
     # Note: type conversion needed because of integer overflows
     if signal.dtype != np.float:
         signal = signal.astype(np.float)
     # return
-    return np.sqrt(np.dot(signal, signal) / signal.size)
+    return np.sqrt(np.dot(signal.flatten(), signal.flatten()) / signal.size)
 
 
 def sound_pressure_level(signal, p_ref=None):
@@ -260,9 +352,10 @@ def sound_pressure_level(signal, p_ref=None):
 
 
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
-                   stop=None):
+                   stop=None, dtype=None):
     """
     Load the audio data from the given file and return it as a numpy array.
+
     Only supports wave files, does not support re-sampling or arbitrary
     channel number conversions. Reads the data as a memory-mapped file with
     copy-on-write semantics to defer I/O costs until needed.
@@ -281,6 +374,11 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
         Start position [seconds].
     stop : float, optional
         Stop position [seconds].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
+
 
     Returns
     -------
@@ -304,6 +402,10 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
         raise ValueError('Requested sample rate of %f Hz, but got %f Hz and '
                          're-sampling is not implemented.' %
                          (sample_rate, file_sample_rate))
+    # same for the data type
+    if dtype is not None and signal.dtype != dtype:
+        raise ValueError('Requested dtype %s, but got %s and re-scaling is '
+                         'not implemented.' % (dtype, signal.dtype))
     # only request the desired part of the signal
     if start is not None:
         start = int(start * file_sample_rate)
@@ -336,7 +438,7 @@ class LoadAudioFileError(Exception):
 
 # function for automatically determining how to open audio files
 def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
-                    stop=None):
+                    stop=None, dtype=None):
     """
     Load the audio data from the given file and return it as a numpy array.
     This tries load_wave_file() load_ffmpeg_file() (for ffmpeg and avconv).
@@ -355,6 +457,10 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
         Start position [seconds].
     stop : float, optional
         Stop position [seconds].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
 
     Returns
     -------
@@ -386,21 +492,21 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     try:
         return load_wave_file(filename, sample_rate=sample_rate,
                               num_channels=num_channels, start=start,
-                              stop=stop)
+                              stop=stop, dtype=dtype)
     except ValueError:
         pass
     # not a wave file (or other sample rate requested), try ffmpeg
     try:
         return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                 num_channels=num_channels, start=start,
-                                stop=stop)
+                                stop=stop, dtype=dtype)
     except OSError:
         # ffmpeg is not present, try avconv
         try:
             return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                     num_channels=num_channels, start=start,
-                                    stop=stop, cmd_decode='avconv',
-                                    cmd_probe='avprobe')
+                                    stop=stop, dtype=dtype,
+                                    cmd_decode='avconv', cmd_probe='avprobe')
         except OSError:
             error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."
         except CalledProcessError:
@@ -413,8 +519,8 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
 # signal classes
 class Signal(np.ndarray):
     """
-    The :class:`Signal` class represents a signal as a (memmapped) numpy array
-    and enhances it with a number of attributes.
+    The :class:`Signal` class represents a signal as a (memory-mapped) numpy
+    array and enhances it with a number of attributes.
 
     Parameters
     ----------
@@ -430,6 +536,14 @@ class Signal(np.ndarray):
         Start position [seconds].
     stop : float, optional
         Stop position [seconds].
+    norm : bool, optional
+        Normalize the signal to the range [-1, +1].
+    gain : float, optional
+        Adjust the gain of the signal [dB].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
 
     Notes
     -----
@@ -437,8 +551,17 @@ class Signal(np.ndarray):
     and number of channels if the audio is read from file. If set to 'None'
     the audio signal is used as is, i.e. the sample rate and number of channels
     are determined directly from the audio file.
+
     If the `data` is a numpy array, the `sample_rate` is set to the given value
     and `num_channels` is set to the number of columns of the array.
+
+    The `gain` can be used to adjust the level of the signal.
+
+    If both `norm` and `gain` are set, the signal is first normalized and then
+    the gain is applied afterwards.
+
+    If `norm` or `gain` is set, the selected part of the signal is loaded into
+    memory completely, i.e. .wav files are not memory-mapped any more.
 
     """
     # pylint: disable=super-on-old-class
@@ -446,17 +569,25 @@ class Signal(np.ndarray):
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, sample_rate=None, num_channels=None, start=None,
-                 stop=None):
+                 stop=None, norm=False, gain=0, dtype=None):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
-                stop=None):
+                stop=None, norm=False, gain=0, dtype=None):
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate=sample_rate,
                                                 num_channels=num_channels,
-                                                start=start, stop=stop)
+                                                start=start, stop=stop,
+                                                dtype=dtype)
+        # process it if needed
+        if norm:
+            # normalize signal
+            data = normalize(data)
+        if gain is not None and gain != 0:
+            # adjust the gain
+            data = adjust_gain(data, gain)
         # cast as Signal
         obj = np.asarray(data).view(cls)
         if sample_rate is not None:
@@ -509,14 +640,20 @@ class SignalProcessor(Processor):
         Number of channels of the signal; if set, the signal will be reduced
         to that number of channels; if 'None' as many channels as present in
         the audio file are returned.
-    norm : bool, optional
-        Normalize the signal to the range [-1, +1].
-    att : float, optional
-        Attenuate the signal [dB].
     start : float, optional
         Start position [seconds].
     stop : float, optional
         Stop position [seconds].
+    norm : bool, optional
+        Normalize the signal to the range [-1, +1].
+    att : float, optional
+        Deprecated in version 0.13, use `gain` instead.
+    gain : float, optional
+        Adjust the gain of the signal [dB].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
 
     """
     SAMPLE_RATE = None
@@ -524,17 +661,30 @@ class SignalProcessor(Processor):
     START = None
     STOP = None
     NORM = False
-    ATT = 0.
+    ATT = None
+    GAIN = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 norm=NORM, att=ATT, start=None, stop=None, **kwargs):
+                 start=None, stop=None, norm=NORM, att=ATT, gain=GAIN,
+                 **kwargs):
         # pylint: disable=unused-argument
         self.sample_rate = sample_rate
         self.num_channels = num_channels
-        self.norm = norm
-        self.att = att
         self.start = start
         self.stop = stop
+        self.norm = norm
+        if att is not None:
+            raise DeprecationWarning('`att` has been renamed to `gain` in '
+                                     'v0.13 and will be removed in version '
+                                     'v0.14')
+        self.gain = gain
+
+    @property
+    def att(self):
+        """Attenuation of the signal [dB]."""
+        raise DeprecationWarning('`att` has been renamed to `gain` in v0.13 '
+                                 'and will be removed in version v0.14.')
+        return -self.gain
 
     def process(self, data, start=None, stop=None, **kwargs):
         """
@@ -563,20 +713,14 @@ class SignalProcessor(Processor):
             stop = self.stop
         # instantiate a Signal
         data = Signal(data, sample_rate=self.sample_rate,
-                      num_channels=self.num_channels, start=start, stop=stop)
-        # process it if needed
-        if self.norm:
-            # normalize signal
-            data = normalize(data)
-        if self.att is not None and self.att != 0:
-            # attenuate signal
-            data = attenuate(data, self.att)
+                      num_channels=self.num_channels, start=start, stop=stop,
+                      norm=self.norm, gain=self.gain)
         # return processed data
         return data
 
     @staticmethod
     def add_arguments(parser, sample_rate=None, mono=None, start=None,
-                      stop=None, norm=None, att=None):
+                      stop=None, norm=None, gain=None):
         """
         Add signal processing related arguments to an existing parser.
 
@@ -594,8 +738,8 @@ class SignalProcessor(Processor):
             Stop position [seconds].
         norm : bool, optional
             Normalize the signal to the range [-1, +1].
-        att : float, optional
-            Sttenuate the signal [dB].
+        gain : float, optional
+            Adjust the gain of the signal [dB].
 
         Returns
         -------
@@ -629,9 +773,9 @@ class SignalProcessor(Processor):
         if norm is not None:
             g.add_argument('--norm', action='store_true', default=norm,
                            help='normalize the signal [default=%(default)s]')
-        if att is not None:
-            g.add_argument('--att', action='store', type=float, default=att,
-                           help='attenuate the signal '
+        if gain is not None:
+            g.add_argument('--gain', action='store', type=float, default=gain,
+                           help='adjust the gain of the signal '
                                 '[dB, default=%(default).1f]')
         # return the argument group so it can be modified if needed
         return g
@@ -680,6 +824,10 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
 
     The part of the frame which is not covered by the signal is padded with
     zeros.
+
+    This function is totally independent of the length of the signal. Thus,
+    contrary to common indexing, the index '-1' refers NOT to the last frame
+    of the signal, but instead the frame left of the first frame is returned.
 
     """
 
@@ -846,19 +994,14 @@ class FramedSignal(object):
         Two frames are located `hop_size` samples apart. If `hop_size` is a
         float, normal rounding applies.
 
-        Notes
-        -----
-        Index -1 refers NOT to the last frame, but to the frame directly left
-        of frame 0. Although this is contrary to common behavior, being able to
-        access these frames can be important, e.g. if the frames overlap, frame
-        -1 contains parts of the signal of frame 0.
-
         """
         # a single index is given
         if isinstance(index, int):
-            # return a single frame
+            # negative indices
+            if index < 0:
+                index += self.num_frames
+            # return the frame at the given index
             if index < self.num_frames:
-                # return the frame at this index
                 return signal_frame(self.signal, index,
                                     frame_size=self.frame_size,
                                     hop_size=self.hop_size, origin=self.origin)

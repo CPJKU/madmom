@@ -63,7 +63,7 @@ def main():
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     # add signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, att=0)
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
     FramedSignalProcessor.add_arguments(p)
     FilteredSpectrogramProcessor.add_arguments(p, num_bands=24, fmin=30,
                                                fmax=17000, norm_filters=False)

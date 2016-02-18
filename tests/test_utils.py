@@ -19,6 +19,7 @@ FILE_LIST = [DATA_PATH + 'README',
              DATA_PATH + 'events.txt']
 
 AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
+               AUDIO_PATH + 'stereo_chirp.wav',
                AUDIO_PATH + 'stereo_sample.flac',
                AUDIO_PATH + 'stereo_sample.wav']
 
