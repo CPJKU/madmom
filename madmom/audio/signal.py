@@ -825,6 +825,10 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     The part of the frame which is not covered by the signal is padded with
     zeros.
 
+    This function is totally independent of the length of the signal. Thus,
+    contrary to common indexing, the index '-1' refers NOT to the last frame
+    of the signal, but instead the frame left of the first frame is returned.
+
     """
 
     # length of the signal
@@ -990,19 +994,14 @@ class FramedSignal(object):
         Two frames are located `hop_size` samples apart. If `hop_size` is a
         float, normal rounding applies.
 
-        Notes
-        -----
-        Index -1 refers NOT to the last frame, but to the frame directly left
-        of frame 0. Although this is contrary to common behavior, being able to
-        access these frames can be important, e.g. if the frames overlap, frame
-        -1 contains parts of the signal of frame 0.
-
         """
         # a single index is given
         if isinstance(index, int):
-            # return a single frame
+            # negative indices
+            if index < 0:
+                index += self.num_frames
+            # return the frame at the given index
             if index < self.num_frames:
-                # return the frame at this index
                 return signal_frame(self.signal, index,
                                     frame_size=self.frame_size,
                                     hop_size=self.hop_size, origin=self.origin)

@@ -944,6 +944,8 @@ class TestSignalFrameFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
     def test_values(self):
+        result = signal_frame(np.arange(10), -1, 4, 2)
+        self.assertTrue(np.allclose(result, [0, 0, 0, 0]))
         result = signal_frame(np.arange(10), 0, 4, 2)
         self.assertTrue(np.allclose(result, [0, 0, 0, 1]))
         result = signal_frame(np.arange(10), 1, 4, 2)
@@ -971,6 +973,8 @@ class TestSignalFrameFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, [[6, 6], [7, 7], [8, 8], [9, 9]]))
         result = signal_frame(signal, 5, 4, 2)
         self.assertTrue(np.allclose(result, [[8, 8], [9, 9], [0, 0], [0, 0]]))
+        result = signal_frame(signal, 6, 4, 2)
+        self.assertTrue(np.allclose(result, [[0, 0], [0, 0], [0, 0], [0, 0]]))
 
     def test_float_hop_size(self):
         result = signal_frame(np.arange(10), 0, 3.5, 2)
@@ -1014,6 +1018,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result[0], Signal)
         # get slice
         self.assertIsInstance(result[:5], FramedSignal)
+        self.assertIsInstance(result[1:2], FramedSignal)
         # properties
         self.assertIsInstance(len(result), int)
         self.assertIsInstance(result.frame_rate, type(None))
@@ -1036,6 +1041,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertIsInstance(result[0], Signal)
         # get slice
         self.assertIsInstance(result[:2], FramedSignal)
+        self.assertIsInstance(result[5:6], FramedSignal)
         # properties
         self.assertIsInstance(len(result), int)
         self.assertIsInstance(result.frame_rate, type(None))
@@ -1128,6 +1134,7 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[2], [2, 3, 4, 5]))
         self.assertTrue(np.allclose(result[3], [4, 5, 6, 7]))
         self.assertTrue(np.allclose(result[4], [6, 7, 8, 9]))
+        self.assertTrue(np.allclose(result[-1], [6, 7, 8, 9]))
         with self.assertRaises(IndexError):
             result[5]
         # attributes
@@ -1148,7 +1155,9 @@ class TestFramedSignalClass(unittest.TestCase):
         self.assertTrue(np.allclose(result[0], [0, 1, 2, 3]))
         self.assertTrue(np.allclose(result[1], [2, 3, 4, 5]))
         self.assertTrue(np.allclose(result[2], [4, 5, 6, 7]))
+        self.assertTrue(np.allclose(result[-2], [4, 5, 6, 7]))
         self.assertTrue(np.allclose(result[3], [6, 7, 8, 9]))
+        self.assertTrue(np.allclose(result[-1], [6, 7, 8, 9]))
         with self.assertRaises(IndexError):
             result[4]
         # attributes
