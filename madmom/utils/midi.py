@@ -1073,41 +1073,35 @@ class MIDITrack(object):
     ----------
     events : list
         MIDI events.
-    relative_timing : bool, optional
-        Indicate if the ticks of the events are in relative or absolute timing.
 
     """
 
-    def __init__(self, events=None, relative_timing=True):
+    def __init__(self, events=None):
         if events is None:
             self.events = []
         else:
             self.events = events
-        self.relative_timing = relative_timing
+        self._make_ticks_abs()
 
-    def make_ticks_abs(self):
+    def _make_ticks_abs(self):
         """
         Make the track's timing information absolute.
 
         """
-        if self.relative_timing:
-            running_tick = 0
-            for event in self.events:
-                event.tick += running_tick
-                running_tick = event.tick
-            self.relative_timing = False
+        running_tick = 0
+        for event in self.events:
+            event.tick += running_tick
+            running_tick = event.tick
 
-    def make_ticks_rel(self):
+    def _make_ticks_rel(self):
         """
         Make the track's timing information relative.
 
         """
-        if not self.relative_timing:
-            running_tick = 0
-            for event in self.events:
-                event.tick -= running_tick
-                running_tick += event.tick
-            self.relative_timing = True
+        running_tick = 0
+        for event in self.events:
+            event.tick -= running_tick
+            running_tick += event.tick
 
     @property
     def data_stream(self):
@@ -1116,7 +1110,7 @@ class MIDITrack(object):
 
         """
         # first make sure the timing information is relative
-        self.make_ticks_rel()
+        self._make_ticks_rel()
         # and unset the status message
         status = None
         # then encode all events of the track
@@ -1146,6 +1140,10 @@ class MIDITrack(object):
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepare the track header
         track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
+
+        # convert back to absolute ticks
+        self._make_ticks_abs()
+
         # return the track header + data
         return track_header + track_data
 
@@ -1338,8 +1336,6 @@ class MIDIFile(object):
             Array with tempi (tick, seconds per tick, cumulative time).
 
         """
-        # first convert all events to have absolute tick counts
-        self.make_ticks_abs()
         # create an empty tempo list
         tempi = None
         for track in self.tracks:
@@ -1384,7 +1380,6 @@ class MIDIFile(object):
             Array with time signatures (tick, numerator, denominator).
 
         """
-        self.make_ticks_abs()
         signatures = None
         for track in self.tracks:
             # get a list with time signature events
@@ -1424,7 +1419,6 @@ class MIDIFile(object):
             Array with notes (onset time, pitch, duration, velocity).
 
         """
-        self.make_ticks_abs()
         # list for all notes
         notes = []
         # dictionaries for storing the last onset and velocity per pitch
@@ -1466,6 +1460,7 @@ class MIDIFile(object):
         notes = np.asarray(notes, dtype=np.float)
 
         # convert onset times and durations from ticks to a meaningful unit
+        # and return the notes
         if note_time_unit == 's':
             return self._note_ticks_to_seconds(notes)
         elif note_time_unit == 'b':
@@ -1547,22 +1542,6 @@ class MIDIFile(object):
             note[2] = (offset - t_off[0]) * t_off[1] + t_off[2]
         # return notes
         return notes
-
-    def make_ticks_abs(self):
-        """
-        Make the timing information of all tracks absolute.
-
-        """
-        for track in self.tracks:
-            track.make_ticks_abs()
-
-    def make_ticks_rel(self):
-        """
-        Make the timing information of all tracks relative.
-
-        """
-        for track in self.tracks:
-            track.make_ticks_rel()
 
     # methods for writing MIDI stuff
     @property
