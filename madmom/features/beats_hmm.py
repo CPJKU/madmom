@@ -462,8 +462,6 @@ class RNNBeatTrackingObservationModel(ObservationModel):
     observation_lambda : int
         Split one beat period into `observation_lambda` parts, the first
         representing beat states and the remaining non-beat states.
-    norm_observations : bool, optional
-        Normalize the observations.
 
     References
     ----------
@@ -475,10 +473,8 @@ class RNNBeatTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, state_space, observation_lambda,
-                 norm_observations=False):
+    def __init__(self, state_space, observation_lambda):
         self.observation_lambda = observation_lambda
-        self.norm_observations = norm_observations
         # compute observation pointers
         # always point to the non-beat densities
         pointers = np.ones(state_space.num_states, dtype=np.uint32)
@@ -503,9 +499,6 @@ class RNNBeatTrackingObservationModel(ObservationModel):
             Log densities of the observations.
 
         """
-        # norm observations
-        if self.norm_observations:
-            observations /= np.max(observations)
         # init densities
         log_densities = np.empty((len(observations), 2), dtype=np.float)
         # Note: it's faster to call np.log 2 times instead of once on the
@@ -528,8 +521,6 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         pattern; each pattern being a list with fitted GMMs.
     state_space : :class:`MultiPatternStateSpeac` instance
         Multi pattern state space.
-    norm_observations : bool, optional
-        Normalize the observations.
 
     References
     ----------
@@ -541,11 +532,10 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, pattern_files, state_space, norm_observations=False):
+    def __init__(self, pattern_files, state_space):
         # save the parameters
         self.pattern_files = pattern_files
         self.state_space = state_space
-        self.norm_observations = norm_observations
         # define the pointers of the log densities
         pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         patterns = self.state_space.state_patterns
@@ -585,9 +575,6 @@ class GMMPatternTrackingObservationModel(ObservationModel):
             Log densities of the observations.
 
         """
-        # norm observations
-        if self.norm_observations:
-            observations /= np.max(observations)
         # number of GMMs of all patterns
         num_gmms = sum([len(pattern) for pattern in self.pattern_files])
         # init the densities

@@ -633,8 +633,6 @@ class DBNBeatTrackingProcessor(Processor):
     observation_lambda : int, optional
         Split one beat period into `observation_lambda` parts, the first
         representing beat states and the remaining non-beat states.
-    norm_observations : bool, optional
-        Normalize the observations.
     correct : bool, optional
         Correct the beats (i.e. align them to the nearest peak of the beat
         activation function).
@@ -664,13 +662,11 @@ class DBNBeatTrackingProcessor(Processor):
     NUM_TEMPI = None
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
-    NORM_OBSERVATIONS = False
     CORRECT = True
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                  transition_lambda=TRANSITION_LAMBDA,
-                 observation_lambda=OBSERVATION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, correct=CORRECT,
+                 observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT,
                  fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
@@ -687,7 +683,7 @@ class DBNBeatTrackingProcessor(Processor):
         # transition model
         self.tm = Tm(self.st, transition_lambda)
         # observation model
-        self.om = Om(self.st, observation_lambda, norm_observations)
+        self.om = Om(self.st, observation_lambda)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
@@ -746,8 +742,7 @@ class DBNBeatTrackingProcessor(Processor):
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
-                      observation_lambda=OBSERVATION_LAMBDA,
-                      norm_observations=NORM_OBSERVATIONS, correct=CORRECT):
+                      observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT):
         """
         Add DBN related arguments to an existing parser object.
 
@@ -769,8 +764,6 @@ class DBNBeatTrackingProcessor(Processor):
         observation_lambda : int, optional
             Split one beat period into `observation_lambda` parts, the first
             representing beat states and the remaining non-beat states.
-        norm_observations : bool, optional
-            Normalize the observations.
         correct : bool, optional
             Correct the beats (i.e. align them to the nearest peak of the beat
             activation function).
@@ -807,14 +800,6 @@ class DBNBeatTrackingProcessor(Processor):
                        help='split one beat period into N parts, the first '
                             'representing beat states and the remaining '
                             'non-beat states [default=%(default)i]')
-        if norm_observations:
-            g.add_argument('--no_norm_obs', dest='norm_observations',
-                           action='store_false', default=norm_observations,
-                           help='do not normalize the observations of the DBN')
-        else:
-            g.add_argument('--norm_obs', dest='norm_observations',
-                           action='store_true', default=norm_observations,
-                           help='normalize the observations of the DBN')
         # option to correct the beat positions
         if correct:
             g.add_argument('--no_correct', dest='correct',
@@ -834,12 +819,12 @@ class DBNBeatTrackingProcessor(Processor):
 
 class DownbeatTrackingProcessor(object):
     """
-    Renamed to PatternTrackingProcessor in v0.13. Will be removed in v0.14.
+    Renamed to :class:`PatternTrackingProcessor` in v0.13. Will be removed in
+    v0.14.
 
     """
     def __init__(self):
-        raise DeprecationWarning('Renamed to PatternTrackingProcessor in '
-                                 'v0.13. Will be removed in v0.14.')
+        raise DeprecationWarning(self.__doc__)
 
 
 # class for pattern tracking
@@ -863,8 +848,6 @@ class PatternTrackingProcessor(Processor):
     transition_lambda : float or list, optional
         Lambdas for the exponential tempo change distributions (higher values
         prefer constant tempi from one beat to the next .one)
-    norm_observations : bool, optional
-        Normalize the observations.
     downbeats : bool, optional
         Report only the downbeats instead of the beats and the respective
         position inside the bar.
@@ -903,12 +886,10 @@ class PatternTrackingProcessor(Processor):
     # Note: if lambda is given as a list, the individual values represent the
     #       lambdas for each transition into the beat at this index position
     TRANSITION_LAMBDA = [100, 100]
-    NORM_OBSERVATIONS = False
 
     def __init__(self, pattern_files, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
-                 norm_observations=NORM_OBSERVATIONS, downbeats=False,
-                 fps=None, **kwargs):
+                 downbeats=False, fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -969,8 +950,7 @@ class PatternTrackingProcessor(Processor):
         # create multi pattern state space, transition and observation model
         self.st = MultiPatternStateSpace(state_spaces)
         self.tm = MultiPatternTransitionModel(transition_models)
-        self.om = GMMPatternTrackingObservationModel(gmms, self.st,
-                                                     norm_observations)
+        self.om = GMMPatternTrackingObservationModel(gmms, self.st)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
@@ -1012,8 +992,7 @@ class PatternTrackingProcessor(Processor):
     @staticmethod
     def add_arguments(parser, pattern_files=None, min_bpm=MIN_BPM,
                       max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
-                      transition_lambda=TRANSITION_LAMBDA,
-                      norm_observations=NORM_OBSERVATIONS):
+                      transition_lambda=TRANSITION_LAMBDA):
         """
         Add DBN related arguments for pattern tracking to an existing parser
         object.
@@ -1034,8 +1013,6 @@ class PatternTrackingProcessor(Processor):
         transition_lambda : float or list, optional
             Lambdas for the exponential tempo change distribution (higher
             values prefer constant tempi from one beat to the next one).
-        norm_observations : bool, optional
-            Normalize the observations.
 
         Returns
         -------
@@ -1079,15 +1056,6 @@ class PatternTrackingProcessor(Processor):
                             'tempo change from one bar to the next one (comma '
                             'separated list with one value per pattern) '
                             '[default=%(default)s]')
-        # observation model stuff
-        if norm_observations:
-            g.add_argument('--no_norm_obs', dest='norm_observations',
-                           action='store_false', default=norm_observations,
-                           help='do not normalize the observations of the DBN')
-        else:
-            g.add_argument('--norm_obs', dest='norm_observations',
-                           action='store_true', default=norm_observations,
-                           help='normalize the observations of the DBN')
         # add output format stuff
         g = parser.add_argument_group('output arguments')
         g.add_argument('--downbeats', action='store_true', default=False,
