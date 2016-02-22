@@ -837,9 +837,15 @@ class TestFilterbankClass(unittest.TestCase):
                                     [[1, 69], [0, 99]]))
         self.assertTrue(np.allclose(filt.center_frequencies, [6, 49]))
 
+
+class TestFilterbankProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = FilterbankProcessor.from_filters(
+            TestFilterbankClass.triang_filters, np.arange(100))
+
     def test_process(self):
-        filt = Filterbank.from_filters(self.triang_filters, np.arange(100))
-        result = filt.process(np.zeros((20, 100)))
+        result = self.processor.process(np.zeros((20, 100)))
         self.assertTrue(np.allclose(result, np.zeros((20, 4))))
 
 
