@@ -7,20 +7,21 @@ BeatDetector beat tracking algorithm.
 
 from __future__ import absolute_import, division, print_function
 
-import glob
 import argparse
+import glob
+
 import numpy as np
 
 from madmom import MODELS_PATH
-from madmom.processors import (SequentialProcessor, ParallelProcessor,
-                               IOProcessor, io_arguments)
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
-from madmom.ml.rnn import RNNProcessor, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import BeatDetectionProcessor
 from madmom.features.tempo import TempoEstimationProcessor
+from madmom.ml.nn.nets import RNNProcessor, average_predictions
+from madmom.processors import (SequentialProcessor, ParallelProcessor,
+                               IOProcessor, io_arguments)
 
 
 def main():
