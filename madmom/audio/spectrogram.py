@@ -1226,8 +1226,8 @@ class StackedSpectrogramProcessor(object):
     """
     Deprecated in v0.13, will be removed in v0.14.
 
-    Functionality added to SpectrogramDifferenceProcessor as `stack_diffs`
-    argument.
+    Functionality added to :class:`SpectrogramDifferenceProcessor` as
+    `stack_diffs` argument.
 
     """
     def __init__(self):

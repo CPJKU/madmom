@@ -3,8 +3,6 @@ madmom.audio
 
 .. automodule:: madmom.audio
     :members:
-    :undoc-members:
-    :show-inheritance:
 
 Submodules
 ----------

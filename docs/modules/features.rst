@@ -3,8 +3,6 @@ madmom.features
 
 .. automodule:: madmom.features
     :members:
-    :undoc-members:
-    :show-inheritance:
 
 Submodules
 ----------
