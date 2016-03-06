@@ -3,8 +3,6 @@ madmom.evaluation
 
 .. automodule:: madmom.evaluation
     :members:
-    :undoc-members:
-    :show-inheritance:
 
 Submodules
 ----------
