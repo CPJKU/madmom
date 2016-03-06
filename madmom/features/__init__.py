@@ -5,7 +5,9 @@
 # pylint: disable=wrong-import-position
 """
 This package includes high-level features. Your definition of "high" may
-vary, but all "low"-level features can be found the `madmom.audio` package.
+vary, but we define high-level features as the ones you want to evaluate (e.g.
+onsets, beats, etc.). All lower-level features can be found the `madmom.audio`
+package.
 
 Notes
 -----

@@ -2,7 +2,8 @@
 """
 This package includes audio handling functionality and low-level features.
 The definition of "low" may vary, but all "high"-level features (e.g. beats,
-onsets, etc.) should be in the `madmom.features` package.
+onsets, etc. -- basically everything you want to evaluate) should be in the
+`madmom.features` package.
 
 Notes
 -----
