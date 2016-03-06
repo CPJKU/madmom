@@ -3,6 +3,8 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
+TODO: Rewrite this docstring!
+
 This module contains functionality needed for the conversion of from the
 universal .h5 format to the .npz format understood by madmom.ml.rnn.
 
@@ -43,8 +45,6 @@ the reverse/backward layer of bidirectional layers.
 
 """
 
-# TODO: Documentation and comments!
-
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -52,6 +52,26 @@ import numpy as np
 
 
 def load(filename, file_type=None):
+    """
+    Loads a model from an HDF5 or NPZ file.
+
+    Parameters
+    ----------
+    filename : string
+        Name of the model file
+    file_type : string, optional
+        Type of file, 'npz' or 'hdf5'. If not given, inferred from the file
+        name, if possible.
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+
+    Notes
+    -----
+    Needs h5py if loading an HDF5 file
+    """
     if file_type is None:
         ext = os.path.splitext(filename)[1][1:]
         if ext in ['hdf', 'h5', 'hdf5', 'he5']:
@@ -70,9 +90,27 @@ def load(filename, file_type=None):
 
 
 def load_hdf5(filename):
+    """
+    Loads a model from an HDF5 file.
+
+    Parameters
+    ----------
+    filename : string
+        Name of the model file
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+
+    Notes
+    -----
+    Needs h5py
+    """
     import h5py
 
     def load_item(item):
+        """Processes an item found in the HDF5 file"""
         if type(item) == h5py.Dataset:
             return item.value
         elif type(item) == h5py.Group:
@@ -81,6 +119,8 @@ def load_hdf5(filename):
             raise TypeError('Unknown entity type: {}'.format(item))
 
     def load_list(grp):
+        """Processes a group of type 'list'"""
+
         # sort contents according to 'id' attribute, return a list
         # with loaded items
         group_contents = sorted(
@@ -91,6 +131,7 @@ def load_hdf5(filename):
         return [load_item(item) for item in group_contents]
 
     def load_group(grp):
+        """Processes a group object found in the HDF5 file"""
         import madmom
 
         cls_name = grp.attrs['type']
@@ -105,35 +146,64 @@ def load_hdf5(filename):
         cls = reduce(lambda module, item: getattr(module, item),
                      cls_name.split('.')[1:], madmom)
 
+        # if we do not need to instantiate the class/function represented
+        # by this group, return it immediately
         if not grp.attrs.get('instantiate', True):
             return cls
 
+        # collect the parameters and return the instantiated/called class
+        # or function
         params = {name: load_item(item) for name, item in grp.iteritems()}
         return cls(**params)
 
+    # load all the models found in the file
     f = h5py.File(filename, 'r')
     return {name: load_item(grp) for name, grp in f.iteritems()}
 
 
 def hdf5_to_npz(hdf5_filename, npz_filename):
+    """
+    Converts an HDF5 model file to an NPZ model file.
+
+    Parameters
+    ----------
+    hdf5_filename : string
+        Name of the source HDF5 model file
+    npz_filename : string
+        Name of the destination NPZ model file
+
+    Notes
+    -----
+    Needs h5py to load the HDF5 file
+
+    """
     import h5py
 
+    # note that the following functions are closures and use
+    # the 'arrs' variable from the hdf5_to_npz scope to store
+    # the converted HDF5 models found
+
     def convert_attrs(item, name):
+        """Stores the attributes of an HDF5 item"""
         name += '/attrs/'
         for attr_name, attr_val in item.attrs.iteritems():
             arrs[name + attr_name] = attr_val
 
     def convert(item, name):
+        """Converts an HDF5 item to a flat representation for the NPZ format"""
         convert_attrs(item, name)
         if type(item) == h5py.Dataset:
             arrs[name] = item.value
         elif type(item) == h5py.Group:
+            # store all the sub-parts of this group
             for sub_item_name, sub_item in item.iteritems():
                 convert(sub_item, name + '/' + sub_item_name)
         else:
             raise TypeError('Unknown entity type: {}'.format(item))
 
     f = h5py.File(hdf5_filename, 'r')
+
+    # collect all models from the hdf5 file
     arrs = {}
     for grp_name, grp in f.iteritems():
         convert(grp, grp_name)
@@ -142,18 +212,26 @@ def hdf5_to_npz(hdf5_filename, npz_filename):
 
 
 def _npz_to_dict_tree(npz_file):
-    # This 'magic' creates a hierarchical representation (tree) of the file's
-    # content, represented by a python dictionary. It looks at every element
-    # in the npz file, makes sure that the dictionary structure exists to
-    # store the value (this is what the reduce operation does!), and stores
-    # the value in there.
+    """
+    Converts a flat model representation as found in the npz_file to a
+    hierarchical representation (tree), stored in a Python dictionary.
+    It looks at every element in the npz file, makes sure that the dictionary
+    structure (the sub-tree) exists to store the value (this is what the
+    reduce operation does!), and stores the value in there.
+    """
 
     def add_leaf(subtree, leaf_name):
-        # add a new leaf if it does not exist already
+        """
+        Adds a leaf (empty dict) to a sub-tree if it does not exist already
+        """
         subtree[leaf_name] = subtree.get(leaf_name, {})
         return subtree[leaf_name]
 
+    # start with an empty tree
     tree = {}
+
+    # For every element in the npz_file, create the sub-tree using the
+    # reduce function, and store the corresponding value as a leaf
     for flat_key, v in npz_file.iteritems():
         ks = flat_key.split('/')
         reduce(add_leaf, ks[:-1], tree)[ks[-1]] = v
@@ -162,8 +240,22 @@ def _npz_to_dict_tree(npz_file):
 
 
 def load_npz(filename):
+    """
+    Loads a model from an NPZ file.
+
+    Parameters
+    ----------
+    filename : string
+        Name of the model file
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+    """
 
     def load_item(item):
+        """Processes an item in the tree representation of the model"""
         if type(item) == np.ndarray:
             return item
         elif type(item) == dict:
@@ -172,16 +264,19 @@ def load_npz(filename):
             raise TypeError('Unknown entity type: {}'.format(item))
 
     def load_list(grp):
+        """Processes a group of type 'list' found in the model tree"""
+
         # sort contents according to 'id' attribute, return a list
         # with loaded items
         group_contents = sorted(
-            (v for k, v in grp.iteritems() if k != 'attrs'),
+            (v for k, v in grp.iteritems() if k != 'attrs'),  # skip attributes
             cmp=lambda x, y: cmp(x['attrs']['id'], y['attrs']['id'])
         )
 
         return [load_item(item) for item in group_contents]
 
     def load_group(grp):
+        """Processes a group object found in the model tree"""
         import madmom
 
         cls_name = str(grp['attrs']['type'])
@@ -196,15 +291,20 @@ def load_npz(filename):
         cls = reduce(lambda module, item: getattr(module, item),
                      cls_name.split('.')[1:], madmom)
 
+        # if we do not need to instantiate the class/function represented
+        # by this group, return it immediately
         if not grp['attrs'].get('instantiate', True):
             return cls
 
+        # collect the parameters and return the instantiated/called class
+        # or function. skip the attributes.
         params = {name: load_item(item)
                   for name, item in grp.iteritems()
                   if name != 'attrs'}
-
         return cls(**params)
 
+    # convert the flat representation found in the NPZ file to a tree
+    # representation for easier parsing
     model_tree = _npz_to_dict_tree(np.load(filename))
+    # Load all the models found in the file
     return {name: load_item(grp) for name, grp in model_tree.iteritems()}
-
