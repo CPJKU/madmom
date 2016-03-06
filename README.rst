@@ -5,7 +5,7 @@ madmom
 Madmom is an audio signal processing library written in Python with a strong
 focus on music information retrieval (MIR) tasks.
 
-The library is used internally by the Department of Computational Perception,
+The library is internally used by the Department of Computational Perception,
 Johannes Kepler University, Linz, Austria (http://www.cp.jku.at) and the
 Austrian Research Institute for Artificial Intelligence (OFAI), Vienna, Austria
 (http://www.ofai.at).
@@ -50,7 +50,8 @@ Installation
 
 Please do not try to install from the .zip files provided by GitHub. Rather
 install it from package (if you just want to use it) or source (if you plan to
-use it for development) by following the instructions below.
+use it for development) by following the instructions below. Whichever variant
+you choose, please make sure that all prerequisites are installed.
 
 Prerequisites
 -------------
@@ -71,60 +72,107 @@ Please refer to the `requirements.txt <requirements.txt>`_ file for the minimum
 required versions and make sure that these modules are up to date, otherwise it
 can result in unexpected errors or false computations!
 
+.. _install_from_package:
+
 Install from package
 --------------------
+
+The instructions given here should be used if you just want to install the
+package, e.g. to run the bundled programs or use some functionality for your
+own project. If you intend to change anything within the `madmom` package,
+please follow the steps in :ref:`the next section <install_from_source>`.
 
 The easiest way to install the package is via ``pip`` from the `PyPI (Python
 Package Index) <https://pypi.python.org/pypi>`_::
 
-    pip install madmom
+  pip install madmom
 
 This includes the latest code and trained models and will install all
-dependencies automatically. It will also install the executable scripts to a
-common place (e.g. ``/usr/local/bin``) which should be in your ``$PATH``
-already. ``pip`` will output the install location.
+dependencies automatically.
 
 You might need higher privileges (use su or sudo) to install the package, model
 files and scripts globally. Alternatively you can install the package locally
 (i.e. only for you) by adding the ``--user`` argument::
 
-    pip install --user madmom
+  pip install --user madmom
 
-Depending on your platform, the scripts will be copied to a folder which
+This will also install the executable programs to a common place (e.g.
+``/usr/local/bin``), which should be in your ``$PATH`` already. If you
+installed the package locally, the programs will be copied to a folder which
 might not be included in your ``$PATH`` (e.g. ``~/Library/Python/2.7/bin``
-on Mac OS X or ``~/.local/bin`` on Ubuntu Linux), so please call the scripts
-directly or add their path to your ``$PATH`` environment variable::
+on Mac OS X or ``~/.local/bin`` on Ubuntu Linux, ``pip`` will tell you). Thus
+the programs need to be called explicitely or you can add their install path
+to your ``$PATH`` environment variable::
 
     export PATH='path/to/scripts':$PATH
+
+.. _install_from_source:
 
 Install from source
 -------------------
 
 If you plan to use the package as a developer, clone the Git repository::
 
-    git clone --recursive https://github.com/CPJKU/madmom.git
-    cd /path/to/madmom
+  git clone --recursive https://github.com/CPJKU/madmom.git
 
-The ``--recursive`` is needed because the pre-trained model/data files are not
-included in this repository but rather added as a Git submodule. If you missed
-to add the recursice option, you can init the submodule and fetch the data
-manually::
+Since the pre-trained model/data files are not included in this repository but
+rather added as a Git submodule, you either have to clone the repo recursively.
+This is equivalent to these steps::
 
-    git submodule update --init --remote
+  git clone  https://github.com/CPJKU/madmom.git
+  cd madmom
+  git submodule update --init --remote
 
-You can then either include the package directory in your ``$PYTHONPATH``, or
-you can simply install the package in development mode::
+You can then either include the package directory in your ``$PYTHONPATH`` and
+compile the Cython extensions with::
 
-    python setup.py develop --user
+  python setup.py build_ext --inplace
 
-If you change any ``.pyx`` or ``.pxd`` files, you have to (re-)compile the
-modules with Cython. To do so, please run the above command again or::
+or you can simply install the package in development mode::
 
-    python setup.py build_ext --inplace
+  python setup.py develop --user
 
-Optionally you can run the included tests::
+To run the included tests::
 
-    python setup.py test
+  python setup.py test
+
+.. _upgrading:
+
+Upgrade of existing installations
+---------------------------------
+
+To upgrade the package, please use the same machanism (pip vs. source /
+global vs. local install) as you did for installation. If you want to change
+from package to source, please uninstall the package first.
+
+Upgrade a package
+~~~~~~~~~~~~~~~~~
+
+Simply upgrade the package via pip::
+
+  pip install --upgrade madmom [--user]
+
+If some of the provided programs or models changed (please refer to the
+CHANGELOG) you should first uninstall the package and then reinstall::
+
+  pip uninstall madmom
+  pip install madmom [--user]
+
+Upgrade from source
+~~~~~~~~~~~~~~~~~~~
+
+Simply pull the latest sources::
+
+  git pull
+
+To update the models contained in the submodule::
+
+  git submodule update
+
+If any of the ``.pyx`` or ``.pxd`` files changes, you have to recompile the
+modules with Cython::
+
+  python setup.py build_ext --inplace
 
 Package structure
 -----------------
@@ -191,8 +239,7 @@ Mailing list
 ------------
 
 The `mailing list <https://groups.google.com/d/forum/madmom-users>`_ should be
-used to get in touch with the developers and other users. Please ask any
-questions there before opening an issue.
+used to get in touch with the developers and other users.
 
 Wiki
 ----

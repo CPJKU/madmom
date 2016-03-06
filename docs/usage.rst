@@ -30,7 +30,7 @@ Library usage
 
 To use the library, :ref:`installing it from source <install_from_source>` is
 the preferred way. Installation from package works as well, but you're limited
-to the provided functionality and can't extend the library.
+to the functionality provided and can't extend the library.
 
 The basic usage is::
 
