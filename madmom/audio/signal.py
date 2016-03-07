@@ -646,8 +646,6 @@ class SignalProcessor(Processor):
         Stop position [seconds].
     norm : bool, optional
         Normalize the signal to the range [-1, +1].
-    att : float, optional
-        Deprecated in version 0.13, use `gain` instead.
     gain : float, optional
         Adjust the gain of the signal [dB].
     dtype : numpy data type, optional
@@ -661,30 +659,17 @@ class SignalProcessor(Processor):
     START = None
     STOP = None
     NORM = False
-    ATT = None
     GAIN = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=None, stop=None, norm=NORM, att=ATT, gain=GAIN,
-                 **kwargs):
+                 start=None, stop=None, norm=NORM, gain=GAIN, **kwargs):
         # pylint: disable=unused-argument
         self.sample_rate = sample_rate
         self.num_channels = num_channels
         self.start = start
         self.stop = stop
         self.norm = norm
-        if att is not None:
-            raise DeprecationWarning('`att` has been renamed to `gain` in '
-                                     'v0.13 and will be removed in version '
-                                     'v0.14')
         self.gain = gain
-
-    @property
-    def att(self):
-        """Attenuation of the signal [dB]."""
-        raise DeprecationWarning('`att` has been renamed to `gain` in v0.13 '
-                                 'and will be removed in version v0.14.')
-        return -self.gain
 
     def process(self, data, start=None, stop=None, **kwargs):
         """

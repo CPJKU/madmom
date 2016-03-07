@@ -1,7 +1,0 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
-if __name__ == '__main__':
-    raise DeprecationWarning('DownBeatTracker has been renamed to '
-                             'GMMPatternTracker in version 0.13. '
-                             'Will be removed in version 0.14.')
