@@ -3,6 +3,8 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
+TODO: Rewrite this docstring!
+
 This module contains functionality needed for the conversion of from the
 universal .h5 format to the .npz format understood by madmom.ml.rnn.
 
@@ -49,40 +51,260 @@ import os
 import numpy as np
 
 
-def convert_model(infile, outfile=None, compressed=False):
+def load(filename, file_type=None):
     """
-    Convert a neural network model from .h5 to .npz format.
+    Loads a model from an HDF5 or NPZ file.
 
     Parameters
     ----------
-    infile : str
-        File with the saved model (.h5 format).
-    outfile : str, optional
-        File to write the model (.npz format).
-    compressed : bool, optional
-        Compress the resulting .npz file?
+    filename : string
+        Name of the model file
+    file_type : string, optional
+        Type of file, 'npz' or 'hdf5'. If not given, inferred from the file
+        name, if possible.
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+
+    Notes
+    -----
+    Needs h5py if loading an HDF5 file
+    """
+    if file_type is None:
+        ext = os.path.splitext(filename)[1][1:]
+        if ext in ['hdf', 'h5', 'hdf5', 'he5']:
+            file_type = 'hdf5'
+        elif ext == 'npz':
+            file_type = 'npz'
+        else:
+            raise ValueError('Cannot determine file type for '
+                             'file "{}".'.format(filename))
+    if file_type == 'hdf5':
+        return load_hdf5(filename)
+    elif file_type == 'npz':
+        return load_npz(filename)
+    else:
+        raise ValueError('Unknown file type "".'.format(file_type))
+
+
+def load_hdf5(filename):
+    """
+    Loads a model from an HDF5 file.
+
+    Parameters
+    ----------
+    filename : string
+        Name of the model file
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+
+    Notes
+    -----
+    Needs h5py
+    """
+    import h5py
+
+    def load_item(item):
+        """Processes an item found in the HDF5 file"""
+        if type(item) == h5py.Dataset:
+            return item.value
+        elif type(item) == h5py.Group:
+            return load_group(item)
+        else:
+            raise TypeError('Unknown entity type: {}'.format(item))
+
+    def load_list(grp):
+        """Processes a group of type 'list'"""
+
+        # sort contents according to 'id' attribute, return a list
+        # with loaded items
+        group_contents = sorted(
+            grp.itervalues(),
+            cmp=lambda x, y: cmp(x.attrs['id'], y.attrs['id'])
+        )
+
+        return [load_item(item) for item in group_contents]
+
+    def load_group(grp):
+        """Processes a group object found in the HDF5 file"""
+        import madmom
+
+        cls_name = grp.attrs['type']
+
+        if cls_name == 'list':
+            return load_list(grp)
+
+        # load the class or function. getattr(madmom, 'ml.nn.xxx') does not
+        # work, we need to load each thing individually, like
+        # ml = getattr(madmom, 'ml'); rnn = getattr(ml, 'nn'), and so on
+        # this code line does this.
+        cls = reduce(lambda module, item: getattr(module, item),
+                     cls_name.split('.')[1:], madmom)
+
+        # if we do not need to instantiate the class/function represented
+        # by this group, return it immediately
+        if not grp.attrs.get('instantiate', True):
+            return cls
+
+        # collect the parameters and return the instantiated/called class
+        # or function
+        params = {name: load_item(item) for name, item in grp.iteritems()}
+        return cls(**params)
+
+    # load all the models found in the file
+    f = h5py.File(filename, 'r')
+    return {name: load_item(grp) for name, grp in f.iteritems()}
+
+
+def hdf5_to_npz(hdf5_filename, npz_filename):
+    """
+    Converts an HDF5 model file to an NPZ model file.
+
+    Parameters
+    ----------
+    hdf5_filename : string
+        Name of the source HDF5 model file
+    npz_filename : string
+        Name of the destination NPZ model file
+
+    Notes
+    -----
+    Needs h5py to load the HDF5 file
 
     """
     import h5py
-    npz = {}
-    # read in model
-    with h5py.File(infile, 'r') as h5:
-        # model attributes
-        for attr in list(h5['model'].attrs.keys()):
-            npz['model_%s' % attr] = h5['model'].attrs[attr]
-        # layers
-        for l in list(h5['layer'].keys()):
-            layer = h5['layer'][l]
-            # each layer has some attributes
-            for attr in list(layer.attrs.keys()):
-                npz['layer_%s_%s' % (l, attr)] = layer.attrs[attr]
-            # and some data sets (i.e. different weights)
-            for data in list(layer.keys()):
-                npz['layer_%s_%s' % (l, data)] = layer[data].value
-    # save the model to .npz format
-    if outfile is None:
-        outfile = os.path.splitext(infile)[0]
-    if compressed:
-        np.savez_compressed(outfile, **npz)
-    else:
-        np.savez(outfile, **npz)
+
+    # note that the following functions are closures and use
+    # the 'arrs' variable from the hdf5_to_npz scope to store
+    # the converted HDF5 models found
+
+    def convert_attrs(item, name):
+        """Stores the attributes of an HDF5 item"""
+        name += '/attrs/'
+        for attr_name, attr_val in item.attrs.iteritems():
+            arrs[name + attr_name] = attr_val
+
+    def convert(item, name):
+        """Converts an HDF5 item to a flat representation for the NPZ format"""
+        convert_attrs(item, name)
+        if type(item) == h5py.Dataset:
+            arrs[name] = item.value
+        elif type(item) == h5py.Group:
+            # store all the sub-parts of this group
+            for sub_item_name, sub_item in item.iteritems():
+                convert(sub_item, name + '/' + sub_item_name)
+        else:
+            raise TypeError('Unknown entity type: {}'.format(item))
+
+    f = h5py.File(hdf5_filename, 'r')
+
+    # collect all models from the hdf5 file
+    arrs = {}
+    for grp_name, grp in f.iteritems():
+        convert(grp, grp_name)
+
+    np.savez(npz_filename, **arrs)
+
+
+def _npz_to_dict_tree(npz_file):
+    """
+    Converts a flat model representation as found in the npz_file to a
+    hierarchical representation (tree), stored in a Python dictionary.
+    It looks at every element in the npz file, makes sure that the dictionary
+    structure (the sub-tree) exists to store the value (this is what the
+    reduce operation does!), and stores the value in there.
+    """
+
+    def add_leaf(subtree, leaf_name):
+        """
+        Adds a leaf (empty dict) to a sub-tree if it does not exist already
+        """
+        subtree[leaf_name] = subtree.get(leaf_name, {})
+        return subtree[leaf_name]
+
+    # start with an empty tree
+    tree = {}
+
+    # For every element in the npz_file, create the sub-tree using the
+    # reduce function, and store the corresponding value as a leaf
+    for flat_key, v in npz_file.iteritems():
+        ks = flat_key.split('/')
+        reduce(add_leaf, ks[:-1], tree)[ks[-1]] = v
+
+    return tree
+
+
+def load_npz(filename):
+    """
+    Loads a model from an NPZ file.
+
+    Parameters
+    ----------
+    filename : string
+        Name of the model file
+
+    Returns
+    -------
+    dict
+        Dictionary containing all the models found in the file
+    """
+
+    def load_item(item):
+        """Processes an item in the tree representation of the model"""
+        if type(item) == np.ndarray:
+            return item
+        elif type(item) == dict:
+            return load_group(item)
+        else:
+            raise TypeError('Unknown entity type: {}'.format(item))
+
+    def load_list(grp):
+        """Processes a group of type 'list' found in the model tree"""
+
+        # sort contents according to 'id' attribute, return a list
+        # with loaded items
+        group_contents = sorted(
+            (v for k, v in grp.iteritems() if k != 'attrs'),  # skip attributes
+            cmp=lambda x, y: cmp(x['attrs']['id'], y['attrs']['id'])
+        )
+
+        return [load_item(item) for item in group_contents]
+
+    def load_group(grp):
+        """Processes a group object found in the model tree"""
+        import madmom
+
+        cls_name = str(grp['attrs']['type'])
+
+        if cls_name == 'list':
+            return load_list(grp)
+
+        # load the class or function. getattr(madmom, 'ml.nn.xxx') does not
+        # work, we need to load each thing individually, like
+        # ml = getattr(madmom, 'ml'); rnn = getattr(ml, 'nn'), and so on
+        # this code line does this.
+        cls = reduce(lambda module, item: getattr(module, item),
+                     cls_name.split('.')[1:], madmom)
+
+        # if we do not need to instantiate the class/function represented
+        # by this group, return it immediately
+        if not grp['attrs'].get('instantiate', True):
+            return cls
+
+        # collect the parameters and return the instantiated/called class
+        # or function. skip the attributes.
+        params = {name: load_item(item)
+                  for name, item in grp.iteritems()
+                  if name != 'attrs'}
+        return cls(**params)
+
+    # convert the flat representation found in the NPZ file to a tree
+    # representation for easier parsing
+    model_tree = _npz_to_dict_tree(np.load(filename))
+    # Load all the models found in the file
+    return {name: load_item(grp) for name, grp in model_tree.iteritems()}

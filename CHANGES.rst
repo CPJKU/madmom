@@ -1,8 +1,11 @@
 Release Notes
 =============
 
-Version 0.13dev
----------------
+Version 0.14.dev
+----------------
+
+Version 0.13 (release date: 2016-03-07)
+---------------------------------------
 
 Main features:
 
@@ -27,6 +30,7 @@ API relevant changes:
 
 Other changes:
 
+* Added alignment evaluation (#12)
 * Added continous integration testing (#16)
 * Added `-o` option to both `single`/`batch` processing mode to not overwrite
   files accidentially in `single` mode (#18)
