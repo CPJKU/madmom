@@ -18,10 +18,12 @@ Possible acronyms are:
 It includes reference implementations for some music information retrieval
 algorithms, please see the `References`_ section.
 
+
 Documentation
 =============
 
 Documentation of the package can be found online http://madmom.readthedocs.org
+
 
 License
 =======
@@ -44,6 +46,7 @@ Unless indicated otherwise, all model and data files are distributed under the
 If you want to include any of these files (or a variation or modification
 thereof) or technology which utilises them in a commercial product, please
 contact `Gerhard Widmer <http://www.cp.jku.at/people/widmer/>`_.
+
 
 Installation
 ============
@@ -72,20 +75,18 @@ Please refer to the `requirements.txt <requirements.txt>`_ file for the minimum
 required versions and make sure that these modules are up to date, otherwise it
 can result in unexpected errors or false computations!
 
-.. _install_from_package:
-
 Install from package
 --------------------
 
 The instructions given here should be used if you just want to install the
 package, e.g. to run the bundled programs or use some functionality for your
 own project. If you intend to change anything within the `madmom` package,
-please follow the steps in :ref:`the next section <install_from_source>`.
+please follow the steps in the next section.
 
 The easiest way to install the package is via ``pip`` from the `PyPI (Python
 Package Index) <https://pypi.python.org/pypi>`_::
 
-  pip install madmom
+    pip install madmom
 
 This includes the latest code and trained models and will install all
 dependencies automatically.
@@ -94,7 +95,7 @@ You might need higher privileges (use su or sudo) to install the package, model
 files and scripts globally. Alternatively you can install the package locally
 (i.e. only for you) by adding the ``--user`` argument::
 
-  pip install --user madmom
+    pip install --user madmom
 
 This will also install the executable programs to a common place (e.g.
 ``/usr/local/bin``), which should be in your ``$PATH`` already. If you
@@ -106,37 +107,33 @@ to your ``$PATH`` environment variable::
 
     export PATH='path/to/scripts':$PATH
 
-.. _install_from_source:
-
 Install from source
 -------------------
 
 If you plan to use the package as a developer, clone the Git repository::
 
-  git clone --recursive https://github.com/CPJKU/madmom.git
+    git clone --recursive https://github.com/CPJKU/madmom.git
 
 Since the pre-trained model/data files are not included in this repository but
 rather added as a Git submodule, you either have to clone the repo recursively.
 This is equivalent to these steps::
 
-  git clone  https://github.com/CPJKU/madmom.git
-  cd madmom
-  git submodule update --init --remote
+    git clone  https://github.com/CPJKU/madmom.git
+    cd madmom
+    git submodule update --init --remote
 
 You can then either include the package directory in your ``$PYTHONPATH`` and
 compile the Cython extensions with::
 
-  python setup.py build_ext --inplace
+    python setup.py build_ext --inplace
 
 or you can simply install the package in development mode::
 
-  python setup.py develop --user
+    python setup.py develop --user
 
 To run the included tests::
 
-  python setup.py test
-
-.. _upgrading:
+    python setup.py test
 
 Upgrade of existing installations
 ---------------------------------
@@ -150,29 +147,29 @@ Upgrade a package
 
 Simply upgrade the package via pip::
 
-  pip install --upgrade madmom [--user]
+    pip install --upgrade madmom [--user]
 
 If some of the provided programs or models changed (please refer to the
 CHANGELOG) you should first uninstall the package and then reinstall::
 
-  pip uninstall madmom
-  pip install madmom [--user]
+    pip uninstall madmom
+    pip install madmom [--user]
 
 Upgrade from source
 ~~~~~~~~~~~~~~~~~~~
 
 Simply pull the latest sources::
 
-  git pull
+    git pull
 
 To update the models contained in the submodule::
 
-  git submodule update
+    git submodule update
 
 If any of the ``.pyx`` or ``.pxd`` files changes, you have to recompile the
 modules with Cython::
 
-  python setup.py build_ext --inplace
+    python setup.py build_ext --inplace
 
 Package structure
 -----------------
@@ -181,6 +178,8 @@ The package has a very simple structure, divided into the following folders:
 
 `/bin <bin>`_
   this folder includes example programs (i.e. executable algorithms)
+`/docs <docs>`_
+  package documentation
 `/madmom <madmom>`_
   the actual Python package
 `/madmom/audio <madmom/audio>`_
@@ -231,6 +230,7 @@ Please note that the program itself as well as the modes have help messages::
     SuperFlux pickle -h
 
 will give different help messages.
+
 
 Additional resources
 ====================
@@ -313,6 +313,7 @@ References
     *An Efficient State Space Model for Joint Tempo and Meter Tracking*,
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
+
 
 Acknowledgements
 ================

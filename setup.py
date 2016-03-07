@@ -37,9 +37,10 @@ scripts = glob.glob('bin/*')
 package_data = ['models/LICENSE',
                 'models/README.rst',
                 'models/beats/*/*',
-                'models/downbeats/*/*',
                 'models/notes/*/*',
-                'models/onsets/*/*']
+                'models/onsets/*/*',
+                'models/patterns/*/*',
+                ]
 
 # some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
@@ -68,10 +69,10 @@ setup(name='madmom',
       author_email='madmom-users@googlegroups.com',
       url='https://github.com/CPJKU/madmom',
       license='BSD, CC BY-NC-SA',
-      packages=find_packages(exclude=['tests']),
+      packages=find_packages(exclude=['tests', 'docs']),
       ext_modules=extensions,
       package_data={'madmom': package_data},
-      exclude_package_data={'': ['tests']},
+      exclude_package_data={'': ['tests', 'docs']},
       scripts=scripts,
       cmdclass={'build_ext': build_ext},
       test_suite='nose.collector',
