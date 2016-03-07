@@ -362,7 +362,7 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
 
     Parameters
     ----------
-    filename : string
+    filename : str
         Name of the file.
     sample_rate : int, optional
         Desired sample rate of the signal [Hz], or 'None' to return the

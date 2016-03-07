@@ -340,11 +340,11 @@ class GMM(object):
             Number of EM iterations to perform.
         n_init : int, optional
             Number of initializations to perform, the best results is kept.
-        params : string, optional
+        params : str, optional
             Controls which parameters are updated in the training process.
             Can contain any combination of 'w' for weights, 'm' for means,
             and 'c' for covars.
-        init_params : string, optional
+        init_params : str, optional
             Controls which parameters are updated in the initialization
             process.  Can contain any combination of 'w' for weights,
             'm' for means, and 'c' for covars.
