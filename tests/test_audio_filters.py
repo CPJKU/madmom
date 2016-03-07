@@ -144,22 +144,6 @@ BARK_DOUBLE = np.array([20, 50, 100, 150, 200, 250, 300, 350, 400, 450,
                         8500, 9500, 10500, 12000, 13500, 15500])
 
 
-class TestHz2BarkFunction(unittest.TestCase):
-
-    def test_raises_warning(self):
-        with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            hz2bark(HZ)
-
-
-class TestBark2HzFunction(unittest.TestCase):
-
-    def test_raises_warning(self):
-        with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            bark2hz(BARK)
-
-
 class TestBarkFrequenciesFunction(unittest.TestCase):
 
     def test_types(self):
@@ -1108,83 +1092,3 @@ class TestRectangularFilterbankClass(unittest.TestCase):
         # second band must be 0
         self.assertTrue(np.allclose(filt[:, 1], np.zeros(100)))
         self.assertEqual(filt.shape, (100, 4))
-
-
-class TestSimpleChromaFilterbankClass(unittest.TestCase):
-
-    def test_error(self):
-        with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            SimpleChromaFilterbank(FFT_FREQS_1024)
-
-
-class TestHarmonicFilterbankClass(unittest.TestCase):
-
-    def test_error(self):
-        with self.assertRaises(NotImplementedError):
-            # TODO: write test when implemented
-            HarmonicFilterbank()
-
-
-class TestPitchClassProfileFilterbankClass(unittest.TestCase):
-
-    def test_types(self):
-        filt = PitchClassProfileFilterbank(FFT_FREQS_1024)
-        self.assertIsInstance(filt, PitchClassProfileFilterbank)
-        self.assertTrue(filt.dtype == FILTER_DTYPE)
-        self.assertTrue(filt.bin_frequencies.dtype == np.float)
-
-    def test_constant_types(self):
-        self.assertIsInstance(PitchClassProfileFilterbank.CLASSES, int)
-        self.assertIsInstance(PitchClassProfileFilterbank.FMIN, float)
-        self.assertIsInstance(PitchClassProfileFilterbank.FMAX, float)
-
-    def test_constant_values(self):
-        self.assertEqual(PitchClassProfileFilterbank.CLASSES, 12)
-        self.assertEqual(PitchClassProfileFilterbank.FMIN, 100.)
-        self.assertEqual(PitchClassProfileFilterbank.FMAX, 5000.)
-
-    def test_values(self):
-        filt = PitchClassProfileFilterbank(FFT_FREQS_1024)
-        self.assertTrue(filt.num_bands == 12)
-        self.assertTrue(filt.num_bins == 1024)
-        self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
-        self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
-        self.assertTrue(filt.fref == 440)
-        with self.assertRaises(NotImplementedError):
-            filt.center_frequencies
-        with self.assertRaises(NotImplementedError):
-            filt.corner_frequencies
-
-
-class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
-
-    def test_types(self):
-        filt = HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)
-        self.assertIsInstance(filt, HarmonicPitchClassProfileFilterbank)
-        self.assertTrue(filt.dtype == FILTER_DTYPE)
-        self.assertTrue(filt.bin_frequencies.dtype == np.float)
-
-    def test_constant_types(self):
-        self.assertIsInstance(HarmonicPitchClassProfileFilterbank.CLASSES, int)
-        self.assertIsInstance(HarmonicPitchClassProfileFilterbank.FMIN, float)
-        self.assertIsInstance(HarmonicPitchClassProfileFilterbank.FMAX, float)
-        self.assertIsInstance(HarmonicPitchClassProfileFilterbank.WINDOW, int)
-
-    def test_constant_values(self):
-        self.assertEqual(HarmonicPitchClassProfileFilterbank.CLASSES, 36)
-        self.assertEqual(HarmonicPitchClassProfileFilterbank.FMIN, 100.)
-        self.assertEqual(HarmonicPitchClassProfileFilterbank.FMAX, 5000.)
-        self.assertEqual(HarmonicPitchClassProfileFilterbank.WINDOW, 4)
-
-    def test_values(self):
-        filt = HarmonicPitchClassProfileFilterbank(FFT_FREQS_1024)
-        self.assertTrue(filt.num_bands == 36)
-        self.assertTrue(filt.num_bins == 1024)
-        self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
-        self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
-        self.assertTrue(filt.fref == 440)
-        with self.assertRaises(NotImplementedError):
-            filt.center_frequencies
-        with self.assertRaises(NotImplementedError):
-            filt.corner_frequencies
