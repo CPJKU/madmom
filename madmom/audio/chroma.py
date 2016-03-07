@@ -17,33 +17,6 @@ from madmom.audio.filters import (A4, Filterbank,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
 
 
-def pcp_chord_transcription(pcp):
-    """
-    Perform a simple chord transcription based on the given pitch class
-    profile (PCP).
-
-    Parameters
-    ----------
-    pcp : numpy array
-        Pitch class profile.
-
-    Returns
-    -------
-    chords : numpy array
-        Chord transcription.
-
-    References
-    ----------
-    .. [1] T. Fujishima,
-           "Realtime chord recognition of musical sound: a system using Common
-           Lisp Music",
-           Proceedings of the International Computer Music Conference (ICMC),
-           1999.
-
-    """
-    raise NotImplementedError
-
-
 # inherit from FilteredSpectrogram, since this class is closest related
 class PitchClassProfile(FilteredSpectrogram):
     """

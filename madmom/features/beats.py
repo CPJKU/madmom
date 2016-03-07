@@ -817,16 +817,6 @@ class DBNBeatTrackingProcessor(Processor):
         return g
 
 
-class DownbeatTrackingProcessor(object):
-    """
-    Renamed to :class:`PatternTrackingProcessor` in v0.13. Will be removed in
-    v0.14.
-
-    """
-    def __init__(self):
-        raise DeprecationWarning(self.__doc__)
-
-
 # class for pattern tracking
 class PatternTrackingProcessor(Processor):
     """

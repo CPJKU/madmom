@@ -1220,15 +1220,3 @@ class MultiBandSpectrogramProcessor(Processor):
             data, crossover_frequencies=self.crossover_frequencies,
             fmin=self.fmin, fmax=self.fmax, norm_filters=self.norm_filters,
             unique_filters=self.unique_filters, **kwargs)
-
-
-class StackedSpectrogramProcessor(object):
-    """
-    Deprecated in v0.13, will be removed in v0.14.
-
-    Functionality added to :class:`SpectrogramDifferenceProcessor` as
-    `stack_diffs` argument.
-
-    """
-    def __init__(self):
-        raise DeprecationWarning(self.__doc__)
