@@ -37,9 +37,10 @@ scripts = glob.glob('bin/*')
 package_data = ['models/LICENSE',
                 'models/README.rst',
                 'models/beats/*/*',
-                'models/downbeats/*/*',
                 'models/notes/*/*',
-                'models/onsets/*/*']
+                'models/onsets/*/*',
+                'models/patterns/*/*',
+                ]
 
 # some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
@@ -53,21 +54,25 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
+# docs to be included
+long_description = open('README.rst').read()
+long_description += '\n' + open('CHANGES.rst').read()
+
 # the actual setup routine
 setup(name='madmom',
       version=version,
       description='Python audio signal processing library',
-      long_description=open('README.rst').read(),
+      long_description=long_description,
       author='Department of Computational Perception, Johannes Kepler '
              'University, Linz, Austria and Austrian Research Institute for '
              'Artificial Intelligence (OFAI), Vienna, Austria',
       author_email='madmom-users@googlegroups.com',
       url='https://github.com/CPJKU/madmom',
       license='BSD, CC BY-NC-SA',
-      packages=find_packages(exclude=['tests']),
+      packages=find_packages(exclude=['tests', 'docs']),
       ext_modules=extensions,
       package_data={'madmom': package_data},
-      exclude_package_data={'': ['tests']},
+      exclude_package_data={'': ['tests', 'docs']},
       scripts=scripts,
       cmdclass={'build_ext': build_ext},
       test_suite='nose.collector',
