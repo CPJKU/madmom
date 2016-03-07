@@ -53,11 +53,15 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
+# docs to be included
+long_description = open('README.rst').read()
+long_description += '\n' + open('CHANGES.rst').read()
+
 # the actual setup routine
 setup(name='madmom',
       version=version,
       description='Python audio signal processing library',
-      long_description=open('README.rst').read(),
+      long_description=long_description,
       author='Department of Computational Perception, Johannes Kepler '
              'University, Linz, Austria and Austrian Research Institute for '
              'Artificial Intelligence (OFAI), Vienna, Austria',
