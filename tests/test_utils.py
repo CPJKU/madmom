@@ -12,7 +12,7 @@ import unittest
 from madmom.utils import *
 
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
-               DETECTIONS_PATH)
+               DETECTIONS_PATH, MODELS_PATH)
 
 FILE_LIST = [DATA_PATH + 'README',
              DATA_PATH + 'commented_txt',
@@ -43,6 +43,8 @@ ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
 
 DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt',
                    DETECTIONS_PATH + 'sample.tempo.txt']
+
+MODEL_FILES = [MODELS_PATH + 'simple_bdrnn.hdf5']
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 
@@ -88,7 +90,7 @@ class TestSearchPathFunction(unittest.TestCase):
     def test_recursion(self):
         result = search_path(DATA_PATH, 1)
         all_files = (FILE_LIST + AUDIO_FILES + ANNOTATION_FILES +
-                     DETECTION_FILES + ACTIVATION_FILES)
+                     DETECTION_FILES + ACTIVATION_FILES + MODEL_FILES)
         self.assertEqual(result, sorted(all_files))
 
 

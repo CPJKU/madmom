@@ -14,11 +14,18 @@ import glob
 import numpy as np
 
 # define version
-version = '0.13.dev'
+version = '0.14.dev'
 
 # define which extensions need to be compiled
-extensions = [Extension('madmom.ml.rnn',
-                        ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
+extensions = [Extension('madmom.ml.nn',
+                        ['madmom/ml/nets.py', 'madmom/ml/nets.pxd'],
+                        include_dirs=[np.get_include()]),
+              Extension('madmom.ml.nn',
+                        ['madmom/ml/layers.py', 'madmom/ml/layers.pxd'],
+                        include_dirs=[np.get_include()]),
+              Extension('madmom.ml.nn',
+                        ['madmom/ml/transfer_fns.py',
+                         'madmom/ml/transfer_fns.pxd'],
                         include_dirs=[np.get_include()]),
               Extension('madmom.audio.comb_filters',
                         ['madmom/audio/comb_filters.pyx'],

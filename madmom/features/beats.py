@@ -11,8 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
+from madmom.processors import Processor
 
 
 # classes for obtaining beat activation functions from (multiple) RNNs
@@ -70,7 +70,7 @@ class MultiModelSelectionProcessor(Processor):
         list of given predictions.
 
         """
-        from madmom.ml.rnn import average_predictions
+        from madmom.ml.nn.nets import average_predictions
         # TODO: right now we only have 1D predictions, what to do with
         #       multi-dim?
         num_refs = self.num_ref_predictions
