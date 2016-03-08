@@ -17,7 +17,7 @@ from madmom.processors import (SequentialProcessor, ParallelProcessor,
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
-from madmom.ml.rnn import RNNProcessor
+from madmom.ml.nn import NeuralNetwork
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import (DBNBeatTrackingProcessor,
                                    MultiModelSelectionProcessor)
@@ -102,7 +102,7 @@ def main():
     args.diff_ratio = 0.5
     args.positive_diffs = True
     args.stack_diffs = np.hstack
-    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].npz" %
+    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].pkl" %
                               MODELS_PATH)
 
     # print arguments
@@ -127,8 +127,8 @@ def main():
         # wrap everything in a ParallelProcessor and stack the features
         multi = ParallelProcessor(multi)
         stack = np.hstack
-        # process everything with an RNN and select the best predictions
-        rnn = RNNProcessor(**vars(args))
+        # process everything with multiple RNNs and average the predictions
+        rnn = ParallelProcessor([NeuralNetwork.load(f) for f in args.nn_files])
         if args.nn_ref_files is None:
             # set the nn_ref_files the same as the nn_files, i.e. average them
             args.nn_ref_files = args.nn_files

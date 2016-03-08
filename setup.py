@@ -17,10 +17,7 @@ import numpy as np
 version = '0.14.dev'
 
 # define which extensions need to be compiled
-extensions = [Extension('madmom.ml.rnn',
-                        ['madmom/ml/rnn.py', 'madmom/ml/rnn.pxd'],
-                        include_dirs=[np.get_include()]),
-              Extension('madmom.audio.comb_filters',
+extensions = [Extension('madmom.audio.comb_filters',
                         ['madmom/audio/comb_filters.pyx'],
                         include_dirs=[np.get_include()]),
               Extension('madmom.features.beats_crf',
