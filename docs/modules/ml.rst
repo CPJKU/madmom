@@ -11,5 +11,4 @@ Submodules
 
    ml/gmm
    ml/hmm
-   ml/io
-   ml/rnn
+   ml/nn
