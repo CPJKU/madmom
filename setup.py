@@ -25,6 +25,9 @@ extensions = [Extension('madmom.audio.comb_filters',
                         include_dirs=[np.get_include()]),
               Extension('madmom.ml.hmm',
                         ['madmom/ml/hmm.pyx'],
+                        include_dirs=[np.get_include()]),
+              Extension('madmom.ml.nn.layers',
+                        ['madmom/ml/nn/layers.py', 'madmom/ml/nn/layers.pxd'],
                         include_dirs=[np.get_include()])]
 
 # define scripts to be installed by the PyPI package
