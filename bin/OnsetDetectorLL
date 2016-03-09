@@ -17,7 +17,7 @@ from madmom.processors import (SequentialProcessor, ParallelProcessor,
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
-from madmom.ml.rnn import RNNProcessor, average_predictions
+from madmom.ml.nn import NeuralNetwork, average_predictions
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import PeakPickingProcessor
 
@@ -96,7 +96,7 @@ def main():
     args.diff_ratio = 0.25
     args.positive_diffs = True
     args.stack_diffs = np.hstack
-    args.nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].npz" %
+    args.nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].pkl" %
                               MODELS_PATH)
     args.pre_max = 1. / args.fps
     args.post_max = 0
@@ -124,8 +124,8 @@ def main():
         # wrap everything in a ParallelProcessor and stack the features
         multi = ParallelProcessor(multi)
         stack = np.hstack
-        # process everything with an RNN and average the predictions
-        rnn = RNNProcessor(**vars(args))
+        # process everything with multiple RNNs and average the predictions
+        rnn = ParallelProcessor([NeuralNetwork.load(f) for f in args.nn_files])
         avg = average_predictions
         # sequentially process everything
         in_processor = [sig, multi, stack, rnn, avg]

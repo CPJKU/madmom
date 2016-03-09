@@ -29,8 +29,8 @@ class Processor(object):
 
     """
 
-    @staticmethod
-    def load(infile):
+    @classmethod
+    def load(cls, infile):
         """
         Instantiate a new Processor from a file.
 
@@ -55,7 +55,21 @@ class Processor(object):
             infile.close()
             infile = infile.name
         # instantiate a new Processor and return it
-        return pickle.load(open(infile, 'rb'))
+        with open(infile, 'rb') as f:
+            # Python 2 and 3 behave differently
+            try:
+                # Python 3
+                obj = pickle.load(f, encoding='latin1')
+            except TypeError:
+                # Python 2 doesn't have/need the encoding
+                obj = pickle.load(f)
+        # warn if the unpickled Processor is of other type
+        if obj.__class__ is not cls:
+            import warnings
+            warnings.warn("Expected Processor of class '%s' but loaded "
+                          "Processor is of class '%s', processing anyways." %
+                          (cls.__name__, obj.__class__.__name__))
+        return obj
 
     def dump(self, outfile):
         """
@@ -72,16 +86,13 @@ class Processor(object):
 
         """
         import pickle
-        import warnings
-        warnings.warn('The resulting file is considered a model file, please '
-                      'see the LICENSE file for details!')
         # close the open file if needed and use its name
         if not isinstance(outfile, str):
             outfile.close()
             outfile = outfile.name
         # dump the Processor to the given file
-        pickle.dump(self, open(outfile, 'wb'),
-                    protocol=pickle.HIGHEST_PROTOCOL)
+        # Note: for Python 2 / 3 compatibility reason use protocol 2
+        pickle.dump(self, open(outfile, 'wb'), protocol=2)
 
     def process(self, data):
         """

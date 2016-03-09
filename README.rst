@@ -112,7 +112,7 @@ Install from source
 
 If you plan to use the package as a developer, clone the Git repository::
 
-    git clone --recursive https://github.com/CPJKU/madmom.git
+    git clone --recursive --depth 1 https://github.com/CPJKU/madmom.git
 
 Since the pre-trained model/data files are not included in this repository but
 rather added as a Git submodule, you either have to clone the repo recursively.
@@ -120,10 +120,11 @@ This is equivalent to these steps::
 
     git clone  https://github.com/CPJKU/madmom.git
     cd madmom
-    git submodule update --init --remote
+    git submodule update --init --remote --depth 1
 
-You can then either include the package directory in your ``$PYTHONPATH`` and
-compile the Cython extensions with::
+To obtain the full history, omit the `--depth 1` part. You can then either
+include the package directory in your ``$PYTHONPATH`` and compile the Cython
+extensions with::
 
     python setup.py build_ext --inplace
 

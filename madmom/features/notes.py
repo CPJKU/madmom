@@ -197,21 +197,3 @@ def write_mirex_format(notes, filename, duration=0.6):
     # MIREX format: onset \t offset \t frequency
     write_notes(notes, filename, fmt=list(('%.3f', '%.3f', '%.1f', )))
     return notes
-
-
-def note_reshaper(notes):
-    """
-    Reshapes the activations produced by a RNN to have the right shape.
-
-    Parameters
-    ----------
-    notes : numpy array
-        Note activations.
-
-    Returns
-    -------
-    numpy array
-        Reshaped array to represent the 88 MIDI notes.
-
-    """
-    return notes.reshape(-1, 88)
