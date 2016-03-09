@@ -4,6 +4,10 @@ Release Notes
 Version 0.14.dev
 ----------------
 
+API relevant changes:
+
+* Refactored the `ml.rnn` to `ml.nn` and converted the models to pickles (#110)
+
 Version 0.13 (release date: 2016-03-07)
 ---------------------------------------
 
