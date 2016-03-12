@@ -1223,7 +1223,7 @@ def add_parser(parser):
 
     Each line represents a beat and must have the following format with values
     being separated by whitespace [brackets indicate optional values]:
-    `beat_time [[bar.]beat]`
+    `beat_time [beat_inside_bar]`
 
     Lines starting with # are treated as comments and are ignored.
 
@@ -1256,11 +1256,11 @@ def add_parser(parser):
                    type=float, default=FMEASURE_WINDOW,
                    help='evaluation window for F-measure '
                         '[seconds, default=%(default).3f]')
-    g.add_argument('--tolerance', action='store', type=float,
-                   default=PSCORE_TOLERANCE,
+    g.add_argument('--tolerance', dest='pscore_tolerance', action='store',
+                   type=float, default=PSCORE_TOLERANCE,
                    help='evaluation tolerance for P-score '
                         '[default=%(default).3f]')
-    g.add_argument('--sigma', action='store', type=float,
+    g.add_argument('--sigma', dest='cemgil_sigma', action='store', type=float,
                    default=CEMGIL_SIGMA,
                    help='sigma for Cemgil accuracy [default=%(default).3f]')
     g.add_argument('--goto_threshold', action='store', type=float,
@@ -1272,16 +1272,18 @@ def add_parser(parser):
     g.add_argument('--goto_mu', action='store', type=float,
                    default=GOTO_MU,
                    help='µ for Goto error [default=%(default).3f]')
-    g.add_argument('--phase_tolerance', action='store', type=float,
+    g.add_argument('--phase_tolerance', dest='continuity_phase_tolerance',
+                   action='store', type=float,
                    default=CONTINUITY_PHASE_TOLERANCE,
                    help='phase tolerance window for continuity accuracies '
                         '[default=%(default).3f]')
-    g.add_argument('--tempo_tolerance', action='store', type=float,
+    g.add_argument('--tempo_tolerance', dest='continuity_tempo_tolerance',
+                   action='store', type=float,
                    default=CONTINUITY_TEMPO_TOLERANCE,
                    help='tempo tolerance window for continuity accuracies '
                         '[default=%(default).3f]')
-    g.add_argument('--bins', action='store', type=int,
-                   default=INFORMATION_GAIN_BINS,
+    g.add_argument('--bins', dest='information_gain_bins', action='store',
+                   type=int, default=INFORMATION_GAIN_BINS,
                    help='number of histogram bins for information gain '
                         '[default=%(default)i]')
     # return the sub-parser and evaluation argument group
