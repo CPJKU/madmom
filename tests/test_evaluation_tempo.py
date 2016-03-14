@@ -11,7 +11,7 @@ import unittest
 import math
 
 from madmom.evaluation.tempo import *
-from . import ANNOTATIONS_PATH
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([[87.5, 0.7], [175, 0.3]])
 ANN_TEMPI = np.asarray([87.5, 175])
@@ -358,3 +358,33 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
 
     def test_tostring(self):
         print(TempoMeanEvaluation([]))
+
+
+class TestAddParserFunction(unittest.TestCase):
+
+    def setUp(self):
+        import argparse
+        self.parser = argparse.ArgumentParser()
+        sub_parser = self.parser.add_subparsers()
+        self.sub_parser, self.group = add_parser(sub_parser)
+
+    def test_args(self):
+        args = self.parser.parse_args(['tempo', ANNOTATIONS_PATH,
+                                       DETECTIONS_PATH])
+        self.assertTrue(args.ann_dir is None)
+        self.assertTrue(args.ann_suffix == '.bpm')
+        self.assertTrue(args.det_dir is None)
+        self.assertTrue(args.det_suffix == '.bpm.txt')
+        self.assertTrue(args.double is True)
+        self.assertTrue(args.eval == TempoEvaluation)
+        self.assertTrue(args.files == [ANNOTATIONS_PATH, DETECTIONS_PATH])
+        self.assertTrue(args.ignore_non_existing is False)
+        self.assertTrue(args.mean_eval == TempoMeanEvaluation)
+        # self.assertTrue(args.outfile == StringIO.StringIO)
+        from madmom.evaluation import tostring
+        self.assertTrue(args.output_formatter == tostring)
+        self.assertTrue(args.quiet is False)
+        self.assertTrue(args.sum_eval is None)
+        self.assertTrue(args.tolerance == 0.04)
+        self.assertTrue(args.triple is True)
+        self.assertTrue(args.verbose == 0)

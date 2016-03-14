@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function
 import unittest
 import math
 
-from . import ANNOTATIONS_PATH
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from madmom.evaluation.beats import *
 # noinspection PyProtectedMember
 from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
@@ -1076,3 +1076,44 @@ class TestBeatMeanEvaluationClass(unittest.TestCase):
 
     def test_tostring(self):
         print(BeatMeanEvaluation([]))
+
+
+class TestAddParserFunction(unittest.TestCase):
+
+    def setUp(self):
+        import argparse
+        self.parser = argparse.ArgumentParser()
+        sub_parser = self.parser.add_subparsers()
+        self.sub_parser, self.group = add_parser(sub_parser)
+
+    def test_args(self):
+        args = self.parser.parse_args(['beats', ANNOTATIONS_PATH,
+                                       DETECTIONS_PATH])
+        self.assertTrue(args.ann_dir is None)
+        self.assertTrue(args.ann_suffix == '.beats')
+        self.assertTrue(args.cemgil_sigma == 0.04)
+        self.assertTrue(args.continuity_phase_tolerance == 0.175)
+        self.assertTrue(args.continuity_tempo_tolerance == 0.175)
+        self.assertTrue(args.det_dir is None)
+        self.assertTrue(args.det_suffix == '.beats.txt')
+        self.assertTrue(args.double is True)
+        self.assertTrue(args.downbeats is False)
+        self.assertTrue(args.eval == BeatEvaluation)
+        self.assertTrue(args.files == [ANNOTATIONS_PATH, DETECTIONS_PATH])
+        self.assertTrue(args.fmeasure_window == 0.07)
+        self.assertTrue(args.goto_mu == 0.1)
+        self.assertTrue(args.goto_sigma == 0.1)
+        self.assertTrue(args.goto_threshold == 0.175)
+        self.assertTrue(args.ignore_non_existing is False)
+        self.assertTrue(args.information_gain_bins == 40)
+        self.assertTrue(args.mean_eval == BeatMeanEvaluation)
+        self.assertTrue(args.offbeat is True)
+        # self.assertTrue(args.outfile == StringIO.StringIO)
+        from madmom.evaluation import tostring
+        self.assertTrue(args.output_formatter == tostring)
+        self.assertTrue(args.pscore_tolerance == 0.2)
+        self.assertTrue(args.quiet is False)
+        self.assertTrue(args.skip == 0)
+        self.assertTrue(args.sum_eval is None)
+        self.assertTrue(args.triple is True)
+        self.assertTrue(args.verbose == 0)

@@ -11,6 +11,7 @@ import unittest
 import math
 
 from madmom.evaluation.onsets import *
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
                          3.025000001])
@@ -318,3 +319,33 @@ class TestOnsetMeanEvaluationClass(unittest.TestCase):
 
     def test_tostring(self):
         print(OnsetMeanEvaluation([]))
+
+
+class TestAddParserFunction(unittest.TestCase):
+
+    def setUp(self):
+        import argparse
+        self.parser = argparse.ArgumentParser()
+        sub_parser = self.parser.add_subparsers()
+        self.sub_parser, self.group = add_parser(sub_parser)
+
+    def test_args(self):
+        args = self.parser.parse_args(['onsets', ANNOTATIONS_PATH,
+                                       DETECTIONS_PATH])
+        self.assertTrue(args.ann_dir is None)
+        self.assertTrue(args.ann_suffix == '.onsets')
+        self.assertTrue(args.combine == 0.03)
+        self.assertTrue(args.delay == 0.0)
+        self.assertTrue(args.det_dir is None)
+        self.assertTrue(args.det_suffix == '.onsets.txt')
+        self.assertTrue(args.eval == OnsetEvaluation)
+        self.assertTrue(args.files == [ANNOTATIONS_PATH, DETECTIONS_PATH])
+        self.assertTrue(args.ignore_non_existing is False)
+        self.assertTrue(args.mean_eval == OnsetMeanEvaluation)
+        # self.assertTrue(args.outfile == StringIO.StringIO)
+        from madmom.evaluation import tostring
+        self.assertTrue(args.output_formatter == tostring)
+        self.assertTrue(args.quiet is False)
+        self.assertTrue(args.sum_eval == OnsetSumEvaluation)
+        self.assertTrue(args.verbose == 0)
+        self.assertTrue(args.window == 0.025)

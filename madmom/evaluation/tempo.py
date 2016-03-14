@@ -382,8 +382,8 @@ def add_parser(parser):
 
     ''')
     # set defaults
-    p.set_defaults(eval=TempoEvaluation, sum_eval=None,
-                   mean_eval=TempoMeanEvaluation, load_fn=load_tempo)
+    p.set_defaults(eval=TempoEvaluation, mean_eval=TempoMeanEvaluation,
+                   sum_eval=None)
     # file I/O
     evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
     # evaluation parameters
