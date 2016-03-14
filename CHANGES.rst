@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.13.1 (release date: 2016-03-14)
+-----------------------------------------
+
+This is a bugfix release.
+
+* Fix beat evaluation argument parsing (#116)
+
 Version 0.13 (release date: 2016-03-07)
 ---------------------------------------
 
