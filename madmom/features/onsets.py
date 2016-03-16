@@ -13,10 +13,9 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom.processors import Processor
+from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
 from madmom.audio.spectrogram import SpectrogramDifference
-
 
 EPSILON = 1e-6
 
@@ -649,6 +648,63 @@ class SpectralOnsetProcessor(Processor):
                                 '[default=%(default)s]')
         # return the argument group so it can be modified if needed
         return g
+
+
+# class for detecting onsets with RNNs
+class RNNOnsetProcessor(SequentialProcessor):
+    """
+    Processor to get a onset activation function from multiple RNNs.
+
+    Parameters
+    ----------
+    online : bool, optional
+        Choose networks suitable for online onset detection, i.e. use
+        unidirectional RNNs.
+
+    """
+
+    def __init__(self, online=False, **kwargs):
+        # pylint: disable=unused-argument
+        import glob
+        from .. import MODELS_PATH
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
+            SpectrogramDifferenceProcessor)
+        from ..ml.nn import NeuralNetworkEnsemble
+
+        # choose the appropriate models and set frame sizes accordingly
+        if online:
+            nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].pkl" %
+                                 MODELS_PATH)
+            frame_sizes = [512, 1024, 2048]
+        else:
+            nn_files = glob.glob("%s/onsets/2013/onsets_brnn_[1-8].pkl" %
+                                 MODELS_PATH)
+            frame_sizes = [1024, 2048, 4096]
+
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        # process the multi-resolution spec & diff in parallel
+        multi = ParallelProcessor([])
+        for frame_size in frame_sizes:
+            frames = FramedSignalProcessor(frame_size=frame_size, fps=100,
+                                           online=online)
+            filt = FilteredSpectrogramProcessor(
+                num_bands=6, fmin=30, fmax=17000, norm_filters=True)
+            spec = LogarithmicSpectrogramProcessor(mul=5, add=1)
+            diff = SpectrogramDifferenceProcessor(
+                diff_ratio=0.25, positive_diffs=True, stack_diffs=np.hstack)
+            # process each frame size with spec and diff sequentially
+            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+        # stack the features and processes everything sequentially
+        pre_processor = SequentialProcessor((sig, multi, np.hstack))
+
+        # process the pre-processed signal with a NN ensemble
+        nn = NeuralNetworkEnsemble.load(nn_files)
+
+        # instantiate a SequentialProcessor
+        super(RNNOnsetProcessor, self).__init__((pre_processor, nn))
 
 
 # universal peak-picking method

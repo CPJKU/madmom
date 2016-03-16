@@ -352,7 +352,7 @@ class ParallelProcessor(SequentialProcessor):
         #       want to pickle the Processor, because map is pickle-able,
         #       whereas mp.Pool().map is not.
         self.map = map
-        if min(len(processors), max(1, num_threads)) != 1:
+        if min(len(processors), max(1, num_threads)) > 1:
             self.map = mp.Pool(num_threads).map
 
     def process(self, data):

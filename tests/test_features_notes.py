@@ -8,12 +8,13 @@ This file contains tests for the madmom.ml.hmm module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-from . import ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
+from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH
+from madmom.features import Activations
 from madmom.features.notes import *
 
-act_file = np.load("%s/stereo_sample.transcription.npz" % ACTIVATIONS_PATH)
-fps = act_file['fps']
-act = act_file['activations']
+sample_file = "%s/stereo_sample.wav" % AUDIO_PATH
+sample_act = Activations("%s/stereo_sample.notes_brnn_2013.npz" %
+                         ACTIVATIONS_PATH)
 
 NOTES = np.array([[0.147, 72, 3.323, 63], [1.567, 41, 0.223, 29],
                   [2.526, 77, 0.93, 72], [2.549, 60, 0.211, 28],
@@ -66,3 +67,13 @@ class TestWriteMirexFormatFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 261.6,
                                                    349.2, 207.7, 622.3, 98.0],
                                     atol=0.1))
+
+
+class TestRNNOnsetProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = RNNPianoNoteProcessor()
+
+    def test_process(self):
+        act = self.processor(sample_file)
+        self.assertTrue(np.allclose(act, sample_act, atol=1e-6))

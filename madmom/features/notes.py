@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
+from madmom.processors import SequentialProcessor, ParallelProcessor
 from madmom.utils import suppress_warnings
 
 
@@ -197,3 +198,42 @@ def write_mirex_format(notes, filename, duration=0.6):
     # MIREX format: onset \t offset \t frequency
     write_notes(notes, filename, fmt=list(('%.3f', '%.3f', '%.1f', )))
     return notes
+
+
+# class for detecting notes with a RNN
+class RNNPianoNoteProcessor(SequentialProcessor):
+    """
+    Processor to get a (piano) note activation function from a RNN.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        from .. import MODELS_PATH
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
+            SpectrogramDifferenceProcessor)
+        from ..ml.nn import NeuralNetwork
+
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        # process the multi-resolution spec & diff in parallel
+        multi = ParallelProcessor([])
+        for frame_size in [1024, 2048, 4096]:
+            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            filt = FilteredSpectrogramProcessor(
+                num_bands=12, fmin=30, fmax=17000, norm_filters=True)
+            spec = LogarithmicSpectrogramProcessor(mul=5, add=1)
+            diff = SpectrogramDifferenceProcessor(
+                diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
+            # process each frame size with spec and diff sequentially
+            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+        # stack the features and processes everything sequentially
+        pre_processor = SequentialProcessor((sig, multi, np.hstack))
+
+        # process the pre-processed signal with a NN
+        nn = NeuralNetwork.load("%s/notes/2013/notes_brnn.pkl" % MODELS_PATH)
+
+        # instantiate a SequentialProcessor
+        super(RNNPianoNoteProcessor, self).__init__((pre_processor, nn))

@@ -7,19 +7,12 @@ MMBeatTracker multi model beat tracking algorithm.
 
 from __future__ import absolute_import, division, print_function
 
-import glob
 import argparse
-import numpy as np
 
-from madmom import MODELS_PATH
-from madmom.processors import (SequentialProcessor, ParallelProcessor,
-                               IOProcessor, io_arguments)
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor)
-from madmom.ml.nn import NeuralNetwork
+from madmom.processors import IOProcessor, io_arguments
+from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import (DBNBeatTrackingProcessor,
+from madmom.features.beats import (RNNBeatProcessor, DBNBeatTrackingProcessor,
                                    MultiModelSelectionProcessor)
 
 
@@ -71,39 +64,14 @@ def main():
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
-    # RNN processing arguments (including option for reference files)
-    g = RNNProcessor.add_arguments(p, nn_files='')
-    g.add_argument('--nn_ref_files', action='append', type=str, default=None,
-                   help='Compare the predictions to these pre-trained '
-                        'neural networks (multiple files can be'
-                        'given, one file per argument) and choose the '
-                        'most suitable one accordingly (i.e. the one '
-                        'with the least deviation form the reference '
-                        'model). If multiple reference files are'
-                        'given, the predictions of the networks are '
-                        'averaged first.')
     # beat tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p)
 
     # parse arguments
     args = p.parse_args()
 
-    args.num_channels = 1
-    args.sample_rate = 44100
+    # set immutable arguments
     args.fps = 100
-    args.frame_sizes = [1024, 2048, 4096]
-    args.num_bands = 3
-    args.fmin = 30
-    args.fmax = 17000
-    args.norm_filters = True
-    args.log = True
-    args.mul = 1
-    args.add = 1
-    args.diff_ratio = 0.5
-    args.positive_diffs = True
-    args.stack_diffs = np.hstack
-    args.nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].pkl" %
-                              MODELS_PATH)
 
     # print arguments
     if args.verbose:
@@ -114,37 +82,9 @@ def main():
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # define processing chain
-        sig = SignalProcessor(**vars(args))
-        # multi-resolution spec & diff
-        multi = []
-        for args.frame_size in args.frame_sizes:
-            frames = FramedSignalProcessor(**vars(args))
-            spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
-            diff = SpectrogramDifferenceProcessor(**vars(args))
-            # wrap each frame size with spec and diff in a SequentialProcessor
-            multi.append(SequentialProcessor((frames, spec, diff)))
-        # wrap everything in a ParallelProcessor and stack the features
-        multi = ParallelProcessor(multi)
-        stack = np.hstack
-        # process everything with multiple RNNs and average the predictions
-        rnn = ParallelProcessor([NeuralNetwork.load(f) for f in args.nn_files])
-        if args.nn_ref_files is None:
-            # set the nn_ref_files the same as the nn_files, i.e. average them
-            args.nn_ref_files = args.nn_files
-        if args.nn_ref_files == args.nn_files:
-            # if we don't have nn_ref_files given or they are the same as
-            # the nn_files, set num_ref_predictions to 0
-            num_ref_predictions = 0
-        else:
-            # set the number of reference files according to the length
-            num_ref_predictions = len(args.nn_ref_files)
-            # redefine the list of files to be tested
-            args.nn_files = args.nn_ref_files + args.nn_files
-        # define the selector
-        selector = MultiModelSelectionProcessor(num_ref_predictions)
-        # sequentially process everything
-        in_processor = [sig, multi, stack, rnn, selector]
+        # use a RNN to predict the beats and perform multi-model selection
+        selector = MultiModelSelectionProcessor(None)
+        in_processor = RNNBeatProcessor(post_processor=selector)
 
     # output processor
     if args.save:

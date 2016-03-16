@@ -11,11 +11,61 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 
-# classes for obtaining beat activation functions from (multiple) RNNs
+# class for tracking beats with RNNs
+class RNNBeatProcessor(SequentialProcessor):
+    """
+    Processor to get a beat activation function from multiple RNNs.
+
+    Parameters
+    ----------
+    post_processor : Processor, optional
+        Post-processor, default is to average the predictions.
+
+    """
+
+    def __init__(self, post_processor=None, **kwargs):
+        # pylint: disable=unused-argument
+        import glob
+        from .. import MODELS_PATH
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
+            SpectrogramDifferenceProcessor)
+        from ..ml.nn import NeuralNetworkEnsemble, average_predictions
+
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        # process the multi-resolution spec & diff in parallel
+        multi = ParallelProcessor([])
+        for frame_size in [1024, 2048, 4096]:
+            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            filt = FilteredSpectrogramProcessor(
+                num_bands=3, fmin=30, fmax=17000, norm_filters=True)
+            spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+            diff = SpectrogramDifferenceProcessor(
+                diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
+            # process each frame size with spec and diff sequentially
+            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+        # stack the features and processes everything sequentially
+        pre_processor = SequentialProcessor((sig, multi, np.hstack))
+
+        # process the pre-processed signal with a NN ensemble
+        nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].pkl" %
+                             MODELS_PATH)
+        # average predictions
+        if post_processor is None:
+            post_processor = average_predictions
+        nn = NeuralNetworkEnsemble.load(nn_files, ensemble_fn=post_processor)
+
+        # instantiate a SequentialProcessor
+        super(RNNBeatProcessor, self).__init__((pre_processor, nn))
+
+
+# classe for selecting a certain beat activation functions from (multiple) NNs
 class MultiModelSelectionProcessor(Processor):
     """
     Processor for selecting the most suitable model (i.e. the predictions
@@ -70,7 +120,8 @@ class MultiModelSelectionProcessor(Processor):
         list of given predictions.
 
         """
-        from madmom.ml.rnn import average_predictions
+        from ..ml.nn import average_predictions
+
         # TODO: right now we only have 1D predictions, what to do with
         #       multi-dim?
         num_refs = self.num_ref_predictions
