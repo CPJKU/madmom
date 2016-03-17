@@ -7,20 +7,14 @@ PianoTranscriptor (piano) note transcription algorithm.
 
 from __future__ import absolute_import, division, print_function
 
-import glob
 import argparse
-import numpy as np
 
-from madmom import MODELS_PATH
-from madmom.processors import (SequentialProcessor, ParallelProcessor,
-                               IOProcessor, io_arguments)
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.spectrogram import (LogarithmicFilteredSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor)
-from madmom.ml.nn import NeuralNetwork
+from madmom.processors import IOProcessor, io_arguments
+from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
+from madmom.features.notes import (RNNPianoNoteProcessor, write_midi,
+                                   write_notes, write_mirex_format)
 from madmom.features.onsets import PeakPickingProcessor
-from madmom.features.notes import write_midi, write_notes, write_mirex_format
 
 
 def main():
@@ -80,21 +74,7 @@ def main():
     args = p.parse_args()
 
     # set immutable defaults
-    args.num_channels = 1
-    args.sample_rate = 44100
     args.fps = 100
-    args.frame_sizes = [1024, 2048, 4096]
-    args.num_bands = 12
-    args.fmin = 30
-    args.fmax = 17000
-    args.norm_filters = True
-    args.log = True
-    args.mul = 5
-    args.add = 1
-    args.diff_ratio = 0.5
-    args.positive_diffs = True
-    args.stack_diffs = np.hstack
-    args.nn_file = "%s/notes/2013/notes_brnn.pkl" % MODELS_PATH
     args.pre_max = 1. / args.fps
     args.post_max = 1. / args.fps
 
@@ -111,30 +91,15 @@ def main():
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # define processing chain
-        sig = SignalProcessor(**vars(args))
-        # multi-resolution spec & diff
-        multi = []
-        for args.frame_size in args.frame_sizes:
-            frames = FramedSignalProcessor(**vars(args))
-            spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
-            diff = SpectrogramDifferenceProcessor(**vars(args))
-            # wrap each frame size with spec and diff in a SequentialProcessor
-            multi.append(SequentialProcessor((frames, spec, diff)))
-        # wrap everything in a ParallelProcessor and stack the features
-        multi = ParallelProcessor(multi)
-        stack = np.hstack
-        # process everything with a RNN
-        rnn = NeuralNetwork.load(args.nn_file)
-        # sequentially process everything
-        in_processor = [sig, multi, stack, rnn]
+        # use a RNN to predict the notes
+        in_processor = RNNPianoNoteProcessor()
 
     # output processor
     if args.save:
         # save the RNN note activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # perform peak picking of the detection function
+        # perform peak picking on the activation function
         peak_picking = PeakPickingProcessor(**vars(args))
         # output everything in the right format
         if args.output_format is None:

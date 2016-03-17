@@ -24,11 +24,13 @@ AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
                AUDIO_PATH + 'stereo_sample.wav']
 
 ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz',
                     ACTIVATIONS_PATH + 'sample.logfiltspecflux.npz',
                     ACTIVATIONS_PATH + 'sample.superflux.npz',
                     ACTIVATIONS_PATH + 'sample.complexflux.npz',
                     ACTIVATIONS_PATH + 'sample.multiband_spectral_flux.npz',
-                    ACTIVATIONS_PATH + 'stereo_sample.transcription.npz']
+                    ACTIVATIONS_PATH + 'stereo_sample.notes_brnn_2013.npz']
 
 ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
                     ANNOTATIONS_PATH + 'sample.onsets',

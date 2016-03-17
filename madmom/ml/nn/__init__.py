@@ -13,7 +13,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from . import layers, activations
-from ...processors import Processor
+from ...processors import Processor, ParallelProcessor, SequentialProcessor
 
 
 def average_predictions(predictions):
@@ -82,6 +82,43 @@ class NeuralNetwork(Processor):
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()
         return data
+
+
+class NeuralNetworkEnsemble(SequentialProcessor):
+    """
+    Neural Network ensemble class.
+
+    Parameters
+    ----------
+    networks : list
+        List of the Neural Networks.
+
+    """
+
+    def __init__(self, networks, ensemble_fn=average_predictions):
+        networks_processor = ParallelProcessor(networks)
+        super(NeuralNetworkEnsemble, self).__init__((networks_processor,
+                                                     ensemble_fn))
+
+    @classmethod
+    def load(cls, nn_files, **kwargs):
+        """
+
+        Parameters
+        ----------
+        nn_files : list
+            List of neural network model file names.
+        kwargs : dict, optional
+            Keyword arguments passed to NeuralNetworkEnsemble.
+
+        Returns
+        -------
+        NeuralNetworkEnsemble
+            NeuralNetworkEnsemble instance.
+
+        """
+        networks = [NeuralNetwork.load(f) for f in nn_files]
+        return cls(networks, **kwargs)
 
     @staticmethod
     def add_arguments(parser, nn_files):

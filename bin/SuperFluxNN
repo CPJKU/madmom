@@ -11,13 +11,13 @@ import glob
 import argparse
 
 from madmom import MODELS_PATH
-from madmom.processors import ParallelProcessor, IOProcessor, io_arguments
+from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.filters import FilterbankProcessor
 from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       SuperFluxProcessor)
-from madmom.ml.nn import NeuralNetwork, average_predictions
+from madmom.ml.nn import NeuralNetworkEnsemble
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
@@ -107,13 +107,12 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # process everything with multiple RNNs and average the predictions
-        rnn = ParallelProcessor([NeuralNetwork.load(f) for f in args.nn_files])
-        avg = average_predictions
+        rnn = NeuralNetworkEnsemble.load(args.nn_files)
         # perform peak picking, i.e. select the local maxima
         pp = PeakPickingProcessor(**vars(args))
         from madmom.utils import write_events as writer
         # sequentially process them
-        out_processor = [rnn, avg, pp, writer]
+        out_processor = [rnn, pp, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
