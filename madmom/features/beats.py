@@ -745,6 +745,8 @@ class DBNBeatTrackingProcessor(Processor):
     observation_lambda : int, optional
         Split one beat period into `observation_lambda` parts, the first
         representing beat states and the remaining non-beat states.
+    threshold : float, optional
+        Threshold the observations before Viterbi decoding.
     correct : bool, optional
         Correct the beats (i.e. align them to the nearest peak of the beat
         activation function).
@@ -774,12 +776,13 @@ class DBNBeatTrackingProcessor(Processor):
     NUM_TEMPI = None
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
+    THRESHOLD = 0
     CORRECT = True
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT,
-                 fps=None, **kwargs):
+                 threshold=THRESHOLD, fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
         from .beats_hmm import (BeatStateSpace as St,
@@ -799,6 +802,7 @@ class DBNBeatTrackingProcessor(Processor):
         self.hmm = Hmm(self.tm, self.om, None)
         # save variables
         self.correct = correct
+        self.threshold = threshold
         self.fps = fps
 
     def process(self, activations):
@@ -816,11 +820,25 @@ class DBNBeatTrackingProcessor(Processor):
             Detected beat positions [seconds].
 
         """
+        # init the beats to return and the offset
+        beats = np.empty(0, dtype=np.int)
+        first = 0
+        # use only the activations > threshold
+        if self.threshold:
+            idx = np.nonzero(activations >= self.threshold)[0]
+            if idx.any():
+                first = max(first, np.min(idx))
+                last = min(len(activations), np.max(idx) + 1)
+            else:
+                last = first
+            activations = activations[first:last]
+        # return the beats if no activations given / remain after thresholding
+        if not activations.any():
+            return beats
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
         # correct the beat positions if needed
         if self.correct:
-            beats = []
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are 1
             beat_range = self.om.pointers[path]
@@ -834,10 +852,11 @@ class DBNBeatTrackingProcessor(Processor):
             if beat_range[-1]:
                 idx = np.r_[idx, beat_range.size]
             # iterate over all regions
-            for left, right in idx.reshape((-1, 2)):
-                # pick the frame with the highest activations value
-                beats.append(np.argmax(activations[left:right]) + left)
-            beats = np.asarray(beats)
+            if idx.any():
+                for left, right in idx.reshape((-1, 2)):
+                    # pick the frame with the highest activations value
+                    peak = np.argmax(activations[left:right]) + left
+                    beats = np.hstack((beats, peak))
         else:
             # just take the frames with the smallest beat state values
             from scipy.signal import argrelmin
@@ -847,13 +866,14 @@ class DBNBeatTrackingProcessor(Processor):
             # Note: interpolation and alignment of the beats to be at state 0
             #       does not improve results over this simple method
             beats = beats[self.om.pointers[path[beats]] == 1]
-        # convert the detected beats to seconds
-        return beats / float(self.fps)
+        # convert the detected beats to seconds and return them
+        return (beats + first) / float(self.fps)
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
-                      observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT):
+                      observation_lambda=OBSERVATION_LAMBDA,
+                      threshold=THRESHOLD, correct=CORRECT):
         """
         Add DBN related arguments to an existing parser object.
 
@@ -875,6 +895,8 @@ class DBNBeatTrackingProcessor(Processor):
         observation_lambda : float, optional
             Split one beat period into `observation_lambda` parts, the first
             representing beat states and the remaining non-beat states.
+        threshold : float, optional
+            Threshold the observations before Viterbi decoding.
         correct : bool, optional
             Correct the beats (i.e. align them to the nearest peak of the beat
             activation function).
@@ -911,6 +933,10 @@ class DBNBeatTrackingProcessor(Processor):
                        help='split one beat period into N parts, the first '
                             'representing beat states and the remaining '
                             'non-beat states [default=%(default)i]')
+        g.add_argument('-t', dest='threshold', action='store', type=float,
+                       default=threshold,
+                       help='threshold the observations before Viterbi '
+                            'decoding [default=%(default).2f]')
         # option to correct the beat positions
         if correct:
             g.add_argument('--no_correct', dest='correct',
@@ -956,6 +982,8 @@ class DBNDownBeatTrackingProcessor(Processor):
     observation_lambda : int, optional
         Split one (down-)beat period into `observation_lambda` parts, the first
         representing (down-)beat states and the remaining non-beat states.
+    threshold : float, optional
+        Threshold the RNN (down-)beat activations before Viterbi decoding.
     correct : bool, optional
         Correct the beats (i.e. align them to the nearest peak of the
         (down-)beat activation function).
@@ -966,9 +994,18 @@ class DBNDownBeatTrackingProcessor(Processor):
 
     """
 
-    def __init__(self, beats_per_bar, min_bpm=55., max_bpm=215.,
-                 num_tempi=None, transition_lambda=100, observation_lambda=16,
-                 correct=True, downbeats=False, fps=None, **kwargs):
+    MIN_BPM = 55.
+    MAX_BPM = 215.
+    NUM_TEMPI = None
+    TRANSITION_LAMBDA = 100
+    OBSERVATION_LAMBDA = 16
+    THRESHOLD = 0.05
+    CORRECT = True
+
+    def __init__(self, beats_per_bar, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
+                 observation_lambda=OBSERVATION_LAMBDA, threshold=THRESHOLD,
+                 correct=CORRECT, downbeats=False, fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
@@ -1016,9 +1053,10 @@ class DBNDownBeatTrackingProcessor(Processor):
             om = Om(st, observation_lambda)
             self.hmms.append(Hmm(tm, om))
         # save variables
-        self.downbeats = downbeats
         self.beats_per_bar = beats_per_bar
+        self.threshold = threshold
         self.correct = correct
+        self.downbeats = downbeats
         self.fps = fps
 
     def process(self, activations):
@@ -1028,16 +1066,30 @@ class DBNDownBeatTrackingProcessor(Processor):
         Parameters
         ----------
         activations : numpy array
-            Beat activation function.
+            (down-)beat activation function.
 
         Returns
         -------
         beats : numpy array
-            Detected beat positions [seconds].
+            Detected (down-)beat positions [seconds] and beat numbers.
 
         """
         import itertools as it
-
+        # init the beats to return and the offset
+        beats = np.empty((0, 2))
+        first = 0
+        # use only the activations > threshold
+        if self.threshold:
+            idx = np.nonzero(activations[:, 1:] >= self.threshold)[0]
+            if idx.any():
+                first = max(first, np.min(idx))
+                last = min(len(activations), np.max(idx) + 1)
+            else:
+                last = first
+            activations = activations[first:last]
+        # return the beats if no activations given / remain after thresholding
+        if not activations.any():
+            return beats
         # (parallel) decoding of the activations with HMM
         results = list(self.map(_process_dbn, zip(self.hmms,
                                                   it.repeat(activations))))
@@ -1053,6 +1105,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         # corresponding beats (add 1 for natural counting)
         beat_numbers = positions.astype(int) + 1
         if self.correct:
+            beats = np.empty(0, dtype=np.int)
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are >= 1
             beat_range = om.pointers[path] >= 1
@@ -1066,26 +1119,26 @@ class DBNDownBeatTrackingProcessor(Processor):
             if beat_range[-1]:
                 idx = np.r_[idx, beat_range.size]
             # iterate over all regions
-            # TODO: numpyfy this
-            beat_positions = []
-            for left, right in idx.reshape((-1, 2)):
-                # pick the frame with the highest activations value
-                # Note: we look for both beats and non-beat activations; since
-                #       np.argmax wokrs on the flattened array, we need to
-                #       divide by 2
-                pos = np.argmax(activations[left:right, 1:3]) // 2 + left
-                beat_positions.append(pos)
-            # convert to numpy array
-            beat_positions = np.array(beat_positions)
+            if idx.any():
+                for left, right in idx.reshape((-1, 2)):
+                    # pick the frame with the highest activations value
+                    # Note: we look for both beats and non-beat activations;
+                    #       since np.argmax wokrs on the flattened array, we
+                    #       need to divide by 2
+                    peak = np.argmax(activations[left:right, 1:3]) // 2 + left
+                    beats = np.hstack((beats, peak))
         else:
             # transitions are the points where the beat numbers change
             # FIXME: we might miss the first or last beat!
             #        we could calculate the interval towards the beginning/end
             #        to decide whether to include these points
-            beat_positions = np.nonzero(np.diff(beat_numbers))[0] + 1
-        # stack the beat positions (converted to seconds) and beat numbers
-        beats = np.vstack((beat_positions / float(self.fps),
-                           beat_numbers[beat_positions])).T
+            beats = np.nonzero(np.diff(beat_numbers))[0] + 1
+        # convert the detected beats to seconds and add the beat numbers
+        if beats.any():
+            beats = np.vstack(((beats + first) / float(self.fps),
+                               beat_numbers[beats])).T
+        else:
+            beats = np.empty((0, 2))
         # return the downbeats or beats and their beat number
         if self.downbeats:
             return beats[beats[:, 1] == 1][:, 0]
@@ -1093,10 +1146,10 @@ class DBNDownBeatTrackingProcessor(Processor):
             return beats
 
     @staticmethod
-    def add_arguments(parser, beats_per_bar=[3, 4], min_bpm=55, max_bpm=215,
-                      num_tempi=None, transition_lambda=100,
-                      observation_lambda=16, correct=True, threshold=0,
-                      downbeats=False):
+    def add_arguments(parser, beats_per_bar, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                      num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
+                      observation_lambda=OBSERVATION_LAMBDA,
+                      threshold=THRESHOLD, correct=CORRECT):
         """
         Add DBN downbeat tracking related arguments to an existing parser
         object.
@@ -1130,12 +1183,11 @@ class DBNDownBeatTrackingProcessor(Processor):
             Split one (down-)beat period into `observation_lambda` parts, the
             first representing (down-)beat states and the remaining non-beat
             states.
+        threshold : float, optional
+            Threshold the RNN (down-)beat activations before Viterbi decoding.
         correct : bool, optional
             Correct the beats (i.e. align them to the nearest peak of the
             (down-)beat activation function).
-        downbeats : bool, optional
-            Report downbeats only, not all beats and their position inside the
-            bar.
 
         Returns
         -------
@@ -1182,6 +1234,10 @@ class DBNDownBeatTrackingProcessor(Processor):
                        help='split one (down-)beat period into N parts, the '
                             'first representing beat states and the remaining '
                             'non-beat states [default=%(default)i]')
+        g.add_argument('-t', dest='threshold', action='store', type=float,
+                       default=threshold,
+                       help='threshold the observations before Viterbi '
+                            'decoding [default=%(default).2f]')
         # option to correct the beat positions
         if correct is True:
             g.add_argument('--no_correct', dest='correct',

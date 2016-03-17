@@ -93,6 +93,10 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
     def test_process(self):
         beats = self.processor(sample_act)
         self.assertTrue(np.allclose(beats, [0.09, 0.8, 1.48, 2.15]))
+        # set the threshold
+        self.processor.threshold = 1
+        beats = self.processor(sample_act)
+        self.assertTrue(np.allclose(beats, []))
 
 
 class TestPatternTrackingProcessorClass(unittest.TestCase):
