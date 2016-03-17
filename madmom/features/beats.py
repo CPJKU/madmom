@@ -15,7 +15,7 @@ from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 
-# class for tracking beats with RNNs
+# classes for tracking (down-)beats with RNNs
 class RNNBeatProcessor(SequentialProcessor):
     """
     Processor to get a beat activation function from multiple RNNs.
@@ -33,8 +33,8 @@ class RNNBeatProcessor(SequentialProcessor):
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
-        from ..models import BEATS_BLSTM
         from ..ml.nn import NeuralNetworkEnsemble, average_predictions
+        from ..models import BEATS_BLSTM
 
         # define pre-processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
@@ -61,6 +61,47 @@ class RNNBeatProcessor(SequentialProcessor):
 
         # instantiate a SequentialProcessor
         super(RNNBeatProcessor, self).__init__((pre_processor, nn))
+
+
+class RNNDownBeatProcessor(SequentialProcessor):
+    """
+    Processor to get a joint beat and downbeat activation function from
+    multiple RNNs.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
+            SpectrogramDifferenceProcessor)
+        from ..ml.nn import NeuralNetworkEnsemble
+        from ..models import DOWNBEATS_BLSTM
+
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        # process the multi-resolution spec & diff in parallel
+        multi = ParallelProcessor([])
+        frame_sizes = [1024, 2048, 4096]
+        num_bands = [3, 6, 12]
+        for frame_size, num_bands in zip(frame_sizes, num_bands):
+            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            filt = FilteredSpectrogramProcessor(
+                num_bands=num_bands, fmin=30, fmax=17000, norm_filters=True)
+            spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+            diff = SpectrogramDifferenceProcessor(
+                diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
+            # process each frame size with spec and diff sequentially
+            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+        # stack the features and processes everything sequentially
+        pre_processor = SequentialProcessor((sig, multi, np.hstack))
+
+        # process the pre-processed signal with a NN ensemble
+        nn = NeuralNetworkEnsemble.load(DOWNBEATS_BLSTM)
+
+        # instantiate a SequentialProcessor
+        super(RNNDownBeatProcessor, self).__init__((pre_processor, nn))
 
 
 # classe for selecting a certain beat activation functions from (multiple) NNs
@@ -660,7 +701,30 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         return g
 
 
-# class for beat tracking
+def _process_dbn(process_tuple):
+    """
+    Extract the best path through the state space in an observation sequence.
+
+    This proxy function is necessary to process different sequences in parallel
+    using the multiprocessing module.
+
+    Parameters
+    ----------
+    process_tuple : tuple
+        Tuple with (HMM, observations).
+
+    Returns
+    -------
+    path : numpy array
+        Best path through the state space.
+    log_prob : float
+        Log probability of the path.
+
+    """
+    # pylint: disable=no-name-in-module
+    return process_tuple[0].viterbi(process_tuple[1])
+
+
 class DBNBeatTrackingProcessor(Processor):
     """
     Beat tracking with RNNs and a dynamic Bayesian network (DBN) approximated
@@ -808,7 +872,7 @@ class DBNBeatTrackingProcessor(Processor):
             Lambda for the exponential tempo change distribution (higher values
             prefer a constant tempo over a tempo change from one beat to the
             next one).
-        observation_lambda : int, optional
+        observation_lambda : float, optional
             Split one beat period into `observation_lambda` parts, the first
             representing beat states and the remaining non-beat states.
         correct : bool, optional
@@ -842,7 +906,7 @@ class DBNBeatTrackingProcessor(Processor):
                             'tempo change from one beat to the next one '
                             '[default=%(default).1f]')
         # observation model stuff
-        g.add_argument('--observation_lambda', action='store', type=int,
+        g.add_argument('--observation_lambda', action='store', type=float,
                        default=observation_lambda,
                        help='split one beat period into N parts, the first '
                             'representing beat states and the remaining '
@@ -860,6 +924,281 @@ class DBNBeatTrackingProcessor(Processor):
                            help='correct the beat positions (i.e. align them '
                                 'to the nearest peak of the beat activation'
                                 'function)')
+        # return the argument group so it can be modified if needed
+        return g
+
+
+class DBNDownBeatTrackingProcessor(Processor):
+    """
+    Downbeat tracking with RNNs and a dynamic Bayesian network (DBN)
+    approximated by a Hidden Markov Model (HMM).
+
+    Parameters
+    ----------
+    beats_per_bar : int or list
+        Number of beats per bar to be modeled. Can be either a single number
+        or a list or array with bar lengths (in beats).
+    min_bpm : float or list, optional
+        Minimum tempo used for beat tracking [bpm]. If a list is given, each
+        item corresponds to the number of beats per bar at the same position.
+    max_bpm : float or list, optional
+        Maximum tempo used for beat tracking [bpm]. If a list is given, each
+        item corresponds to the number of beats per bar at the same position.
+    num_tempi : int or list, optional
+        Number of tempi to model; if set, limit the number of tempi and use a
+        log spacing, otherwise a linear spacing. If a list is given, each
+        item corresponds to the number of beats per bar at the same position.
+    transition_lambda : float or list, optional
+        Lambda for the exponential tempo change distribution (higher values
+        prefer a constant tempo from one beat to the next one).  If a list is
+        given, each item corresponds to the number of beats per bar at the
+        same position.
+    observation_lambda : int, optional
+        Split one (down-)beat period into `observation_lambda` parts, the first
+        representing (down-)beat states and the remaining non-beat states.
+    correct : bool, optional
+        Correct the beats (i.e. align them to the nearest peak of the
+        (down-)beat activation function).
+    downbeats : bool, optional
+        Report downbeats only, not all beats and their position inside the bar.
+    fps : float, optional
+        Frames per second.
+
+    """
+
+    def __init__(self, beats_per_bar, min_bpm=55., max_bpm=215.,
+                 num_tempi=None, transition_lambda=100, observation_lambda=16,
+                 correct=True, downbeats=False, fps=None, **kwargs):
+        # pylint: disable=unused-argument
+        # pylint: disable=no-name-in-module
+
+        from madmom.ml.hmm import HiddenMarkovModel as Hmm
+        from .beats_hmm import (BarStateSpace as St, BarTransitionModel as Tm,
+                                RNNDownBeatTrackingObservationModel as Om)
+
+        # expand arguments to arrays
+        beats_per_bar = np.array(beats_per_bar, ndmin=1)
+        min_bpm = np.array(min_bpm, ndmin=1)
+        max_bpm = np.array(max_bpm, ndmin=1)
+        num_tempi = np.array(num_tempi, ndmin=1)
+        transition_lambda = np.array(transition_lambda, ndmin=1)
+        # make sure the other arguments are long enough by repeating them
+        # TODO: check if they are of length 1?
+        if len(min_bpm) != len(beats_per_bar):
+            min_bpm = np.repeat(min_bpm, len(beats_per_bar))
+        if len(max_bpm) != len(beats_per_bar):
+            max_bpm = np.repeat(max_bpm, len(beats_per_bar))
+        if len(num_tempi) != len(beats_per_bar):
+            num_tempi = np.repeat(num_tempi, len(beats_per_bar))
+        if len(transition_lambda) != len(beats_per_bar):
+            transition_lambda = np.repeat(transition_lambda,
+                                          len(beats_per_bar))
+        if not (len(min_bpm) == len(max_bpm) == len(num_tempi) ==
+                len(beats_per_bar) == len(transition_lambda)):
+            raise ValueError('`min_bpm`, `max_bpm`, `num_tempi`, `num_beats` '
+                             'and `transition_lambda` must all have the same '
+                             'length.')
+        # get num_threads from kwargs
+        num_threads = min(len(beats_per_bar), kwargs.get('num_threads', 1))
+        # init a pool of workers (if needed)
+        self.map = map
+        if num_threads != 1:
+            import multiprocessing as mp
+            self.map = mp.Pool(num_threads).map
+        # convert timing information to construct a beat state space
+        min_interval = 60. * fps / max_bpm
+        max_interval = 60. * fps / min_bpm
+        # model the different bar lengths
+        self.hmms = []
+        for b, beats in enumerate(beats_per_bar):
+            st = St(beats, min_interval[b], max_interval[b], num_tempi[b])
+            tm = Tm(st, transition_lambda[b])
+            om = Om(st, observation_lambda)
+            self.hmms.append(Hmm(tm, om))
+        # save variables
+        self.downbeats = downbeats
+        self.beats_per_bar = beats_per_bar
+        self.correct = correct
+        self.fps = fps
+
+    def process(self, activations):
+        """
+        Detect the beats in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
+
+        """
+        import itertools as it
+
+        # (parallel) decoding of the activations with HMM
+        results = list(self.map(_process_dbn, zip(self.hmms,
+                                                  it.repeat(activations))))
+        # choose the best HMM (highest log probability)
+        best = np.argmax(np.asarray(results)[:, 1])
+        # the best path through the state space
+        path, _ = results[best]
+        # the state space and observation model of the best HMM
+        st = self.hmms[best].transition_model.state_space
+        om = self.hmms[best].observation_model
+        # the positions inside the pattern (0..num_beats)
+        positions = st.state_positions[path]
+        # corresponding beats (add 1 for natural counting)
+        beat_numbers = positions.astype(int) + 1
+        if self.correct:
+            # for each detection determine the "beat range", i.e. states where
+            # the pointers of the observation model are >= 1
+            beat_range = om.pointers[path] >= 1
+            # get all change points between True and False
+            idx = np.nonzero(np.diff(beat_range))[0] + 1
+            # if the first frame is in the beat range, add a change at frame 0
+            if beat_range[0]:
+                idx = np.r_[0, idx]
+            # if the last frame is in the beat range, append the length of the
+            # array
+            if beat_range[-1]:
+                idx = np.r_[idx, beat_range.size]
+            # iterate over all regions
+            # TODO: numpyfy this
+            beat_positions = []
+            for left, right in idx.reshape((-1, 2)):
+                # pick the frame with the highest activations value
+                # Note: we look for both beats and non-beat activations; since
+                #       np.argmax wokrs on the flattened array, we need to
+                #       divide by 2
+                pos = np.argmax(activations[left:right, 1:3]) // 2 + left
+                beat_positions.append(pos)
+            # convert to numpy array
+            beat_positions = np.array(beat_positions)
+        else:
+            # transitions are the points where the beat numbers change
+            # FIXME: we might miss the first or last beat!
+            #        we could calculate the interval towards the beginning/end
+            #        to decide whether to include these points
+            beat_positions = np.nonzero(np.diff(beat_numbers))[0] + 1
+        # stack the beat positions (converted to seconds) and beat numbers
+        beats = np.vstack((beat_positions / float(self.fps),
+                           beat_numbers[beat_positions])).T
+        # return the downbeats or beats and their beat number
+        if self.downbeats:
+            return beats[beats[:, 1] == 1][:, 0]
+        else:
+            return beats
+
+    @staticmethod
+    def add_arguments(parser, beats_per_bar=[3, 4], min_bpm=55, max_bpm=215,
+                      num_tempi=None, transition_lambda=100,
+                      observation_lambda=16, correct=True, threshold=0,
+                      downbeats=False):
+        """
+        Add DBN downbeat tracking related arguments to an existing parser
+        object.
+
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        beats_per_bar : int or list, optional
+            Number of beats per bar to be modeled. Can be either a single
+            number or a list with bar lengths (in beats).
+        min_bpm : float or list, optional
+            Minimum tempo used for beat tracking [bpm]. If a list is given,
+            each item corresponds to the number of beats per bar at the same
+            position.
+        max_bpm : float or list, optional
+            Maximum tempo used for beat tracking [bpm]. If a list is given,
+            each item corresponds to the number of beats per bar at the same
+            position.
+        num_tempi : int or list, optional
+            Number of tempi to model; if set, limit the number of tempi and use
+            a log spacing, otherwise a linear spacing. If a list is given,
+            each item corresponds to the number of beats per bar at the same
+            position.
+        transition_lambda : float or list, optional
+            Lambda for the exponential tempo change distribution (higher values
+            prefer a constant tempo over a tempo change from one beat to the
+            next one). If a list is given, each item corresponds to the number
+            of beats per bar at the same position.
+        observation_lambda : float, optional
+            Split one (down-)beat period into `observation_lambda` parts, the
+            first representing (down-)beat states and the remaining non-beat
+            states.
+        correct : bool, optional
+            Correct the beats (i.e. align them to the nearest peak of the
+            (down-)beat activation function).
+        downbeats : bool, optional
+            Report downbeats only, not all beats and their position inside the
+            bar.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            DBN downbeat tracking argument parser group
+
+        """
+        # pylint: disable=arguments-differ
+        from madmom.utils import OverrideDefaultListAction
+
+        # add DBN parser group
+        g = parser.add_argument_group('dynamic Bayesian Network arguments')
+        # add a transition parameters
+        g.add_argument('--beats_per_bar', action=OverrideDefaultListAction,
+                       default=beats_per_bar, type=int, sep=',',
+                       help='number of beats per bar to be modeled (comma '
+                            'separated list of bar length in beats) '
+                            '[default=%(default)s]')
+        g.add_argument('--min_bpm', action=OverrideDefaultListAction,
+                       default=min_bpm, type=float, sep=',',
+                       help='minimum tempo (comma separated list with one '
+                            'value per bar length) [bpm, default=%(default)s]')
+        g.add_argument('--max_bpm', action=OverrideDefaultListAction,
+                       default=max_bpm, type=float, sep=',',
+                       help='maximum tempo (comma separated list with one '
+                            'value per bar length) [bpm, default=%(default)s]')
+        g.add_argument('--num_tempi', action=OverrideDefaultListAction,
+                       default=num_tempi, type=int, sep=',',
+                       help='limit the number of tempi; if set, align the '
+                            'tempi with log spacings, otherwise linearly '
+                            '(comma separated list with one value per bar '
+                            'length) [default=%(default)s]')
+        g.add_argument('--transition_lambda',
+                       action=OverrideDefaultListAction,
+                       default=transition_lambda, type=float, sep=',',
+                       help='lambda of the tempo transition distribution; '
+                            'higher values prefer a constant tempo over a '
+                            'tempo change from one beat to the next one ('
+                            'comma separated list with one value per bar '
+                            'length) [default=%(default)s]')
+        # observation model stuff
+        g.add_argument('--observation_lambda', action='store', type=float,
+                       default=observation_lambda,
+                       help='split one (down-)beat period into N parts, the '
+                            'first representing beat states and the remaining '
+                            'non-beat states [default=%(default)i]')
+        # option to correct the beat positions
+        if correct is True:
+            g.add_argument('--no_correct', dest='correct',
+                           action='store_false', default=correct,
+                           help='do not correct the (down-)beat positions '
+                                '(i.e. do not align them to the nearest peak '
+                                'of the (down-)beat activation function)')
+        elif correct is False:
+            g.add_argument('--correct', dest='correct',
+                           action='store_true', default=correct,
+                           help='correct the (down-)beat positions (i.e. '
+                                'align them to the nearest peak of the '
+                                '(down-)beat  activation function)')
+        # add output format stuff
+        g = parser.add_argument_group('output arguments')
+        g.add_argument('--downbeats', action='store_true', default=False,
+                       help='output only the downbeats')
         # return the argument group so it can be modified if needed
         return g
 
