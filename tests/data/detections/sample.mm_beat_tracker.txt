@@ -1,0 +1,5 @@
+# beats detected by the MMBeatTracker program with default settings
+0.090
+0.800
+1.480
+2.150

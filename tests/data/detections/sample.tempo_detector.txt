@@ -1,0 +1,2 @@
+# tempo detected by the TempoDetector program with default settings
+176.47	117.65	0.68

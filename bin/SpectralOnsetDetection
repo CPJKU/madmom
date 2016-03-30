@@ -11,9 +11,10 @@ import argparse
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.filters import FilterbankProcessor
+from madmom.audio.filters import FilterbankProcessor, LogarithmicFilterbank
 from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.audio.spectrogram import (SpectrogramProcessor,
+                                      FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
 from madmom.features import ActivationsProcessor
@@ -61,7 +62,8 @@ def main():
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     FramedSignalProcessor.add_arguments(p, fps=100, online=False)
-    FilterbankProcessor.add_arguments(p, num_bands=12, fmin=30, fmax=17000,
+    FilterbankProcessor.add_arguments(p, filterbank=LogarithmicFilterbank,
+                                      num_bands=12, fmin=30, fmax=17000,
                                       norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
     SpectrogramDifferenceProcessor.add_arguments(p, diff_ratio=0.5,

@@ -1,0 +1,5 @@
+# notes detected by the PianoTranscriptor program with default settings
+0.140	72
+1.560	41
+2.520	77
+3.370	75

@@ -1,4 +1,4 @@
-# onsets detected by the SuperFlux algorithm with default settings
+# onsets detected by the SuperFlux program with default settings
 0.010
 0.085
 0.275

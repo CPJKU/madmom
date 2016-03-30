@@ -16,7 +16,7 @@ from madmom.features.beats_hmm import *
 
 sample_file = "%s/sample.wav" % AUDIO_PATH
 sample_act = Activations("%s/sample.beats_blstm_2013.npz" % ACTIVATIONS_PATH)
-sample_mb_features = Activations("%s/sample.multiband_spectral_flux.npz" %
+sample_mb_features = Activations("%s/sample.gmm_pattern_tracker.npz" %
                                  ACTIVATIONS_PATH)
 
 
