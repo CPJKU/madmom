@@ -1,0 +1,16 @@
+# onsets detected by the ComplexFlux program with default settings
+0.010
+0.085
+0.275
+0.440
+0.610
+0.795
+0.980
+1.115
+1.475
+1.620
+1.795
+2.140
+2.325
+2.485
+2.660

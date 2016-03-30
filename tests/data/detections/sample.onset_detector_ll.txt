@@ -1,0 +1,16 @@
+# onsets detected by the OnsetDetectorLL program with default settings
+0.010
+0.100
+0.290
+0.460
+0.620
+0.770
+0.990
+1.130
+1.480
+1.640
+1.810
+2.160
+2.340
+2.500
+2.680

@@ -24,12 +24,15 @@ AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
                AUDIO_PATH + 'stereo_sample.wav']
 
 ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.beats_blstm_mm_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.complex_flux.npz',
+                    ACTIVATIONS_PATH + 'sample.gmm_pattern_tracker.npz',
+                    ACTIVATIONS_PATH + 'sample.log_filt_spec_flux.npz',
                     ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz',
                     ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz',
-                    ACTIVATIONS_PATH + 'sample.logfiltspecflux.npz',
-                    ACTIVATIONS_PATH + 'sample.superflux.npz',
-                    ACTIVATIONS_PATH + 'sample.complexflux.npz',
-                    ACTIVATIONS_PATH + 'sample.multiband_spectral_flux.npz',
+                    ACTIVATIONS_PATH + 'sample.spectral_flux.npz',
+                    ACTIVATIONS_PATH + 'sample.super_flux.npz',
+                    ACTIVATIONS_PATH + 'sample.super_flux_nn.npz',
                     ACTIVATIONS_PATH + 'stereo_sample.notes_brnn_2013.npz']
 
 ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
@@ -43,8 +46,21 @@ ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
                     ANNOTATIONS_PATH + 'piano_sample.mid',
                     ANNOTATIONS_PATH + 'piano_sample.notes_in_beats']
 
-DETECTION_FILES = [DETECTIONS_PATH + 'sample.onsets.txt',
-                   DETECTIONS_PATH + 'sample.tempo.txt']
+DETECTION_FILES = [DETECTIONS_PATH + 'sample.beat_detector.txt',
+                   DETECTIONS_PATH + 'sample.beat_tracker.txt',
+                   DETECTIONS_PATH + 'sample.complex_flux.txt',
+                   DETECTIONS_PATH + 'sample.crf_beat_detector.txt',
+                   DETECTIONS_PATH + 'sample.dbn_beat_tracker.txt',
+                   DETECTIONS_PATH + 'sample.gmm_pattern_tracker.txt',
+                   DETECTIONS_PATH + 'sample.log_filt_spec_flux.txt',
+                   DETECTIONS_PATH + 'sample.mm_beat_tracker.txt',
+                   DETECTIONS_PATH + 'sample.onset_detector.txt',
+                   DETECTIONS_PATH + 'sample.onset_detector_ll.txt',
+                   DETECTIONS_PATH + 'sample.spectral_flux.txt',
+                   DETECTIONS_PATH + 'sample.super_flux.txt',
+                   DETECTIONS_PATH + 'sample.super_flux_nn.txt',
+                   DETECTIONS_PATH + 'sample.tempo_detector.txt',
+                   DETECTIONS_PATH + 'stereo_sample.pianot_ranscriptor.txt']
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 
@@ -188,7 +204,7 @@ class TestLoadEventsFunction(unittest.TestCase):
         self.assertTrue(np.allclose(events, ONSET_ANNOTATIONS))
 
     def test_read_file_without_comments(self):
-        events = load_events(DETECTIONS_PATH + 'sample.onsets.txt')
+        events = load_events(DETECTIONS_PATH + 'sample.super_flux.txt')
         self.assertTrue(np.allclose(events, [0.01, 0.085, 0.275, 0.445, 0.61,
                                              0.795, 0.98, 1.115, 1.365, 1.475,
                                              1.62, 1.795, 2.14, 2.33, 2.485,

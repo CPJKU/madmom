@@ -1,0 +1,9 @@
+# beats detected by the BeatDetector program with default settings
+0.090
+0.440
+0.780
+1.120
+1.470
+1.800
+2.140
+2.480

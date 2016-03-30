@@ -21,7 +21,7 @@ sample_log_filt_spec = LogarithmicFilteredSpectrogram(
     sample_spec, num_bands=24, mul=1, add=1)
 sample_rnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz')
 sample_brnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz')
-sample_superflux_act = Activations(ACTIVATIONS_PATH + 'sample.superflux.npz')
+sample_superflux_act = Activations(ACTIVATIONS_PATH + 'sample.super_flux.npz')
 
 
 class TestHighFrequencyContentFunction(unittest.TestCase):

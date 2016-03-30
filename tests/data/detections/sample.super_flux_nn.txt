@@ -1,0 +1,15 @@
+# onsets detected by the SuperFluxNN program with default settings
+0.080
+0.270
+0.440
+0.600
+0.750
+0.970
+1.100
+1.460
+1.610
+1.790
+2.130
+2.320
+2.480
+2.660

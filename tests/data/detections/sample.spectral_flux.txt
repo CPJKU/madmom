@@ -1,0 +1,16 @@
+# onsets detected by the SpectralOnsetDetection program with default settings
+0.010
+0.090
+0.280
+0.440
+0.610
+0.800
+0.980
+1.120
+1.480
+1.620
+1.800
+2.140
+2.330
+2.490
+2.670

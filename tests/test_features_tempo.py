@@ -132,7 +132,8 @@ class TestWriteTempoFunction(unittest.TestCase):
         result = write_tempo(COMB_TEMPI[5], self.out_file)
         self.assertTrue(np.allclose(result, [52.17, 104.34, 1], atol=0.001))
         # multiple tempi given
-        result = write_tempo(COMB_TEMPI, DETECTIONS_PATH + 'sample.tempo.txt')
+        result = write_tempo(COMB_TEMPI, DETECTIONS_PATH +
+                             'sample.tempo_detector.txt')
         self.assertTrue(np.allclose(result, [176.47, 117.65, 0.684],
                                     atol=0.001))
 
