@@ -15,6 +15,7 @@ from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
+from madmom.processors import SequentialProcessor
 
 
 # inherit from FilteredSpectrogram, since this class is closest related
@@ -181,3 +182,27 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         obj.spectrogram = spectrogram
         # return the object
         return obj
+
+
+class DeepChromaProcessor(SequentialProcessor):
+
+    def __init__(self, **kwargs):
+        from ..models import CHROMA_DNN
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
+        from madmom.ml.nn import NeuralNetworkEnsemble
+
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        frames = FramedSignalProcessor(frame_size=8192, fps=10)
+        spec = LogarithmicFilteredSpectrogramProcessor(
+            num_bands=24, fmax=5500, unique_filters=False)
+        spec_frames = FramedSignalProcessor(frame_size=15, hop_size=1)
+
+        def flatten(fs):
+            return np.concatenate(fs).reshape(len(fs), -1)
+
+        nn = NeuralNetworkEnsemble.load(CHROMA_DNN)
+
+        super(DeepChromaProcessor, self).__init__([
+            sig, frames, spec, spec_frames, flatten, nn
+        ])
