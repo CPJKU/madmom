@@ -15,6 +15,7 @@ from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
+from madmom.processors import SequentialProcessor
 
 
 # inherit from FilteredSpectrogram, since this class is closest related
@@ -181,3 +182,68 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         obj.spectrogram = spectrogram
         # return the object
         return obj
+
+
+def _dcp_flatten(fs):
+    """Flatten spectrograms for DeepChromaProcessor. Needs to be outside
+       of the class in order to be picklable for multiprocessing.
+    """
+    return np.concatenate(fs).reshape(len(fs), -1)
+
+
+class DeepChromaProcessor(SequentialProcessor):
+    """
+    Compute chroma vectors from an audio file using a deep neural network
+    that focuses on harmonically relevant spectral content.
+
+    Parameters
+    ----------
+    models : list of filenames, optional
+        List of model filenames.
+    fmin : int, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
+
+    Notes
+    -----
+    Provided model files must be compatible with the processing pipeline and
+    the values of `fmin`, `fmax`, and `unique_filters`. The
+    general use case for the `models` parameter is to use a specific
+    model instead of an ensemble of all models.
+
+    The models shipped with madmom differ slightly from those presented in the
+    paper (less hidden units, narrower frequency band for spectrogram), but
+    achieve similar results.
+
+    References
+    ----------
+    .. [1] Filip Korzeniowski and Gerhard Widmer,
+           "Feature Learning for Chord Recognition: The Deep Chroma Extractor",
+           Proceedings of the 17th International Society for Music Information
+           Retrieval Conference (ISMIR), 2016.
+
+    """
+
+    def __init__(self, fmin=65, fmax=2100, unique_filters=True, models=None,
+                 **kwargs):
+        from ..models import CHROMA_DNN
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
+        from madmom.ml.nn import NeuralNetworkEnsemble
+
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        frames = FramedSignalProcessor(frame_size=8192, fps=10)
+        spec = LogarithmicFilteredSpectrogramProcessor(
+            num_bands=24, fmin=fmin, fmax=fmax, unique_filters=unique_filters)
+        spec_frames = FramedSignalProcessor(frame_size=15, hop_size=1)
+
+        nn = NeuralNetworkEnsemble.load(models or CHROMA_DNN)
+
+        super(DeepChromaProcessor, self).__init__([
+            sig, frames, spec, spec_frames, _dcp_flatten, nn
+        ])
