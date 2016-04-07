@@ -665,22 +665,19 @@ class RNNOnsetProcessor(SequentialProcessor):
 
     def __init__(self, online=False, **kwargs):
         # pylint: disable=unused-argument
-        import glob
-        from .. import MODELS_PATH
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
+        from ..models import ONSETS_RNN, ONSETS_BRNN
         from ..ml.nn import NeuralNetworkEnsemble
 
         # choose the appropriate models and set frame sizes accordingly
         if online:
-            nn_files = glob.glob("%s/onsets/2013/onsets_rnn_[1-8].pkl" %
-                                 MODELS_PATH)
+            nn_files = ONSETS_RNN
             frame_sizes = [512, 1024, 2048]
         else:
-            nn_files = glob.glob("%s/onsets/2013/onsets_brnn_[1-8].pkl" %
-                                 MODELS_PATH)
+            nn_files = ONSETS_BRNN
             frame_sizes = [1024, 2048, 4096]
 
         # define pre-processing chain

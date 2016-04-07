@@ -26,7 +26,6 @@ class TestLoadNotesFunction(unittest.TestCase):
 
     def test_values(self):
         result = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
-        print(result)
         self.assertTrue(np.allclose(result, NOTES))
 
 
@@ -61,7 +60,6 @@ class TestWriteMirexFormatFunction(unittest.TestCase):
     def test_values(self):
         result = write_mirex_format(NOTES, ANNOTATIONS_PATH +
                                     'stereo_sample.notes.mirex')
-        print(result)
         self.assertTrue(np.allclose(result[:, 0], NOTES[:, 0]))
         self.assertTrue(np.allclose(result[:, 1], NOTES[:, 0] + NOTES[:, 2]))
         self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 261.6,

@@ -2,7 +2,7 @@
 # pylint: disable=no-member
 # pylint: disable=wrong-import-position
 """
-Madmom is an audio signal processing library.
+Madmom is an audio and music signal processing library.
 
 This library is used internally by the Department of Computational Perception,
 Johannes Kepler University, Linz, Austria (http://www.cp.jku.at) and the
@@ -15,16 +15,13 @@ Please see the README for further details of this package.
 
 from __future__ import absolute_import, division, print_function
 
-import os
 import pkg_resources
 
-MODELS_PATH = '%s/models' % (os.path.dirname(__file__))
+# import all packages
+from . import audio, evaluation, features, ml, models, processors, utils
 
+# define a version variable
 __version__ = pkg_resources.get_distribution("madmom").version
 
 # keep namespace clean
-del os
 del pkg_resources
-
-# finally import all submodules
-from . import audio, features, evaluation, ml, utils, processors

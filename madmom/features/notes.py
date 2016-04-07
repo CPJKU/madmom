@@ -113,9 +113,10 @@ def write_notes(notes, filename, sep='\t', fmt=None, header=''):
     'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
+    from ..utils import write_events
+    # set default format
     if fmt is None:
         fmt = list(('%.3f', '%d', '%.3f', '%d'))
-    from madmom.utils import write_events
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
     # truncate to the number of colums given
@@ -153,7 +154,7 @@ def write_midi(notes, filename, duration=0.6, velocity=100):
     'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
-    from madmom.utils.midi import process_notes
+    from ..utils.midi import process_notes
     # expand the array to have a default duration and velocity
     notes = expand_notes(notes, duration, velocity)
     # write the notes to the file and return them
@@ -189,7 +190,7 @@ def write_mirex_format(notes, filename, duration=0.6):
     'onset_time' 'offset_time' 'note_frequency'
 
     """
-    from madmom.audio.filters import midi2hz
+    from ..audio.filters import midi2hz
     # expand the notes if needed
     notes = expand_notes(notes, duration)
     # report offset time instead of duration
@@ -209,11 +210,11 @@ class RNNPianoNoteProcessor(SequentialProcessor):
 
     def __init__(self, **kwargs):
         # pylint: disable=unused-argument
-        from .. import MODELS_PATH
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
+        from ..models import NOTES_BRNN
         from ..ml.nn import NeuralNetwork
 
         # define pre-processing chain
@@ -233,7 +234,7 @@ class RNNPianoNoteProcessor(SequentialProcessor):
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
         # process the pre-processed signal with a NN
-        nn = NeuralNetwork.load("%s/notes/2013/notes_brnn.pkl" % MODELS_PATH)
+        nn = NeuralNetwork.load(NOTES_BRNN[0])
 
         # instantiate a SequentialProcessor
         super(RNNPianoNoteProcessor, self).__init__((pre_processor, nn))

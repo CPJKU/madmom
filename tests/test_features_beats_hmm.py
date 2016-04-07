@@ -362,7 +362,6 @@ class TestMultiPatternTransitionModelClass(unittest.TestCase):
         self.assertTrue(tm.num_states == 20 + 20)
         self.assertTrue(tm.num_transitions == 26 + 28)
         # the first pattern has 26 transitions
-        print(tm.log_probabilities)
         self.assertTrue(np.allclose(tm.states[:26],
                                     [10, 12, 15, 1, 15, 19, 3, 4, 15, 19, 6, 7,
                                      8, 0, 2, 5, 11, 5, 9, 13, 14, 5, 9, 16,

@@ -379,7 +379,6 @@ class TestAddParserFunction(unittest.TestCase):
     def test_args(self):
         args = self.parser.parse_args(['notes', ANNOTATIONS_PATH,
                                        DETECTIONS_PATH])
-        print(args)
         self.assertTrue(args.ann_dir is None)
         self.assertTrue(args.ann_suffix == '.notes')
         self.assertTrue(args.det_dir is None)

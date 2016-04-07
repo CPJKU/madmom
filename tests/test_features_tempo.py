@@ -8,7 +8,7 @@ This file contains tests for the madmom.ml.hmm module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-from . import ACTIVATIONS_PATH, DETECTIONS_PATH
+from . import ACTIVATIONS_PATH
 from madmom.features.tempo import *
 
 act_file = np.load("%s/sample.beats_blstm_2013.npz" % ACTIVATIONS_PATH)
@@ -132,14 +132,12 @@ class TestWriteTempoFunction(unittest.TestCase):
         result = write_tempo(COMB_TEMPI[5], self.out_file)
         self.assertTrue(np.allclose(result, [52.17, 104.34, 1], atol=0.001))
         # multiple tempi given
-        result = write_tempo(COMB_TEMPI, DETECTIONS_PATH +
-                             'sample.tempo_detector.txt')
+        result = write_tempo(COMB_TEMPI, self.out_file)
         self.assertTrue(np.allclose(result, [176.47, 117.65, 0.684],
                                     atol=0.001))
 
     def test_values_mirex(self):
         # multiple tempi given
         result = write_tempo(COMB_TEMPI, self.out_file, mirex=True)
-        print(result)
         self.assertTrue(np.allclose(result, [117.65, 176.47, 0.316],
                                     atol=0.001))
