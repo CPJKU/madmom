@@ -29,12 +29,11 @@ class RNNBeatProcessor(SequentialProcessor):
 
     def __init__(self, post_processor=None, **kwargs):
         # pylint: disable=unused-argument
-        import glob
-        from .. import MODELS_PATH
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
+        from ..models import BEATS_BLSTM
         from ..ml.nn import NeuralNetworkEnsemble, average_predictions
 
         # define pre-processing chain
@@ -53,13 +52,12 @@ class RNNBeatProcessor(SequentialProcessor):
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
-        # process the pre-processed signal with a NN ensemble
-        nn_files = glob.glob("%s/beats/2013/beats_blstm_[1-8].pkl" %
-                             MODELS_PATH)
         # average predictions
         if post_processor is None:
             post_processor = average_predictions
-        nn = NeuralNetworkEnsemble.load(nn_files, ensemble_fn=post_processor)
+        # process the pre-processed signal with a NN ensemble
+        nn = NeuralNetworkEnsemble.load(BEATS_BLSTM,
+                                        ensemble_fn=post_processor)
 
         # instantiate a SequentialProcessor
         super(RNNBeatProcessor, self).__init__((pre_processor, nn))
@@ -302,7 +300,7 @@ class BeatTrackingProcessor(Processor):
     def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=None,
                  **kwargs):
         # import the TempoEstimation here otherwise we have a loop
-        from madmom.features.tempo import TempoEstimationProcessor
+        from .tempo import TempoEstimationProcessor
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
@@ -639,8 +637,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
         """
         # pylint: disable=arguments-differ
-
-        from madmom.utils import OverrideDefaultListAction
+        from ..utils import OverrideDefaultListAction
         # add CRF related arguments
         g = parser.add_argument_group('conditional random field arguments')
         g.add_argument('--interval_sigma', action='store', type=float,
@@ -721,11 +718,10 @@ class DBNBeatTrackingProcessor(Processor):
                  fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
-
-        from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BeatStateSpace as St,
                                 BeatTransitionModel as Tm,
                                 RNNBeatTrackingObservationModel as Om)
+        from ..ml.hmm import HiddenMarkovModel as Hmm
 
         # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
@@ -935,11 +931,11 @@ class PatternTrackingProcessor(Processor):
         # pylint: disable=no-name-in-module
 
         import pickle
-        from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
                                 MultiPatternTransitionModel,
                                 GMMPatternTrackingObservationModel)
+        from ..ml.hmm import HiddenMarkovModel as Hmm
 
         # expand num_tempi and transition_lambda to lists if needed
         if not isinstance(num_tempi, list):
@@ -1066,7 +1062,7 @@ class PatternTrackingProcessor(Processor):
         `transition_lambda` must the same number of items.
 
         """
-        from madmom.utils import OverrideDefaultListAction
+        from ..utils import OverrideDefaultListAction
         # add GMM options
         if pattern_files is not None:
             g = parser.add_argument_group('GMM arguments')

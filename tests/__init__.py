@@ -9,8 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import os
 
-from madmom import MODELS_PATH
-
 DATA_PATH = os.path.dirname(os.path.realpath(__file__)) + '/data/'
 AUDIO_PATH = DATA_PATH + 'audio/'
 ACTIVATIONS_PATH = DATA_PATH + 'activations/'

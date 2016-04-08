@@ -8,11 +8,13 @@ This file contains tests for the madmom.ml.hmm module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-from . import AUDIO_PATH, ACTIVATIONS_PATH, MODELS_PATH
-from madmom.ml.hmm import HiddenMarkovModel
+from . import AUDIO_PATH, ACTIVATIONS_PATH
 from madmom.features import Activations
 from madmom.features.beats import *
 from madmom.features.beats_hmm import *
+from madmom.ml.hmm import HiddenMarkovModel
+from madmom.models import PATTERNS_BALLROOM
+
 
 sample_file = "%s/sample.wav" % AUDIO_PATH
 sample_act = Activations("%s/sample.beats_blstm_2013.npz" % ACTIVATIONS_PATH)
@@ -96,9 +98,7 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
 class TestPatternTrackingProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        import glob
-        pattern_files = sorted(glob.glob("%s/patterns/2013/*" % MODELS_PATH))
-        self.processor = PatternTrackingProcessor(pattern_files,
+        self.processor = PatternTrackingProcessor(PATTERNS_BALLROOM,
                                                   fps=sample_mb_features.fps)
 
     def test_types(self):
