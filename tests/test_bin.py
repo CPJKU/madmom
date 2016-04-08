@@ -258,6 +258,7 @@ class TestGMMPatternTrackerProgram(unittest.TestCase):
                                        ACTIVATIONS_PATH)
         self.result = np.loadtxt("%s/sample.gmm_pattern_tracker.txt" %
                                  DETECTIONS_PATH)
+        self.downbeat_result = self.result[self.result[:, 1] == 1][:, 0]
 
     def test_help(self):
         _, ret_code = run_program([self.bin, '-h'])
@@ -294,6 +295,11 @@ class TestGMMPatternTrackerProgram(unittest.TestCase):
         # need to reshape, since results are 2D
         result = np.fromstring(data, sep='\n').reshape((-1, 2))
         self.assertTrue(np.allclose(result, self.result))
+
+    def test_run_downbeats(self):
+        data, _ = run_program([self.bin, '--downbeats', 'single', sample_file])
+        result = np.fromstring(data, sep='\n')
+        self.assertTrue(np.allclose(result, self.downbeat_result))
 
 
 class TestLogFiltSpecFluxProgram(unittest.TestCase):

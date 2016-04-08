@@ -4,6 +4,10 @@ Release Notes
 Version 0.14.dev
 ----------------
 
+Bug fixes:
+
+* Fix downbeat output bug (#128)
+
 API relevant changes:
 
 * Refactored the `ml.rnn` to `ml.nn` and converted the models to pickles (#110)

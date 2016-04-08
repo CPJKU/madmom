@@ -1022,7 +1022,7 @@ class PatternTrackingProcessor(Processor):
                            beat_numbers[beat_positions])).T
         # return the downbeats or beats and their beat number
         if self.downbeats:
-            return beats[beats[:, 1] == 1][0, :]
+            return beats[beats[:, 1] == 1][:, 0]
         else:
             return beats
 
