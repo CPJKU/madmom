@@ -132,3 +132,8 @@ class TestPatternTrackingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(beats, [[0.08, 3], [0.42, 4], [0.76, 1],
                                             [1.1, 2], [1.44, 3], [1.78, 4],
                                             [2.12, 1], [2.46, 2], [2.8, 3]]))
+
+    def test_process_downbeats(self):
+        self.processor.downbeats = True
+        beats = self.processor(sample_mb_features)
+        self.assertTrue(np.allclose(beats, [0.76, 2.12]))
