@@ -250,6 +250,56 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
         self.assertTrue(np.allclose(result, self.result))
 
 
+class TestDBNDownBeatTrackerProgram(unittest.TestCase):
+    def setUp(self):
+        self.bin = "%s/DBNDownBeatTracker" % program_path
+        self.activations = Activations(
+            "%s/sample.downbeats_blstm_2016.npz" % ACTIVATIONS_PATH)
+        self.result = np.loadtxt(
+            "%s/sample.dbn_downbeat_tracker.txt" % DETECTIONS_PATH)
+        self.downbeat_result = self.result[self.result[:, 1] == 1][:, 0]
+
+    def test_help(self):
+        _, ret_code = run_program([self.bin, '-h'])
+        self.assertEqual(ret_code, 0)
+
+    def test_binary(self):
+        # save activations as binary file
+        data, _ = run_program(
+            [self.bin, '--save', 'single', sample_file, '-o',
+             tmp_file])
+        act = Activations(tmp_file)
+        self.assertTrue(np.allclose(act, self.activations))
+        self.assertEqual(act.fps, self.activations.fps)
+        # reload from file
+        data, _ = run_program([self.bin, '--load', 'single', tmp_file])
+        result = np.fromstring(data, sep='\n').reshape((-1, 2))
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_txt(self):
+        # save activations as txt file
+        data, _ = run_program(
+            [self.bin, '--save', '--sep', ' ', 'single', sample_file,
+             '-o', tmp_file])
+        act = Activations(tmp_file, sep=' ', fps=100)
+        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+        # reload from file
+        data, _ = run_program(
+            [self.bin, '--load', '--sep', ' ', 'single', tmp_file])
+        result = np.fromstring(data, sep='\n').reshape((-1, 2))
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_run(self):
+        data, _ = run_program([self.bin, 'single', sample_file])
+        result = np.fromstring(data, sep='\n').reshape((-1, 2))
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_run_downbeats(self):
+        data, _ = run_program([self.bin, '--downbeats', 'single', sample_file])
+        result = np.fromstring(data, sep='\n')
+        self.assertTrue(np.allclose(result, self.downbeat_result))
+
+
 class TestGMMPatternTrackerProgram(unittest.TestCase):
 
     def setUp(self):
