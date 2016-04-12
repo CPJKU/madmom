@@ -25,6 +25,7 @@ AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
 
 ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm_2013.npz',
                     ACTIVATIONS_PATH + 'sample.beats_blstm_mm_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.chords_dnn_2016.npz',
                     ACTIVATIONS_PATH + 'sample.complex_flux.npz',
                     ACTIVATIONS_PATH + 'sample.gmm_pattern_tracker.npz',
                     ACTIVATIONS_PATH + 'sample.log_filt_spec_flux.npz',
