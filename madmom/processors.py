@@ -560,7 +560,8 @@ class _ParallelProcess(mp.Process):
 
 # function to batch process multiple files with a processor
 def process_batch(processor, files, output_dir=None, output_suffix=None,
-                  strip_ext=True, num_workers=mp.cpu_count(), **kwargs):
+                  strip_ext=True, num_workers=mp.cpu_count(), shuffle=False,
+                  **kwargs):
     """
     Process a list of files with the given Processor in batch mode.
 
@@ -578,12 +579,18 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
         Strip off the extension from the input files.
     num_workers : int, optional
         Number of parallel working threads.
+    shuffle : bool, optional
+        Shuffle the `files` before distributing them to the working threads
 
     Notes
     -----
     Either `output_dir` and/or `output_suffix` must be set. If `strip_ext` is
     True, the extension of the input file names is stripped off before the
     `output_suffix` is appended to the input file names.
+
+    Use `shuffle` if you experience out of memory errors (can occur for certain
+    methods with high memory consumptions if consecutive files are rather
+    long).
 
     """
     # pylint: disable=unused-argument
@@ -606,6 +613,11 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     for p in processes:
         p.daemon = True
         p.start()
+
+    # shuffle files?
+    if shuffle:
+        from random import shuffle
+        shuffle(files)
 
     # process all the files
     for input_file in files:
@@ -701,4 +713,8 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                          'strip it off before appending the output suffix]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
                     help='number of parallel workers [default=%(default)s]')
+    sp.add_argument('--shuffle', action='store_true',
+                    help='shuffle files before distributing them to the '
+                         'working threads [default=process them in sorted '
+                         'order]')
     sp.set_defaults(num_threads=1)

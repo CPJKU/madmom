@@ -477,10 +477,10 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         self.observation_lambda = observation_lambda
         # compute observation pointers
         # always point to the non-beat densities
-        pointers = np.ones(state_space.num_states, dtype=np.uint32)
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
-        pointers[state_space.state_positions < border] = 0
+        pointers[state_space.state_positions < border] = 1
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
@@ -503,9 +503,64 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         log_densities = np.empty((len(observations), 2), dtype=np.float)
         # Note: it's faster to call np.log 2 times instead of once on the
         #       whole 2d array
-        log_densities[:, 0] = np.log(observations)
-        log_densities[:, 1] = np.log((1. - observations) /
+        log_densities[:, 0] = np.log((1. - observations) /
                                      (self.observation_lambda - 1))
+        log_densities[:, 1] = np.log(observations)
+        # return the densities
+        return log_densities
+
+
+class RNNDownBeatTrackingObservationModel(ObservationModel):
+    """
+    Observation model for downbeat tracking with a HMM.
+
+    Parameters
+    ----------
+    state_space : :class:`BarStateSpace` instance
+        BarStateSpace instance.
+    observation_lambda : int
+        Split each (down-)beat period into `observation_lambda` parts, the
+        first representing (down-)beat states and the remaining non-beat
+        states.
+
+    """
+
+    def __init__(self, state_space, observation_lambda):
+        self.observation_lambda = observation_lambda
+        # compute observation pointers
+        # always point to the non-beat densities
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
+        # unless they are in the beat range of the state space
+        border = 1. / observation_lambda
+        pointers[state_space.state_positions % 1 < border] = 1
+        # the downbeat (i.e. the first beat range) points to density column 2
+        pointers[state_space.state_positions < border] = 2
+        # instantiate a ObservationModel with the pointers
+        super(RNNDownBeatTrackingObservationModel, self).__init__(pointers)
+
+    def log_densities(self, observations):
+        """
+        Computes the log densities of the observations.
+
+        Parameters
+        ----------
+        observations : numpy array
+            Observations (i.e. activations of the RNN).
+
+        Returns
+        -------
+        numpy array
+            Log densities of the observations.
+
+        """
+        # init densities
+        log_densities = np.empty((len(observations), 3), dtype=np.float)
+        # Note: it's faster to call np.log multiple times instead of once on
+        #       the whole 2d array
+        log_densities[:, 0] = np.log(observations[:, 0] /
+                                     (self.observation_lambda - 1))
+        log_densities[:, 1] = np.log(observations[:, 1])
+        log_densities[:, 2] = np.log(observations[:, 2])
         # return the densities
         return log_densities
 
