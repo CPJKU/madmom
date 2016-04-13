@@ -4,6 +4,10 @@ Release Notes
 Version 0.14.dev
 ----------------
 
+New features:
+
+* RNN/DBN downbeat tracking (#130)
+
 Bug fixes:
 
 * Fix downbeat output bug (#128)
@@ -15,6 +19,7 @@ API relevant changes:
 Other changes:
 
 * added classes for onset/note/beat detection with RNNs to `features.*` (#118)
+* converted `madmom.modules` into a Python package (#125)
 
 Version 0.13.1 (release date: 2016-03-14)
 -----------------------------------------
@@ -26,7 +31,7 @@ This is a bugfix release.
 Version 0.13 (release date: 2016-03-07)
 ---------------------------------------
 
-Main features:
+New features:
 
 * Python 3 support (3.3+) (#15)
 * Online documentation available at http://madmom.readthedocs.org (#60)
