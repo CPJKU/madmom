@@ -807,16 +807,13 @@ class CNNOnsetProcessor(SequentialProcessor):
             norm = NormalizationProcessor.load(norm_file)
             # process each frame size with spec and diff sequentially
             multi.append(SequentialProcessor((frames, filt, spec, norm)))
-        # stack the features
-        # FIXME: np.stack introduced in numpy 1.10, thus find another solution
-        #        or bump the version in requirements.txt
-        stack = np.stack
+        # stack the features (in depth)
+        stack = np.dstack
 
-        # pad the features
+        # pad the features (repeat the first and last frames)
         def pad(data):
-            return np.concatenate((np.repeat(data[:, :1, :], 7, axis=1), data,
-                                   np.repeat(data[:, -1:, :], 7, axis=1)),
-                                  axis=1)
+            return np.concatenate((np.repeat(data[:1], 7, axis=0), data,
+                                   np.repeat(data[-1:], 7, axis=0)))
 
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, stack, pad))

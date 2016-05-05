@@ -382,7 +382,7 @@ class ConvolutionalLayer(FeedForwardLayer):
 
         Parameters
         ----------
-        data : numpy array (num_channels, num_timesteps, num_dims)
+        data : numpy array (num_frames, num_bins, num_channels)
             Activate with this data.
 
         Returns
@@ -393,35 +393,36 @@ class ConvolutionalLayer(FeedForwardLayer):
         """
         from scipy.signal import convolve2d
         # determine output shape and allocate memory
-        num_channels, num_frames, num_bins = data.shape
-        num_features, num_channels, size_time, size_freq = self.weights.shape
-        # adjust the output number of frames and bins
-        # TODO: this is only true for pad='valid'
+        num_frames, num_bins, num_channels = data.shape
+        num_channels, num_features, size_time, size_freq = self.weights.shape
+        # adjust the output number of frames and bins depending on `pad`
+        # TODO: this works only with pad='valid'
         num_frames -= (size_time - 1)
         num_bins -= (size_freq - 1)
-        out = np.zeros((num_features, num_frames, num_bins), dtype=np.float32)
+        # init the output array with Fortran ordering (column major)
+        out = np.zeros((num_frames, num_bins, num_features),
+                       dtype=NN_DTYPE, order='F')
         # iterate over all channels
-        for c, channel in enumerate(data):
+        for c in range(num_channels):
+            channel = data[:, :, c]
             # convolve each channel separately with each filter
-            for w, weights in enumerate(self.weights[:, c]):
+            for w, weights in enumerate(self.weights[c]):
                 # TODO: add boundary stuff?
                 conv = convolve2d(channel, weights, mode=self.pad)
-                out[w, :, :] += conv
+                out[:, :, w] += conv
         # add bias to each feature map and apply activation function
-        return self.activation_fn(out + self.bias[:, np.newaxis, np.newaxis])
+        return self.activation_fn(out + self.bias)
 
 
 class StrideLayer(object):
 
-    def __init__(self, block_length):
-        self.block_length = block_length
+    def __init__(self, block_size):
+        self.block_size = block_size
 
     def activate(self, data):
-        # re-arrange the data for the following dense layer
-        # TODO: use stride_tricks instead of copying the data...
-        data = np.vstack(data[:, idx:idx + self.block_length].ravel()
-                         for idx in range(data.shape[1] - self.blocklen + 1))
-        return data
+        from ...utils import segment_axis
+        data = segment_axis(data, self.block_size, 1, axis=0, end='cut')
+        return data.reshape(len(data), -1)
 
 
 class MaxPoolLayer(object):
@@ -464,7 +465,7 @@ class MaxPoolLayer(object):
         slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
         slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
         # TODO: is contsant mode the most appropriate?
-        data = [maximum_filter(channel, self.size, mode='constant')[
-                slice_dim_1, slice_dim_2] for channel in data]
+        data = [maximum_filter(data[:, :, c], self.size, mode='constant')[
+                slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
         # join channels and return as array
-        return np.vstack(channel[np.newaxis, ...] for channel in data)
+        return np.dstack(data)
