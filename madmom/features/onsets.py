@@ -650,7 +650,7 @@ class SpectralOnsetProcessor(Processor):
         return g
 
 
-# class for detecting onsets with RNNs
+# classes for detecting onsets with NNs
 class RNNOnsetProcessor(SequentialProcessor):
     """
     Processor to get a onset activation function from multiple RNNs.
@@ -660,6 +660,24 @@ class RNNOnsetProcessor(SequentialProcessor):
     online : bool, optional
         Choose networks suitable for online onset detection, i.e. use
         unidirectional RNNs.
+
+    Notes
+    -----
+    This class uses either uni- or bi-directional RNNs. Contrary to [1], it
+    uses simple tanh units as in [2]. Also the input representations changed
+    to use logarithmically filtered and scaled spectrograms.
+
+    References
+    ----------
+    .. [1] "Universal Onset Detection with bidirectional Long Short-Term Memory
+            Neural Networks"
+           Florian Eyben, Sebastian Böck, Björn Schuller and Alex Graves.
+           Proceedings of the 11th International Society for Music Information
+           Retrieval Conference (ISMIR), 2010.
+    .. [2] "Online Real-time Onset Detection with Recurrent Neural Networks"
+           Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl.
+           Proceedings of the 15th International Conference on Digital Audio
+           Effects (DAFx), 2012.
 
     """
 
@@ -702,6 +720,117 @@ class RNNOnsetProcessor(SequentialProcessor):
 
         # instantiate a SequentialProcessor
         super(RNNOnsetProcessor, self).__init__((pre_processor, nn))
+
+
+# TODO: rename it or move it to a better place
+class NormalizationProcessor(Processor):
+    """
+    Apply mean/std normalization to the given data.
+
+    Parameters
+    ----------
+    mean : numpy array
+        Mean vector.
+    covar : numpy array
+        Covariance vector.
+
+    """
+
+    def __init__(self, mean, covar):
+        self.mean = mean
+        self.covar = covar
+
+    def process(self, data, in_place=True):
+        """
+        Apply mean/std normalization to the given data.
+
+        Parameters
+        ----------
+        data : numpy array
+            Data to be normalized.
+        in_place : bool, optional
+            Perform normalization in place
+
+        Returns
+        -------
+        numpy array
+            Data, mean-centered and divided by standard deviation.
+
+        """
+        if in_place:
+            data -= self.mean
+        else:
+            data = data - np.array(self.mean, dtype=data.dtype, copy=False)
+        data /= np.sqrt(self.covar)
+        return data
+
+
+class CNNOnsetProcessor(SequentialProcessor):
+    """
+    Processor to get a onset activation function from a CNN.
+
+    References
+    ----------
+    .. [1] "Musical Onset Detection with Convolutional Neural Networks"
+           Jan Schlüter and Sebastian Böck.
+           Proceedings of the 6th International Workshop on Machine Learning
+           and Music, 2013.
+
+    Notes
+    -----
+    The implementation follows as closely as possible the original one, but
+    part of the signal pre-processing differs in minor aspects, so results can
+    differ slightly, too.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.filters import MelFilterbank
+        from ..audio.spectrogram import (FilteredSpectrogramProcessor,
+                                         LogarithmicSpectrogramProcessor)
+        from ..models import ONSETS_CNN, MODELS_PATH
+        from ..ml.nn import NeuralNetwork
+
+        frame_sizes = [2048, 1024, 4096]
+        norm_files = ['%s/onsets/2013/onsets_cnn_norm_%s.pkl' %
+                      (MODELS_PATH, frame_size) for frame_size in frame_sizes]
+
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        # process the multi-resolution spec in parallel
+        multi = ParallelProcessor([])
+        for frame_size, norm_file in zip(frame_sizes, norm_files):
+            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            filt = FilteredSpectrogramProcessor(
+                filterbank=MelFilterbank, num_bands=80, fmin=27.5, fmax=16000,
+                norm_filters=True, unique_filters=False)
+            spec = LogarithmicSpectrogramProcessor(log=np.log,
+                                                   add=2.220446049250313e-16)
+            # variance and mean normalisation
+            norm = NormalizationProcessor.load(norm_file)
+            # process each frame size with spec and diff sequentially
+            multi.append(SequentialProcessor((frames, filt, spec, norm)))
+        # stack the features
+        # FIXME: np.stack introduced in numpy 1.10, thus find another solution
+        #        or bump the version in requirements.txt
+        stack = np.stack
+
+        # pad the features
+        def pad(data):
+            return np.concatenate((np.repeat(data[:, :1, :], 7, axis=1), data,
+                                   np.repeat(data[:, -1:, :], 7, axis=1)),
+                                  axis=1)
+
+        # stack the features and processes everything sequentially
+        pre_processor = SequentialProcessor((sig, multi, stack, pad))
+
+        # process the pre-processed signal with a NN ensemble
+        nn = NeuralNetwork.load(ONSETS_CNN[0])
+
+        # instantiate a SequentialProcessor
+        super(CNNOnsetProcessor, self).__init__((pre_processor, nn))
 
 
 # universal peak-picking method
