@@ -476,7 +476,7 @@ class FilteredSpectrogramProcessor(Processor):
 
 
 # logarithmic spectrogram stuff
-LOG = True
+LOG = np.log10
 MUL = 1.
 ADD = 1.
 
@@ -489,6 +489,8 @@ class LogarithmicSpectrogram(Spectrogram):
     ----------
     spectrogram : :class:`Spectrogram` instance
         Spectrogram.
+    log : numpy ufunc, optional
+        Loagrithmic scaling function to apply.
     mul : float, optional
         Multiply the magnitude spectrogram with this factor before taking
         the logarithm.
@@ -503,18 +505,26 @@ class LogarithmicSpectrogram(Spectrogram):
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
-    def __init__(self, spectrogram, mul=MUL, add=ADD, **kwargs):
+    def __init__(self, spectrogram, log=LOG, mul=MUL, add=ADD, **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, spectrogram, mul=MUL, add=ADD, **kwargs):
+    def __new__(cls, spectrogram, log=LOG, mul=MUL, add=ADD, **kwargs):
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
-
-        # filter the spectrogram
-        data = np.log10(mul * spectrogram + add)
+            data = spectrogram
+        else:
+            # make a copy of the spectrogram
+            data = spectrogram.copy()
+        # scale the spectrogram
+        if mul is not None:
+            data *= mul
+        if add is not None:
+            data += add
+        if log is not None:
+            log(data, data)
         # cast as FilteredSpectrogram
         obj = np.asarray(data).view(cls)
         # save additional attributes
@@ -542,6 +552,8 @@ class LogarithmicSpectrogramProcessor(Processor):
 
     Parameters
     ----------
+    log : numpy ufunc, optional
+        Loagrithmic scaling function to apply.
     mul : float, optional
         Multiply the magnitude spectrogram with this factor before taking the
         logarithm.
@@ -550,8 +562,9 @@ class LogarithmicSpectrogramProcessor(Processor):
 
     """
 
-    def __init__(self, mul=MUL, add=ADD, **kwargs):
+    def __init__(self, log=LOG, mul=MUL, add=ADD, **kwargs):
         # pylint: disable=unused-argument
+        self.log = log
         self.mul = mul
         self.add = add
 
@@ -573,8 +586,8 @@ class LogarithmicSpectrogramProcessor(Processor):
 
         """
         # instantiate a LogarithmicSpectrogram
-        return LogarithmicSpectrogram(data, mul=self.mul, add=self.add,
-                                      **kwargs)
+        return LogarithmicSpectrogram(data, log=self.log, mul=self.mul,
+                                      add=self.add, **kwargs)
 
     @staticmethod
     def add_arguments(parser, log=None, mul=None, add=None):
@@ -607,10 +620,12 @@ class LogarithmicSpectrogramProcessor(Processor):
         g = parser.add_argument_group('magnitude scaling arguments')
         # log
         if log is True:
-            g.add_argument('--linear', dest='log', action='store_false',
+            g.add_argument('--linear', dest='log', action='store_const',
+                           const=None, default=LOG,
                            help='linear magnitudes [default=logarithmic]')
         elif log is False:
-            g.add_argument('--log', action='store_true',
+            g.add_argument('--log', action='store_const',
+                           const=LOG, default=None,
                            help='logarithmic magnitudes [default=linear]')
         # mul
         if mul is not None:
