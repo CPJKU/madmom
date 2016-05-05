@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from .activations import tanh, sigmoid
+from .activations import linear, sigmoid, tanh
 
 NN_DTYPE = np.float32
 
@@ -103,7 +103,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def __init__(self, weights, bias, recurrent_weights, activation_fn):
         super(RecurrentLayer, self).__init__(weights, bias, activation_fn)
-        self.recurrent_weights = recurrent_weights.copy()
+        self.recurrent_weights = recurrent_weights
 
     def activate(self, data):
         """
@@ -342,3 +342,159 @@ class LSTMLayer(Layer):
             out_ = self.activation_fn(state_) * og
             out[i] = out_
         return out
+
+
+class ConvolutionalLayer(FeedForwardLayer):
+    """
+    Convolutional network layer.
+
+    Parameters
+    ----------
+    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
+        Weights.
+    bias : scalar or numpy array, shape (num_filters,)
+        Bias.
+    stride : int, optional
+        Stride of the convolution.
+    pad : {'valid', 'same', 'full'}
+        A string indicating the size of the output:
+
+        - full
+            The output is the full discrete linear convolution of the inputs.
+        - valid
+            The output consists only of those elements that do not rely on the
+            zero-padding.
+        - same
+            The output is the same size as the input, centered with respect to
+            the ‘full’ output.
+
+    activation_fn : numpy ufunc
+        Activation function.
+
+    """
+
+    def __init__(self, weights, bias, stride=1, pad='valid',
+                 activation_fn=linear):
+        super(ConvolutionalLayer, self).__init__(weights, bias, activation_fn)
+        if stride != 1:
+            raise NotImplementedError('only `stride` == 1 implemented.')
+        self.stride = stride
+        if pad != 'valid':
+            raise NotImplementedError('only `pad` == "valid" implemented.')
+        self.pad = pad
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array (num_channels, num_timesteps, num_dims)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        from scipy.signal import convolve2d
+        # determine output shape and allocate memory
+        num_channels, num_frames, num_bins = data.shape
+        num_features, num_channels, size_time, size_freq = self.weights.shape
+        # adjust the output number of frames and bins
+        # TODO: this is only true for pad='valid'
+        num_frames -= (size_time - 1)
+        num_bins -= (size_freq - 1)
+        out = np.zeros((num_features, num_frames, num_bins), dtype=np.float32)
+        # iterate over all channels
+        for c, channel in enumerate(data):
+            # convolve each channel separately with each filter
+            for w, weights in enumerate(self.weights[:, c]):
+                # TODO: add boundary stuff?
+                conv = convolve2d(channel, weights, mode=self.pad)
+                out[w, :, :] += conv
+        # add bias to each feature map and apply activation function
+        return self.activation_fn(out + self.bias[:, np.newaxis, np.newaxis])
+
+
+class StrideLayer(Layer):
+    """
+    Stride network layer.
+
+    Parameters
+    ----------
+    block_length : int
+        Re-arrange (stride) the data in blocks of given length.
+
+    """
+
+    def __init__(self, block_length):
+        self.block_length = block_length
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Strided data.
+
+        """
+        # re-arrange the data for the following dense layer
+        # TODO: use stride_tricks instead of copying the data...
+        data = np.vstack(data[:, idx:idx + self.block_length].ravel()
+                         for idx in range(data.shape[1] - self.blocklen + 1))
+        return data
+
+
+class MaxPoolLayer(Layer):
+    """
+    2D max-pooling network layer.
+
+    Parameters
+    ----------
+    size : tuple
+        The size of the pooling region in each dimension.
+    stride : tuple, optional
+        The strides between successive pooling regions in each dimension.
+        If None `stride` = `size`.
+
+    """
+
+    def __init__(self, size, stride=None):
+        self.size = size
+        if stride is None:
+            stride = size
+        self.stride = stride
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        from scipy.ndimage.filters import maximum_filter
+        # define which part of the maximum filtered data to return
+        slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
+        slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
+        # TODO: is constant mode the most appropriate?
+        data = [maximum_filter(channel, self.size, mode='constant')
+                [slice_dim_1, slice_dim_2] for channel in data]
+        # join channels and return as array
+        return np.vstack(channel[np.newaxis, ...] for channel in data)
