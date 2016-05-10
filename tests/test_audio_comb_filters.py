@@ -125,16 +125,20 @@ class TestCombFilterFunction(unittest.TestCase):
     def test_values_backward(self):
         function = feed_backward_comb_filter
         result = comb_filter(sig_1d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(np.allclose(result, [res_1d_bw_2, res_1d_bw_3]))
+        self.assertTrue(np.allclose(result[:, 0], res_1d_bw_2))
+        self.assertTrue(np.allclose(result[:, 1], res_1d_bw_3))
         result = comb_filter(sig_2d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(np.allclose(result, [res_2d_bw_2, res_2d_bw_3]))
+        self.assertTrue(np.allclose(result[:, :, 0], res_2d_bw_2))
+        self.assertTrue(np.allclose(result[:, :, 1], res_2d_bw_3))
 
     def test_values_forward(self):
         function = feed_forward_comb_filter
         result = comb_filter(sig_1d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(np.allclose(result, [res_1d_fw_2, res_1d_fw_3]))
+        self.assertTrue(np.allclose(result[:, 0], res_1d_fw_2))
+        self.assertTrue(np.allclose(result[:, 1], res_1d_fw_3))
         result = comb_filter(sig_2d, function, [2, 3], [0.5, 0.5])
-        self.assertTrue(np.allclose(result, [res_2d_fw_2, res_2d_fw_3]))
+        self.assertTrue(np.allclose(result[:, :, 0], res_2d_fw_2))
+        self.assertTrue(np.allclose(result[:, :, 1], res_2d_fw_3))
 
 
 class TestCombFilterbankClass(unittest.TestCase):
@@ -163,14 +167,18 @@ class TestCombFilterbankClass(unittest.TestCase):
         processor = CombFilterbankProcessor(feed_backward_comb_filter,
                                             [2, 3], [0.5, 0.5])
         result = processor.process(sig_1d)
-        self.assertTrue(np.allclose(result, [res_1d_bw_2, res_1d_bw_3]))
+        self.assertTrue(np.allclose(result[:, 0], res_1d_bw_2))
+        self.assertTrue(np.allclose(result[:, 1], res_1d_bw_3))
         result = processor.process(sig_2d)
-        self.assertTrue(np.allclose(result, [res_2d_bw_2, res_2d_bw_3]))
+        self.assertTrue(np.allclose(result[:, :, 0], res_2d_bw_2))
+        self.assertTrue(np.allclose(result[:, :, 1], res_2d_bw_3))
 
     def test_values_forward(self):
         processor = CombFilterbankProcessor(feed_forward_comb_filter,
                                             [2, 3], [0.5, 0.5])
         result = processor.process(sig_1d)
-        self.assertTrue(np.allclose(result, [res_1d_fw_2, res_1d_fw_3]))
+        self.assertTrue(np.allclose(result[:, 0], res_1d_fw_2))
+        self.assertTrue(np.allclose(result[:, 1], res_1d_fw_3))
         result = processor.process(sig_2d)
-        self.assertTrue(np.allclose(result, [res_2d_fw_2, res_2d_fw_3]))
+        self.assertTrue(np.allclose(result[:, :, 0], res_2d_fw_2))
+        self.assertTrue(np.allclose(result[:, :, 1], res_2d_fw_3))

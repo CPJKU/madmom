@@ -36,11 +36,23 @@ class TestIntervalHistogramAcfFunction(unittest.TestCase):
 class TestIntervalHistogramCombFunction(unittest.TestCase):
 
     def test_values(self):
-        hist = interval_histogram_comb(act.astype(np.float), 0.79,
-                                       min_tau=24, max_tau=150)
+        hist = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
         self.assertTrue(np.allclose(hist[0][:6], [1.42615775, 1.0374281,
                                                   1.2080798, 1.19360007,
                                                   1.19332424, 1.03763841]))
+        self.assertTrue(np.allclose(hist[1], np.arange(24, 151)))
+
+    def test_values_2d(self):
+        act_2d = np.vstack((act, act)).T
+        hist = interval_histogram_comb(act_2d, 0.79, min_tau=24, max_tau=150)
+        # test both channels individually
+        self.assertTrue(np.allclose(hist[0][0, :6],
+                                    [1.42615775, 1.0374281, 1.2080798,
+                                     1.19360007, 1.19332424, 1.03763841]))
+        # 2nd channel is the same
+        self.assertTrue(np.allclose(hist[0][1, :6],
+                                    [1.42615775, 1.0374281, 1.2080798,
+                                     1.19360007, 1.19332424, 1.03763841]))
         self.assertTrue(np.allclose(hist[1], np.arange(24, 151)))
 
 # class TestIntervalHistogramDbnFunction(unittest.TestCase):

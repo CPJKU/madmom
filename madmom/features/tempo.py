@@ -77,6 +77,9 @@ def interval_histogram_acf(activations, min_tau=1, max_tau=None):
            Effects (DAFx), 2011.
 
     """
+    if activations.ndim != 1:
+        raise NotImplementedError('too many dimensions for autocorrelation '
+                                  'interval histogram calculation.')
     # set the maximum delay
     if max_tau is None:
         max_tau = len(activations) - min_tau
@@ -134,26 +137,17 @@ def interval_histogram_comb(activations, alpha, min_tau=1, max_tau=None):
     taus = np.arange(min_tau, max_tau + 1)
     # create a comb filter bank instance
     cfb = CombFilterbankProcessor('backward', taus, alpha)
-    # activations = np.minimum(0.9, activations)
-    if activations.ndim == 1:
+    if activations.ndim in (1, 2):
         # apply a bank of comb filters
         act = cfb.process(activations)
         # determine the tau with the highest value for each time step
-        # sum up the maxima to yield the histogram bin values
-        histogram_bins = np.sum(act * (act == np.max(act, axis=0)), axis=1)
-    elif activations.ndim == 2:
-        histogram_bins = np.zeros_like(taus)
-        # do the same as above for all bands
-        for i in range(activations.shape[1]):
-            # apply a bank of comb filters
-            act = cfb.process(activations[:, i])
-            # determine the tau with the highest value for each time step
-            # sum up the maxima to yield the histogram bin values
-            histogram_bins += np.sum(act * (act == np.max(act, axis=0)),
-                                     axis=1)
+        act_max = act == np.max(act, axis=-1)[..., np.newaxis]
+        # sum up these maxima weighted by the activation value to yield the
+        # histogram bin values
+        histogram_bins = np.sum(act * act_max, axis=0)
     else:
-        raise NotImplementedError('too many dimensions for comb filter tempo '
-                                  'detection.')
+        raise NotImplementedError('too many dimensions for comb filter '
+                                  'interval histogram calculation.')
     # return the histogram
     return histogram_bins, taus
 

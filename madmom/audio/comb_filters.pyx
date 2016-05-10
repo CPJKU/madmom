@@ -185,7 +185,7 @@ def comb_filter(signal, filter_function, tau, alpha):
     -------
     comb_filtered_signal : numpy array
         Comb filtered signal with the different taus aligned along the (new)
-        first dimension.
+        last dimension.
 
     Notes
     -----
@@ -206,15 +206,16 @@ def comb_filter(signal, filter_function, tau, alpha):
     # tau and alpha must have the same length
     if len(tau) != len(alpha):
         raise ValueError('`tau` and `alpha` must have the same length')
-    # determine output array size
-    size = list(signal.shape)
-    # add dimension of tau range size (new 1st dim)
-    size.insert(0, len(tau))
     # init output array
-    y = np.zeros(tuple(size))
+    y = []
     for i, t in np.ndenumerate(tau):
-        y[i] = filter_function(signal, t, alpha[i])
-    return y
+        y.append(filter_function(signal, t, alpha[i]))
+    if signal.ndim == 1:
+        return np.vstack(y).T
+    elif signal.ndim == 2:
+        return np.dstack(y)
+    else:
+        raise ValueError('only 1D and 2D signals supported')
 
 
 class CombFilterbankProcessor(Processor):
@@ -262,7 +263,7 @@ class CombFilterbankProcessor(Processor):
         -------
         comb_filtered_data : numpy array
             Comb filtered data with the different taus aligned along the (new)
-            first dimension.
+            last dimension.
 
         """
         return comb_filter(data, self.filter_function, self.tau, self.alpha)
