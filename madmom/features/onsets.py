@@ -765,6 +765,55 @@ class NormalizationProcessor(Processor):
         return data
 
 
+# TODO: rename it or move it to a better place
+class PadProcessor(Processor):
+    """
+    Pad the given data in multiple dimensions.
+
+    Parameters
+    ----------
+    pad_size : tuple
+        Pad each dimension with the given size.
+    pad_value : str, optional
+        Pad with that value; 'repeat', repeats the first/last
+        frame/bin/channel `pad_size` times.
+
+    """
+
+    def __init__(self, pad_size, pad_value='repeat'):
+        self.pad_size = pad_size
+        self.pad_value = pad_value
+
+    def process(self, data):
+        """
+        Pad the given data.
+
+        Parameters
+        ----------
+        data : numpy array
+            Data to be padded.
+
+        Returns
+        -------
+        numpy array
+            Padded data.
+
+        """
+        if len(self.pad_size) != data.ndim:
+            raise NotImplementedError("`pad_size` must have the same number "
+                                      "of dimensions as `data.")
+        # TODO: add functionality for frequency or channel/feature padding
+        if np.array(self.pad_size)[1:].any():
+            raise NotImplementedError("`pad_size` only supports padding in "
+                                      "the first (i.e. time) dimension.")
+        if self.pad_value != 'repeat':
+            raise NotImplementedError("`pad_value` supports only 'repeat'.")
+        # pad the features (repeat the first and last frames)
+        return np.concatenate((np.repeat(data[:1], self.pad_size[0], axis=0),
+                               data,
+                               np.repeat(data[-1:], self.pad_size[0], axis=0)))
+
+
 class CNNOnsetProcessor(SequentialProcessor):
     """
     Processor to get a onset activation function a CNN.
@@ -809,12 +858,7 @@ class CNNOnsetProcessor(SequentialProcessor):
             multi.append(SequentialProcessor((frames, filt, spec, norm)))
         # stack the features (in depth)
         stack = np.dstack
-
-        # pad the features (repeat the first and last frames)
-        def pad(data):
-            return np.concatenate((np.repeat(data[:1], 7, axis=0), data,
-                                   np.repeat(data[-1:], 7, axis=0)))
-
+        pad = PadProcessor((7, 0, 0))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, stack, pad))
 
