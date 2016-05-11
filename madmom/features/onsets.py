@@ -765,6 +765,14 @@ class NormalizationProcessor(Processor):
         return data
 
 
+# must be a top-level function to be pickle-able
+def _cnn_onset_processor_pad(data):
+    """Pad the data by repeating the first and last frame 7 times."""
+    pad_start = np.repeat(data[:1], 7, axis=0)
+    pad_stop = np.repeat(data[-1:], 7, axis=0)
+    return np.concatenate((pad_start, data, pad_stop))
+
+
 class CNNOnsetProcessor(SequentialProcessor):
     """
     Processor to get a onset activation function from a CNN.
@@ -812,15 +820,10 @@ class CNNOnsetProcessor(SequentialProcessor):
             norm = NormalizationProcessor.load(norm_file)
             # process each frame size with spec and diff sequentially
             multi.append(SequentialProcessor((frames, filt, spec, norm)))
-        # stack the features (in depth)
+        # stack the features (in depth) and pad at beginning and end
         stack = np.dstack
-
-        # pad the features (repeat the first and last frames)
-        def pad(data):
-            return np.concatenate((np.repeat(data[:1], 7, axis=0), data,
-                                   np.repeat(data[-1:], 7, axis=0)))
-
-        # stack the features and processes everything sequentially
+        pad = _cnn_onset_processor_pad
+        # pre-processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, stack, pad))
 
         # process the pre-processed signal with a NN ensemble
