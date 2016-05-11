@@ -30,6 +30,9 @@ sample_file = '%s/sample.wav' % AUDIO_PATH
 stereo_sample_file = '%s/stereo_sample.wav' % AUDIO_PATH
 program_path = os.path.dirname(os.path.realpath(__file__)) + '/../bin/'
 
+# prevent writing compiled Python files to disk
+sys.dont_write_bytecode = True
+
 
 def run_program(program):
     # import module, capture stdout
