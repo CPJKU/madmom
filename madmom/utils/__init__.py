@@ -206,25 +206,32 @@ def strip_suffix(filename, suffix=None):
     return filename
 
 
-def match_file(filename, match_list, suffix=None, match_suffix=None):
+def match_file(filename, match_list, suffix=None, match_suffix=None,
+               match_exactly=True):
     """
     Match a filename or string against a list of other filenames or strings.
 
     Parameters
     ----------
     filename : str
-        Filename or string to strip.
+        Filename or string to match.
     match_list : list
         Match to this list of filenames or strings.
     suffix : str, optional
         Suffix of `filename` to be ignored.
-    match_suffix
+    match_suffix : str, optional
         Match only files from `match_list` with this suffix.
+    match_exactly : bool, optional
+        Matches must be exact, i.e. have the same base name.
 
     Returns
     -------
     list
         List of matched files.
+
+    Notes
+    -----
+    Asterisks "*" can be used to match any string or suffix.
 
     """
     import os
@@ -240,8 +247,9 @@ def match_file(filename, match_list, suffix=None, match_suffix=None):
     else:
         pattern = "*%s" % basename
     for match in fnmatch.filter(match_list, pattern):
-        # base names must match exactly
-        if basename == os.path.basename(strip_suffix(match, match_suffix)):
+        # base names must match exactly if indicated
+        if (not match_exactly) or (basename == os.path.basename(
+                strip_suffix(match, match_suffix))):
             matches.append(match)
     # return the matches
     return matches
