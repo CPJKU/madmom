@@ -314,6 +314,11 @@ References
     *An Efficient State Space Model for Joint Tempo and Meter Tracking*,
     Proceedings of the 16th International Society for Music Information
     Retrieval Conference (ISMIR), 2015.
+.. [14] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+    *Joint Beat and Downbeat Tracking with Recurrent Neural Networks*,
+    Proceedings of the 17th International Society for Music Information
+    Retrieval Conference (ISMIR), 2016.
+
 
 
 Acknowledgements

@@ -25,7 +25,10 @@ def main():
     The DBNDownBeatTracker program detects all beats and downbeats in an audio
     file according to the method described in:
 
-    TODO: add reference
+    "Joint Beat and Downbeat Tracking with Recurrent Neural Networks"
+    Sebastian Böck, Florian Krebs and Gerhard Widmer.
+    Proceedings of the 17th International Society for Music Information
+    Retrieval Conference (ISMIR), 2016.
 
     This program can be run in 'single' file mode to process a single audio
     file and write the detected beats to STDOUT or the given output file.
