@@ -175,18 +175,36 @@ class TestMatchFileFunction(unittest.TestCase):
     # test for match_file(filename, match_list, ext=None, match_suffix=None)
     def test_match_dot_txt_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
-        self.assertEqual(match_file('file.txt', match_list),
-                         ['file.txt', '/path/file.txt'])
+        result = match_file('file.txt', match_list)
+        self.assertEqual(result, ['file.txt', '/path/file.txt'])
+        result = match_file('file.txt', match_list, match_exactly=False)
+        self.assertEqual(result, ['file.txt', '/path/file.txt'])
 
     def test_match_other_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
         result = match_file('file.txt', match_list, match_suffix='other')
         self.assertEqual(result, [])
+        result = match_file('file.txt', match_list, match_suffix='other',
+                            match_exactly=False)
+        self.assertEqual(result, ['/path/file.txt.other'])
 
     def test_match_dot_other_suffix(self):
         match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
         result = match_file('file.txt', match_list, match_suffix='.other')
         self.assertEqual(result, ['/path/file.txt.other'])
+        result = match_file('txt', match_list, match_suffix='.other',
+                            match_exactly=False)
+        self.assertEqual(result, ['/path/file.txt.other'])
+        result = match_file('other', match_list, match_exactly=False)
+        self.assertEqual(result, ['/path/file.txt.other'])
+
+    def test_match_any_suffix(self):
+        match_list = ['file.txt', '/path/file.txt', '/path/file.txt.other']
+        result = match_file('file.txt', match_list, match_suffix='*')
+        self.assertEqual(result, ['file.txt', '/path/file.txt'])
+        result = match_file('file.txt', match_list, match_suffix='*',
+                            match_exactly=False)
+        self.assertEqual(result, match_list)
 
 
 class TestLoadEventsFunction(unittest.TestCase):
