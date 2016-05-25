@@ -1703,3 +1703,51 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
                        help='output only the downbeats')
         # return the argument group so it can be modified if needed
         return g
+
+
+class DownBeatTrackingProcessor(Processor):
+
+    def __init__(self, threshold=0.3, downbeats=False, fps=None, **kwargs):
+        # save variables
+        self.threshold = threshold
+        self.downbeats = downbeats
+        self.fps = fps
+
+    def process(self, activations):
+        from .onsets import peak_picking
+        # max activation (beat, down-beat)
+        # idx = np.argmax(activations, axis=1)
+        # beat_idx = np.nonzero(idx == 0)
+        # downbeat_idx = np.nonzero(idx == 1)
+        beat_idx = activations[:, 0] > self.threshold
+        downbeat_idx = activations[:, 1] > self.threshold
+        # get the peaks of beats and downbeats
+        beat_act = np.zeros(len(activations))
+        downbeat_act = np.zeros(len(activations))
+        beat_act[beat_idx] = activations[beat_idx, 0]
+        downbeat_act[downbeat_idx] = activations[downbeat_idx, 1]
+        beat_pos = peak_picking(beat_act, self.threshold)
+        downbeat_pos = peak_picking(downbeat_act, self.threshold)
+        pos = np.union1d(beat_pos, downbeat_pos)
+        beats = np.zeros((len(pos), 2), dtype=np.float)
+        downbeat_idx = np.nonzero(pos == downbeat_pos[:, np.newaxis])[1]
+        beats[downbeat_idx, 1] = 1
+        # re-count the beats
+        beat_counter = 0
+        for beat in beats:
+            # skip all beats before the first downbeat
+            if beat[1] == 0 and beat_counter == 0:
+                continue
+            # reset counter at downbeats
+            if beat[1] == 1:
+                beat_counter = 1
+            # count the beats and increase the counter
+            beat[1] = beat_counter
+            beat_counter += 1
+        # convert to seconds
+        beats[:, 0] = pos / self.fps
+        # return the downbeats or beats and their beat number
+        if self.downbeats:
+            return beats[beats[:, 1] == 1][:, 0]
+        else:
+            return beats
