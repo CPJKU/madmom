@@ -996,7 +996,7 @@ class DBNDownBeatTrackingProcessor(Processor):
 
     MIN_BPM = 55.
     MAX_BPM = 215.
-    NUM_TEMPI = None
+    NUM_TEMPI = 60
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
     THRESHOLD = 0.05

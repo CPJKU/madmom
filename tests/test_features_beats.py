@@ -135,9 +135,9 @@ class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
         # we have to test each bar length individually
         path, prob = self.processor.hmms[0].viterbi(sample_downbeat_act)
         self.assertTrue(np.allclose(path[:13],
-                                    [11478, 11479, 11480, 11481, 11482, 11483,
-                                     11484, 11485, 217, 218, 219, 220, 221]))
-        self.assertTrue(np.allclose(prob, -766.314167769))
+                                    [7682, 7683, 7684, 7685, 7686, 7687, 7688,
+                                     7689, 217, 218, 219, 220, 221]))
+        self.assertTrue(np.allclose(prob, -764.586595603))
         tm = self.processor.hmms[0].transition_model
         positions = tm.state_space.state_positions[path]
         self.assertTrue(np.allclose(positions[:10],
@@ -149,7 +149,7 @@ class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
 
     def test_process(self):
         downbeats = self.processor(sample_downbeat_act)
-        self.assertTrue(np.allclose(downbeats, [[0.09, 1], [0.44, 2],
+        self.assertTrue(np.allclose(downbeats, [[0.09, 1], [0.45, 2],
                                                 [0.79, 3], [1.12, 4],
                                                 [1.47, 1], [1.8, 2],
                                                 [2.14, 3], [2.49, 4]]))

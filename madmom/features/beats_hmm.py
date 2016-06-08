@@ -523,6 +523,13 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
         first representing (down-)beat states and the remaining non-beat
         states.
 
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Joint Beat and Downbeat Tracking with Recurrent Neural Networks"
+           Proceedings of the 17th International Society for Music Information
+           Retrieval Conference (ISMIR), 2016.
+
     """
 
     def __init__(self, state_space, observation_lambda):
