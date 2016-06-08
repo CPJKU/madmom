@@ -1175,11 +1175,13 @@ class DBNDownBeatTrackingProcessor(Processor):
     NUM_TEMPI = 60
     TRANSITION_LAMBDA = 100
     OBSERVATION_LAMBDA = 16
+    PEEPHOLE_PROBABILITY = 0.
     THRESHOLD = 0.05
     CORRECT = True
 
     def __init__(self, beats_per_bar, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
+                 peephole_probability=PEEPHOLE_PROBABILITY,
                  observation_lambda=OBSERVATION_LAMBDA, threshold=THRESHOLD,
                  correct=CORRECT, downbeats=False, fps=None, **kwargs):
         # pylint: disable=unused-argument
@@ -1195,6 +1197,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         max_bpm = np.array(max_bpm, ndmin=1)
         num_tempi = np.array(num_tempi, ndmin=1)
         transition_lambda = np.array(transition_lambda, ndmin=1)
+        peephole_probability = np.array(peephole_probability, ndmin=1)
         # make sure the other arguments are long enough by repeating them
         # TODO: check if they are of length 1?
         if len(min_bpm) != len(beats_per_bar):
@@ -1206,11 +1209,15 @@ class DBNDownBeatTrackingProcessor(Processor):
         if len(transition_lambda) != len(beats_per_bar):
             transition_lambda = np.repeat(transition_lambda,
                                           len(beats_per_bar))
+        if len(peephole_probability) != len(beats_per_bar):
+            peephole_probability = np.repeat(peephole_probability,
+                                             len(beats_per_bar))
         if not (len(min_bpm) == len(max_bpm) == len(num_tempi) ==
-                len(beats_per_bar) == len(transition_lambda)):
-            raise ValueError('`min_bpm`, `max_bpm`, `num_tempi`, `num_beats` '
-                             'and `transition_lambda` must all have the same '
-                             'length.')
+                len(beats_per_bar) == len(transition_lambda) ==
+                len(peephole_probability)):
+            raise ValueError('`min_bpm`, `max_bpm`, `num_tempi`, `num_beats`, '
+                             '`transition_lambda` and `peephole_probability` '
+                             'must all have the same length.')
         # get num_threads from kwargs
         num_threads = min(len(beats_per_bar), kwargs.get('num_threads', 1))
         # init a pool of workers (if needed)
@@ -1225,7 +1232,8 @@ class DBNDownBeatTrackingProcessor(Processor):
         self.hmms = []
         for b, beats in enumerate(beats_per_bar):
             st = St(beats, min_interval[b], max_interval[b], num_tempi[b])
-            tm = Tm(st, transition_lambda[b])
+            tm = Tm(st, transition_lambda[b],
+                    peephole_probability=peephole_probability[b])
             om = Om(st, observation_lambda)
             self.hmms.append(Hmm(tm, om))
         # save variables
@@ -1324,6 +1332,7 @@ class DBNDownBeatTrackingProcessor(Processor):
     @staticmethod
     def add_arguments(parser, beats_per_bar, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                       num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
+                      peephole_probability=PEEPHOLE_PROBABILITY,
                       observation_lambda=OBSERVATION_LAMBDA,
                       threshold=THRESHOLD, correct=CORRECT):
         """
@@ -1359,6 +1368,9 @@ class DBNDownBeatTrackingProcessor(Processor):
             Split one (down-)beat period into `observation_lambda` parts, the
             first representing (down-)beat states and the remaining non-beat
             states.
+        peephole_probability : float, optional
+            Probability of the peephole transition from the end of every beat
+            back to the beginning of the bar.
         threshold : float, optional
             Threshold the RNN (down-)beat activations before Viterbi decoding.
         correct : bool, optional
@@ -1404,6 +1416,12 @@ class DBNDownBeatTrackingProcessor(Processor):
                             'tempo change from one beat to the next one ('
                             'comma separated list with one value per bar '
                             'length) [default=%(default)s]')
+        g.add_argument('--peephole_probability',
+                       action=OverrideDefaultListAction,
+                       default=peephole_probability, type=float, sep=',',
+                       help='peephole probability to jump back to the '
+                            'beginning of the bar (comma separated list with '
+                            'one value per bar length) [default=%(default)s]')
         # observation model stuff
         g.add_argument('--observation_lambda', action='store', type=float,
                        default=observation_lambda,

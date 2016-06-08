@@ -337,6 +337,9 @@ class BarTransitionModel(TransitionModel):
         None can be used to set the tempo change probability to 0.
         If a list is given, the individual values represent the lambdas for
         each transition into the beat at this index position.
+    peephole_probability : float, optional
+        Probability of the peephole transition from the end of every beat back
+        to the beginning of the bar.
 
     Notes
     -----
@@ -353,7 +356,7 @@ class BarTransitionModel(TransitionModel):
 
     """
 
-    def __init__(self, state_space, transition_lambda):
+    def __init__(self, state_space, transition_lambda, peephole_probability=0):
         # expand transition_lambda to a list if a single value is given
         if not isinstance(transition_lambda, list):
             transition_lambda = [transition_lambda] * state_space.num_beats
@@ -367,10 +370,14 @@ class BarTransitionModel(TransitionModel):
         # same tempo transitions probabilities within the state space is 1
         # Note: use all states, but remove all first states of the individual
         #       beats, because there are no same tempo transitions into them
+        #       state_space.first_states is a list of arrays containing the
+        #       indices of the first states of the individual beats
         states = np.arange(state_space.num_states, dtype=np.uint32)
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
         probabilities = np.ones_like(states, dtype=np.float)
+        # first states of the bar
+        first_states = state_space.first_states[0]
         # tempo transitions occur at the boundary between beats (unless the
         # corresponding transition_lambda is set to None)
         for beat in range(state_space.num_beats):
@@ -386,9 +393,24 @@ class BarTransitionModel(TransitionModel):
                                           transition_lambda[beat])
             # use only the states with transitions to/from != 0
             from_prob, to_prob = np.nonzero(prob)
+            prob = prob[prob != 0]
+            # model the shortcuts from any beat inside the bar back to the
+            # first beat of the bar (but not for the first beat!)
+            if peephole_probability > 0 and beat != 0:
+                # connect to the first beat in the bar
+                states = np.hstack((states, first_states[to_prob]))
+                # connect from the last state of the previous beat
+                prev_states = np.hstack((prev_states, from_states[from_prob]))
+                # transition probability to the beginning of the bar
+                probabilities = np.hstack((probabilities,
+                                           prob * peephole_probability))
+                # subtract the given fraction from the transition probabilities
+                prob *= (1. - peephole_probability)
+            # the remaining probabilities will be used to normally connect from
+            # the previous beat to the current one
             states = np.hstack((states, to_states[to_prob]))
             prev_states = np.hstack((prev_states, from_states[from_prob]))
-            probabilities = np.hstack((probabilities, prob[prob != 0]))
+            probabilities = np.hstack((probabilities, prob))
         # make the transitions sparse
         transitions = self.make_sparse(states, prev_states, probabilities)
         # instantiate a TransitionModel

@@ -287,6 +287,35 @@ class TestBarTransitionModelClass(unittest.TestCase):
         self.assertTrue(tm.num_states == 20)
         self.assertTrue(tm.num_transitions == 26)
 
+    def test_values_peephole(self):
+        bss = BarStateSpace(3, 1, 4)
+        tm = BarTransitionModel(bss, 100, 0.1)
+        self.assertTrue(np.allclose(tm.states,
+                                    [0, 10, 20, 2, 5, 12, 15, 22, 25, 1, 5, 9,
+                                     15, 19, 25, 29, 3, 4, 5, 9, 15, 19, 25,
+                                     29, 6, 7, 8, 0, 2, 5, 11, 5, 9, 13, 14, 5,
+                                     9, 16, 17, 18, 10, 12, 15, 21, 15, 19, 23,
+                                     24, 15, 19, 26, 27, 28]))
+        self.assertTrue(np.allclose(tm.pointers,
+                                    [0, 3, 9, 10, 16, 17, 18, 24, 25, 26, 27,
+                                     28, 30, 31, 33, 34, 35, 37, 38, 39, 40,
+                                     41, 43, 44, 46, 47, 48, 50, 51, 52, 53]))
+        self.assertTrue(np.allclose(tm.probabilities,
+                                    [0.1, 0.1, 1, 0.1, 3.33823780e-16, 0.1,
+                                     3.33823780e-16, 1, 3.33823780e-15, 1, 0.1,
+                                     1.38879439e-12, 0.1, 1.38879439e-12, 1,
+                                     1.38879439e-11, 1, 1, 3.33823780e-16, 0.1,
+                                     3.33823780e-16, 0.1, 3.33823780e-15, 1, 1,
+                                     1, 1, 9.00000000e-01, 9.00000000e-01,
+                                     3.00441402e-15, 1, 9.00000000e-01,
+                                     1.24991495e-11, 1, 1, 3.00441402e-15,
+                                     9.00000000e-01, 1, 1, 1, 9.00000000e-01,
+                                     9.00000000e-01, 3.00441402e-15, 1,
+                                     9.00000000e-01, 1.24991495e-11, 1, 1,
+                                     3.00441402e-15, 9.00000000e-01, 1, 1, 1]))
+        self.assertTrue(tm.num_states == 30)
+        self.assertTrue(tm.num_transitions == 53)
+
 
 class TestMultiPatternTransitionModelClass(unittest.TestCase):
 
