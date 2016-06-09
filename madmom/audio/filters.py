@@ -1058,13 +1058,13 @@ class MelFilterbank(Filterbank):
 
     def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS):
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=arguments-differ
         # get a list of frequencies aligned on the Mel scale
         # request 2 more bands, because these are the edge frequencies
@@ -1112,13 +1112,13 @@ class BarkFilterbank(Filterbank):
 
     def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS):
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=arguments-differ
         # get a list of frequencies
         if num_bands == 'normal':
