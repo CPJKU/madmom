@@ -14,7 +14,7 @@ import glob
 import numpy as np
 
 # define version
-version = '0.13.1'
+version = '0.13.2'
 
 # define which extensions need to be compiled
 extensions = [Extension('madmom.ml.rnn',
