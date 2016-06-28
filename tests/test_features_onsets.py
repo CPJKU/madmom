@@ -21,6 +21,7 @@ sample_log_filt_spec = LogarithmicFilteredSpectrogram(
     sample_spec, num_bands=24, mul=1, add=1)
 sample_rnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz')
 sample_brnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz')
+sample_cnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_cnn_2013.npz')
 sample_superflux_act = Activations(ACTIVATIONS_PATH + 'sample.super_flux.npz')
 
 
@@ -166,6 +167,16 @@ class TestRNNOnsetProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(act, sample_brnn_act))
         act = self.online_processor(sample_file)
         self.assertTrue(np.allclose(act, sample_rnn_act))
+
+
+class TestCNNOnsetProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = CNNOnsetProcessor()
+
+    def test_process(self):
+        act = self.processor(sample_file)
+        self.assertTrue(np.allclose(act, sample_cnn_act))
 
 
 class TestPeakPickingFunction(unittest.TestCase):
