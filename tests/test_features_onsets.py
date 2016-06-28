@@ -21,6 +21,7 @@ sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_spec = Spectrogram(sample_file, circular_shift=True)
 sample_log_filt_spec = LogarithmicFilteredSpectrogram(
     sample_spec, num_bands=24, mul=1, add=1)
+sample_cnn_act = Activations(pj(ACTIVATIONS_PATH, 'sample.onsets_cnn.npz'))
 sample_rnn_act = Activations(pj(ACTIVATIONS_PATH, 'sample.onsets_rnn.npz'))
 sample_brnn_act = Activations(pj(ACTIVATIONS_PATH, 'sample.onsets_brnn.npz'))
 sample_superflux_act = Activations(pj(ACTIVATIONS_PATH,
@@ -169,6 +170,16 @@ class TestRNNOnsetProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(act, sample_brnn_act))
         act = self.online_processor(sample_file)
         self.assertTrue(np.allclose(act, sample_rnn_act))
+
+
+class TestCNNOnsetProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = CNNOnsetProcessor()
+
+    def test_process(self):
+        act = self.processor(sample_file)
+        self.assertTrue(np.allclose(act, sample_cnn_act))
 
 
 class TestPeakPickingFunction(unittest.TestCase):

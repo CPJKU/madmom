@@ -63,3 +63,12 @@ class TestNeuralNetworkClass(unittest.TestCase):
         result = rnn.process(data)
         self.assertTrue(np.allclose(result, [0.0815198, 0.24451593,
                                              0.08786312, 0.01776425]))
+
+    def test_cnn(self):
+        cnn = NeuralNetwork.load(ONSETS_CNN[0])
+        data = np.zeros((19, 80, 3), dtype=np.float32)
+        data[10] = 1.
+        result = cnn.process(data)
+        self.assertTrue(np.allclose(result,
+                                    [0.0026428, 0.09070455, 0.96606344,
+                                     0.99829632, 0.7015394]))
