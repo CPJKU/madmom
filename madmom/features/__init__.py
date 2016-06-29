@@ -275,4 +275,4 @@ class ActivationsProcessor(Processor):
 
 
 # finally import the submodules
-from . import onsets, beats, notes, tempo
+from . import onsets, beats, notes, tempo, chords

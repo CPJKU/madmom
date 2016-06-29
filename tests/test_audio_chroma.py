@@ -15,7 +15,7 @@ from madmom.features import Activations
 
 
 sample_file = "%s/sample.wav" % AUDIO_PATH
-sample_act = Activations("%s/sample.chords_dnn_2016.npz" % ACTIVATIONS_PATH)
+sample_act = Activations("%s/sample.deep_chroma.npz" % ACTIVATIONS_PATH)
 
 
 class TestDeepChromaProcessorClass(unittest.TestCase):

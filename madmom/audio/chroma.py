@@ -198,8 +198,6 @@ class DeepChromaProcessor(SequentialProcessor):
 
     Parameters
     ----------
-    models : list of filenames, optional
-        List of model filenames.
     fmin : int, optional
         Minimum frequency of the filterbank [Hz].
     fmax : float, optional
@@ -208,6 +206,8 @@ class DeepChromaProcessor(SequentialProcessor):
         Indicate if the filterbank should contain only unique filters, i.e.
         remove duplicate filters resulting from insufficient resolution at
         low frequencies.
+    models : list of filenames, optional
+        List of model filenames.
 
     Notes
     -----
