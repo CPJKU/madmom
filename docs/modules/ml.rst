@@ -9,6 +9,7 @@ Submodules
 
 .. toctree::
 
+   ml/crf
    ml/gmm
    ml/hmm
    ml/nn
