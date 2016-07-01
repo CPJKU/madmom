@@ -1,7 +1,7 @@
 # encoding: utf-8
 # pylint: skip-file
 """
-This file contains tests for the madmom.ml.hmm module.
+This file contains tests for the madmom.features.notes module.
 
 """
 
@@ -13,7 +13,7 @@ from madmom.features import Activations
 from madmom.features.notes import *
 
 sample_file = "%s/stereo_sample.wav" % AUDIO_PATH
-sample_act = Activations("%s/stereo_sample.notes_brnn_2013.npz" %
+sample_act = Activations("%s/stereo_sample.notes_brnn.npz" %
                          ACTIVATIONS_PATH)
 
 NOTES = np.array([[0.147, 72, 3.323, 63], [1.567, 41, 0.223, 29],

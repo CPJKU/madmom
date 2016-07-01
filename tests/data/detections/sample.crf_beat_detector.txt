@@ -1,4 +1,4 @@
-# beats detected by the CRFBeatDetector program with default settings
+# beats detected by the CRFBeatDetector.2015 program with default settings
 0.090
-0.780
+0.790
 1.480

@@ -43,7 +43,7 @@ class RNNBeatProcessor(SequentialProcessor):
         for frame_size in [1024, 2048, 4096]:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
             filt = FilteredSpectrogramProcessor(
-                num_bands=3, fmin=30, fmax=17000, norm_filters=True)
+                num_bands=6, fmin=30, fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
             diff = SpectrogramDifferenceProcessor(
                 diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)

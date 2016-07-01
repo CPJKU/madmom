@@ -61,5 +61,5 @@ class TestNeuralNetworkClass(unittest.TestCase):
         data = np.zeros((4, input_size), dtype=np.float32)
         data[1] = 1.
         result = rnn.process(data)
-        self.assertTrue(np.allclose(result, [0.01389176, 0.12165674,
-                                             0.01439718, 0.00706945]))
+        self.assertTrue(np.allclose(result, [0.0815198, 0.24451593,
+                                             0.08786312, 0.01776425]))

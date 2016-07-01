@@ -1,7 +1,7 @@
 # encoding: utf-8
 # pylint: skip-file
 """
-This file contains tests for the madmom.ml.hmm module.
+This file contains tests for the madmom.features.beats_hmm module.
 
 """
 
