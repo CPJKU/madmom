@@ -1,7 +1,7 @@
 # encoding: utf-8
 # pylint: skip-file
 """
-This file contains tests for the madmom.ml.hmm module.
+This file contains tests for the madmom.features.tempo module.
 
 """
 
@@ -11,14 +11,12 @@ import unittest
 from . import ACTIVATIONS_PATH
 from madmom.features.tempo import *
 
-act_file = np.load("%s/sample.beats_blstm_2013.npz" % ACTIVATIONS_PATH)
+act_file = np.load("%s/sample.beats_blstm.npz" % ACTIVATIONS_PATH)
 act = act_file['activations'].astype(np.float)
 fps = float(act_file['fps'])
 
-COMB_TEMPI = np.array([[176.47, 0.348308], [117.65, 0.160887],
-                       [82.19, 0.107172], [240, 0.106155],
-                       [93.75, 0.102080], [52.17, 0.087847],
-                       [67.42, 0.087548]])
+COMB_TEMPI = np.array([[176.470, 0.475], [117.647, 0.177],
+                       [240.0, 0.154], [68.966, 0.099], [82.192, 0.096]])
 
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
@@ -27,48 +25,40 @@ class TestIntervalHistogramAcfFunction(unittest.TestCase):
 
     def test_values(self):
         hist = interval_histogram_acf(act, min_tau=24, max_tau=150)
-        self.assertTrue(np.allclose(hist[0][:6], [0.0131512, 0.01230626,
-                                                  0.01338983, 0.01715117,
-                                                  0.02519087, 0.03996497]))
+        self.assertTrue(np.allclose(hist[0][:6], [0.10034907, 0.10061631,
+                                                  0.11078519, 0.13461014,
+                                                  0.17694432, 0.24372872]))
         self.assertTrue(np.allclose(hist[1], np.arange(24, 151)))
 
 
 class TestIntervalHistogramCombFunction(unittest.TestCase):
 
+    def setUp(self):
+        self.hist_0_6 = np.array([3.16024358, 2.00690881, 2.52592621,
+                                  2.00221429, 1.73527979, 1.47528936])
+
     def test_values(self):
         hist = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
-        self.assertTrue(np.allclose(hist[0][:6], [1.42615775, 1.0374281,
-                                                  1.2080798, 1.19360007,
-                                                  1.19332424, 1.03763841]))
+        self.assertTrue(np.allclose(hist[0][:6], self.hist_0_6))
         self.assertTrue(np.allclose(hist[1], np.arange(24, 151)))
 
     def test_values_2d(self):
         act_2d = np.vstack((act, act)).T
         hist = interval_histogram_comb(act_2d, 0.79, min_tau=24, max_tau=150)
         # test both channels individually
-        self.assertTrue(np.allclose(hist[0][0, :6],
-                                    [1.42615775, 1.0374281, 1.2080798,
-                                     1.19360007, 1.19332424, 1.03763841]))
+        self.assertTrue(np.allclose(hist[0][0, :6], self.hist_0_6))
         # 2nd channel is the same
-        self.assertTrue(np.allclose(hist[0][1, :6],
-                                    [1.42615775, 1.0374281, 1.2080798,
-                                     1.19360007, 1.19332424, 1.03763841]))
+        self.assertTrue(np.allclose(hist[0][1, :6], self.hist_0_6))
         self.assertTrue(np.allclose(hist[1], np.arange(24, 151)))
-
-# class TestIntervalHistogramDbnFunction(unittest.TestCase):
-#
-#     def test_values(self):
-#         result = interval_histogram_dbn()
-#         self.assertTrue(result, [])
 
 
 class TestSmoothHistogramFunction(unittest.TestCase):
 
     def test_values(self):
         hist = smooth_histogram(HIST, 3)
-        self.assertTrue(np.allclose(hist[0][:6], [1.509152, 1.2481671,
-                                                  1.38656206, 1.38571239,
-                                                  1.37182331, 1.21616335]))
+        self.assertTrue(np.allclose(hist[0][:6], [3.32079628, 2.46180239,
+                                                  2.84665606, 2.34311077,
+                                                  2.01348008, 1.73241048]))
         self.assertTrue(np.allclose(hist[1], HIST[1]))
 
 
@@ -83,12 +73,11 @@ class TestDetectTempoFunction(unittest.TestCase):
 
     def test_values(self):
         result = detect_tempo(HIST, fps)
-        self.assertTrue(np.allclose(result[:6], [[176.47, 0.072],
-                                                 [115.38, 0.041],
-                                                 [86.96, 0.034],
-                                                 [58.25, 0.033],
-                                                 [89.55, 0.031],
-                                                 [60, 0.028]], atol=0.1))
+        self.assertTrue(np.allclose(result[:5], [[176.47, 0.169],
+                                                 [117.65, 0.064],
+                                                 [250.0, 0.051],
+                                                 [230.77, 0.041],
+                                                 [105.26, 0.040]], atol=0.1))
 
 
 class TestTempoEstimationProcessorClass(unittest.TestCase):
@@ -113,7 +102,7 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.min_bpm == 40)
         self.assertTrue(self.processor.max_bpm == 250)
         self.assertTrue(self.processor.act_smooth == 0.14)
-        self.assertTrue(self.processor.hist_smooth == 7)
+        self.assertTrue(self.processor.hist_smooth == 9)
         self.assertTrue(self.processor.alpha == 0.79)
         self.assertTrue(self.processor.fps == 100)
         self.assertTrue(self.processor.min_interval == 24)
@@ -141,15 +130,15 @@ class TestWriteTempoFunction(unittest.TestCase):
         result = write_tempo(COMB_TEMPI[0], self.out_file)
         self.assertTrue(np.allclose(result, [176.47, 88.235, 1], atol=0.001))
         # only one tempo given (<68 bpm)
-        result = write_tempo(COMB_TEMPI[5], self.out_file)
-        self.assertTrue(np.allclose(result, [52.17, 104.34, 1], atol=0.001))
+        result = write_tempo(COMB_TEMPI[3] / 2, self.out_file)
+        self.assertTrue(np.allclose(result, [34.483, 68.966, 1], atol=0.01))
         # multiple tempi given
         result = write_tempo(COMB_TEMPI, self.out_file)
-        self.assertTrue(np.allclose(result, [176.47, 117.65, 0.684],
+        self.assertTrue(np.allclose(result, [176.47, 117.647, 0.728],
                                     atol=0.001))
 
     def test_values_mirex(self):
         # multiple tempi given
         result = write_tempo(COMB_TEMPI, self.out_file, mirex=True)
-        self.assertTrue(np.allclose(result, [117.65, 176.47, 0.316],
+        self.assertTrue(np.allclose(result, [117.647, 176.47, 0.271],
                                     atol=0.001))

@@ -17,9 +17,8 @@ from madmom.models import PATTERNS_BALLROOM
 
 
 sample_file = "%s/sample.wav" % AUDIO_PATH
-sample_beat_act = Activations("%s/sample.beats_blstm_2013.npz" %
-                              ACTIVATIONS_PATH)
-sample_downbeat_act = Activations("%s/sample.downbeats_blstm_2016.npz" %
+sample_beat_act = Activations("%s/sample.beats_blstm.npz" % ACTIVATIONS_PATH)
+sample_downbeat_act = Activations("%s/sample.downbeats_blstm.npz" %
                                   ACTIVATIONS_PATH)
 sample_pattern_features = Activations("%s/sample.gmm_pattern_tracker.npz" %
                                       ACTIVATIONS_PATH)
@@ -32,7 +31,7 @@ class TestRNNBeatProcessorClass(unittest.TestCase):
 
     def test_process(self):
         beat_act = self.processor(sample_file)
-        self.assertTrue(np.allclose(beat_act, sample_beat_act))
+        self.assertTrue(np.allclose(beat_act, sample_beat_act, atol=1e-5))
 
 
 class TestRNNDownBeatProcessorClass(unittest.TestCase):
@@ -42,7 +41,8 @@ class TestRNNDownBeatProcessorClass(unittest.TestCase):
 
     def test_process(self):
         downbeat_act = self.processor(sample_file)
-        self.assertTrue(np.allclose(downbeat_act, sample_downbeat_act))
+        self.assertTrue(np.allclose(downbeat_act, sample_downbeat_act,
+                                    atol=1e-5))
 
 
 class TestBeatTrackingProcessorClass(unittest.TestCase):
@@ -93,21 +93,22 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
     def test_values(self):
         self.assertTrue(self.processor.correct)
         path, prob = self.processor.hmm.viterbi(sample_beat_act)
-        self.assertTrue(np.allclose(path[:15], [2030, 2031, 2032, 2033, 2034,
-                                                2035, 2036, 1968, 1969, 1970,
-                                                1971, 1972, 1973, 1974, 1975]))
-        self.assertTrue(np.allclose(prob, -772.03353))
+        self.assertTrue(np.allclose(path[:15], [207, 208, 209, 210, 211, 212,
+                                                213, 214, 215, 216, 183, 184,
+                                                185, 186, 187]))
+        self.assertTrue(np.allclose(prob, -758.193327161))
         positions = self.processor.st.state_positions[path]
-        self.assertTrue(np.allclose(positions[:10],
-                                    [0.89855075, 0.9130435, 0.92753625,
-                                     0.942029, 0.95652175, 0.9710145,
-                                     0.98550725, 0, 0.01449275, 0.02898551]))
+        self.assertTrue(np.allclose(positions[:9],
+                                    [0.70588235, 0.73529412, 0.76470588,
+                                     0.79411765, 0.82352941, 0.85294118,
+                                     0.88235294, 0.91176471, 0.94117647]))
         intervals = self.processor.st.state_intervals[path]
-        self.assertTrue(np.allclose(intervals[:10], 69))
+        self.assertTrue(np.allclose(intervals[:10], 34))
 
     def test_process(self):
         beats = self.processor(sample_beat_act)
-        self.assertTrue(np.allclose(beats, [0.09, 0.8, 1.48, 2.15]))
+        self.assertTrue(np.allclose(beats, [0.1, 0.45, 0.8, 1.12, 1.48, 1.8,
+                                            2.15, 2.49]))
         # set the threshold
         self.processor.threshold = 1
         beats = self.processor(sample_beat_act)

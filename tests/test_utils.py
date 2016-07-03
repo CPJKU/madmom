@@ -23,18 +23,18 @@ AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
                AUDIO_PATH + 'stereo_sample.flac',
                AUDIO_PATH + 'stereo_sample.wav']
 
-ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm_2013.npz',
-                    ACTIVATIONS_PATH + 'sample.beats_blstm_mm_2013.npz',
-                    ACTIVATIONS_PATH + 'sample.downbeats_blstm_2016.npz',
+ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm.npz',
+                    ACTIVATIONS_PATH + 'sample.beats_blstm_mm.npz',
+                    ACTIVATIONS_PATH + 'sample.downbeats_blstm.npz',
                     ACTIVATIONS_PATH + 'sample.complex_flux.npz',
                     ACTIVATIONS_PATH + 'sample.gmm_pattern_tracker.npz',
                     ACTIVATIONS_PATH + 'sample.log_filt_spec_flux.npz',
-                    ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz',
-                    ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz',
+                    ACTIVATIONS_PATH + 'sample.onsets_brnn.npz',
+                    ACTIVATIONS_PATH + 'sample.onsets_rnn.npz',
                     ACTIVATIONS_PATH + 'sample.spectral_flux.npz',
                     ACTIVATIONS_PATH + 'sample.super_flux.npz',
                     ACTIVATIONS_PATH + 'sample.super_flux_nn.npz',
-                    ACTIVATIONS_PATH + 'stereo_sample.notes_brnn_2013.npz']
+                    ACTIVATIONS_PATH + 'stereo_sample.notes_brnn.npz']
 
 ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
                     ANNOTATIONS_PATH + 'sample.onsets',

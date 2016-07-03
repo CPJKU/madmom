@@ -21,7 +21,7 @@ Other changes:
 
 * added classes for onset/note/beat detection with RNNs to `features.*` (#118)
 * converted `madmom.modules` into a Python package (#125)
-
+* updated beat tracking models to MIREX 2015 ones (#146)
 
 Version 0.13.2 (release date: 2016-06-09)
 -----------------------------------------

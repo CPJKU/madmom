@@ -1,7 +1,7 @@
 # encoding: utf-8
 # pylint: skip-file
 """
-This file contains tests for the madmom.ml.hmm module.
+This file contains tests for the madmom.features.onsets module.
 
 """
 
@@ -19,8 +19,8 @@ sample_file = "%s/sample.wav" % AUDIO_PATH
 sample_spec = Spectrogram(sample_file, circular_shift=True)
 sample_log_filt_spec = LogarithmicFilteredSpectrogram(
     sample_spec, num_bands=24, mul=1, add=1)
-sample_rnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_rnn_2013.npz')
-sample_brnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_brnn_2013.npz')
+sample_rnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_rnn.npz')
+sample_brnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_brnn.npz')
 sample_superflux_act = Activations(ACTIVATIONS_PATH + 'sample.super_flux.npz')
 
 

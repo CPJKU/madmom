@@ -261,7 +261,7 @@ class TempoEstimationProcessor(Processor):
     METHOD = 'comb'
     MIN_BPM = 40.
     MAX_BPM = 250.
-    HIST_SMOOTH = 7
+    HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
     ALPHA = 0.79
 
