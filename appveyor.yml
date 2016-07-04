@@ -1,0 +1,26 @@
+version: 1.0.{build}
+
+build: false
+
+environment:
+  matrix:
+    - PYTHON_VERSION: 2.7
+      MINICONDA: C:\Miniconda
+    - PYTHON_VERSION: 3.4
+      MINICONDA: C:\Miniconda3
+
+init:
+  - "ECHO %PYTHON% %PYTHON_VERSION% %MINICONDA%"
+
+install:
+  - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda config --add channels pypi
+  - conda info -a
+  - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy nose"
+  - activate test-environment
+  - pip install -e .
+
+test_script:
+  - nosetests
