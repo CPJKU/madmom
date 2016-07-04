@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Deep Chroma based Chord Recognizer
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
+import argparse
+
+from functools import partial
+
+from madmom.audio.chroma import DeepChromaProcessor
+from madmom.features.chords import DeepChromaChordRecognitionProcessor
+from madmom.features import ActivationsProcessor
+from madmom.processors import io_arguments, IOProcessor
+from madmom.utils import write_events
+
+
+def main():
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    The DCChordRecognition program recognises major and minor chords in an
+    audio file by first extracting chroma vectors according to the method
+    described in
+
+    Filip Korzeniowski and Gerhard Widmer,
+    "Feature Learning for Chord Recognition: The Deep Chroma Extractor",
+    Proceedings of the 17th International Society for Music Information
+    Retrieval Conference (ISMIR), 2016,
+
+    and then decoding the most likely chord sequence using a linear-chain
+    Conditional Random Field.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the recognised chords to STDOUT or the given output file.
+
+    $ DCChordRecogniser single INFILE [-o OUTFILE]
+
+    The program can also be run in 'batch' mode to process multiple audio
+    files and save the chords to files with the given suffix.
+
+    $ DCChordRecogniser batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    extracted chords to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
+    '''
+    )
+    # version
+    p.add_argument('--version', action='version',
+                   version='DCChordRecogniser.2016')
+    io_arguments(p, output_suffix='.chords.txt')
+    ActivationsProcessor.add_arguments(p)
+
+    args = p.parse_args()
+
+    # set immutable arguments
+    args.fps = 10
+
+    if args.verbose:
+        print(args)
+
+    # input processor
+    if args.load:
+        # load deep chroma vectors from a file
+        in_processor = ActivationsProcessor(mode='r', **vars(args))
+    else:
+        in_processor = DeepChromaProcessor(**vars(args))
+
+    # output processor
+    if args.save:
+        # save the deep chroma vectors to a file
+        out_processor = ActivationsProcessor(mode='w', **vars(args))
+    else:
+        # load conditional random field
+        chord_processor = DeepChromaChordRecognitionProcessor(**vars(args))
+        write = partial(write_events, fmt='%s', delimiter='\t')
+        out_processor = [chord_processor, write]
+
+    processor = IOProcessor(in_processor, out_processor)
+    args.func(processor, **vars(args))
+
+
+if __name__ == '__main__':
+    main()

@@ -318,7 +318,10 @@ References
     *Joint Beat and Downbeat Tracking with Recurrent Neural Networks*,
     Proceedings of the 17th International Society for Music Information
     Retrieval Conference (ISMIR), 2016.
-
+.. [15] Filip Korzeniowski and Gerhard Widmer,
+    *Feature Learning for Chord Recognition: The Deep Chroma Extractor*,
+    Proceedings of the 17th International Society for Music Information
+    Retrieval Conference (ISMIR), 2016.
 
 
 Acknowledgements
