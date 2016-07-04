@@ -549,9 +549,17 @@ class ConvolutionalLayer(FeedForwardLayer):
 
         """
         from scipy.signal import convolve2d
+
+        # if no channel dimension given, assume 1 channel
+        if len(data.shape) == 2:
+            data = data.reshape(data.shape + (1,))
+
         # determine output shape and allocate memory
         num_frames, num_bins, num_channels = data.shape
-        num_channels, num_features, size_time, size_freq = self.weights.shape
+        num_channels_w, num_features, size_time, size_freq = self.weights.shape
+        if num_channels_w != num_channels:
+            raise ValueError('Number of channels in weight vector different '
+                             'from number of channels of input data!')
         # adjust the output number of frames and bins depending on `pad`
         # TODO: this works only with pad='valid'
         num_frames -= (size_time - 1)
