@@ -21,7 +21,7 @@ cimport numpy as np
 cimport cython
 
 from libc.stdint cimport uint32_t
-from libc.math cimport INFINITY
+from numpy.math cimport INFINITY
 
 
 class TransitionModel(object):
