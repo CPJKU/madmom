@@ -316,6 +316,10 @@ References
     *Feature Learning for Chord Recognition: The Deep Chroma Extractor*,
     Proceedings of the 17th International Society for Music Information
     Retrieval Conference (ISMIR), 2016.
+.. [16] Filip Korzeniowski and Gerhard Widmer,
+    *A Fully Convolutional Deep Auditory Model for Musical Chord Recognition*,
+    Proceedings of IEEE International Workshop on Machine Learning for Signal
+    Processing (MLSP), 2016.
 
 
 Acknowledgements
