@@ -7,6 +7,9 @@ Version 0.14.dev
 New features:
 
 * RNN/DBN downbeat tracking (#130)
+* Linear-Chain Conditional Random Field implementation (#144)
+* DNN based chroma vector extraction (#148)
+* CRF chord recognition using DNN based chroma vectors (#148)
 
 Bug fixes:
 
