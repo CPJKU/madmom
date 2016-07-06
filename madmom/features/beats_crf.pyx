@@ -22,7 +22,7 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
-from libc.math cimport INFINITY
+from numpy.math cimport INFINITY
 
 
 def initial_distribution(num_states, interval):
