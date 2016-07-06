@@ -25,4 +25,6 @@ build_script:
   - python setup.py install
 
 test_script:
+  - "set PATH=%MINICONDA%\\envs\\test-environment;%MINICONDA%\\envs\\test-environment\\Scripts;%PATH%"
+  - "set PYTHONPATH=%MINICONDA%\\envs\\test-environment;%MINICONDA%\\envs\\test-environment\\lib;%MINICONDA%\\envs\\test-environment\\lib\\site-packages;%PYTHONPATH%"
   - nosetests
