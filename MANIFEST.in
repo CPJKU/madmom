@@ -1,2 +1,3 @@
 prune docs
 prune tests
+include CHANGES.rst
