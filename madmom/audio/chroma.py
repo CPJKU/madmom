@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram, \
-    TimeDomainSemitoneFilteredSpectrogram
+    SemitoneBandPassSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
@@ -294,24 +294,26 @@ class CLPChroma(np.ndarray):
     def __new__(cls, data, fps=50, midi_min=21, midi_max=108, mul=100,
                  norm=True, threshold=0.001):
         # check stft type
-        if isinstance(data, TimeDomainSemitoneFilteredSpectrogram):
+        if isinstance(data, SemitoneBandPassSpectrogram):
             # already a TimeDomainSemitoneFilteredSpectrogram
-            pitch_energy = data.pitch_energy
+            pitch_energy = data
         elif isinstance(data, str):
             # compute pitch_energy from audio file
-            tdsfs = TimeDomainSemitoneFilteredSpectrogram(
+            pitch_energy = SemitoneBandPassSpectrogram(
                 data, fps=fps,  midi_min=midi_min, midi_max=midi_max)
-            pitch_energy = tdsfs.pitch_energy
         else:
             raise ValueError('Input type not valid')
         # apply log compression
         pitch_energy = np.log10(pitch_energy * mul + 1)
         # compute chroma by adding up bins that correspond to the same
         # pitch class
-        obj = np.zeros((pitch_energy.shape[0], 12))
+        obj = np.zeros((pitch_energy.shape[0], 12)).view(cls)
         for p in range(pitch_energy.shape[1]):
             chroma = np.mod(p + 1, 12)
             obj[:, chroma] += pitch_energy[:, p]
+        obj.bin_labels = ['B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G',
+                          'G#', 'A', 'A#']
+        obj.fps = fps
 
         if norm:
             # normalise the vectors according to the l2 norm
@@ -323,3 +325,10 @@ class CLPChroma(np.ndarray):
             obj /= mean_energy[:, np.newaxis]
             obj[idx_below_threshold, :] = unit_vec
         return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.fps = getattr(obj, 'fps', None)
+        self.bin_labels = getattr(obj, 'bin_labels', None)

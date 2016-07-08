@@ -1533,7 +1533,7 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
         self.window = getattr(obj, 'window', self.WINDOW)
 
 
-class TimeDomainSemitoneFilterbank(object):
+class SemitoneBandPassFilterbank(object):
     """
     Time domain semitone filterbank of elliptic filters as propsed in [1].
 
@@ -1587,11 +1587,12 @@ class TimeDomainSemitoneFilterbank(object):
         self.midi_min = midi_min
         self.midi_max = midi_max
         self.fref = fref
-        center_freqs_hz = midi2hz(np.arange(1, midi_max + 1), fref=fref)
-        bandwith_hz = center_freqs_hz / q_factor
-        stop_lo_norm = (center_freqs_hz - bandwith_hz / 2) * 2 / \
+        self.bin_frequencies = midi2hz(np.arange(1, midi_max + 1), fref=fref)
+        bandwith_hz = self.bin_frequencies / q_factor
+        # the transition band has half the width of the passband
+        stop_lo_norm = (self.bin_frequencies - bandwith_hz / 2) * 2 / \
             sr_from_midi[:midi_max]
-        stop_hi_norm = (center_freqs_hz + bandwith_hz / 2) * 2 / \
+        stop_hi_norm = (self.bin_frequencies + bandwith_hz / 2) * 2 / \
             sr_from_midi[:midi_max]
         self.filters = [None] * midi_max
         for p in range(midi_min - 1, midi_max):
