@@ -20,8 +20,10 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
-from libc.stdint cimport uint32_t
 from numpy.math cimport INFINITY
+
+
+ctypedef np.uint32_t uint32_t
 
 
 class TransitionModel(object):
