@@ -15,7 +15,7 @@ from ..processors import Processor, SequentialProcessor
 from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS,
-                      TimeDomainSemitoneFilterbank)
+                      SemitoneBandPassFilterbank)
 from scipy.signal import filtfilt
 from .signal import Signal, FramedSignal, total_energy
 
@@ -1240,7 +1240,7 @@ class MultiBandSpectrogramProcessor(Processor):
             unique_filters=self.unique_filters, **kwargs)
 
 
-class TimeDomainSemitoneFilteredSpectrogram(object):
+class SemitoneBandPassSpectrogram(np.ndarray):
     """
     Construct a semitone spectrogram by using time domain filters.
 
@@ -1257,11 +1257,16 @@ class TimeDomainSemitoneFilteredSpectrogram(object):
 
 
     """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, filename, fps=50, midi_min=21, midi_max=108):
-        self.fps = fps
-        self.midi_min = midi_min
-        self.midi_max = midi_max
+        # this method is for documentation purposes only
+        pass
+
+    def __new__(cls, filename, fps=50, midi_min=21, midi_max=108):
+
         # determine the name of the file if it is a file handle
         if not isinstance(filename, str):
             # close the file handle if it is open
@@ -1269,11 +1274,11 @@ class TimeDomainSemitoneFilteredSpectrogram(object):
             # use the file name
             filename = filename.name
             # create filterbank
-        self.tdsf = TimeDomainSemitoneFilterbank(midi_min=midi_min,
-                                                 midi_max=midi_max)
+        tdsf = SemitoneBandPassFilterbank(midi_min=midi_min,
+                                            midi_max=midi_max)
         # load audio file
         audio = Signal(filename, num_channels=1)
-        if (self.tdsf.sr_from_midi > audio.sample_rate).any():
+        if (tdsf.sr_from_midi > audio.sample_rate).any():
             raise ValueError('Signal sampling rate is too low for the '
                              'filterbank')
         # in case that audio is integer we have to normalise the range
@@ -1287,32 +1292,42 @@ class TimeDomainSemitoneFilteredSpectrogram(object):
         win_len_stmsp = 2 * hopsize
         # determine how many frames the filtered signal will have
         seg_pcm_num = np.round(audio.shape[0] * fps / audio.sample_rate) + 1
-        self.pitch_energy = np.zeros((seg_pcm_num, 120))
+        obj = np.zeros((seg_pcm_num, midi_max)).view(cls)
+        obj.fps = fps
         pcm = np.array(audio)
         curr_fps = audio.sample_rate
         factor = 1.0
-        for p in range(self.midi_min - 1, self.midi_max):
-            if self.tdsf.sr_from_midi[p] != curr_fps:
+        for p in range(midi_min - 1, midi_max):
+            if tdsf.sr_from_midi[p] != curr_fps:
                 # determine resampling factor relative to original sample rate
-                factor = float(audio.sample_rate) / self.tdsf.sr_from_midi[p]
+                factor = float(audio.sample_rate) / tdsf.sr_from_midi[p]
                 if factor > 1:
                     # resample signal
                     # pcm = resample(np.array(audio), round(wav_len / factor))
-                    pcm = np.array(Signal(filename, self.tdsf.sr_from_midi[p]))
+                    pcm = np.array(Signal(filename, tdsf.sr_from_midi[p]))
                     frame_size = np.round(win_len_stmsp / factor)
                 else:
                     # use original audio signal
                     pcm = np.array(audio)
-                curr_fps = self.tdsf.sr_from_midi[p]
+                curr_fps = tdsf.sr_from_midi[p]
             # apply filter
-            f_filtfilt = filtfilt(self.tdsf.filters[p][1, :],
-                                  self.tdsf.filters[p][0, :], pcm)
+            f_filtfilt = filtfilt(tdsf.filters[p][1, :],
+                                  tdsf.filters[p][0, :], pcm)
             # renormalise pitch_energy, to cope for loading audio files as
             # int16
             f_filtfilt /= norm_factor
             # slice filtered signal to reduce size
             x = FramedSignal(
                 f_filtfilt, frame_size=frame_size, fps=fps,
-                sample_rate=self.tdsf.sr_from_midi[p])
+                sample_rate=tdsf.sr_from_midi[p])
             # compute total energy per frame
-            self.pitch_energy[:x.shape[0], p] = total_energy(x) * factor
+            obj[:x.shape[0], p] = total_energy(x) * factor
+            obj.bin_frequencies = tdsf.bin_frequencies
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.fps = getattr(obj, 'fps', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
