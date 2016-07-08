@@ -130,7 +130,7 @@ def search_path(path, recursion_depth=0):
         # add all files of this directory to the list
         for f in files:
             file_list.append(os.path.join(root, f))
-        # remove all subdirs exceeding the wanted recursion depth
+        # remove all sub directories exceeding the wanted recursion depth
         if initial_depth + recursion_depth <= root.count(os.path.sep):
             del dirs[:]
     # return the sorted file list

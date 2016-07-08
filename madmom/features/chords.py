@@ -47,7 +47,7 @@ def majmin_targets_to_chord_labels(targets, fps):
     spf = 1. / fps
     labels = [(i * spf, pred_to_cl(p)) for i, p in enumerate(targets)]
 
-    # join same consequtive predictions
+    # join same consecutive predictions
     prev_label = (None, None)
     uniq_labels = []
 
