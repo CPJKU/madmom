@@ -12,8 +12,8 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from ..processors import Processor, SequentialProcessor
-from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
-                      NORM_FILTERS, UNIQUE_FILTERS)
+from .filters import (LogarithmicFilterbank, A4, FMAX, FMIN, NORM_FILTERS,
+                      NUM_BANDS, UNIQUE_FILTERS)
 
 
 def spec(stft):
@@ -1371,3 +1371,88 @@ class MultiBandSpectrogramProcessor(Processor):
             data, crossover_frequencies=self.crossover_frequencies,
             fmin=self.fmin, fmax=self.fmax, norm_filters=self.norm_filters,
             unique_filters=self.unique_filters, **kwargs)
+
+
+class SemitoneBandpassSpectrogram(FilteredSpectrogram):
+    """
+    Construct a semitone spectrogram by using a time domain filterbank of
+    bandpass filters as described in [1]_.
+
+    Parameters
+    ----------
+    signal : Signal
+        Signal instance.
+    fps : float, optional
+        Frame rate of the spectrogram [Hz].
+    fmin : float, optional
+        Lowest frequency of the spectrogram [Hz].
+    fmax : float, optional
+        Highest frequency of the spectrogram [Hz].
+
+    References
+    ----------
+    .. [1] Meinard Müller,
+           "Information retrieval for music and motion", Springer, 2007.
+
+    """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
+    def __init__(self, signal, fps=50., fmin=27.5, fmax=4200.):
+        # this method is for documentation purposes only
+        pass
+
+    def __new__(cls, signal, fps=50., fmin=27.5, fmax=4200.):
+        from scipy.signal import filtfilt
+        from .filters import SemitoneBandpassFilterbank
+        from .signal import FramedSignal, Signal, total_energy, resample
+        # check if we got a mono Signal
+        if not isinstance(signal, Signal) or signal.num_channels != 1:
+            signal = Signal(signal, num_channels=1)
+        sample_rate = float(signal.sample_rate)
+        # keep a reference to the original signal
+        signal_ = signal
+        # determine how many frames the filtered signal will have
+        num_frames = np.round(len(signal) * fps / sample_rate) + 1
+        # compute the energy of the frames of the bandpass filtered signal
+        filterbank = SemitoneBandpassFilterbank(fmin=fmin, fmax=fmax)
+        bands = []
+        for filt, band_sample_rate in zip(filterbank.filters,
+                                          filterbank.band_sample_rates):
+            # frames should overlap 50%
+            frame_size = np.round(2 * band_sample_rate / float(fps))
+            # down-sample audio if needed
+            if band_sample_rate != signal.sample_rate:
+                signal = resample(signal_, band_sample_rate)
+            # filter the signal
+            b, a = filt
+            filtered_signal = filtfilt(b, a, signal)
+            # normalise the signal if it has an integer dtype
+            try:
+                filtered_signal /= np.iinfo(signal.dtype).max
+            except ValueError:
+                pass
+            # split into overlapping frames
+            frames = FramedSignal(filtered_signal, frame_size=frame_size,
+                                  fps=fps, sample_rate=band_sample_rate,
+                                  num_frames=num_frames)
+            # compute total energy of the frames
+            # Note: the energy of the signal is computed with respect to the
+            #       reference sampling rate as in the MATLAB chroma toolbox
+            bands.append(total_energy(frames) / band_sample_rate * 22050.)
+        # cast as SemitoneBandpassSpectrogram
+        obj = np.vstack(bands).T.view(cls)
+        # save additional attributes
+        obj.filterbank = filterbank
+        obj.fps = fps
+        obj.bin_frequencies = filterbank.center_frequencies
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.filterbank = getattr(obj, 'filterbank', None)
+        self.fps = getattr(obj, 'fps', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)

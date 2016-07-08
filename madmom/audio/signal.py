@@ -1002,6 +1002,28 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         return signal[start:stop]
 
 
+def total_energy(frames):
+    """
+    Computes the total energy (sum of squared magnitudes) for each frame of a
+    FramedSignal.
+
+    Parameters
+    ----------
+    frames : FramedSignal
+        Frames (i.e. FramedSignal).
+
+    Returns
+    -------
+    te : numpy array
+        Total energy per frame
+
+    """
+    # make sure we have a FramedSignal
+    if not isinstance(frames, FramedSignal):
+        raise TypeError("Invalid type for input, must be a FramedSignal.")
+    return np.array([sum(x**2) for x in frames])
+
+
 FRAME_SIZE = 2048
 HOP_SIZE = 441.
 FPS = None
