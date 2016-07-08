@@ -11,7 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram
+from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram, \
+    TimeDomainSemitoneFilteredSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
@@ -247,3 +248,78 @@ class DeepChromaProcessor(SequentialProcessor):
         super(DeepChromaProcessor, self).__init__([
             sig, frames, spec, spec_frames, _dcp_flatten, nn
         ])
+
+
+class CLPChroma(np.ndarray):
+    """
+    This class implements Compressed Log Pitch (CLP) chroma as proposed in [
+    1] and [2].
+
+    Parameters
+    ----------
+    data : str, or TimeDomainSemitoneFilteredSpectrogram
+        Semitone (MIDI notes) spectrogram or file name.
+    fps : int, optional
+        Desired sample rate of the signal [Hz].
+    midi_min : int, optional
+        Lowest frequency [MIDI note] of the spectrogram
+    midi_max : int, optional
+        Highest frequency [MIDI note] of the spectrogram
+    mul : float, optional
+        Multiplication factor for compression of the energy. The higher,
+        the more compression is applied.
+    norm : bool, optional
+        Normalize the energy of each frame to one (divide by the L2 norm).
+    threshold : float, optional
+        If the energy of a frame is below a threshold, the energy is equally
+        distributed among all chroma bins.
+
+    References
+    ----------
+    .. [1] Meinard Müller,
+            "Information retrieval for music and motion",
+            Berlin: Springer, 2007.
+    .. [2] Meinard Müller and Sebastian Ewert,
+            "Chroma Toolbox: MATLAB Implementations for Extracting Variants
+            of Chroma-Based Audio Features", Proceedings of the
+            International Conference on Music Information Retrieval (ISMIR),
+            2011.
+
+    """
+    def __init__(self, data, fps=50, midi_min=21, midi_max=108, mul=100,
+                 norm=True, threshold=0.001):
+        # this method is for documentation purposes only
+        pass
+
+    def __new__(cls, data, fps=50, midi_min=21, midi_max=108, mul=100,
+                 norm=True, threshold=0.001):
+        # check stft type
+        if isinstance(data, TimeDomainSemitoneFilteredSpectrogram):
+            # already a TimeDomainSemitoneFilteredSpectrogram
+            pitch_energy = data.pitch_energy
+        elif isinstance(data, str):
+            # compute pitch_energy from audio file
+            tdsfs = TimeDomainSemitoneFilteredSpectrogram(
+                data, fps=fps,  midi_min=midi_min, midi_max=midi_max)
+            pitch_energy = tdsfs.pitch_energy
+        else:
+            raise ValueError('Input type not valid')
+        # apply log compression
+        pitch_energy = np.log10(pitch_energy * mul + 1)
+        # compute chroma by adding up bins that correspond to the same
+        # pitch class
+        obj = np.zeros((pitch_energy.shape[0], 12))
+        for p in range(pitch_energy.shape[1]):
+            chroma = np.mod(p + 1, 12)
+            obj[:, chroma] += pitch_energy[:, p]
+
+        if norm:
+            # normalise the vectors according to the l2 norm
+            unit_vec = np.ones((1, 12))
+            snorm = np.sqrt(12)
+            unit_vec = unit_vec / snorm
+            mean_energy = np.sqrt((obj ** 2).sum(1))
+            idx_below_threshold = np.where(mean_energy < threshold)
+            obj /= mean_energy[:, np.newaxis]
+            obj[idx_below_threshold, :] = unit_vec
+        return obj
