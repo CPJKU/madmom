@@ -5,6 +5,10 @@
 """
 This module contains note transcription related functionality.
 
+Notes are stored as numpy arrays with the following column definition:
+
+'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
+
 """
 
 from __future__ import absolute_import, division, print_function
@@ -84,7 +88,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
     return notes
 
 
-def write_notes(notes, filename, sep='\t', fmt=None, header=''):
+def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     """
     Write the notes to a file (as many columns as given).
 
@@ -94,10 +98,10 @@ def write_notes(notes, filename, sep='\t', fmt=None, header=''):
         Notes, one per row (column definition see notes).
     filename : str or file handle
         Output filename or handle.
-    sep : str, optional
-        Separator for the fields.
     fmt : list, optional
         Format of the fields (i.e. columns, see notes)
+    delimiter : str, optional
+        String or character separating the columns.
     header : str, optional
         Header to be written (as a comment).
 
@@ -120,7 +124,7 @@ def write_notes(notes, filename, sep='\t', fmt=None, header=''):
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
     # truncate to the number of colums given
-    fmt = sep.join(fmt[:notes.shape[1]])
+    fmt = delimiter.join(fmt[:notes.shape[1]])
     # write the notes
     write_events(notes, filename, fmt=fmt, header=header)
     # also return them

@@ -282,18 +282,20 @@ def load_events(filename):
     return events[:, 0]
 
 
-def write_events(events, filename, fmt='%.3f', delimiter=' ', header=''):
+def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
     """
-    Write events to a text file, one floating point number per line.
+    Write events to a text file, one event per line.
 
     Parameters
     ----------
     events : numpy array
-        Events.
+        Events to be written to file.
     filename : str or file handle
         File to write the events to.
     fmt : str, optional
         How to format the events.
+    delimiter : str, optional
+        String or character separating multiple columns.
     header : str, optional
         Header to be written (as a comment).
 
