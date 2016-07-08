@@ -1123,7 +1123,7 @@ class DBNDownBeatTrackingProcessor(Processor):
                 for left, right in idx.reshape((-1, 2)):
                     # pick the frame with the highest activations value
                     # Note: we look for both beats and non-beat activations;
-                    #       since np.argmax wokrs on the flattened array, we
+                    #       since np.argmax works on the flattened array, we
                     #       need to divide by 2
                     peak = np.argmax(activations[left:right, 1:3]) // 2 + left
                     beats = np.hstack((beats, peak))

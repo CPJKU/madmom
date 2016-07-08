@@ -539,7 +539,7 @@ class HiddenMarkovModel(object):
         cdef unsigned int obs_start, obs_end, frame, block_sz
         cdef double prob_sum, norm_factor
 
-        # keep track which observations om_densitites currently contains
+        # keep track which observations om_densities currently contains
         # obs_start is the first observation index, obs_end the last one
         obs_start = 0
         obs_end = 0
@@ -563,7 +563,7 @@ class HiddenMarkovModel(object):
 
             # iterate over all states
             for state in range(num_states):
-                # sum ober all possible predecessors
+                # sum over all possible predecessors
                 for prev_pointer in range(tm_ptrs[state], tm_ptrs[state + 1]):
                     fwd_cur[state] += fwd_prev[tm_states[prev_pointer]] * \
                                       tm_probabilities[prev_pointer]

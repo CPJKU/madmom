@@ -525,7 +525,7 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         self.activations = Activations(
             "%s/stereo_sample.notes_brnn.npz" % ACTIVATIONS_PATH)
         self.result = np.loadtxt(
-            "%s/stereo_sample.pianot_ranscriptor.txt" % DETECTIONS_PATH)
+            "%s/stereo_sample.piano_transcriptor.txt" % DETECTIONS_PATH)
 
     def test_help(self):
         self.assertTrue(run_help(self.bin))

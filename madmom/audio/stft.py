@@ -398,7 +398,7 @@ class ShortTimeFourierTransformProcessor(Processor):
 
         Returns
         -------
-        argpase argument group
+        argparse argument group
             STFT argument parser group.
 
         Notes

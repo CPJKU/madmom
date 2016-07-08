@@ -223,7 +223,7 @@ def exponential_transition(from_intervals, to_intervals, transition_lambda,
     from_intervals : numpy array
         Intervals where the transitions originate from.
     to_intervals :  : numpy array
-        Intervals where the transitions destinate to.
+        Intervals where the transitions terminate.
     transition_lambda : float
         Lambda for the exponential tempo change distribution (higher values
         prefer a constant tempo from one beat/bar to the next one). If None,
@@ -581,7 +581,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
     pattern_files : list
         List with files representing the rhythmic patterns, one entry per
         pattern; each pattern being a list with fitted GMMs.
-    state_space : :class:`MultiPatternStateSpeac` instance
+    state_space : :class:`MultiPatternStateSpace` instance
         Multi pattern state space.
 
     References
@@ -629,7 +629,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         Parameters
         ----------
         observations : numpy array
-            Observations (i.e. multiband spectral flux features).
+            Observations (i.e. multi-band spectral flux features).
 
         Returns
         -------

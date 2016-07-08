@@ -63,7 +63,7 @@ DETECTION_FILES = [DETECTIONS_PATH + 'sample.beat_detector.txt',
                    DETECTIONS_PATH + 'sample.super_flux.txt',
                    DETECTIONS_PATH + 'sample.super_flux_nn.txt',
                    DETECTIONS_PATH + 'sample.tempo_detector.txt',
-                   DETECTIONS_PATH + 'stereo_sample.pianot_ranscriptor.txt']
+                   DETECTIONS_PATH + 'stereo_sample.piano_transcriptor.txt']
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 
