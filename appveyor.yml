@@ -16,8 +16,9 @@ install:
   - conda update -q conda
   - conda config --add channels pypi
   - conda info -a
-  - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy nose"
+  - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy"
   - activate test-environment
+  - pip install nose
 
 build: false
 
@@ -25,6 +26,4 @@ build_script:
   - python setup.py install
 
 test_script:
-  - "set PATH=%MINICONDA%\\envs\\test-environment;%MINICONDA%\\envs\\test-environment\\Scripts;%PATH%"
-  - "set PYTHONPATH=%MINICONDA%\\envs\\test-environment;%MINICONDA%\\envs\\test-environment\\lib;%MINICONDA%\\envs\\test-environment\\lib\\site-packages;%PYTHONPATH%"
   - nosetests
