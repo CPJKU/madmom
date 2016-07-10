@@ -120,11 +120,13 @@ class TransitionModel(object):
         from scipy.sparse import csr_matrix
         # check for a proper probability distribution, i.e. the emission
         # probabilities of each prev_state must sum to 1
+        states = np.asarray(states)
+        prev_states = np.asarray(prev_states, dtype=np.int)
+        probabilities = np.asarray(probabilities)
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
         # convert everything into a sparse CSR matrix
-        transitions = csr_matrix((np.array(probabilities),
-                                  (np.array(states), np.array(prev_states))))
+        transitions = csr_matrix((probabilities, (states, prev_states)))
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
