@@ -24,6 +24,9 @@ build: false
 
 build_script:
   - python setup.py build
+  - git submodule update --init --remote --depth 1
 
 test_script:
+  - "set PATH=C:\\projects\\madmom\\bin;%PATH%"
+  - "set PYTHONPATH=C:\\projects\\madmom;%PYTHONPATH%"
   - python setup.py test
