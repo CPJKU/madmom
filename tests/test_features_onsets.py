@@ -8,6 +8,8 @@ This file contains tests for the madmom.features.onsets module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
+
 from . import AUDIO_PATH, ACTIVATIONS_PATH
 
 from madmom.audio.spectrogram import (Spectrogram,
@@ -15,13 +17,14 @@ from madmom.audio.spectrogram import (Spectrogram,
 from madmom.features import Activations
 from madmom.features.onsets import *
 
-sample_file = "%s/sample.wav" % AUDIO_PATH
+sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_spec = Spectrogram(sample_file, circular_shift=True)
 sample_log_filt_spec = LogarithmicFilteredSpectrogram(
     sample_spec, num_bands=24, mul=1, add=1)
-sample_rnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_rnn.npz')
-sample_brnn_act = Activations(ACTIVATIONS_PATH + 'sample.onsets_brnn.npz')
-sample_superflux_act = Activations(ACTIVATIONS_PATH + 'sample.super_flux.npz')
+sample_rnn_act = Activations(pj(ACTIVATIONS_PATH, 'sample.onsets_rnn.npz'))
+sample_brnn_act = Activations(pj(ACTIVATIONS_PATH, 'sample.onsets_brnn.npz'))
+sample_superflux_act = Activations(pj(ACTIVATIONS_PATH,
+                                      'sample.super_flux.npz'))
 
 
 class TestHighFrequencyContentFunction(unittest.TestCase):

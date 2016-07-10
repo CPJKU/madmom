@@ -8,6 +8,7 @@ This file contains tests for the madmom.audio.spectrogram module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
 
 from . import AUDIO_PATH
 from .test_audio_filters import FFT_FREQS_1024, LOG_FILTERBANK_CENTER_FREQS
@@ -16,6 +17,8 @@ from madmom.audio.spectrogram import *
 from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
                                   MelFilterbank, BarkFilterbank)
 from madmom.audio.stft import ShortTimeFourierTransform
+
+sample_file = pj(AUDIO_PATH, 'sample.wav')
 
 
 # test functions
@@ -118,7 +121,7 @@ class TestStatisticalSpectrumDescriptorsFunction(unittest.TestCase):
 class TestSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
-        result = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = Spectrogram(sample_file)
         self.assertIsInstance(result, Spectrogram)
         # attributes
         self.assertIsInstance(result.stft, ShortTimeFourierTransform)
@@ -133,7 +136,7 @@ class TestSpectrogramClass(unittest.TestCase):
 
     def test_values(self):
         # from file
-        result = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = Spectrogram(sample_file)
         self.assertTrue(np.allclose(result[0, :8],
                                     [3.15249, 4.00272, 5.66156, 6.30141,
                                      6.02199, 10.84909, 17.83130, 19.44511]))
@@ -149,11 +152,11 @@ class TestSpectrogramClass(unittest.TestCase):
         # from spec
         self.assertTrue(np.allclose(Spectrogram(result), result))
         # from stft
-        stft = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
+        stft = ShortTimeFourierTransform(sample_file)
         self.assertTrue(np.allclose(Spectrogram(stft), result))
 
     def test_methods(self):
-        result = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = Spectrogram(sample_file)
         self.assertIsInstance(result.diff(), SpectrogramDifference)
         self.assertIsInstance(result.filter(), FilteredSpectrogram)
         self.assertIsInstance(result.log(), LogarithmicSpectrogram)
@@ -168,7 +171,7 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
         self.assertIsInstance(self.processor, SpectrogramProcessor)
 
     def test_process(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertIsInstance(result, Spectrogram)
         # attributes
         self.assertTrue(result.shape == (281, 1024))
@@ -181,7 +184,7 @@ class TestSpectrogramProcessorClass(unittest.TestCase):
 class TestFilteredSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = FilteredSpectrogram(sample_file)
         self.assertIsInstance(result, FilteredSpectrogram)
         self.assertIsInstance(result, Spectrogram)
         # attributes
@@ -196,11 +199,11 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.add is None)
         # wrong filterbank type
         with self.assertRaises(TypeError):
-            FilteredSpectrogram(AUDIO_PATH + '/sample.wav', filterbank='bla')
+            FilteredSpectrogram(sample_file, filterbank='bla')
 
     def test_values(self):
         # from file
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = FilteredSpectrogram(sample_file)
         self.assertTrue(np.allclose(result[0, :8],
                                     [5.661564, 6.30141, 6.02199, 10.84909,
                                      17.8313, 19.44511, 17.56456, 21.859523]))
@@ -215,7 +218,7 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_bins == 81)
         self.assertTrue(result.num_frames == 281)
         # with given filterbank
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav',
+        result = FilteredSpectrogram(sample_file,
                                      filterbank=result.filterbank)
         # attributes
         self.assertTrue(result.shape == (281, 81))
@@ -227,14 +230,14 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
 
     def test_filterbanks(self):
         # with Mel filterbank
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav',
+        result = FilteredSpectrogram(sample_file,
                                      filterbank=MelFilterbank, num_bands=40)
         self.assertTrue(np.allclose(result[0, :6],
                                     [8.42887115, 17.98174477, 19.50165367,
                                      6.48194313, 2.96991181, 4.06280804]))
         self.assertTrue(result.shape == (281, 40))
         # with Bark filterbank
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav',
+        result = FilteredSpectrogram(sample_file,
                                      filterbank=BarkFilterbank,
                                      num_bands='normal')
         self.assertTrue(np.allclose(result[0, :6],
@@ -243,7 +246,7 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.shape == (281, 23))
 
     def test_methods(self):
-        result = FilteredSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = FilteredSpectrogram(sample_file)
         self.assertIsInstance(result.diff(), SpectrogramDifference)
         # TODO: should we return a LogarithmicFilteredSpectrogram?
         self.assertIsInstance(result.log(), LogarithmicSpectrogram)
@@ -277,7 +280,7 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
 
     def test_process(self):
         # default values
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertIsInstance(result, FilteredSpectrogram)
         # attributes
         self.assertTrue(result.shape == (281, 81))
@@ -290,7 +293,7 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
         self.processor.num_bands = 6
         self.processor.fmin = 300
         self.processor.fmax = 10000
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertIsInstance(result, FilteredSpectrogram)
         # attributes
         self.assertTrue(result.shape == (281, 29))
@@ -313,7 +316,7 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
 class TestLogarithmicSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
-        result = LogarithmicSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicSpectrogram(sample_file)
         self.assertIsInstance(result, LogarithmicSpectrogram)
         self.assertIsInstance(result, Spectrogram)
         # attributes
@@ -328,7 +331,7 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.filterbank is None)
 
     def test_values(self):
-        result = LogarithmicSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicSpectrogram(sample_file)
         self.assertTrue(np.allclose(result[0, :8],
                                     [0.618309, 0.699206, 0.823576, 0.86341,
                                      0.84646, 1.073685, 1.27488, 1.310589]))
@@ -346,13 +349,13 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 1024)
         # test other values
-        result = LogarithmicSpectrogram(AUDIO_PATH + '/sample.wav',
+        result = LogarithmicSpectrogram(sample_file,
                                         mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
 
     def test_methods(self):
-        result = LogarithmicSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicSpectrogram(sample_file)
         self.assertIsInstance(result.diff(), SpectrogramDifference)
         self.assertIsInstance(result.filter(), FilteredSpectrogram)
 
@@ -372,7 +375,7 @@ class TestLogarithmicSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.add == 1)
 
     def test_process(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertIsInstance(result, LogarithmicSpectrogram)
         self.assertTrue(result.shape == (281, 1024))
 
@@ -380,7 +383,7 @@ class TestLogarithmicSpectrogramProcessorClass(unittest.TestCase):
 class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
-        result = LogarithmicFilteredSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicFilteredSpectrogram(sample_file)
         self.assertIsInstance(result, LogarithmicFilteredSpectrogram)
         self.assertIsInstance(result, Spectrogram)
         # attributes
@@ -395,7 +398,7 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.num_bins, int)
 
     def test_values(self):
-        result = LogarithmicFilteredSpectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicFilteredSpectrogram(sample_file)
         self.assertTrue(np.allclose(result[0, :8],
                                     [0.8235762, 0.863407, 0.8464602, 1.073685,
                                      1.27488, 1.3105896, 1.2686847, 1.359067]))
@@ -413,7 +416,7 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 81)
         # test other values
-        result = LogarithmicFilteredSpectrogram(AUDIO_PATH + '/sample.wav',
+        result = LogarithmicFilteredSpectrogram(sample_file,
                                                 mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
@@ -453,7 +456,7 @@ class TestLogarithmicFilteredSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.add == 1)
 
     def test_process(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertIsInstance(result, LogarithmicFilteredSpectrogram)
 
         self.assertTrue(result.shape == (281, 81))
@@ -462,7 +465,7 @@ class TestLogarithmicFilteredSpectrogramProcessorClass(unittest.TestCase):
 class TestSpectrogramDifferenceClass(unittest.TestCase):
 
     def test_types(self):
-        result = SpectrogramDifference(AUDIO_PATH + '/sample.wav')
+        result = SpectrogramDifference(sample_file)
         self.assertIsInstance(result, SpectrogramDifference)
         self.assertIsInstance(result, Spectrogram)
         # attributes
@@ -481,7 +484,7 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         self.assertTrue(result.add is None)
 
     def test_values(self):
-        result = SpectrogramDifference(AUDIO_PATH + '/sample.wav')
+        result = SpectrogramDifference(sample_file)
         self.assertTrue(np.allclose(result[1, :8],
                                     [1.13179708, -1.1511457, 2.7810955,
                                      2.39441729, -4.87367058, -0.90269375,
@@ -524,34 +527,34 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.positive_diffs is False)
 
     def test_process(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
         self.assertTrue(np.max(result[:2]) >= 0)
         self.assertTrue(np.min(result) < 0)
         # change diff frames
         self.processor.diff_frames = 2
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) < 0)
         # change positive diffs
         self.processor.positive_diffs = True
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) >= 0)
         # change stacking
         self.processor.stack_diffs = np.hstack
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281, 1024 * 2))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.vstack
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281 * 2, 1024))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.dstack
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(result.shape == (281, 1024, 2))
         self.assertTrue(np.min(result) >= 0)
 
@@ -565,7 +568,7 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertIsInstance(self.processor, SuperFluxProcessor)
 
     def test_values(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(np.allclose(result[1, :8],
                                     [0.11168772, 0.12317812, 0, 0, 0.03797626,
                                      0.18899226, 0, 0.0903399]))
@@ -591,7 +594,7 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
 class TestMultiBandSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
-        result = MultiBandSpectrogram(AUDIO_PATH + '/sample.wav', [200, 1000])
+        result = MultiBandSpectrogram(sample_file, [200, 1000])
         self.assertIsInstance(result, MultiBandSpectrogram)
         # attributes
         self.assertIsInstance(result.bin_frequencies, np.ndarray)
@@ -601,7 +604,7 @@ class TestMultiBandSpectrogramClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
-        result = MultiBandSpectrogram(AUDIO_PATH + '/sample.wav', [200, 1000])
+        result = MultiBandSpectrogram(sample_file, [200, 1000])
         self.assertTrue(np.allclose(result[:3],
                                     [[10.95971966, 4.23556566, 0.19092605],
                                      [11.38149452, 4.88609695, 0.21491699],
@@ -641,7 +644,7 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
 
     def test_process(self):
         # default values
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(np.allclose(result[:3],
                                     [[10.95971966, 4.23556566, 0.19092605],
                                      [11.38149452, 4.88609695, 0.21491699],
@@ -657,7 +660,7 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         # test 2 bands
         self.processor.crossover_frequencies = [500]
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(np.allclose(result[:3],
                                     [[9.37507915, 0.23498698],
                                      [10.4683371, 0.26268598],
@@ -674,7 +677,7 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         # test without normalized filters
         self.processor.norm_filters = False
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         self.assertTrue(np.allclose(result[:3],
                                     [[206.25172424, 180],
                                      [230.30342102, 201.21743774],

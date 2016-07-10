@@ -8,13 +8,14 @@ This file contains tests for the madmom.features.notes module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
+
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH
 from madmom.features import Activations
 from madmom.features.notes import *
 
-sample_file = "%s/stereo_sample.wav" % AUDIO_PATH
-sample_act = Activations("%s/stereo_sample.notes_brnn.npz" %
-                         ACTIVATIONS_PATH)
+sample_file = pj(AUDIO_PATH, "stereo_sample.wav")
+sample_act = Activations(pj(ACTIVATIONS_PATH, "stereo_sample.notes_brnn.npz"))
 
 NOTES = np.array([[0.147, 72, 3.323, 63], [1.567, 41, 0.223, 29],
                   [2.526, 77, 0.93, 72], [2.549, 60, 0.211, 28],
@@ -25,7 +26,7 @@ NOTES = np.array([[0.147, 72, 3.323, 63], [1.567, 41, 0.223, 29],
 class TestLoadNotesFunction(unittest.TestCase):
 
     def test_values(self):
-        result = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
+        result = load_notes(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         self.assertTrue(np.allclose(result, NOTES))
 
 
@@ -50,16 +51,16 @@ class TestWriteNotesFunction(unittest.TestCase):
 
     def test_values(self):
         header = "MIDI notes for the stereo_sample.[flac|wav] file"
-        result = write_notes(NOTES, ANNOTATIONS_PATH + 'stereo_sample.notes',
-                             header=header)
+        result = write_notes(
+            NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes'), header=header)
         self.assertTrue(np.allclose(result, NOTES))
 
 
 class TestWriteMirexFormatFunction(unittest.TestCase):
 
     def test_values(self):
-        result = write_mirex_format(NOTES, ANNOTATIONS_PATH +
-                                    'stereo_sample.notes.mirex')
+        result = write_mirex_format(
+            NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'))
         self.assertTrue(np.allclose(result[:, 0], NOTES[:, 0]))
         self.assertTrue(np.allclose(result[:, 1], NOTES[:, 0] + NOTES[:, 2]))
         self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 261.6,
