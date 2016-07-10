@@ -23,7 +23,7 @@ install:
 build: false
 
 build_script:
-  - python setup.py install
+  - python setup.py build
 
 test_script:
   - python setup.py test
