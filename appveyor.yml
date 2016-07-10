@@ -4,8 +4,10 @@ environment:
   matrix:
     - PYTHON_VERSION: 2.7
       MINICONDA: C:\Miniconda
+      PYTHON_ARCH: "32"
     - PYTHON_VERSION: 3.4
       MINICONDA: C:\Miniconda3
+      PYTHON_ARCH: "32"
 
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %MINICONDA%"
@@ -19,6 +21,12 @@ install:
   - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy"
   - activate test-environment
   - pip install nose
+  # Install ffmpeg
+  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-2.7-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
+  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/dev/ffmpeg-2.7-win' + $env:PYTHON_ARCH + '-dev.7z' ) ffmpeg-dev.7z
+  - 7z x ffmpeg-shared.7z > NULL
+  - 7z x ffmpeg-dev.7z > NULL
+  - "set PATH=%cd%\\ffmpeg-2.7-win%PYTHON_ARCH%-shared\\bin;%PATH%"
 
 build: false
 
