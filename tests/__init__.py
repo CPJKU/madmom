@@ -9,8 +9,9 @@ from __future__ import absolute_import, division, print_function
 
 import os
 
-DATA_PATH = os.path.dirname(os.path.realpath(__file__)) + '/data/'
-AUDIO_PATH = DATA_PATH + 'audio/'
-ACTIVATIONS_PATH = DATA_PATH + 'activations/'
-ANNOTATIONS_PATH = DATA_PATH + 'annotations/'
-DETECTIONS_PATH = DATA_PATH + 'detections/'
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
+DATA_PATH = os.path.join(BASE_PATH, 'data')
+AUDIO_PATH = os.path.join(DATA_PATH, 'audio')
+ACTIVATIONS_PATH = os.path.join(DATA_PATH, 'activations')
+ANNOTATIONS_PATH = os.path.join(DATA_PATH, 'annotations')
+DETECTIONS_PATH = os.path.join(DATA_PATH, 'detections')

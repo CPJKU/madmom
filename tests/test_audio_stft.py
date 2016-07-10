@@ -8,12 +8,14 @@ This file contains tests for the madmom.audio.stft module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
 
 from . import AUDIO_PATH
 from madmom.audio.stft import *
 from madmom.audio.spectrogram import Spectrogram
 from madmom.audio.signal import FramedSignal
 
+sample_file = pj(AUDIO_PATH, 'sample.wav')
 sig_2d = np.array([[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
                    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])
@@ -144,7 +146,7 @@ class TestLocalGroupDelayFunction(unittest.TestCase):
 class ShortTimeFourierTransformClass(unittest.TestCase):
 
     def test_types(self):
-        result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
+        result = ShortTimeFourierTransform(sample_file)
         self.assertIsInstance(result, ShortTimeFourierTransform)
         self.assertIsInstance(result, np.ndarray)
         # attributes
@@ -159,7 +161,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
-        result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
+        result = ShortTimeFourierTransform(sample_file)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(result.fft_size == 2048)
         self.assertTrue(result.circular_shift is False)
@@ -175,14 +177,14 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertTrue(np.allclose(ShortTimeFourierTransform(result), result))
 
     def test_methods(self):
-        result = ShortTimeFourierTransform(AUDIO_PATH + '/sample.wav')
+        result = ShortTimeFourierTransform(sample_file)
         self.assertIsInstance(result.spec(), Spectrogram)
         self.assertIsInstance(result.phase(), Phase)
 
     def test_fft_window(self):
         # use a signal
         from madmom.audio.signal import Signal
-        signal = Signal(AUDIO_PATH + '/sample.wav')
+        signal = Signal(sample_file)
         # scale the signal to float and range -1..1
         scaling = float(np.iinfo(signal.dtype).max)
         scaled_signal = signal / scaling
@@ -214,7 +216,7 @@ class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.circular_shift is False)
 
     def test_process(self):
-        result = self.processor.process(AUDIO_PATH + '/sample.wav')
+        result = self.processor.process(sample_file)
         # attributes
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.allclose(result.bin_frequencies,
@@ -232,7 +234,7 @@ class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
 class PhaseClass(unittest.TestCase):
 
     def test_types(self):
-        result = Phase(AUDIO_PATH + '/sample.wav')
+        result = Phase(sample_file)
         self.assertIsInstance(result, Phase)
         self.assertIsInstance(result, np.ndarray)
         # attributes
@@ -243,7 +245,7 @@ class PhaseClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
-        result = Phase(AUDIO_PATH + '/sample.wav')
+        result = Phase(sample_file)
         # attributes
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.allclose(result.bin_frequencies,
@@ -253,7 +255,7 @@ class PhaseClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
 
     def test_methods(self):
-        result = Phase(AUDIO_PATH + '/sample.wav')
+        result = Phase(sample_file)
         self.assertIsInstance(result.local_group_delay(), LocalGroupDelay)
         self.assertIsInstance(result.lgd(), LocalGroupDelay)
 
@@ -265,7 +267,7 @@ class PhaseClass(unittest.TestCase):
 class LocalGroupDelayClass(unittest.TestCase):
 
     def test_types(self):
-        result = LocalGroupDelay(AUDIO_PATH + '/sample.wav')
+        result = LocalGroupDelay(sample_file)
         self.assertIsInstance(result, LocalGroupDelay)
         self.assertIsInstance(result, np.ndarray)
         # attributes
@@ -277,7 +279,7 @@ class LocalGroupDelayClass(unittest.TestCase):
         self.assertIsInstance(result.num_frames, int)
 
     def test_values(self):
-        result = LocalGroupDelay(AUDIO_PATH + '/sample.wav')
+        result = LocalGroupDelay(sample_file)
         # attributes
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.allclose(result.bin_frequencies,

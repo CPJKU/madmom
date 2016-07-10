@@ -8,62 +8,63 @@ This file contains test functions for the madmom.utils module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
 
 from madmom.utils import *
 
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
                DETECTIONS_PATH)
 
-FILE_LIST = [DATA_PATH + 'README',
-             DATA_PATH + 'commented_txt',
-             DATA_PATH + 'events.txt']
+FILE_LIST = [pj(DATA_PATH, 'README'),
+             pj(DATA_PATH, 'commented_txt'),
+             pj(DATA_PATH, 'events.txt')]
 
-AUDIO_FILES = [AUDIO_PATH + 'sample.wav',
-               AUDIO_PATH + 'stereo_chirp.wav',
-               AUDIO_PATH + 'stereo_sample.flac',
-               AUDIO_PATH + 'stereo_sample.wav']
+AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
+               pj(AUDIO_PATH, 'stereo_chirp.wav'),
+               pj(AUDIO_PATH, 'stereo_sample.flac'),
+               pj(AUDIO_PATH, 'stereo_sample.wav')]
 
-ACTIVATION_FILES = [ACTIVATIONS_PATH + 'sample.beats_blstm.npz',
-                    ACTIVATIONS_PATH + 'sample.beats_blstm_mm.npz',
-                    ACTIVATIONS_PATH + 'sample.downbeats_blstm.npz',
-                    ACTIVATIONS_PATH + 'sample.deep_chroma.npz',
-                    ACTIVATIONS_PATH + 'sample.complex_flux.npz',
-                    ACTIVATIONS_PATH + 'sample.gmm_pattern_tracker.npz',
-                    ACTIVATIONS_PATH + 'sample.log_filt_spec_flux.npz',
-                    ACTIVATIONS_PATH + 'sample.onsets_brnn.npz',
-                    ACTIVATIONS_PATH + 'sample.onsets_rnn.npz',
-                    ACTIVATIONS_PATH + 'sample.spectral_flux.npz',
-                    ACTIVATIONS_PATH + 'sample.super_flux.npz',
-                    ACTIVATIONS_PATH + 'sample.super_flux_nn.npz',
-                    ACTIVATIONS_PATH + 'stereo_sample.notes_brnn.npz']
+ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.beats_blstm_mm.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.downbeats_blstm.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.deep_chroma.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.complex_flux.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.gmm_pattern_tracker.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.log_filt_spec_flux.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.onsets_brnn.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.onsets_rnn.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.spectral_flux.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.super_flux.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.super_flux_nn.npz'),
+                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz')]
 
-ANNOTATION_FILES = [ANNOTATIONS_PATH + 'sample.beats',
-                    ANNOTATIONS_PATH + 'sample.onsets',
-                    ANNOTATIONS_PATH + 'sample.sv',
-                    ANNOTATIONS_PATH + 'sample.tempo',
-                    ANNOTATIONS_PATH + 'stereo_sample.mid',
-                    ANNOTATIONS_PATH + 'stereo_sample.notes',
-                    ANNOTATIONS_PATH + 'stereo_sample.notes.mirex',
-                    ANNOTATIONS_PATH + 'stereo_sample.sv',
-                    ANNOTATIONS_PATH + 'piano_sample.mid',
-                    ANNOTATIONS_PATH + 'piano_sample.notes_in_beats']
+ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'sample.beats'),
+                    pj(ANNOTATIONS_PATH, 'sample.onsets'),
+                    pj(ANNOTATIONS_PATH, 'sample.sv'),
+                    pj(ANNOTATIONS_PATH, 'sample.tempo'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.mid'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.notes'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.sv'),
+                    pj(ANNOTATIONS_PATH, 'piano_sample.mid'),
+                    pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]
 
-DETECTION_FILES = [DETECTIONS_PATH + 'sample.beat_detector.txt',
-                   DETECTIONS_PATH + 'sample.beat_tracker.txt',
-                   DETECTIONS_PATH + 'sample.complex_flux.txt',
-                   DETECTIONS_PATH + 'sample.crf_beat_detector.txt',
-                   DETECTIONS_PATH + 'sample.dbn_beat_tracker.txt',
-                   DETECTIONS_PATH + 'sample.dbn_downbeat_tracker.txt',
-                   DETECTIONS_PATH + 'sample.gmm_pattern_tracker.txt',
-                   DETECTIONS_PATH + 'sample.log_filt_spec_flux.txt',
-                   DETECTIONS_PATH + 'sample.mm_beat_tracker.txt',
-                   DETECTIONS_PATH + 'sample.onset_detector.txt',
-                   DETECTIONS_PATH + 'sample.onset_detector_ll.txt',
-                   DETECTIONS_PATH + 'sample.spectral_flux.txt',
-                   DETECTIONS_PATH + 'sample.super_flux.txt',
-                   DETECTIONS_PATH + 'sample.super_flux_nn.txt',
-                   DETECTIONS_PATH + 'sample.tempo_detector.txt',
-                   DETECTIONS_PATH + 'stereo_sample.piano_transcriptor.txt']
+DETECTION_FILES = [pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
+                   pj(DETECTIONS_PATH, 'sample.beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.complex_flux.txt'),
+                   pj(DETECTIONS_PATH, 'sample.crf_beat_detector.txt'),
+                   pj(DETECTIONS_PATH, 'sample.dbn_beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.dbn_downbeat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.gmm_pattern_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.log_filt_spec_flux.txt'),
+                   pj(DETECTIONS_PATH, 'sample.mm_beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.onset_detector.txt'),
+                   pj(DETECTIONS_PATH, 'sample.onset_detector_ll.txt'),
+                   pj(DETECTIONS_PATH, 'sample.spectral_flux.txt'),
+                   pj(DETECTIONS_PATH, 'sample.super_flux.txt'),
+                   pj(DETECTIONS_PATH, 'sample.super_flux_nn.txt'),
+                   pj(DETECTIONS_PATH, 'sample.tempo_detector.txt'),
+                   pj(DETECTIONS_PATH, 'stereo_sample.piano_transcriptor.txt')]
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
 
@@ -78,14 +79,15 @@ class TestFilterFilesFunction(unittest.TestCase):
 
     def test_single_file(self):
         # no suffix
-        result = filter_files(DATA_PATH + 'README', None)
-        self.assertEqual(result, [DATA_PATH + 'README'])
+        result = filter_files(pj(DATA_PATH, 'README'), None)
+        self.assertEqual(result, [pj(DATA_PATH, 'README')])
         # single suffix
-        result = filter_files(DATA_PATH + 'README', suffix='.txt')
+        result = filter_files(pj(DATA_PATH, 'README'), suffix='.txt')
         self.assertEqual(result, [])
         # suffix list
-        result = filter_files(DATA_PATH + 'events.txt', suffix=['.txt', None])
-        self.assertEqual(result, [DATA_PATH + 'events.txt'])
+        result = filter_files(pj(DATA_PATH, 'events.txt'),
+                              suffix=['.txt', None])
+        self.assertEqual(result, [pj(DATA_PATH, 'events.txt')])
 
     def test_file_list(self):
         # no suffix
@@ -93,11 +95,11 @@ class TestFilterFilesFunction(unittest.TestCase):
         self.assertEqual(result, FILE_LIST)
         # single suffix
         result = filter_files(FILE_LIST, suffix='txt')
-        self.assertEqual(result, [DATA_PATH + 'commented_txt',
-                                  DATA_PATH + 'events.txt'])
+        self.assertEqual(result, [pj(DATA_PATH, 'commented_txt'),
+                                  pj(DATA_PATH, 'events.txt')])
         # suffix list
         result = filter_files(FILE_LIST, suffix=['.txt'])
-        self.assertEqual(result, [DATA_PATH + 'events.txt'])
+        self.assertEqual(result, [pj(DATA_PATH, 'events.txt')])
 
 
 class TestSearchPathFunction(unittest.TestCase):
@@ -110,6 +112,8 @@ class TestSearchPathFunction(unittest.TestCase):
         result = search_path(DATA_PATH, 1)
         all_files = (FILE_LIST + AUDIO_FILES + ANNOTATION_FILES +
                      DETECTION_FILES + ACTIVATION_FILES)
+        print(len(result))
+        print(len(sorted(all_files)))
         self.assertEqual(result, sorted(all_files))
 
 
@@ -117,35 +121,37 @@ class TestSearchFilesFunction(unittest.TestCase):
 
     def test_file(self):
         # no suffix
-        result = search_files(DATA_PATH + 'README')
-        self.assertEqual(result, [DATA_PATH + 'README'])
+        result = search_files(pj(DATA_PATH, 'README'))
+        self.assertEqual(result, [pj(DATA_PATH, 'README')])
         # single suffix
-        result = search_files(DATA_PATH + 'README', suffix='.txt')
+        result = search_files(pj(DATA_PATH, 'README'), suffix='.txt')
         self.assertEqual(result, [])
         # suffix list
-        result = search_files(DATA_PATH + 'README', suffix=['.txt', 'txt'])
+        result = search_files(pj(DATA_PATH, 'README'), suffix=['.txt', 'txt'])
         self.assertEqual(result, [])
         # non-existing file
         with self.assertRaises(IOError):
-            search_files(DATA_PATH + 'non_existing')
+            search_files(pj(DATA_PATH, 'non_existing'))
 
     def test_path(self):
         # no suffix
         result = search_files(DATA_PATH)
+        print("result", result)
+        print("FILELIST", sorted(FILE_LIST))
         self.assertEqual(result, sorted(FILE_LIST))
         # single suffix
         result = search_files(DATA_PATH, suffix='txt')
-        file_list = [DATA_PATH + 'commented_txt',
-                     DATA_PATH + 'events.txt']
+        file_list = [pj(DATA_PATH, 'commented_txt'),
+                     pj(DATA_PATH, 'events.txt')]
         self.assertEqual(result, sorted(file_list))
         # another suffix
         result = search_files(DATA_PATH, suffix='.txt')
-        file_list = [DATA_PATH + 'events.txt']
+        file_list = [pj(DATA_PATH, 'events.txt')]
         self.assertEqual(result, sorted(file_list))
         # suffix list
         result = search_files(DATA_PATH, suffix=['.txt', 'txt'])
-        file_list = [DATA_PATH + 'commented_txt',
-                     DATA_PATH + 'events.txt']
+        file_list = [pj(DATA_PATH, 'commented_txt'),
+                     pj(DATA_PATH, 'events.txt')]
         self.assertEqual(result, sorted(file_list))
 
     def test_file_list(self):
@@ -154,11 +160,11 @@ class TestSearchFilesFunction(unittest.TestCase):
         self.assertEqual(result, sorted(FILE_LIST))
         # single suffix
         result = search_files(FILE_LIST, suffix='.txt')
-        self.assertEqual(result, [DATA_PATH + 'events.txt'])
+        self.assertEqual(result, [pj(DATA_PATH, 'events.txt')])
         # suffix list
         result = search_files(FILE_LIST, suffix=['.txt', 'txt'])
-        self.assertEqual(result, [DATA_PATH + 'commented_txt',
-                                  DATA_PATH + 'events.txt'])
+        self.assertEqual(result, [pj(DATA_PATH, 'commented_txt'),
+                                  pj(DATA_PATH, 'events.txt')])
 
 
 class TestStripSuffixFunction(unittest.TestCase):
@@ -211,32 +217,32 @@ class TestMatchFileFunction(unittest.TestCase):
 class TestLoadEventsFunction(unittest.TestCase):
 
     def test_read_events_from_file(self):
-        events = load_events(DATA_PATH + 'events.txt')
+        events = load_events(pj(DATA_PATH, 'events.txt'))
         self.assertIsInstance(events, np.ndarray)
 
     def test_read_events_from_file_handle(self):
-        file_handle = open(DATA_PATH + 'events.txt')
+        file_handle = open(pj(DATA_PATH, 'events.txt'))
         events = load_events(file_handle)
         self.assertIsInstance(events, np.ndarray)
         file_handle.close()
 
     def test_read_onset_annotations(self):
-        events = load_events(ANNOTATIONS_PATH + 'sample.onsets')
+        events = load_events(pj(ANNOTATIONS_PATH, 'sample.onsets'))
         self.assertTrue(np.allclose(events, ONSET_ANNOTATIONS))
 
     def test_read_file_without_comments(self):
-        events = load_events(DETECTIONS_PATH + 'sample.super_flux.txt')
+        events = load_events(pj(DETECTIONS_PATH, 'sample.super_flux.txt'))
         self.assertTrue(np.allclose(events, [0.01, 0.085, 0.275, 0.445, 0.61,
                                              0.795, 0.98, 1.115, 1.365, 1.475,
                                              1.62, 1.795, 2.14, 2.33, 2.485,
                                              2.665]))
 
     def test_load_file_with_comments_and_empty_lines(self):
-        events = load_events(DATA_PATH + 'commented_txt')
+        events = load_events(pj(DATA_PATH, 'commented_txt'))
         self.assertTrue(np.allclose(events, [1.1, 2.1]))
 
     def test_load_only_timestamps(self):
-        events = load_events(ANNOTATIONS_PATH + 'stereo_sample.notes')
+        events = load_events(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         self.assertTrue(np.allclose(events, [0.147, 1.567, 2.526, 2.549, 2.563,
                                              2.577, 3.369, 3.449]))
 
@@ -244,18 +250,18 @@ class TestLoadEventsFunction(unittest.TestCase):
 class TestWriteEventsFunction(unittest.TestCase):
 
     def test_write_events_to_file(self):
-        result = write_events(EVENTS, DATA_PATH + 'events.txt')
+        result = write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
         self.assertEqual(EVENTS, result)
 
     def test_write_events_to_file_handle(self):
-        file_handle = open(DATA_PATH + 'events.txt', 'wb')
+        file_handle = open(pj(DATA_PATH, 'events.txt'), 'wb')
         result = write_events(EVENTS, file_handle)
         self.assertEqual(EVENTS, result)
         file_handle.close()
 
     def test_write_and_read_events(self):
-        write_events(EVENTS, DATA_PATH + 'events.txt')
-        annotations = load_events(DATA_PATH + 'events.txt')
+        write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
+        annotations = load_events(pj(DATA_PATH, 'events.txt'))
         self.assertTrue(np.allclose(annotations, EVENTS))
 
 
@@ -346,7 +352,7 @@ class TestSegmentAxisFunction(unittest.TestCase):
         self.assertTrue(result.dtype == np.float)
         # test with a Signal
         from madmom.audio.signal import Signal
-        signal = Signal(AUDIO_PATH + '/sample.wav')
+        signal = Signal(pj(AUDIO_PATH, 'sample.wav'))
         result = segment_axis(signal, 4, 2)
         self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.dtype == np.int16)

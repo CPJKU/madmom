@@ -9,6 +9,8 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
+from os.path import join as pj
+
 
 from madmom.evaluation.notes import *
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
@@ -37,17 +39,17 @@ ANNOTATIONS = np.asarray([[0.147, 72, 3.323, 63],
 class TestLoadNotesFunction(unittest.TestCase):
 
     def test_load_notes_from_file(self):
-        annotations = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
+        annotations = load_notes(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         self.assertIsInstance(annotations, np.ndarray)
 
     def test_load_notes_from_file_handle(self):
-        file_handle = open(ANNOTATIONS_PATH + 'stereo_sample.notes')
+        file_handle = open(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         annotations = load_notes(file_handle)
         self.assertIsInstance(annotations, np.ndarray)
         file_handle.close()
 
     def test_load_notes_annotations(self):
-        annotations = load_notes(ANNOTATIONS_PATH + 'stereo_sample.notes')
+        annotations = load_notes(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         self.assertIsInstance(annotations, np.ndarray)
         self.assertEqual(annotations.shape, (8, 4))
         self.assertTrue(np.allclose(annotations, ANNOTATIONS))
