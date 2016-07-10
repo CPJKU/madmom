@@ -2,17 +2,36 @@ version: 1.0.{build}
 
 environment:
   matrix:
-    - PYTHON_VERSION: 2.7
+    - PYTHON: C:\Python27
+      PYTHON_VERSION: 2.7
       MINICONDA: C:\Miniconda
       PYTHON_ARCH: "32"
-    - PYTHON_VERSION: 3.4
+    - PYTHON: C:\Python27-x64
+      PYTHON_VERSION: 2.7
+      MINICONDA: C:\Miniconda-x64
+      PYTHON_ARCH: "64"
+    - PYTHON: C:\Python34
+      PYTHON_VERSION: 3.4
       MINICONDA: C:\Miniconda3
       PYTHON_ARCH: "32"
+    - PYTHON: C:\Python34-x64
+      PYTHON_VERSION: 3.4
+      MINICONDA: C:\Miniconda3-x64
+      PYTHON_ARCH: "64"
+    - PYTHON: C:\Python35
+      PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda35
+      PYTHON_ARCH: "32"
+    - PYTHON: C:\Python35-x64
+      PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda35-x64
+      PYTHON_ARCH: "64"
 
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %MINICONDA%"
 
 install:
+  # install Miniconda
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
@@ -23,9 +42,7 @@ install:
   - pip install nose
   # Install ffmpeg
   - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-2.7-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
-  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/dev/ffmpeg-2.7-win' + $env:PYTHON_ARCH + '-dev.7z' ) ffmpeg-dev.7z
   - 7z x ffmpeg-shared.7z > NULL
-  - 7z x ffmpeg-dev.7z > NULL
   - "set PATH=%cd%\\ffmpeg-2.7-win%PYTHON_ARCH%-shared\\bin;%PATH%"
 
 build: false
