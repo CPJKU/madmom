@@ -815,7 +815,8 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     of the signal, but instead the frame left of the first frame is returned.
 
     """
-
+    # cast variables to int
+    frame_size = int(frame_size)
     # length of the signal
     num_samples = len(signal)
     # seek to the correct position in the audio signal

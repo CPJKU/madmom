@@ -508,9 +508,6 @@ class TestTriangularFilterClass(unittest.TestCase):
                               types.GeneratorType)
 
     def test_errors(self):
-        # integers bin numbers
-        with self.assertRaises(ValueError):
-            TriangularFilter(0, 1.1, 2)
         # filter bins ascending order
         with self.assertRaises(ValueError):
             TriangularFilter(0, 2, 1)
