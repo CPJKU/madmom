@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 import math
+from os.path import join as pj
 
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from madmom.evaluation.beats import *
@@ -33,11 +34,11 @@ SAMPLE_BEAT_ANNOTATIONS = np.asarray([0.0913, 0.7997, 1.4806, 2.1478])
 class TestLoadBeatsFunction(unittest.TestCase):
 
     def test_load_beats_from_file(self):
-        beats = load_beats(ANNOTATIONS_PATH + '/sample.beats')
+        beats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'))
         self.assertTrue(np.allclose(beats, SAMPLE_BEAT_ANNOTATIONS))
 
     def test_load_downbeats_from_file(self):
-        downbeats = load_beats(ANNOTATIONS_PATH + '/sample.beats',
+        downbeats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'),
                                downbeats=True)
         self.assertTrue(np.allclose(downbeats, 0.0913))
 

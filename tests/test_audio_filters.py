@@ -392,7 +392,7 @@ class TestFrequencies2BinsFunction(unittest.TestCase):
     def test_types(self):
         result = frequencies2bins([0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
         self.assertIsInstance(result, np.ndarray)
-        self.assertEqual(result.dtype, np.int)
+        self.assertTrue(np.issubdtype(result.dtype, np.integer))
 
     def test_value(self):
         # normal frequencies

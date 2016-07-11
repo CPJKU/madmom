@@ -185,7 +185,7 @@ class PropertyMixin(object):
     @property
     def num_bins(self):
         """Number of bins."""
-        return self.shape[1]
+        return int(self.shape[1])
 
 
 # short-time Fourier transform class
