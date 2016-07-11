@@ -535,6 +535,10 @@ class TriangularFilter(Filter):
         # center must be between start & stop
         if not start <= center < stop:
             raise ValueError('`center` must be between `start` and `stop`')
+        # cast variables to int
+        center = int(center)
+        start = int(start)
+        stop = int(stop)
         # make center and stop relative
         center -= start
         stop -= start
