@@ -61,8 +61,8 @@ class FeedForwardLayer(Layer):
     """
 
     def __init__(self, weights, bias, activation_fn):
-        self.weights = weights.copy()
-        self.bias = bias.flatten()
+        self.weights = weights
+        self.bias = bias
         self.activation_fn = activation_fn
 
     def activate(self, data):
@@ -80,7 +80,7 @@ class FeedForwardLayer(Layer):
             Activations for this data.
 
         """
-        # weight the data, add bias and apply transfer function
+        # weight input, add bias and apply activations function
         return self.activation_fn(np.dot(data, self.weights) + self.bias)
 
 
@@ -123,22 +123,14 @@ class RecurrentLayer(FeedForwardLayer):
         # if we don't have recurrent weights, we don't have to loop
         if self.recurrent_weights is None:
             return super(RecurrentLayer, self).activate(data)
-        size = data.shape[0]
-        # FIXME: although everything seems to be ok, np.dot doesn't accept the
-        #        format of the output array. Speed is almost the same, though.
-        # out = np.zeros((size, len(self.bias)), dtype=NN_DTYPE)
-        # tmp = np.zeros(len(self.bias), dtype=NN_DTYPE)
-        # np.dot(data, self.weights, out=out)
-        out = np.dot(data, self.weights)
-        out += self.bias
-        # loop through each time step
-        for i in range(size):
-            # add the weighted previous step
+        # weight input and add bias
+        out = np.dot(data, self.weights) + self.bias
+        # loop through all time steps
+        for i in range(len(data)):
+            # add weighted previous step
             if i >= 1:
-                # np.dot(out[i - 1], self.recurrent_weights, out=tmp)
-                # out[i] += tmp
                 out[i] += np.dot(out[i - 1], self.recurrent_weights)
-            # apply transfer function
+            # apply activation function
             self.activation_fn(out[i], out=out[i])
         # return
         return out
@@ -181,17 +173,17 @@ class BidirectionalLayer(Layer):
 
         """
         # activate in forward direction
-        fwd = self.fwd_layer.activate(data)
+        fwd = self.fwd_layer(data)
         # also activate with reverse input
-        bwd = self.bwd_layer.activate(data[::-1])
+        bwd = self.bwd_layer(data[::-1])
         # stack data
         return np.hstack((fwd, bwd[::-1]))
 
 
 # LSTM stuff
-class Cell(Layer):
+class Gate(Layer):
     """
-    Cell as used by LSTM units.
+    Gate as used by LSTM layers.
 
     Parameters
     ----------
@@ -201,27 +193,25 @@ class Cell(Layer):
         Bias.
     recurrent_weights : numpy array, shape ()
         Recurrent weights.
+    peephole_weights : numpy array, optional, shape ()
+        Peephole weights.
     activation_fn : numpy ufunc, optional
         Activation function.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh):
-        self.weights = weights.copy()
-        self.bias = bias.flatten()
-        self.recurrent_weights = recurrent_weights.copy()
-        # Note: define the peephole_weights here, so we don't have to define a
-        #       different activate() method for the Gate subclass
-        self.peephole_weights = None
+    def __init__(self, weights, bias, recurrent_weights, peephole_weights=None,
+                 activation_fn=sigmoid):
+        self.weights = weights
+        self.bias = bias
+        self.recurrent_weights = recurrent_weights
+        self.peephole_weights = peephole_weights
         self.activation_fn = activation_fn
-        self.cell = np.zeros(self.bias.size, dtype=NN_DTYPE)
-        self._tmp = np.zeros(self.bias.size, dtype=NN_DTYPE)
 
     def activate(self, data, prev, state=None):
         """
-        Activate the cell / gate with the given data, state (if peephole
-        connections are used) and the output (if recurrent connections are
-        used).
+        Activate the gate with the given data, state (if peephole connections
+        are used) and the previous output (if recurrent connections are used).
 
         Parameters
         ----------
@@ -239,24 +229,20 @@ class Cell(Layer):
 
         """
         # weight input and add bias
-        np.dot(data, self.weights, out=self.cell)
-        self.cell += self.bias
+        out = np.dot(data, self.weights) + self.bias
         # add the previous state weighted by the peephole
         if self.peephole_weights is not None:
-            self.cell += state * self.peephole_weights
+            out += state * self.peephole_weights
         # add recurrent connection
         if self.recurrent_weights is not None:
-            np.dot(prev, self.recurrent_weights, out=self._tmp)
-            self.cell += self._tmp
-        # apply transfer function
-        self.activation_fn(self.cell, out=self.cell)
-        # also return the cell itself
-        return self.cell
+            out += np.dot(prev, self.recurrent_weights)
+        # apply activation function and return it
+        return self.activation_fn(out)
 
 
-class Gate(Cell):
+class Cell(Gate):
     """
-    Gate as used by LSTM units.
+    Cell as used by LSTM layers.
 
     Parameters
     ----------
@@ -266,18 +252,19 @@ class Gate(Cell):
         Bias.
     recurrent_weights : numpy array, shape ()
         Recurrent weights.
-    peephole_weights : numpy array, shape ()
-        Peephole weights.
     activation_fn : numpy ufunc, optional
         Activation function.
 
+    Notes
+    -----
+    A Cell is the same as a Gate except it misses peephole connections and
+    has a `tanh` activation function.
+
     """
 
-    def __init__(self, weights, bias, recurrent_weights, peephole_weights,
-                 activation_fn=sigmoid):
-        super(Gate, self).__init__(weights, bias, recurrent_weights,
+    def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh):
+        super(Cell, self).__init__(weights, bias, recurrent_weights,
                                    activation_fn=activation_fn)
-        self.peephole_weights = peephole_weights.flatten()
 
 
 class LSTMLayer(Layer):
@@ -286,33 +273,25 @@ class LSTMLayer(Layer):
 
     Parameters
     ----------
-    weights : numpy array, shape ()
-        Weights.
-    bias : scalar or numpy array, shape ()
-        Bias.
-    recurrent_weights : numpy array, shape ()
-        Recurrent weights.
-    peephole_weights : numpy array, shape ()
-        Peephole weights.
+    input_gate : :class:`Gate`
+        Input gate.
+    forget_gate : :class:`Gate`
+        Forget gate.
+    cell : :class:`Cell`
+        Cell (i.e. a Gate without peephole connections).
+    output_gate : :class:`Gate`
+        Output gate.
     activation_fn : numpy ufunc, optional
         Activation function.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, peephole_weights,
+    def __init__(self, input_gate, forget_gate, cell, output_gate,
                  activation_fn=tanh):
-        # init the gates and memory cell
-        self.input_gate = Gate(weights[0::4].T, bias[0::4].T,
-                               recurrent_weights[0::4].T,
-                               peephole_weights[0::3].T)
-        self.forget_gate = Gate(weights[1::4].T, bias[1::4].T,
-                                recurrent_weights[1::4].T,
-                                peephole_weights[1::3].T)
-        self.cell = Cell(weights[2::4].T, bias[2::4].T,
-                         recurrent_weights[2::4].T)
-        self.output_gate = Gate(weights[3::4].T, bias[3::4].T,
-                                recurrent_weights[3::4].T,
-                                peephole_weights[2::3].T)
+        self.input_gate = input_gate
+        self.forget_gate = forget_gate
+        self.cell = cell
+        self.output_gate = output_gate
         self.activation_fn = activation_fn
 
     def activate(self, data):
@@ -359,7 +338,7 @@ class LSTMLayer(Layer):
             # operate on current data, current state and previous output
             og = self.output_gate.activate(data_, out_, state_)
             # output:
-            # apply transfer function to state and weight by output gate
+            # apply activation function to state and weight by output gate
             out_ = self.activation_fn(state_) * og
             out[i] = out_
         return out
