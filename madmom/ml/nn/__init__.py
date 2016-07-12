@@ -76,8 +76,8 @@ class NeuralNetwork(Processor):
             data = np.atleast_2d(data).T
         # loop over all layers
         for layer in self.layers:
-            # feed the output of one layer into the next one
-            data = layer.activate(data)
+            # activate the layer and feed the output into the next one
+            data = layer(data)
         # ravel the predictions if needed
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()

@@ -17,7 +17,35 @@ from .activations import tanh, sigmoid
 NN_DTYPE = np.float32
 
 
-class FeedForwardLayer(object):
+class Layer(object):
+    """
+    Generic callable network layer.
+
+    """
+
+    def __call__(self, *args):
+        # this magic method makes a Layer callable
+        return self.activate(*args)
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        raise NotImplementedError('must be implemented by subclass.')
+
+
+class FeedForwardLayer(Layer):
     """
     Feed-forward network layer.
 
@@ -116,7 +144,7 @@ class RecurrentLayer(FeedForwardLayer):
         return out
 
 
-class BidirectionalLayer(object):
+class BidirectionalLayer(Layer):
     """
     Bidirectional network layer.
 
@@ -161,7 +189,7 @@ class BidirectionalLayer(object):
 
 
 # LSTM stuff
-class Cell(object):
+class Cell(Layer):
     """
     Cell as used by LSTM units.
 
@@ -252,7 +280,7 @@ class Gate(Cell):
         self.peephole_weights = peephole_weights.flatten()
 
 
-class LSTMLayer(object):
+class LSTMLayer(Layer):
     """
     Recurrent network layer with Long Short-Term Memory units.
 
