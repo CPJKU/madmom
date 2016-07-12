@@ -20,6 +20,7 @@ API relevant changes:
 * Refactored the `ml.rnn` to `ml.nn` and converted the models to pickles (#110)
 * Reorderd the dimensions of comb_filters to time, freq, tau (#135)
 * `write_notes` uses `delimiter` instead of `sep` to seperate columns (#155)
+* `LSTMLayer` takes `Gate`s as arguments, all layers are callable (#161)
 
 Other changes:
 
