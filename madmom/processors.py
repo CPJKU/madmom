@@ -338,9 +338,7 @@ class ParallelProcessor(SequentialProcessor):
     """
     # pylint: disable=too-many-ancestors
 
-    NUM_THREADS = 1
-
-    def __init__(self, processors, num_threads=NUM_THREADS):
+    def __init__(self, processors, num_threads=None):
         # set the processing chain
         super(ParallelProcessor, self).__init__(processors)
         # number of threads
@@ -374,8 +372,8 @@ class ParallelProcessor(SequentialProcessor):
         # process data in parallel and return a list with processed data
         return list(self.map(_process, zip(self.processors, it.repeat(data))))
 
-    @classmethod
-    def add_arguments(cls, parser, num_threads=NUM_THREADS):
+    @staticmethod
+    def add_arguments(parser, num_threads):
         """
         Add parallel processing options to an existing parser object.
 
@@ -397,11 +395,6 @@ class ParallelProcessor(SequentialProcessor):
         Setting it smaller or equal to 0 sets it the number of CPU cores.
 
         """
-        if num_threads is None:
-            return None
-        # do not include the group
-        if num_threads <= 0:
-            num_threads = cls.NUM_THREADS
         # add parallel processing options
         g = parser.add_argument_group('parallel processing arguments')
         g.add_argument('-j', '--threads', dest='num_threads',

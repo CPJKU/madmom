@@ -92,11 +92,23 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     ----------
     networks : list
         List of the Neural Networks.
+    ensemble_fn : function or callable, optional
+        Ensemble function to be applied to the predictions of the neural
+        network ensemble (default: average predictions).
+    num_threads : int, optional
+        Number of parallel working threads.
+
+    Notes
+    -----
+    If `ensemble_fn` is set to 'None', the predictions are returned as a list
+    with the same length as the number of networks given.
 
     """
 
-    def __init__(self, networks, ensemble_fn=average_predictions):
-        networks_processor = ParallelProcessor(networks)
+    def __init__(self, networks, ensemble_fn=average_predictions,
+                 num_threads=None):
+        networks_processor = ParallelProcessor(networks,
+                                               num_threads=num_threads)
         super(NeuralNetworkEnsemble, self).__init__((networks_processor,
                                                      ensemble_fn))
 
