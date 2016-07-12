@@ -58,7 +58,7 @@ class TestNeuralNetworkClass(unittest.TestCase):
     def test_blstm(self):
         rnn = NeuralNetwork.load(BEATS_BLSTM[0])
         input_size = rnn.layers[0].fwd_layer.cell.weights.shape[0]
-        data = np.zeros((4, input_size), dtype=np.float32)
+        data = np.zeros((4, input_size))
         data[1] = 1.
         result = rnn.process(data)
         self.assertTrue(np.allclose(result, [0.0815198, 0.24451593,
