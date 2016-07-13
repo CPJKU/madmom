@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram, \
-    SemitoneBandPassSpectrogram
+    SemitoneBandpassSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
@@ -294,12 +294,12 @@ class CLPChroma(np.ndarray):
     def __new__(cls, data, fps=50, midi_min=21, midi_max=108, mul=100,
                  norm=True, threshold=0.001):
         # check stft type
-        if isinstance(data, SemitoneBandPassSpectrogram):
+        if isinstance(data, SemitoneBandpassSpectrogram):
             # already a TimeDomainSemitoneFilteredSpectrogram
             pitch_energy = data
         elif isinstance(data, str):
             # compute pitch_energy from audio file
-            pitch_energy = SemitoneBandPassSpectrogram(
+            pitch_energy = SemitoneBandpassSpectrogram(
                 data, fps=fps,  midi_min=midi_min, midi_max=midi_max)
         else:
             raise ValueError('Input type not valid')

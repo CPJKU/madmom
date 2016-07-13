@@ -1185,3 +1185,18 @@ class TestHarmonicPitchClassProfileFilterbankClass(unittest.TestCase):
             filt.center_frequencies
         with self.assertRaises(NotImplementedError):
             filt.corner_frequencies
+
+
+class TestSemitoneBandpassFilterbank(unittest.TestCase):
+
+    def test_values(self):
+        filt = SemitoneBandpassFilterbank()
+        self.assertTrue(filt.num_bands == 36)
+        self.assertTrue(filt.num_bins == 1024)
+        self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
+        self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
+        self.assertTrue(filt.fref == 440)
+        with self.assertRaises(NotImplementedError):
+            filt.center_frequencies
+        with self.assertRaises(NotImplementedError):
+            filt.corner_frequencies

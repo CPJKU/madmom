@@ -1533,7 +1533,7 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
         self.window = getattr(obj, 'window', self.WINDOW)
 
 
-class SemitoneBandPassFilterbank(object):
+class SemitoneBandpassFilterbank(object):
     """
     Time domain semitone filterbank of elliptic filters as propsed in [1].
 
