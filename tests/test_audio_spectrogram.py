@@ -245,6 +245,18 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
                                      4.27050114, 3.08699131, 1.50553513]))
         self.assertTrue(result.shape == (281, 23))
 
+    def test_from_spec(self):
+        spec = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = FilteredSpectrogram(spec)
+        # same results as above
+        self.assertTrue(np.allclose(result[0, :8],
+                                    [5.661564, 6.30141, 6.02199, 10.84909,
+                                     17.8313, 19.44511, 17.56456, 21.859523]))
+        # spec must not be altered
+        self.assertTrue(np.allclose(spec[0, :8],
+                                    [3.15249, 4.00272, 5.66156, 6.30141,
+                                     6.02199, 10.84909, 17.83130, 19.44511]))
+
     def test_methods(self):
         result = FilteredSpectrogram(sample_file)
         self.assertIsInstance(result.diff(), SpectrogramDifference)
@@ -354,6 +366,18 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
 
+    def test_from_spec(self):
+        spec = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicSpectrogram(spec)
+        # same results as above
+        self.assertTrue(np.allclose(result[0, :8],
+                                    [0.618309, 0.699206, 0.823576, 0.86341,
+                                     0.84646, 1.073685, 1.27488, 1.310589]))
+        # spec must not be altered
+        self.assertTrue(np.allclose(spec[0, :8],
+                                    [3.15249, 4.00272, 5.66156, 6.30141,
+                                     6.02199, 10.84909, 17.83130, 19.44511]))
+
     def test_methods(self):
         result = LogarithmicSpectrogram(sample_file)
         self.assertIsInstance(result.diff(), SpectrogramDifference)
@@ -420,6 +444,20 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
                                                 mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
+
+    def test_from_spec(self):
+        spec = Spectrogram(AUDIO_PATH + '/sample.wav')
+        result = LogarithmicFilteredSpectrogram(spec)
+        # same results as above
+        self.assertTrue(result.shape == (281, 81))
+        self.assertTrue(np.allclose(result[0, :8],
+                                    [0.8235762, 0.863407, 0.8464602, 1.073685,
+                                     1.27488, 1.3105896, 1.2686847, 1.359067]))
+        # spec must not be altered
+        self.assertTrue(spec.shape == (281, 1024))
+        self.assertTrue(np.allclose(spec[0, :8],
+                                    [3.15249, 4.00272, 5.66156, 6.30141,
+                                     6.02199, 10.84909, 17.83130, 19.44511]))
 
 
 class TestLogarithmicFilteredSpectrogramProcessorClass(unittest.TestCase):

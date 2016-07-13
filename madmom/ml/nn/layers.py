@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from .activations import tanh, sigmoid
+from .activations import linear, sigmoid, tanh
 
 NN_DTYPE = np.float32
 
@@ -103,7 +103,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def __init__(self, weights, bias, recurrent_weights, activation_fn):
         super(RecurrentLayer, self).__init__(weights, bias, activation_fn)
-        self.recurrent_weights = recurrent_weights.copy()
+        self.recurrent_weights = recurrent_weights
 
     def activate(self, data):
         """
@@ -342,3 +342,219 @@ class LSTMLayer(Layer):
             out_ = self.activation_fn(state_) * og
             out[i] = out_
         return out
+
+
+class ConvolutionalLayer(FeedForwardLayer):
+    """
+    Convolutional network layer.
+
+    Parameters
+    ----------
+    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
+        Weights.
+    bias : scalar or numpy array, shape (num_filters,)
+        Bias.
+    stride : int, optional
+        Stride of the convolution.
+    pad : {'valid', 'same', 'full'}
+        A string indicating the size of the output:
+
+        - full
+            The output is the full discrete linear convolution of the inputs.
+        - valid
+            The output consists only of those elements that do not rely on the
+            zero-padding.
+        - same
+            The output is the same size as the input, centered with respect to
+            the ‘full’ output.
+
+    activation_fn : numpy ufunc
+        Activation function.
+
+    """
+
+    def __init__(self, weights, bias, stride=1, pad='valid',
+                 activation_fn=linear):
+        super(ConvolutionalLayer, self).__init__(weights, bias, activation_fn)
+        if stride != 1:
+            raise NotImplementedError('only `stride` == 1 implemented.')
+        self.stride = stride
+        if pad != 'valid':
+            raise NotImplementedError('only `pad` == "valid" implemented.')
+        self.pad = pad
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array (num_frames, num_bins, num_channels)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        from scipy.signal import convolve2d
+        # determine output shape and allocate memory
+        num_frames, num_bins, num_channels = data.shape
+        num_channels, num_features, size_time, size_freq = self.weights.shape
+        # adjust the output number of frames and bins depending on `pad`
+        # TODO: this works only with pad='valid'
+        num_frames -= (size_time - 1)
+        num_bins -= (size_freq - 1)
+        # init the output array with Fortran ordering (column major)
+        out = np.zeros((num_frames, num_bins, num_features),
+                       dtype=NN_DTYPE, order='F')
+        # iterate over all channels
+        for c in range(num_channels):
+            channel = data[:, :, c]
+            # convolve each channel separately with each filter
+            for w, weights in enumerate(self.weights[c]):
+                # TODO: add boundary stuff?
+                conv = convolve2d(channel, weights, mode=self.pad)
+                out[:, :, w] += conv
+        # add bias to each feature map and apply activation function
+        return self.activation_fn(out + self.bias)
+
+
+class StrideLayer(Layer):
+    """
+    Stride network layer.
+
+    Parameters
+    ----------
+    block_size : int
+        Re-arrange (stride) the data in blocks of given size.
+
+    """
+
+    def __init__(self, block_size):
+        self.block_size = block_size
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Strided data.
+
+        """
+        # re-arrange the data for the following dense layer
+        from ...utils import segment_axis
+        data = segment_axis(data, self.block_size, 1, axis=0, end='cut')
+        return data.reshape(len(data), -1)
+
+
+class MaxPoolLayer(Layer):
+    """
+    2D max-pooling network layer.
+
+    Parameters
+    ----------
+    size : tuple
+        The size of the pooling region in each dimension.
+    stride : tuple, optional
+        The strides between successive pooling regions in each dimension.
+        If None `stride` = `size`.
+
+    """
+
+    def __init__(self, size, stride=None):
+        self.size = size
+        if stride is None:
+            stride = size
+        self.stride = stride
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        from scipy.ndimage.filters import maximum_filter
+        # define which part of the maximum filtered data to return
+        slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
+        slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
+        # TODO: is constant mode the most appropriate?
+        data = [maximum_filter(data[:, :, c], self.size, mode='constant')
+                [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
+        # join channels and return as array
+        return np.dstack(data)
+
+
+class BatchNormLayer(Layer):
+    """
+    Batch normalization layer with activation function. The previous layer
+    is usually linear with no bias - the BatchNormLayer's beta parameter
+    replaces it. See [1] for a detailed understanding of the parameters.
+
+    Parameters
+    ----------
+    beta : numpy array
+        Values for the `beta` parameter. Must be broadcastable to the incoming
+        shape.
+    gamma : numpy array
+        Values for the `gamma` parameter. Must be broadcastable to the incoming
+        shape.
+    mean : numpy array
+        Mean values of incoming data. Must be broadcastable to the incoming
+        shape.
+    inv_std : numpy array
+        Inverse standard deviation of incoming data. Must be broadcastable to
+        the incoming shape.
+    activation_fn : numpy ufunc
+        Activation function.
+
+    References
+    ----------
+    .. [1] "Batch Normalization: Accelerating Deep Network Training by Reducing
+           Internal Covariate Shift"
+           Sergey Ioffe and Christian Szegedy.
+           http://arxiv.org/abs/1502.03167, 2015.
+    """
+
+    def __init__(self, beta, gamma, mean, inv_std, activation_fn):
+        self.beta = beta
+        self.gamma = gamma
+        self.mean = mean
+        self.inv_std = inv_std
+        self.activation_fn = activation_fn
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Activations for this data.
+
+        """
+        return self.activation_fn(
+            (data - self.mean) * (self.gamma * self.inv_std) + self.beta
+        )

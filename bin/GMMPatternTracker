@@ -80,7 +80,6 @@ def main():
     args.fmin = 30
     args.fmax = 17000
     args.norm_filters = False
-    args.log = True
     args.mul = 1
     args.add = 1
     args.diff_ratio = 0.5
