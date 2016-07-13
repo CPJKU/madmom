@@ -1074,6 +1074,10 @@ class MIDITrack(object):
     events : list
         MIDI events.
 
+    Notes
+    -----
+    All events are stored with timing information in absolute ticks.
+
     """
 
     def __init__(self, events=None):
@@ -1081,11 +1085,10 @@ class MIDITrack(object):
             self.events = []
         else:
             self.events = events
-        self._make_ticks_abs()
 
     def _make_ticks_abs(self):
         """
-        Make the track's timing information absolute.
+        Make the track's events timing information absolute.
 
         """
         running_tick = 0
@@ -1095,7 +1098,7 @@ class MIDITrack(object):
 
     def _make_ticks_rel(self):
         """
-        Make the track's timing information relative.
+        Make the track's events timing information relative.
 
         """
         running_tick = 0
@@ -1140,10 +1143,8 @@ class MIDITrack(object):
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # prepare the track header
         track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
-
         # convert back to absolute ticks
         self._make_ticks_abs()
-
         # return the track header + data
         return track_header + track_data
 
@@ -1232,8 +1233,12 @@ class MIDITrack(object):
             # no more events to be processed
             except StopIteration:
                 break
-        # create a new track and return it
-        return cls(events)
+        # create a new track
+        track = cls(events)
+        # make all event's ticks absolute
+        track._make_ticks_abs()
+        # return this track
+        return track
 
     @classmethod
     def from_notes(cls, notes, resolution=RESOLUTION):
@@ -1254,6 +1259,7 @@ class MIDITrack(object):
             :class:`MIDITrack` instance
 
         """
+        # list for events (with ticks in absolute timing)
         events = []
         # FIXME: what we do here s basically writing a MIDI format 0 file,
         #        since we put all events in a single (the given) track. The
@@ -1284,8 +1290,8 @@ class MIDITrack(object):
         events = sorted(events)
         events.insert(0, sig)
         events.insert(0, tempo)
-        # create a track, set it to absolute timing and return it
-        return cls(events, relative_timing=False)
+        # create a track from the events
+        return cls(events)
 
 
 # File I/O classes
@@ -1656,12 +1662,16 @@ class MIDIFile(object):
         Parameters
         ----------
         notes : numpy array or list of tuples
-            Notes (onset, pitch, offset, velocity).
+            Notes (onset, pitch, duration, velocity).
 
         Returns
         -------
         :class:`MIDIFile` instance
             :class:`MIDIFile` instance with all notes collected in one track.
+
+        Notes
+        -----
+        This method interprets onset and duration timings in seconds.
 
         """
         # create a new track from the notes and then a MIDIFile instance
