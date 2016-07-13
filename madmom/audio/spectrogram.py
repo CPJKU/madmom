@@ -15,7 +15,7 @@ from ..processors import Processor, SequentialProcessor
 from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS,
-                      SemitoneBandPassFilterbank)
+                      SemitoneBandpassFilterbank)
 from scipy.signal import filtfilt
 from .signal import Signal, FramedSignal, total_energy
 
@@ -1225,7 +1225,7 @@ class MultiBandSpectrogramProcessor(Processor):
             unique_filters=self.unique_filters, **kwargs)
 
 
-class SemitoneBandPassSpectrogram(np.ndarray):
+class SemitoneBandpassSpectrogram(np.ndarray):
     """
     Construct a semitone spectrogram by using time domain filters.
 
@@ -1259,8 +1259,7 @@ class SemitoneBandPassSpectrogram(np.ndarray):
             # use the file name
             filename = filename.name
             # create filterbank
-        tdsf = SemitoneBandPassFilterbank(midi_min=midi_min,
-                                            midi_max=midi_max)
+        tdsf = SemitoneBandpassFilterbank(midi_min=midi_min, midi_max=midi_max)
         # load audio file
         audio = Signal(filename, num_channels=1)
         if (tdsf.sr_from_midi > audio.sample_rate).any():
