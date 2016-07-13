@@ -372,6 +372,10 @@ class NoteEvent(Event):
     """
     length = 2
 
+    def __str__(self):
+        return "%s: tick: %s channel: %s pitch: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.pitch)
+
     @property
     def pitch(self):
         """
@@ -424,6 +428,11 @@ class NoteOnEvent(NoteEvent):
     """
     status_msg = 0x90
     name = 'Note On'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s pitch: %s velocity: %s" % \
+               (self.__class__.__name__, self.tick, self.channel, self.pitch,
+                self.velocity)
 
 EventRegistry.register_event(NoteOnEvent)
 
@@ -807,6 +816,7 @@ class UnknownMetaEvent(MetaEvent):
         self.meta_command = kwargs['meta_command']
 
     def copy(self, **kwargs):
+        """Copy the event."""
         kwargs['meta_command'] = self.meta_command
         return super(UnknownMetaEvent, self).copy(kwargs)
 
@@ -1064,6 +1074,40 @@ class SequencerSpecificEvent(MetaEvent):
 EventRegistry.register_event(SequencerSpecificEvent)
 
 
+def _add_channel(notes, channel=0):
+    """
+    Adds a default channel to the notes if missing.
+
+    Parameters
+    ----------
+    notes : numpy array, shape (num_notes, 2)
+        Notes, one per row (column definition see notes).
+    channel : int, optional
+        Note channel if not defined by `notes`.
+
+    Returns
+    -------
+    numpy array
+        Notes (including note channel).
+
+    Notes
+    -----
+    The note columns format must be (channel being optional):
+
+    'onset' 'pitch' 'duration' 'velocity' ['channel']
+
+    """
+    if not notes.ndim == 2:
+        raise ValueError('unknown format for `notes`')
+    rows, columns = notes.shape
+    if columns == 5:
+        return notes
+    elif columns == 4:
+        channels = np.ones((rows, 1)) * channel
+        return np.hstack((notes, channels))
+    raise ValueError('unable to handle `notes` with %d columns' % columns)
+
+
 # MIDI Track
 class MIDITrack(object):
     """
@@ -1084,6 +1128,7 @@ class MIDITrack(object):
         if events is None:
             self.events = []
         else:
+            # do not sort the events, since they can have relative timing!
             self.events = events
 
     def _make_ticks_abs(self):
@@ -1235,7 +1280,7 @@ class MIDITrack(object):
                 break
         # create a new track
         track = cls(events)
-        # make all event's ticks absolute
+        # make all event ticks absolute
         track._make_ticks_abs()
         # return this track
         return track
@@ -1249,7 +1294,7 @@ class MIDITrack(object):
         ----------
         notes : numpy array
             Array with the notes, one per row. The columns must be:
-            (onset time, pitch, duration, velocity).
+            (onset time, pitch, duration, velocity, [channel]).
         resolution : int
             Resolution (i.e. microseconds per quarter note) of the MIDI track.
 
@@ -1259,9 +1304,12 @@ class MIDITrack(object):
             :class:`MIDITrack` instance
 
         """
-        # list for events (with ticks in absolute timing)
+        # add a default channel if needed
+        notes = _add_channel(notes)
+
+        # list for events (ticks in absolute timing)
         events = []
-        # FIXME: what we do here s basically writing a MIDI format 0 file,
+        # FIXME: what we do here is basically writing a MIDI format 0 file,
         #        since we put all events in a single (the given) track. The
         #        tempo and time signature stuff is just a hack!
         # first set a tempo, assume a tempo of 120bpm and 4/4 time
@@ -1275,15 +1323,18 @@ class MIDITrack(object):
         bps = 2
         # add the notes
         for note in notes:
+            onset, pitch, duration, velocity, channel = note
             # add NoteOn
             e_on = NoteOnEvent()
             e_on.tick = int(note[0] * resolution * bps)
             e_on.pitch = int(note[1])
             e_on.velocity = int(note[3])
+            e_on.channel = int(note[4])
             # and NoteOff
             e_off = NoteOffEvent()
             e_off.tick = int((note[0] + note[2]) * resolution * bps)
             e_off.pitch = int(note[1])
+            e_off.channel = int(note[4])
             events.append(e_on)
             events.append(e_off)
         # sort the events and prepend the tempo and time signature events
@@ -1422,14 +1473,20 @@ class MIDIFile(object):
         Returns
         -------
         notes : numpy array
-            Array with notes (onset time, pitch, duration, velocity).
+            Array with notes (onset time, pitch, duration, velocity, channel).
 
         """
         # list for all notes
         notes = []
-        # dictionaries for storing the last onset and velocity per pitch
-        note_onsets = {}
-        note_velocities = {}
+        # dictionary for storing the last onset and velocity for each
+        # individual note (i.e. same pitch and channel)
+        sounding_notes = {}
+
+        # as key for the dict use channel * 128 (max number of pitches) + pitch
+        def note_hash(channel, pitch):
+            """Generate a note hash."""
+            return channel * 128 + pitch
+
         for track in self.tracks:
             # get a list with note events
             note_events = [e for e in track.events if isinstance(e, NoteEvent)]
@@ -1438,27 +1495,31 @@ class MIDIFile(object):
             for e in note_events:
                 if tick > e.tick:
                     raise AssertionError('note events must be sorted!')
-
+                n = note_hash(e.channel, e.pitch)
                 is_note_on = isinstance(e, NoteOnEvent)
                 is_note_off = isinstance(e, NoteOffEvent)
                 # if it's a note on event with a velocity > 0,
                 if is_note_on and e.velocity > 0:
                     # save the onset time and velocity
-                    note_onsets[e.pitch] = e.tick
-                    note_velocities[e.pitch] = e.velocity
+                    sounding_notes[n] = (e.tick, e.velocity)
                 # if it's a note off event or a note on with a velocity of 0,
                 elif is_note_off or (is_note_on and e.velocity == 0):
-                    # the old velocity must be greater 0
-                    if note_velocities[e.pitch] <= 0:
-                        raise AssertionError('note velocity must be positive')
-                    if note_onsets[e.pitch] > e.tick:
+                    if n not in sounding_notes:
+                        import warnings
+                        warnings.warn("ignoring %s" % e)
+                        continue
+                    if sounding_notes[n][0] > e.tick:
                         raise AssertionError('note duration must be positive')
+                    if sounding_notes[n][1] <= 0:
+                        raise AssertionError('note velocity must be positive')
                     # append the note to the list
-                    notes.append((note_onsets[e.pitch], e.pitch,
-                                  e.tick - note_onsets[e.pitch],
-                                  note_velocities[e.pitch]))
+                    notes.append((sounding_notes[n][0], e.pitch,
+                                  e.tick - sounding_notes[n][0],
+                                  sounding_notes[n][1], e.channel))
+                    # remove hash from dict
+                    del sounding_notes[n]
                 else:
-                    raise TypeError('unexpected NoteEvent')
+                    raise TypeError('unexpected NoteEvent', e)
                 tick = e.tick
 
         # sort the notes and convert to numpy array
@@ -1508,7 +1569,7 @@ class MIDIFile(object):
 
         # iterate over all notes
         for note in notes:
-            onset, _, offset, _ = note
+            onset, _, offset, _, _ = note
             # get info about last time signature change
             tsc = time_signatures[np.argmax(time_signatures[:, 0] > onset) - 1]
             # adjust onset
@@ -1539,7 +1600,7 @@ class MIDIFile(object):
         tempi = self.tempi()
         # iterate over all notes
         for note in notes:
-            onset, _, offset, _ = note
+            onset, _, offset, _, _ = note
             # get last tempo for the onset and offset
             t_on = tempi[np.argmax(tempi[:, 0] > onset) - 1]
             t_off = tempi[np.argmax(tempi[:, 0] > offset) - 1]
@@ -1678,7 +1739,7 @@ class MIDIFile(object):
         return cls(MIDITrack.from_notes(notes))
 
     @staticmethod
-    def add_arguments(parser, length=None, velocity=None):
+    def add_arguments(parser, length=None, velocity=None, channel=None):
         """
         Add MIDI related arguments to an existing parser object.
 
@@ -1690,6 +1751,8 @@ class MIDIFile(object):
             Default length of the notes [seconds].
         velocity : int, optional
             Default velocity of the notes.
+        channel : int, optional
+            Default channel of the notes.
 
         Returns
         -------
@@ -1708,6 +1771,10 @@ class MIDIFile(object):
             g.add_argument('--note_velocity', action='store', type=int,
                            default=velocity,
                            help='set the note velocity [default=%(default)i]')
+        if channel is not None:
+            g.add_argument('--note_channel', action='store', type=int,
+                           default=channel,
+                           help='set the note channel [default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
 
