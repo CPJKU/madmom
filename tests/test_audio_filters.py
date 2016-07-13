@@ -1191,12 +1191,31 @@ class TestSemitoneBandpassFilterbank(unittest.TestCase):
 
     def test_values(self):
         filt = SemitoneBandpassFilterbank()
-        self.assertTrue(filt.num_bands == 36)
-        self.assertTrue(filt.num_bins == 1024)
-        self.assertTrue(filt.fmin == FFT_FREQS_1024[5])
-        self.assertTrue(filt.fmax == FFT_FREQS_1024[232])
+        self.assertTrue(filt.filter_order == 8)
+        self.assertTrue(filt.num_bins == 88)
+        self.assertTrue(np.allclose(filt.fmin, 27.500))
+        self.assertTrue(np.allclose(filt.fmax, 4186.009))
         self.assertTrue(filt.fref == 440)
-        with self.assertRaises(NotImplementedError):
-            filt.center_frequencies
-        with self.assertRaises(NotImplementedError):
-            filt.corner_frequencies
+        self.assertTrue(np.allclose(filt.sr_from_midi[38:40],
+                                    np.array([882, 4410])))
+        self.assertTrue(np.allclose(filt.sr_from_midi[74:76],
+                                    np.array([4410, 22050])))
+        # compare filter coefficients with the MATLAB chroma toolbox
+        midi_21 = np.array([[1.00000, -7.83971, 27.04051, -53.59047, 66.74413,
+                             -53.49138, 26.94061, -7.79631, 0.99262],
+                            [0.00315, -0.02473, 0.08536, -0.16931, 0.21105,
+                             -0.16931, 0.08536, -0.02473, 0.00315]])
+        self.assertTrue(np.allclose(midi_21, filt.filters[0], rtol=1e-03))
+        midi_65 = np.array([[1.0000000, -7.0134392, 22.4267609, -42.5024913,
+                             52.1127102, -42.3031710, 22.2169086, -6.9152305,
+                             0.9813733],
+                            [0.0031404, -0.0220498, 0.0706113, -0.1340629,
+                             0.1647329, -0.1340629, 0.0706113, -0.0220498,
+                             0.0031404]])
+        self.assertTrue(np.allclose(midi_65, filt.filters[44], rtol=1e-03))
+        midi_108 = np.array([[1.00000, -2.93573, 7.18487, -10.28654, 12.54224,
+                              -10.17129, 7.02476, -2.83814, 0.95593],
+                             [0.0031357, -0.0091928, 0.0224905, -0.0322832,
+                              0.0395297, -0.0322832, 0.0224905, -0.0091928,
+                              0.0031357]])
+        self.assertTrue(np.allclose(midi_108, filt.filters[87], rtol=1e-03))

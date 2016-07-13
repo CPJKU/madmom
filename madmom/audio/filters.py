@@ -1583,21 +1583,27 @@ class SemitoneBandpassFilterbank(object):
         self.passband_ripple_db = passband_ripple_db
         self.stopband_rejection_db = stopband_rejection_db
         self.q_factor = q_factor
-        self.sr_from_midi = sr_from_midi
         self.midi_min = midi_min
         self.midi_max = midi_max
         self.fref = fref
-        self.bin_frequencies = midi2hz(np.arange(1, midi_max + 1), fref=fref)
+        self.bin_frequencies = midi2hz(
+            np.arange(midi_min, midi_max + 1), fref=fref)
+        # self.bin_frequencies = midi2hz(np.arange(1, midi_max + 1), fref=fref)
+        self.sr_from_midi = sr_from_midi[midi_min-1:midi_max]
+        # self.sr_from_midi = sr_from_midi
+        self.fmin = self.bin_frequencies[0]
+        self.fmax = self.bin_frequencies[-1]
+        self.num_bins = midi_max - midi_min + 1
         bandwith_hz = self.bin_frequencies / q_factor
         # the transition band has half the width of the passband
         stop_lo_norm = (self.bin_frequencies - bandwith_hz / 2) * 2 / \
-            sr_from_midi[:midi_max]
+            self.sr_from_midi
         stop_hi_norm = (self.bin_frequencies + bandwith_hz / 2) * 2 / \
-            sr_from_midi[:midi_max]
-        self.filters = [None] * midi_max
-        for p in range(midi_min - 1, midi_max):
-            stop_freqs = [stop_lo_norm[p], stop_hi_norm[p]]
-            self.filters[p] = np.zeros((2, filter_order + 1))
-            self.filters[p][1, :], self.filters[p][0, :] = ellip(
+            self.sr_from_midi
+        self.filters = [None] * self.num_bins
+        for i in range(self.num_bins):
+            stop_freqs = [stop_lo_norm[i], stop_hi_norm[i]]
+            self.filters[i] = np.zeros((2, filter_order + 1))
+            self.filters[i][1, :], self.filters[i][0, :] = ellip(
                 filter_order / 2, passband_ripple_db, stopband_rejection_db,
                 stop_freqs, btype='bandpass')

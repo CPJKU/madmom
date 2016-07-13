@@ -286,13 +286,14 @@ class CLPChroma(np.ndarray):
             2011.
 
     """
+
     def __init__(self, data, fps=50, midi_min=21, midi_max=108, mul=100,
                  norm=True, threshold=0.001):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, fps=50, midi_min=21, midi_max=108, mul=100,
-                 norm=True, threshold=0.001):
+                norm=True, threshold=0.001):
         # check stft type
         if isinstance(data, SemitoneBandpassSpectrogram):
             # already a TimeDomainSemitoneFilteredSpectrogram
@@ -304,15 +305,15 @@ class CLPChroma(np.ndarray):
         else:
             raise ValueError('Input type not valid')
         # apply log compression
-        pitch_energy = np.log10(pitch_energy * mul + 1)
+        log_pitch_energy = np.log10(pitch_energy * mul + 1)
         # compute chroma by adding up bins that correspond to the same
         # pitch class
-        obj = np.zeros((pitch_energy.shape[0], 12)).view(cls)
-        for p in range(pitch_energy.shape[1]):
-            chroma = np.mod(p + 1, 12)
-            obj[:, chroma] += pitch_energy[:, p]
-        obj.bin_labels = ['B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G',
-                          'G#', 'A', 'A#']
+        obj = np.zeros((log_pitch_energy.shape[0], 12)).view(cls)
+        for p in range(log_pitch_energy.shape[1]):
+            chroma = np.mod(pitch_energy.midi_min + p, 12)
+            obj[:, chroma] += log_pitch_energy[:, p]
+        obj.bin_labels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G',
+                          'G#', 'A', 'A#', 'B']
         obj.fps = fps
 
         if norm:

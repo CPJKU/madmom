@@ -1276,37 +1276,39 @@ class SemitoneBandpassSpectrogram(np.ndarray):
         win_len_stmsp = 2 * hopsize
         # determine how many frames the filtered signal will have
         seg_pcm_num = np.round(audio.shape[0] * fps / audio.sample_rate) + 1
-        obj = np.zeros((seg_pcm_num, midi_max)).view(cls)
+        obj = np.zeros((seg_pcm_num, tdsf.num_bins)).view(cls)
         obj.fps = fps
         pcm = np.array(audio)
         curr_fps = audio.sample_rate
         factor = 1.0
-        for p in range(midi_min - 1, midi_max):
-            if tdsf.sr_from_midi[p] != curr_fps:
+        for i in range(tdsf.num_bins):
+            if tdsf.sr_from_midi[i] != curr_fps:
                 # determine resampling factor relative to original sample rate
-                factor = float(audio.sample_rate) / tdsf.sr_from_midi[p]
+                factor = float(audio.sample_rate) / tdsf.sr_from_midi[i]
                 if factor > 1:
                     # resample signal
                     # pcm = resample(np.array(audio), round(wav_len / factor))
-                    pcm = np.array(Signal(filename, tdsf.sr_from_midi[p]))
+                    pcm = np.array(Signal(filename, tdsf.sr_from_midi[i]))
                     frame_size = np.round(win_len_stmsp / factor)
                 else:
                     # use original audio signal
                     pcm = np.array(audio)
-                curr_fps = tdsf.sr_from_midi[p]
+                curr_fps = tdsf.sr_from_midi[i]
             # apply filter
-            f_filtfilt = filtfilt(tdsf.filters[p][1, :],
-                                  tdsf.filters[p][0, :], pcm)
+            f_filtfilt = filtfilt(tdsf.filters[i][1, :],
+                                  tdsf.filters[i][0, :], pcm)
             # renormalise pitch_energy, to cope for loading audio files as
             # int16
             f_filtfilt /= norm_factor
             # slice filtered signal to reduce size
             x = FramedSignal(
                 f_filtfilt, frame_size=frame_size, fps=fps,
-                sample_rate=tdsf.sr_from_midi[p])
+                sample_rate=tdsf.sr_from_midi[i])
             # compute total energy per frame
-            obj[:x.shape[0], p] = total_energy(x) * factor
+            obj[:x.shape[0], i] = total_energy(x) * factor
             obj.bin_frequencies = tdsf.bin_frequencies
+            obj.midi_min = midi_min
+            obj.midi_max = midi_max
         return obj
 
     def __array_finalize__(self, obj):
