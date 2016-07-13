@@ -66,12 +66,11 @@ class TestNeuralNetworkClass(unittest.TestCase):
 
     def test_cnn(self):
         cnn = NeuralNetwork.load(ONSETS_CNN[0])
-        data = np.zeros((19, 80, 3), dtype=np.float32)
+        data = np.zeros((19, 80, 3))
         data[10] = 1.
         result = cnn.process(data)
-        self.assertTrue(np.allclose(result,
-                                    [0.0026428, 0.09070455, 0.96606344,
-                                     0.99829632, 0.7015394]))
+        self.assertTrue(np.allclose(result, [0.0021432, 0.02647826, 0.92750794,
+                                             0.84207922, 0.21631248]))
 
 
 class TestBatchNormLayerClass(unittest.TestCase):

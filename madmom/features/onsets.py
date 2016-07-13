@@ -722,49 +722,6 @@ class RNNOnsetProcessor(SequentialProcessor):
         super(RNNOnsetProcessor, self).__init__((pre_processor, nn))
 
 
-# TODO: rename it or move it to a better place
-class NormalizationProcessor(Processor):
-    """
-    Apply mean/std normalization to the given data.
-
-    Parameters
-    ----------
-    mean : numpy array
-        Mean vector.
-    covar : numpy array
-        Covariance vector.
-
-    """
-
-    def __init__(self, mean, covar):
-        self.mean = mean
-        self.covar = covar
-
-    def process(self, data, in_place=True):
-        """
-        Apply mean/std normalization to the given data.
-
-        Parameters
-        ----------
-        data : numpy array
-            Data to be normalized.
-        in_place : bool, optional
-            Perform normalization in place
-
-        Returns
-        -------
-        numpy array
-            Data, mean-centered and divided by standard deviation.
-
-        """
-        if in_place:
-            data -= self.mean
-        else:
-            data = data - np.array(self.mean, dtype=data.dtype, copy=False)
-        data /= np.sqrt(self.covar)
-        return data
-
-
 # must be a top-level function to be pickle-able
 def _cnn_onset_processor_pad(data):
     """Pad the data by repeating the first and last frame 7 times."""
@@ -798,28 +755,21 @@ class CNNOnsetProcessor(SequentialProcessor):
         from ..audio.filters import MelFilterbank
         from ..audio.spectrogram import (FilteredSpectrogramProcessor,
                                          LogarithmicSpectrogramProcessor)
-        from ..models import ONSETS_CNN, MODELS_PATH
+        from ..models import ONSETS_CNN
         from ..ml.nn import NeuralNetwork
-
-        frame_sizes = [2048, 1024, 4096]
-        norm_files = ['%s/onsets/2013/onsets_cnn_norm_%s.pkl' %
-                      (MODELS_PATH, frame_size) for frame_size in frame_sizes]
 
         # define pre-processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         # process the multi-resolution spec in parallel
         multi = ParallelProcessor([])
-        for frame_size, norm_file in zip(frame_sizes, norm_files):
+        for frame_size in [2048, 1024, 4096]:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
             filt = FilteredSpectrogramProcessor(
                 filterbank=MelFilterbank, num_bands=80, fmin=27.5, fmax=16000,
                 norm_filters=True, unique_filters=False)
-            spec = LogarithmicSpectrogramProcessor(log=np.log,
-                                                   add=2.220446049250313e-16)
-            # variance and mean normalisation
-            norm = NormalizationProcessor.load(norm_file)
+            spec = LogarithmicSpectrogramProcessor(log=np.log, add=0)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, filt, spec, norm)))
+            multi.append(SequentialProcessor((frames, filt, spec)))
         # stack the features (in depth) and pad at beginning and end
         stack = np.dstack
         pad = _cnn_onset_processor_pad
