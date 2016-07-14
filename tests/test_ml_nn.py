@@ -73,6 +73,75 @@ class TestNeuralNetworkClass(unittest.TestCase):
                                              0.84207922, 0.21631248]))
 
 
+class TestGRUClass(unittest.TestCase):
+
+    W_xr = np.array([[-0.42948743, -1.29989187],
+                     [0.77213901, 0.86070993],
+                     [1.13791823, -0.87066225]])
+    W_xu = np.array([[0.44875312, 0.07172084],
+                     [-0.24292999, 1.318794],
+                     [1.0270179, 0.16293946]])
+    W_xhu = np.array([[0.8812559, 1.35859991],
+                      [1.04311944, -0.25449358],
+                      [-1.09539597, 1.19808424]])
+    W_hr = np.array([[0.96696973, 0.1384294],
+                     [-0.09561655, -1.23413809]])
+    W_hu = np.array([[0.04664641, 0.59561686],
+                     [1.00325841, -0.11574791]])
+    W_hhu = np.array([[1.19742848, 1.07850016],
+                      [0.35234964, -1.45348681]])
+    b_r = np.array([1.41851288, -0.39743243])
+    b_u = np.array([-0.78729095, 0.83385797])
+    b_hu = np.array([1.25143065, -0.97715625])
+
+    IN = np.array([[0.91298812, -1.47626202, -1.08667502],
+                   [0.49814883, -0.0104938, 0.93869008],
+                   [-1.12282135, 0.3780883, 1.42017503],
+                   [0.62669439, 0.89438929, -0.69354132],
+                   [0.16162221, -1.00166208, 0.23579985]])
+    H = np.array([0.02345737, 0.34454183])
+
+    def setUp(self):
+        self.reset_gate = layers.Gate(
+            TestGRUClass.W_xr, TestGRUClass.b_r, TestGRUClass.W_hr,
+            activation_fn=activations.sigmoid)
+        self.update_gate = layers.Gate(
+            TestGRUClass.W_xu, TestGRUClass.b_u, TestGRUClass.W_hu,
+            activation_fn=activations.sigmoid)
+        self.gru_cell = layers.GRUCell(
+            TestGRUClass.W_xhu, TestGRUClass.W_hhu, TestGRUClass.b_hu)
+        self.gru_1 = layers.GRULayer(self.reset_gate, self.update_gate,
+                                     self.gru_cell)
+        self.gru_2 = layers.GRULayer(self.reset_gate, self.update_gate,
+                                     self.gru_cell, hid_init=TestGRUClass.H)
+
+    def test_process(self):
+        self.assertTrue(
+            np.allclose(self.reset_gate.activate(TestGRUClass.IN[0, :],
+                        TestGRUClass.H), np.array([0.20419282, 0.08861294])))
+        self.assertTrue(
+            np.allclose(self.update_gate.activate(TestGRUClass.IN[0, :],
+                        TestGRUClass.H), np.array([0.31254834, 0.2226105])))
+        self.assertTrue(
+            np.allclose(self.gru_cell.activate(TestGRUClass.IN[0, :],
+                        TestGRUClass.H, TestGRUClass.H),
+                        np.array([0.9366396, -0.67876764])))
+        self.assertTrue(
+            np.allclose(self.gru_1.activate(TestGRUClass.IN),
+                        np.array([[0.22772433, -0.13181415],
+                                  [0.49479958, 0.51224858],
+                                  [0.08539771, -0.56119639],
+                                  [0.1946809, -0.50421363],
+                                  [0.17403202, -0.27258521]])))
+        self.assertTrue(
+            np.allclose(self.gru_2.activate(TestGRUClass.IN),
+                        np.array([[0.30988133, 0.13258138],
+                                  [0.60639685, 0.55714613],
+                                  [0.21366976, -0.55568963],
+                                  [0.30860096, -0.43686554],
+                                  [0.28866628, -0.23025239]])))
+
+
 class TestBatchNormLayerClass(unittest.TestCase):
 
     IN = np.array([[[0.32400414, 0.31483042],

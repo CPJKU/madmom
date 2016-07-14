@@ -344,6 +344,156 @@ class LSTMLayer(Layer):
         return out
 
 
+class GRUCell(object):
+    """
+    Cell as used by GRU layers proposed in [1]_. The cell output is computed by
+
+    .. math::
+        h = tanh(W_{xh} * x_t + W_{hh} * h_{t-1} + b).
+
+    Parameters
+    ----------
+    weights : numpy array, shape (num_inputs, num_hiddens)
+        Weights of the connections between inputs and cell.
+    recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
+        Weights of the connections between cell and cell output of the
+        previous time step.
+    bias : scalar or numpy array, shape (num_hiddens,)
+        Bias.
+    activation_fn : numpy ufunc, optional
+        Activation function.
+
+    References
+    ----------
+    .. [1] Kyunghyun Cho, Bart Van Merrienboer, Dzmitry Bahdanau, and Yoshua
+           Bengio,
+           "On the properties of neural machine translation: Encoder-decoder
+           approaches",
+           http://arxiv.org/abs/1409.1259, 2014.
+
+    Notes
+    -----
+    There are two formulations of the GRUCell in the literature. Here,
+    we adopted the (slightly older) one proposed in [1]_, which is also
+    implemented in the Lasagne toolbox.
+
+    """
+
+    def __init__(self, weights, recurrent_weights, bias, activation_fn=tanh):
+        self.weights = weights
+        self.recurrent_weights = recurrent_weights
+        self.bias = bias
+        self.activation_fn = activation_fn
+
+    def activate(self, data, reset_gate, prev):
+        """
+        Activate the gate with the given input, reset_gate and the previous
+        output.
+
+        Parameters
+        ----------
+        data : scalar or numpy array, shape (num_frames, num_inputs)
+            Input data for the cell.
+        reset_gate : scalar or numpy array, shape (num_hiddens,)
+            Activation of the reset gate.
+        prev : scalar or numpy array, shape (num_hiddens,)
+            Cell output of the previous time step.
+
+        Returns
+        -------
+        numpy array, shape (num_frames, num_hiddens)
+            Activations of the gate for this data.
+
+        """
+        # weight input and add bias
+        out = np.dot(data, self.weights) + self.bias
+        # weight previous cell output and reset gate
+        out += reset_gate * np.dot(prev, self.recurrent_weights)
+        # apply activation function and return it
+        return self.activation_fn(out)
+
+
+class GRULayer(Layer):
+    """
+    Recurrent network layer with Gated Recurrent Units (GRU) as proposed in
+    [1]_.
+
+    Parameters
+    ----------
+    reset_gate : :class:`Gate`
+        Reset gate.
+    update_gate : :class:`Gate`
+        Update gate.
+    cell : :class:`GRUCell`
+        GRU cell
+    hid_init : numpy array, shape (num_hiddens,), optional
+        Initial state of hidden units.
+
+    References
+    ----------
+    .. [1] Kyunghyun Cho, Bart Van Merrienboer, Dzmitry Bahdanau, and Yoshua
+           Bengio,
+           "On the properties of neural machine translation: Encoder-decoder
+           approaches",
+           http://arxiv.org/abs/1409.1259, 2014.
+
+    Notes
+    -----
+    There are two formulations of the GRUCell in the literature. Here,
+    we adopted the (slightly older) one proposed in [1], which is also
+    implemented in the Lasagne toolbox.
+
+    """
+
+    def __init__(self, reset_gate, update_gate, cell, hid_init=None):
+        # init the gates
+        self.reset_gate = reset_gate
+        self.update_gate = update_gate
+        self.cell = cell
+        if hid_init is None:
+            hid_init = np.zeros(cell.bias.size, dtype=NN_DTYPE)
+        self.hid_init = hid_init
+
+    def activate(self, data):
+        """
+        Activate the GRU layer.
+
+        Parameters
+        ----------
+        data : numpy array, shape (num_frames, num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_frames, num_hiddens)
+            Activations for this data.
+
+        """
+        # init arrays
+        size = len(data)
+        # output matrix for the whole sequence
+        out = np.zeros((size, self.update_gate.bias.size), dtype=NN_DTYPE)
+        # output (of the previous time step)
+        out_ = self.hid_init
+        # process the input data
+        for i in range(size):
+            # cache input data
+            data_ = data[i]
+            # reset gate:
+            # operate on current data and previous output (activation)
+            rg = self.reset_gate.activate(data_, out_)
+            # update gate:
+            # operate on current data and previous output (activation)
+            ug = self.update_gate.activate(data_, out_)
+            # hidden_update:
+            # implemented as proposed in [1]
+            hug = self.cell.activate(data_, rg, out_)
+            # output (activation)
+            out_ = ug * hug + (1 - ug) * out_
+            out[i] = out_
+        return out
+
+
 class ConvolutionalLayer(FeedForwardLayer):
     """
     Convolutional network layer.
@@ -506,7 +656,7 @@ class BatchNormLayer(Layer):
     """
     Batch normalization layer with activation function. The previous layer
     is usually linear with no bias - the BatchNormLayer's beta parameter
-    replaces it. See [1] for a detailed understanding of the parameters.
+    replaces it. See [1]_ for a detailed understanding of the parameters.
 
     Parameters
     ----------
