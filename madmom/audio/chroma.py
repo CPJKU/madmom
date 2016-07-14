@@ -274,6 +274,12 @@ class CLPChroma(np.ndarray):
         If the energy of a frame is below a threshold, the energy is equally
         distributed among all chroma bins.
 
+    Notes
+    -----
+    The resulting chromagrams are slightly different, mainly
+    because of different resampling algorithms and a slightly different
+    filter method (filtfilt).
+
     References
     ----------
     .. [1] Meinard Müller,

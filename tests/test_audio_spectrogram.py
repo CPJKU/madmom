@@ -725,3 +725,60 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result.bin_frequencies,
                                     [236.865, 8720.947]))
         self.assertTrue(np.allclose(np.max(result.filterbank, axis=0), [1, 1]))
+
+
+class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
+
+    def setUp(self):
+        self.sbs_50 = SemitoneBandpassSpectrogram(sample_file, fps=50)
+        self.sbs_10 = SemitoneBandpassSpectrogram(sample_file, fps=10)
+
+    def test_process(self):
+        # test fps = 50
+        self.assertTrue(self.sbs_50.fps == 50)
+        # results
+        self.assertTrue(self.sbs_50.shape == (141, 88))
+        self.assertTrue(self.sbs_50.num_bins == 88)
+        self.assertTrue(np.allclose(self.sbs_50[120:122, 50:55],
+                        np.array([[0.00056659, 0.00274373, 0.00037994,
+                                   0.00031497, 0.0063823],
+                                  [0.00032294, 0.00285728, 0.00023723,
+                                   0.00010553, 0.0069074]])))
+        self.assertTrue(np.allclose(self.sbs_50[:10, 0],
+                        np.array([0.00108844, 0.0020613, 0.00187792,
+                                  0.00173228, 0.00163516, 0.00149813,
+                                  0.0013027, 0.0010594, 0.00079916,
+                                  0.00060871])))
+        self.assertTrue(np.allclose(self.sbs_50[:10, 29],
+                        np.array([0.05326259, 0.10912816, 0.11616101,
+                                  0.11595627, 0.11979639, 0.12206492,
+                                  0.12836982, 0.12495992, 0.11759637,
+                                  0.10559082])))
+        # test fps = 10
+        self.assertTrue(self.sbs_10.fps == 10)
+        # results
+        self.assertTrue(self.sbs_10.shape == (29, 88))
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55],
+                        np.array([[0.01951193, 0.01638364, 0.00384092,
+                                   0.00732366, 0.10310112],
+                                  [0.14484727, 0.032042, 0.00719009,
+                                   0.02043642, 0.06407038]])))
+
+    def test_compare_with_matlab_toolbox(self):
+        # compare the results with the MATLAB chroma toolbox. There are
+        # differences because of different resampling and filtering with
+        # filtfilt, therefore we compare with higher tolerances.
+        self.assertTrue(np.allclose(self.sbs_50[:10, 0],
+                        np.array([0.001183, 0.002257, 0.001989, 0.001729,
+                                  0.001555, 0.001382, 0.001234, 0.001088,
+                                  0.000841, 0.000622]), rtol=1e-01))
+        self.assertTrue(np.allclose(self.sbs_50[:10, 29],
+                        np.array([0.054849, 0.114634, 0.115050, 0.119006,
+                                  0.128422, 0.128793, 0.127636, 0.124041,
+                                  0.113962, 0.103785]), rtol=1e-01))
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55],
+                        np.array([[0.01951726, 0.01638535, 0.00384128,
+                                   0.00732471, 0.10306561],
+                                  [0.14487972, 0.03204085, 0.00718818,
+                                   0.02043327, 0.06404668]]), rtol=1e-03))
+

@@ -1276,7 +1276,7 @@ class SemitoneBandpassSpectrogram(np.ndarray):
             # create filterbank
         tdsf = SemitoneBandpassFilterbank(midi_min=midi_min, midi_max=midi_max)
         # load audio file
-        audio = Signal(filename, num_channels=1)
+        audio = Signal(filename, np.max(tdsf.sr_from_midi), num_channels=1)
         if (tdsf.sr_from_midi > audio.sample_rate).any():
             raise ValueError('Signal sampling rate is too low for the '
                              'filterbank')
@@ -1324,6 +1324,7 @@ class SemitoneBandpassSpectrogram(np.ndarray):
             obj.bin_frequencies = tdsf.bin_frequencies
             obj.midi_min = midi_min
             obj.midi_max = midi_max
+            obj.num_bins = tdsf.num_bins
         return obj
 
     def __array_finalize__(self, obj):
