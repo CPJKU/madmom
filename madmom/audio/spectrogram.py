@@ -14,7 +14,10 @@ import numpy as np
 from ..processors import Processor, SequentialProcessor
 from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
-                      NORM_FILTERS, UNIQUE_FILTERS)
+                      NORM_FILTERS, UNIQUE_FILTERS,
+                      SemitoneBandpassFilterbank)
+from scipy.signal import filtfilt
+from .signal import Signal, FramedSignal, total_energy
 
 
 def spec(stft):
@@ -1235,3 +1238,98 @@ class MultiBandSpectrogramProcessor(Processor):
             data, crossover_frequencies=self.crossover_frequencies,
             fmin=self.fmin, fmax=self.fmax, norm_filters=self.norm_filters,
             unique_filters=self.unique_filters, **kwargs)
+
+
+class SemitoneBandpassSpectrogram(np.ndarray):
+    """
+    Construct a semitone spectrogram by using time domain filters.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the audio file.
+    fps : int, optional
+        Desired sample rate of the signal [Hz].
+    midi_min : int, optional
+        Lowest frequency [MIDI note] of the spectrogram
+    midi_max : int, optional
+        Highest frequency [MIDI note] of the spectrogram
+
+
+    """
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
+
+    def __init__(self, filename, fps=50, midi_min=21, midi_max=108):
+        # this method is for documentation purposes only
+        pass
+
+    def __new__(cls, filename, fps=50, midi_min=21, midi_max=108):
+
+        # determine the name of the file if it is a file handle
+        if not isinstance(filename, str):
+            # close the file handle if it is open
+            filename.close()
+            # use the file name
+            filename = filename.name
+            # create filterbank
+        tdsf = SemitoneBandpassFilterbank(midi_min=midi_min, midi_max=midi_max)
+        # load audio file
+        audio = Signal(filename, np.max(tdsf.sr_from_midi), num_channels=1)
+        if (tdsf.sr_from_midi > audio.sample_rate).any():
+            raise ValueError('Signal sampling rate is too low for the '
+                             'filterbank')
+        # in case that audio is integer we have to normalise the range
+        try:
+            norm_factor = np.iinfo(audio.dtype).max
+        except ValueError:
+            norm_factor = 1.0
+            pass
+        hopsize = audio.sample_rate / fps
+        # use an overlap of 50%
+        win_len_stmsp = 2 * hopsize
+        # determine how many frames the filtered signal will have
+        seg_pcm_num = np.round(audio.shape[0] * fps / audio.sample_rate) + 1
+        obj = np.zeros((seg_pcm_num, tdsf.num_bins)).view(cls)
+        obj.fps = fps
+        pcm = np.array(audio)
+        curr_fps = audio.sample_rate
+        factor = 1.0
+        for i in range(tdsf.num_bins):
+            if tdsf.sr_from_midi[i] != curr_fps:
+                # determine resampling factor relative to original sample rate
+                factor = float(audio.sample_rate) / tdsf.sr_from_midi[i]
+                if factor > 1:
+                    # resample signal
+                    # pcm = resample(np.array(audio), round(wav_len / factor))
+                    pcm = np.array(Signal(filename, tdsf.sr_from_midi[i]))
+                    frame_size = np.round(win_len_stmsp / factor)
+                else:
+                    # use original audio signal
+                    pcm = np.array(audio)
+                curr_fps = tdsf.sr_from_midi[i]
+            # apply filter
+            f_filtfilt = filtfilt(tdsf.filters[i][1, :],
+                                  tdsf.filters[i][0, :], pcm)
+            # renormalise pitch_energy, to cope for loading audio files as
+            # int16
+            f_filtfilt /= norm_factor
+            # slice filtered signal to reduce size
+            x = FramedSignal(
+                f_filtfilt, frame_size=frame_size, fps=fps,
+                sample_rate=tdsf.sr_from_midi[i])
+            # compute total energy per frame
+            obj[:x.shape[0], i] = total_energy(x) * factor
+            obj.bin_frequencies = tdsf.bin_frequencies
+            obj.midi_min = midi_min
+            obj.midi_max = midi_max
+            obj.num_bins = tdsf.num_bins
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.fps = getattr(obj, 'fps', None)
+        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)

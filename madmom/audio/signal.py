@@ -351,6 +351,33 @@ def sound_pressure_level(signal, p_ref=None):
         return 20.0 * np.log10(rms / p_ref)
 
 
+def total_energy(framed_signal):
+    """
+    Computes the total energy (sum of squared magnitudes) for each frame of
+    a FramedSignal.
+
+    Parameters
+    ----------
+    framed_signal : FramedSignal
+        Framed signal.
+
+    Returns
+    -------
+    te : numpy array
+        Total energy per frame
+
+    """
+    # make sure the signal is a FramedSignal
+    if not isinstance(framed_signal, FramedSignal):
+        raise TypeError("Invalid type for input, must be a FramedSignal.")
+
+    # if np.issubdtype(signal.dtype, np.integer):
+    #             p_ref = float(np.iinfo(signal.dtype).max)
+    #         else:
+    #             p_ref = 1.0
+    return np.array([sum(x**2) for x in framed_signal])
+
+
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
                    stop=None, dtype=None):
     """

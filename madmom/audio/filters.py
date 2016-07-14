@@ -10,7 +10,7 @@ This module contains filter and filterbank related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-
+from scipy.signal import ellip
 from ..processors import Processor
 
 
@@ -1531,3 +1531,77 @@ class HarmonicPitchClassProfileFilterbank(PitchClassProfileFilterbank):
         # set default values here
         self.fref = getattr(obj, 'fref', A4)
         self.window = getattr(obj, 'window', self.WINDOW)
+
+
+class SemitoneBandpassFilterbank(object):
+    """
+    Time domain semitone filterbank of elliptic filters as propsed in [1].
+
+    Parameters
+    ----------
+    filter_order : int, optional
+        Filter order of elliptic filters.
+    passband_ripple_db : int, optional
+        Passband ripple in [Db]
+    stopband_rejection_db : int, optional
+        Stopband rejection in [Db]
+    q_factor : int, optional
+        Q-factor.
+    sr_from_midi : numpy array, optional
+        Sampling rate for each MIDI note.
+    midi_min : int, optional
+        Lowest MIDI note.
+    midi_max : int, optional
+        Highest MIDI note.
+    fref : float, optional
+        Reference frequency for the first HPCP bin [Hz].
+
+    References
+    ----------
+    .. [1] Meinard Müller,
+            "Information retrieval for music and motion",
+            Berlin: Springer, 2007.
+
+    """
+
+    FILTER_ORDER = 8
+    PASSBAND_RIPPLE_DB = 1
+    STOPBAND_REJECTION_DB = 50
+    Q_FACTOR = 25
+    # use three different sampling rates for the TimeDomainSemitoneFilterbank
+    SR_FROM_MIDI = np.zeros(128, dtype=int)
+    SR_FROM_MIDI[:59] = 22050 / 25
+    SR_FROM_MIDI[59:95] = 22050 / 5
+    SR_FROM_MIDI[95:] = 22050
+
+    def __init__(self, filter_order=FILTER_ORDER,
+                 passband_ripple_db=PASSBAND_RIPPLE_DB,
+                 stopband_rejection_db=STOPBAND_REJECTION_DB,
+                 q_factor=Q_FACTOR, sr_from_midi=SR_FROM_MIDI,
+                 midi_min=21, midi_max=108, fref=A4):
+        self.filter_order = filter_order
+        self.passband_ripple_db = passband_ripple_db
+        self.stopband_rejection_db = stopband_rejection_db
+        self.q_factor = q_factor
+        self.midi_min = midi_min
+        self.midi_max = midi_max
+        self.fref = fref
+        self.bin_frequencies = midi2hz(
+            np.arange(midi_min, midi_max + 1), fref=fref)
+        self.sr_from_midi = sr_from_midi[midi_min - 1:midi_max]
+        self.fmin = self.bin_frequencies[0]
+        self.fmax = self.bin_frequencies[-1]
+        self.num_bins = midi_max - midi_min + 1
+        bandwith_hz = self.bin_frequencies / q_factor
+        # the transition band has half the width of the passband
+        stop_lo_norm = (self.bin_frequencies - bandwith_hz / 2) * 2 / \
+            self.sr_from_midi
+        stop_hi_norm = (self.bin_frequencies + bandwith_hz / 2) * 2 / \
+            self.sr_from_midi
+        self.filters = [None] * self.num_bins
+        for i in range(self.num_bins):
+            stop_freqs = [stop_lo_norm[i], stop_hi_norm[i]]
+            self.filters[i] = np.zeros((2, filter_order + 1))
+            self.filters[i][1, :], self.filters[i][0, :] = ellip(
+                filter_order / 2, passband_ripple_db, stopband_rejection_db,
+                stop_freqs, btype='bandpass')

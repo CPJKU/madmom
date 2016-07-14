@@ -11,7 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram
+from madmom.audio.spectrogram import Spectrogram, FilteredSpectrogram, \
+    SemitoneBandpassSpectrogram
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
@@ -247,3 +248,94 @@ class DeepChromaProcessor(SequentialProcessor):
         super(DeepChromaProcessor, self).__init__([
             sig, frames, spec, spec_frames, _dcp_flatten, nn
         ])
+
+
+class CLPChroma(np.ndarray):
+    """
+    This class implements Compressed Log Pitch (CLP) chroma as proposed in [
+    1] and [2].
+
+    Parameters
+    ----------
+    data : str, or TimeDomainSemitoneFilteredSpectrogram
+        Semitone (MIDI notes) spectrogram or file name.
+    fps : int, optional
+        Desired sample rate of the signal [Hz].
+    midi_min : int, optional
+        Lowest frequency [MIDI note] of the spectrogram
+    midi_max : int, optional
+        Highest frequency [MIDI note] of the spectrogram
+    mul : float, optional
+        Multiplication factor for compression of the energy. The higher,
+        the more compression is applied.
+    norm : bool, optional
+        Normalize the energy of each frame to one (divide by the L2 norm).
+    threshold : float, optional
+        If the energy of a frame is below a threshold, the energy is equally
+        distributed among all chroma bins.
+
+    Notes
+    -----
+    The resulting chromagrams are slightly different, mainly
+    because of different resampling algorithms and a slightly different
+    filter method (filtfilt).
+
+    References
+    ----------
+    .. [1] Meinard Müller,
+            "Information retrieval for music and motion",
+            Berlin: Springer, 2007.
+    .. [2] Meinard Müller and Sebastian Ewert,
+            "Chroma Toolbox: MATLAB Implementations for Extracting Variants
+            of Chroma-Based Audio Features", Proceedings of the
+            International Conference on Music Information Retrieval (ISMIR),
+            2011.
+
+    """
+
+    def __init__(self, data, fps=50, midi_min=21, midi_max=108, mul=100,
+                 norm=True, threshold=0.001):
+        # this method is for documentation purposes only
+        pass
+
+    def __new__(cls, data, fps=50, midi_min=21, midi_max=108, mul=100,
+                norm=True, threshold=0.001):
+        # check stft type
+        if isinstance(data, SemitoneBandpassSpectrogram):
+            # already a TimeDomainSemitoneFilteredSpectrogram
+            pitch_energy = data
+        elif isinstance(data, str):
+            # compute pitch_energy from audio file
+            pitch_energy = SemitoneBandpassSpectrogram(
+                data, fps=fps, midi_min=midi_min, midi_max=midi_max)
+        else:
+            raise ValueError('Input type not valid')
+        # apply log compression
+        log_pitch_energy = np.log10(pitch_energy * mul + 1)
+        # compute chroma by adding up bins that correspond to the same
+        # pitch class
+        obj = np.zeros((log_pitch_energy.shape[0], 12)).view(cls)
+        for p in range(log_pitch_energy.shape[1]):
+            chroma = np.mod(pitch_energy.midi_min + p, 12)
+            obj[:, chroma] += log_pitch_energy[:, p]
+        obj.bin_labels = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G',
+                          'G#', 'A', 'A#', 'B']
+        obj.fps = fps
+
+        if norm:
+            # normalise the vectors according to the l2 norm
+            unit_vec = np.ones((1, 12))
+            snorm = np.sqrt(12)
+            unit_vec = unit_vec / snorm
+            mean_energy = np.sqrt((obj ** 2).sum(1))
+            idx_below_threshold = np.where(mean_energy < threshold)
+            obj /= mean_energy[:, np.newaxis]
+            obj[idx_below_threshold, :] = unit_vec
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        # set default values here
+        self.fps = getattr(obj, 'fps', None)
+        self.bin_labels = getattr(obj, 'bin_labels', None)
