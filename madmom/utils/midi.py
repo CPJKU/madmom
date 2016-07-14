@@ -102,10 +102,12 @@ THIRTY_SECOND = 5
 SIXTY_FOURTH = 6
 
 HEADER_SIZE = 14
+
 RESOLUTION = 480  # ticks per quarter note
 TEMPO = 120
 TIME_SIGNATURE_NUMERATOR = 4
 TIME_SIGNATURE_DENOMINATOR = 4
+TIME_SIGNATURE = (TIME_SIGNATURE_NUMERATOR, TIME_SIGNATURE_DENOMINATOR)
 SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
 SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
@@ -187,6 +189,7 @@ def write_variable_length(value):
     return result
 
 
+# class for dynamically registering event classes
 class EventRegistry(object):
     """
     Class for registering Events.
@@ -194,9 +197,13 @@ class EventRegistry(object):
     Event classes should be registered manually by calling
     EventRegistry.register_event(EventClass) after the class definition.
 
+    Normal events are registered in the `events` dictionary and use the event's
+    `status_msg` as a key; meta events are registered in the `meta_events`
+    dictionary and use their `meta_command` as key.
+
     """
-    Events = {}
-    MetaEvents = {}
+    events = {}
+    meta_events = {}
 
     @classmethod
     def register_event(cls, event):
@@ -208,42 +215,40 @@ class EventRegistry(object):
         event : :class:`Event` instance
             Event to be registered.
 
-        Raises
-        ------
-        ValueError
-            For unknown events.
-
         """
         # normal events
-        if any(b in (Event, NoteEvent) for b in event.__bases__):
+        if any(b in (Event, ChannelEvent, NoteEvent) for b in event.__bases__):
             # raise an error if the event class is registered already
-            if event.status_msg in cls.Events:
+            if event.status_msg in cls.events:
                 raise AssertionError("Event %s already registered" %
                                      event.name)
             # register the Event
-            cls.Events[event.status_msg] = event
+            cls.events[event.status_msg] = event
         # meta events
         elif any(b in (MetaEvent, MetaEventWithText) for b in event.__bases__):
             # raise an error if the meta event class is registered already
-            if event.meta_command in EventRegistry.MetaEvents:
+            if event.meta_command in EventRegistry.meta_events:
                 raise AssertionError("Event %s already registered" %
                                      event.name)
             # register the MetaEvent
-            cls.MetaEvents[event.meta_command] = event
+            cls.meta_events[event.meta_command] = event
+        # unknown events
         else:
             # raise an error
-            raise ValueError("Unknown base class in event type: %s" %
-                             event.__bases__)
+            raise AssertionError("Unknown base class in event type: %s" %
+                                 event.__bases__)
 
 
-class AbstractEvent(object):
+class Event(object):
     """
-    Abstract Event.
+    Generic MIDI Event.
 
     """
     name = "Generic MIDI Event"
     length = 0
     status_msg = 0x0
+    # sort is a float value used for sorting events occurring at the same tick
+    sort = 0.
 
     def __init__(self, **kwargs):
         if isinstance(self.length, int):
@@ -255,116 +260,61 @@ class AbstractEvent(object):
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    def __cmp__(self, other):
-        raise RuntimeError('add missing comparison operators')
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.data == other.data and
+            self.status_msg == other.status_msg)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __lt__(self, other):
-        return self.tick < other.tick
+        if self.tick < other.tick:
+            return True
+        elif self.tick == other.tick and self.sort < other.sort:
+            return True
+        return False
+
+    def __le__(self, other):
+        return NotImplementedError
 
     def __gt__(self, other):
-        return self.tick > other.tick
+        if self.tick > other.tick:
+            return True
+        elif self.tick == other.tick and self.sort > other.sort:
+            return True
+        return False
+
+    def __ge__(self, other):
+        return NotImplementedError
 
     def __str__(self):
-        return "%s: tick: %s data: %s" % (self.__class__.__name__, self.tick,
-                                          self.data)
-
-# do not register AbstractEvent
+        return "%s: tick: %s data: %s" % (
+            self.__class__.__name__, self.tick, self.data)
 
 
-class Event(AbstractEvent):
+class ChannelEvent(Event):
     """
-    Event.
+    Event with a channel number.
 
     """
-    name = 'Event'
+    name = 'ChannelEvent'
 
     def __init__(self, **kwargs):
-        if 'channel' not in kwargs:
-            # TODO: copying needed?
-            kwargs = kwargs.copy()
-            kwargs['channel'] = 0
-        super(Event, self).__init__(**kwargs)
+        super(ChannelEvent, self).__init__(**kwargs)
+        self.channel = kwargs.get('channel', 0)
 
-    def __cmp__(self, other):
-        if self.tick < other.tick:
-            return -1
-        elif self.tick > other.tick:
-            return 1
-        return 0
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.channel == other.channel and
+            self.data == other.data and self.status_msg == other.status_msg)
 
     def __str__(self):
-        return "%s: tick: %s channel: %s" % (self.__class__.__name__,
-                                             self.tick, self.channel)
-
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == (status_msg & 0xF0)
-
-# do not register Event
+        return "%s: tick: %s channel: %s data: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.data)
 
 
-class MetaEvent(AbstractEvent):
-    """
-    MetaEvent is a special subclass of Event that is not meant to be used as a
-    concrete class. It defines a subset of Events known as the Meta events.
-
-    """
-    status_msg = 0xFF
-    meta_command = 0x0
-    name = 'Meta Event'
-
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == status_msg
-
-# do not register MetaEvent
-
-
-class MetaEventWithText(MetaEvent):
-    """
-    Meta Event With Text.
-
-    """
-    def __init__(self, **kwargs):
-        super(MetaEventWithText, self).__init__(**kwargs)
-        if 'text' not in kwargs:
-            self.text = ''.join(chr(datum) for datum in self.data)
-
-    def __str__(self):
-        return "%s: %s" % (self.__class__.__name__, self.text)
-
-# do not register MetaEventWithText
-
-
-class NoteEvent(Event):
+class NoteEvent(ChannelEvent):
     """
     NoteEvent is a special subclass of Event that is not meant to be used as a
     concrete class. It defines the generalities of NoteOn and NoteOff events.
@@ -373,8 +323,9 @@ class NoteEvent(Event):
     length = 2
 
     def __str__(self):
-        return "%s: tick: %s channel: %s pitch: %s" % (
-            self.__class__.__name__, self.tick, self.channel, self.pitch)
+        return "%s: tick: %s channel: %s pitch: %s velocity: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.pitch,
+            self.velocity)
 
     @property
     def pitch(self):
@@ -418,8 +369,6 @@ class NoteEvent(Event):
         """
         self.data[1] = velocity
 
-# do not register NoteEvent
-
 
 class NoteOnEvent(NoteEvent):
     """
@@ -428,11 +377,7 @@ class NoteOnEvent(NoteEvent):
     """
     status_msg = 0x90
     name = 'Note On'
-
-    def __str__(self):
-        return "%s: tick: %s channel: %s pitch: %s velocity: %s" % \
-               (self.__class__.__name__, self.tick, self.channel, self.pitch,
-                self.velocity)
+    sort = .1  # make sure it is sorted before NoteOffEvent
 
 EventRegistry.register_event(NoteOnEvent)
 
@@ -444,11 +389,12 @@ class NoteOffEvent(NoteEvent):
     """
     status_msg = 0x80
     name = 'Note Off'
+    sort = .2  # make sure it is sorted after NoteOnEvent
 
 EventRegistry.register_event(NoteOffEvent)
 
 
-class AfterTouchEvent(Event):
+class AfterTouchEvent(ChannelEvent):
     """
     After Touch Event.
 
@@ -456,6 +402,11 @@ class AfterTouchEvent(Event):
     status_msg = 0xA0
     length = 2
     name = 'After Touch'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s pitch: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.pitch,
+            self.value)
 
     @property
     def pitch(self):
@@ -502,7 +453,7 @@ class AfterTouchEvent(Event):
 EventRegistry.register_event(AfterTouchEvent)
 
 
-class ControlChangeEvent(Event):
+class ControlChangeEvent(ChannelEvent):
     """
     Control Change Event.
 
@@ -510,6 +461,11 @@ class ControlChangeEvent(Event):
     status_msg = 0xB0
     length = 2
     name = 'Control Change'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s control: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.control,
+            self.value)
 
     @property
     def control(self):
@@ -556,7 +512,7 @@ class ControlChangeEvent(Event):
 EventRegistry.register_event(ControlChangeEvent)
 
 
-class ProgramChangeEvent(Event):
+class ProgramChangeEvent(ChannelEvent):
     """
     Program Change Event.
 
@@ -564,6 +520,10 @@ class ProgramChangeEvent(Event):
     status_msg = 0xC0
     length = 1
     name = 'Program Change'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.value)
 
     @property
     def value(self):
@@ -589,7 +549,7 @@ class ProgramChangeEvent(Event):
 EventRegistry.register_event(ProgramChangeEvent)
 
 
-class ChannelAfterTouchEvent(Event):
+class ChannelAfterTouchEvent(ChannelEvent):
     """
     Channel After Touch Event.
 
@@ -597,6 +557,10 @@ class ChannelAfterTouchEvent(Event):
     status_msg = 0xD0
     length = 1
     name = 'Channel After Touch'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.value)
 
     @property
     def value(self):
@@ -622,7 +586,7 @@ class ChannelAfterTouchEvent(Event):
 EventRegistry.register_event(ChannelAfterTouchEvent)
 
 
-class PitchWheelEvent(Event):
+class PitchWheelEvent(ChannelEvent):
     """
     Pitch Wheel Event.
 
@@ -666,25 +630,38 @@ class SysExEvent(Event):
     length = 'variable'
     name = 'SysEx'
 
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == status_msg
-
 EventRegistry.register_event(SysExEvent)
+
+
+class MetaEvent(Event):
+    """
+    MetaEvent is a special subclass of Event that is not meant to be used as a
+    concrete class. It defines a subset of Events known as the Meta events.
+
+    """
+    status_msg = 0xFF
+    meta_command = 0x0
+    name = 'Meta Event'
+
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.data == other.data and
+            self.status_msg == other.status_msg and
+            self.meta_command == other.meta_command)
+
+
+class MetaEventWithText(MetaEvent):
+    """
+    Meta Event With Text.
+
+    """
+    def __init__(self, **kwargs):
+        super(MetaEventWithText, self).__init__(**kwargs)
+        if 'text' not in kwargs:
+            self.text = ''.join(chr(datum) for datum in self.data)
+
+    def __str__(self):
+        return "%s: %s" % (self.__class__.__name__, self.text)
 
 
 class SequenceNumberMetaEvent(MetaEvent):
@@ -789,7 +766,7 @@ class ProgramNameEvent(MetaEventWithText):
 
     """
     meta_command = 0x08
-    length = 'varlen'
+    length = 'variable'
     name = 'Program Name'
 
 EventRegistry.register_event(ProgramNameEvent)
@@ -798,9 +775,6 @@ EventRegistry.register_event(ProgramNameEvent)
 class UnknownMetaEvent(MetaEvent):
     """
     Unknown Meta Event.
-
-    The `meta_command` class variable must be set by the constructor of
-    inherited classes.
 
     Parameters
     ----------
@@ -813,12 +787,8 @@ class UnknownMetaEvent(MetaEvent):
 
     def __init__(self, **kwargs):
         super(UnknownMetaEvent, self).__init__(**kwargs)
+        # TODO: is this needed, should be handled by Event already
         self.meta_command = kwargs['meta_command']
-
-    def copy(self, **kwargs):
-        """Copy the event."""
-        kwargs['meta_command'] = self.meta_command
-        return super(UnknownMetaEvent, self).copy(kwargs)
 
 EventRegistry.register_event(UnknownMetaEvent)
 
@@ -864,6 +834,7 @@ class EndOfTrackEvent(MetaEvent):
     """
     meta_command = 0x2F
     name = 'End of Track'
+    sort = .99  # should always come last
 
 EventRegistry.register_event(EndOfTrackEvent)
 
@@ -876,6 +847,11 @@ class SetTempoEvent(MetaEvent):
     meta_command = 0x51
     length = 3
     name = 'Set Tempo'
+
+    def __str__(self):
+        return "%s: tick: %s microseconds per quarter note: %s" % (
+            self.__class__.__name__, self.tick,
+            self.microseconds_per_quarter_note)
 
     @property
     def microseconds_per_quarter_note(self):
@@ -1132,20 +1108,14 @@ class MIDITrack(object):
             self.events = events
 
     def _make_ticks_abs(self):
-        """
-        Make the track's events timing information absolute.
-
-        """
+        """Make the track's events timing information absolute."""
         running_tick = 0
         for event in self.events:
             event.tick += running_tick
             running_tick = event.tick
 
     def _make_ticks_rel(self):
-        """
-        Make the track's events timing information relative.
-
-        """
+        """Make the track's events timing information relative."""
         running_tick = 0
         for event in self.events:
             event.tick -= running_tick
@@ -1157,6 +1127,8 @@ class MIDITrack(object):
         MIDI data stream representation of the track.
 
         """
+        # sort the events
+        self.events.sort()
         # first make sure the timing information is relative
         self._make_ticks_rel()
         # and unset the status message
@@ -1186,6 +1158,7 @@ class MIDITrack(object):
                 track_data.extend(event.data)
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
+        # TODO: should we add a EndOfTrackEvent?
         # prepare the track header
         track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
         # convert back to absolute ticks
@@ -1194,7 +1167,7 @@ class MIDITrack(object):
         return track_header + track_data
 
     @classmethod
-    def from_file(cls, midi_stream):
+    def from_stream(cls, midi_stream):
         """
         Create a MIDI track by reading the data from a stream.
 
@@ -1227,22 +1200,22 @@ class MIDITrack(object):
                 # next byte is status message
                 status_msg = byte2int(next(track_data))
                 # is the event a MetaEvent?
-                if MetaEvent.is_event(status_msg):
-                    cmd = byte2int(next(track_data))
-                    if cmd not in EventRegistry.MetaEvents:
+                if MetaEvent.status_msg == status_msg:
+                    meta_cmd = byte2int(next(track_data))
+                    if meta_cmd not in EventRegistry.meta_events:
                         import warnings
-                        warnings.warn("Unknown Meta MIDI Event: %s" % cmd)
+                        warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
                         event_cls = UnknownMetaEvent
                     else:
-                        event_cls = EventRegistry.MetaEvents[cmd]
+                        event_cls = EventRegistry.meta_events[meta_cmd]
                     data_len = read_variable_length(track_data)
                     data = [byte2int(next(track_data)) for _ in
                             range(data_len)]
                     # create an event and append it to the list
                     events.append(event_cls(tick=tick, data=data,
-                                            meta_command=cmd))
+                                            meta_command=meta_cmd))
                 # is this event a SysEx Event?
-                elif SysExEvent.is_event(status_msg):
+                elif SysExEvent.status_msg == status_msg:
                     data = []
                     while True:
                         datum = byte2int(next(track_data))
@@ -1254,11 +1227,11 @@ class MIDITrack(object):
                 # not a meta or SysEx event, must be a general MIDI event
                 else:
                     key = status_msg & 0xF0
-                    if key not in EventRegistry.Events:
+                    if key not in EventRegistry.events:
                         assert status, "Bad byte value"
                         data = []
                         key = status & 0xF0
-                        event_cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
                         data += [byte2int(next(track_data)) for _ in
@@ -1268,7 +1241,7 @@ class MIDITrack(object):
                                                 data=data))
                     else:
                         status = status_msg
-                        event_cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.events[key]
                         channel = status & 0x0F
                         data = [byte2int(next(track_data)) for _ in
                                 range(event_cls.length)]
@@ -1280,7 +1253,7 @@ class MIDITrack(object):
                 break
         # create a new track
         track = cls(events)
-        # make all event ticks absolute
+        # make the timing of the events (i.e. the ticks) absolute
         track._make_ticks_abs()
         # return this track
         return track
@@ -1368,11 +1341,17 @@ class MIDIFile(object):
         elif isinstance(tracks, MIDITrack):
             self.tracks = [tracks]
         elif isinstance(tracks, list):
+            # TODO: test if the items of the list are of type MIDITrack
             self.tracks = tracks
         else:
             raise ValueError('file_format of `tracks` not supported.')
-        self.resolution = resolution  # i.e. microseconds per quarter note
-        # FIXME: right now we can write only format 0 files...
+        self.resolution = resolution  # i.e. ticks per quarter note
+        # format 0 stores all information in 1 track
+        # format 1 has multiple tracks but plays them back simultaneously
+        # TODO: format 2 has multiple tracks but plays them back one after
+        #       another. This type is not supported (yet).
+        if file_format > 1:
+            raise ValueError('Only MIDI file formats 0 and 1 supported.')
         self.format = file_format
 
     @property
@@ -1699,15 +1678,14 @@ class MIDIFile(object):
                 # byte has a value of 120 (0x78). This means the example plays
                 # at 24(?) frames per second SMPTE time and has 120 ticks per
                 # frame.
-                raise NotImplementedError("frames per second resolution not "
-                                          "implemented yet.")
+                raise NotImplementedError("SMPTE resolution not implemented.")
             # skip the remaining part of the header
             if header_size > HEADER_SIZE:
                 midi_file.read(header_size - HEADER_SIZE)
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MIDITrack.from_file(midi_file)
+                track = MIDITrack.from_stream(midi_file)
                 tracks.append(track)
         if resolution is None or midi_format is None:
             raise IOError('unable to read MIDI file %s.' % midi_file)

@@ -15,16 +15,46 @@ from madmom.utils.midi import *
 
 from . import ANNOTATIONS_PATH
 
+tmp_file = tempfile.NamedTemporaryFile().name
+
 
 class TestEventsClass(unittest.TestCase):
 
+    def setUp(self):
+        self.e1 = NoteOnEvent(tick=100, pitch=50, velocity=60)
+        self.e2 = NoteOffEvent(tick=300, pitch=50)
+        self.e3 = NoteOffEvent(tick=200, pitch=50)
+        self.e4 = NoteOnEvent(tick=300, pitch=50, velocity=60)
+
+    def test_equality(self):
+        self.assertEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=101, pitch=50, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=51, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=61))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=60, channel=1))
+        self.assertNotEqual(
+            self.e1, NoteOffEvent(tick=100, pitch=50))
+
+    def test_comparison(self):
+        self.assertTrue(self.e1 < self.e2)
+        self.assertTrue(self.e1 < self.e3)
+        self.assertTrue(self.e1 < self.e4)
+        self.assertTrue(self.e4 < self.e2)
+
     def test_sort_events(self):
-        e1 = NoteOnEvent(tick=100, pitch=50, channel=1)
-        e2 = NoteOffEvent(tick=300, pitch=50, channel=1)
-        e3 = NoteOffEvent(tick=200, pitch=50, channel=1)
-        self.assertTrue(sorted([e1, e2, e3]) == [e1, e3, e2])
-        # TODO: add test case if note on and note off occur at the same tick
-        #       note on must come first then
+        events = sorted([self.e1, self.e2, self.e3, self.e4])
+        self.assertTrue(events == [self.e1, self.e3, self.e4, self.e2])
+        # MIDITrack should sort the events before writing the MIDI file
+        track = MIDITrack([self.e1, self.e2, self.e3, self.e4])
+        midi = MIDIFile(track)
+        midi.write(tmp_file)
+        events = MIDIFile.from_file(tmp_file).tracks[0].events
+        self.assertTrue(events == [self.e1, self.e3, self.e4, self.e2])
 
 
 class TestMIDIFileClass(unittest.TestCase):
@@ -43,7 +73,6 @@ class TestMIDIFileClass(unittest.TestCase):
         notes_ = midi.notes()[:, :4]
         self.assertTrue(np.allclose(notes, notes_, atol=1e-3))
         # write to a temporary file
-        tmp_file = tempfile.NamedTemporaryFile().name
         midi.write(tmp_file)
         # FIXME: re-read this file and compare the notes
         tmp_midi = MIDIFile.from_file(tmp_file)
