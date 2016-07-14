@@ -1588,7 +1588,7 @@ class SemitoneBandpassFilterbank(object):
         self.fref = fref
         self.bin_frequencies = midi2hz(
             np.arange(midi_min, midi_max + 1), fref=fref)
-        self.sr_from_midi = sr_from_midi[midi_min-1:midi_max]
+        self.sr_from_midi = sr_from_midi[midi_min - 1:midi_max]
         self.fmin = self.bin_frequencies[0]
         self.fmax = self.bin_frequencies[-1]
         self.num_bins = midi_max - midi_min + 1

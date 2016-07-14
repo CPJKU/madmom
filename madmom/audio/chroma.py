@@ -307,7 +307,7 @@ class CLPChroma(np.ndarray):
         elif isinstance(data, str):
             # compute pitch_energy from audio file
             pitch_energy = SemitoneBandpassSpectrogram(
-                data, fps=fps,  midi_min=midi_min, midi_max=midi_max)
+                data, fps=fps, midi_min=midi_min, midi_max=midi_max)
         else:
             raise ValueError('Input type not valid')
         # apply log compression

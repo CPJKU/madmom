@@ -781,4 +781,3 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                    0.00732471, 0.10306561],
                                   [0.14487972, 0.03204085, 0.00718818,
                                    0.02043327, 0.06404668]]), rtol=1e-03))
-
