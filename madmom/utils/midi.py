@@ -1159,12 +1159,17 @@ class MIDITrack(object):
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
         # TODO: should we add a EndOfTrackEvent?
-        # prepare the track header
-        track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
-        # convert back to absolute ticks
+        # convert events back to absolute ticks
         self._make_ticks_abs()
-        # return the track header + data
-        return track_header + track_data
+        # prepare the data
+        data = bytearray()
+        # generate a MIDI header
+        data.extend(b'MTrk')
+        data.extend(struct.pack(">L", len(track_data)))
+        # append the track data
+        data.extend(track_data)
+        # return the track data
+        return data
 
     @classmethod
     def from_stream(cls, midi_stream):
@@ -1596,13 +1601,16 @@ class MIDIFile(object):
         MIDI data stream representation of the MIDI file.
 
         """
+        # prepare data
+        data = bytearray()
         # generate a MIDI header
-        data = b'MThd%s' % struct.pack(">LHHH", 6, self.format,
-                                       len(self.tracks), self.resolution)
+        data.extend(b'MThd')
+        data.extend(struct.pack(">LHHH", 6, self.format, len(self.tracks),
+                                self.resolution))
         # append the tracks
         for track in self.tracks:
-            data += track.data_stream
-        # return the raw data
+            data.extend(track.data_stream)
+        # return the data
         return data
 
     def write(self, midi_file):
