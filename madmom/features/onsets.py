@@ -692,9 +692,11 @@ class RNNOnsetProcessor(SequentialProcessor):
 
         # choose the appropriate models and set frame sizes accordingly
         if online:
+            origin = 'online'
             nn_files = ONSETS_RNN
             frame_sizes = [512, 1024, 2048]
         else:
+            origin = 'offline'
             nn_files = ONSETS_BRNN
             frame_sizes = [1024, 2048, 4096]
 
@@ -704,7 +706,7 @@ class RNNOnsetProcessor(SequentialProcessor):
         multi = ParallelProcessor([])
         for frame_size in frame_sizes:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100,
-                                           online=online)
+                                           origin=origin)
             filt = FilteredSpectrogramProcessor(
                 num_bands=6, fmin=30, fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=5, add=1)

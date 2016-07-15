@@ -79,7 +79,6 @@ def main():
     # set immutable defaults
     args.num_channels = 1
     args.fps = 100
-    args.online = False
     args.onset_method = 'superflux'
 
     # print arguments

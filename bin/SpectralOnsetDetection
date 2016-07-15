@@ -74,9 +74,12 @@ def main():
                                        combine=0.03, delay=0)
     # parse arguments
     args = p.parse_args()
-    # switch to offline mode
-    if args.norm:
-        args.online = False
+
+    # set online mode parameters
+    if args.origin == 'online':
+        args.post_avg = 0
+        args.post_max = 0
+
     # add circular shift for correct phase and remove filterbank if needed
     if args.onset_method in ('phase_deviation', 'weighted_phase_deviation',
                              'normalized_weighted_phase_deviation',

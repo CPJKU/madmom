@@ -57,7 +57,7 @@ def main():
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     SignalProcessor.add_arguments(p, norm=False, gain=0)
-    FramedSignalProcessor.add_arguments(p, fps=100, online=False)
+    FramedSignalProcessor.add_arguments(p, fps=100)
     FilterbankProcessor.add_arguments(p, num_bands=12, fmin=30, fmax=17000,
                                       norm_filters=False)
     LogarithmicSpectrogramProcessor.add_arguments(p, log=True, mul=1, add=1)
@@ -68,9 +68,7 @@ def main():
                                        combine=0.03, delay=0)
     # parse arguments
     args = p.parse_args()
-    # switch to offline mode
-    if args.norm:
-        args.online = False
+
     # print arguments
     if args.verbose:
         print(args)
