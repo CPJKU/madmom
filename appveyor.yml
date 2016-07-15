@@ -49,7 +49,7 @@ build: false
 
 build_script:
   - python setup.py build
-  - git submodule update --init --remote --depth 1
+  - git submodule update --init --remote
 
 test_script:
   - "set PATH=C:\\projects\\madmom\\bin;%PATH%"

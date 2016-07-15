@@ -69,7 +69,7 @@ Install from source
 
 If you plan to use the package as a developer, clone the Git repository::
 
-  git clone --recursive --depth 1 https://github.com/CPJKU/madmom.git
+  git clone --recursive https://github.com/CPJKU/madmom.git
 
 Since the pre-trained model/data files are not included in this repository but
 rather added as a Git submodule, you either have to clone the repo recursively.
@@ -77,15 +77,9 @@ This is equivalent to these steps::
 
   git clone  https://github.com/CPJKU/madmom.git
   cd madmom
-  git submodule update --init --remote --depth 1
+  git submodule update --init --remote
 
-To obtain the full history, omit the `--depth 1` part. You can then either
-include the package directory in your ``$PYTHONPATH`` and compile the Cython
-extensions with::
-
-  python setup.py build_ext --inplace
-
-or you can simply install the package in development mode::
+Then you can simply install the package in development mode::
 
   python setup.py develop --user
 
@@ -98,9 +92,9 @@ To run the included tests::
 Upgrade of existing installations
 ---------------------------------
 
-To upgrade the package, please use the same machanism (pip vs. source /
-global vs. local install) as you did for installation. If you want to change
-from package to source, please uninstall the package first.
+To upgrade the package, please use the same mechanism (pip vs. source) as you
+did for installation. If you want to change from package to source, please
+uninstall the package first.
 
 Upgrade a package
 ~~~~~~~~~~~~~~~~~
@@ -126,7 +120,7 @@ To update the models contained in the submodule::
 
   git submodule update
 
-If any of the ``.pyx`` or ``.pxd`` files changes, you have to recompile the
+If any of the ``.pyx`` or ``.pxd`` files changed, you have to recompile the
 modules with Cython::
 
   python setup.py build_ext --inplace
