@@ -450,7 +450,7 @@ class HiddenMarkovModel(object):
         cdef unsigned int [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
@@ -462,7 +462,8 @@ class HiddenMarkovModel(object):
         cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
                                            dtype=np.float)
         # define counters etc.
-        cdef unsigned int prev_pointer, frame, state, cur, prev
+        cdef int state
+        cdef unsigned int prev_pointer, frame, cur, prev
         cdef double prob_sum, norm_factor
 
         # init forward variables
