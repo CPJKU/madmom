@@ -111,7 +111,7 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
         raise ValueError('`tau` must be greater than 0')
     # type definitions
     cdef np.ndarray[np.float_t, ndim=1] y = signal.copy()
-    cdef int n
+    cdef size_t n
     # loop over the complete signal
     for n in range(tau, len(signal)):
         # Note: saw this formula somewhere, but it seems to produce less
@@ -153,7 +153,7 @@ def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
         raise ValueError('`tau` must be greater than 0')
     # type definitions
     cdef np.ndarray[np.float_t, ndim=2] y = signal.copy()
-    cdef int d, n
+    cdef size_t d, n
     # loop over the dimensions
     for d in range(2):
         # loop over the complete signal

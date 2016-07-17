@@ -171,11 +171,11 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     """
     # number of states
-    cdef int num_st = activations.shape[0]
+    cdef size_t num_st = activations.shape[0]
     # number of transitions
-    cdef int num_tr = transition.shape[0]
+    cdef size_t num_tr = transition.shape[0]
     # number of beat variables
-    cdef int num_x = num_st / tau
+    cdef size_t num_x = num_st / tau
 
     # current viterbi variables
     cdef float [::1] v_c = np.empty(num_st, dtype=np.float32)
@@ -187,7 +187,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     cdef long [::1] path = np.empty(num_x, dtype=np.int)
 
     # counters etc.
-    cdef int k, i, j, next_state
+    cdef size_t k, i, j, next_state
     cdef float new_prob, path_prob
     cdef float infinity = INFINITY.astype(np.float32)
 
