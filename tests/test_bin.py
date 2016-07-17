@@ -226,44 +226,44 @@ class TestCNNOnsetDetectorProgram(unittest.TestCase):
         self.assertTrue(np.allclose(result, self.result))
 
 
-class TestCRFBeatDetectorProgram(unittest.TestCase):
-    def setUp(self):
-        self.bin = "%s/CRFBeatDetector" % program_path
-        self.activations = Activations(
-            pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
-        self.result = np.loadtxt(
-            pj(DETECTIONS_PATH, "sample.crf_beat_detector.txt"))
-
-    def test_help(self):
-        self.assertTrue(run_help(self.bin))
-
-    def test_binary(self):
-        # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
-        act = Activations(tmp_act)
-        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
-        self.assertEqual(act.fps, self.activations.fps)
-        # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
-        result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
-
-    def test_txt(self):
-        # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
-        act = Activations(tmp_act, sep=' ', fps=100)
-        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
-        # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
-        result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
-
-    def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
-        result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+# class TestCRFBeatDetectorProgram(unittest.TestCase):
+#     def setUp(self):
+#         self.bin = "%s/CRFBeatDetector" % program_path
+#         self.activations = Activations(
+#             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
+#         self.result = np.loadtxt(
+#             pj(DETECTIONS_PATH, "sample.crf_beat_detector.txt"))
+#
+#     def test_help(self):
+#         self.assertTrue(run_help(self.bin))
+#
+#     def test_binary(self):
+#         # save activations as binary file
+#         run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+#         act = Activations(tmp_act)
+#         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+#         self.assertEqual(act.fps, self.activations.fps)
+#         # reload from file
+#         run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+#         result = np.loadtxt(tmp_result)
+#         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+#
+#     def test_txt(self):
+#         # save activations as txt file
+#         run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
+#                      '-o', tmp_act])
+#         act = Activations(tmp_act, sep=' ', fps=100)
+#         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+#         # reload from file
+#         run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
+#                      '-o', tmp_result])
+#         result = np.loadtxt(tmp_result)
+#         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+#
+#     def test_run(self):
+#         run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+#         result = np.loadtxt(tmp_result)
+#         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
 class TestDBNBeatTrackerProgram(unittest.TestCase):
