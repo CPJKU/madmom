@@ -169,12 +169,19 @@ class Spectrogram(PropertyMixin, np.ndarray):
         If no :class:`.audio.stft.ShortTimeFourierTransform` instance was
         given, one is instantiated with these additional keyword arguments.
 
-    Attributes
-    ----------
-    stft : :class:`.audio.stft.ShortTimeFourierTransform` instance
-        Underlying ShortTimeFourierTransform instance.
-    frames : :class:`.audio.signal.FramedSignal` instance
-        Underlying FramedSignal instance.
+    Examples
+    --------
+    Create a :class:`Spectrogram` from a
+    :class:`.audio.stft.ShortTimeFourierTransform` (or anything it can be
+    instantiated from:
+
+    >>> spec = Spectrogram('tests/data/audio/sample.wav')
+    >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Spectrogram([[ 3.15249,  4.00272, ...,  0.03634,  0.03671],
+                 [ 4.28429,  2.85158, ...,  0.0219 ,  0.02227],
+                 ...,
+                 [ 4.92274, 10.27775, ...,  0.00607,  0.00593],
+                 [ 9.22709,  9.6387 , ...,  0.00981,  0.00984]], dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -357,6 +364,57 @@ class FilteredSpectrogram(Spectrogram):
         If no :class:`Spectrogram` instance was given, one is instantiated
         with these additional keyword arguments.
 
+    Examples
+    --------
+    Create a :class:`FilteredSpectrogram` from a :class:`Spectrogram` (or
+    anything it can be instantiated from. Per default a
+    :class:`.madmom.audio.filters.LogarithmicFilterbank` with 12 bands per
+    octave is used.
+
+    >>> spec = FilteredSpectrogram('tests/data/audio/sample.wav')
+    >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    FilteredSpectrogram([[  5.66156, 6.30141, ..., 0.05426, 0.06461],
+                         [  8.44266, 8.69582, ..., 0.07703, 0.0902 ],
+                         ...,
+                         [ 10.04626, 1.12018, ..., 0.0487 , 0.04282],
+                         [  8.60186, 6.81195, ..., 0.03721, 0.03371]],
+                        dtype=float32)
+
+    The resulting spectrogram has fewer frequency bins, with the centers of
+    the bins aligned logarithmically (lower frequency bins still have a linear
+    spacing due to the coarse resolution of the DFT at low frequencies):
+
+    >>> spec.shape
+    (281, 81)
+    >>> spec.num_bins
+    81
+    >>> spec.bin_frequencies  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([    43.06641,    64.59961,    86.13281,   107.66602,
+              129.19922,   150.73242,   172.26562,   193.79883, ...,
+            10551.26953, 11175.73242, 11843.26172, 12553.85742,
+            13285.98633, 14082.71484, 14922.50977, 15805.37109])
+
+    The filterbank used to filter the spectrogram is saved as an attribute:
+
+    >>> spec.filterbank  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    LogarithmicFilterbank([[ 0., 0., ..., 0., 0.],
+                           [ 0., 0., ..., 0., 0.],
+                           ...,
+                           [ 0., 0., ..., 0., 0.],
+                           [ 0., 0., ..., 0., 0.]], dtype=float32)
+    >>> spec.filterbank.num_bands
+    81
+
+    The filterbank can be chosen at instantiation time:
+
+    >>> from madmom.audio.filters import MelFilterbank
+    >>> spec = FilteredSpectrogram('tests/data/audio/sample.wav', \
+    filterbank=MelFilterbank, num_bands=40)
+    >>> type(spec.filterbank)
+    <class 'madmom.audio.filters.MelFilterbank'>
+    >>> spec.shape
+    (281, 40)
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -490,7 +548,7 @@ class LogarithmicSpectrogram(Spectrogram):
     spectrogram : :class:`Spectrogram` instance
         Spectrogram.
     log : numpy ufunc, optional
-        Loagrithmic scaling function to apply.
+        Logarithmic scaling function to apply.
     mul : float, optional
         Multiply the magnitude spectrogram with this factor before taking
         the logarithm.
@@ -499,6 +557,18 @@ class LogarithmicSpectrogram(Spectrogram):
     kwargs : dict, optional
         If no :class:`Spectrogram` instance was given, one is instantiated
         with these additional keyword arguments.
+
+    Examples
+    --------
+    Create a :class:`LogarithmicSpectrogram` from a :class:`Spectrogram` (or
+    anything it can be instantiated from. Per default `np.log10` is used as
+    the scaling function and a value of 1 is added to avoid negative values.
+
+    >>> spec = LogarithmicSpectrogram('tests/data/audio/sample.wav')
+    >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    LogarithmicSpectrogram([[...]], dtype=float32)
+    >>> spec.min()
+    LogarithmicSpectrogram(1.604927092557773e-06, dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -667,6 +737,31 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
     :class:`FilteredSpectrogram`
     :class:`LogarithmicSpectrogram`
 
+    Examples
+    --------
+    Create a :class:`LogarithmicFilteredSpectrogram` from a
+    :class:`Spectrogram` (or anything it can be instantiated from. This is
+    mainly a convenience class which first filters the spectrogram and then
+    scales it logarithmically.
+
+    >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav')
+    >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
+                                      0.02295, 0.02719],
+                                    [ 0.97509, 0.98658, ...,
+                                      0.03223, 0.0375 ],
+                                    ...,
+                                    [ 1.04322, 0.32637, ...,
+                                      0.02065, 0.01821],
+                                    [ 0.98236, 0.89276, ...,
+                                      0.01587, 0.0144 ]], dtype=float32)
+    >>> spec.shape
+    (281, 81)
+    >>> spec.filterbank  # doctest: +ELLIPSIS
+    LogarithmicFilterbank([[...]], dtype=float32)
+    >>> spec.min()  # doctest: +ELLIPSIS
+    LogarithmicFilteredSpectrogram(0.00830..., dtype=float32)
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -816,8 +911,8 @@ class SpectrogramDifference(Spectrogram):
     The effect of this maximum filter applied to the spectrogram is that the
     magnitudes are "widened" in frequency direction, i.e. the following
     difference calculation is less sensitive against frequency fluctuations.
-    This effect is exploitet to suppress false positive energy fragments for
-    onsets detection originating from vibrato.
+    This effect is exploited to suppress false positive energy fragments
+    originating from vibrato.
 
     References
     ----------
@@ -825,6 +920,38 @@ class SpectrogramDifference(Spectrogram):
            "Maximum Filter Vibrato Suppression for Onset Detection"
            Proceedings of the 16th International Conference on Digital Audio
            Effects (DAFx), 2013.
+
+    Examples
+    --------
+    To obtain the SuperFlux feature as described above first create a filtered
+    and logarithmically spaced spectrogram:
+
+    >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav', \
+                                              num_bands=24, fps=200)
+    >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
+                                      0.02809, 0.02672],
+                                    [ 0.92514, 0.93211, ...,
+                                      0.03607, 0.0317 ],
+                                    ...,
+                                    [ 1.03826, 0.767  , ...,
+                                      0.01814, 0.01138],
+                                    [ 0.98236, 0.89276, ...,
+                                      0.01669, 0.00919]], dtype=float32)
+    >>> spec.shape
+    (561, 140)
+
+    Then use the temporal first order difference and apply a maximum filter
+    with 3 bands, keeping only the positive differences (i.e. rise in energy):
+
+    >>> superflux = SpectrogramDifference(spec, diff_max_bins=3, \
+                                          positive_diffs=True)
+    >>> superflux  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    SpectrogramDifference([[ 0.     , 0. , ...,  0. ,  0. ],
+                           [ 0.     , 0. , ...,  0. ,  0. ],
+                           ...,
+                           [ 0.01941, 0. , ...,  0. ,  0. ],
+                           [ 0.     , 0. , ...,  0. ,  0. ]], dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
