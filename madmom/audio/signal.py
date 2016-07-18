@@ -546,7 +546,7 @@ class Signal(np.ndarray):
     stop : float, optional
         Stop position [seconds].
     norm : bool, optional
-        Normalize the signal to the range [-1, +1].
+        Normalize the signal to maximum range of the data type.
     gain : float, optional
         Adjust the gain of the signal [dB].
     dtype : numpy data type, optional
@@ -571,6 +571,40 @@ class Signal(np.ndarray):
 
     If `norm` or `gain` is set, the selected part of the signal is loaded into
     memory completely, i.e. .wav files are not memory-mapped any more.
+
+    Examples
+    --------
+    Load a mono audio file:
+
+    >>> sig = Signal('tests/data/audio/sample.wav')
+    >>> sig
+    Signal([-2494, -2510, ...,   655,   639], dtype=int16)
+    >>> sig.sample_rate
+    44100
+
+    Load a stereo audio file, down-mix it to mono:
+
+    >>> sig = Signal('tests/data/audio/stereo_sample.flac', num_channels=1)
+    >>> sig
+    Signal([ 36,  36, ..., 524, 495], dtype=int16)
+    >>> sig.num_channels
+    1
+
+    Load and re-sample an audio file:
+
+    >>> sig = Signal('tests/data/audio/sample.wav', sample_rate=22050)
+    >>> sig
+    Signal([-2470, -2553, ...,   517,   677], dtype=int16)
+    >>> sig.sample_rate
+    22050
+
+    Load an audio file with `float32` data type (i.e. rescale it to [-1, 1]):
+
+    >>> sig = Signal('tests/data/audio/sample.wav', dtype=np.float32)
+    >>> sig
+    Signal([-0.07611, -0.0766 , ...,  0.01999,  0.0195 ], dtype=float32)
+    >>> sig.dtype
+    dtype('float32')
 
     """
     # pylint: disable=super-on-old-class
@@ -662,6 +696,22 @@ class SignalProcessor(Processor):
         The data is returned with the given dtype. If 'None', it is returned
         with its original dtype, otherwise the signal gets rescaled. Integer
         dtypes use the complete value range, float dtypes the range [-1, +1].
+
+    Examples
+    --------
+    Processor for loading the first two seconds of an audio file, re-sampling
+    it to 22.05 kHz and down-mixing it to mono:
+
+    >>> proc = SignalProcessor(sample_rate=22050, num_channels=1, stop=2)
+    >>> sig = proc('tests/data/audio/sample.wav')
+    >>> sig
+    Signal([-2470, -2553, ...,  -173,  -265], dtype=int16)
+    >>> sig.sample_rate
+    22050
+    >>> sig.num_channels
+    1
+    >>> sig.length
+    2.0
 
     """
 
@@ -934,6 +984,64 @@ class FramedSignal(object):
     `frame_size`. It is not guaranteed that every sample of the signal is
     returned in a frame unless the `origin` is either 'right' or 'future'.
 
+    Examples
+    --------
+    To chop a :class:`Signal` (or anything a :class:`Signal` can be
+    instantiated from) into overlapping frames of size 2048 with adjacent
+    frames being 441 samples apart:
+
+    >>> sig = Signal('tests/data/audio/sample.wav')
+    >>> sig
+    Signal([-2494, -2510, ...,   655,   639], dtype=int16)
+    >>> frames = FramedSignal(sig, frame_size=2048, hop_size=441)
+    >>> frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> frames[0]
+    Signal([    0,     0, ..., -4666, -4589], dtype=int16)
+    >>> frames[10]
+    Signal([-6156, -5645, ...,  -253,   671], dtype=int16)
+    >>> frames.fps
+    100.0
+
+    Instead of passing a :class:`Signal` instance as the first argument,
+    anything a :class:`Signal` can be instantiated from (e.g. a file name) can
+    be used. We can also set the frames per second (`fps`) instead, they get
+    converted to `hop_size` based on the `sample_rate` of the signal:
+
+    >>> frames = FramedSignal('tests/data/audio/sample.wav', fps=100)
+    >>> frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> frames[0]
+    Signal([    0,     0, ..., -4666, -4589], dtype=int16)
+    >>> frames.frame_size, frames.hop_size
+    (2048, 441.0)
+
+    When trying to access an out of range frame, an IndexError is raised. Thus
+    the FramedSignal can be used the same way as a numpy array or any other
+    iterable.
+
+    >>> frames = FramedSignal('tests/data/audio/sample.wav')
+    >>> frames.num_frames
+    281
+    >>> frames[281]
+    Traceback (most recent call last):
+    IndexError: end of signal reached
+    >>> frames.shape
+    (281, 2048)
+
+    Slices are FramedSignals itself:
+
+    >>> frames[:4]  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+
+    To obtain a numpy array from a FramedSignal, simply use np.array() on the
+    full FramedSignal or a slice of it. Please note, that this requires a full
+    memory copy.
+
+    >>> np.array(frames[2:4])
+    array([[    0,     0, ..., -5316, -5405],
+           [ 2215,  2281, ...,   561,   653]], dtype=int16)
+
     """
 
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
@@ -1049,7 +1157,7 @@ class FramedSignal(object):
 
     @property
     def shape(self):
-        """Shape of the FramedSignal (frames x samples)."""
+        """Shape of the FramedSignal (`num_frames` x `frame_size`)."""
         shape = self.num_frames, self.frame_size
         if self.signal.num_channels != 1:
             shape += (self.signal.num_channels, )
@@ -1084,9 +1192,31 @@ class FramedSignalProcessor(Processor):
         If no :class:`Signal` instance was given, one is instantiated with
         these additional keyword arguments.
 
-    See Also
+    Notes
+    -----
+    The location of the window relative to its reference sample can be set
+    with the `online` parameter:
+
+    - 'False': the window is centered on its reference sample,
+    - 'True': the window is located to the left of its reference sample
+      (including the reference sample), i.e. only past information is used.
+
+    Examples
     --------
-    :class:`FramedSignal` for a detailed description of the parameters.
+    Processor for chopping a :class:`Signal` (or anything a :class:`Signal` can
+    be instantiated from) into overlapping frames of size 2048, and a frame
+    rate of 100 frames per second:
+
+    >>> proc = FramedSignalProcessor(frame_size=2048, fps=100)
+    >>> frames = proc('tests/data/audio/sample.wav')
+    >>> frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> frames[0]
+    Signal([    0,     0, ..., -4666, -4589], dtype=int16)
+    >>> frames[10]
+    Signal([-6156, -5645, ...,  -253,   671], dtype=int16)
+    >>> frames.hop_size
+    441.0
 
     """
 
