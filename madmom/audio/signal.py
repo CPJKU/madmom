@@ -517,6 +517,15 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
 
 
 # signal classes
+SAMPLE_RATE = None
+NUM_CHANNELS = None
+START = None
+STOP = None
+NORM = False
+GAIN = 0.
+DTYPE = None
+
+
 class Signal(np.ndarray):
     """
     The :class:`Signal` class represents a signal as a (memory-mapped) numpy
@@ -568,13 +577,14 @@ class Signal(np.ndarray):
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
-    def __init__(self, data, sample_rate=None, num_channels=None, start=None,
-                 stop=None, norm=False, gain=0, dtype=None):
+    def __init__(self, data, sample_rate=SAMPLE_RATE,
+                 num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
+                 gain=GAIN, dtype=DTYPE):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, data, sample_rate=None, num_channels=None, start=None,
-                stop=None, norm=False, gain=0, dtype=None):
+    def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
+                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE):
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate=sample_rate,
@@ -654,15 +664,9 @@ class SignalProcessor(Processor):
         dtypes use the complete value range, float dtypes the range [-1, +1].
 
     """
-    SAMPLE_RATE = None
-    NUM_CHANNELS = None
-    START = None
-    STOP = None
-    NORM = False
-    GAIN = 0.
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=None, stop=None, norm=NORM, gain=GAIN, **kwargs):
+                 start=START, stop=STOP, norm=NORM, gain=GAIN, **kwargs):
         # pylint: disable=unused-argument
         self.sample_rate = sample_rate
         self.num_channels = num_channels
@@ -855,6 +859,14 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         return signal[start:stop]
 
 
+FRAME_SIZE = 2048
+HOP_SIZE = 441.
+FPS = None
+ORIGIN = 0
+END_OF_SIGNAL = 'normal'
+NUM_FRAMES = None
+
+
 # classes for splitting a signal into frames
 class FramedSignal(object):
     """
@@ -924,8 +936,9 @@ class FramedSignal(object):
 
     """
 
-    def __init__(self, signal, frame_size=2048, hop_size=441., fps=None,
-                 origin=0, end='normal', num_frames=None, **kwargs):
+    def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+                 fps=FPS, origin=ORIGIN, end=END_OF_SIGNAL,
+                 num_frames=NUM_FRAMES, **kwargs):
         # signal handling
         if not isinstance(signal, Signal):
             # try to instantiate a Signal
@@ -1061,8 +1074,8 @@ class FramedSignalProcessor(Processor):
     fps : float, optional
         Use given frames per second; if set, this computes and overwrites the
         given `hop_size` value.
-    online : bool, optional
-        Operate in online mode (see notes below).
+    origin : int, optional
+        Location of the window relative to the reference sample of a frame.
     end : int or str, optional
         End of signal handling (see :class:`FramedSignal`).
     num_frames : int, optional
@@ -1071,31 +1084,30 @@ class FramedSignalProcessor(Processor):
         If no :class:`Signal` instance was given, one is instantiated with
         these additional keyword arguments.
 
-    Notes
-    -----
-    The location of the window relative to its reference sample can be set
-    with the `online` parameter:
-
-    - 'False': the window is centered on its reference sample,
-    - 'True': the window is located to the left of its reference sample
-      (including the reference sample), i.e. only past information is used.
-
+    See Also
+    --------
+    :class:`FramedSignal` for a detailed description of the parameters.
 
     """
-    FRAME_SIZE = 2048
-    HOP_SIZE = 441.
-    FPS = 100.
-    START = 0
-    END_OF_SIGNAL = 'normal'
 
-    def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=None,
-                 online=False, end=END_OF_SIGNAL, **kwargs):
+    def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=FPS,
+                 origin=ORIGIN, end=END_OF_SIGNAL, num_frames=NUM_FRAMES,
+                 online=None, **kwargs):
         # pylint: disable=unused-argument
         self.frame_size = frame_size
         self.hop_size = hop_size
         self.fps = fps  # do not convert here, pass it to FramedSignal
-        self.online = online
+        self.origin = origin
         self.end = end
+        self.num_frames = num_frames
+        if online is not None:
+            import warnings
+            warnings.warn('`online` is deprecated as of version 0.14 and will '
+                          'be removed in version 0.15. Use `origin` instead.')
+            if online:
+                self.origin = 'online'
+            else:
+                self.origin = 'offline'
 
     def process(self, data, **kwargs):
         """
@@ -1115,15 +1127,11 @@ class FramedSignalProcessor(Processor):
             FramedSignal instance
 
         """
-        # translate online / offline mode
-        if self.online:
-            origin = 'online'
-        else:
-            origin = 'offline'
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, frame_size=self.frame_size,
                             hop_size=self.hop_size, fps=self.fps,
-                            origin=origin, end=self.end, **kwargs)
+                            origin=self.origin, end=self.end,
+                            num_frames=self.num_frames, **kwargs)
 
     @staticmethod
     def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS,
@@ -1172,10 +1180,12 @@ class FramedSignalProcessor(Processor):
             g.add_argument('--fps', action='store', type=float, default=fps,
                            help='frames per second [default=%(default).1f]')
         if online is False:
-            g.add_argument('--online', dest='online', action='store_true',
+            g.add_argument('--online', dest='origin', action='store_const',
+                           const='online', default='offline',
                            help='operate in online mode [default=offline]')
         elif online is True:
-            g.add_argument('--offline', dest='online', action='store_false',
+            g.add_argument('--offline', dest='origin', action='store_const',
+                           const='offline', default='online',
                            help='operate in offline mode [default=online]')
         # return the argument group so it can be modified if needed
         return g

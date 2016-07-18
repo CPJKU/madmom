@@ -66,7 +66,7 @@ def main():
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, norm=False, gain=0)
+    SignalProcessor.add_arguments(p, gain=0)
     # peak picking arguments
     PeakPickingProcessor.add_arguments(p, threshold=0.23)
 
@@ -74,7 +74,6 @@ def main():
     args = p.parse_args()
 
     # set immutable defaults
-    args.online = True
     args.fps = 100
     args.pre_max = 1. / args.fps
     args.post_max = 0
@@ -90,7 +89,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a RNN to predict the onsets
-        in_processor = RNNOnsetProcessor(online=args.online)
+        in_processor = RNNOnsetProcessor(online=True)
 
     # output processor
     if args.save:

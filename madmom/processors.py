@@ -114,9 +114,9 @@ class Processor(object):
         """
         raise NotImplementedError('must be implemented by subclass.')
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
         # this magic method makes a Processor callable
-        return self.process(*args)
+        return self.process(*args, **kwargs)
 
 
 class OutputProcessor(Processor):

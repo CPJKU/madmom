@@ -1282,8 +1282,9 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.frame_size == 2048)
         self.assertTrue(self.processor.hop_size == 441.)
         self.assertTrue(self.processor.fps is None)
-        self.assertTrue(self.processor.online is False)
+        self.assertTrue(self.processor.origin == 0)
         self.assertTrue(self.processor.end == 'normal')
+        self.assertTrue(self.processor.num_frames is None)
 
     def test_process(self):
         result = self.processor.process(sample_file)
@@ -1308,8 +1309,8 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
 
     def test_process_online(self):
         # set online
-        self.processor.online = True
-        self.assertTrue(self.processor.online)
+        self.processor.origin = 'online'
+        self.assertEqual(self.processor.origin, 'online')
         result = self.processor.process(sample_file)
         self.assertTrue(np.allclose(result[0][-1], -2494))
         self.assertTrue(len(result) == 281)
@@ -1359,17 +1360,3 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         # reset end
         self.processor.end = 'normal'
         self.assertTrue(self.processor.end == 'normal')
-
-    def test_constant_types(self):
-        self.assertIsInstance(FramedSignalProcessor.FRAME_SIZE, int)
-        self.assertIsInstance(FramedSignalProcessor.HOP_SIZE, float)
-        self.assertIsInstance(FramedSignalProcessor.FPS, float)
-        self.assertIsInstance(FramedSignalProcessor.START, int)
-        self.assertIsInstance(FramedSignalProcessor.END_OF_SIGNAL, str)
-
-    def test_constant_values(self):
-        self.assertTrue(FramedSignalProcessor.FRAME_SIZE == 2048)
-        self.assertTrue(FramedSignalProcessor.HOP_SIZE == 441.)
-        self.assertTrue(FramedSignalProcessor.FPS == 100.)
-        self.assertTrue(FramedSignalProcessor.START == 0)
-        self.assertTrue(FramedSignalProcessor.END_OF_SIGNAL == 'normal')
