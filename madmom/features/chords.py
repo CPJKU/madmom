@@ -5,7 +5,6 @@ This module contains chord recognition related functionality.
 """
 from __future__ import absolute_import, division, print_function
 
-import string
 import numpy as np
 
 from functools import partial
@@ -34,17 +33,21 @@ def majmin_targets_to_chord_labels(targets, fps):
         List of tuples of the form (start time, end time, chord label)
 
     """
-    natural = zip([0, 2, 3, 5, 7, 8, 10], string.uppercase[:7])
-    sharp = map(lambda v: ((v[0] + 1) % 12, v[1] + '#'), natural)
-
-    semitone_to_label = dict(sharp + natural)
+    # create a map of semitone index to semitone name (e.g. 0 -> A, 1 -> A#)
+    pitch_class_to_label = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F',
+                            'F#', 'G', 'G#']
 
     def pred_to_cl(pred):
+        """
+        Map a class id to a chord label.
+        0..11 major chords, 12..23 minor chords, 24 no chord
+        """
         if pred == 24:
             return 'N'
-        return '{}:{}'.format(semitone_to_label[pred % 12],
+        return '{}:{}'.format(pitch_class_to_label[pred % 12],
                               'maj' if pred < 12 else 'min')
 
+    # get labels per frame
     spf = 1. / fps
     labels = [(i * spf, pred_to_cl(p)) for i, p in enumerate(targets)]
 

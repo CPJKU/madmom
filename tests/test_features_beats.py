@@ -8,6 +8,8 @@ This file contains tests for the madmom.features.beats module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from os.path import join as pj
+
 from . import AUDIO_PATH, ACTIVATIONS_PATH
 from madmom.features import Activations
 from madmom.features.beats import *
@@ -16,12 +18,12 @@ from madmom.ml.hmm import HiddenMarkovModel
 from madmom.models import PATTERNS_BALLROOM
 
 
-sample_file = "%s/sample.wav" % AUDIO_PATH
-sample_beat_act = Activations("%s/sample.beats_blstm.npz" % ACTIVATIONS_PATH)
-sample_downbeat_act = Activations("%s/sample.downbeats_blstm.npz" %
-                                  ACTIVATIONS_PATH)
-sample_pattern_features = Activations("%s/sample.gmm_pattern_tracker.npz" %
-                                      ACTIVATIONS_PATH)
+sample_file = pj(AUDIO_PATH, "sample.wav")
+sample_beat_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
+sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
+                                     "sample.downbeats_blstm.npz"))
+sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
+                                         "sample.gmm_pattern_tracker.npz"))
 
 
 class TestRNNBeatProcessorClass(unittest.TestCase):

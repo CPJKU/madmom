@@ -8,17 +8,19 @@ This file contains tests for the madmom.features.chords module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-from . import AUDIO_PATH, ACTIVATIONS_PATH
+from os.path import join as pj
 
+from . import AUDIO_PATH, ACTIVATIONS_PATH
 from madmom.features import Activations
 from madmom.features.chords import *
 
 
-sample_file = "%s/sample.wav" % AUDIO_PATH
-sample_cnn_act = Activations('%s/sample.cnn_chord_features.npz' %
-                             ACTIVATIONS_PATH)
-sample_deep_chroma_act = Activations('%s/sample.deep_chroma.npz' %
-                                     ACTIVATIONS_PATH)
+sample_file = pj(AUDIO_PATH, "sample.wav")
+sample_cnn_act = Activations(pj(ACTIVATIONS_PATH,
+                                "sample.cnn_chord_features.npz"))
+
+sample_deep_chroma_act = Activations(pj(ACTIVATIONS_PATH,
+                                        "sample.deep_chroma.npz"))
 sample_labels = [(0.0, 2.9, 'G#:maj')]
 
 
