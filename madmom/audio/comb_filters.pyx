@@ -32,17 +32,25 @@ def feed_forward_comb_filter(signal, tau, alpha):
     Returns
     -------
     comb_filtered_signal : numpy array
-        Comb filtered signal.
+        Comb filtered signal, float dtype
 
     Notes
     -----
     y[n] = x[n] + α * x[n - τ] is used as a filter function.
 
+    Examples
+    --------
+    Comb filter the given signal:
+
+    >>> x = np.array([0, 0, 1, 0, 0, 1, 0, 0, 1])
+    >>> feed_forward_comb_filter(x, tau=3, alpha=0.5)
+    array([ 0. ,  0. ,  1. ,  0. ,  0. ,  1.5,  0. ,  0. ,  1.5])
+
     """
     # y[n] = x[n] + α * x[n - τ]
     if tau <= 0:
         raise ValueError('`tau` must be greater than 0')
-    y = np.copy(signal)
+    y = signal.astype(np.float)
     # add the delayed signal
     y[tau:] += alpha * signal[:-tau]
     # return
@@ -66,46 +74,35 @@ def feed_backward_comb_filter(signal, tau, alpha):
     Returns
     -------
     comb_filtered_signal : numpy array
-        Comb filtered signal.
+        Comb filtered signal, float dtype.
 
     Notes
     -----
     y[n] = x[n] + α * y[n - τ] is used as a filter function.
 
+    Examples
+    --------
+    Comb filter the given signal:
+
+    >>> x = np.array([0, 0, 1, 0, 0, 1, 0, 0, 1])
+    >>> feed_backward_comb_filter(x, tau=3, alpha=0.5)
+    array([ 0.  ,  0.  ,  1.  ,  0.  ,  0.  ,  1.5 ,  0.  ,  0.  ,  1.75])
+
     """
     if signal.ndim == 1:
-        return feed_backward_comb_filter_1d(signal, tau, alpha)
+        return _feed_backward_comb_filter_1d(signal.astype(np.float),
+                                             tau, alpha)
     elif signal.ndim == 2:
-        return feed_backward_comb_filter_2d(signal, tau, alpha)
+        return _feed_backward_comb_filter_2d(signal.astype(np.float),
+                                             tau, alpha)
     else:
         raise ValueError('signal must be 1d or 2d')
 
 
 @cython.boundscheck(False)
-def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
-                                 unsigned int tau, float alpha):
-    """
-    Filter the signal with a feed backward comb filter.
-
-    Parameters
-    ----------
-    signal : 1D numpy array, float dtype
-        Signal.
-    tau : int
-        Delay length.
-    alpha : float
-        Scaling factor.
-
-    Returns
-    -------
-    comb_filtered_signal : numpy array
-        Comb filtered signal.
-
-    Notes
-    -----
-    y[n] = x[n] + α * y[n - τ] is used as a filter function.
-
-    """
+def _feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
+                                  unsigned int tau, float alpha):
+    """Feed backward comb filter for 1d signals."""
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
         raise ValueError('`tau` must be greater than 0')
@@ -123,31 +120,20 @@ def feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
     return y
 
 
+def feed_backward_comb_filter_1d(signal, tau, alpha):
+    """
+    `feed_backward_comb_filter_1d` is deprecated as of version 0.14 and will
+    be removed in version 0.15. Use `feed_backward_comb_filter` instead.
+
+    """
+    import warnings
+    raise warnings.warn(feed_backward_comb_filter_1d.__doc__)
+
+
 @cython.boundscheck(False)
-def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
-                                 unsigned int tau, float alpha):
-    """
-    Filter the signal with a feed backward comb filter.
-
-    Parameters
-    ----------
-    signal : 2D numpy array, float dtype
-        Signal.
-    tau : int
-        Delay length.
-    alpha : float
-        Scaling factor.
-
-    Returns
-    -------
-    comb_filtered_signal : numpy array
-        Comb filtered signal.
-
-    Notes
-    -----
-    y[n] = x[n] + α * y[n - τ] is used as a filter function.
-
-    """
+def _feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
+                                  unsigned int tau, float alpha):
+    """Feed backward comb filter for 2d signals."""
     # y[n] = x[n] + α * y[n - τ]
     if tau <= 0:
         raise ValueError('`tau` must be greater than 0')
@@ -162,6 +148,16 @@ def feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
             y[n, d] += alpha * y[n - tau, d]
     # return
     return y
+
+
+def feed_backward_comb_filter_2d(signal, tau, alpha):
+    """
+    `feed_backward_comb_filter_2d` is deprecated as of version 0.14 and will
+    be removed in version 0.15. Use `feed_backward_comb_filter` instead.
+
+    """
+    import warnings
+    raise warnings.warn(feed_backward_comb_filter_2d.__doc__)
 
 
 # comb filter
@@ -190,6 +186,35 @@ def comb_filter(signal, filter_function, tau, alpha):
     Notes
     -----
     `tau` and `alpha` must be of same length.
+
+    Examples
+    --------
+    Filter the given signal with a bank of resonating comb filters.
+
+    >>> x = np.array([0, 0, 1, 0, 0, 1, 0, 0, 1])
+    >>> comb_filter(x, feed_forward_comb_filter, [2, 3], [0.5, 0.5])
+    array([[ 0. ,  0. ],
+           [ 0. ,  0. ],
+           [ 1. ,  1. ],
+           [ 0. ,  0. ],
+           [ 0.5,  0. ],
+           [ 1. ,  1.5],
+           [ 0. ,  0. ],
+           [ 0.5,  0. ],
+           [ 1. ,  1.5]])
+
+    Same for a backward filter:
+
+    >>> comb_filter(x, feed_backward_comb_filter, [2, 3], [0.5, 0.5])
+    array([[ 0.   ,  0.   ],
+           [ 0.   ,  0.   ],
+           [ 1.   ,  1.   ],
+           [ 0.   ,  0.   ],
+           [ 0.5  ,  0.   ],
+           [ 1.   ,  1.5  ],
+           [ 0.25 ,  0.   ],
+           [ 0.5  ,  0.   ],
+           [ 1.125,  1.75 ]])
 
     """
     # convert tau to a integer numpy array
@@ -235,6 +260,36 @@ class CombFilterbankProcessor(Processor):
     Notes
     -----
     `tau` and `alpha` must have the same length.
+
+    Examples
+    --------
+    Create a processor and then filter the given signal with it.
+    The direction of the comb filter function can be given as a literal:
+
+    >>> x = np.array([0, 0, 1, 0, 0, 1, 0, 0, 1])
+    >>> proc = CombFilterbankProcessor('forward', [2, 3], [0.5, 0.5])
+    >>> proc(x)
+    array([[ 0. ,  0. ],
+           [ 0. ,  0. ],
+           [ 1. ,  1. ],
+           [ 0. ,  0. ],
+           [ 0.5,  0. ],
+           [ 1. ,  1.5],
+           [ 0. ,  0. ],
+           [ 0.5,  0. ],
+           [ 1. ,  1.5]])
+
+    >>> proc = CombFilterbankProcessor('backward', [2, 3], [0.5, 0.5])
+    >>> proc(x)
+    array([[ 0.   ,  0.   ],
+           [ 0.   ,  0.   ],
+           [ 1.   ,  1.   ],
+           [ 0.   ,  0.   ],
+           [ 0.5  ,  0.   ],
+           [ 1.   ,  1.5  ],
+           [ 0.25 ,  0.   ],
+           [ 0.5  ,  0.   ],
+           [ 1.125,  1.75 ]])
 
     """
 
