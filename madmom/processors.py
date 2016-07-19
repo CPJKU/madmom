@@ -512,7 +512,6 @@ class IOProcessor(OutputProcessor):
         depends on the output processors
             Processed data.
 
-
         """
         # process the data by the input processor
         data = _process((self.in_processor, data, kwargs))
@@ -652,6 +651,42 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
     tasks.join()
 
 
+# function to process live input
+def process_online(processor, stream, outfile, **kwargs):
+    """
+    Process a stream with the given Processor.
+
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be processed.
+    stream : :class:`.audio.signal.Stream`
+        Stream to get the data from. If 'None' a new stream is created with
+        the additional keyword arguments.
+    outfile : str or file handle
+        Output file (handle).
+    kwargs : dict, optional
+        Keyword arguments passed to :class:`.audio.signal.Stream` if
+        `in_stream` is 'None'.
+
+    """
+    from madmom.audio.signal import Stream
+    # FIXME: If a Stream is given we must check if the arguments match the ones
+    #        of the Processor. Maybe just always do the stream creation in here
+    #        and infer the needed arguments from the Processor?
+    if not isinstance(stream, Stream):
+        stream = Stream(**kwargs)
+    # start the stream if not running already
+    if not stream.is_running():
+        stream.start()
+    # process all frames with the given processor
+    for frame in stream:
+        if isinstance(processor, IOProcessor):
+            processor(frame, outfile, **kwargs)
+        else:
+            processor(frame, **kwargs)
+
+
 # function for pickling a processor
 def pickle_processor(processor, outfile, **kwargs):
     """
@@ -670,7 +705,7 @@ def pickle_processor(processor, outfile, **kwargs):
 
 
 # generic input/output arguments for scripts
-def io_arguments(parser, output_suffix='.txt', pickle=True):
+def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
     """
     Add input / output related arguments to an existing parser.
 
@@ -694,14 +729,16 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                         help='increase verbosity level')
     # add subparsers
     sub_parsers = parser.add_subparsers(title='processing options')
+
+    # pickle processor options
     if pickle:
-        # pickle processor options
         sp = sub_parsers.add_parser('pickle', help='pickle processor')
         sp.set_defaults(func=pickle_processor)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
         sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
+
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
@@ -713,6 +750,7 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                     default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
+
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
     sp.set_defaults(func=process_batch)
@@ -732,3 +770,17 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                          'working threads [default=process them in sorted '
                          'order]')
     sp.set_defaults(num_threads=1)
+
+    # online processing options
+    if online:
+        sp = sub_parsers.add_parser('online', help='online processing')
+        sp.set_defaults(func=process_online)
+        # Note: requiring '-o' is a simple safety measure to not overwrite
+        #       existing audio files after using the processor in 'batch' mode
+        sp.add_argument('-o', dest='out_stream', type=argparse.FileType('wb'),
+                        default=output, help='output file [default: STDOUT]')
+        sp.add_argument('--block_size', dest='block_size', type=int,
+                        default=1, help='number of frames used for processing')
+        sp.set_defaults(num_channels=1)
+        sp.set_defaults(num_frames=1)
+        sp.set_defaults(origin='future')
