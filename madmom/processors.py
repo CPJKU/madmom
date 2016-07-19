@@ -297,7 +297,7 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         self.processors.extend(other)
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Process the data sequentially with the defined processing chain.
 
@@ -711,3 +711,66 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                          'working threads [default=process them in sorted '
                          'order]')
     sp.set_defaults(num_threads=1)
+
+    # online processing options
+    sp = sub_parsers.add_parser('online', help='online processing')
+    sp.set_defaults(func=process_online)
+    # Note: requiring '-o' is a simple safety measure to not overwrite existing
+    #       audio files after using the processor in 'batch' mode
+    sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                    default=output, help='output file [default: STDOUT]')
+
+
+def process_online(processor,instream=None,outstream=sys.stdout,block_size=1,**kwargs):
+    from madmom.audio.signal import StreamFrame, FrameList
+    """
+    Process a stream with the given processor
+
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be processed.
+    infile : :class: `.audio.signal.StreamFrame`
+        Stream where to get the data. If None a new one is created with the additional parameters
+    outfile : str or file handle
+        Output file (handle).
+    block_size : int
+        number of frames used for processing
+    """
+
+    kwargs_copy = kwargs.copy()
+    if instream is None:
+        # print(kwargs)
+        # arguments = {key: value for key, value in kwargs_copy.items()
+        #             if key in StreamFrame.__init__.__code__.co_varnames}
+        #
+        # for key in arguments.keys():
+        #     kwargs.pop(key)
+        #
+        # print(kwargs, arguments, kwargs_copy)
+
+        instream = StreamFrame(**kwargs)
+
+
+
+
+    print(processor[0])
+    frame_proc = instream.create_FramedSignalProcessor()
+    processor.insert(0,frame_proc)
+    print(processor[0])
+
+    if not instream.started():
+        instream.start()
+
+    frameList_arguments = {key: value for key, value in kwargs_copy.items()
+                 if key in FrameList.__init__.__code__.co_varnames}
+
+    print(frameList_arguments)
+
+    frames = FrameList(**frameList_arguments)
+
+    for frame in instream:
+        frames.append(frame)
+        if len(frames) >= block_size:
+            processor(frames,**kwargs)
+            frames.clear()

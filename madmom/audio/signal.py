@@ -14,6 +14,7 @@ import numpy as np
 from madmom.processors import Processor
 
 
+
 # signal functions
 def smooth(signal, kernel):
     """
@@ -865,6 +866,7 @@ FPS = None
 ORIGIN = 0
 END_OF_SIGNAL = 'normal'
 NUM_FRAMES = None
+QUEUE_SIZE = 1
 
 
 # classes for splitting a signal into frames
@@ -877,6 +879,7 @@ class FramedSignal(object):
     ----------
     signal : :class:`Signal` instance
         Signal to be split into frames.
+        can also be a list of :class: Frame instances (used for online processing from the microphone)
     frame_size : int, optional
         Size of one frame [samples].
     hop_size : float, optional
@@ -939,10 +942,17 @@ class FramedSignal(object):
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  fps=FPS, origin=ORIGIN, end=END_OF_SIGNAL,
                  num_frames=NUM_FRAMES, **kwargs):
+
+
         # signal handling
         if not isinstance(signal, Signal):
-            # try to instantiate a Signal
-            signal = Signal(signal, **kwargs)
+            if isinstance(signal,FrameList):
+                self.from_stream = True
+                num_frames = len(signal)
+            else:
+                # try to instantiate a Signal
+                signal = Signal(signal, **kwargs)
+
         # save the signal
         self.signal = signal
 
@@ -1001,9 +1011,12 @@ class FramedSignal(object):
                 index += self.num_frames
             # return the frame at the given index
             if index < self.num_frames:
-                return signal_frame(self.signal, index,
-                                    frame_size=self.frame_size,
-                                    hop_size=self.hop_size, origin=self.origin)
+                if self.from_stream:
+                    return self.signal[index].get_signal()
+                else:
+                    return signal_frame(self.signal, index,
+                                        frame_size=self.frame_size,
+                                        hop_size=self.hop_size, origin=self.origin)
             # otherwise raise an error to indicate the end of signal
             raise IndexError("end of signal reached")
         # a slice is given
@@ -1092,7 +1105,7 @@ class FramedSignalProcessor(Processor):
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=FPS,
                  origin=ORIGIN, end=END_OF_SIGNAL, num_frames=NUM_FRAMES,
-                 online=None, **kwargs):
+                 online=None,**kwargs):
         # pylint: disable=unused-argument
         self.frame_size = frame_size
         self.hop_size = hop_size
@@ -1100,6 +1113,7 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
+
         if online is not None:
             import warnings
             warnings.warn('`online` is deprecated as of version 0.14 and will '
@@ -1131,7 +1145,7 @@ class FramedSignalProcessor(Processor):
         return FramedSignal(data, frame_size=self.frame_size,
                             hop_size=self.hop_size, fps=self.fps,
                             origin=self.origin, end=self.end,
-                            num_frames=self.num_frames, **kwargs)
+                            num_frames=self.num_frames,**kwargs)
 
     @staticmethod
     def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS,
@@ -1189,3 +1203,205 @@ class FramedSignalProcessor(Processor):
                            help='operate in offline mode [default=online]')
         # return the argument group so it can be modified if needed
         return g
+
+
+import pyaudio
+import queue
+FRAME_IDX = 0
+
+
+
+class Frame():
+    """
+    The :class: `Frame` class has two attributes : a Signal and a frame index
+    """
+    def __init__(self, data, frame_idx=FRAME_IDX, **kwargs):
+        if isinstance(data,Signal):
+            self.signal = data
+        else:
+            self.signal = Signal(data,**kwargs)
+
+        self.frame_idx = frame_idx
+
+    def get_signal(self):
+        return self.signal
+
+    def get_frame_idx(self):
+        return self.frame_idx
+
+
+class FrameList():
+    """
+    The :class: `Frame_list` class is a list of :class: `Frame` instances with some additional attributes
+    """
+    def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,dtype=DTYPE):
+        self.list = []
+        self.sample_rate = sample_rate
+        self.num_channels = num_channels
+        self.dtype = dtype
+
+    def append(self,frame):
+        if isinstance(frame, Frame):
+            self.list.append(frame)
+        else:
+            raise TypeError('should only append Frame instances')
+
+    def clear(self):
+        self.list = []
+
+    def __getitem__(self, index):
+        return self.list[index]
+
+    def __len__(self):
+        return len(self.list)
+
+
+# class for online processing
+class StreamFrame():
+    """
+        The :class: `StreamFrame` is for recording frames from the microphone.
+        It creates a stream and each time a new frame is recorded, it puts it into a queue. The data from the queue
+        can be read with the `get_frame` method.
+
+        Parameters
+        ----------
+        sample_rate : sample rate of the signal
+        frame_size : number of samples per frame
+        hop_size : Progress `hop_size` samples between adjacent frames.
+        fps : number of frames to be per second. Overrides the hope size (hop_size = sample_rate / fps)
+        queue_size : maximum number of frames to store in the queue (if the queue is full and a frame arrives,
+                                                                    it erases the first frame in the queue)
+        dtype : type for the data
+        num_channels : number of channels
+        kwargs : additional parameters for the signal and the stream
+        """
+    def __init__(self, sample_rate=SAMPLE_RATE,
+                 frame_size=FRAME_SIZE,
+                 hop_size=HOP_SIZE,
+                 fps=FPS,
+                 queue_size=QUEUE_SIZE,
+                 dtype=DTYPE,
+                 num_channels=NUM_CHANNELS,
+                 **kwargs):
+
+        # setting attributes
+        self.sample_rate=sample_rate
+        if frame_size:
+            self.frame_size = int(frame_size)
+        if hop_size:
+            self.hop_size = float(hop_size)
+        # use fps instead of hop_size
+        if fps:
+            # overwrite the hop_size
+            self.hop_size = self.sample_rate / float(fps)
+        self.queue_size = queue_size
+        self.dtype = dtype
+        self.num_channels = num_channels
+
+        # separate specific parameters for signal and stream
+        self.kwargs_signal = {key: value for key, value in kwargs.items()
+                              if key in Signal.__init__.__code__.co_varnames}
+        self.kwargs_stream = {key: value for key, value in kwargs.items()
+                        if key in pyaudio.PyAudio.open.__code__.co_varnames}
+
+        # print(kwargs_stream, self.kwargs_signal)
+        #
+        # print(self.sample_rate, self.num_channels,self.hop_size)
+        # set pyaudio for recording
+        self.p = pyaudio.PyAudio()
+        self.stream = self.p.open(format=pyaudio.paInt16,
+                                  channels=self.num_channels,
+                                  rate=self.sample_rate,
+                                  input=True,
+                                  frames_per_buffer=int(self.hop_size),
+                                  stream_callback=self.callback,
+                                  start=False,
+                                  **self.kwargs_stream)
+                                  # start=False so that is only starts when we ask for it with stream.start_stream()
+        self.start()
+
+        self.frame = None  # to store the frame as an instance of Frames
+        self.frame_data = []  # the current frame data
+        self.frame_idx = 0  # the current frame index
+        self.stop = False  # for stopping the recording
+        self.frame_queue = queue.Queue(maxsize=self.queue_size)  # the queue where the frames are stored
+
+        self.count = 0  # this counter is just to deal with the first input
+
+    def callback(self,in_data, frame_count, time_info, flag):
+        # get the data from the stream
+        data = np.fromstring(in_data,'int16').astype(self.dtype)
+
+        if self.count == 0:  # if it is the first one we just store it in the frame_data
+            self.frame_data = data
+            self.count = 1
+
+        else:
+            # concatenate the current data with the last
+            self.frame_data = np.concatenate((self.frame_data, data), axis=0)
+
+            if len(self.frame_data) >= self.frame_size:  # wait until the frame is completed
+                self.frame_data = self.frame_data[-self.frame_size:]  # take only the last frame
+                self.frame = Frame(data=self.frame_data,
+                                   frame_idx=self.frame_idx,
+                                   num_channels=self.num_channels,
+                                   **self.kwargs_signal)  # store it in a frame
+
+                if self.frame_queue.qsize() >= self.queue_size:  # if the queue if full erase the first frame in the queue
+                    self.frame_queue.get()
+
+                self.frame_queue.put(self.frame, block=False)  # fill the queue with the current frame
+
+                self.frame_idx += 1  # increment the frame index
+
+        if self.stop:  # if stop return complete
+            return None, pyaudio.paComplete
+
+        return self.frame_data, pyaudio.paContinue
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        frame = self.frame_queue.get()
+        return frame
+
+    def get_sample_rate(self):
+        return self.sample_rate
+
+    def get_frame_size(self):
+        return self.frame_size
+
+    def get_hop_size(self):
+        return self.hop_size
+
+    def started(self):
+        return not self.stop
+
+    def start(self):
+        # reinitialize the attributes
+        self.frame = None
+        self.frame_data = []
+        self.frame_idx = 0
+        self.frame_queue = queue.Queue(maxsize=self.queue_size)
+        self.count = 0
+        self.stop = False
+
+        self.stream.start_stream()
+
+    def pause(self):
+        self.stop = True
+        self.stream.stop_stream()
+
+    def close(self):
+        self.stream.close()
+        self.p.terminate()
+
+    def create_FramedSignalProcessor(self):
+        return FramedSignalProcessor(frame_size=self.frame_size,
+                                     hop_size=self.hop_size)
+
+
+
+
+

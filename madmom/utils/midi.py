@@ -1285,7 +1285,7 @@ class MIDITrack(object):
         events.insert(0, sig)
         events.insert(0, tempo)
         # create a track, set it to absolute timing and return it
-        return cls(events, relative_timing=False)
+        return cls(events)  #, relative_timing=False)
 
 
 # File I/O classes
