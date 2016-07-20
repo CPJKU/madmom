@@ -577,6 +577,92 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                                   dtype=signal.dtype)
 
 
+DTYPE = 'int'
+# the bufer class to store data
+class Buffer():
+    """
+    The :class: `Buffer` is used to store data in a buffer for processing needing a certain context of the signal.
+    For example the SuperFlux algorithm needs a context of two frames to be able to compute a difference between
+    the spectrograms of the two frames.
+    Parameters
+    ----------
+    num_data : int
+        number of slices of data to fill the buffer
+    data_size : tuple
+        Size of the data that will be put in the buffer
+    """
+
+    def __init__(self,num_data, data_size):
+        self.num_data = num_data
+        self.data_size = data_size
+
+        self.all_data = None
+        self.index = 0 # store the number of slices of data have already been stored
+
+    def append(self, data):
+        if self.index == 0: # initialize the buffer with zeros (this keeps the type of data)
+            self.all_data = np.repeat(data * 0, self.num_data, axis=0)
+
+        if self.index < self.num_data:
+            start = self.index * self.data_size[0]
+            end = start + self.data_size[0]
+            # fill the buffer with the data
+            if len(self.data_size) == 1:
+                self.all_data[start:end] = data
+            else:
+                self.all_data[start:end,:] = data
+            self.index += 1
+        else:
+            # remove the first slice of data and add the new data
+            if len(self.data_size) == 1:
+                self.all_data[:-self.data_size[0]] = self.all_data[self.data_size[0]:]
+                self.all_data[-self.data_size[0]:] = data
+            else:
+                self.all_data[:-self.data_size[0],:] = self.all_data[self.data_size[0]:,:]
+                self.all_data[-self.data_size[0]:,:] = data
+
+        return self.all_data
+
+from madmom.processors import Processor
+class BufferProcessor(Processor):
+    def __init__(self, num_data, data_size):
+        self.buffer = Buffer(num_data=num_data,data_size=data_size)
+
+    def process(self,data):
+        return self.buffer.append(data)
+
+    @staticmethod
+    def add_arguments(parser, num_data=None, data_size=None):
+        """
+        Add signal framing related arguments to an existing parser.
+
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        ----------
+        num_data : int
+            number of slices of data to fill the buffer
+        data_size : tuple
+            Size of the data that will be put in the buffer
+
+        Returns
+        -------
+        argparse argument group
+            Signal framing argument parser group.
+
+        """
+        # add buffering options to the existing parser
+        g = parser.add_argument_group('buffering arguments')
+        if num_data is not None:
+            g.add_argument('--num_data', action='store', type=int,
+                           help='number of slices of data to fill the buffer')
+        if data_size is not None:
+            g.add_argument('--data_size', action='store', type=tuple,
+                           help='Size of the data that will be put in the buffer')
+
+        return g
+
 # keep namespace clean
 del contextlib
 

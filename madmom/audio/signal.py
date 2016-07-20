@@ -1204,7 +1204,6 @@ class FramedSignalProcessor(Processor):
         # return the argument group so it can be modified if needed
         return g
 
-
 import pyaudio
 import queue
 QUEUE_SIZE = 1
@@ -1346,49 +1345,6 @@ class Stream():
     def create_FramedSignalProcessor(self):
         return FramedSignalProcessor(frame_size=self.frame_size,
                                      hop_size=self.hop_size)
-
-
-class Buffer():
-    """
-    The :class: `Buffer` is used to store data in a list for processing needing a certain context of the signal.
-    For example the SuperFlux algorithm needs a context of two frames to be able to compute a difference between
-    the spectrograms of the two frames.
-    """
-    def __init__(self,cls,size):
-        self.list = []
-        self.cls = cls
-        self.size = size
-        self.index = 0
-        self.all_data = []
-
-    def append(self,data):
-        if isinstance(data, self.cls):
-            if self.index < self.size:
-                self.list.append(data)
-                if self.index == 0:
-                    self.all_data = data
-                else:
-                    self.all_data = self.cls(np.concatenate((self.all_data,data),axis=0))
-                self.index +=1
-            else:
-                raise IndexError('buffer full')
-        else:
-            raise TypeError('should only append '+str(self.cls)+' instances')
-
-    def clear(self):
-        self.list = []
-        self.all_data = []
-        self.index = 0
-
-    def __getitem__(self, index):
-        return self.list[index]
-
-    def __len__(self):
-        return len(self.list)
-
-    def get_all(self):
-        return self.all_data
-
 
 
 
