@@ -4,7 +4,7 @@
 # pylint: disable=too-many-arguments
 """
 This module contains functionality needed for fitting and scoring Gaussian
-Mixture Models (GMMs) (needed e.g. in madmom.features.beats_hmm).
+Mixture Models (GMMs) (needed e.g. in madmom.features.beats).
 
 The needed functionality is taken from sklearn.mixture.GMM which is released
 under the BSD license and was written by these authors:
@@ -13,7 +13,7 @@ under the BSD license and was written by these authors:
 - Fabian Pedregosa <fabian.pedregosa@inria.fr>
 - Bertrand Thirion <bertrand.thirion@inria.fr>
 
-This version works with sklearn v0.16 an onwards.
+This version works with sklearn v0.16 (and hopefully onwards).
 All commits until 0650d5502e01e6b4245ce99729fc8e7a71aacff3 are incorporated.
 
 """
@@ -211,7 +211,6 @@ class GMM(object):
     Initializes parameters such that every mixture component has zero
     mean and identity covariance.
 
-
     Parameters
     ----------
     n_components : int, optional
@@ -237,6 +236,10 @@ class GMM(object):
 
     `converged_` : bool
         True when convergence was reached in fit(), False otherwise.
+
+    See Also
+    --------
+    sklearn.mixture.GMM
 
     """
 
@@ -270,7 +273,7 @@ class GMM(object):
 
         Returns
         -------
-        logprob : array_like, shape (n_samples,)
+        log_prob : array_like, shape (n_samples,)
             Log probabilities of each data point in `x`.
 
         responsibilities : array_like, shape (n_samples, n_components)
@@ -289,9 +292,9 @@ class GMM(object):
         lpr = (log_multivariate_normal_density(x, self.means_, self.covars_,
                                                self.covariance_type) +
                np.log(self.weights_))
-        logprob = logsumexp(lpr, axis=1)
-        responsibilities = np.exp(lpr - logprob[:, np.newaxis])
-        return logprob, responsibilities
+        log_prob = logsumexp(lpr, axis=1)
+        responsibilities = np.exp(lpr - log_prob[:, np.newaxis])
+        return log_prob, responsibilities
 
     def score(self, x):
         """
@@ -305,12 +308,12 @@ class GMM(object):
 
         Returns
         -------
-        logprob : array_like, shape (n_samples,)
+        log_prob : array_like, shape (n_samples,)
             Log probabilities of each data point in `x`.
 
         """
-        logprob, _ = self.score_samples(x)
-        return logprob
+        log_prob, _ = self.score_samples(x)
+        return log_prob
 
     def fit(self, x, random_state=None, tol=1e-3, min_covar=1e-3,
             n_iter=100, n_init=1, params='wmc', init_params='wmc'):
