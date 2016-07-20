@@ -117,7 +117,6 @@ def stft(frames, window, fft_size=None, circular_shift=False):
                 fft_signal[:frame_size] = frame
         # perform DFT
         data[f] = fft.fft(fft_signal, axis=0)[:num_fft_bins]
-        print(data)
     # return STFT
     return data
 

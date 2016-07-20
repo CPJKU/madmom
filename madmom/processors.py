@@ -474,7 +474,7 @@ class IOProcessor(OutputProcessor):
             raise IndexError('Only `in_processor` at index 0 and '
                              '`out_processor` at index 1 are defined.')
 
-    def process(self, data, output=None):
+    def process(self, data, output=None,**kwargs):
         """
         Processes the data with the input processor and pipe everything into
         the output processor, which also pipes it to `output`.
@@ -717,12 +717,14 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     sp.set_defaults(func=process_online)
     # Note: requiring '-o' is a simple safety measure to not overwrite existing
     #       audio files after using the processor in 'batch' mode
-    sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+    sp.add_argument('-o', dest='outstream', type=argparse.FileType('wb'),
                     default=output, help='output file [default: STDOUT]')
+    sp.add_argument('--block_size', dest='block_size', type=int,
+                    default=1, help='number of frames used for processing')
 
 
-def process_online(processor,instream=None,outstream=sys.stdout,block_size=1,**kwargs):
-    from madmom.audio.signal import StreamFrame, FrameList
+def process_online(processor,instream=None,outstream=sys.stdout,**kwargs):
+    from madmom.audio.signal import StreamFrame
     """
     Process a stream with the given processor
 
@@ -730,12 +732,10 @@ def process_online(processor,instream=None,outstream=sys.stdout,block_size=1,**k
     ----------
     processor : :class:`Processor` instance
         Processor to be processed.
-    infile : :class: `.audio.signal.StreamFrame`
+    instream : :class: `.audio.signal.StreamFrame`
         Stream where to get the data. If None a new one is created with the additional parameters
-    outfile : str or file handle
+    outstream : str or file handle
         Output file (handle).
-    block_size : int
-        number of frames used for processing
     """
 
     kwargs_copy = kwargs.copy()
@@ -752,25 +752,21 @@ def process_online(processor,instream=None,outstream=sys.stdout,block_size=1,**k
         instream = StreamFrame(**kwargs)
 
 
-
-
-    print(processor[0])
-    frame_proc = instream.create_FramedSignalProcessor()
-    processor.insert(0,frame_proc)
-    print(processor[0])
+    # frame_proc = instream.create_FramedSignalProcessor()
+    # if isinstance(processor, SequentialProcessor):
+    #     processor.insert(0,frame_proc)
+    # if isinstance(processor, IOProcessor):
+    #     if isinstance(processor[0],SequentialProcessor):
+    #         processor[0].insert(0,frame_proc)
+    #     else: # create the sequential processor
+    #         seq_proc = SequentialProcessor([frame_proc,processor[0]])
+    #         processor[0] = seq_proc
 
     if not instream.started():
         instream.start()
 
-    frameList_arguments = {key: value for key, value in kwargs_copy.items()
-                 if key in FrameList.__init__.__code__.co_varnames}
-
-    print(frameList_arguments)
-
-    frames = FrameList(**frameList_arguments)
-
     for frame in instream:
-        frames.append(frame)
-        if len(frames) >= block_size:
-            processor(frames,**kwargs)
-            frames.clear()
+        if isinstance(processor, IOProcessor):
+            processor(frame,outstream,**kwargs)
+        else:
+            processor(frame, **kwargs)
