@@ -21,6 +21,7 @@ from madmom.audio.signal import Signal
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22050 = pj(AUDIO_PATH, 'sample_22050.wav')
+sample_spec = Spectrogram(sample_file)
 
 
 # test functions
@@ -566,35 +567,51 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.diff_max_bins is None)
         self.assertTrue(self.processor.positive_diffs is False)
 
-    def test_process(self):
-        result = self.processor.process(sample_file)
+    def test_process_spec(self):
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
         self.assertTrue(np.max(result[:2]) >= 0)
         self.assertTrue(np.min(result) < 0)
-        # change diff frames
-        self.processor.diff_frames = 2
-        result = self.processor.process(sample_file)
+        # if called a second time, result must be the exact same
+        result_ = self.processor.process(sample_spec)
+        self.assertTrue(np.allclose(result, result_))
+
+    def test_diff_frames(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) < 0)
-        # change positive diffs
+
+    def test_streaming_mode(self):
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=1)
+        result = self.processor.process(sample_spec)
+        # result must be the same if processed fram-by-frame
+        result_step = np.vstack([self.processor.process_step(frame) for
+                                 frame in sample_spec])
+        self.assertTrue(np.allclose(result, result_step))
+
+    def test_positive_diffs(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
         self.processor.positive_diffs = True
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) >= 0)
         # change stacking
         self.processor.stack_diffs = np.hstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024 * 2))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.vstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281 * 2, 1024))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.dstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024, 2))
         self.assertTrue(np.min(result) >= 0)
 
