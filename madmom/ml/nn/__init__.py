@@ -51,6 +51,24 @@ class NeuralNetwork(Processor):
     layers : list
         Layers of the Neural Network.
 
+    Examples
+    --------
+    Create a NeuralNetwork from the given layers.
+
+    >>> from madmom.ml.nn.layers import FeedForwardLayer
+    >>> from madmom.ml.nn.activations import tanh, sigmoid
+    >>> l1_weights = [[0.5, -1., -0.3 , -0.2]]
+    >>> l1_bias = [0.05, 0., 0.8, -0.5]
+    >>> l1 = FeedForwardLayer(l1_weights, l1_bias, activation_fn=tanh)
+    >>> l2_weights = [-1, 0.9, -0.2 , 0.4]
+    >>> l2_bias = [0.5]
+    >>> l2 = FeedForwardLayer(l2_weights, l2_bias, activation_fn=sigmoid)
+    >>> nn = NeuralNetwork([l1, l2])
+    >>> nn  # doctest: +ELLIPSIS
+    <madmom.ml.nn.NeuralNetwork object at 0x...>
+    >>> nn(np.array([0, 0.5, 1, 0, 1, 2, 0]))  # doctest: +NORMALIZE_WHITESPACE
+    array([ 0.53305, 0.36903, 0.265 , 0.53305, 0.265 , 0.18612, 0.53305])
+
     """
 
     def __init__(self, layers):
@@ -58,7 +76,7 @@ class NeuralNetwork(Processor):
 
     def process(self, data):
         """
-        Process the given data with the RNN.
+        Process the given data with the neural network.
 
         Parameters
         ----------
@@ -102,6 +120,18 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     -----
     If `ensemble_fn` is set to 'None', the predictions are returned as a list
     with the same length as the number of networks given.
+
+    Examples
+    --------
+    Create a NeuralNetworkEnsemble from the networks. Instead of supplying
+    the neural networks as parameter, they can also be loaded from file:
+
+    >>> from madmom.models import ONSETS_BRNN_PP
+    >>> nn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP)
+    >>> nn  # doctest: +ELLIPSIS
+    <madmom.ml.nn.NeuralNetworkEnsemble object at 0x...>
+    >>> nn(np.array([0, 0.5, 1, 0, 1, 2, 0]))  # doctest: +NORMALIZE_WHITESPACE
+    array([ 0.00116, 0.00213, 0.01428, 0.00729, 0.0088 , 0.21965, 0.00532])
 
     """
 
