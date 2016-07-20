@@ -724,7 +724,7 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
 
 
 def process_online(processor,instream=None,outstream=sys.stdout,**kwargs):
-    from madmom.audio.signal import StreamFrame
+    from madmom.audio.signal import Stream
     """
     Process a stream with the given processor
 
@@ -738,29 +738,8 @@ def process_online(processor,instream=None,outstream=sys.stdout,**kwargs):
         Output file (handle).
     """
 
-    kwargs_copy = kwargs.copy()
     if instream is None:
-        # print(kwargs)
-        # arguments = {key: value for key, value in kwargs_copy.items()
-        #             if key in StreamFrame.__init__.__code__.co_varnames}
-        #
-        # for key in arguments.keys():
-        #     kwargs.pop(key)
-        #
-        # print(kwargs, arguments, kwargs_copy)
-
-        instream = StreamFrame(**kwargs)
-
-
-    # frame_proc = instream.create_FramedSignalProcessor()
-    # if isinstance(processor, SequentialProcessor):
-    #     processor.insert(0,frame_proc)
-    # if isinstance(processor, IOProcessor):
-    #     if isinstance(processor[0],SequentialProcessor):
-    #         processor[0].insert(0,frame_proc)
-    #     else: # create the sequential processor
-    #         seq_proc = SequentialProcessor([frame_proc,processor[0]])
-    #         processor[0] = seq_proc
+        instream = Stream(**kwargs)
 
     if not instream.started():
         instream.start()

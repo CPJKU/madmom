@@ -523,7 +523,6 @@ STOP = None
 NORM = False
 GAIN = 0.
 DTYPE = None
-FRAME_IDX=None
 
 
 class Signal(np.ndarray):
@@ -579,12 +578,12 @@ class Signal(np.ndarray):
 
     def __init__(self, data, sample_rate=SAMPLE_RATE,
                  num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
-                 gain=GAIN, dtype=DTYPE, frame_idx=FRAME_IDX):
+                 gain=GAIN, dtype=DTYPE):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,frame_idx=FRAME_IDX):
+                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE):
         # try to load an audio file if the data is not a numpy array
         if isinstance(data, Signal):
             return data
@@ -607,12 +606,10 @@ class Signal(np.ndarray):
             sample_rate = sample_rate
         obj.sample_rate = sample_rate
 
-        # if the signal is a frame or not
-        is_frame = False
-        if frame_idx is not None:
-            is_frame = True
-        obj.frame_idx = frame_idx
-        obj.is_frame = is_frame
+        # store the start and stop (stop is recomputed as start + len(data)/sample_rate)
+        if start is not None:
+            obj.start = start
+            obj.stop = start + float(len(data)) / sample_rate
 
         # return the object
         return obj
@@ -622,8 +619,6 @@ class Signal(np.ndarray):
             return
         # set default values here, also needed for views of the Signal
         self.sample_rate = getattr(obj, 'sample_rate', None)
-        self.is_frame = getattr(obj, 'is_frame', None)
-        self.frame_idx = getattr(obj,'frame_idx', None)
 
     @property
     def num_samples(self):
@@ -878,7 +873,6 @@ FPS = None
 ORIGIN = 0
 END_OF_SIGNAL = 'normal'
 NUM_FRAMES = None
-QUEUE_SIZE = 1
 
 
 # classes for splitting a signal into frames
@@ -949,21 +943,18 @@ class FramedSignal(object):
     `frame_size`. It is not guaranteed that every sample of the signal is
     returned in a frame unless the `origin` is either 'right' or 'future'.
 
+    If used for online mode the parameters origin and num_frames should be : origin='future' and num_frames=1
+
     """
 
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  fps=FPS, origin=ORIGIN, end=END_OF_SIGNAL,
                  num_frames=NUM_FRAMES, **kwargs):
 
-        print(signal.is_frame)
         # signal handling
         if not isinstance(signal, Signal):
             # try to instantiate a Signal
             signal = Signal(signal, **kwargs)
-        elif signal.is_frame:
-            # these two parameters will make the slicing of the signal in frames return the current frame
-            num_frames = 1
-            origin = 'future'
 
         # save the signal
         self.signal = signal
@@ -1216,78 +1207,13 @@ class FramedSignalProcessor(Processor):
 
 import pyaudio
 import queue
-
-
-# class Frame():
-#     """
-#     The :class: `Frame` class has two attributes : a Signal and a frame index
-#     """
-#     def __init__(self, data, frame_idx=FRAME_IDX, **kwargs):
-#         if isinstance(data,Signal):
-#             self.signal = data
-#         else:
-#             self.signal = Signal(data,**kwargs)
-#
-#         self.frame_idx = frame_idx
-#
-#     def get_signal(self):
-#         return self.signal
-#
-#     def get_frame_idx(self):
-#         return self.frame_idx
-
-
-# class Frame(Signal):
-#     """
-#         The :class: `Frame` correspond to a frame of signal. It inherits :class: `Signal` and has an attribute called
-#         frame_idx representing the index of the frame in the whole signal.
-#     """
-#     def __init__(self,data,sample_rate, num_channels, dtype,frame_idx=1):
-#         super().__init__(data=data, sample_rate=sample_rate, num_channels=num_channels, dtype=dtype)
-#
-#     def __new__(cls,data,sample_rate, num_channels, dtype,frame_idx=1):
-#         obj = super().__new__(cls,data=data,sample_rate=sample_rate, num_channels=num_channels, dtype=dtype)
-#         obj.frame_idx = frame_idx
-#         return obj
-#
-#     def __array_finalize__(self, obj):
-#         if obj is None:
-#             return
-#         # set default values here, also needed for views of the Signal
-#         self.sample_rate = getattr(obj, 'sample_rate', None)
-#         self.frame_idx = getattr(obj, 'frame_idx', None)
-
-
-# class FrameList():
-#     """
-#     The :class: `Frame_list` class is a list of :class: `Frame` instances with some additional attributes
-#     """
-#     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,dtype=DTYPE):
-#         self.list = []
-#         self.sample_rate = sample_rate
-#         self.num_channels = num_channels
-#         self.dtype = dtype
-#
-#     def append(self,frame):
-#         if isinstance(frame, Frame):
-#             self.list.append(frame)
-#         else:
-#             raise TypeError('should only append Frame instances')
-#
-#     def clear(self):
-#         self.list = []
-#
-#     def __getitem__(self, index):
-#         return self.list[index]
-#
-#     def __len__(self):
-#         return len(self.list)
-
+QUEUE_SIZE = 1
+FRAME_IDX = 0
 
 # class for online processing
-class StreamFrame():
+class Stream():
     """
-        The :class: `StreamFrame` is for recording frames from the microphone.
+        The :class: `Stream` is for recording frames from the microphone.
         It creates a stream and each time a new frame is recorded, it puts it into a queue. The data from the queue
         can be read with the `get_frame` method.
 
@@ -1337,12 +1263,11 @@ class StreamFrame():
                                   start=False,
                                   **kwargs)
                                   # start=False so that is only starts when we ask for it with stream.start_stream()
-        self.start()
 
         self.frame = None  # to store the frame as an instance of Frames
         self.frame_data = []  # the current frame data
         self.frame_idx = 0  # the current frame index
-        self.stop = False  # for stopping the recording
+        self.stop = True  # for stopping the recording
         self.frame_queue = queue.Queue(maxsize=self.queue_size)  # the queue where the frames are stored
 
         self.count = 0  # this counter is just to deal with the first input
@@ -1361,11 +1286,12 @@ class StreamFrame():
 
             if len(self.frame_data) >= self.frame_size:  # wait until the frame is completed
                 self.frame_data = self.frame_data[-self.frame_size:]  # take only the last frame
+                start = self.frame_idx * float(self.hop_size) / self.sample_rate # time of the beginning of the frame
                 self.frame = Signal(data=self.frame_data,
-                                   frame_idx=self.frame_idx,
-                                   sample_rate=self.sample_rate,
-                                   dtype=self.dtype,
-                                   num_channels=self.num_channels)  # store it in a frame
+                                    sample_rate=self.sample_rate,
+                                    dtype=self.dtype,
+                                    num_channels=self.num_channels,
+                                    start=start)  # store it in a frame
 
                 if self.frame_queue.qsize() >= self.queue_size:  # if the queue if full erase the first frame in the queue
                     self.frame_queue.get()
