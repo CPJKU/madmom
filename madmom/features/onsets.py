@@ -587,12 +587,6 @@ class SpectralOnsetProcessor(Processor):
         Onset detection function. See `METHODS` for possible values.
 
     """
-    FRAME_SIZE = 2048
-    FPS = 200
-    ONLINE = False
-    MAX_BINS = 3
-    TEMPORAL_FILTER = 0.015
-    TEMPORAL_ORIGIN = 0
 
     METHODS = ['superflux', 'complex_flux', 'high_frequency_content',
                'spectral_diff', 'spectral_flux', 'modified_kullback_leibler',
@@ -670,7 +664,7 @@ class RNNOnsetProcessor(SequentialProcessor):
     References
     ----------
     .. [1] "Universal Onset Detection with bidirectional Long Short-Term Memory
-            Neural Networks"
+           Neural Networks"
            Florian Eyben, Sebastian Böck, Björn Schuller and Alex Graves.
            Proceedings of the 11th International Society for Music Information
            Retrieval Conference (ISMIR), 2010.
@@ -678,6 +672,17 @@ class RNNOnsetProcessor(SequentialProcessor):
            Sebastian Böck, Andreas Arzt, Florian Krebs and Markus Schedl.
            Proceedings of the 15th International Conference on Digital Audio
            Effects (DAFx), 2012.
+
+    Examples
+    --------
+    Create a RNNOnsetProcessor and pass a file through the processor to obtain
+    an onset detection function (sampled with 100 frames per second).
+
+    >>> proc = RNNOnsetProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.onsets.RNNOnsetProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav') # doctest: +ELLIPSIS
+    array([ 0.08313,  0.0024 ,  ...,  0.00205,  0.00527], dtype=float32)
 
     """
 
@@ -748,6 +753,17 @@ class CNNOnsetProcessor(SequentialProcessor):
     The implementation follows as closely as possible the original one, but
     part of the signal pre-processing differs in minor aspects, so results can
     differ slightly, too.
+
+    Examples
+    --------
+    Create a CNNOnsetProcessor and pass a file through the processor to obtain
+    an onset detection function (sampled with 100 frames per second).
+
+    >>> proc = CNNOnsetProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.onsets.CNNOnsetProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav') # doctest: +ELLIPSIS
+    array([ 0.05369,  0.04205,  ...,  0.00024,  0.00014], dtype=float32)
 
     """
 
@@ -927,6 +943,22 @@ class PeakPickingProcessor(Processor):
            "Evaluating the Online Capabilities of Onset Detection Methods",
            Proceedings of the 13th International Society for Music Information
            Retrieval Conference (ISMIR), 2012.
+
+    Examples
+    --------
+    Create a PeakPickingProcessor. The returned array represents the positions
+    of the onsets in seconds, thus the expected sampling rate has to be given.
+
+    >>> proc = PeakPickingProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.onsets.PeakPickingProcessor object at 0x...>
+
+    Call this PeakPickingProcessor with the onset activation function obtained
+    by RNNOnsetProcessor to obtain the onset positions.
+
+    >>> act = RNNOnsetProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)  # doctest: +ELLIPSIS
+    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
 
     """
     FPS = 100
