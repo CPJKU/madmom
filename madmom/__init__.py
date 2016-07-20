@@ -15,6 +15,7 @@ Please see the README for further details of this package.
 
 from __future__ import absolute_import, division, print_function
 
+import numpy as np
 import pkg_resources
 
 # import all packages
@@ -25,3 +26,19 @@ __version__ = pkg_resources.get_distribution("madmom").version
 
 # keep namespace clean
 del pkg_resources
+
+
+# set and restore numpy's print options for doctests
+_NP_PRINT_OPTIONS = np.get_printoptions()
+
+
+def setup():
+    # pylint: disable=missing-docstring
+    # sets up the environment for doctests (when run through nose)
+    np.set_printoptions(precision=5, edgeitems=2, suppress=True)
+
+
+def teardown():
+    # pylint: disable=missing-docstring
+    # restore the environment after doctests (when run through nose)
+    np.set_printoptions(**_NP_PRINT_OPTIONS)

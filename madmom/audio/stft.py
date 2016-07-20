@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from madmom.processors import Processor
-
+from .signal import Signal, FramedSignal
 
 STFT_DTYPE = np.complex64
 
@@ -50,7 +50,7 @@ def stft(frames, window, fft_size=None, circular_shift=False):
         Window (function).
     fft_size : int, optional
         FFT size (should be a power of 2); if 'None', the 'frame_size' given
-        by the `frames` is used; if the given `fft_size` is greater than the
+        by `frames` is used; if the given `fft_size` is greater than the
         'frame_size', the frames are zero-padded accordingly.
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
@@ -196,13 +196,13 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     Parameters
     ----------
     frames : :class:`.audio.signal.FramedSignal` instance
-        FramedSignal instance.
+        Framed signal.
     window : numpy ufunc or numpy array, optional
-        Window (function); if a function (e.g. np.hanning) is given, a window
-        of the given shape of size of the `frames` is used.
+        Window (function); if a function (e.g. `np.hanning`) is given, a window
+        with the frame size of `frames` and the given shape is created.
     fft_size : int, optional
         FFT size (should be a power of 2); if 'None', the `frame_size` given by
-        the `frames` is used, if the given `fft_size` is greater than the
+        `frames` is used, if the given `fft_size` is greater than the
         `frame_size`, the frames are zero-padded accordingly.
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
@@ -214,12 +214,78 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     Notes
     -----
     If the :class:`Signal` (wrapped in the :class:`FramedSignal`) has an
-    integer dtype, it is automatically scaled as if it has a float dtype with
-    the values being in the range [-1, 1]. This results in same valued STFTs
-    independently of the dtype of the signal. On the other hand, this prevents
-    extra memory consumption since the data-type of the signal does not need to
-    be converted (and if no decoding is needed, the audio signal can be memory
-    mapped).
+    integer dtype, the `window` is automatically scaled as if the `signal` had
+    a float dtype with the values being in the range [-1, 1]. This results in
+    same valued STFTs independently of the dtype of the signal. On the other
+    hand, this prevents extra memory consumption since the data-type of the
+    signal does not need to be converted (and if no decoding is needed, the
+    audio signal can be memory-mapped).
+
+    Examples
+    --------
+    Create a :class:`ShortTimeFourierTransform` from a :class:`Signal` or
+    :class:`FramedSignal`:
+
+    >>> sig = Signal('tests/data/audio/sample.wav')
+    >>> sig
+    Signal([-2494, -2510, ...,   655,   639], dtype=int16)
+    >>> frames = FramedSignal(sig, frame_size=2048, hop_size=441)
+    >>> frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> stft = ShortTimeFourierTransform(frames)
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
+                                -0.03634-0.00005j,  0.03670+0.00029j],
+                               [-4.28429+0.j     ,  2.02009+2.01264j, ...,
+                                -0.01981-0.00933j, -0.00536+0.02162j],
+                               ...,
+                               [-4.92274+0.j     ,  4.09839-9.42525j, ...,
+                                 0.00550-0.00257j,  0.00137+0.00577j],
+                               [-9.22709+0.j     ,  8.76929+4.0005j , ...,
+                                 0.00981-0.00014j, -0.00984+0.00006j]],
+                              dtype=complex64)
+
+    A ShortTimeFourierTransform can be instantiated directly from a file name:
+
+    >>> stft = ShortTimeFourierTransform('tests/data/audio/sample.wav')
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    ShortTimeFourierTransform([[...]], dtype=complex64)
+
+    Doing the same with a Signal of float data-type will result in a STFT of
+    same value range (rounding errors will occur of course):
+
+    >>> sig = Signal('tests/data/audio/sample.wav', dtype=np.float)
+    >>> sig  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Signal([-0.07611, -0.0766 , ...,  0.01999,  0.0195 ])
+    >>> frames = FramedSignal(sig, frame_size=2048, hop_size=441)
+    >>> frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> stft = ShortTimeFourierTransform(frames)
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    ShortTimeFourierTransform([[-3.15240+0.j     ,  2.62208-3.02415j, ...,
+                                -0.03633-0.00005j,  0.03670+0.00029j],
+                               [-4.28416+0.j     ,  2.02003+2.01257j, ...,
+                                -0.01981-0.00933j, -0.00536+0.02162j],
+                               ...,
+                               [-4.92259+0.j     ,  4.09827-9.42496j, ...,
+                                 0.00550-0.00257j,  0.00137+0.00577j],
+                               [-9.22681+0.j     ,  8.76902+4.00038j, ...,
+                                 0.00981-0.00014j, -0.00984+0.00006j]],
+                              dtype=complex64)
+
+    Additional arguments are passed to :class:`FramedSignal` and
+    :class:`Signal` respectively:
+
+    >>> stft = ShortTimeFourierTransform('tests/data/audio/sample.wav', \
+frame_size=2048, fps=100, sample_rate=22050)
+    >>> stft.frames  # doctest: +ELLIPSIS
+    <madmom.audio.signal.FramedSignal object at 0x...>
+    >>> stft.frames.frame_size
+    2048
+    >>> stft.frames.hop_size
+    220.5
+    >>> stft.frames.signal.sample_rate
+    22050
 
     """
     # pylint: disable=super-on-old-class
@@ -234,7 +300,6 @@ class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
     def __new__(cls, frames, window=np.hanning, fft_size=None,
                 circular_shift=False, **kwargs):
         # pylint: disable=unused-argument
-        from .signal import FramedSignal
         # take the FramedSignal from the given STFT
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT
@@ -350,6 +415,26 @@ class ShortTimeFourierTransformProcessor(Processor):
         Circular shift the individual frames before performing the FFT;
         needed for correct phase.
 
+    Examples
+    --------
+    Create a :class:`ShortTimeFourierTransformProcessor` and call it with
+    either a file name or a the output of a (Framed-)SignalProcessor to obtain
+    a :class:`ShortTimeFourierTransform` instance.
+
+    >>> proc = ShortTimeFourierTransformProcessor()
+    >>> stft = proc('tests/data/audio/sample.wav')
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
+                                -0.03634-0.00005j,  0.03670+0.00029j],
+                               [-4.28429+0.j     ,  2.02009+2.01264j, ...,
+                                -0.01981-0.00933j, -0.00536+0.02162j],
+                               ...,
+                               [-4.92274+0.j     ,  4.09839-9.42525j, ...,
+                                 0.00550-0.00257j,  0.00137+0.00577j],
+                               [-9.22709+0.j     ,  8.76929+4.0005j , ...,
+                                 0.00981-0.00014j, -0.00984+0.00006j]],
+                              dtype=complex64)
+
     """
 
     def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
@@ -437,6 +522,20 @@ class Phase(PropertyMixin, np.ndarray):
         If no :class:`ShortTimeFourierTransform` instance was given, one is
         instantiated with these additional keyword arguments.
 
+    Examples
+    --------
+    Create a :class:`Phase` from a :class:`ShortTimeFourierTransform` (or
+    anything it can be instantiated from:
+
+    >>> stft = ShortTimeFourierTransform('tests/data/audio/sample.wav')
+    >>> phase = Phase(stft)
+    >>> phase  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Phase([[ 3.14159, -0.85649, ..., -3.14016,  0.00779],
+           [ 3.14159,  0.78355, ..., -2.70136,  1.81393],
+           ...,
+           [ 3.14159, -1.16063, ..., -0.4373 ,  1.33774],
+           [ 3.14159,  0.42799, ..., -0.0142 ,  3.13592]], dtype=float32)
+
     """
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
@@ -510,6 +609,21 @@ class LocalGroupDelay(PropertyMixin, np.ndarray):
     kwargs : dict, optional
         If no :class:`Phase` instance was given, one is instantiated with
         these additional keyword arguments.
+
+    Examples
+    --------
+    Create a :class:`LocalGroupDelay` from a :class:`ShortTimeFourierTransform`
+    (or anything it can be instantiated from:
+
+    >>> stft = ShortTimeFourierTransform('tests/data/audio/sample.wav')
+    >>> lgd = LocalGroupDelay(stft)
+    >>> lgd  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    LocalGroupDelay([[-2.2851 , -2.25605, ...,  3.13525,  0. ],
+                     [ 2.35804,  2.53786, ...,  1.76788,  0. ],
+                     ...,
+                     [-1.98..., -2.93039, ..., -1.77505,  0. ],
+                     [ 2.7136 ,  2.60925, ...,  3.13318,  0. ]])
+
 
     """
     # pylint: disable=super-on-old-class

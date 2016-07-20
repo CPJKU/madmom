@@ -13,6 +13,7 @@ import numpy as np
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
+from madmom.ml.nn import average_predictions
 
 
 # classes for tracking (down-)beats with RNNs
@@ -25,15 +26,35 @@ class RNNBeatProcessor(SequentialProcessor):
     post_processor : Processor, optional
         Post-processor, default is to average the predictions.
 
+    References
+    ----------
+    .. [1] Sebastian Böck and Markus Schedl,
+           "Enhanced Beat Tracking with Context-Aware Neural Networks",
+           Proceedings of the 14th International Conference on Digital Audio
+           Effects (DAFx), 2011.
+
+    Examples
+    --------
+    Create a RNNBeatProcessor and pass a file through the processor.
+    The returned 1d array represents the probability of a beat at each frame,
+    sampled at 100 frames per second.
+
+    >>> proc = RNNBeatProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.RNNBeatProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
+    array([ 0.00479,  0.00603,  0.00927,  0.01419,  0.02342, ...,
+            0.00411,  0.00517,  0.00757,  0.01289,  0.02725], dtype=float32)
+
     """
 
-    def __init__(self, post_processor=None, **kwargs):
+    def __init__(self, post_processor=average_predictions, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
-        from ..ml.nn import NeuralNetworkEnsemble, average_predictions
+        from ..ml.nn import NeuralNetworkEnsemble
         from ..models import BEATS_BLSTM
 
         # define pre-processing chain
@@ -52,10 +73,8 @@ class RNNBeatProcessor(SequentialProcessor):
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
-        # average predictions
-        if post_processor is None:
-            post_processor = average_predictions
-        # process the pre-processed signal with a NN ensemble
+        # process the pre-processed signal with a NN ensemble and the given
+        # post_processor
         nn = NeuralNetworkEnsemble.load(BEATS_BLSTM,
                                         ensemble_fn=post_processor)
 
@@ -67,6 +86,30 @@ class RNNDownBeatProcessor(SequentialProcessor):
     """
     Processor to get a joint beat and downbeat activation function from
     multiple RNNs.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Joint Beat and Downbeat Tracking with Recurrent Neural Networks"
+           Proceedings of the 17th International Society for Music Information
+           Retrieval Conference (ISMIR), 2016.
+
+    Examples
+    --------
+    Create a RNNDownBeatProcessor and pass a file through the processor.
+    The returned 2d array represents the probabilities at each frame, sampled
+    at 100 frames per second. The columns represent 'no-beat', 'beat', and
+    'downbeat'.
+
+    >>> proc = RNNDownBeatProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.RNNDownBeatProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
+    array([[ 0.99953,  0.00011,  0.00037],
+           [ 0.99948,  0.00008,  0.00043],
+           ...,
+           [ 0.9904 ,  0.00791,  0.00169],
+           [ 0.96081,  0.03425,  0.00494]], dtype=float32)
 
     """
 
@@ -104,7 +147,7 @@ class RNNDownBeatProcessor(SequentialProcessor):
         super(RNNDownBeatProcessor, self).__init__((pre_processor, nn))
 
 
-# classe for selecting a certain beat activation functions from (multiple) NNs
+# class for selecting a certain beat activation functions from (multiple) NNs
 class MultiModelSelectionProcessor(Processor):
     """
     Processor for selecting the most suitable model (i.e. the predictions
@@ -131,6 +174,37 @@ class MultiModelSelectionProcessor(Processor):
            Music Styles",
            Proceedings of the 15th International Society for Music Information
            Retrieval Conference (ISMIR), 2014.
+
+    Examples
+    --------
+    The MultiModelSelectionProcessor takes a list of model predictions as it's
+    call argument. Thus, `ppost_processor` of `RNNBeatProcessor` hast to be set
+    to 'None' in order to get the predictions of all models.
+
+    >>> proc = RNNBeatProcessor(post_processor=None)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.RNNBeatProcessor object at 0x...>
+
+    When passing a file through the processor, a list with predictions, one for
+    each model tested, is returned.
+
+    >>> predictions = proc('tests/data/audio/sample.wav')
+    >>> predictions  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [array([ 0.00535,  0.00774,  ...,  0.02343,  0.04931], dtype=float32),
+     array([ 0.0022 ,  0.00282,  ...,  0.00825,  0.0152 ], dtype=float32),
+     ...,
+     array([ 0.005  ,  0.0052 ,  ...,  0.00472,  0.01524], dtype=float32),
+     array([ 0.00319,  0.0044 ,  ...,  0.0081 ,  0.01498], dtype=float32)]
+
+    We can feed these predictions to the MultiModelSelectionProcessor.
+    Since we do not have a dedicated reference prediction (which had to be the
+    first element of the list and `num_ref_predictions` set to 1), we simply
+    set `num_ref_predictions` to 'None'. MultiModelSelectionProcessor averages
+    all predictions to obtain a reference prediction it compares all others to.
+
+    >>> mm_proc = MultiModelSelectionProcessor(num_ref_predictions=None)
+    >>> mm_proc(predictions)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([ 0.00759,  0.00901,  ...,  0.00843,  0.01834], dtype=float32)
 
     """
 
@@ -327,6 +401,22 @@ class BeatTrackingProcessor(Processor):
            Proceedings of the 16th International Society for Music Information
            Retrieval Conference (ISMIR), 2015.
 
+    Examples
+    --------
+    Create a BeatTrackingProcessor. The returned array represents the positions
+    of the beats in seconds, thus the expected sampling rate has to be given.
+
+    >>> proc = BeatTrackingProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.BeatTrackingProcessor object at 0x...>
+
+    Call this BeatTrackingProcessor with the beat activation function returned
+    by RNNBeatProcessor to obtain the beat positions.
+
+    >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)
+    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+
     """
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 10
@@ -357,6 +447,7 @@ class BeatTrackingProcessor(Processor):
         ----------
         activations : numpy array
             Beat activation function.
+
         Returns
         -------
         beats : numpy array
@@ -504,6 +595,23 @@ class BeatDetectionProcessor(BeatTrackingProcessor):
            Proceedings of the 16th International Society for Music Information
            Retrieval Conference (ISMIR), 2015.
 
+    Examples
+    --------
+    Create a BeatDetectionProcessor. The returned array represents the
+    positions of the beats in seconds, thus the expected sampling rate has to
+    be given.
+
+    >>> proc = BeatDetectionProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.BeatDetectionProcessor object at 0x...>
+
+    Call this BeatDetectionProcessor with the beat activation function returned
+    by RNNBeatProcessor to obtain the beat positions.
+
+    >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)
+    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+
     """
     LOOK_ASIDE = 0.2
 
@@ -566,6 +674,23 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
            Function",
            Proceedings of the 15th International Society for Music Information
            Retrieval Conference (ISMIR), 2014.
+
+    Examples
+    --------
+    Create a CRFBeatDetectionProcessor. The returned array represents the
+    positions of the beats in seconds, thus the expected sampling rate has to
+    be given.
+
+    >>> proc = CRFBeatDetectionProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.CRFBeatDetectionProcessor object at 0x...>
+
+    Call this BeatDetectionProcessor with the beat activation function returned
+    by RNNBeatProcessor to obtain the beat positions.
+
+    >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)
+    array([ 0.09,  0.79,  1.49])
 
     """
     INTERVAL_SIGMA = 0.18
@@ -769,6 +894,23 @@ class DBNBeatTrackingProcessor(Processor):
            "An Efficient State Space Model for Joint Tempo and Meter Tracking",
            Proceedings of the 16th International Society for Music Information
            Retrieval Conference (ISMIR), 2015.
+
+    Examples
+    --------
+    Create a DBNBeatTrackingProcessor. The returned array represents the
+    positions of the beats in seconds, thus the expected sampling rate has to
+    be given.
+
+    >>> proc = DBNBeatTrackingProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.DBNBeatTrackingProcessor object at 0x...>
+
+    Call this DBNBeatTrackingProcessor with the beat activation function
+    returned by RNNBeatProcessor to obtain the beat positions.
+
+    >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)
+    array([ 0.1 ,  0.45,  0.8 ,  1.12,  1.48,  1.8 ,  2.15,  2.49])
 
     """
     MIN_BPM = 55.
@@ -991,6 +1133,39 @@ class DBNDownBeatTrackingProcessor(Processor):
         Report downbeats only, not all beats and their position inside the bar.
     fps : float, optional
         Frames per second.
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Florian Krebs and Gerhard Widmer,
+           "Joint Beat and Downbeat Tracking with Recurrent Neural Networks"
+           Proceedings of the 17th International Society for Music Information
+           Retrieval Conference (ISMIR), 2016.
+
+    Examples
+    --------
+    Create a DBNDownBeatTrackingProcessor. The returned array represents the
+    positions of the beats and their position inside the bar. The position is
+    given in seconds, thus the expected sampling rate is needed. The position
+    inside the bar follows the natural counting and starts at 1.
+
+    The number of beats per bar which should be modelled must be given, all
+    other parameters (e.g. tempo range) are optional but must have the same
+    length as `beats_per_bar`, i.e. must be given for each bar length.
+
+    >>> proc = DBNDownBeatTrackingProcessor(beats_per_bar=[3, 4], fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.DBNDownBeatTrackingProcessor object at 0x...>
+
+    Call this DBNDownBeatTrackingProcessor with the beat activation function
+    returned by RNNDownBeatProcessor to obtain the beat positions.
+
+    >>> act = RNNDownBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)  # doctest: +ELLIPSIS
+    array([[ 0.09,  1.  ],
+           [ 0.45,  2.  ],
+           ...,
+           [ 2.14,  3.  ],
+           [ 2.49,  4.  ]])
 
     """
 
@@ -1309,6 +1484,39 @@ class PatternTrackingProcessor(Processor):
            Proceedings of the 16th International Society for Music Information
            Retrieval Conference (ISMIR), 2015.
 
+    Examples
+    --------
+    Create a PatternTrackingProcessor from the given pattern files. These
+    pattern files include fitted GMMs for the observation model of the HMM.
+    The returned array represents the positions of the beats and their position
+    inside the bar. The position is given in seconds, thus the expected
+    sampling rate is needed. The position inside the bar follows the natural
+    counting and starts at 1.
+
+    >>> from madmom.models import PATTERNS_BALLROOM
+    >>> proc = PatternTrackingProcessor(PATTERNS_BALLROOM, fps=50)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.PatternTrackingProcessor object at 0x...>
+
+    Call this PatternTrackingProcessor with a multi-band spectrogram to obtain
+    the beat and downbeat positions. The parameters of the spectrogram have to
+    correspond to those used to fit the GMMs.
+
+    >>> from madmom.processors import SequentialProcessor
+    >>> from madmom.audio.spectrogram import LogarithmicSpectrogramProcessor, \
+SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
+    >>> log = LogarithmicSpectrogramProcessor()
+    >>> diff = SpectrogramDifferenceProcessor(positive_diffs=True)
+    >>> mb = MultiBandSpectrogramProcessor(crossover_frequencies=[270])
+    >>> pre_proc = SequentialProcessor([log, diff, mb])
+
+    >>> act = pre_proc('tests/data/audio/sample.wav')
+    >>> proc(act)  # doctest: +ELLIPSIS
+    array([[ 0.82,  4.  ],
+           [ 1.78,  1.  ],
+           ...,
+           [ 3.7 ,  3.  ],
+           [ 4.66,  4.  ]])
     """
     # TODO: this should not be lists (lists are mutable!)
     MIN_BPM = [55, 60]

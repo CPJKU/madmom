@@ -256,6 +256,27 @@ class TempoEstimationProcessor(Processor):
     fps : float, optional
         Frames per second.
 
+    Examples
+    --------
+    Create a TempoEstimationProcessor. The returned array represents the
+    estimated tempi (given in beats per minute) and their relative strength.
+
+    >>> proc = TempoEstimationProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.tempo.TempoEstimationProcessor object at 0x...>
+
+    Call this TempoEstimationProcessor with the beat activation function
+    obtained by RNNBeatProcessor to estimate the tempi.
+
+    >>> from madmom.features.beats import RNNBeatProcessor
+    >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
+    >>> proc(act)  # doctest: +NORMALIZE_WHITESPACE
+    array([[ 176.47059,  0.47469],
+           [ 117.64706,  0.17667],
+           [ 240.     ,  0.15371],
+           [  68.96552,  0.09864],
+           [  82.19178,  0.09629]])
+
     """
     # default values for tempo estimation
     METHOD = 'comb'
