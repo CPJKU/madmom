@@ -2,10 +2,10 @@ version: 1.0.{build}
 
 environment:
   matrix:
-    - PYTHON: C:\Python27
-      PYTHON_VERSION: 2.7
-      MINICONDA: C:\Miniconda
-      PYTHON_ARCH: "32"
+#    - PYTHON: C:\Python27
+#      PYTHON_VERSION: 2.7
+#      MINICONDA: C:\Miniconda
+#      PYTHON_ARCH: "32"
     - PYTHON: C:\Python27-x64
       PYTHON_VERSION: 2.7
       MINICONDA: C:\Miniconda-x64

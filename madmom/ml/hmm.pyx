@@ -346,15 +346,15 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.log_probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef size_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef size_t num_observations = len(observations)
+        cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.log_densities(observations)
 
         # current viterbi variables
@@ -369,7 +369,7 @@ class HiddenMarkovModel(object):
                                                        num_states),
                                                       dtype=np.uint32)
         # define counters etc.
-        cdef unsigned int state, frame, prev_state, pointer
+        cdef size_t state, frame, prev_state, pointer
         cdef double density, transition_prob
 
         # iterate over all observations
@@ -447,22 +447,22 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef size_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef size_t num_observations = len(observations)
+        cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.densities(observations)
 
         # forward variables
         cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
                                            dtype=np.float)
         # define counters etc.
-        cdef unsigned int prev_pointer, frame, state, cur, prev
+        cdef size_t state, prev_pointer, frame, cur, prev
         cdef double prob_sum, norm_factor
 
         # init forward variables
@@ -523,15 +523,15 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_ptrs = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_ptrs = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef size_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef size_t num_observations = len(observations)
+        cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities
 
         # forward variables
@@ -539,8 +539,7 @@ class HiddenMarkovModel(object):
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.
-        cdef unsigned int prev_pointer, state
-        cdef unsigned int obs_start, obs_end, frame, block_sz
+        cdef size_t prev_pointer, state, obs_start, obs_end, frame, block_sz
         cdef double prob_sum, norm_factor
 
         # keep track which observations om_densities currently contains
