@@ -1,0 +1,2 @@
+# Chord labels computed by DCChordRecognition program
+0.0	2.9	G#:maj
