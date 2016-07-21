@@ -54,7 +54,7 @@ def main():
     )
     # version
     p.add_argument('--version', action='version',
-                   version='CNNChordRecogniser.2016')
+                   version='CNNChordRecognition.2016')
     io_arguments(p, output_suffix='.chords.txt')
     ActivationsProcessor.add_arguments(p)
 
