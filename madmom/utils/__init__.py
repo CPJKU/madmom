@@ -427,13 +427,13 @@ def load_segments(filename):
 
     Notes
     -----
-    Comments (lines starting with '#') are ignored. The maximum label length
-    is 64 characters.
+    Segment files cannot contain comments, because e.g. chord annotations
+    can contain the '#' character! The maximum label length is 64 characters.
 
     """
-    return np.loadtxt(filename, dtype=[('start', np.float),
-                                       ('end', np.float),
-                                       ('label', 'S64')])
+    return np.loadtxt(filename, comments='', dtype=[('start', np.float),
+                                                    ('end', np.float),
+                                                    ('label', 'S64')])
 
 
 # argparse action to set and overwrite default lists
