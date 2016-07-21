@@ -11,10 +11,14 @@ from functools import partial
 from madmom.processors import SequentialProcessor
 
 
+# dtype for numpy structured arrays that contain chord segments
+CHORD_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]
+
+
 def load_chords(filename):
     """
-    Loads labelled segments from a file. Segments are assumed follow the
-    following format, one chord label per line:
+    Load labelled chord segments from a file. Chord segments must follow
+    the following format, one chord label per line:
 
     <start_time> <end_time> <chord_label>
 
@@ -34,12 +38,38 @@ def load_chords(filename):
     Notes
     -----
     Segment files cannot contain comments, because e.g. chord annotations
-    can contain the '#' character! The maximum label length is 64 characters.
+    can contain the '#' character! The maximum label length is 32 characters.
 
     """
-    return np.loadtxt(filename, comments='', ndmin=1,
-                      dtype=[('start', np.float), ('end', np.float),
-                             ('label', 'S64')])
+    return np.loadtxt(filename, comments=None, ndmin=1, dtype=CHORD_DTYPE,
+                      converters={2: lambda x: x.decode()})
+
+
+def write_chords(chords, filename):
+    """
+    Write chord segments to a file.
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chord segments, one per row (column definition see notes).
+    filename : str or file handle
+        Output filename or handle
+
+    Returns
+    -------
+    numpy structured array
+        Chord segments.
+
+    Notes
+    -----
+    Chords are represented as numpy structured array with three named columns:
+    'start' contains the start time in seconds, 'end' the end time in seconds,
+    and 'label' the chord label.
+
+    """
+    np.savetxt(filename, chords, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
+    return chords
 
 
 def majmin_targets_to_chord_labels(targets, fps):
@@ -96,7 +126,8 @@ def majmin_targets_to_chord_labels(targets, fps):
     start_times, chord_labels = zip(*uniq_labels)
     end_times = start_times[1:] + (labels[-1][0] + spf,)
 
-    return zip(start_times, end_times, chord_labels)
+    return np.array(list(zip(start_times, end_times, chord_labels)),
+                    dtype=CHORD_DTYPE)
 
 
 class DeepChromaChordRecognitionProcessor(SequentialProcessor):

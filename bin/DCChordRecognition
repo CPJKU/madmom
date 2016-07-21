@@ -9,13 +9,11 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-from functools import partial
-
 from madmom.audio.chroma import DeepChromaProcessor
-from madmom.features.chords import DeepChromaChordRecognitionProcessor
+from madmom.features.chords import (DeepChromaChordRecognitionProcessor,
+                                    write_chords)
 from madmom.features import ActivationsProcessor
 from madmom.processors import io_arguments, IOProcessor
-from madmom.utils import write_events
 
 
 def main():
@@ -79,8 +77,7 @@ def main():
     else:
         # load conditional random field
         chord_processor = DeepChromaChordRecognitionProcessor(**vars(args))
-        write = partial(write_events, fmt='%s', delimiter='\t')
-        out_processor = [chord_processor, write]
+        out_processor = [chord_processor, write_chords]
 
     processor = IOProcessor(in_processor, out_processor)
     args.func(processor, **vars(args))
