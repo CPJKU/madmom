@@ -38,6 +38,7 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.spectral_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux_nn.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample2.cnn_chord_features.npz'),
                     pj(ACTIVATIONS_PATH, 'sample2.deep_chroma.npz'),
                     pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz')]
 
@@ -54,6 +55,7 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'sample.beats'),
 
 DETECTION_FILES = [pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.cnn_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample.cnn_onset_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.complex_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.crf_beat_detector.txt'),
@@ -69,6 +71,7 @@ DETECTION_FILES = [pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux_nn.txt'),
                    pj(DETECTIONS_PATH, 'sample.tempo_detector.txt'),
+                   pj(DETECTIONS_PATH, 'sample2.cnn_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample2.dc_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'stereo_sample.piano_transcriptor.txt')]
 
@@ -367,6 +370,12 @@ class TestLoadSegmentsFunction(unittest.TestCase):
         self.assertTrue(np.allclose(chords['end'], [1.6, 2.5, 4.1]))
         self.assertTrue((chords['label'] ==
                          np.array(['F:maj', 'A:maj', 'D:maj'])).all())
+
+        chords = load_segments(pj(DETECTIONS_PATH,
+                                  'sample.dc_chord_recognition.txt'))
+        self.assertTrue(np.allclose(chords['start'], [0.0]))
+        self.assertTrue(np.allclose(chords['end'], [2.9]))
+        self.assertTrue((chords['label'] == np.array(['G#:maj'])).all())
 
 
 class TestSegmentAxisFunction(unittest.TestCase):

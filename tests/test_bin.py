@@ -148,6 +148,64 @@ class TestBeatTrackerProgram(unittest.TestCase):
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
+class TestCNNChordRecognition(unittest.TestCase):
+    def setUp(self):
+        self.bin = "%s/CNNChordRecognition" % program_path
+        self.activations = [
+            Activations(pj(ACTIVATIONS_PATH, af))
+            for af in ['sample.cnn_chord_features.npz',
+                       'sample2.cnn_chord_features.npz']
+        ]
+        self.results = [
+            load_segments(pj(DETECTIONS_PATH, df))
+            for df in ['sample.cnn_chord_recognition.txt',
+                       'sample2.cnn_chord_recognition.txt']
+        ]
+
+    def _check_results(self, result, true_result):
+        print(result)
+        print(true_result)
+        self.assertTrue(np.allclose(result['start'], true_result['start']))
+        self.assertTrue(np.allclose(result['end'], true_result['end']))
+        self.assertTrue((result['label'] == true_result['label']).all())
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations,
+                                          self.results):
+            # save activations as binary file
+            run_program([self.bin, '--save', 'single', sf, '-o', tmp_act])
+            act = Activations(tmp_act)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            self.assertEqual(act.fps, true_act.fps)
+            # reload from file
+            run_program([self.bin, '--load', 'single', tmp_act,
+                         '-o', tmp_result])
+            self._check_results(load_segments(tmp_result), true_res)
+
+    def test_txt(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations,
+                                          self.results):
+            # save activations as txt file
+            run_program([self.bin, '--save', '--sep', ' ', 'single', sf,
+                         '-o', tmp_act])
+            act = Activations(tmp_act, sep=' ', fps=100)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            # reload from file
+            run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
+                         '-o', tmp_result])
+            self._check_results(load_segments(tmp_result), true_res)
+
+    def test_run(self):
+        for sf, true_res in zip([sample_file, sample2_file], self.results):
+            run_program([self.bin, 'single', sf, '-o', tmp_result])
+            self._check_results(load_segments(tmp_result), true_res)
+
+
 class TestComplexFluxProgram(unittest.TestCase):
     def setUp(self):
         self.bin = "%s/ComplexFlux" % program_path
@@ -363,14 +421,14 @@ class TestDCChordRecognition(unittest.TestCase):
             for af in ['sample.deep_chroma.npz', 'sample2.deep_chroma.npz']
         ]
         self.results = [
-            np.loadtxt(pj(DETECTIONS_PATH, df), dtype=[('start', np.float),
-                                                       ('end', np.float),
-                                                       ('label', 'S10')])
+            load_segments(pj(DETECTIONS_PATH, df))
             for df in ['sample.dc_chord_recognition.txt',
                        'sample2.dc_chord_recognition.txt']
         ]
 
     def _check_results(self, result, true_result):
+        print(result)
+        print(true_result)
         self.assertTrue(np.allclose(result['start'], true_result['start']))
         self.assertTrue(np.allclose(result['end'], true_result['end']))
         self.assertTrue((result['label'] == true_result['label']).all())
