@@ -10,29 +10,64 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH
 from madmom.features import Activations
 from madmom.features.chords import *
+from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
+
+sample_files = [pj(AUDIO_PATH, sf) for sf in ['sample.wav', 'sample2.wav']]
+
+sample_cnn_acts = [Activations(pj(ACTIVATIONS_PATH, af))
+                   for af in ['sample.cnn_chord_features.npz',
+                              'sample2.cnn_chord_features.npz']]
+
+sample_cnn_labels = [load_chords(pj(DETECTIONS_PATH, df))
+                     for df in ['sample.cnn_chord_recognition.txt',
+                                'sample2.cnn_chord_recognition.txt']]
+
+sample_deep_chroma_acts = [Activations(pj(ACTIVATIONS_PATH, af))
+                           for af in ['sample.deep_chroma.npz',
+                                      'sample2.deep_chroma.npz']]
+
+sample_deep_chroma_labels = [load_chords(pj(DETECTIONS_PATH, df))
+                             for df in ['sample.dc_chord_recognition.txt',
+                                        'sample2.dc_chord_recognition.txt']]
 
 
-sample_file = pj(AUDIO_PATH, "sample.wav")
-sample_cnn_act = Activations(pj(ACTIVATIONS_PATH,
-                                "sample.cnn_chord_features.npz"))
+class TestLoadSegmentsFunction(unittest.TestCase):
+    def test_read_segments_from_file(self):
+        chords = load_chords(pj(DETECTIONS_PATH,
+                                'sample2.dc_chord_recognition.txt'))
+        self.assertIsInstance(chords, np.ndarray)
 
-sample_deep_chroma_act = Activations(pj(ACTIVATIONS_PATH,
-                                        "sample.deep_chroma.npz"))
-sample_labels = [(0.0, 2.9, 'G#:maj')]
+    def test_read_segments_from_file_handle(self):
+        with open(pj(DETECTIONS_PATH,
+                     'sample2.dc_chord_recognition.txt')) as file_handle:
+            chords = load_chords(file_handle)
+            self.assertIsInstance(chords, np.ndarray)
+
+    def test_read_segment_annotations(self):
+        chords = load_chords(pj(DETECTIONS_PATH,
+                                'sample2.dc_chord_recognition.txt'))
+        self.assertTrue(np.allclose(chords['start'], [0.0, 1.6, 2.5]))
+        self.assertTrue(np.allclose(chords['end'], [1.6, 2.5, 4.1]))
+        self.assertTrue((chords['label'] ==
+                         np.array(['F:maj', 'A:maj', 'D:maj'])).all())
+
+        chords = load_chords(pj(DETECTIONS_PATH,
+                                'sample.dc_chord_recognition.txt'))
+        self.assertTrue(np.allclose(chords['start'], [0.0]))
+        self.assertTrue(np.allclose(chords['end'], [2.9]))
+        self.assertTrue((chords['label'] == np.array(['G#:maj'])).all())
 
 
-def _compare_labels(test_case, l1, l2):
-    for l, tl in zip(l1, l2):
-        test_case.assertAlmostEqual(l[0], tl[0])
-        test_case.assertAlmostEqual(l[1], tl[1])
-        test_case.assertEqual(l[2], tl[2])
+def _compare_labels(test_case, labels, reference_labels):
+    for l, rl in zip(labels, reference_labels):
+        test_case.assertTrue(np.allclose(l[0], rl[0]))
+        test_case.assertTrue(np.allclose(l[1], rl[1]))
+        test_case.assertEqual(l[2], rl[2])
 
 
 class TestMajMinTargetsToChordLabelsFunction(unittest.TestCase):
-
     def test_all_labels(self):
         fps = 10.
         targets = range(25)
@@ -77,30 +112,33 @@ class TestMajMinTargetsToChordLabelsFunction(unittest.TestCase):
 
 
 class TestCNNChordFeatureProcessorClass(unittest.TestCase):
-
     def setUp(self):
         self.processor = CNNChordFeatureProcessor()
 
     def test_process(self):
-        act = self.processor(sample_file)
-        self.assertTrue(np.allclose(act, sample_cnn_act))
+        for audio_file, true_activation in zip(sample_files, sample_cnn_acts):
+            act = self.processor(audio_file)
+            self.assertTrue(np.allclose(act, true_activation))
 
 
 class TestCRFChordRecognitionProcessorClass(unittest.TestCase):
-
     def setUp(self):
         self.processor = CRFChordRecognitionProcessor()
 
     def test_process(self):
-        labels = self.processor(sample_cnn_act)
-        _compare_labels(self, labels, sample_labels)
+        print(sample_cnn_labels)
+        for activation, true_labels in zip(sample_cnn_acts, sample_cnn_labels):
+            labels = self.processor(activation)
+            print(true_labels)
+            _compare_labels(self, labels, true_labels)
 
 
 class TestDeepChromaChordRecognitionProcessorClass(unittest.TestCase):
-
     def setUp(self):
         self.processor = DeepChromaChordRecognitionProcessor()
 
     def test_process(self):
-        labels = self.processor(sample_deep_chroma_act)
-        _compare_labels(self, labels, sample_labels)
+        for activation, true_labels in zip(sample_deep_chroma_acts,
+                                           sample_deep_chroma_labels):
+            labels = self.processor(activation)
+            _compare_labels(self, labels, true_labels)
