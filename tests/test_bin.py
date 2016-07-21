@@ -22,6 +22,7 @@ except ImportError:
 import numpy as np
 
 from madmom.features import Activations
+from madmom.utils import load_segments
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
 
@@ -369,15 +370,10 @@ class TestDCChordRecognition(unittest.TestCase):
                        'sample2.dc_chord_recognition.txt']
         ]
 
-    def _check_results(self, result_file, true_results):
-        result = np.loadtxt(result_file, dtype=[('start', np.float),
-                                                ('end', np.float),
-                                                ('label', 'S10')])
-        self.assertTrue(np.allclose(result['start'], true_results['start'],
-                                    atol=1e-5))
-        self.assertTrue(np.allclose(result['end'], true_results['end'],
-                                    atol=1e-5))
-        self.assertTrue((result['label'] == true_results['label']).all())
+    def _check_results(self, result, true_result):
+        self.assertTrue(np.allclose(result['start'], true_result['start']))
+        self.assertTrue(np.allclose(result['end'], true_result['end']))
+        self.assertTrue((result['label'] == true_result['label']).all())
 
     def test_help(self):
         self.assertTrue(run_help(self.bin))
@@ -394,7 +390,7 @@ class TestDCChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(tmp_result, true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_txt(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
@@ -408,12 +404,12 @@ class TestDCChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(tmp_result, true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_run(self):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_program([self.bin, 'single', sf, '-o', tmp_result])
-            self._check_results(tmp_result, true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):

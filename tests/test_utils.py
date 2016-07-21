@@ -11,7 +11,6 @@ import unittest
 from os.path import join as pj
 
 from madmom.utils import *
-
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
                DETECTIONS_PATH)
 
@@ -348,6 +347,28 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         self.assertTrue(np.allclose(idx, correct))
 
 
+class TestLoadSegmentsFunction(unittest.TestCase):
+
+    def test_read_segments_from_file(self):
+        chords = load_segments(pj(DETECTIONS_PATH,
+                                  'sample2.dc_chord_recognition.txt'))
+        self.assertIsInstance(chords, np.ndarray)
+
+    def test_read_segments_from_file_handle(self):
+        with open(pj(DETECTIONS_PATH,
+                     'sample2.dc_chord_recognition.txt')) as file_handle:
+            chords = load_segments(file_handle)
+            self.assertIsInstance(chords, np.ndarray)
+
+    def test_read_segment_annotations(self):
+        chords = load_segments(pj(DETECTIONS_PATH,
+                                  'sample2.dc_chord_recognition.txt'))
+        self.assertTrue(np.allclose(chords['start'], [0.0, 1.6, 2.5]))
+        self.assertTrue(np.allclose(chords['end'], [1.6, 2.5, 4.1]))
+        self.assertTrue((chords['label'] ==
+                         np.array(['F:maj', 'A:maj', 'D:maj'])).all())
+
+
 class TestSegmentAxisFunction(unittest.TestCase):
 
     def test_types(self):
@@ -397,3 +418,4 @@ class TestSegmentAxisFunction(unittest.TestCase):
         result = segment_axis(np.arange(11), 4, 3, axis=0)
         self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
                                              [6, 7, 8, 9]]))
+

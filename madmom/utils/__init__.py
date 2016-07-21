@@ -405,6 +405,37 @@ def quantize_events(events, fps, length=None, shift=None):
     return quantized
 
 
+def load_segments(filename):
+    """
+    Loads labelled segments from a file. Segments are assumed follow the
+    following format, one chord label per line:
+
+    <start_time> <end_time> <chord_label>
+
+    All times should be given in seconds.
+
+    Parameters
+    ----------
+    filename : str or file handle
+        File containing the segments
+
+    Returns
+    -------
+    numpy structured array
+        Structured array with columns 'start', 'end', and 'label', containing
+        the start time, end time, and segment label respectively
+
+    Notes
+    -----
+    Comments (lines starting with '#') are ignored. The maximum label length
+    is 64 characters.
+
+    """
+    return np.loadtxt(filename, dtype=[('start', np.float),
+                                       ('end', np.float),
+                                       ('label', 'S64')])
+
+
 # argparse action to set and overwrite default lists
 class OverrideDefaultListAction(argparse.Action):
     """
