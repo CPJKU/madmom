@@ -1098,6 +1098,44 @@ class MIDITrack(object):
     -----
     All events are stored with timing information in absolute ticks.
 
+    Notes
+    -----
+    The events must be sorted. Consider using `from_notes()` method.
+
+    Examples
+    --------
+
+    Create a MIDI track from a list of events. Please note that the events must
+    be sorted.
+
+    >>> e1 = NoteOnEvent(tick=100, pitch=50, velocity=60)
+    >>> e2 = NoteOffEvent(tick=300, pitch=50)
+    >>> e3 = NoteOnEvent(tick=200, pitch=62, velocity=90)
+    >>> e4 = NoteOffEvent(tick=600, pitch=62)
+    >>> t = MIDITrack(sorted([e1, e2, e3, e4]))
+    >>> t  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDITrack object at 0x...>
+    >>> t.events  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [<madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>]
+
+    It can also be created from an array containing the notes. The `from_notes`
+    method also takes care of creating tempo and time signature events.
+
+    >>> notes = np.array([[0.1, 50, 0.3, 60], [0.2, 62, 0.4, 90]])
+    >>> t = MIDITrack.from_notes(notes)
+    >>> t  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDITrack object at 0x...>
+    >>> t.events  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [<madmom.utils.midi.SetTempoEvent object at 0x...>,
+     <madmom.utils.midi.TimeSignatureEvent object at 0...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>]
+
     """
 
     def __init__(self, events=None):
@@ -1264,7 +1302,8 @@ class MIDITrack(object):
         return track
 
     @classmethod
-    def from_notes(cls, notes, resolution=RESOLUTION):
+    def from_notes(cls, notes, tempo=TEMPO, time_signature=TIME_SIGNATURE,
+                   resolution=RESOLUTION):
         """
         Create a MIDI track from the given notes.
 
@@ -1273,46 +1312,59 @@ class MIDITrack(object):
         notes : numpy array
             Array with the notes, one per row. The columns must be:
             (onset time, pitch, duration, velocity, [channel]).
+        tempo : float, optional
+            Tempo of the MIDI track, given in beats per minute (bpm).
+        time_signature : tuple, optional
+            Time signature of the track, e.g. (4, 4) for 4/4.
         resolution : int
-            Resolution (i.e. microseconds per quarter note) of the MIDI track.
+            Resolution (i.e. ticks per quarter note) of the MIDI track.
 
         Returns
         -------
         :class:`MIDITrack` instance
             :class:`MIDITrack` instance
 
+        Notes
+        -----
+        All events including the generated tempo and time signature events is
+        included in the returned track (i.e. as defined in MIDI format 0).
+
         """
         # add a default channel if needed
         notes = _add_channel(notes)
 
+        # set time signature
+        sig = TimeSignatureEvent(tick=0)
+        sig.numerator, sig.denominator = time_signature
+
+        # length of a quarter note (seconds)
+        quarter_note_length = 60. / tempo * sig.denominator / 4
+        # quarter notes per second
+        quarter_notes_per_second = 1 / quarter_note_length
+        # ticks per second
+        ticks_per_second = resolution * quarter_notes_per_second
+
+        # set tempo
+        tempo = SetTempoEvent(tick=0)
+        tempo.microseconds_per_quarter_note = int(quarter_note_length * 1e6)
+
         # list for events (ticks in absolute timing)
         events = []
-        # FIXME: what we do here is basically writing a MIDI format 0 file,
-        #        since we put all events in a single (the given) track. The
-        #        tempo and time signature stuff is just a hack!
-        # first set a tempo, assume a tempo of 120bpm and 4/4 time
-        # signature, thus 1 quarter note is 0.5 sec long
-        tempo = SetTempoEvent()
-        tempo.microseconds_per_quarter_note = int(0.5 * 1e6)
-        sig = TimeSignatureEvent()
-        sig.denominator = 4
-        sig.numerator = 4
-        # beats per second
-        bps = 2
+
         # add the notes
         for note in notes:
             onset, pitch, duration, velocity, channel = note
             # add NoteOn
             e_on = NoteOnEvent()
-            e_on.tick = int(note[0] * resolution * bps)
-            e_on.pitch = int(note[1])
-            e_on.velocity = int(note[3])
-            e_on.channel = int(note[4])
+            e_on.tick = int(onset * ticks_per_second)
+            e_on.pitch = int(pitch)
+            e_on.velocity = int(velocity)
+            e_on.channel = int(channel)
             # and NoteOff
             e_off = NoteOffEvent()
-            e_off.tick = int((note[0] + note[2]) * resolution * bps)
-            e_off.pitch = int(note[1])
-            e_off.channel = int(note[4])
+            e_off.tick = int((onset + duration) * ticks_per_second)
+            e_off.pitch = int(pitch)
+            e_off.channel = int(channel)
             events.append(e_on)
             events.append(e_off)
         # sort the events and prepend the tempo and time signature events
@@ -1336,6 +1388,60 @@ class MIDIFile(object):
         Resolution (i.e. microseconds per quarter note).
     file_format : int, optional
         Format of the MIDI file.
+
+    Notes
+    -----
+    Writing a MIDI file assumes a tempo of 120 beats per minute (bpm) and a 4/4
+    time signature and writes all events into a single track (i.e. MIDI format
+    0).
+
+    Examples
+    --------
+    Create a MIDI file from an array with notes. The format of the note array
+    is: 'onset time', 'pitch', 'duration', 'velocity', 'channel'. The last
+    column can be omitted, assuming channel 0.
+
+    >>> notes = np.array([[0, 50, 1, 60], [0.5, 62, 0.5, 90]])
+    >>> m = MIDIFile.from_notes(notes)
+    >>> m  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDIFile object at 0x...>
+
+    The notes can be accessed as a numpy array in various formats (default is
+    seconds):
+
+    >>> m.notes()
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0.,  50.,   2.,  60.,   0.],
+           [  1.,  62.,   1.,  90.,   0.]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=60)
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  480.,   60.,    0.],
+           [ 240.,   62.,  240.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=60, time_signature=(2, 2))
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=240, time_signature=(3, 8))
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0.,  50.,   4.,  60.,   0.],
+           [  2.,  62.,   2.,  90.,   0.]])
 
     """
 
@@ -1367,7 +1473,7 @@ class MIDIFile(object):
         """
         return self.resolution
 
-    def tempi(self):
+    def tempi(self, suppress_warnings=False):
         """
         Tempi of the MIDI file.
 
@@ -1377,21 +1483,23 @@ class MIDIFile(object):
             Array with tempi (tick, seconds per tick, cumulative time).
 
         """
+        if not suppress_warnings:
+            import warnings
+            warnings.warn('this method will be removed soon, do not rely on '
+                          'its output, rather fix issue #192 ;)')
         # create an empty tempo list
-        tempi = None
-        for track in self.tracks:
+        for i, track in enumerate(self.tracks):
             # get a list with tempo events
             tempo_events = [e for e in track.events if
                             isinstance(e, SetTempoEvent)]
-            if tempi is None and len(tempo_events) > 0:
-                # convert to desired format (tick, microseconds per tick)
-                tempi = [(e.tick, e.microseconds_per_quarter_note /
-                          (1e6 * self.resolution)) for e in tempo_events]
-            elif tempi is not None and len(tempo_events) > 0:
-                # tempo events should be contained only in the first track
-                # of a MIDI file
+            # tempo events should be only in the first track of a MIDI file
+            if tempo_events and i > 0:
                 raise ValueError('SetTempoEvents should be only in the first '
                                  'track of a MIDI file.')
+
+        # convert to desired format (tick, microseconds per tick)
+        tempi = [(e.tick, e.microseconds_per_quarter_note /
+                  (1e6 * self.resolution)) for e in tempo_events]
         # make sure a tempo is set
         if tempi is None:
             tempi = [(0, SECONDS_PER_TICK)]
@@ -1411,7 +1519,7 @@ class MIDIFile(object):
         # return tempo
         return np.asarray(tempi, np.float)
 
-    def time_signatures(self):
+    def time_signatures(self, suppress_warnings=False):
         """
         Time signatures of the MIDI file.
 
@@ -1421,6 +1529,10 @@ class MIDIFile(object):
             Array with time signatures (tick, numerator, denominator).
 
         """
+        if not suppress_warnings:
+            import warnings
+            warnings.warn('this method will be removed soon, do not rely on '
+                          'its output, rather fix issue #192 ;)')
         signatures = None
         for track in self.tracks:
             # get a list with time signature events
@@ -1437,22 +1549,20 @@ class MIDIFile(object):
                                  'first track of a MIDI file.')
         # make sure a time signature is set and the first one occurs at tick 0
         if signatures is None:
-            signatures = [(0, TIME_SIGNATURE_NUMERATOR,
-                           TIME_SIGNATURE_DENOMINATOR)]
+            signatures = [(0, TIME_SIGNATURE)]
         if signatures[0][0] > 0:
-            signatures.insert(0, (0, TIME_SIGNATURE_NUMERATOR,
-                                  TIME_SIGNATURE_DENOMINATOR))
+            signatures.insert(0, (0, TIME_SIGNATURE))
         # return time signatures
-        return np.asarray(signatures, dtype=int)
+        return np.asarray(signatures, dtype=np.float)
 
-    def notes(self, note_time_unit='s'):
+    def notes(self, unit='s'):
         """
         Notes of the MIDI file.
 
         Parameters
         ----------
-        note_time_unit : {'s', 'b'}
-            Time unit for notes, seconds ('s') or beats ('b').
+        unit : {'s', 'seconds', 'b', 'beats', 't', 'ticks'}
+            Time unit for notes, seconds ('s') beats ('b') or ticks ('t')
 
         Returns
         -------
@@ -1507,20 +1617,21 @@ class MIDIFile(object):
                 tick = e.tick
 
         # sort the notes and convert to numpy array
-        notes.sort()
-        notes = np.asarray(notes, dtype=np.float)
+        notes = np.asarray(sorted(notes), dtype=np.float)
 
-        # convert onset times and durations from ticks to a meaningful unit
+        # convert onset times and durations from ticks to the requested unit
         # and return the notes
-        if note_time_unit == 's':
-            return self._note_ticks_to_seconds(notes)
-        elif note_time_unit == 'b':
-            return self._note_ticks_to_beats(notes)
+        if unit.lower() in ('t', 'ticks'):
+            return notes
+        elif unit.lower() in ('s', 'seconds'):
+            return self._notes_in_seconds(notes)
+        elif unit.lower() in ('b', 'beats'):
+            return self._notes_in_beats(notes)
         else:
-            raise ValueError("note_time_unit must be either 's' (seconds) or "
-                             "'b' (beats), not %s." % note_time_unit)
+            raise ValueError("`unit` must be either 'seconds', 's', 'beats', "
+                             "'b', 'ticks', or 't' not %s." % unit)
 
-    def _note_ticks_to_beats(self, notes):
+    def _notes_in_beats(self, notes):
         """
         Converts onsets and offsets of notes from ticks to beats.
 
@@ -1536,7 +1647,7 @@ class MIDIFile(object):
 
         """
         tpq = self.ticks_per_quarter_note
-        time_signatures = self.time_signatures().astype(np.float)
+        time_signatures = self.time_signatures(suppress_warnings=True)
 
         # change the second column of time_signatures to beat position of the
         # signature change, the first column is now the tick position, the
@@ -1565,7 +1676,7 @@ class MIDIFile(object):
         # return notes
         return notes
 
-    def _note_ticks_to_seconds(self, notes):
+    def _notes_in_seconds(self, notes):
         """
         Converts onsets and offsets of notes from ticks to seconds.
 
@@ -1581,7 +1692,7 @@ class MIDIFile(object):
 
         """
         # cache tempo
-        tempi = self.tempi()
+        tempi = self.tempi(suppress_warnings=True)
         # iterate over all notes
         for note in notes:
             onset, _, offset, _, _ = note
@@ -1702,14 +1813,22 @@ class MIDIFile(object):
                    file_format=midi_format)
 
     @classmethod
-    def from_notes(cls, notes):
+    def from_notes(cls, notes, tempo=TEMPO, time_signature=TIME_SIGNATURE,
+                   resolution=RESOLUTION):
         """
-        Create a MIDIFile instance from a numpy array with notes.
+        Create a MIDIFile from the given notes.
 
         Parameters
         ----------
-        notes : numpy array or list of tuples
-            Notes (onset, pitch, duration, velocity).
+        notes : numpy array
+            Array with the notes, one per row. The columns must be:
+            (onset time, pitch, duration, velocity, [channel]).
+        tempo : float, optional
+            Tempo of the MIDI track, given in beats per minute (bpm).
+        time_signature : tuple, optional
+            Time signature of the track, e.g. (4, 4) for 4/4.
+        resolution : int
+            Resolution (i.e. ticks per quarter note) of the MIDI track.
 
         Returns
         -------
@@ -1718,11 +1837,13 @@ class MIDIFile(object):
 
         Notes
         -----
-        This method interprets onset and duration timings in seconds.
+        All note events (including the generated tempo and time signature
+        events) are written into a single track (i.e. MIDI file format 0).
 
         """
         # create a new track from the notes and then a MIDIFile instance
-        return cls(MIDITrack.from_notes(notes))
+        return cls(MIDITrack.from_notes(notes, tempo, time_signature,
+                                        resolution))
 
     @staticmethod
     def add_arguments(parser, length=None, velocity=None, channel=None):

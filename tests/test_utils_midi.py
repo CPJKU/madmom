@@ -83,5 +83,5 @@ class TestMIDIFileClass(unittest.TestCase):
         # read a MIDI file
         midi = MIDIFile.from_file(pj(ANNOTATIONS_PATH, 'piano_sample.mid'))
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats'))
-        notes_ = midi.notes(note_time_unit='b')[:, :4]
+        notes_ = midi.notes(unit='b')[:, :4]
         self.assertTrue(np.allclose(notes, notes_))
