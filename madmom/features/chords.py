@@ -11,6 +11,37 @@ from functools import partial
 from madmom.processors import SequentialProcessor
 
 
+def load_chords(filename):
+    """
+    Loads labelled segments from a file. Segments are assumed follow the
+    following format, one chord label per line:
+
+    <start_time> <end_time> <chord_label>
+
+    All times should be given in seconds.
+
+    Parameters
+    ----------
+    filename : str or file handle
+        File containing the segments
+
+    Returns
+    -------
+    numpy structured array
+        Structured array with columns 'start', 'end', and 'label', containing
+        the start time, end time, and segment label respectively
+
+    Notes
+    -----
+    Segment files cannot contain comments, because e.g. chord annotations
+    can contain the '#' character! The maximum label length is 64 characters.
+
+    """
+    return np.loadtxt(filename, comments='', ndmin=1,
+                      dtype=[('start', np.float), ('end', np.float),
+                             ('label', 'S64')])
+
+
 def majmin_targets_to_chord_labels(targets, fps):
     """
     Converts a series of major/minor chord targets to human readable chord
