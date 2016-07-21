@@ -1251,6 +1251,9 @@ class Stream():
         self.dtype = dtype
         self.num_channels = num_channels
 
+        stream_kwargs = {key: value for key, value in kwargs.items()
+                        if key in pyaudio.PyAudio.open.__code__.co_varnames}
+
         # set pyaudio for recording
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=pyaudio.paInt16,
@@ -1260,7 +1263,7 @@ class Stream():
                                   frames_per_buffer=int(self.hop_size),
                                   stream_callback=self.callback,
                                   start=False,
-                                  **kwargs)
+                                  **stream_kwargs)
                                   # start=False so that is only starts when we ask for it with stream.start_stream()
 
         self.frame = None  # to store the frame as an instance of Frames
