@@ -5,10 +5,71 @@ This module contains chord recognition related functionality.
 """
 from __future__ import absolute_import, division, print_function
 
-import string
+import numpy as np
 
 from functools import partial
 from madmom.processors import SequentialProcessor
+
+
+# dtype for numpy structured arrays that contain chord segments
+CHORD_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]
+
+
+def load_chords(filename):
+    """
+    Load labelled chord segments from a file. Chord segments must follow
+    the following format, one chord label per line:
+
+    <start_time> <end_time> <chord_label>
+
+    All times should be given in seconds.
+
+    Parameters
+    ----------
+    filename : str or file handle
+        File containing the segments
+
+    Returns
+    -------
+    numpy structured array
+        Structured array with columns 'start', 'end', and 'label', containing
+        the start time, end time, and segment label respectively
+
+    Notes
+    -----
+    Segment files cannot contain comments, because e.g. chord annotations
+    can contain the '#' character! The maximum label length is 32 characters.
+
+    """
+    return np.loadtxt(filename, comments=None, ndmin=1, dtype=CHORD_DTYPE,
+                      converters={2: lambda x: x.decode()})
+
+
+def write_chords(chords, filename):
+    """
+    Write chord segments to a file.
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chord segments, one per row (column definition see notes).
+    filename : str or file handle
+        Output filename or handle
+
+    Returns
+    -------
+    numpy structured array
+        Chord segments.
+
+    Notes
+    -----
+    Chords are represented as numpy structured array with three named columns:
+    'start' contains the start time in seconds, 'end' the end time in seconds,
+    and 'label' the chord label.
+
+    """
+    np.savetxt(filename, chords, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
+    return chords
 
 
 def majmin_targets_to_chord_labels(targets, fps):
@@ -33,17 +94,21 @@ def majmin_targets_to_chord_labels(targets, fps):
         List of tuples of the form (start time, end time, chord label)
 
     """
-    natural = zip([0, 2, 3, 5, 7, 8, 10], string.uppercase[:7])
-    sharp = map(lambda v: ((v[0] + 1) % 12, v[1] + '#'), natural)
-
-    semitone_to_label = dict(sharp + natural)
+    # create a map of semitone index to semitone name (e.g. 0 -> A, 1 -> A#)
+    pitch_class_to_label = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F',
+                            'F#', 'G', 'G#']
 
     def pred_to_cl(pred):
+        """
+        Map a class id to a chord label.
+        0..11 major chords, 12..23 minor chords, 24 no chord
+        """
         if pred == 24:
             return 'N'
-        return '{}:{}'.format(semitone_to_label[pred % 12],
+        return '{}:{}'.format(pitch_class_to_label[pred % 12],
                               'maj' if pred < 12 else 'min')
 
+    # get labels per frame
     spf = 1. / fps
     labels = [(i * spf, pred_to_cl(p)) for i, p in enumerate(targets)]
 
@@ -61,7 +126,8 @@ def majmin_targets_to_chord_labels(targets, fps):
     start_times, chord_labels = zip(*uniq_labels)
     end_times = start_times[1:] + (labels[-1][0] + spf,)
 
-    return zip(start_times, end_times, chord_labels)
+    return np.array(list(zip(start_times, end_times, chord_labels)),
+                    dtype=CHORD_DTYPE)
 
 
 class DeepChromaChordRecognitionProcessor(SequentialProcessor):
@@ -92,3 +158,90 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
         crf = ConditionalRandomField.load(model or CHORDS_DCCRF[0])
         lbl = partial(majmin_targets_to_chord_labels, fps=fps)
         super(DeepChromaChordRecognitionProcessor, self).__init__((crf, lbl))
+
+
+# functions necessary for CNNChordFeatureProcessor - they need to
+# be outside of the class so the processor stays picklable
+def _cnncfp_pad(data):
+    """Pad the input"""
+    pad_data = np.zeros((11, 113))
+    return np.vstack([pad_data, data, pad_data])
+
+
+def _cnncfp_superframes(data):
+    """Segment input into superframes"""
+    from ..utils import segment_axis
+    return segment_axis(data, 3, 1, axis=0)
+
+
+def _cnncfp_avg(data):
+    """Global average pool"""
+    return data.mean((1, 2))
+
+
+class CNNChordFeatureProcessor(SequentialProcessor):
+    """
+    Extract learned features for chord recognition, as described in [1]_.
+
+    References
+    ----------
+    .. [1] Filip Korzeniowski and Gerhard Widmer,
+           "A Fully Convolutional Deep Auditory Model for Musical Chord
+           Recognition",
+           Proceedings of IEEE International Workshop on Machine Learning for
+           Signal Processing (MLSP), 2016.
+    """
+
+    def __init__(self, **kwargs):
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
+        from ..ml.nn import NeuralNetwork
+        from ..models import CHORDS_CNN_FEAT
+
+        # spectrogram computation
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        frames = FramedSignalProcessor(frame_size=8192, fps=10)
+        spec = LogarithmicFilteredSpectrogramProcessor(
+            num_bands=24, fmin=60, fmax=2600, unique_filters=True
+        )
+
+        # padding, neural network and global average pooling
+        pad = _cnncfp_pad
+        nn = NeuralNetwork.load(CHORDS_CNN_FEAT[0])
+        superframes = _cnncfp_superframes
+        avg = _cnncfp_avg
+
+        # create processing pipeline
+        super(CNNChordFeatureProcessor, self).__init__([
+            sig, frames, spec, pad, nn, superframes, avg
+        ])
+
+
+class CRFChordRecognitionProcessor(SequentialProcessor):
+    """
+    Recognise major and minor chords from learned features extracted by
+    a convolutional neural network, as described in [1]_.
+
+    Parameters
+    ----------
+    model : str
+        File containing the CRF model. If None, use the model supplied with
+        madmom.
+    fps : float
+        Frames per second. Must correspond to the fps of the incoming
+        activations and the model.
+
+    References
+    ----------
+    .. [1] Filip Korzeniowski and Gerhard Widmer,
+           "A Fully Convolutional Deep Auditory Model for Musical Chord
+           Recognition",
+           Proceedings of IEEE International Workshop on Machine Learning for
+           Signal Processing (MLSP), 2016.
+    """
+    def __init__(self, model=None, fps=10, **kwargs):
+        from ..ml.crf import ConditionalRandomField
+        from ..models import CHORDS_CFCRF
+        crf = ConditionalRandomField.load(model or CHORDS_CFCRF[0])
+        lbl = partial(majmin_targets_to_chord_labels, fps=fps)
+        super(CRFChordRecognitionProcessor, self).__init__((crf, lbl))

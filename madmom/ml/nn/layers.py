@@ -494,6 +494,88 @@ class GRULayer(Layer):
         return out
 
 
+def _kernel_margins(kernel_shape, margin_shift):
+    """
+    Determine the margin that needs to be cut off when doing a "valid"
+    convolution.
+
+    Parameters
+    ----------
+    kernel_shape : tuple
+        Shape of the convolution kernel to determine the margins for
+    margin_shift : bool
+        Shift the borders by one pixel if kernel is of even size
+
+    Returns
+    -------
+    start_x, end_x, start_y, end_y : tuple
+        Indices determining the valid part of the convolution output.
+    """
+    start_x = int(np.floor(kernel_shape[0] / 2.))
+    start_y = int(np.floor(kernel_shape[1] / 2.))
+
+    margin_shift = -1 if margin_shift else 0
+    if kernel_shape[0] % 2 == 0:
+        end_x = start_x - 1
+        start_x += margin_shift
+        end_x -= margin_shift
+    else:
+        end_x = start_x
+
+    if kernel_shape[1] % 2 == 0:
+        end_y = start_y - 1
+        start_y += margin_shift
+        end_y -= margin_shift
+    else:
+        end_y = start_y
+
+    return start_x, -end_x, start_y, -end_y
+
+
+try:
+    # pylint: disable=no-name-in-module
+    # pylint: disable=wrong-import-order
+    # pylint: disable=wrong-import-position
+
+    # if opencv is installed, use their convolution function, because
+    # it is much faster
+    from cv2 import filter2D as _do_convolve
+
+    def _convolve(x, k):
+        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=False)
+        return _do_convolve(x, -1, k[::-1, ::-1])[sx:ex, sy:ey]
+
+except ImportError:
+    # scipy.ndimage.convolution behaves slightly differently with
+    # even-sized kernels. If it is used, we need to shift the margins
+    from scipy.ndimage import convolve as _do_convolve
+
+    def _convolve(x, k):
+        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=True)
+        return _do_convolve(x, k)[sx:ex, sy:ey]
+
+
+def convolve(data, kernel):
+    """
+    Convolve the data with the kernel in 'valid' mode, i.e. only where
+    kernel and data fully overlaps.
+
+    Parameters
+    ----------
+    data : numpy array
+        Data to be convolved.
+    kernel : numpy array
+        Convolution kernel
+
+    Returns
+    -------
+    numpy array
+        Convolved data
+
+    """
+    return _convolve(data, kernel)
+
+
 class ConvolutionalLayer(FeedForwardLayer):
     """
     Convolutional network layer.
@@ -548,10 +630,16 @@ class ConvolutionalLayer(FeedForwardLayer):
             Activations for this data.
 
         """
-        from scipy.signal import convolve2d
+        # if no channel dimension given, assume 1 channel
+        if len(data.shape) == 2:
+            data = data.reshape(data.shape + (1,))
+
         # determine output shape and allocate memory
         num_frames, num_bins, num_channels = data.shape
-        num_channels, num_features, size_time, size_freq = self.weights.shape
+        num_channels_w, num_features, size_time, size_freq = self.weights.shape
+        if num_channels_w != num_channels:
+            raise ValueError('Number of channels in weight vector different '
+                             'from number of channels of input data!')
         # adjust the output number of frames and bins depending on `pad`
         # TODO: this works only with pad='valid'
         num_frames -= (size_time - 1)
@@ -564,8 +652,7 @@ class ConvolutionalLayer(FeedForwardLayer):
             channel = data[:, :, c]
             # convolve each channel separately with each filter
             for w, weights in enumerate(self.weights[c]):
-                # TODO: add boundary stuff?
-                conv = convolve2d(channel, weights, mode=self.pad)
+                conv = convolve(channel, weights)
                 out[:, :, w] += conv
         # add bias to each feature map and apply activation function
         return self.activation_fn(out + self.bias)

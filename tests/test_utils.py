@@ -11,7 +11,6 @@ import unittest
 from os.path import join as pj
 
 from madmom.utils import *
-
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
                DETECTIONS_PATH)
 
@@ -20,12 +19,14 @@ FILE_LIST = [pj(DATA_PATH, 'README'),
              pj(DATA_PATH, 'events.txt')]
 
 AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
+               pj(AUDIO_PATH, 'sample2.wav'),
                pj(AUDIO_PATH, 'stereo_chirp.wav'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]
 
 ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_blstm_mm.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.cnn_chord_features.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.downbeats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.deep_chroma.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.complex_flux.npz'),
@@ -37,6 +38,8 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.spectral_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux_nn.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample2.cnn_chord_features.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample2.deep_chroma.npz'),
                     pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz')]
 
 ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'sample.beats'),
@@ -52,11 +55,13 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'sample.beats'),
 
 DETECTION_FILES = [pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.cnn_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample.cnn_onset_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.complex_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.crf_beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.dbn_beat_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.dbn_downbeat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.dc_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample.gmm_pattern_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.log_filt_spec_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.mm_beat_tracker.txt'),
@@ -66,6 +71,8 @@ DETECTION_FILES = [pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux_nn.txt'),
                    pj(DETECTIONS_PATH, 'sample.tempo_detector.txt'),
+                   pj(DETECTIONS_PATH, 'sample2.cnn_chord_recognition.txt'),
+                   pj(DETECTIONS_PATH, 'sample2.dc_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'stereo_sample.piano_transcriptor.txt')]
 
 EVENTS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]

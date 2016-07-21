@@ -11,6 +11,7 @@ New features:
 * Linear-Chain Conditional Random Field implementation (#144)
 * DNN based chroma vector extraction (#148)
 * CRF chord recognition using DNN based chroma vectors (#148)
+* CNN Chord Recognition using CRF decoding (#152)
 
 Bug fixes:
 
