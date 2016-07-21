@@ -1,0 +1,4 @@
+# Chord detections computed by DCChordRecognition program
+0.0	1.6	F:maj
+1.6	2.5	A:maj
+2.5	4.1	D:maj
