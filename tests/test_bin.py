@@ -70,7 +70,7 @@ def run_help(program):
 
 class TestBeatDetectorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/BeatDetector" % program_path
+        self.bin = pj(program_path, "BeatDetector")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
@@ -110,7 +110,7 @@ class TestBeatDetectorProgram(unittest.TestCase):
 
 class TestBeatTrackerProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/BeatTracker" % program_path
+        self.bin = pj(program_path, "BeatTracker")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
@@ -150,7 +150,7 @@ class TestBeatTrackerProgram(unittest.TestCase):
 
 class TestCNNChordRecognition(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/CNNChordRecognition" % program_path
+        self.bin = pj(program_path, "CNNChordRecognition")
         self.activations = [
             Activations(pj(ACTIVATIONS_PATH, af))
             for af in ['sample.cnn_chord_features.npz',
@@ -208,7 +208,7 @@ class TestCNNChordRecognition(unittest.TestCase):
 
 class TestComplexFluxProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/ComplexFlux" % program_path
+        self.bin = pj(program_path, "ComplexFlux")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.complex_flux.npz"))
         self.result = np.loadtxt(
@@ -248,7 +248,7 @@ class TestComplexFluxProgram(unittest.TestCase):
 
 class TestCNNOnsetDetectorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/CNNOnsetDetector" % program_path
+        self.bin = pj(program_path, "CNNOnsetDetector")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.onsets_cnn.npz"))
         self.result = np.loadtxt(
@@ -288,7 +288,7 @@ class TestCNNOnsetDetectorProgram(unittest.TestCase):
 
 class TestCRFBeatDetectorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/CRFBeatDetector" % program_path
+        self.bin = pj(program_path, "CRFBeatDetector")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
@@ -328,7 +328,7 @@ class TestCRFBeatDetectorProgram(unittest.TestCase):
 
 class TestDBNBeatTrackerProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/DBNBeatTracker" % program_path
+        self.bin = pj(program_path, "DBNBeatTracker")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
@@ -368,7 +368,7 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
 
 class TestDBNDownBeatTrackerProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/DBNDownBeatTracker" % program_path
+        self.bin = pj(program_path, "DBNDownBeatTracker")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.downbeats_blstm.npz"))
         self.result = np.loadtxt(
@@ -415,7 +415,7 @@ class TestDBNDownBeatTrackerProgram(unittest.TestCase):
 
 class TestDCChordRecognition(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/DCChordRecognition" % program_path
+        self.bin = pj(program_path, "DCChordRecognition")
         self.activations = [
             Activations(pj(ACTIVATIONS_PATH, af))
             for af in ['sample.deep_chroma.npz', 'sample2.deep_chroma.npz']
@@ -470,7 +470,7 @@ class TestDCChordRecognition(unittest.TestCase):
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/GMMPatternTracker" % program_path
+        self.bin = pj(program_path, "GMMPatternTracker")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.gmm_pattern_tracker.npz"))
         self.result = np.loadtxt(
@@ -517,7 +517,7 @@ class TestGMMPatternTrackerProgram(unittest.TestCase):
 
 class TestLogFiltSpecFluxProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/LogFiltSpecFlux" % program_path
+        self.bin = pj(program_path, "LogFiltSpecFlux")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.log_filt_spec_flux.npz"))
         self.result = np.loadtxt(
@@ -557,7 +557,7 @@ class TestLogFiltSpecFluxProgram(unittest.TestCase):
 
 class TestMMBeatTrackerProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/MMBeatTracker" % program_path
+        self.bin = pj(program_path, "MMBeatTracker")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm_mm.npz"))
         self.result = np.loadtxt(
@@ -597,7 +597,7 @@ class TestMMBeatTrackerProgram(unittest.TestCase):
 
 class TestOnsetDetectorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/OnsetDetector" % program_path
+        self.bin = pj(program_path, "OnsetDetector")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.onsets_brnn.npz"))
         self.result = np.loadtxt(
@@ -637,7 +637,7 @@ class TestOnsetDetectorProgram(unittest.TestCase):
 
 class TestOnsetDetectorLLProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/OnsetDetectorLL" % program_path
+        self.bin = pj(program_path, "OnsetDetectorLL")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.onsets_rnn.npz"))
         self.result = np.loadtxt(
@@ -677,7 +677,7 @@ class TestOnsetDetectorLLProgram(unittest.TestCase):
 
 class TestPianoTranscriptorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/PianoTranscriptor" % program_path
+        self.bin = pj(program_path, "PianoTranscriptor")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "stereo_sample.notes_brnn.npz"))
         self.result = np.loadtxt(
@@ -718,7 +718,7 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/SpectralOnsetDetection" % program_path
+        self.bin = pj(program_path, "SpectralOnsetDetection")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.spectral_flux.npz"))
         self.result = np.loadtxt(
@@ -758,7 +758,7 @@ class TestSpectralOnsetDetectionProgram(unittest.TestCase):
 
 class TestSuperFluxProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/SuperFlux" % program_path
+        self.bin = pj(program_path, "SuperFlux")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.super_flux.npz"))
         self.result = np.loadtxt(pj(DETECTIONS_PATH, "sample.super_flux.txt"))
@@ -797,7 +797,7 @@ class TestSuperFluxProgram(unittest.TestCase):
 
 class TestSuperFluxNNProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/SuperFluxNN" % program_path
+        self.bin = pj(program_path, "SuperFluxNN")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.super_flux_nn.npz"))
         self.result = np.loadtxt(
@@ -837,7 +837,7 @@ class TestSuperFluxNNProgram(unittest.TestCase):
 
 class TestTempoDetectorProgram(unittest.TestCase):
     def setUp(self):
-        self.bin = "%s/TempoDetector" % program_path
+        self.bin = pj(program_path, "TempoDetector")
         self.activations = Activations(
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
