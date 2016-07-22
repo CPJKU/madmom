@@ -170,12 +170,9 @@ def local_group_delay(phase):
 lgd = local_group_delay
 
 
-# mixin for some basic properties of all classes
-class PropertyMixin(object):
-    """
-    Mixin which provides `num_frames`, `num_bins` properties to classes.
-
-    """
+# mixin providing `num_frames` & `num_bins` properties
+class _PropertyMixin(object):
+    # pylint: disable=missing-docstring
 
     @property
     def num_frames(self):
@@ -189,7 +186,7 @@ class PropertyMixin(object):
 
 
 # short-time Fourier transform class
-class ShortTimeFourierTransform(PropertyMixin, np.ndarray):
+class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     """
     ShortTimeFourierTransform class.
 
@@ -510,7 +507,7 @@ STFTProcessor = ShortTimeFourierTransformProcessor
 
 
 # phase of STFT
-class Phase(PropertyMixin, np.ndarray):
+class Phase(_PropertyMixin, np.ndarray):
     """
     Phase class.
 
@@ -598,7 +595,7 @@ class Phase(PropertyMixin, np.ndarray):
 
 
 # local group delay of STFT
-class LocalGroupDelay(PropertyMixin, np.ndarray):
+class LocalGroupDelay(_PropertyMixin, np.ndarray):
     """
     Local Group Delay class.
 
