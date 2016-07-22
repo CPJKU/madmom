@@ -13,12 +13,11 @@ import numpy as np
 from scipy.fftpack import dct
 
 from ..processors import Processor
-from .stft import PropertyMixin
 from .filters import MelFilterbank
 from .spectrogram import Spectrogram
 
 
-class Cepstrogram(PropertyMixin, np.ndarray):
+class Cepstrogram(np.ndarray):
     """
     The Cepstrogram class represents a transformed Spectrogram. This generic
     class applies some transformation (usually a DCT) on a spectrogram.
@@ -67,6 +66,16 @@ class Cepstrogram(PropertyMixin, np.ndarray):
         self.spectrogram = getattr(obj, 'spectrogram', None)
         self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.transform = getattr(obj, 'transform', None)
+
+    @property
+    def num_frames(self):
+        """Number of frames."""
+        return len(self)
+
+    @property
+    def num_bins(self):
+        """Number of bins."""
+        return int(self.shape[1])
 
 
 class CepstrogramProcessor(Processor):

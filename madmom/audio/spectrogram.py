@@ -12,7 +12,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from ..processors import Processor, SequentialProcessor
-from .stft import PropertyMixin
 from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
                       NORM_FILTERS, UNIQUE_FILTERS)
 
@@ -156,7 +155,7 @@ def tuning_frequency(spectrogram, bin_frequencies, num_hist_bins=15, fref=A4):
 
 
 # magnitude spectrogram of STFT
-class Spectrogram(PropertyMixin, np.ndarray):
+class Spectrogram(np.ndarray):
     """
     A :class:`Spectrogram` represents the magnitude spectrogram of a
     :class:`.audio.stft.ShortTimeFourierTransform`.
@@ -225,6 +224,16 @@ class Spectrogram(PropertyMixin, np.ndarray):
         self.filterbank = getattr(obj, 'filterbank', None)
         self.mul = getattr(obj, 'mul', None)
         self.add = getattr(obj, 'add', None)
+
+    @property
+    def num_frames(self):
+        """Number of frames."""
+        return len(self)
+
+    @property
+    def num_bins(self):
+        """Number of bins."""
+        return int(self.shape[1])
 
     def diff(self, **kwargs):
         """
