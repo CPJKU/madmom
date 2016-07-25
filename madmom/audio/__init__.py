@@ -25,3 +25,15 @@ from __future__ import absolute_import, division, print_function
 
 # import the submodules
 from . import signal, ffmpeg, filters, comb_filters, stft, spectrogram
+
+# import often used classes
+from .chroma import DeepChromaProcessor
+from .signal import (
+    FramedSignal, FramedSignalProcessor, Signal, SignalProcessor)
+from .spectrogram import (
+    FilteredSpectrogram, FilteredSpectrogramProcessor,
+    LogarithmicFilteredSpectrogram, LogarithmicFilteredSpectrogramProcessor,
+    LogarithmicSpectrogram, LogarithmicSpectrogramProcessor,
+    Spectrogram, SpectrogramProcessor,
+    SpectrogramDifference, SpectrogramDifferenceProcessor)
+from .stft import ShortTimeFourierTransform, ShortTimeFourierTransformProcessor
