@@ -150,6 +150,42 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
            "Feature Learning for Chord Recognition: The Deep Chroma Extractor",
            Proceedings of the 17th International Society for Music Information
            Retrieval Conference (ISMIR), 2016.
+
+    Examples
+    --------
+    To recognise chords in an audio file using the
+    DeepChromaChordRecognitionProcessor you first need to create a
+    madmom.audio.chroma.DeepChromaProcessor to extract the appropriate chroma
+    vectors.
+
+    >>> from madmom.audio.chroma import DeepChromaProcessor
+    >>> dcp = DeepChromaProcessor()
+    >>> dcp  # doctest: +ELLIPSIS
+    <madmom.audio.chroma.DeepChromaProcessor object at ...>
+
+    Then, create the DeepChromaChordRecognitionProcessor to decode a chord
+    sequence from the extracted chromas:
+
+    >>> decode = DeepChromaChordRecognitionProcessor()
+    >>> decode  # doctest: +ELLIPSIS
+    <madmom.features.chords.DeepChromaChordRecognitionProcessor object at ...>
+
+    To transcribe the chords, you can either manually call the processors
+    one after another,
+
+    >>> chroma = dcp('tests/data/audio/sample2.wav')
+    >>> decode(chroma) # doctest: +NORMALIZE_WHITESPACE
+    array([(0.0, 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+
+    or create a `SequentialProcessor` that connects them:
+
+    >>> from madmom.processors import SequentialProcessor
+    >>> chordrec = SequentialProcessor([dcp, decode])
+    >>> chordrec('tests/data/audio/sample2.wav')
+    ... # doctest: +NORMALIZE_WHITESPACE
+    array([(0.0, 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
     """
 
     def __init__(self, model=None, fps=10, **kwargs):
@@ -190,6 +226,21 @@ class CNNChordFeatureProcessor(SequentialProcessor):
            Recognition",
            Proceedings of IEEE International Workshop on Machine Learning for
            Signal Processing (MLSP), 2016.
+
+    Examples
+    --------
+    >>> proc = CNNChordFeatureProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.chords.CNNChordFeatureProcessor object at 0x...>
+    >>> features = proc('tests/data/audio/sample2.wav')
+    >>> features.shape
+    (41, 128)
+    >>> features # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([[ 0.05798,  0.     , ...,  0.02757,  0.014  ],
+           [ 0.06604,  0.     , ...,  0.02898,  0.00886],
+           ...,
+           [ 0.00655,  0.1166 , ...,  0.00651,  0.     ],
+           [ 0.01476,  0.11185, ...,  0.00287,  0.     ]])
     """
 
     def __init__(self, **kwargs):
@@ -238,6 +289,41 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
            Recognition",
            Proceedings of IEEE International Workshop on Machine Learning for
            Signal Processing (MLSP), 2016.
+
+    Examples
+    --------
+    To recognise chords using the CRFChordRecognitionProcessor, you first need
+    to extract features using the CNNChordFeatureProcessor.
+
+    >>> featproc = CNNChordFeatureProcessor()
+    >>> featproc  # doctest: +ELLIPSIS
+    <madmom.features.chords.CNNChordFeatureProcessor object at 0x...>
+
+    Then, create the CRFChordRecognitionProcessor to decode a chord sequence
+    from the extracted features:
+
+    >>> decode = CRFChordRecognitionProcessor()
+    >>> decode  # doctest: +ELLIPSIS
+    <madmom.features.chords.CRFChordRecognitionProcessor object at 0x...>
+
+    To transcribe the chords, you can either manually call the processors
+    one after another,
+
+    >>> feats = featproc('tests/data/audio/sample2.wav')
+    >>> decode(feats)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([(0.0, 0.2, u'N'), (0.2, 1.6, u'F:maj'),
+           (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+
+    or create a `madmom.processors.SequentialProcessor` that connects them:
+
+    >>> from madmom.processors import SequentialProcessor
+    >>> chordrec = SequentialProcessor([featproc, decode])
+    >>> chordrec('tests/data/audio/sample2.wav')
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([(0.0, 0.2, u'N'), (0.2, 1.6, u'F:maj'),
+           (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
     """
     def __init__(self, model=None, fps=10, **kwargs):
         from ..ml.crf import ConditionalRandomField
