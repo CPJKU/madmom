@@ -15,7 +15,6 @@ from scipy.ndimage.filters import maximum_filter
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
-from madmom.audio.spectrogram import SpectrogramDifference
 
 EPSILON = 1e-6
 
@@ -92,7 +91,7 @@ def correlation_diff(spec, diff_frames=1, pos=False, diff_bins=1):
     # keep only positive values
     if pos:
         np.maximum(diff_spec, 0, diff_spec)
-    return diff_spec
+    return np.asarray(diff_spec)
 
 
 # onset detection functions pluggable into SpectralOnsetDetection
@@ -123,7 +122,8 @@ def high_frequency_content(spectrogram):
     """
     # HFC emphasizes high frequencies by weighting the magnitude spectrogram
     # bins by the their respective "number" (starting at low frequencies)
-    return np.mean(spectrogram * np.arange(spectrogram.num_bins), axis=1)
+    hfc = spectrogram * np.arange(spectrogram.num_bins)
+    return np.asarray(np.mean(hfc, axis=1))
 
 
 def spectral_diff(spectrogram, diff_frames=None):
@@ -150,12 +150,13 @@ def spectral_diff(spectrogram, diff_frames=None):
            Effects (DAFx), 2002.
 
     """
+    from madmom.audio.spectrogram import SpectrogramDifference
     # if the diff of a spectrogram is given, do not calculate the diff twice
     if not isinstance(spectrogram, SpectrogramDifference):
         spectrogram = spectrogram.diff(diff_frames=diff_frames,
                                        positive_diffs=True)
     # Spectral diff is the sum of all squared positive 1st order differences
-    return np.sum(spectrogram ** 2, axis=1)
+    return np.asarray(np.sum(spectrogram ** 2, axis=1))
 
 
 def spectral_flux(spectrogram, diff_frames=None):
@@ -182,12 +183,13 @@ def spectral_flux(spectrogram, diff_frames=None):
            PhD thesis, University of Bristol, 1996.
 
     """
+    from madmom.audio.spectrogram import SpectrogramDifference
     # if the diff of a spectrogram is given, do not calculate the diff twice
     if not isinstance(spectrogram, SpectrogramDifference):
         spectrogram = spectrogram.diff(diff_frames=diff_frames,
                                        positive_diffs=True)
     # Spectral flux is the sum of all positive 1st order differences
-    return np.sum(spectrogram, axis=1)
+    return np.asarray(np.sum(spectrogram, axis=1))
 
 
 def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
@@ -227,13 +229,14 @@ def superflux(spectrogram, diff_frames=None, diff_max_bins=3):
            Effects (DAFx), 2013.
 
     """
+    from madmom.audio.spectrogram import SpectrogramDifference
     # if the diff of a spectrogram is given, do not calculate the diff twice
     if not isinstance(spectrogram, SpectrogramDifference):
         spectrogram = spectrogram.diff(diff_frames=diff_frames,
                                        diff_max_bins=diff_max_bins,
                                        positive_diffs=True)
     # SuperFlux is the sum of all positive 1st order max. filtered differences
-    return np.sum(spectrogram, axis=1)
+    return np.asarray(np.sum(spectrogram, axis=1))
 
 
 # TODO: should this be its own class so that we can set the filter
@@ -308,9 +311,10 @@ def complex_flux(spectrogram, diff_frames=None, diff_max_bins=3,
         # covering only the current bin and its neighbours
         mask = minimum_filter(lgd, size=[1, 3])
     # sum all positive 1st order max. filtered and weighted differences
-    return np.sum(spectrogram.diff(diff_frames=diff_frames,
-                                   diff_max_bins=diff_max_bins,
-                                   positive_diffs=True) * mask, axis=1)
+    diff = spectrogram.diff(diff_frames=diff_frames,
+                            diff_max_bins=diff_max_bins,
+                            positive_diffs=True)
+    return np.asarray(np.sum(diff * mask, axis=1))
 
 
 def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
@@ -355,7 +359,7 @@ def modified_kullback_leibler(spectrogram, diff_frames=1, epsilon=EPSILON):
                          (spectrogram[:-diff_frames] + epsilon))
     # note: the original MKL uses sum instead of mean,
     # but the range of mean is much more suitable
-    return np.mean(np.log(1 + mkl), axis=1)
+    return np.asarray(np.mean(np.log(1 + mkl), axis=1))
 
 
 def _phase_deviation(phase):
@@ -380,7 +384,7 @@ def _phase_deviation(phase):
     # ψ′′(n, k) = ψ′(n, k) − ψ′(n − 1, k)
     pd[2:] = phase[2:] - 2 * phase[1:-1] + phase[:-2]
     # map to the range -pi..pi
-    return wrap_to_pi(pd)
+    return np.asarray(wrap_to_pi(pd))
 
 
 def phase_deviation(spectrogram):
@@ -405,8 +409,9 @@ def phase_deviation(spectrogram):
            IEEE Signal Processing Letters, Volume 11, Number 6, 2004.
 
     """
-    # take the mean of the absolute changes in instantaneous frequency
-    return np.mean(np.abs(_phase_deviation(spectrogram.stft.phase())), axis=1)
+    # absolute phase changes in instantaneous frequency
+    pd = np.abs(_phase_deviation(spectrogram.stft.phase()))
+    return np.asarray(np.mean(pd, axis=1))
 
 
 def weighted_phase_deviation(spectrogram):
@@ -437,7 +442,8 @@ def weighted_phase_deviation(spectrogram):
     if np.shape(phase) != np.shape(spectrogram):
         raise ValueError('spectrogram and phase must be of same shape')
     # weighted_phase_deviation = spectrogram * phase_deviation
-    return np.mean(np.abs(_phase_deviation(phase) * spectrogram), axis=1)
+    wpd = np.abs(_phase_deviation(phase) * spectrogram)
+    return np.asarray(np.mean(wpd, axis=1))
 
 
 def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
@@ -469,7 +475,7 @@ def normalized_weighted_phase_deviation(spectrogram, epsilon=EPSILON):
     # normalize WPD by the sum of the spectrogram
     # (add a small epsilon so that we don't divide by 0)
     norm = np.add(np.mean(spectrogram, axis=1), epsilon)
-    return weighted_phase_deviation(spectrogram) / norm
+    return np.asarray(weighted_phase_deviation(spectrogram) / norm)
 
 
 def _complex_domain(spectrogram):
@@ -513,7 +519,7 @@ def _complex_domain(spectrogram):
     cd = spectrogram * np.exp(1j * phase)
     # subtract the target values
     cd[1:] -= cd_target[:-1]
-    return cd
+    return np.asarray(cd)
 
 
 def complex_domain(spectrogram):
@@ -539,10 +545,10 @@ def complex_domain(spectrogram):
 
     """
     # take the sum of the absolute changes
-    return np.sum(np.abs(_complex_domain(spectrogram)), axis=1)
+    return np.asarray(np.sum(np.abs(_complex_domain(spectrogram)), axis=1))
 
 
-def rectified_complex_domain(spectrogram, diff_frames=None,):
+def rectified_complex_domain(spectrogram, diff_frames=None):
     """
     Rectified Complex Domain.
 
@@ -572,10 +578,10 @@ def rectified_complex_domain(spectrogram, diff_frames=None,):
     pos_diff = spectrogram.diff(diff_frames=diff_frames, positive_diffs=True)
     rcd *= pos_diff.astype(bool)
     # take the sum of the absolute changes
-    return np.sum(np.abs(rcd), axis=1)
+    return np.asarray(np.sum(np.abs(rcd), axis=1))
 
 
-class SpectralOnsetProcessor(Processor):
+class SpectralOnsetProcessor(SequentialProcessor):
     """
     The SpectralOnsetProcessor class implements most of the common onset
     detection functions based on the magnitude or phase information of a
@@ -585,6 +591,54 @@ class SpectralOnsetProcessor(Processor):
     ----------
     onset_method : str, optional
         Onset detection function. See `METHODS` for possible values.
+    kwargs : dict, optional
+        Keyword arguments passed to the pre-processing chain to obtain a
+        spectral representation of the signal.
+
+    Notes
+    -----
+    If the spectrogram should be filtered, the `filterbank` parameter must
+    contain a valid Filterbank, if it should be scaled logarithmically, `log`
+    must be set accordingly.
+
+    References
+    ----------
+    .. [1] Paul Masri,
+           "Computer Modeling of Sound for Transformation and Synthesis of
+           Musical Signals",
+           PhD thesis, University of Bristol, 1996.
+    .. [2] Sebastian Böck and Gerhard Widmer,
+           "Maximum Filter Vibrato Suppression for Onset Detection",
+           Proceedings of the 16th International Conference on Digital Audio
+           Effects (DAFx), 2013.
+
+    Examples
+    --------
+
+    Create a SpectralOnsetProcessor and pass a file through the processor to
+    obtain an onset detection function. Per default the spectral flux [1]_ is
+    computed on a simple Spectrogram.
+
+    >>> sodf = SpectralOnsetProcessor()
+    >>> sodf  # doctest: +ELLIPSIS
+    <madmom.features.onsets.SpectralOnsetProcessor object at 0x...>
+    >>> sodf.processors[-1]  # doctest: +ELLIPSIS
+    <function spectral_flux at 0x...>
+    >>> sodf('tests/data/audio/sample.wav')
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([ 0. , 100.90121, ..., 26.30577, 20.94439], dtype=float32)
+
+    The parameters passed to the signal pre-processing chain can be set when
+    creating the SpectralOnsetProcessor. E.g. to obtain the SuperFlux [2]_
+    onset detection function set these parameters:
+
+    >>> from madmom.audio.filters import LogarithmicFilterbank
+    >>> sodf = SpectralOnsetProcessor(onset_method='superflux', fps=200,
+    ...                               filterbank=LogarithmicFilterbank,
+    ...                               num_bands=24, log=np.log10)
+    >>> sodf('tests/data/audio/sample.wav')
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([ 0. , 0. , 2.0868 , 1.02404, ..., 0.29888, 0.12122], dtype=float32)
 
     """
 
@@ -594,26 +648,40 @@ class SpectralOnsetProcessor(Processor):
                'normalized_weighted_phase_deviation', 'complex_domain',
                'rectified_complex_domain']
 
-    def __init__(self, onset_method='superflux', **kwargs):
-        # pylint: disable=unused-argument
-        self.method = onset_method
-
-    def process(self, spectrogram):
-        """
-        Detect the onsets in the given activation function.
-
-        Parameters
-        ----------
-        spectrogram : :class:`Spectrogram` instance
-            :class:`Spectrogram` instance.
-
-        Returns
-        -------
-        odf : numpy array
-            Onset detection function.
-
-        """
-        return globals()[self.method](spectrogram)
+    def __init__(self, onset_method='spectral_flux', **kwargs):
+        import inspect
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
+        from ..audio.spectrogram import (SpectrogramProcessor,
+                                         FilteredSpectrogramProcessor,
+                                         LogarithmicSpectrogramProcessor)
+        # for certain methods we need to circular shift the signal before STFT
+        if any(odf in onset_method for odf in ('phase', 'complex')):
+            kwargs['circular_shift'] = True
+        # always use mono signals
+        kwargs['num_channels'] = 1
+        # define processing chain
+        sig = SignalProcessor(**kwargs)
+        frames = FramedSignalProcessor(**kwargs)
+        stft = ShortTimeFourierTransformProcessor(**kwargs)
+        spec = SpectrogramProcessor(**kwargs)
+        processors = [sig, frames, stft, spec]
+        # filtering needed?
+        if 'filterbank' in kwargs.keys() and kwargs['filterbank'] is not None:
+            processors.append(FilteredSpectrogramProcessor(**kwargs))
+        # scaling needed?
+        if 'log' in kwargs.keys() and kwargs['log'] is not None:
+            processors.append(LogarithmicSpectrogramProcessor(**kwargs))
+        # odf function
+        if not inspect.isfunction(onset_method):
+            try:
+                onset_method = globals()[onset_method]
+            except KeyError:
+                raise ValueError('%s not a valid onset detection function, '
+                                 'choose %s.' % (onset_method, self.METHODS))
+            processors.append(onset_method)
+        # instantiate a SequentialProcessor
+        super(SpectralOnsetProcessor, self).__init__(processors)
 
     @classmethod
     def add_arguments(cls, parser, onset_method=None):

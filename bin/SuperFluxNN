@@ -11,10 +11,9 @@ import argparse
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.filters import FilterbankProcessor
+from madmom.audio.filters import FilterbankProcessor, LogarithmicFilterbank
 from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      SuperFluxProcessor)
+                                      SpectrogramDifferenceProcessor)
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 from madmom.ml.nn import NeuralNetworkEnsemble
@@ -80,6 +79,7 @@ def main():
     args.num_channels = 1
     args.fps = 100
     args.onset_method = 'superflux'
+    args.filterbank = LogarithmicFilterbank
 
     # print arguments
     if args.verbose:
@@ -90,12 +90,7 @@ def main():
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # define processing chain
-        sig = SignalProcessor(**vars(args))
-        frames = FramedSignalProcessor(**vars(args))
-        spec = SuperFluxProcessor(**vars(args))
-        odf = SpectralOnsetProcessor(**vars(args))
-        in_processor = [sig, frames, spec, odf]
+        in_processor = SpectralOnsetProcessor(**vars(args))
 
     # output processor
     if args.save:
