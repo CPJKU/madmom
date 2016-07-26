@@ -9,8 +9,9 @@ If you want to change this module and use it interactively, use pyximport.
 
 >>> import pyximport
 >>> pyximport.install(reload_support=True,
-                      setup_args={'include_dirs': np.get_include()})
-
+...                   setup_args={'include_dirs': np.get_include()})
+... # doctest: +ELLIPSIS
+(None, <pyximport.pyximport.PyxImporter object at 0x...>)
 """
 
 from __future__ import absolute_import, division, print_function
@@ -53,6 +54,25 @@ class TransitionModel(object):
     See Also
     --------
     scipy.sparse.csr_matrix
+
+    Examples
+    --------
+    Create a simple transition model with two states using a list of
+    transitions and their probabilities
+
+    >>> tm = TransitionModel.from_dense([0, 1, 0, 1], [0, 0, 1, 1],
+    ...                                 [0.8, 0.2, 0.3, 0.7])
+    >>> tm  # doctest: +ELLIPSIS
+    <madmom.ml.hmm.TransitionModel object at 0x...>
+
+    TransitionModel.from_dense will check if the supplied probabilties for
+    each state sum to 1 (and thus represent a correct probability distribution)
+
+    >>> tm = TransitionModel.from_dense([0, 1], [1, 0], [0.5, 1.0])
+    ... # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError: Not a probability distribution.
 
     """
 
@@ -244,6 +264,25 @@ class DiscreteObservationModel(ObservationModel):
         num_states). Has to sum to 1 over the second axis, since it
         represents P(observation | state).
 
+    Examples
+    --------
+    Assuming two states and three observation types, instantiate a discrete
+    observation model:
+
+    >>> om = DiscreteObservationModel(np.array([[0.1, 0.5, 0.4],
+    ...                                         [0.7, 0.2, 0.1]]))
+    >>> om  # doctest: +ELLIPSIS
+    <madmom.ml.hmm.DiscreteObservationModel object at 0x...>
+
+    If the probabilities do not sum to 1, it throws a ValueError:
+
+    >>> om = DiscreteObservationModel(np.array([[0.5, 0.5, 0.5],
+    ...                                         [0.5, 0.5, 0.5]]))
+    ... # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    ValueError: Not a probability distribution.
+
     """
 
     def __init__(self, observation_probabilities):
@@ -308,6 +347,38 @@ class HiddenMarkovModel(object):
         Initial state distribution; if 'None' a uniform distribution is
         assumed.
 
+    Examples
+    --------
+    Create a simple HMM with two states and three observation types. The
+    initial distribution is uniform.
+
+    >>> tm = TransitionModel.from_dense([0, 1, 0, 1], [0, 0, 1, 1],
+    ...                                 [0.7, 0.3, 0.6, 0.4])
+    >>> om = DiscreteObservationModel(np.array([[0.2, 0.3, 0.5],
+    ...                                         [0.7, 0.1, 0.2]]))
+    >>> hmm = HiddenMarkovModel(tm, om)
+
+    Now we can decode the most probable state sequence and get the
+    log-probability of the sequence
+
+    >>> seq, log_p = hmm.viterbi([0, 0, 1, 1, 0, 0, 0, 2, 2])
+    >>> log_p  #  doctest: +ELLIPSIS
+    -12.87...
+    >>> seq
+    array([1, 1, 0, 0, 1, 1, 1, 0, 0], dtype=uint32)
+
+    Compute the forward variables:
+
+    >>> hmm.forward([0, 0, 1, 1, 0, 0, 0, 2, 2])
+    array([[ 0.34667,  0.65333],
+           [ 0.33171,  0.66829],
+           [ 0.83814,  0.16186],
+           [ 0.86645,  0.13355],
+           [ 0.38502,  0.61498],
+           [ 0.33539,  0.66461],
+           [ 0.33063,  0.66937],
+           [ 0.81179,  0.18821],
+           [ 0.84231,  0.15769]])
     """
 
     def __init__(self, transition_model, observation_model,
