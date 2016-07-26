@@ -174,7 +174,7 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
     one after another,
 
     >>> chroma = dcp('tests/data/audio/sample2.wav')
-    >>> decode(chroma) # doctest: +NORMALIZE_WHITESPACE
+    >>> decode(chroma) # doctest: +NORMALIZE_WHITESPACE +IGNORE_UNICODE
     array([(0.0, 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
 
@@ -183,7 +183,7 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
     >>> from madmom.processors import SequentialProcessor
     >>> chordrec = SequentialProcessor([dcp, decode])
     >>> chordrec('tests/data/audio/sample2.wav')
-    ... # doctest: +NORMALIZE_WHITESPACE
+    ... # doctest: +NORMALIZE_WHITESPACE +IGNORE_UNICODE
     array([(0.0, 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
     """
@@ -310,7 +310,8 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
     one after another,
 
     >>> feats = featproc('tests/data/audio/sample2.wav')
-    >>> decode(feats)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> decode(feats)
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
     array([(0.0, 0.2, u'N'), (0.2, 1.6, u'F:maj'),
            (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
@@ -320,7 +321,7 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
     >>> from madmom.processors import SequentialProcessor
     >>> chordrec = SequentialProcessor([featproc, decode])
     >>> chordrec('tests/data/audio/sample2.wav')
-    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
     array([(0.0, 0.2, u'N'), (0.2, 1.6, u'F:maj'),
            (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
