@@ -11,11 +11,9 @@ import argparse
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.filters import FilterbankProcessor
-from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.filters import FilterbankProcessor, LogarithmicFilterbank
 from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      LogarithmicFilteredSpectrogramProcessor)
+                                      SpectrogramDifferenceProcessor)
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
 
@@ -70,6 +68,11 @@ def main():
     # parse arguments
     args = p.parse_args()
 
+    # set immutable defaults
+    args.num_channels = 1
+    args.onset_method = 'complex_flux'
+    args.filterbank = LogarithmicFilterbank
+
     # print arguments
     if args.verbose:
         print(args)
@@ -79,16 +82,8 @@ def main():
         # load the activations from file
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
-        # define processing chain
-        sig = SignalProcessor(num_channels=1, **vars(args))
-        frames = FramedSignalProcessor(**vars(args))
-        # add a STFT processor so that we can set the circular shift needed for
-        # correct phase and local group delay
-        stft = ShortTimeFourierTransformProcessor(circular_shift=True,
-                                                  **vars(args))
-        spec = LogarithmicFilteredSpectrogramProcessor(**vars(args))
-        odf = SpectralOnsetProcessor(onset_method='complex_flux', **vars(args))
-        in_processor = [sig, frames, stft, spec, odf]
+        # define spectral onset detection function
+        in_processor = SpectralOnsetProcessor(**vars(args))
 
     # output processor
     if args.save:

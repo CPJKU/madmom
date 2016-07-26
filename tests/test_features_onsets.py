@@ -12,8 +12,13 @@ from os.path import join as pj
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH
 
-from madmom.audio.spectrogram import (Spectrogram,
-                                      LogarithmicFilteredSpectrogram)
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.filters import LogarithmicFilterbank
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.spectrogram import (Spectrogram, SpectrogramProcessor,
+                                      FilteredSpectrogramProcessor,
+                                      LogarithmicFilteredSpectrogram,
+                                      LogarithmicSpectrogramProcessor)
 from madmom.features import Activations
 from madmom.features.onsets import *
 
@@ -153,10 +158,54 @@ class TestSpectralOnsetProcessorClass(unittest.TestCase):
     def setUp(self):
         self.processor = SpectralOnsetProcessor()
 
+    def test_processors(self):
+        proc = SpectralOnsetProcessor()
+        self.assertIsInstance(proc.processors[0], SignalProcessor)
+        self.assertIsInstance(proc.processors[1], FramedSignalProcessor)
+        self.assertIsInstance(proc.processors[2],
+                              ShortTimeFourierTransformProcessor)
+        self.assertIsInstance(proc.processors[3], SpectrogramProcessor)
+        self.assertEqual(proc.processors[4], spectral_flux)
+
+    def test_filterbank(self):
+        # with filtering
+        proc = SpectralOnsetProcessor(filterbank=LogarithmicFilterbank)
+        self.assertIsInstance(proc.processors[4], FilteredSpectrogramProcessor)
+        self.assertEqual(proc.processors[5], spectral_flux)
+
+    def test_scaling(self):
+        # with logarithmic scaling
+        proc = SpectralOnsetProcessor(log=np.log10)
+        self.assertIsInstance(proc.processors[4],
+                              LogarithmicSpectrogramProcessor)
+        self.assertEqual(proc.processors[5], spectral_flux)
+
+    def test_filtered_scaling(self):
+        # with both filtering and logarithmic scaling
+        proc = SpectralOnsetProcessor(filterbank=LogarithmicFilterbank,
+                                      log=np.log10)
+        self.assertIsInstance(proc.processors[4], FilteredSpectrogramProcessor)
+        self.assertIsInstance(proc.processors[5],
+                              LogarithmicSpectrogramProcessor)
+        self.assertEqual(proc.processors[6], spectral_flux)
+
+    def test_circular_shift(self):
+        # circular shift
+        proc = SpectralOnsetProcessor(onset_method='phase_deviation')
+        self.assertIsInstance(proc.processors[2],
+                              ShortTimeFourierTransformProcessor)
+        self.assertTrue(proc.processors[2].circular_shift)
+        self.assertEqual(proc.processors[4], phase_deviation)
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            SpectralOnsetProcessor(onset_method='nonexistent')
+
     def test_process(self):
-        odf = self.processor(sample_log_filt_spec)
-        self.assertTrue(np.allclose(odf[:6], [0, 2.0868, 0.64117,
-                                              0.386343, 0.402024, 0.6335]))
+        odf = self.processor(sample_file)
+        self.assertTrue(np.allclose(odf[:6], [0., 100.90120697, 74.44419861,
+                                              40.277565, 57.95736313,
+                                              46.15561295]))
 
 
 class TestRNNOnsetProcessorClass(unittest.TestCase):
@@ -205,9 +254,25 @@ class TestPeakPickingProcessorClass(unittest.TestCase):
                                               delay=0,
                                               fps=sample_superflux_act.fps)
 
+    def test_online(self):
+        proc = PeakPickingProcessor(online=True)
+        self.assertEqual(proc.smooth, 0)
+        self.assertEqual(proc.post_avg, 0)
+        self.assertEqual(proc.post_max, 0)
+
     def test_process(self):
         onsets = self.processor(sample_superflux_act)
         self.assertTrue(np.allclose(onsets, [0.01, 0.085, 0.275, 0.445, 0.61,
                                              0.795, 0.98, 1.115, 1.365, 1.475,
                                              1.62, 1.795, 2.14, 2.33, 2.485,
                                              2.665]))
+
+    def test_delay(self):
+        proc = PeakPickingProcessor(threshold=1.1, pre_max=0.01, post_max=0.05,
+                                    pre_avg=0.15, post_avg=0, combine=0.03,
+                                    delay=1, fps=sample_superflux_act.fps)
+        onsets = proc(sample_superflux_act)
+        self.assertTrue(np.allclose(onsets,
+                                    [1.01, 1.085, 1.275, 1.445, 1.61, 1.795,
+                                     1.98, 2.115, 2.365, 2.475, 2.62, 2.795,
+                                     3.14, 3.33, 3.485, 3.665]))

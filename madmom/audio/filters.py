@@ -962,7 +962,8 @@ class FilterbankProcessor(Processor, Filterbank):
                                help='do not filter the spectrogram with a '
                                     'filterbank [default=%(default)s]')
             else:
-                g.add_argument('--filter', action='store_true', default=None,
+                g.add_argument('--filterbank', action='store_true',
+                               default=None,
                                help='filter the spectrogram with a filterbank '
                                     'of this type')
         # number of bands
