@@ -15,6 +15,7 @@ Please see the README for further details of this package.
 
 from __future__ import absolute_import, division, print_function
 
+import doctest
 import numpy as np
 import pkg_resources
 
@@ -23,10 +24,6 @@ from . import audio, evaluation, features, ml, models, processors, utils
 
 # define a version variable
 __version__ = pkg_resources.get_distribution("madmom").version
-
-# keep namespace clean
-del pkg_resources
-
 
 # set and restore numpy's print options for doctests
 _NP_PRINT_OPTIONS = np.get_printoptions()
@@ -42,3 +39,39 @@ def teardown():
     # pylint: disable=missing-docstring
     # restore the environment after doctests (when run through nose)
     np.set_printoptions(**_NP_PRINT_OPTIONS)
+
+
+# Create a doctest output checker that optionally ignores the unicode string
+# literal.
+
+# declare the new doctest directive IGNORE_UNICODE
+IGNORE_UNICODE = doctest.register_optionflag("IGNORE_UNICODE")
+doctest.IGNORE_UNICODE = IGNORE_UNICODE
+doctest.__all__.append("IGNORE_UNICODE")
+doctest.COMPARISON_FLAGS = doctest.COMPARISON_FLAGS | IGNORE_UNICODE
+
+_doctest_OutputChecker = doctest.OutputChecker
+
+
+class MadmomOutputChecker(_doctest_OutputChecker):
+    def check_output(self, want, got, optionflags):
+        super_check_output = _doctest_OutputChecker.check_output
+        if optionflags & IGNORE_UNICODE:
+            import sys
+            import re
+            if sys.version_info[0] > 2:
+                want = re.sub("u'(.*?)'", "'\\1'", want)
+                want = re.sub('u"(.*?)"', '"\\1"', want)
+            return super_check_output(self, want, got, optionflags)
+        else:
+            return super_check_output(self, want, got, optionflags)
+
+    def output_difference(self, example, got, optionflags):
+        super_output_difference = _doctest_OutputChecker.output_difference
+        return super_output_difference(self, example, got, optionflags)
+
+# monkey-patching
+doctest.OutputChecker = MadmomOutputChecker
+
+# keep namespace clean
+del pkg_resources, doctest
