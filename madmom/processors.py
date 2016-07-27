@@ -646,14 +646,14 @@ class BufferProcessor(Processor):
 
     Parameters
     ----------
-    buffer_size : int
-        Size of the buffer.
+    buffer_length : int
+        Length of the buffer (in time steps to be buffered).
 
     """
 
-    def __init__(self, buffer_size, init=None):
-        self.buffer_size = buffer_size
-        self.buffer = init
+    def __init__(self, buffer_length, init=None):
+        self.buffer_length = buffer_length
+        self._buffer = init
 
     def process(self, data):
         """
@@ -670,15 +670,24 @@ class BufferProcessor(Processor):
             Data with buffered context.
 
         """
+        # length of the data
+        data_length = len(data)
         # init the buffer with the same ndarray subclass and data type
-        if self.buffer is None:
-            self.buffer = np.repeat(data * 0, self.buffer_size, axis=0)
-        # append the new data and return everything from index 1 on
-        self.buffer = np.vstack((self.buffer, data))[1:]
-        return self.buffer
+        if self._buffer is None:
+            # TODO: find a better way to concatenate two subclassed ndarrays
+            #       which keeps the class/type/dtype intact
+            self._buffer = np.repeat(data[:1] * 0,
+                                     self.buffer_length + data_length, axis=0)
+        # remove `data_length` from buffer at the beginning and append new data
+        self._buffer = np.roll(self._buffer, -data_length, axis=0)
+        self._buffer[-data_length:] = data
+        return self._buffer
+
+    # alias for easier / more intuitive calling
+    buffer = process
 
     @staticmethod
-    def add_arguments(parser, buffer_size=None):
+    def add_arguments(parser, buffer_length=None):
         """
         Add buffering related arguments to an existing parser.
 
@@ -686,8 +695,8 @@ class BufferProcessor(Processor):
         ----------
         parser : argparse parser instance
             Existing argparse parser object.
-        buffer_size : int
-            Size of the buffer.
+        buffer_length : int
+            Length of the buffer.
 
         Returns
         -------
@@ -697,9 +706,9 @@ class BufferProcessor(Processor):
         """
         # add buffering options to the existing parser
         g = parser.add_argument_group('buffering arguments')
-        if buffer_size is not None:
-            g.add_argument('--buffer_size', action='store', type=int,
-                           help='size of the buffer')
+        if buffer_length is not None:
+            g.add_argument('--buffer_length', action='store', type=int,
+                           help='length of the buffer')
         return g
 
 
@@ -829,10 +838,12 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
         sp.set_defaults(func=process_online)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
-        sp.add_argument('-o', dest='out_stream', type=argparse.FileType('wb'),
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
         sp.add_argument('--block_size', dest='block_size', type=int,
                         default=1, help='number of frames used for processing')
+        sp.set_defaults(sample_rate=44100)
         sp.set_defaults(num_channels=1)
-        sp.set_defaults(num_frames=1)
         sp.set_defaults(origin='future')
+        sp.set_defaults(num_frames=1)
+        sp.set_defaults(stream=None)

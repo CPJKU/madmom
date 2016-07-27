@@ -11,9 +11,9 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from ..processors import Processor, SequentialProcessor
-from .filters import (LogarithmicFilterbank, A4, FMAX, FMIN, NORM_FILTERS,
-                      NUM_BANDS, UNIQUE_FILTERS)
+from ..processors import Processor, SequentialProcessor, BufferProcessor
+from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
+                      NORM_FILTERS, UNIQUE_FILTERS)
 
 
 def spec(stft):
@@ -888,6 +888,19 @@ DIFF_MAX_BINS = None
 POSITIVE_DIFFS = False
 
 
+def _diff_frames(diff_ratio, hop_size, frame_size, window=np.hanning):
+    # calculate the number of diff frames on basis of the diff_ratio
+    # first sample of the window with a higher magnitude than given ratio
+    if hasattr(window, '__call__'):
+        # Note: if only a window function is given (default in audio.stft),
+        #       generate a window of size `frame_size` with the given shape
+        window = window(frame_size)
+    sample = np.argmax(window > float(diff_ratio) * max(window))
+    diff_samples = len(window) / 2 - sample
+    # convert to frames, must be at least 1
+    return int(max(1, round(diff_samples / hop_size)))
+
+
 class SpectrogramDifference(Spectrogram):
     """
     SpectrogramDifference class.
@@ -907,12 +920,23 @@ class SpectrogramDifference(Spectrogram):
         to the spectrogram the difference is calculated to.
     positive_diffs : bool, optional
         Keep only the positive differences, i.e. set all diff values < 0 to 0.
+    keep_dims : bool, optional
+        Indicate if the dimensions (i.e. shape) of the spectrogram should be
+        kept.
     kwargs : dict, optional
         If no :class:`Spectrogram` instance was given, one is instantiated with
         these additional keyword arguments.
 
     Notes
     -----
+    The first `diff_frames` frames will have a value of 0.
+
+    If `keep_dims` is 'True' the returned difference has the same shape as the
+    spectrogram. This is needed if the diffs should be stacked on top of it.
+    If set to 'False', the length will be `diff_frames` frames shorter (mostly
+    used by the SpectrogramDifferenceProcessor which first buffers that many
+    frames.
+
     The SuperFlux algorithm [1]_ uses a maximum filtered spectrogram with 3
     `diff_max_bins` together with a 24 band logarithmic filterbank to calculate
     the difference spectrogram with a `diff_ratio` of 0.5.
@@ -969,13 +993,13 @@ class SpectrogramDifference(Spectrogram):
 
     def __init__(self, spectrogram, diff_ratio=DIFF_RATIO,
                  diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
-                 positive_diffs=POSITIVE_DIFFS, **kwargs):
+                 positive_diffs=POSITIVE_DIFFS, keep_dims=True, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, spectrogram, diff_ratio=DIFF_RATIO,
                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
-                positive_diffs=POSITIVE_DIFFS, **kwargs):
+                positive_diffs=POSITIVE_DIFFS, keep_dims=True, **kwargs):
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
@@ -983,20 +1007,10 @@ class SpectrogramDifference(Spectrogram):
 
         # calculate the number of diff frames to use
         if diff_frames is None:
-            # calculate the number of diff_frames on basis of the diff_ratio
-            # get the first sample with a higher magnitude than given ratio
-            window = spectrogram.stft.window
-            sample = np.argmax(window > float(diff_ratio) * max(window))
-            diff_samples = len(spectrogram.stft.window) / 2 - sample
-            # convert to frames
-            hop_size = spectrogram.stft.frames.hop_size
-            diff_frames = round(diff_samples / hop_size)
-
-        # use at least 1 frame
-        diff_frames = max(1, int(diff_frames))
-
-        # init matrix
-        diff = np.zeros_like(spectrogram)
+            diff_frames = _diff_frames(
+                diff_ratio, hop_size=spectrogram.stft.frames.hop_size,
+                frame_size=spectrogram.stft.frames.frame_size,
+                window=spectrogram.stft.window)
 
         # apply a maximum filter to diff_spec if needed
         if diff_max_bins is not None and diff_max_bins > 1:
@@ -1006,9 +1020,15 @@ class SpectrogramDifference(Spectrogram):
             diff_spec = maximum_filter(spectrogram, size=size)
         else:
             diff_spec = spectrogram
+
         # calculate the diff
-        diff[diff_frames:] = (spectrogram[diff_frames:] -
-                              diff_spec[: -diff_frames])
+        if keep_dims:
+            diff = np.zeros_like(spectrogram)
+            diff[diff_frames:] = (spectrogram[diff_frames:] -
+                                  diff_spec[:-diff_frames])
+        else:
+            diff = spectrogram[diff_frames:] - diff_spec[:-diff_frames]
+
         # positive differences only?
         if positive_diffs:
             np.maximum(diff, 0, out=diff)
@@ -1044,7 +1064,7 @@ class SpectrogramDifference(Spectrogram):
         return np.maximum(self, 0)
 
 
-class SpectrogramDifferenceProcessor(Processor):
+class SpectrogramDifferenceProcessor(BufferProcessor):
     """
     Difference Spectrogram Processor class.
 
@@ -1082,6 +1102,7 @@ class SpectrogramDifferenceProcessor(Processor):
                  diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
                  stack_diffs=None, **kwargs):
         # pylint: disable=unused-argument
+        super(SpectrogramDifferenceProcessor, self).__init__(diff_frames)
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
@@ -1105,19 +1126,52 @@ class SpectrogramDifferenceProcessor(Processor):
             Spectrogram difference.
 
         """
-        # instantiate a SpectrogramDifference
-        diff = SpectrogramDifference(data, diff_ratio=self.diff_ratio,
-                                     diff_frames=self.diff_frames,
+        # set the expected minimum number of dimensions
+        data = np.array(data, copy=False, subok=True, ndmin=2)
+        # FIXME: setting the diff_frames might be a problem if the signal's
+        #        sample rate changes from song to song! The buffer_length
+        #        should change then as well.
+        #        Additionally, if not a Spectrogram but a simple numpy array
+        #        or a filename is given, there is no chance to access the
+        #        stft.frames.frame_size this way
+        if self.diff_frames is None:
+            # calculate the number of diff frames
+            self.diff_frames = _diff_frames(
+                self.diff_ratio, frame_size=data.stft.frames.frame_size,
+                hop_size=data.stft.frames.hop_size, window=data.stft.window)
+            # the buffer might be initialised with buffer_length=None
+            self.buffer_length = self.diff_frames
+        # init the buffer
+        # Note: do this here and not in BufferProcessor since it has to be
+        #       done in a very special way (circular padding)
+        if self._buffer is None:
+            # TODO: refactor to super(..., self).init(buffer_length)?
+            self._buffer = np.repeat(data[:1] * 0,
+                                     self.buffer_length + len(data), axis=0)
+            # we need to fill the last buffer_length items with the data
+            # this will be put at the beginning when buffering
+            start = -self.buffer_length
+            stop = -(self.buffer_length - len(data))
+            if len(data) >= self.buffer_length:
+                self._buffer[start:] = data[:self.buffer_length]
+            else:
+                self._buffer[start:stop] = data
+        # buffer the frames needed for difference calculation
+        # data = super(SpectrogramDifferenceProcessor, self).process(data)
+        data = self.buffer(data)
+        # instantiate a SpectrogramDifference (and reduce 1st dimension)
+        diff = SpectrogramDifference(data, diff_frames=self.diff_frames,
                                      diff_max_bins=self.diff_max_bins,
                                      positive_diffs=self.positive_diffs,
-                                     **kwargs)
+                                     keep_dims=False, **kwargs)
         # decide if we need to stack the diff on the data or just return it
-        if self.stack_diffs is None:
-            return diff
-        else:
+        if self.stack_diffs:
             # we can't use `data` directly, because it could be a str
             # we ave to access diff.spectrogram (i.e. converted data)
-            return self.stack_diffs((diff.spectrogram, diff))
+            # TODO: check if this is still true, even with the buffer
+            diff = self.stack_diffs((diff.spectrogram[self.diff_frames:],
+                                     diff))
+        return diff
 
     @staticmethod
     def add_arguments(parser, diff=None, diff_ratio=None, diff_frames=None,

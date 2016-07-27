@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 
 
 # signal functions
@@ -1519,8 +1519,9 @@ class Stream(object):
                                    frames_per_buffer=self.hop_size,
                                    stream_callback=self.callback, start=True)
 
-        # internal variables
-        self.buffer = None
+        # create a buffer
+        self.buffer = BufferProcessor(self.frame_size)
+        # frame index counter
         self.frame_idx = 0
         # PyAudio flags
         self.paComplete = pyaudio.paComplete
@@ -1555,19 +1556,12 @@ class Stream(object):
         # get the data from the stream
         # TODO: make the dtype configurable; see __init__()
         data = np.fromstring(data, 'int16').astype(self.dtype)
-        # save the data
-        if self.buffer is None:
-            # if it is the first data to arrive just save it
-            self.buffer = data
-        else:
-            # append the new data to the old one
-            self.buffer = np.concatenate((self.buffer, data))
-        # truncate the buffer to the size of a frame
-        self.buffer = self.buffer[-self.frame_size:]
+        # buffer the data
+        data = self.buffer(data)
         # wrap it as a Signal (including the start position)
         # TODO: check float/int hop size
         start = (self.frame_idx * float(self.hop_size) / self.sample_rate)
-        signal = Signal(self.buffer, sample_rate=self.sample_rate,
+        signal = Signal(data, sample_rate=self.sample_rate,
                         dtype=self.dtype, num_channels=self.num_channels,
                         start=start)
         # if the queue if full erase the first item from the queue
