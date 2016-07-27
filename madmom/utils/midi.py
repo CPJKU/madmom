@@ -102,10 +102,12 @@ THIRTY_SECOND = 5
 SIXTY_FOURTH = 6
 
 HEADER_SIZE = 14
+
 RESOLUTION = 480  # ticks per quarter note
 TEMPO = 120
 TIME_SIGNATURE_NUMERATOR = 4
 TIME_SIGNATURE_DENOMINATOR = 4
+TIME_SIGNATURE = (TIME_SIGNATURE_NUMERATOR, TIME_SIGNATURE_DENOMINATOR)
 SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
 SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
@@ -187,6 +189,7 @@ def write_variable_length(value):
     return result
 
 
+# class for dynamically registering event classes
 class EventRegistry(object):
     """
     Class for registering Events.
@@ -194,9 +197,13 @@ class EventRegistry(object):
     Event classes should be registered manually by calling
     EventRegistry.register_event(EventClass) after the class definition.
 
+    Normal events are registered in the `events` dictionary and use the event's
+    `status_msg` as a key; meta events are registered in the `meta_events`
+    dictionary and use their `meta_command` as key.
+
     """
-    Events = {}
-    MetaEvents = {}
+    events = {}
+    meta_events = {}
 
     @classmethod
     def register_event(cls, event):
@@ -208,42 +215,40 @@ class EventRegistry(object):
         event : :class:`Event` instance
             Event to be registered.
 
-        Raises
-        ------
-        ValueError
-            For unknown events.
-
         """
         # normal events
-        if any(b in (Event, NoteEvent) for b in event.__bases__):
+        if any(b in (Event, ChannelEvent, NoteEvent) for b in event.__bases__):
             # raise an error if the event class is registered already
-            if event.status_msg in cls.Events:
+            if event.status_msg in cls.events:
                 raise AssertionError("Event %s already registered" %
                                      event.name)
             # register the Event
-            cls.Events[event.status_msg] = event
+            cls.events[event.status_msg] = event
         # meta events
         elif any(b in (MetaEvent, MetaEventWithText) for b in event.__bases__):
             # raise an error if the meta event class is registered already
-            if event.meta_command in EventRegistry.MetaEvents:
+            if event.meta_command in EventRegistry.meta_events:
                 raise AssertionError("Event %s already registered" %
                                      event.name)
             # register the MetaEvent
-            cls.MetaEvents[event.meta_command] = event
+            cls.meta_events[event.meta_command] = event
+        # unknown events
         else:
             # raise an error
-            raise ValueError("Unknown base class in event type: %s" %
-                             event.__bases__)
+            raise AssertionError("Unknown base class in event type: %s" %
+                                 event.__bases__)
 
 
-class AbstractEvent(object):
+class Event(object):
     """
-    Abstract Event.
+    Generic MIDI Event.
 
     """
     name = "Generic MIDI Event"
     length = 0
     status_msg = 0x0
+    # sort is a float value used for sorting events occurring at the same tick
+    sort = 0.
 
     def __init__(self, **kwargs):
         if isinstance(self.length, int):
@@ -255,122 +260,72 @@ class AbstractEvent(object):
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-    def __cmp__(self, other):
-        raise RuntimeError('add missing comparison operators')
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.data == other.data and
+            self.status_msg == other.status_msg)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __lt__(self, other):
-        return self.tick < other.tick
+        if self.tick < other.tick:
+            return True
+        elif self.tick == other.tick and self.sort < other.sort:
+            return True
+        return False
+
+    def __le__(self, other):
+        return NotImplementedError
 
     def __gt__(self, other):
-        return self.tick > other.tick
+        if self.tick > other.tick:
+            return True
+        elif self.tick == other.tick and self.sort > other.sort:
+            return True
+        return False
+
+    def __ge__(self, other):
+        return NotImplementedError
 
     def __str__(self):
-        return "%s: tick: %s data: %s" % (self.__class__.__name__, self.tick,
-                                          self.data)
-
-# do not register AbstractEvent
+        return "%s: tick: %s data: %s" % (
+            self.__class__.__name__, self.tick, self.data)
 
 
-class Event(AbstractEvent):
+class ChannelEvent(Event):
     """
-    Event.
+    Event with a channel number.
 
     """
-    name = 'Event'
+    name = 'ChannelEvent'
 
     def __init__(self, **kwargs):
-        if 'channel' not in kwargs:
-            # TODO: copying needed?
-            kwargs = kwargs.copy()
-            kwargs['channel'] = 0
-        super(Event, self).__init__(**kwargs)
+        super(ChannelEvent, self).__init__(**kwargs)
+        self.channel = kwargs.get('channel', 0)
 
-    def __cmp__(self, other):
-        if self.tick < other.tick:
-            return -1
-        elif self.tick > other.tick:
-            return 1
-        return 0
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.channel == other.channel and
+            self.data == other.data and self.status_msg == other.status_msg)
 
     def __str__(self):
-        return "%s: tick: %s channel: %s" % (self.__class__.__name__,
-                                             self.tick, self.channel)
-
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == (status_msg & 0xF0)
-
-# do not register Event
+        return "%s: tick: %s channel: %s data: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.data)
 
 
-class MetaEvent(AbstractEvent):
-    """
-    MetaEvent is a special subclass of Event that is not meant to be used as a
-    concrete class. It defines a subset of Events known as the Meta events.
-
-    """
-    status_msg = 0xFF
-    meta_command = 0x0
-    name = 'Meta Event'
-
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == status_msg
-
-# do not register MetaEvent
-
-
-class MetaEventWithText(MetaEvent):
-    """
-    Meta Event With Text.
-
-    """
-    def __init__(self, **kwargs):
-        super(MetaEventWithText, self).__init__(**kwargs)
-        if 'text' not in kwargs:
-            self.text = ''.join(chr(datum) for datum in self.data)
-
-    def __str__(self):
-        return "%s: %s" % (self.__class__.__name__, self.text)
-
-# do not register MetaEventWithText
-
-
-class NoteEvent(Event):
+class NoteEvent(ChannelEvent):
     """
     NoteEvent is a special subclass of Event that is not meant to be used as a
     concrete class. It defines the generalities of NoteOn and NoteOff events.
 
     """
     length = 2
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s pitch: %s velocity: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.pitch,
+            self.velocity)
 
     @property
     def pitch(self):
@@ -414,8 +369,6 @@ class NoteEvent(Event):
         """
         self.data[1] = velocity
 
-# do not register NoteEvent
-
 
 class NoteOnEvent(NoteEvent):
     """
@@ -424,6 +377,7 @@ class NoteOnEvent(NoteEvent):
     """
     status_msg = 0x90
     name = 'Note On'
+    sort = .1  # make sure it is sorted before NoteOffEvent
 
 EventRegistry.register_event(NoteOnEvent)
 
@@ -435,11 +389,12 @@ class NoteOffEvent(NoteEvent):
     """
     status_msg = 0x80
     name = 'Note Off'
+    sort = .2  # make sure it is sorted after NoteOnEvent
 
 EventRegistry.register_event(NoteOffEvent)
 
 
-class AfterTouchEvent(Event):
+class AfterTouchEvent(ChannelEvent):
     """
     After Touch Event.
 
@@ -447,6 +402,11 @@ class AfterTouchEvent(Event):
     status_msg = 0xA0
     length = 2
     name = 'After Touch'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s pitch: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.pitch,
+            self.value)
 
     @property
     def pitch(self):
@@ -493,7 +453,7 @@ class AfterTouchEvent(Event):
 EventRegistry.register_event(AfterTouchEvent)
 
 
-class ControlChangeEvent(Event):
+class ControlChangeEvent(ChannelEvent):
     """
     Control Change Event.
 
@@ -501,6 +461,11 @@ class ControlChangeEvent(Event):
     status_msg = 0xB0
     length = 2
     name = 'Control Change'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s control: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.control,
+            self.value)
 
     @property
     def control(self):
@@ -547,7 +512,7 @@ class ControlChangeEvent(Event):
 EventRegistry.register_event(ControlChangeEvent)
 
 
-class ProgramChangeEvent(Event):
+class ProgramChangeEvent(ChannelEvent):
     """
     Program Change Event.
 
@@ -555,6 +520,10 @@ class ProgramChangeEvent(Event):
     status_msg = 0xC0
     length = 1
     name = 'Program Change'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.value)
 
     @property
     def value(self):
@@ -580,7 +549,7 @@ class ProgramChangeEvent(Event):
 EventRegistry.register_event(ProgramChangeEvent)
 
 
-class ChannelAfterTouchEvent(Event):
+class ChannelAfterTouchEvent(ChannelEvent):
     """
     Channel After Touch Event.
 
@@ -588,6 +557,10 @@ class ChannelAfterTouchEvent(Event):
     status_msg = 0xD0
     length = 1
     name = 'Channel After Touch'
+
+    def __str__(self):
+        return "%s: tick: %s channel: %s value: %s" % (
+            self.__class__.__name__, self.tick, self.channel, self.value)
 
     @property
     def value(self):
@@ -613,7 +586,7 @@ class ChannelAfterTouchEvent(Event):
 EventRegistry.register_event(ChannelAfterTouchEvent)
 
 
-class PitchWheelEvent(Event):
+class PitchWheelEvent(ChannelEvent):
     """
     Pitch Wheel Event.
 
@@ -657,25 +630,38 @@ class SysExEvent(Event):
     length = 'variable'
     name = 'SysEx'
 
-    @classmethod
-    def is_event(cls, status_msg):
-        """
-        Indicates whether the given status message belongs to this event.
-
-        Parameters
-        ----------
-        status_msg : int
-            Status message.
-
-        Returns
-        -------
-        bool
-            True if the given status message belongs to this event.
-
-        """
-        return cls.status_msg == status_msg
-
 EventRegistry.register_event(SysExEvent)
+
+
+class MetaEvent(Event):
+    """
+    MetaEvent is a special subclass of Event that is not meant to be used as a
+    concrete class. It defines a subset of Events known as the Meta events.
+
+    """
+    status_msg = 0xFF
+    meta_command = 0x0
+    name = 'Meta Event'
+
+    def __eq__(self, other):
+        return (
+            self.tick == other.tick and self.data == other.data and
+            self.status_msg == other.status_msg and
+            self.meta_command == other.meta_command)
+
+
+class MetaEventWithText(MetaEvent):
+    """
+    Meta Event With Text.
+
+    """
+    def __init__(self, **kwargs):
+        super(MetaEventWithText, self).__init__(**kwargs)
+        if 'text' not in kwargs:
+            self.text = ''.join(chr(datum) for datum in self.data)
+
+    def __str__(self):
+        return "%s: %s" % (self.__class__.__name__, self.text)
 
 
 class SequenceNumberMetaEvent(MetaEvent):
@@ -780,7 +766,7 @@ class ProgramNameEvent(MetaEventWithText):
 
     """
     meta_command = 0x08
-    length = 'varlen'
+    length = 'variable'
     name = 'Program Name'
 
 EventRegistry.register_event(ProgramNameEvent)
@@ -789,9 +775,6 @@ EventRegistry.register_event(ProgramNameEvent)
 class UnknownMetaEvent(MetaEvent):
     """
     Unknown Meta Event.
-
-    The `meta_command` class variable must be set by the constructor of
-    inherited classes.
 
     Parameters
     ----------
@@ -804,11 +787,8 @@ class UnknownMetaEvent(MetaEvent):
 
     def __init__(self, **kwargs):
         super(UnknownMetaEvent, self).__init__(**kwargs)
+        # TODO: is this needed, should be handled by Event already
         self.meta_command = kwargs['meta_command']
-
-    def copy(self, **kwargs):
-        kwargs['meta_command'] = self.meta_command
-        return super(UnknownMetaEvent, self).copy(kwargs)
 
 EventRegistry.register_event(UnknownMetaEvent)
 
@@ -854,6 +834,7 @@ class EndOfTrackEvent(MetaEvent):
     """
     meta_command = 0x2F
     name = 'End of Track'
+    sort = .99  # should always come last
 
 EventRegistry.register_event(EndOfTrackEvent)
 
@@ -866,6 +847,11 @@ class SetTempoEvent(MetaEvent):
     meta_command = 0x51
     length = 3
     name = 'Set Tempo'
+
+    def __str__(self):
+        return "%s: tick: %s microseconds per quarter note: %s" % (
+            self.__class__.__name__, self.tick,
+            self.microseconds_per_quarter_note)
 
     @property
     def microseconds_per_quarter_note(self):
@@ -1064,6 +1050,40 @@ class SequencerSpecificEvent(MetaEvent):
 EventRegistry.register_event(SequencerSpecificEvent)
 
 
+def _add_channel(notes, channel=0):
+    """
+    Adds a default channel to the notes if missing.
+
+    Parameters
+    ----------
+    notes : numpy array, shape (num_notes, 2)
+        Notes, one per row (column definition see notes).
+    channel : int, optional
+        Note channel if not defined by `notes`.
+
+    Returns
+    -------
+    numpy array
+        Notes (including note channel).
+
+    Notes
+    -----
+    The note columns format must be (channel being optional):
+
+    'onset' 'pitch' 'duration' 'velocity' ['channel']
+
+    """
+    if not notes.ndim == 2:
+        raise ValueError('unknown format for `notes`')
+    rows, columns = notes.shape
+    if columns == 5:
+        return notes
+    elif columns == 4:
+        channels = np.ones((rows, 1)) * channel
+        return np.hstack((notes, channels))
+    raise ValueError('unable to handle `notes` with %d columns' % columns)
+
+
 # MIDI Track
 class MIDITrack(object):
     """
@@ -1074,30 +1094,66 @@ class MIDITrack(object):
     events : list
         MIDI events.
 
+    Notes
+    -----
+    All events are stored with timing information in absolute ticks.
+
+    Notes
+    -----
+    The events must be sorted. Consider using `from_notes()` method.
+
+    Examples
+    --------
+
+    Create a MIDI track from a list of events. Please note that the events must
+    be sorted.
+
+    >>> e1 = NoteOnEvent(tick=100, pitch=50, velocity=60)
+    >>> e2 = NoteOffEvent(tick=300, pitch=50)
+    >>> e3 = NoteOnEvent(tick=200, pitch=62, velocity=90)
+    >>> e4 = NoteOffEvent(tick=600, pitch=62)
+    >>> t = MIDITrack(sorted([e1, e2, e3, e4]))
+    >>> t  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDITrack object at 0x...>
+    >>> t.events  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [<madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>]
+
+    It can also be created from an array containing the notes. The `from_notes`
+    method also takes care of creating tempo and time signature events.
+
+    >>> notes = np.array([[0.1, 50, 0.3, 60], [0.2, 62, 0.4, 90]])
+    >>> t = MIDITrack.from_notes(notes)
+    >>> t  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDITrack object at 0x...>
+    >>> t.events  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    [<madmom.utils.midi.SetTempoEvent object at 0x...>,
+     <madmom.utils.midi.TimeSignatureEvent object at 0...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOnEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>,
+     <madmom.utils.midi.NoteOffEvent object at 0x...>]
+
     """
 
     def __init__(self, events=None):
         if events is None:
             self.events = []
         else:
+            # do not sort the events, since they can have relative timing!
             self.events = events
-        self._make_ticks_abs()
 
     def _make_ticks_abs(self):
-        """
-        Make the track's timing information absolute.
-
-        """
+        """Make the track's events timing information absolute."""
         running_tick = 0
         for event in self.events:
             event.tick += running_tick
             running_tick = event.tick
 
     def _make_ticks_rel(self):
-        """
-        Make the track's timing information relative.
-
-        """
+        """Make the track's events timing information relative."""
         running_tick = 0
         for event in self.events:
             event.tick -= running_tick
@@ -1109,6 +1165,8 @@ class MIDITrack(object):
         MIDI data stream representation of the track.
 
         """
+        # sort the events
+        self.events.sort()
         # first make sure the timing information is relative
         self._make_ticks_rel()
         # and unset the status message
@@ -1138,17 +1196,21 @@ class MIDITrack(object):
                 track_data.extend(event.data)
             else:
                 raise ValueError("Unknown MIDI Event: " + str(event))
-        # prepare the track header
-        track_header = b'MTrk%s' % struct.pack(">L", len(track_data))
-
-        # convert back to absolute ticks
+        # TODO: should we add a EndOfTrackEvent?
+        # convert events back to absolute ticks
         self._make_ticks_abs()
-
-        # return the track header + data
-        return track_header + track_data
+        # prepare the data
+        data = bytearray()
+        # generate a MIDI header
+        data.extend(b'MTrk')
+        data.extend(struct.pack(">L", len(track_data)))
+        # append the track data
+        data.extend(track_data)
+        # return the track data
+        return data
 
     @classmethod
-    def from_file(cls, midi_stream):
+    def from_stream(cls, midi_stream):
         """
         Create a MIDI track by reading the data from a stream.
 
@@ -1181,22 +1243,22 @@ class MIDITrack(object):
                 # next byte is status message
                 status_msg = byte2int(next(track_data))
                 # is the event a MetaEvent?
-                if MetaEvent.is_event(status_msg):
-                    cmd = byte2int(next(track_data))
-                    if cmd not in EventRegistry.MetaEvents:
+                if MetaEvent.status_msg == status_msg:
+                    meta_cmd = byte2int(next(track_data))
+                    if meta_cmd not in EventRegistry.meta_events:
                         import warnings
-                        warnings.warn("Unknown Meta MIDI Event: %s" % cmd)
+                        warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
                         event_cls = UnknownMetaEvent
                     else:
-                        event_cls = EventRegistry.MetaEvents[cmd]
+                        event_cls = EventRegistry.meta_events[meta_cmd]
                     data_len = read_variable_length(track_data)
                     data = [byte2int(next(track_data)) for _ in
                             range(data_len)]
                     # create an event and append it to the list
                     events.append(event_cls(tick=tick, data=data,
-                                            meta_command=cmd))
+                                            meta_command=meta_cmd))
                 # is this event a SysEx Event?
-                elif SysExEvent.is_event(status_msg):
+                elif SysExEvent.status_msg == status_msg:
                     data = []
                     while True:
                         datum = byte2int(next(track_data))
@@ -1208,11 +1270,11 @@ class MIDITrack(object):
                 # not a meta or SysEx event, must be a general MIDI event
                 else:
                     key = status_msg & 0xF0
-                    if key not in EventRegistry.Events:
+                    if key not in EventRegistry.events:
                         assert status, "Bad byte value"
                         data = []
                         key = status & 0xF0
-                        event_cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.events[key]
                         channel = status & 0x0F
                         data.append(status_msg)
                         data += [byte2int(next(track_data)) for _ in
@@ -1222,7 +1284,7 @@ class MIDITrack(object):
                                                 data=data))
                     else:
                         status = status_msg
-                        event_cls = EventRegistry.Events[key]
+                        event_cls = EventRegistry.events[key]
                         channel = status & 0x0F
                         data = [byte2int(next(track_data)) for _ in
                                 range(event_cls.length)]
@@ -1232,11 +1294,16 @@ class MIDITrack(object):
             # no more events to be processed
             except StopIteration:
                 break
-        # create a new track and return it
-        return cls(events)
+        # create a new track
+        track = cls(events)
+        # make the timing of the events (i.e. the ticks) absolute
+        track._make_ticks_abs()
+        # return this track
+        return track
 
     @classmethod
-    def from_notes(cls, notes, resolution=RESOLUTION):
+    def from_notes(cls, notes, tempo=TEMPO, time_signature=TIME_SIGNATURE,
+                   resolution=RESOLUTION):
         """
         Create a MIDI track from the given notes.
 
@@ -1244,48 +1311,68 @@ class MIDITrack(object):
         ----------
         notes : numpy array
             Array with the notes, one per row. The columns must be:
-            (onset time, pitch, duration, velocity).
+            (onset time, pitch, duration, velocity, [channel]).
+        tempo : float, optional
+            Tempo of the MIDI track, given in beats per minute (bpm).
+        time_signature : tuple, optional
+            Time signature of the track, e.g. (4, 4) for 4/4.
         resolution : int
-            Resolution (i.e. microseconds per quarter note) of the MIDI track.
+            Resolution (i.e. ticks per quarter note) of the MIDI track.
 
         Returns
         -------
         :class:`MIDITrack` instance
             :class:`MIDITrack` instance
 
+        Notes
+        -----
+        All events including the generated tempo and time signature events is
+        included in the returned track (i.e. as defined in MIDI format 0).
+
         """
+        # add a default channel if needed
+        notes = _add_channel(notes)
+
+        # set time signature
+        sig = TimeSignatureEvent(tick=0)
+        sig.numerator, sig.denominator = time_signature
+
+        # length of a quarter note (seconds)
+        quarter_note_length = 60. / tempo * sig.denominator / 4
+        # quarter notes per second
+        quarter_notes_per_second = 1 / quarter_note_length
+        # ticks per second
+        ticks_per_second = resolution * quarter_notes_per_second
+
+        # set tempo
+        tempo = SetTempoEvent(tick=0)
+        tempo.microseconds_per_quarter_note = int(quarter_note_length * 1e6)
+
+        # list for events (ticks in absolute timing)
         events = []
-        # FIXME: what we do here s basically writing a MIDI format 0 file,
-        #        since we put all events in a single (the given) track. The
-        #        tempo and time signature stuff is just a hack!
-        # first set a tempo, assume a tempo of 120bpm and 4/4 time
-        # signature, thus 1 quarter note is 0.5 sec long
-        tempo = SetTempoEvent()
-        tempo.microseconds_per_quarter_note = int(0.5 * 1e6)
-        sig = TimeSignatureEvent()
-        sig.denominator = 4
-        sig.numerator = 4
-        # beats per second
-        bps = 2
+
         # add the notes
         for note in notes:
+            onset, pitch, duration, velocity, channel = note
             # add NoteOn
             e_on = NoteOnEvent()
-            e_on.tick = int(note[0] * resolution * bps)
-            e_on.pitch = int(note[1])
-            e_on.velocity = int(note[3])
+            e_on.tick = int(onset * ticks_per_second)
+            e_on.pitch = int(pitch)
+            e_on.velocity = int(velocity)
+            e_on.channel = int(channel)
             # and NoteOff
             e_off = NoteOffEvent()
-            e_off.tick = int((note[0] + note[2]) * resolution * bps)
-            e_off.pitch = int(note[1])
+            e_off.tick = int((onset + duration) * ticks_per_second)
+            e_off.pitch = int(pitch)
+            e_off.channel = int(channel)
             events.append(e_on)
             events.append(e_off)
         # sort the events and prepend the tempo and time signature events
         events = sorted(events)
         events.insert(0, sig)
         events.insert(0, tempo)
-        # create a track, set it to absolute timing and return it
-        return cls(events, relative_timing=False)
+        # create a track from the events
+        return cls(events)
 
 
 # File I/O classes
@@ -1302,6 +1389,60 @@ class MIDIFile(object):
     file_format : int, optional
         Format of the MIDI file.
 
+    Notes
+    -----
+    Writing a MIDI file assumes a tempo of 120 beats per minute (bpm) and a 4/4
+    time signature and writes all events into a single track (i.e. MIDI format
+    0).
+
+    Examples
+    --------
+    Create a MIDI file from an array with notes. The format of the note array
+    is: 'onset time', 'pitch', 'duration', 'velocity', 'channel'. The last
+    column can be omitted, assuming channel 0.
+
+    >>> notes = np.array([[0, 50, 1, 60], [0.5, 62, 0.5, 90]])
+    >>> m = MIDIFile.from_notes(notes)
+    >>> m  # doctest: +ELLIPSIS
+    <madmom.utils.midi.MIDIFile object at 0x...>
+
+    The notes can be accessed as a numpy array in various formats (default is
+    seconds):
+
+    >>> m.notes()
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0.,  50.,   2.,  60.,   0.],
+           [  1.,  62.,   1.,  90.,   0.]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=60)
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  480.,   60.,    0.],
+           [ 240.,   62.,  240.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=60, time_signature=(2, 2))
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
+           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+
+    >>> m = MIDIFile.from_notes(notes, tempo=240, time_signature=(3, 8))
+    >>> m.notes(unit='ticks')
+    array([[   0.,   50.,  960.,   60.,    0.],
+           [ 480.,   62.,  480.,   90.,    0.]])
+    >>> m.notes(unit='beats')
+    array([[  0.,  50.,   4.,  60.,   0.],
+           [  2.,  62.,   2.,  90.,   0.]])
+
     """
 
     def __init__(self, tracks=None, resolution=RESOLUTION, file_format=0):
@@ -1311,11 +1452,17 @@ class MIDIFile(object):
         elif isinstance(tracks, MIDITrack):
             self.tracks = [tracks]
         elif isinstance(tracks, list):
+            # TODO: test if the items of the list are of type MIDITrack
             self.tracks = tracks
         else:
             raise ValueError('file_format of `tracks` not supported.')
-        self.resolution = resolution  # i.e. microseconds per quarter note
-        # FIXME: right now we can write only format 0 files...
+        self.resolution = resolution  # i.e. ticks per quarter note
+        # format 0 stores all information in 1 track
+        # format 1 has multiple tracks but plays them back simultaneously
+        # TODO: format 2 has multiple tracks but plays them back one after
+        #       another. This type is not supported (yet).
+        if file_format > 1:
+            raise ValueError('Only MIDI file formats 0 and 1 supported.')
         self.format = file_format
 
     @property
@@ -1326,7 +1473,7 @@ class MIDIFile(object):
         """
         return self.resolution
 
-    def tempi(self):
+    def tempi(self, suppress_warnings=False):
         """
         Tempi of the MIDI file.
 
@@ -1336,21 +1483,23 @@ class MIDIFile(object):
             Array with tempi (tick, seconds per tick, cumulative time).
 
         """
+        if not suppress_warnings:
+            import warnings
+            warnings.warn('this method will be removed soon, do not rely on '
+                          'its output, rather fix issue #192 ;)')
         # create an empty tempo list
-        tempi = None
-        for track in self.tracks:
+        for i, track in enumerate(self.tracks):
             # get a list with tempo events
             tempo_events = [e for e in track.events if
                             isinstance(e, SetTempoEvent)]
-            if tempi is None and len(tempo_events) > 0:
-                # convert to desired format (tick, microseconds per tick)
-                tempi = [(e.tick, e.microseconds_per_quarter_note /
-                          (1e6 * self.resolution)) for e in tempo_events]
-            elif tempi is not None and len(tempo_events) > 0:
-                # tempo events should be contained only in the first track
-                # of a MIDI file
+            # tempo events should be only in the first track of a MIDI file
+            if tempo_events and i > 0:
                 raise ValueError('SetTempoEvents should be only in the first '
                                  'track of a MIDI file.')
+
+        # convert to desired format (tick, microseconds per tick)
+        tempi = [(e.tick, e.microseconds_per_quarter_note /
+                  (1e6 * self.resolution)) for e in tempo_events]
         # make sure a tempo is set
         if tempi is None:
             tempi = [(0, SECONDS_PER_TICK)]
@@ -1370,7 +1519,7 @@ class MIDIFile(object):
         # return tempo
         return np.asarray(tempi, np.float)
 
-    def time_signatures(self):
+    def time_signatures(self, suppress_warnings=False):
         """
         Time signatures of the MIDI file.
 
@@ -1380,6 +1529,10 @@ class MIDIFile(object):
             Array with time signatures (tick, numerator, denominator).
 
         """
+        if not suppress_warnings:
+            import warnings
+            warnings.warn('this method will be removed soon, do not rely on '
+                          'its output, rather fix issue #192 ;)')
         signatures = None
         for track in self.tracks:
             # get a list with time signature events
@@ -1396,34 +1549,38 @@ class MIDIFile(object):
                                  'first track of a MIDI file.')
         # make sure a time signature is set and the first one occurs at tick 0
         if signatures is None:
-            signatures = [(0, TIME_SIGNATURE_NUMERATOR,
-                           TIME_SIGNATURE_DENOMINATOR)]
+            signatures = [(0, TIME_SIGNATURE)]
         if signatures[0][0] > 0:
-            signatures.insert(0, (0, TIME_SIGNATURE_NUMERATOR,
-                                  TIME_SIGNATURE_DENOMINATOR))
+            signatures.insert(0, (0, TIME_SIGNATURE))
         # return time signatures
-        return np.asarray(signatures, dtype=int)
+        return np.asarray(signatures, dtype=np.float)
 
-    def notes(self, note_time_unit='s'):
+    def notes(self, unit='s'):
         """
         Notes of the MIDI file.
 
         Parameters
         ----------
-        note_time_unit : {'s', 'b'}
-            Time unit for notes, seconds ('s') or beats ('b').
+        unit : {'s', 'seconds', 'b', 'beats', 't', 'ticks'}
+            Time unit for notes, seconds ('s') beats ('b') or ticks ('t')
 
         Returns
         -------
         notes : numpy array
-            Array with notes (onset time, pitch, duration, velocity).
+            Array with notes (onset time, pitch, duration, velocity, channel).
 
         """
         # list for all notes
         notes = []
-        # dictionaries for storing the last onset and velocity per pitch
-        note_onsets = {}
-        note_velocities = {}
+        # dictionary for storing the last onset and velocity for each
+        # individual note (i.e. same pitch and channel)
+        sounding_notes = {}
+
+        # as key for the dict use channel * 128 (max number of pitches) + pitch
+        def note_hash(channel, pitch):
+            """Generate a note hash."""
+            return channel * 128 + pitch
+
         for track in self.tracks:
             # get a list with note events
             note_events = [e for e in track.events if isinstance(e, NoteEvent)]
@@ -1432,44 +1589,49 @@ class MIDIFile(object):
             for e in note_events:
                 if tick > e.tick:
                     raise AssertionError('note events must be sorted!')
-
+                n = note_hash(e.channel, e.pitch)
                 is_note_on = isinstance(e, NoteOnEvent)
                 is_note_off = isinstance(e, NoteOffEvent)
                 # if it's a note on event with a velocity > 0,
                 if is_note_on and e.velocity > 0:
                     # save the onset time and velocity
-                    note_onsets[e.pitch] = e.tick
-                    note_velocities[e.pitch] = e.velocity
+                    sounding_notes[n] = (e.tick, e.velocity)
                 # if it's a note off event or a note on with a velocity of 0,
                 elif is_note_off or (is_note_on and e.velocity == 0):
-                    # the old velocity must be greater 0
-                    if note_velocities[e.pitch] <= 0:
-                        raise AssertionError('note velocity must be positive')
-                    if note_onsets[e.pitch] > e.tick:
+                    if n not in sounding_notes:
+                        import warnings
+                        warnings.warn("ignoring %s" % e)
+                        continue
+                    if sounding_notes[n][0] > e.tick:
                         raise AssertionError('note duration must be positive')
+                    if sounding_notes[n][1] <= 0:
+                        raise AssertionError('note velocity must be positive')
                     # append the note to the list
-                    notes.append((note_onsets[e.pitch], e.pitch,
-                                  e.tick - note_onsets[e.pitch],
-                                  note_velocities[e.pitch]))
+                    notes.append((sounding_notes[n][0], e.pitch,
+                                  e.tick - sounding_notes[n][0],
+                                  sounding_notes[n][1], e.channel))
+                    # remove hash from dict
+                    del sounding_notes[n]
                 else:
-                    raise TypeError('unexpected NoteEvent')
+                    raise TypeError('unexpected NoteEvent', e)
                 tick = e.tick
 
         # sort the notes and convert to numpy array
-        notes.sort()
-        notes = np.asarray(notes, dtype=np.float)
+        notes = np.asarray(sorted(notes), dtype=np.float)
 
-        # convert onset times and durations from ticks to a meaningful unit
+        # convert onset times and durations from ticks to the requested unit
         # and return the notes
-        if note_time_unit == 's':
-            return self._note_ticks_to_seconds(notes)
-        elif note_time_unit == 'b':
-            return self._note_ticks_to_beats(notes)
+        if unit.lower() in ('t', 'ticks'):
+            return notes
+        elif unit.lower() in ('s', 'seconds'):
+            return self._notes_in_seconds(notes)
+        elif unit.lower() in ('b', 'beats'):
+            return self._notes_in_beats(notes)
         else:
-            raise ValueError("note_time_unit must be either 's' (seconds) or "
-                             "'b' (beats), not %s." % note_time_unit)
+            raise ValueError("`unit` must be either 'seconds', 's', 'beats', "
+                             "'b', 'ticks', or 't' not %s." % unit)
 
-    def _note_ticks_to_beats(self, notes):
+    def _notes_in_beats(self, notes):
         """
         Converts onsets and offsets of notes from ticks to beats.
 
@@ -1485,7 +1647,7 @@ class MIDIFile(object):
 
         """
         tpq = self.ticks_per_quarter_note
-        time_signatures = self.time_signatures().astype(np.float)
+        time_signatures = self.time_signatures(suppress_warnings=True)
 
         # change the second column of time_signatures to beat position of the
         # signature change, the first column is now the tick position, the
@@ -1502,7 +1664,7 @@ class MIDIFile(object):
 
         # iterate over all notes
         for note in notes:
-            onset, _, offset, _ = note
+            onset, _, offset, _, _ = note
             # get info about last time signature change
             tsc = time_signatures[np.argmax(time_signatures[:, 0] > onset) - 1]
             # adjust onset
@@ -1514,7 +1676,7 @@ class MIDIFile(object):
         # return notes
         return notes
 
-    def _note_ticks_to_seconds(self, notes):
+    def _notes_in_seconds(self, notes):
         """
         Converts onsets and offsets of notes from ticks to seconds.
 
@@ -1530,10 +1692,10 @@ class MIDIFile(object):
 
         """
         # cache tempo
-        tempi = self.tempi()
+        tempi = self.tempi(suppress_warnings=True)
         # iterate over all notes
         for note in notes:
-            onset, _, offset, _ = note
+            onset, _, offset, _, _ = note
             # get last tempo for the onset and offset
             t_on = tempi[np.argmax(tempi[:, 0] > onset) - 1]
             t_off = tempi[np.argmax(tempi[:, 0] > offset) - 1]
@@ -1550,13 +1712,16 @@ class MIDIFile(object):
         MIDI data stream representation of the MIDI file.
 
         """
+        # prepare data
+        data = bytearray()
         # generate a MIDI header
-        data = b'MThd%s' % struct.pack(">LHHH", 6, self.format,
-                                       len(self.tracks), self.resolution)
+        data.extend(b'MThd')
+        data.extend(struct.pack(">LHHH", 6, self.format, len(self.tracks),
+                                self.resolution))
         # append the tracks
         for track in self.tracks:
-            data += track.data_stream
-        # return the raw data
+            data.extend(track.data_stream)
+        # return the data
         return data
 
     def write(self, midi_file):
@@ -1632,15 +1797,14 @@ class MIDIFile(object):
                 # byte has a value of 120 (0x78). This means the example plays
                 # at 24(?) frames per second SMPTE time and has 120 ticks per
                 # frame.
-                raise NotImplementedError("frames per second resolution not "
-                                          "implemented yet.")
+                raise NotImplementedError("SMPTE resolution not implemented.")
             # skip the remaining part of the header
             if header_size > HEADER_SIZE:
                 midi_file.read(header_size - HEADER_SIZE)
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MIDITrack.from_file(midi_file)
+                track = MIDITrack.from_stream(midi_file)
                 tracks.append(track)
         if resolution is None or midi_format is None:
             raise IOError('unable to read MIDI file %s.' % midi_file)
@@ -1649,26 +1813,40 @@ class MIDIFile(object):
                    file_format=midi_format)
 
     @classmethod
-    def from_notes(cls, notes):
+    def from_notes(cls, notes, tempo=TEMPO, time_signature=TIME_SIGNATURE,
+                   resolution=RESOLUTION):
         """
-        Create a MIDIFile instance from a numpy array with notes.
+        Create a MIDIFile from the given notes.
 
         Parameters
         ----------
-        notes : numpy array or list of tuples
-            Notes (onset, pitch, offset, velocity).
+        notes : numpy array
+            Array with the notes, one per row. The columns must be:
+            (onset time, pitch, duration, velocity, [channel]).
+        tempo : float, optional
+            Tempo of the MIDI track, given in beats per minute (bpm).
+        time_signature : tuple, optional
+            Time signature of the track, e.g. (4, 4) for 4/4.
+        resolution : int
+            Resolution (i.e. ticks per quarter note) of the MIDI track.
 
         Returns
         -------
         :class:`MIDIFile` instance
             :class:`MIDIFile` instance with all notes collected in one track.
 
+        Notes
+        -----
+        All note events (including the generated tempo and time signature
+        events) are written into a single track (i.e. MIDI file format 0).
+
         """
         # create a new track from the notes and then a MIDIFile instance
-        return cls(MIDITrack.from_notes(notes))
+        return cls(MIDITrack.from_notes(notes, tempo, time_signature,
+                                        resolution))
 
     @staticmethod
-    def add_arguments(parser, length=None, velocity=None):
+    def add_arguments(parser, length=None, velocity=None, channel=None):
         """
         Add MIDI related arguments to an existing parser object.
 
@@ -1680,6 +1858,8 @@ class MIDIFile(object):
             Default length of the notes [seconds].
         velocity : int, optional
             Default velocity of the notes.
+        channel : int, optional
+            Default channel of the notes.
 
         Returns
         -------
@@ -1698,6 +1878,10 @@ class MIDIFile(object):
             g.add_argument('--note_velocity', action='store', type=int,
                            default=velocity,
                            help='set the note velocity [default=%(default)i]')
+        if channel is not None:
+            g.add_argument('--note_channel', action='store', type=int,
+                           default=channel,
+                           help='set the note channel [default=%(default)i]')
         # return the argument group so it can be modified if needed
         return g
 

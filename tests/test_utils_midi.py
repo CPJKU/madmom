@@ -8,21 +8,80 @@ This file contains test functions for the madmom.utils.midi module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+import tempfile
 from os.path import join as pj
 
 from madmom.utils.midi import *
 
 from . import ANNOTATIONS_PATH
 
+tmp_file = tempfile.NamedTemporaryFile().name
+
+
+class TestEventsClass(unittest.TestCase):
+
+    def setUp(self):
+        self.e1 = NoteOnEvent(tick=100, pitch=50, velocity=60)
+        self.e2 = NoteOffEvent(tick=300, pitch=50)
+        self.e3 = NoteOffEvent(tick=200, pitch=50)
+        self.e4 = NoteOnEvent(tick=300, pitch=50, velocity=60)
+
+    def test_equality(self):
+        self.assertEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=101, pitch=50, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=51, velocity=60))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=61))
+        self.assertNotEqual(
+            self.e1, NoteOnEvent(tick=100, pitch=50, velocity=60, channel=1))
+        self.assertNotEqual(
+            self.e1, NoteOffEvent(tick=100, pitch=50))
+
+    def test_comparison(self):
+        self.assertTrue(self.e1 < self.e2)
+        self.assertTrue(self.e1 < self.e3)
+        self.assertTrue(self.e1 < self.e4)
+        self.assertTrue(self.e4 < self.e2)
+
+    def test_sort_events(self):
+        events = sorted([self.e1, self.e2, self.e3, self.e4])
+        self.assertTrue(events == [self.e1, self.e3, self.e4, self.e2])
+        # MIDITrack should sort the events before writing the MIDI file
+        track = MIDITrack([self.e1, self.e2, self.e3, self.e4])
+        midi = MIDIFile(track)
+        midi.write(tmp_file)
+        events = MIDIFile.from_file(tmp_file).tracks[0].events
+        self.assertTrue(events == [self.e1, self.e3, self.e4, self.e2])
+
 
 class TestMIDIFileClass(unittest.TestCase):
 
     def test_notes(self):
-        # poor man's test to make sure we can read the MIDI file
+        # read a MIDI file
         midi = MIDIFile.from_file(pj(ANNOTATIONS_PATH, 'stereo_sample.mid'))
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
-        self.assertTrue(np.allclose(midi.notes(), notes, atol=1e-3))
+        notes_ = midi.notes()[:, :4]
+        self.assertTrue(np.allclose(notes, notes_, atol=1e-3))
 
+    def test_recreate_midi(self):
+        notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
+        # create a MIDI file from the notes
+        midi = MIDIFile.from_notes(notes)
+        notes_ = midi.notes()[:, :4]
+        self.assertTrue(np.allclose(notes, notes_, atol=1e-3))
+        # write to a temporary file
+        midi.write(tmp_file)
+        # FIXME: re-read this file and compare the notes
+        tmp_midi = MIDIFile.from_file(tmp_file)
+        notes_ = tmp_midi.notes()[:, :4]
+        self.assertTrue(np.allclose(notes, notes_, atol=1e-3))
+
+    def test_notes_in_beats(self):
+        # read a MIDI file
         midi = MIDIFile.from_file(pj(ANNOTATIONS_PATH, 'piano_sample.mid'))
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats'))
-        self.assertTrue(np.allclose(midi.notes(note_time_unit='b'), notes))
+        notes_ = midi.notes(unit='b')[:, :4]
+        self.assertTrue(np.allclose(notes, notes_))
