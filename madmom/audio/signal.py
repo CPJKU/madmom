@@ -1484,7 +1484,7 @@ class Stream(object):
     QUEUE_SIZE = 1
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 dtype=DTYPE, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+                 dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  fps=FPS, queue_size=QUEUE_SIZE, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
@@ -1512,10 +1512,9 @@ class Stream(object):
         # init PyAudio for recording
         self.pa = pyaudio.PyAudio()
 
-        # TODO: make the dtype configurable; see callback()
         self.stream = self.pa.open(rate=self.sample_rate,
                                    channels=self.num_channels,
-                                   format=pyaudio.paInt16, input=True,
+                                   format=pyaudio.paFloat32, input=True,
                                    frames_per_buffer=self.hop_size,
                                    stream_callback=self.callback, start=True)
 
@@ -1554,8 +1553,7 @@ class Stream(object):
 
         """
         # get the data from the stream
-        # TODO: make the dtype configurable; see __init__()
-        data = np.fromstring(data, 'int16').astype(self.dtype)
+        data = np.fromstring(data, 'float32').astype(self.dtype, copy=False)
         # buffer the data
         data = self.buffer(data)
         # wrap it as a Signal (including the start position)
