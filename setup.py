@@ -14,7 +14,7 @@ import glob
 import numpy as np
 
 # define version
-version = '0.14'
+version = '0.15.dev0'
 
 # define which extensions need to be compiled
 extensions = [Extension('madmom.audio.comb_filters',
