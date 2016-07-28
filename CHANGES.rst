@@ -1,35 +1,43 @@
 Release Notes
 =============
 
-Version 0.14.dev
-----------------
+Version 0.14 (release date: 2016-07-28)
+---------------------------------------
 
 New features:
 
-* RNN/DBN downbeat tracking (#130)
-* Covolutional neural networks and CNN onset detection (#133)
-* Linear-Chain Conditional Random Field implementation (#144)
-* DNN based chroma vector extraction (#148)
-* CRF chord recognition using DNN based chroma vectors (#148)
-* CNN Chord Recognition using CRF decoding (#152)
+* Downbeat tracking based on Recurrent Neural Network (RNN) and Dynamic
+  Bayesian Network (DBN) (#130)
+* Convolutional Neural Networks (CNN) and CNN onset detection (#133)
+* Linear-Chain Conditional Random Field (CRF) implementation (#144)
+* Deep Neural Network (DNN) based chroma vector extraction (#148)
+* CRF chord recognition using DNN chroma vectors (#148)
+* CNN chord recognition using CRF decoding (#152)
+* Initial Windows support (Python 2.7 only, no pip packages yet) (#157)
+* Gated Recurrent Unit (GRU) network layer (#167)
 
 Bug fixes:
 
 * Fix downbeat output bug (#128)
+* MIDI file creation bug (#166)
 
 API relevant changes:
 
 * Refactored the `ml.rnn` to `ml.nn` and converted the models to pickles (#110)
-* Reorderd the dimensions of comb_filters to time, freq, tau (#135)
-* `write_notes` uses `delimiter` instead of `sep` to seperate columns (#155)
+* Reordered the dimensions of comb_filters to time, freq, tau (#135)
+* `write_notes` uses `delimiter` instead of `sep` to separate columns (#155)
 * `LSTMLayer` takes `Gate`s as arguments, all layers are callable (#161)
-* replaced `online` parameter of `FramedSignalProcessor` by `origin` (#169)
+* Replaced `online` parameter of `FramedSignalProcessor` by `origin` (#169)
 
 Other changes:
 
-* added classes for onset/note/beat detection with RNNs to `features.*` (#118)
-* converted `madmom.modules` into a Python package (#125)
-* updated beat tracking models to MIREX 2015 ones (#146)
+* Added classes for onset/note/beat detection with RNNs to `features.*` (#118)
+* Add examples to docstrings of classes (#119)
+* Converted `madmom.modules` into a Python package (#125)
+* `match_files` can handle inexact matches (#137)
+* Updated beat tracking models to MIREX 2015 ones (#146)
+* Tempo and time signature can be set for created MIDI files (#166)
+
 
 Version 0.13.2 (release date: 2016-06-09)
 -----------------------------------------
@@ -55,7 +63,7 @@ New features:
 
 Bug fixes:
 
-* Fix nasty unsingend indexing bug (#88)
+* Fix nasty unsigned indexing bug (#88)
 * MIDI note timing could get corrupted if `note_ticks_to_beats()` was called
   multiple times (#90)
 
@@ -72,9 +80,9 @@ API relevant changes:
 Other changes:
 
 * Added alignment evaluation (#12)
-* Added continous integration testing (#16)
+* Added continuous integration testing (#16)
 * Added `-o` option to both `single`/`batch` processing mode to not overwrite
-  files accidentially in `single` mode (#18)
+  files accidentally in `single` mode (#18)
 * Removed `block_size` parameter from `FilteredSpectrogram` (#22)
 * Sample rate is always integer (#23)
 * Converted all docstrings to the numpydoc format (#48)
