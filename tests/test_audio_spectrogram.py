@@ -304,11 +304,11 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
         # properties
         self.assertTrue(result.num_bins == 81)
         self.assertTrue(result.num_frames == 281)
-        # changed values
-        self.processor.num_bands = 6
-        self.processor.fmin = 300
-        self.processor.fmax = 10000
-        result = self.processor.process(sample_file)
+
+    def test_other_values(self):
+        processor = FilteredSpectrogramProcessor(num_bands=6, fmin=300,
+                                                 fmax=10000)
+        result = processor.process(sample_file)
         self.assertIsInstance(result, FilteredSpectrogram)
         # attributes
         self.assertTrue(result.shape == (281, 29))

@@ -209,7 +209,6 @@ class Spectrogram(np.ndarray):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.stft = stft
-        obj.bin_frequencies = stft.bin_frequencies
         # return the object
         return obj
 
@@ -218,7 +217,6 @@ class Spectrogram(np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         # Note: these attributes are added for compatibility, if they are
         #       present any spectrogram sub-class behaves exactly the same
         self.filterbank = getattr(obj, 'filterbank', None)
@@ -234,6 +232,13 @@ class Spectrogram(np.ndarray):
     def num_bins(self):
         """Number of bins."""
         return int(self.shape[1])
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        if self.filterbank is None:
+            return self.stft.bin_frequencies
+        return self.filterbank.center_frequencies
 
     def diff(self, **kwargs):
         """
@@ -461,8 +466,6 @@ class FilteredSpectrogram(Spectrogram):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.filterbank = filterbank
-        # use the center frequencies of the filterbank as bin_frequencies
-        obj.bin_frequencies = filterbank.center_frequencies
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.mul = spectrogram.mul
@@ -476,6 +479,12 @@ class FilteredSpectrogram(Spectrogram):
         # set default values here, also needed for views
         self.filterbank = getattr(obj, 'filterbank', None)
         super(FilteredSpectrogram, self).__array_finalize__(obj)
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        # use the center frequencies of the filterbank as bin_frequencies
+        return self.filterbank.center_frequencies
 
 
 class FilteredSpectrogramProcessor(Processor):
@@ -507,7 +516,6 @@ class FilteredSpectrogramProcessor(Processor):
                  fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=unused-argument
-
         self.filterbank = filterbank
         self.num_bands = num_bands
         self.fmin = fmin
@@ -534,12 +542,15 @@ class FilteredSpectrogramProcessor(Processor):
 
         """
         # instantiate a FilteredSpectrogram and return it
-        return FilteredSpectrogram(data, filterbank=self.filterbank,
+        data = FilteredSpectrogram(data, filterbank=self.filterbank,
                                    num_bands=self.num_bands, fmin=self.fmin,
                                    fmax=self.fmax, fref=self.fref,
                                    norm_filters=self.norm_filters,
                                    unique_filters=self.unique_filters,
                                    **kwargs)
+        # cache the filterbank
+        self.filterbank = data.filterbank
+        return data
 
 
 # logarithmic spectrogram stuff
@@ -611,7 +622,6 @@ class LogarithmicSpectrogram(Spectrogram):
         obj.add = add
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
-        obj.bin_frequencies = spectrogram.bin_frequencies
         obj.filterbank = spectrogram.filterbank
         # return the object
         return obj
@@ -797,7 +807,6 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
         obj.filterbank = spectrogram.filterbank
-        obj.bin_frequencies = spectrogram.bin_frequencies
         # return the object
         return obj
 
@@ -874,11 +883,14 @@ class LogarithmicFilteredSpectrogramProcessor(Processor):
 
         """
         # instantiate a LogarithmicFilteredSpectrogram
-        return LogarithmicFilteredSpectrogram(
+        data = LogarithmicFilteredSpectrogram(
             data, filterbank=self.filterbank, num_bands=self.num_bands,
             fmin=self.fmin, fmax=self.fmax, fref=self.fref,
             norm_filters=self.norm_filters, unique_filters=self.unique_filters,
             mul=self.mul, add=self.add, **kwargs)
+        # cache the filterbank
+        self.filterbank = data.filterbank
+        return data
 
 
 # spectrogram difference stuff
@@ -1043,7 +1055,6 @@ class SpectrogramDifference(Spectrogram):
         obj.positive_diffs = positive_diffs
         # and those from the given spectrogram
         obj.filterbank = spectrogram.filterbank
-        obj.bin_frequencies = spectrogram.bin_frequencies
         obj.mul = spectrogram.mul
         obj.add = spectrogram.add
         # return the object
@@ -1058,6 +1069,11 @@ class SpectrogramDifference(Spectrogram):
         self.diff_max_bins = getattr(obj, 'diff_max_bins', None)
         self.positive_diffs = getattr(obj, 'positive_diffs', False)
         super(SpectrogramDifference, self).__array_finalize__(obj)
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        return self.spectrogram.bin_frequencies
 
     def positive_diff(self):
         """Positive diff."""
@@ -1374,7 +1390,6 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         # save additional attributes
         obj.spectrogram = spectrogram
         obj.filterbank = filterbank
-        obj.bin_frequencies = filterbank.center_frequencies
         obj.crossover_frequencies = crossover_frequencies
         # return the object
         return obj
@@ -1385,7 +1400,6 @@ class MultiBandSpectrogram(FilteredSpectrogram):
         # set default values here, also needed for views
         self.spectrogram = getattr(obj, 'spectrogram', None)
         self.filterbank = getattr(obj, 'filterbank', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.crossover_frequencies = getattr(obj, 'crossover_frequencies',
                                              None)
 
@@ -1520,7 +1534,6 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
         # save additional attributes
         obj.filterbank = filterbank
         obj.fps = fps
-        obj.bin_frequencies = filterbank.center_frequencies
         return obj
 
     def __array_finalize__(self, obj):
@@ -1529,4 +1542,3 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
         # set default values here
         self.filterbank = getattr(obj, 'filterbank', None)
         self.fps = getattr(obj, 'fps', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
