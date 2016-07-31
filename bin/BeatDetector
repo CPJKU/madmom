@@ -58,7 +58,7 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='BeatDetector.2015')
+    p.add_argument('--version', action='version', version='BeatDetector.2016')
     # input/output arguments
     io_arguments(p, output_suffix='.beats.txt')
     ActivationsProcessor.add_arguments(p)
