@@ -98,23 +98,24 @@ class RNNDownBeatProcessor(SequentialProcessor):
     --------
     Create a RNNDownBeatProcessor and pass a file through the processor.
     The returned 2d array represents the probabilities at each frame, sampled
-    at 100 frames per second. The columns represent 'no-beat', 'beat', and
-    'downbeat'.
+    at 100 frames per second. The columns represent 'beat' and 'downbeat'.
 
     >>> proc = RNNDownBeatProcessor()
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.beats.RNNDownBeatProcessor object at 0x...>
-    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([[ 0.99953,  0.00011,  0.00037],
-           [ 0.99948,  0.00008,  0.00043],
+    >>> proc('tests/data/audio/sample.wav')
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([[ 0.00011,  0.00037],
+           [ 0.00008,  0.00043],
            ...,
-           [ 0.9904 ,  0.00791,  0.00169],
-           [ 0.96081,  0.03425,  0.00494]], dtype=float32)
+           [ 0.00791,  0.00169],
+           [ 0.03425,  0.00494]], dtype=float32)
 
     """
 
     def __init__(self, **kwargs):
         # pylint: disable=unused-argument
+        from functools import partial
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
@@ -139,12 +140,12 @@ class RNNDownBeatProcessor(SequentialProcessor):
             multi.append(SequentialProcessor((frames, filt, spec, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
-
         # process the pre-processed signal with a NN ensemble
         nn = NeuralNetworkEnsemble.load(DOWNBEATS_BLSTM)
-
+        # use only the beat & downbeat (i.e. remove non-beat) activations
+        act = partial(np.delete, obj=0, axis=1)
         # instantiate a SequentialProcessor
-        super(RNNDownBeatProcessor, self).__init__((pre_processor, nn))
+        super(RNNDownBeatProcessor, self).__init__((pre_processor, nn, act))
 
 
 # class for selecting a certain beat activation functions from (multiple) NNs
@@ -1255,7 +1256,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         first = 0
         # use only the activations > threshold
         if self.threshold:
-            idx = np.nonzero(activations[:, 1:] >= self.threshold)[0]
+            idx = np.nonzero(activations >= self.threshold)[0]
             if idx.any():
                 first = max(first, np.min(idx))
                 last = min(len(activations), np.max(idx) + 1)
@@ -1300,7 +1301,7 @@ class DBNDownBeatTrackingProcessor(Processor):
                     # Note: we look for both beats and non-beat activations;
                     #       since np.argmax works on the flattened array, we
                     #       need to divide by 2
-                    peak = np.argmax(activations[left:right, 1:3]) // 2 + left
+                    peak = np.argmax(activations[left:right]) // 2 + left
                     beats = np.hstack((beats, peak))
         else:
             # transitions are the points where the beat numbers change
