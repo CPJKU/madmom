@@ -490,8 +490,8 @@ class RNNBeatTrackingObservationModel(ObservationModel):
 
         Parameters
         ----------
-        observations : numpy array
-            Observations (i.e. activations of the RNN).
+        observations : numpy array, shape (N, )
+            Observations (i.e. 1d activations of the RNN).
 
         Returns
         -------
@@ -551,8 +551,9 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
 
         Parameters
         ----------
-        observations : numpy array
-            Observations (i.e. activations of the RNN).
+        observations : numpy array, shape (N, 2)
+            Observations (i.e. 2d activations of a RNN, the columns represent
+            'beat' and 'downbeat' probabilities)
 
         Returns
         -------
@@ -564,10 +565,10 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
         log_densities = np.empty((len(observations), 3), dtype=np.float)
         # Note: it's faster to call np.log multiple times instead of once on
         #       the whole 2d array
-        log_densities[:, 0] = np.log(observations[:, 0] /
+        log_densities[:, 0] = np.log((1. - np.sum(observations, axis=1)) /
                                      (self.observation_lambda - 1))
-        log_densities[:, 1] = np.log(observations[:, 1])
-        log_densities[:, 2] = np.log(observations[:, 2])
+        log_densities[:, 1] = np.log(observations[:, 0])
+        log_densities[:, 2] = np.log(observations[:, 1])
         # return the densities
         return log_densities
 
