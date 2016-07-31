@@ -16,7 +16,7 @@ from scipy.ndimage.filters import maximum_filter
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
-EPSILON = 1e-6
+EPSILON = np.spacing(1)
 
 
 # onset detection helper functions
@@ -830,7 +830,7 @@ class CNNOnsetProcessor(SequentialProcessor):
     >>> proc = CNNOnsetProcessor()
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.onsets.CNNOnsetProcessor object at 0x...>
-    >>> proc('tests/data/audio/sample.wav') # doctest: +ELLIPSIS
+    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
     array([ 0.05369,  0.04205,  ...,  0.00024,  0.00014], dtype=float32)
 
     """
@@ -853,7 +853,7 @@ class CNNOnsetProcessor(SequentialProcessor):
             filt = FilteredSpectrogramProcessor(
                 filterbank=MelFilterbank, num_bands=80, fmin=27.5, fmax=16000,
                 norm_filters=True, unique_filters=False)
-            spec = LogarithmicSpectrogramProcessor(log=np.log, add=0)
+            spec = LogarithmicSpectrogramProcessor(log=np.log, add=EPSILON)
             # process each frame size with spec and diff sequentially
             multi.append(SequentialProcessor((frames, filt, spec)))
         # stack the features (in depth) and pad at beginning and end
