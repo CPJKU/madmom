@@ -7,6 +7,7 @@ Version 0.14.1 (release date: 2016-08-01)
 This is a maintainance release.
 
 * `RNNDownBeatProcessor` returns only beat and downbeat activations (#197)
+* Update programs to reflect MIREX 2016 submissions (#198)
 
 Version 0.14 (release date: 2016-07-28)
 ---------------------------------------
