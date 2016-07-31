@@ -51,14 +51,14 @@ def main():
 
     ''')
     # version
-    p.add_argument('--version', action='version', version='OnsetDetector.2013')
+    p.add_argument('--version', action='version', version='OnsetDetector.2016')
     # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # peak picking arguments
-    PeakPickingProcessor.add_arguments(p, threshold=0.3, smooth=0.07)
+    PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.07)
 
     # parse arguments
     args = p.parse_args()

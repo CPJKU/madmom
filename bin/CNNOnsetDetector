@@ -52,7 +52,7 @@ def main():
     ''')
     # version
     p.add_argument('--version', action='version',
-                   version='CNNOnsetDetector.2013')
+                   version='CNNOnsetDetector.2016')
     # input/output options
     io_arguments(p, output_suffix='.onsets.txt')
     ActivationsProcessor.add_arguments(p)
