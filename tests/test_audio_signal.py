@@ -7,6 +7,8 @@ This file contains tests for the madmom.audio.signal module.
 
 from __future__ import absolute_import, division, print_function
 
+import os
+import tempfile
 import unittest
 from os.path import join as pj
 
@@ -17,6 +19,7 @@ from madmom.audio.signal import *
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
+tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
 
 # test signal functions
@@ -643,10 +646,8 @@ class TestLoadWaveFileFunction(unittest.TestCase):
 class TestWriteWaveFileFunction(unittest.TestCase):
 
     def setUp(self):
-        import tempfile
-        self.tmp_file = tempfile.NamedTemporaryFile().name
         self.signal = Signal(sample_file)
-        write_wave_file(self.signal, self.tmp_file)
+        write_wave_file(self.signal, tmp_file)
         self.result = Signal(sample_file)
 
     def test_types(self):
@@ -660,10 +661,6 @@ class TestWriteWaveFileFunction(unittest.TestCase):
         self.assertTrue(np.allclose(self.signal, self.result))
         self.assertTrue(self.result.sample_rate == 44100)
         self.assertTrue(self.result.shape == (123481,))
-
-    def tearDown(self):
-        import os
-        os.unlink(self.tmp_file)
 
 
 class TestLoadAudioFileFunction(unittest.TestCase):
@@ -882,6 +879,12 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.num_channels == 1)
         self.assertTrue(result.ndim == 1)
         self.assertTrue(np.allclose(result.length, 2.8))
+
+    def test_write_method(self):
+        orig = Signal(sample_file)
+        orig.write(tmp_file)
+        result = Signal(tmp_file)
+        self.assertTrue(np.allclose(orig, result))
 
 
 class TestSignalProcessorClass(unittest.TestCase):
@@ -1428,3 +1431,8 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         # reset end
         self.processor.end = 'normal'
         self.assertTrue(self.processor.end == 'normal')
+
+
+# clean up
+def teardown():
+    os.unlink(tmp_file)
