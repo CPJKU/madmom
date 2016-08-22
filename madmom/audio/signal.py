@@ -214,9 +214,9 @@ def remix(signal, num_channels):
                                   % (num_channels, signal.shape[1]))
 
 
-def resample(signal, sample_rate, dtype=None):
+def resample(signal, sample_rate, **kwargs):
     """
-    Resample the signal.
+    Resample the signal (by calling ffmeg).
 
     Parameters
     ----------
@@ -224,8 +224,8 @@ def resample(signal, sample_rate, dtype=None):
         Signal to be resampled.
     sample_rate : int
         Sample rate of the signal.
-    dtype : numpy dtype, optional
-        Data type of the signal.
+    kwargs : dict, optional
+        Keyword arguments passed to :func:`load_ffmpeg_file`.
 
     Returns
     -------
@@ -238,21 +238,21 @@ def resample(signal, sample_rate, dtype=None):
     with the desired sample rate.
 
     """
+    from .ffmpeg import load_ffmpeg_file
     # is the given signal a Signal?
     if not isinstance(signal, Signal):
         raise ValueError('only Signals can resampled, not %s' % type(signal))
     if signal.sample_rate == sample_rate:
         return signal
-    # save the signal to a temporary file
-    import tempfile
-    tmp_file = tempfile.NamedTemporaryFile()
-    signal.write(tmp_file.name)
-    # reload it with new sample rate & data type
-    signal = Signal(tmp_file.name, sample_rate=sample_rate, dtype=dtype)
-    # delete the temporary file
-    tmp_file.close()
-    # return the signal
-    return signal
+    # per default use the signal's dtype and num_channels
+    dtype = kwargs.get('dtype', signal.dtype)
+    num_channels = kwargs.get('num_channels', signal.num_channels)
+    # resample the signal
+    signal, sample_rate = load_ffmpeg_file(signal, sample_rate=sample_rate,
+                                           num_channels=num_channels,
+                                           dtype=dtype)
+    # return it
+    return Signal(signal, sample_rate=sample_rate)
 
 
 def rescale(signal, dtype=np.float32):
