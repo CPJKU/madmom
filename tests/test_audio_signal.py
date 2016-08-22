@@ -349,6 +349,48 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, 2 * self.mono_2d))
 
 
+class TestResampleFunction(unittest.TestCase):
+
+    def setUp(self):
+        self.signal = Signal(sample_file)
+        self.stereo_signal = Signal(stereo_sample_file)
+
+    def test_types(self):
+        # mono signal
+        result = resample(self.signal, 22050)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == self.signal.dtype)
+        # stereo signal
+        result = resample(self.stereo_signal, 22050)
+        self.assertTrue(isinstance(result, Signal))
+        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertTrue(result.dtype == self.stereo_signal.dtype)
+
+    def test_values(self):
+        # mono signals
+        result = resample(self.signal, 22050)
+        self.assertEqual(result.sample_rate, 22050)
+        self.assertEqual(result.num_samples, 61741)
+        self.assertEqual(result.num_channels, 1)
+        self.assertTrue(np.allclose(result[:6], [-2470, -2553, -2766, -2467,
+                                                 -2191, -1909]))
+        self.assertTrue(np.allclose(self.signal.length, result.length))
+        # stereo signal
+        result = resample(self.stereo_signal, 22050)
+        self.assertEqual(result.sample_rate, 22050)
+        self.assertEqual(result.num_samples, 91460)
+        self.assertEqual(result.num_channels, 2)
+        self.assertTrue(np.allclose(result[:6],
+                                    [[34, 38], [32, 33], [37, 31],
+                                     [35, 35], [32, 34], [33, 34]]))
+        self.assertTrue(np.allclose(self.stereo_signal.length, result.length))
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            resample(sig_1d, 2)
+
+
 class TestRescaleFunction(unittest.TestCase):
 
     def test_types(self):
@@ -596,6 +638,32 @@ class TestLoadWaveFileFunction(unittest.TestCase):
             file_handle = open(sample_file, 'rb')
             file_handle.close()
             load_wave_file(file_handle)
+
+
+class TestWriteWaveFileFunction(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self.tmp_file = tempfile.NamedTemporaryFile().name
+        self.signal = Signal(sample_file)
+        write_wave_file(self.signal, self.tmp_file)
+        self.result = Signal(sample_file)
+
+    def test_types(self):
+        self.assertIsInstance(self.result, Signal)
+        self.assertIsInstance(self.result, np.ndarray)
+        self.assertTrue(self.result.dtype == np.int16)
+        self.assertTrue(type(self.result.sample_rate) == int)
+
+    def test_values(self):
+        # test wave loader
+        self.assertTrue(np.allclose(self.signal, self.result))
+        self.assertTrue(self.result.sample_rate == 44100)
+        self.assertTrue(self.result.shape == (123481,))
+
+    def tearDown(self):
+        import os
+        os.unlink(self.tmp_file)
 
 
 class TestLoadAudioFileFunction(unittest.TestCase):

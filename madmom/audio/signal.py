@@ -214,6 +214,47 @@ def remix(signal, num_channels):
                                   % (num_channels, signal.shape[1]))
 
 
+def resample(signal, sample_rate, dtype=None):
+    """
+    Resample the signal.
+
+    Parameters
+    ----------
+    signal : numpy array or Signal
+        Signal to be resampled.
+    sample_rate : int
+        Sample rate of the signal.
+    dtype : numpy dtype, optional
+        Data type of the signal.
+
+    Returns
+    -------
+    numpy array or Signal
+        Resampled signal.
+
+    Notes
+    -----
+    This function saves the given signal as a temporary file and reloads it
+    with the desired sample rate.
+
+    """
+    # is the given signal a Signal?
+    if not isinstance(signal, Signal):
+        raise ValueError('only Signals can resampled, not %s' % type(signal))
+    if signal.sample_rate == sample_rate:
+        return signal
+    # save the signal to a temporary file
+    import tempfile
+    tmp_file = tempfile.NamedTemporaryFile()
+    signal.write(tmp_file.name)
+    # reload it with new sample rate & data type
+    signal = Signal(tmp_file.name, sample_rate=sample_rate, dtype=dtype)
+    # delete the temporary file
+    tmp_file.close()
+    # return the signal
+    return signal
+
+
 def rescale(signal, dtype=np.float32):
     """
     Rescale the signal to range [-1, 1] and return as float dtype.
@@ -351,6 +392,23 @@ def sound_pressure_level(signal, p_ref=None):
         return 20.0 * np.log10(rms / p_ref)
 
 
+# functions to load / write audio files
+class LoadAudioFileError(Exception):
+    """
+    Exception to be raised whenever an audio file could not be loaded.
+
+    """
+    # pylint: disable=super-init-not-called
+
+    def __init__(self, value=None):
+        if value is None:
+            value = 'Could not load audio file.'
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
+
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
                    stop=None, dtype=None):
     """
@@ -420,20 +478,36 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     return signal, file_sample_rate
 
 
-class LoadAudioFileError(Exception):
+def write_wave_file(signal, filename, sample_rate=None):
     """
-    Exception to be raised whenever an audio file could not be loaded.
+    Write the signal to disk as a .wav file.
+
+    Parameters
+    ----------
+    signal : numpy array or Signal
+        The signal to be written to file.
+    filename : str
+        Name of the file.
+    sample_rate : int, optional
+        Sample rate of the signal [Hz].
+
+    Returns
+    -------
+    filename : str
+        Name of the file.
+
+    Notes
+    -----
+    `sample_rate` can be 'None' if `signal` is a :class:`Signal` instance. If
+    set, the given `sample_rate` is used instead of the signal's sample rate.
+    Must be given if `signal` is a ndarray.
 
     """
-    # pylint: disable=super-init-not-called
-
-    def __init__(self, value=None):
-        if value is None:
-            value = 'Could not load audio file.'
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
+    from scipy.io import wavfile
+    if isinstance(signal, Signal) and sample_rate is None:
+        sample_rate = int(signal.sample_rate)
+    wavfile.write(filename, rate=sample_rate, data=signal)
+    return filename
 
 
 # function for automatically determining how to open audio files
@@ -625,20 +699,22 @@ class Signal(np.ndarray):
                                                 num_channels=num_channels,
                                                 start=start, stop=stop,
                                                 dtype=dtype)
-        # process it if needed
+        # cast as Signal if needed
+        if not isinstance(data, Signal):
+            data = np.asarray(data).view(cls)
+            data.sample_rate = sample_rate
+        # normalize signal if needed
         if norm:
-            # normalize signal
             data = normalize(data)
+        # adjust the gain if needed
         if gain is not None and gain != 0:
-            # adjust the gain
             data = adjust_gain(data, gain)
-        # cast as Signal
-        obj = np.asarray(data).view(cls)
-        if sample_rate is not None:
-            sample_rate = sample_rate
-        obj.sample_rate = sample_rate
+        # resample if needed
+        if sample_rate != data.sample_rate:
+            print("resampling")
+            data = resample(data, sample_rate)
         # return the object
-        return obj
+        return data
 
     def __array_finalize__(self, obj):
         if obj is None:
@@ -668,6 +744,23 @@ class Signal(np.ndarray):
         if self.sample_rate is None:
             return None
         return float(self.num_samples) / self.sample_rate
+
+    def write(self, filename):
+        """
+        Write the signal to disk as a .wav file.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file.
+
+        Returns
+        -------
+        filename : str
+            Name of the written file.
+
+        """
+        return write_wave_file(self, filename)
 
 
 class SignalProcessor(Processor):
