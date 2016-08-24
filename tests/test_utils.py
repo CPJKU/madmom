@@ -20,6 +20,7 @@ FILE_LIST = [pj(DATA_PATH, 'README'),
 
 AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
                pj(AUDIO_PATH, 'sample2.wav'),
+               pj(AUDIO_PATH, 'sample_22050.wav'),
                pj(AUDIO_PATH, 'stereo_chirp.wav'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]

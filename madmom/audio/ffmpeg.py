@@ -15,14 +15,124 @@ import os
 import sys
 import numpy as np
 
+from .signal import Signal
+
+
+def _ffmpeg_fmt(dtype):
+    """
+    Convert numpy dtypes to format strings understood by ffmpeg.
+
+    Parameters
+    ----------
+    dtype : numpy dtype
+        Data type to be converted.
+
+    Returns
+    -------
+    str
+        ffmpeg format string.
+
+    """
+    # convert dtype to sample type
+    dtype = np.dtype(dtype)
+    # Note: list with all ffmpeg PCM sample types: ffmpeg -formats | grep PCM
+    # - unsigned int, signed int, floating point:
+    fmt = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
+    # - sample size in bits:
+    fmt += str(8 * dtype.itemsize)
+    # - little endian or big endian:
+    if dtype.byteorder == '=':
+        fmt += sys.byteorder[0] + 'e'
+    else:
+        fmt += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    return str(fmt)
+
+
+def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
+                 skip=None, max_len=None, cmd='ffmpeg'):
+    """
+    Create a sequence of strings indicating ffmpeg how to be called as well as
+    the parameters necessary to decode the given input (file) to the given
+    format, at the given offset and for the given length to the given output.
+
+    Parameters
+    ----------
+    infile : str
+        Name of the audio sound file to decode.
+    output : str
+        Where to decode to.
+    fmt : {'f32le', 's16le'}, optional
+        Format of the samples:
+        - 'f32le' for float32, little-endian,
+        - 's16le' for signed 16-bit int, little-endian.
+    sample_rate : int, optional
+        Sample rate to re-sample the signal to (if set) [Hz].
+    num_channels : int, optional
+        Number of channels to reduce the signal to.
+    skip : float, optional
+        Number of seconds to skip at beginning of file.
+    max_len : float, optional
+        Maximum length in seconds to decode.
+    cmd : {'ffmpeg','avconv'}, optional
+        Decoding command (defaults to ffmpeg, alternatively supports avconv).
+
+    Returns
+    -------
+    list
+        ffmpeg call.
+
+    Notes
+    -----
+    'avconv' rounds decoding positions and decodes in blocks of 4096 length
+    resulting in incorrect start and stop positions. Thus it should only be
+    used to decode complete files.
+
+    """
+    # Note: avconv rounds decoding positions and decodes in blocks of 4096
+    #       length resulting in incorrect start and stop positions
+    if cmd == 'avconv' and skip is not None and max_len is not None:
+        raise RuntimeError('avconv has a bug, which results in wrong audio '
+                           'slices! Decode the audio files to .wav first or '
+                           'use ffmpeg.')
+    # input type handling
+    if isinstance(infile, Signal):
+        in_fmt = _ffmpeg_fmt(infile.dtype)
+        in_ac = str(int(infile.num_channels))
+        in_ar = str(int(infile.sample_rate))
+        infile = str("pipe:0")
+    elif isinstance(infile, str):
+        infile = infile.encode(sys.getfilesystemencoding())
+    else:
+        infile = str(infile)
+    # general options
+    call = [cmd, "-v", "quiet", "-y"]
+    # input options
+    if skip:
+        # use "%f" to avoid scientific float notation
+        call.extend(["-ss", "%f" % float(skip)])
+    # if we decode from STDIN, the format must be specified
+    if infile == "pipe:0":
+        call.extend(["-f", in_fmt, "-ac", in_ac, "-ar", in_ar])
+    call.extend(["-i", infile])
+    # output options
+    call.extend(["-f", str(fmt)])
+    if max_len:
+        # use "%f" to avoid scientific float notation
+        call.extend(["-t", "%f" % float(max_len)])
+    # output options
+    if num_channels:
+        call.extend(["-ac", str(int(num_channels))])
+    if sample_rate:
+        call.extend(["-ar", str(int(sample_rate))])
+    call.append(output)
+    return call
+
 
 def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, max_len=None, outfile=None, tmp_dir=None,
                    tmp_suffix=None, cmd='ffmpeg'):
     """
-    Decodes the given audio file, optionally down-mixes it to mono and writes
-    it to another file as a sequence of samples. Returns the file name of the
-    output file.
+    Decode the given audio file to another file.
 
     Parameters
     ----------
@@ -78,8 +188,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          % outfile)
     # call ffmpeg (throws exception on error)
     try:
-        call = _assemble_ffmpeg_call(infile, outfile, fmt, sample_rate,
-                                     num_channels, skip, max_len, cmd)
+        call = _ffmpeg_call(infile, outfile, fmt, sample_rate, num_channels,
+                            skip, max_len, cmd)
         subprocess.check_call(call)
     except Exception:
         if delete_on_fail:
@@ -88,63 +198,11 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     return outfile
 
 
-def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                     skip=None, max_len=None, cmd='ffmpeg'):
-    """
-    Decodes the given audio file, down-mixes it to mono and returns it as a
-    binary string of a sequence of samples.
-
-    Parameters
-    ----------
-    infile : str
-        Name of the audio sound file to decode.
-    fmt : {'f32le', 's16le'}, optional
-        Format of the samples:
-        - 'f32le' for float32, little-endian,
-        - 's16le' for signed 16-bit int, little-endian.
-    sample_rate : int, optional
-        Sample rate to re-sample the signal to (if set) [Hz].
-    num_channels : int, optional
-        Number of channels to reduce the signal to.
-    skip : float, optional
-        Number of seconds to skip at beginning of file.
-    max_len : float, optional
-        Maximum length in seconds to decode.
-    cmd : {'ffmpeg', 'avconv'}, optional
-        Decoding command (defaults to ffmpeg, alternatively supports avconv).
-
-    Returns
-    -------
-    samples : str
-        a binary string of samples
-
-    """
-    # check input file type
-    if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
-    # assemble ffmpeg call
-    call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
-                                 num_channels, skip, max_len, cmd)
-    if hasattr(subprocess, 'check_output'):
-        # call ffmpeg (throws exception on error)
-        signal = subprocess.check_output(call)
-    else:
-        # this is an old version of Python, do subprocess.check_output manually
-        proc = subprocess.Popen(call, stdout=subprocess.PIPE, bufsize=-1)
-        signal, _ = proc.communicate()
-        if proc.returncode != 0:
-            raise subprocess.CalledProcessError(proc.returncode, call)
-    return signal
-
-
 def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, max_len=None, buf_size=-1, cmd='ffmpeg'):
     """
-    Decodes the given audio file, down-mixes it to mono and returns a file-like
-    object for reading the samples, as well as a process object. To stop
-    decoding the file, call close() on the returned file-like object, then
-    call wait() on the returned process object.
+    Decode the given audio and return a file-like object for reading the
+    samples, as well as a process object.
 
     Parameters
     ----------
@@ -177,37 +235,40 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     proc : process object
         Process object for the decoding process.
 
+    Notes
+    -----
+    To stop decoding the file, call close() on the returned file-like object,
+    then call wait() on the returned process object.
+
     """
     # check input file type
-    if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
+    if not isinstance(infile, (str, Signal)):
+        raise ValueError("only file names or Signal instances are supported "
+                         "as `infile`, not %s." % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
-    #       reacts on that. A cleaner solution would be calling
-    #       proc.terminate explicitly, but this is only available in
-    #       Python 2.6+. proc.wait needs to be called in any case.
-    call = _assemble_ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
-                                 num_channels, skip, max_len, cmd)
+    #       reacts on that. A cleaner solution would be calling proc.terminate
+    #       explicitly, but this is only available in Python 2.6+. proc.wait
+    #       needs to be called in any case.
+    call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate, num_channels, skip,
+                        max_len, cmd)
     # redirect stdout to a pipe and buffer as requested
-    proc = subprocess.Popen(call, stdout=subprocess.PIPE, bufsize=buf_size)
+    if isinstance(infile, Signal):
+        proc = subprocess.Popen(call, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, bufsize=buf_size)
+    else:
+        proc = subprocess.Popen(call, stdout=subprocess.PIPE, bufsize=buf_size)
     return proc.stdout, proc
 
 
-def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
-                          num_channels=1, skip=None, max_len=None,
-                          cmd='ffmpeg'):
+def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
+                     skip=None, max_len=None, cmd='ffmpeg'):
     """
-    Internal function. Creates a sequence of strings indicating the application
-    (ffmpeg) to be called as well as the parameters necessary to decode the
-    given input file to the given format, at the given offset and for the given
-    length to the given output.
+    Decode the given audio and return it as a binary string representation.
 
     Parameters
     ----------
     infile : str
         Name of the audio sound file to decode.
-    output : str
-        Where to decode to.
     fmt : {'f32le', 's16le'}, optional
         Format of the samples:
         - 'f32le' for float32, little-endian,
@@ -220,48 +281,37 @@ def _assemble_ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
         Number of seconds to skip at beginning of file.
     max_len : float, optional
         Maximum length in seconds to decode.
-    cmd : {'ffmpeg','avconv'}, optional
+    cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
 
     Returns
     -------
-    list
-        Assembled ffmpeg call.
-
-    Notes
-    -----
-    'avconv' rounds decoding positions and decodes in blocks of 4096 length
-    resulting in incorrect start and stop positions. Thus it should only be
-    used to decode complete files.
+    samples : str
+        Binary string representation of the audio samples.
 
     """
-    # Note: avconv rounds decoding positions and decodes in blocks of 4096
-    #       length resulting in incorrect start and stop positions
-    if cmd == 'avconv' and skip is not None and max_len is not None:
-        raise RuntimeError('avconv has a bug, which results in wrong audio '
-                           'slices! Decode the audio files to .wav first or '
-                           'use ffmpeg.')
-    if isinstance(infile, str):
-        infile = infile.encode(sys.getfilesystemencoding())
+    # check input file type
+    if not isinstance(infile, (str, Signal)):
+        raise ValueError("only file names or Signal instances are supported "
+                         "as `infile`, not %s." % infile)
+    # prepare decoding to pipe
+    _, proc = decode_to_pipe(infile, fmt=fmt, sample_rate=sample_rate,
+                             num_channels=num_channels, skip=skip,
+                             max_len=max_len, cmd=cmd)
+    # decode the input to memory
+    if isinstance(infile, Signal):
+        # Note: np.getbuffer was removed in Python 3, but Python 2 memoryviews
+        #       do not have the cast() method
+        try:
+            signal, _ = proc.communicate(np.getbuffer(infile))
+        except AttributeError:
+            mv = memoryview(infile)
+            signal, _ = proc.communicate(mv.cast('b'))
     else:
-        infile = str(infile)
-    # general options
-    call = [cmd, "-v", "quiet"]
-    # infile options
-    if skip is not None:
-        # use "%f" to avoid e-05 and the like
-        call.extend(["-ss", "%f" % float(skip)])
-    call.extend(["-i", infile, "-y", "-f", str(fmt)])
-    if max_len is not None:
-        # use "%f" to avoid e-05 and the like
-        call.extend(["-t", "%f" % float(max_len)])
-    # output options
-    if num_channels is not None:
-        call.extend(["-ac", str(int(num_channels))])
-    if sample_rate is not None:
-        call.extend(["-ar", str(int(sample_rate))])
-    call.append(output)
-    return call
+        signal, _ = proc.communicate()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd)
+    return signal
 
 
 def get_file_info(infile, cmd='ffprobe'):
@@ -281,24 +331,24 @@ def get_file_info(infile, cmd='ffprobe'):
         Audio file information.
 
     """
-    # check input file type
-    if not isinstance(infile, str):
-        raise ValueError("only file names are supported as `infile`, not %s."
-                         % infile)
     # init dictionary
     info = {'num_channels': None, 'sample_rate': None}
-    # call ffprobe
-    output = subprocess.check_output([cmd, "-v", "quiet", "-show_streams",
-                                      infile])
-    # parse information
-    for line in output.split():
-        if line.startswith(b'channels='):
-            info['num_channels'] = int(line[len('channels='):])
-        if line.startswith(b'sample_rate='):
-            # the int(float(...)) conversion is necessary because
-            # avprobe returns sample_rate as floating point number
-            # which int() can't handle.
-            info['sample_rate'] = int(float(line[len('sample_rate='):]))
+    if isinstance(infile, Signal):
+        info['num_channels'] = infile.num_channels
+        info['sample_rate'] = infile.sample_rate
+    else:
+        # call ffprobe
+        output = subprocess.check_output([cmd, "-v", "quiet", "-show_streams",
+                                          infile])
+        # parse information
+        for line in output.split():
+            if line.startswith(b'channels='):
+                info['num_channels'] = int(line[len('channels='):])
+            if line.startswith(b'sample_rate='):
+                # the int(float(...)) conversion is necessary because
+                # avprobe returns sample_rate as floating point number
+                # which int() can't handle.
+                info['sample_rate'] = int(float(line[len('sample_rate='):]))
     # return the dictionary
     return info
 
@@ -344,20 +394,11 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
         Sample rate of the audio samples.
 
     """
-    # convert dtype to sample type
-    # (all ffmpeg PCM sample types: ffmpeg -formats | grep PCM)
+    # set default dtype
     if dtype is None:
         dtype = np.int16
-    dtype = np.dtype(dtype)
-    # - unsigned int, signed int, floating point:
-    sample_type = {'u': 'u', 'i': 's', 'f': 'f'}.get(dtype.kind)
-    # - sample size in bits:
-    sample_type += str(8 * dtype.itemsize)
-    # - little endian or big endian:
-    if dtype.byteorder == '=':
-        sample_type += sys.byteorder[0] + 'e'
-    else:
-        sample_type += {'|': '', '<': 'le', '>': 'be'}.get(dtype.byteorder)
+    # ffmpeg output format
+    fmt = _ffmpeg_fmt(dtype)
     # start and stop position
     if start is None:
         start = 0
@@ -365,7 +406,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     if stop is not None:
         max_len = stop - start
     # convert the audio signal using ffmpeg
-    signal = np.frombuffer(decode_to_memory(filename, fmt=sample_type,
+    signal = np.frombuffer(decode_to_memory(filename, fmt=fmt,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
                                             skip=start, max_len=max_len,

@@ -26,8 +26,9 @@ from madmom.features.chords import load_chords
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
 
-tmp_act = tempfile.NamedTemporaryFile().name
-tmp_result = tempfile.NamedTemporaryFile().name
+
+tmp_act = tempfile.NamedTemporaryFile(delete=False).name
+tmp_result = tempfile.NamedTemporaryFile(delete=False).name
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample2_file = pj(AUDIO_PATH, 'sample2.wav')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
@@ -874,3 +875,9 @@ class TestTempoDetectorProgram(unittest.TestCase):
         run_program([self.bin, 'single', sample_file, '-o', tmp_result])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+
+# clean up
+def teardown():
+    os.unlink(tmp_act)
+    os.unlink(tmp_result)

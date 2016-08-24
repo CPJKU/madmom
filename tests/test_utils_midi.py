@@ -7,6 +7,7 @@ This file contains test functions for the madmom.utils.midi module.
 
 from __future__ import absolute_import, division, print_function
 
+import os
 import unittest
 import tempfile
 from os.path import join as pj
@@ -15,7 +16,7 @@ from madmom.utils.midi import *
 
 from . import ANNOTATIONS_PATH
 
-tmp_file = tempfile.NamedTemporaryFile().name
+tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
 
 class TestEventsClass(unittest.TestCase):
@@ -85,3 +86,8 @@ class TestMIDIFileClass(unittest.TestCase):
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats'))
         notes_ = midi.notes(unit='b')[:, :4]
         self.assertTrue(np.allclose(notes, notes_))
+
+
+# clean up
+def teardown():
+    os.unlink(tmp_file)
