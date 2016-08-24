@@ -17,8 +17,10 @@ from madmom.audio.spectrogram import *
 from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
                                   MelFilterbank, BarkFilterbank)
 from madmom.audio.stft import ShortTimeFourierTransform
+from madmom.audio.signal import Signal
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
+sample_file_22050 = pj(AUDIO_PATH, 'sample_22050.wav')
 
 
 # test functions
@@ -725,3 +727,74 @@ class TestMultiBandSpectrogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result.bin_frequencies,
                                     [236.865, 8720.947]))
         self.assertTrue(np.allclose(np.max(result.filterbank, axis=0), [1, 1]))
+
+
+class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
+
+    def setUp(self):
+        self.sbs_50 = SemitoneBandpassSpectrogram(sample_file, fps=50)
+        self.sbs_10 = SemitoneBandpassSpectrogram(sample_file, fps=10)
+        self.sbs_22050 = SemitoneBandpassSpectrogram(
+            sample_file_22050, fps=50, fmin=2637, fmax=4200)
+        data = Signal(sample_file)
+        self.sbs_10_from_signal = SemitoneBandpassSpectrogram(data, fps=10)
+
+    def test_process(self):
+        # test fps = 50
+        self.assertTrue(self.sbs_50.fps == 50)
+        # results
+        self.assertTrue(self.sbs_50.shape == (141, 88))
+        self.assertTrue(self.sbs_50.num_bins == 88)
+        self.assertTrue(np.allclose(self.sbs_50[120:122, 50:55],
+                                    [[0.00056659, 0.00274373, 0.00037994,
+                                      0.00031497, 0.0063823],
+                                     [0.00032294, 0.00285728, 0.00023723,
+                                      0.00010553, 0.0069074]]))
+        self.assertTrue(np.allclose(self.sbs_50[:10, 0],
+                                    [0.00108844, 0.0020613, 0.00187792,
+                                     0.00173228, 0.00163516, 0.00149813,
+                                     0.0013027, 0.0010594, 0.00079916,
+                                     0.00060871], atol=1e-04))
+        self.assertTrue(np.allclose(self.sbs_50[:10, 29],
+                                    [0.05326259, 0.10912816, 0.11616101,
+                                     0.11595627, 0.11979639, 0.12206492,
+                                     0.12836982, 0.12495992, 0.11759637,
+                                     0.10559082]))
+        # test fps = 10
+        self.assertTrue(self.sbs_10.fps == 10)
+        self.assertTrue(self.sbs_10.shape == (29, 88))
+        sbs_10 = [[0.01951193, 0.01638364, 0.00384092, 0.00732366, 0.10310112],
+                  [0.14484727, 0.032042, 0.00719009, 0.02043642, 0.06407038]]
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55], sbs_10))
+        # test computing SemitoneBandpassSpectrogram from signal
+        self.assertTrue(self.sbs_10_from_signal.shape == (29, 88))
+        self.assertTrue(np.allclose(self.sbs_10_from_signal[10:12, 50:55],
+                                    sbs_10))
+        # test 22050 Hz sampling rate. If we use only bands above 2637 Hz,
+        # no resampling is necessary and we can therefore compare with
+        # smaller tolerances.
+        self.assertTrue(self.sbs_22050.shape == (141, 9))
+        tar = [[0.06541425, 0.09758339, 0.09000319, 0.06654418, 0.06468658,
+                0.05898506, 0.03190501, 0.04980498, 0.07482897],
+               [0.07191198, 0.07706247, 0.05581443, 0.03765683, 0.04524021,
+                0.03835757, 0.0295172, 0.04417975, 0.06682143]]
+        self.assertTrue(np.allclose(self.sbs_22050[108:110, :], tar))
+        # check end of signal
+        tar = [9.44913489e-06, 2.15330783e-05, 1.61559697e-05, 3.66821812e-06,
+               7.96367061e-06, 2.01982581e-05, 2.03380816e-06, 5.34317005e-06,
+               4.13617626e-06]
+        self.assertTrue(np.allclose(self.sbs_22050[140, :], tar))
+
+    def test_compare_with_matlab_toolbox(self):
+        # compare the results with the MATLAB chroma toolbox. There are
+        # differences because of different resampling and filtering with
+        # filtfilt, therefore we compare with higher tolerances.
+        self.assertTrue(np.allclose(self.sbs_50[:10, 29],
+                                    [0.054849, 0.114634, 0.115050, 0.119006,
+                                     0.128422, 0.128793, 0.127636, 0.124041,
+                                     0.113962, 0.103785], rtol=1e-01))
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55],
+                                    [[0.01951726, 0.01638535, 0.00384128,
+                                      0.00732471, 0.10306561],
+                                     [0.14487972, 0.03204085, 0.00718818,
+                                      0.02043327, 0.06404668]], rtol=1e-03))
