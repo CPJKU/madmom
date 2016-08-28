@@ -1,0 +1,19 @@
+engines:
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - python
+  fixme:
+    enabled: false
+  radon:
+    enabled: true
+    checks:
+      Complexity:
+        enabled: false
+ratings:
+  paths:
+  - "**.py"
+  - "**.pyx"
+exclude_paths:
+- tests/
