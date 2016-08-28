@@ -4,6 +4,9 @@ engines:
     config:
       languages:
       - python
+    checks:
+      Similar code:
+        enabled: false
   fixme:
     enabled: false
   radon:
