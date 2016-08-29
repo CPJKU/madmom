@@ -305,8 +305,7 @@ class CLPChroma(np.ndarray):
            Retrieval (ISMIR), 2011.
 
     """
-
-    def __init__(self, data, fps=50, fmin=27.5, fmax=4186.,
+    def __init__(self, data, fps=50, fmin=27.5, fmax=4200.,
                  compression_factor=100, norm=True, threshold=0.001):
         # this method is for documentation purposes only
         pass
@@ -347,3 +346,56 @@ class CLPChroma(np.ndarray):
         # set default values here
         self.fps = getattr(obj, 'fps', None)
         self.bin_labels = getattr(obj, 'bin_labels', None)
+
+
+class CLPChromaProcessor(SequentialProcessor):
+    """
+        CLPChromaProcessor class.
+
+    """
+    def __init__(self, fps=50, fmin=27.5, fmax=4200., compression_factor=100,
+                 norm=True, threshold=0.001):
+        """
+            Construct a Compressed Log Pitch (CLP) chroma processor.
+
+            Parameters
+            ----------
+            fps : int, optional
+                Desired sample rate of the signal [Hz].
+            fmin : float, optional
+                Lowest frequency [Hz] of the spectrogram.
+            fmax : float, optional
+                Highest frequency [Hz] of the spectrogram.
+            compression_factor : float, optional
+                Factor for compression of the energy.
+            norm : bool, optional
+                Normalize the energy of each frame to one (divide by the L2 norm).
+            threshold : float, optional
+                If the energy of a frame is below a threshold, the energy is equally
+                distributed among all chroma bins.
+        """
+        self.fps = fps
+        self.fmin = fmin
+        self.fmax = fmax
+        self.compression_factor = compression_factor
+        self.norm = norm
+        self.threshold = threshold
+
+    def process(self, data):
+        """
+            Create a CLPChroma from the given data.
+
+            Parameters
+            ----------
+            data : Signal instance or filename
+                Data to be processed.
+
+            Returns
+            -------
+            clp : :class:`CLPChroma` instance
+                CLPChroma.
+
+        """
+        return CLPChroma(data, fps=self.fps, fmin=self.fmin, fmax=self.fmax,
+                         compression_factor=self.compression_factor,
+                         norm=self.norm, threshold=self.threshold)
