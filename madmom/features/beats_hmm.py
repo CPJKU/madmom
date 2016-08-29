@@ -408,31 +408,41 @@ class MultiPatternTransitionModel(TransitionModel):
     transition_lambda : float, optional
         Lambda for the exponential tempo change distribution (higher values
         prefer a constant tempo from one pattern to the next one).
+    pattern_change_prob : float, optional
+        Probability of a pattern change. With pattern_change_prob - 1 we
+        maintain the old pattern.
 
-    Notes
-    -----
-    Right now, no transitions from one pattern to another are allowed.
 
     """
 
     def __init__(self, transition_models, transition_prob=None,
-                 transition_lambda=None):
-        # TODO: implement pattern transitions
+                 transition_lambda=None, pattern_change_prob=0.0):
+        # TODO: use transition_prob to set different pattern change
+        # probabilities
         if transition_prob is not None or transition_lambda is not None:
             raise NotImplementedError("please implement pattern transitions")
         # save attributes
         self.transition_models = transition_models
         self.transition_prob = transition_prob
         self.transition_lambda = transition_lambda
+        num_patterns = len(self.transition_models)
+        first_pattern_states = np.zeros(num_patterns, dtype=int)
+        last_pattern_states = np.zeros(num_patterns, dtype=int)
         # stack the pattern transitions
         for i, tm in enumerate(self.transition_models):
+
             # set/update the probabilities, states and pointers
             if i == 0:
                 # for the first pattern, just set the TM arrays
                 states = tm.states
                 pointers = tm.pointers
                 probabilities = tm.probabilities
+                first_pattern_states[i] = 0
+                last_pattern_states[i] = tm.num_states - 1
             else:
+                first_pattern_states[i] = len(pointers) - 1
+                last_pattern_states[i] = first_pattern_states[i] + \
+                    tm.num_states - 1
                 # for all consecutive patterns, stack the TM arrays after
                 # applying an offset
                 # Note: len(pointers) = len(states) + 1, because of the CSR
@@ -445,9 +455,32 @@ class MultiPatternTransitionModel(TransitionModel):
                                       max(pointers)))
                 # probabilities: just stack them
                 probabilities = np.hstack((probabilities, tm.probabilities))
+
+        states, prev_states, probabilities = self.make_dense(states, pointers,
+                                                             probabilities)
+        # add pattern_transitions
+        if pattern_change_prob > 0 and num_patterns > 1:
+            same_pattern = 1 - pattern_change_prob
+            change_pattern = pattern_change_prob / (num_patterns - 1)
+            for i in range(num_patterns):
+                # find states at pattern borders
+                idx = np.intersect1d(
+                    np.where(prev_states == last_pattern_states[i])[0],
+                    np.where(states == first_pattern_states[i])[0])
+                probabilities[idx] = same_pattern
+                # add pattern transition
+                for j in range(num_patterns):
+                    if i != j:
+                        prev_states = np.hstack((prev_states,
+                                                 last_pattern_states[i]))
+                        states = np.hstack((states, first_pattern_states[j]))
+                        probabilities = np.hstack((probabilities,
+                                                   change_pattern))
+
+        # make the transitions sparse
+        transitions = self.make_sparse(states, prev_states, probabilities)
         # instantiate a TransitionModel
-        super(MultiPatternTransitionModel, self).__init__(states, pointers,
-                                                          probabilities)
+        super(MultiPatternTransitionModel, self).__init__(*transitions)
 
 
 # observation models
@@ -462,6 +495,10 @@ class RNNBeatTrackingObservationModel(ObservationModel):
     observation_lambda : int
         Split one beat period into `observation_lambda` parts, the first
         representing beat states and the remaining non-beat states.
+    obslik_floor : float
+        Observation likelihood floor. Values below this threshold and
+        above 1-threshold are clipped.
+
 
     References
     ----------
@@ -473,7 +510,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, state_space, observation_lambda):
+    def __init__(self, state_space, observation_lambda, obslik_floor=None):
         self.observation_lambda = observation_lambda
         # compute observation pointers
         # always point to the non-beat densities
@@ -481,6 +518,8 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
         pointers[state_space.state_positions < border] = 1
+        # set observation likelihood floor
+        self.obslik_floor = obslik_floor
         # instantiate a ObservationModel with the pointers
         super(RNNBeatTrackingObservationModel, self).__init__(pointers)
 
@@ -499,6 +538,12 @@ class RNNBeatTrackingObservationModel(ObservationModel):
             Log densities of the observations.
 
         """
+        if self.obslik_floor is not None:
+            # limit the range of the observation likelihood to avoid
+            # problems if the probability gets 0 (impossible state) and 1 (
+            # obligatory state).
+            observations = np.maximum(observations, self.obslik_floor)
+            observations = np.minimum(observations, 1. - self.obslik_floor)
         # init densities
         log_densities = np.empty((len(observations), 2), dtype=np.float)
         # Note: it's faster to call np.log 2 times instead of once on the
