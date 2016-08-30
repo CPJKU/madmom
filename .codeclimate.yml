@@ -1,0 +1,21 @@
+engines:
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - python
+    checks:
+      Similar code:
+        enabled: false
+  fixme:
+    enabled: false
+  radon:
+    enabled: true
+    config:
+      threshold: "D"
+ratings:
+  paths:
+  - "**.py"
+  - "**.pyx"
+exclude_paths:
+- tests/
