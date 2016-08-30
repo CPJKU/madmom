@@ -147,17 +147,53 @@ def evaluation_pairs(ref_chords, est_chords):
     times = np.unique(np.hstack([ref_chords.start, ref_chords.end,
                                  est_chords.start, est_chords.end]))
 
-    pairs = np.recarray(len(times - 1),
-                        dtype=[('start', np.float),
-                               ('end', np.float),
+    pairs = np.recarray(len(times) - 1,
+                        dtype=[('duration', np.float),
                                ('ref_chord', CHORD_DTYPE),
                                ('est_chord', CHORD_DTYPE)])
 
-    pairs.start = times[:-1]
-    pairs.end = times[1:]
+    pairs.duration = times[1:] - times[:-1]
     pairs.ref_chord = ref_chords.chord[
         np.searchsorted(ref_chords.start, times[:-1], side='right') - 1]
     pairs.est_chord = est_chords.chord[
         np.searchsorted(est_chords.start, times[:-1], side='right') - 1]
 
     return pairs
+
+
+def score_root(pairs):
+    return (pairs.ref_chord.root == pairs.est_chord.root).astype(np.float)
+
+
+def score_exact(pairs):
+    return ((pairs.ref_chord.root == pairs.est_chord.root) &
+            ((pairs.ref_chord.intervals ==
+              pairs.est_chord.intervals).all(axis=1)))
+
+
+def map_majmin(pairs):
+    return
+
+
+class ChordEvaluation(object):
+
+    METRIC_NAMES = [
+        ('root', 'Root'),
+        ('majmin', 'MajMin')
+    ]
+
+    def __init__(self, detections, annotations):
+        self.eval_pairs = evaluation_pairs(
+            load_chords(detections),
+            load_chords(annotations)
+        )
+
+    @property
+    def root(self):
+        return np.average(score_root(self.eval_pairs),
+                          weights=self.eval_pairs.duration)
+
+    @property
+    def majmin(self):
+        pass
+
