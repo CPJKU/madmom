@@ -7,6 +7,22 @@ UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
 
 
 def chords(labels):
+    """
+    Transform a list of chord labels into an array of internal numeric
+    representations.
+
+    Parameters
+    ----------
+    labels : list
+        List of chord labels (str)
+
+    Returns
+    -------
+    numpy.recarray
+        Record array with columns 'root', 'bass', and 'interval', containing
+        a numeric representation of chords.
+
+    """
     crds = np.recarray(len(labels), dtype=CHORD_DTYPE)
     cache = {}
     for i, lbl in enumerate(labels):
@@ -22,6 +38,21 @@ def chords(labels):
 
 
 def chord(label):
+    """
+    Transform a chord label into the internal numeric represenation of
+    (root, bass, interval array).
+
+    Parameters
+    ----------
+    label : str
+        Chord label
+
+    Returns
+    -------
+    tuple
+        Numeric representation of the chord: (root, bass, interval array)
+
+    """
     if label == 'N':
         return NO_CHORD
     if label == 'X':
@@ -60,6 +91,24 @@ _chroma_id = (np.arange(len(_l) * 2) + 1) + np.array(_l + _l).cumsum() - 1
 
 
 def modify(base, modstr):
+    """
+    Modify a pitch class in integer representation by a given modifier string.
+    A modifier string can be any sequence of 'b' (one semitone down)
+    and '#' (one semitone up).
+
+    Parameters
+    ----------
+    base : int
+        Pitch class as integer
+    modstr : str
+        String of modifiers ('b' or '#')
+
+    Returns
+    -------
+    int
+        Modified root note
+
+    """
     for m in modstr:
         if m == 'b':
             base -= 1
@@ -71,16 +120,67 @@ def modify(base, modstr):
 
 
 def pitch(s):
+    """
+    Converts a string representation of a pitch class (consisting of root
+    note and modifiers) to an integer representation.
+
+    Parameters
+    ----------
+    s : str
+        String representation of a pitch class
+
+    Returns
+    -------
+    int
+        Integer representation of a pitch class
+
+    """
     return modify(_chroma_id[(ord(s[0]) - ord('C')) % 7], s[1:]) % 12
 
 
 def interval(s):
+    """
+    Converts a string representation of a musical interval into a semitone
+    integer (e.g. a minor seventh 'b7' into 10, because it is 10 semitones
+    above its base note).
+
+    Parameters
+    ----------
+    s : str
+        Musical interval
+
+    Returns
+    -------
+    int
+        Number of semitones to base note of interval
+
+    """
     for i, c in enumerate(s):
         if c.isdigit():
             return modify(_chroma_id[int(s[i:]) - 1], s[:i]) % 12
 
 
 def interval_list(s, intervals=None):
+    """
+    Convert a list of intervals given as string to a binary semitone array
+    representation. For example, 'b3, 5' would become
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0].
+
+    Parameters
+    ----------
+    s : str
+        List of intervals as comma-separated string (e.g. 'b3, 5')
+
+    intervals : None or numpy array
+        If None, start with empty interval array, if numpy array of length
+        12, this array will be modified.
+
+    Returns
+    -------
+    numpy array
+        Binary semitone representation of intervals
+
+    """
     intervals = intervals if intervals is not None else np.zeros(12, dtype=np.int)
     for int_def in s[1:-1].split(','):
         int_def = int_def.strip()
@@ -90,7 +190,7 @@ def interval_list(s, intervals=None):
             intervals[interval(int_def)] = 1
     return intervals
 
-
+# mapping of shorthand interval notations to the actual interval representation
 _shorthands = {
     'maj': interval_list('(1,3,5)'),
     'min': interval_list('(1,b3,5)'),
