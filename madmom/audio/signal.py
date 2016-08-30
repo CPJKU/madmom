@@ -216,7 +216,7 @@ def remix(signal, num_channels):
 
 def resample(signal, sample_rate, **kwargs):
     """
-    Resample the signal (by calling ffmeg).
+    Resample the signal.
 
     Parameters
     ----------
@@ -234,8 +234,7 @@ def resample(signal, sample_rate, **kwargs):
 
     Notes
     -----
-    This function saves the given signal as a temporary file and reloads it
-    with the desired sample rate.
+    This function uses ``ffmpeg`` to resample the signal.
 
     """
     from .ffmpeg import load_ffmpeg_file
@@ -323,9 +322,45 @@ def trim(signal, where='fb'):
     return signal[first:last]
 
 
+def energy(signal):
+    """
+    Compute the energy of a (framed) signal.
+
+    Parameters
+    ----------
+    signal : numpy array
+        Signal.
+
+    Returns
+    -------
+    energy : float
+        Energy of the signal.
+
+    Notes
+    -----
+    If `signal` is a `FramedSignal`, the energy is computed for each frame
+    individually.
+
+    """
+    # compute the energy for every frame of the signal
+    if isinstance(signal, FramedSignal):
+        return np.array([energy(frame) for frame in signal])
+    # make sure the signal is a numpy array
+    if not isinstance(signal, np.ndarray):
+        raise TypeError("Invalid type for signal, must be a numpy array.")
+    # take the abs if the signal is complex
+    if np.iscomplex(signal).any():
+        signal = np.abs(signal)
+    # Note: type conversion needed because of integer overflows
+    if signal.dtype != np.float:
+        signal = signal.astype(np.float)
+    # return energy
+    return np.dot(signal.flatten(), signal.flatten())
+
+
 def root_mean_square(signal):
     """
-    Computes the root mean square of the signal. This can be used as a
+    Compute the root mean square of a (framed) signal. This can be used as a
     measurement of power.
 
     Parameters
@@ -338,20 +373,21 @@ def root_mean_square(signal):
     rms : float
         Root mean square of the signal.
 
+    Notes
+    -----
+    If `signal` is a `FramedSignal`, the root mean square is computed for each
+    frame individually.
+
     """
-    # make sure the signal is a numpy array
-    if not isinstance(signal, np.ndarray):
-        raise TypeError("Invalid type for signal, must be a numpy array.")
-    # Note: type conversion needed because of integer overflows
-    if signal.dtype != np.float:
-        signal = signal.astype(np.float)
-    # return
-    return np.sqrt(np.dot(signal.flatten(), signal.flatten()) / signal.size)
+    # compute the root mean square for every frame of the signal
+    if isinstance(signal, FramedSignal):
+        return np.array([root_mean_square(frame) for frame in signal])
+    return np.sqrt(energy(signal) / signal.size)
 
 
 def sound_pressure_level(signal, p_ref=None):
     """
-    Computes the sound pressure level of a signal.
+    Compute the sound pressure level of a (framed) signal.
 
     Parameters
     ----------
@@ -374,22 +410,25 @@ def sound_pressure_level(signal, p_ref=None):
     pressure of a sound relative to a reference value. It is measured in
     decibels (dB) above a standard reference level.
 
+    If `signal` is a `FramedSignal`, the sound pressure level is computed for
+    each frame individually.
+
     """
+    # compute the sound pressure level for every frame of the signal
+    if isinstance(signal, FramedSignal):
+        return np.array([sound_pressure_level(frame) for frame in signal])
     # compute the RMS
     rms = root_mean_square(signal)
-    # compute the SPL
-    if rms == 0:
-        # return the smallest possible negative number
-        return -np.finfo(float).max
-    else:
-        if p_ref is None:
-            # find a reasonable default reference value
-            if np.issubdtype(signal.dtype, np.integer):
-                p_ref = float(np.iinfo(signal.dtype).max)
-            else:
-                p_ref = 1.0
-        # normal SPL computation
-        return 20.0 * np.log10(rms / p_ref)
+    # find a reasonable default reference value if None is given
+    if p_ref is None:
+        if np.issubdtype(signal.dtype, np.integer):
+            p_ref = float(np.iinfo(signal.dtype).max)
+        else:
+            p_ref = 1.0
+    # normal SPL computation. ignore warnings when taking the log of 0,
+    # then replace the resulting -inf values with the smallest finite number
+    with np.errstate(divide='ignore'):
+        return np.nan_to_num(20.0 * np.log10(rms / p_ref))
 
 
 # functions to load / write audio files
@@ -1003,28 +1042,6 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     else:
         # normal read operation
         return signal[start:stop]
-
-
-def total_energy(frames):
-    """
-    Computes the total energy (sum of squared magnitudes) for each frame of a
-    FramedSignal.
-
-    Parameters
-    ----------
-    frames : FramedSignal
-        Frames (i.e. FramedSignal).
-
-    Returns
-    -------
-    te : numpy array
-        Total energy per frame
-
-    """
-    # make sure we have a FramedSignal
-    if not isinstance(frames, FramedSignal):
-        raise TypeError("Invalid type for input, must be a FramedSignal.")
-    return np.array([sum(x**2) for x in frames])
 
 
 FRAME_SIZE = 2048

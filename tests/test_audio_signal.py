@@ -542,6 +542,43 @@ class TestTrimFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result[:, 1], np.arange(1, 5)))
 
 
+class TestEnergyFunction(unittest.TestCase):
+
+    def test_types(self):
+        # mono signals
+        result = energy(sig_1d)
+        self.assertIsInstance(result, float)
+        # multi-channel signals
+        result = energy(sig_2d)
+        self.assertIsInstance(result, float)
+
+    def test_values(self):
+        # mono signals
+        result = energy(sig_1d)
+        self.assertTrue(np.allclose(result, 3))
+        result = energy(np.zeros(100))
+        self.assertTrue(np.allclose(result, 0))
+        # multi-channel signals
+        result = energy(sig_2d)
+        self.assertTrue(np.allclose(result, 8))
+        result = energy(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, 0))
+
+    def test_frames(self):
+        # mono signals
+        frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
+        result = energy(frames)
+        self.assertTrue(np.allclose(result, [0, 1, 2, 1, 1]))
+        result = energy(np.zeros(100))
+        self.assertTrue(np.allclose(result, 0))
+        # multi-channel signals
+        frames = FramedSignal(sig_2d, frame_size=4, hop_size=2)
+        result = energy(frames)
+        self.assertTrue(np.allclose(result, [1, 3, 4, 3, 3]))
+        result = energy(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, 0))
+
+
 class TestRootMeanSquareFunction(unittest.TestCase):
 
     def test_types(self):
@@ -561,6 +598,22 @@ class TestRootMeanSquareFunction(unittest.TestCase):
         # multi-channel signals
         result = root_mean_square(sig_2d)
         self.assertTrue(np.allclose(result, 2. / 3))
+        result = root_mean_square(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, 0))
+
+    def test_frames(self):
+        # mono signals
+        frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
+        result = root_mean_square(frames)
+        self.assertTrue(np.allclose(result, [0, 0.5, 0.70710678, 0.5, 0.5]))
+        result = root_mean_square(np.zeros(100))
+        self.assertTrue(np.allclose(result, 0))
+        # multi-channel signals
+        frames = FramedSignal(sig_2d, frame_size=4, hop_size=2)
+        result = root_mean_square(frames)
+        self.assertTrue(np.allclose(result, [0.35355339, 0.61237244,
+                                             0.70710678, 0.61237244,
+                                             0.61237244]))
         result = root_mean_square(np.zeros(100).reshape(-1, 2))
         self.assertTrue(np.allclose(result, 0))
 
@@ -605,6 +658,23 @@ class TestSoundPressureLevelFunction(unittest.TestCase):
         sig = remix(sinus_int16, 2)
         result = sound_pressure_level(sig)
         self.assertTrue(np.allclose(result, 0.))
+
+    def test_frames(self):
+        # mono signals
+        frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
+        result = sound_pressure_level(frames)
+        self.assertTrue(np.allclose(result, [-np.finfo(float).max, -6.0206,
+                                             -3.0103, -6.0206, -6.0206]))
+        result = sound_pressure_level(np.zeros(100))
+        self.assertTrue(np.allclose(result, -np.finfo(float).max))
+        # multi-channel signals
+        frames = FramedSignal(sig_2d, frame_size=4, hop_size=2)
+        result = sound_pressure_level(frames)
+        self.assertTrue(np.allclose(result, [-9.03089987, -4.25968732,
+                                             -3.01029996, -4.25968732,
+                                             -4.25968732]))
+        result = sound_pressure_level(np.zeros(100).reshape(-1, 2))
+        self.assertTrue(np.allclose(result, -np.finfo(float).max))
 
 
 class TestLoadWaveFileFunction(unittest.TestCase):
