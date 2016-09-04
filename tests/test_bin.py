@@ -322,10 +322,10 @@ class TestCRFBeatDetectorProgram(unittest.TestCase):
         # result = np.loadtxt(tmp_result)
         # self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
-    def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
-        result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+    # def test_run(self):
+    #     run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+    #     result = np.loadtxt(tmp_result)
+    #     self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
 class TestDBNBeatTrackerProgram(unittest.TestCase):
