@@ -80,17 +80,17 @@ class BeatStateSpace(object):
                 intervals = np.unique(np.round(intervals))
                 num_log_intervals += 1
         # save the intervals
-        self.intervals = np.ascontiguousarray(intervals, dtype=np.uint16)
+        self.intervals = np.ascontiguousarray(intervals, dtype=np.uint32)
         # number of states and intervals
         self.num_states = int(np.sum(intervals))
         self.num_intervals = len(intervals)
         # define first and last states
         first_states = np.cumsum(np.r_[0, self.intervals[:-1]])
-        self.first_states = first_states.astype(np.uint16)
-        self.last_states = np.cumsum(self.intervals).astype(np.uint16) - 1
+        self.first_states = first_states.astype(np.uint32)
+        self.last_states = np.cumsum(self.intervals).astype(np.uint32) - 1
         # define the positions and intervals of the states
         self.state_positions = np.empty(self.num_states, dtype=np.float)
-        self.state_intervals = np.empty(self.num_states, dtype=np.uint16)
+        self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
         # Note: having an index counter is faster than ndenumerate
         idx = 0
         for i in self.intervals:
@@ -147,7 +147,7 @@ class BarStateSpace(object):
         # model N beats as a bar
         self.num_beats = int(num_beats)
         self.state_positions = np.empty(0)
-        self.state_intervals = np.empty(0, dtype=np.uint16)
+        self.state_intervals = np.empty(0, dtype=np.uint32)
         self.num_states = 0
         # save the first and last states of the individual beats in a list
         self.first_states = []
@@ -190,8 +190,8 @@ class MultiPatternStateSpace(object):
         # model the patterns as a whole
         self.num_patterns = len(self.state_spaces)
         self.state_positions = np.empty(0)
-        self.state_intervals = np.empty(0, dtype=np.uint16)
-        self.state_patterns = np.empty(0, dtype=np.uint16)
+        self.state_intervals = np.empty(0, dtype=np.uint32)
+        self.state_patterns = np.empty(0, dtype=np.uint32)
         self.num_states = 0
         # save the first and last states of the individual patterns in a list
         # self.first_states = []
@@ -536,7 +536,7 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
         self.observation_lambda = observation_lambda
         # compute observation pointers
         # always point to the non-beat densities
-        pointers = np.zeros(state_space.num_states, dtype=np.uint16)
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
         pointers[state_space.state_positions % 1 < border] = 1
@@ -600,7 +600,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
         self.pattern_files = pattern_files
         self.state_space = state_space
         # define the pointers of the log densities
-        pointers = np.zeros(state_space.num_states, dtype=np.uint16)
+        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         patterns = self.state_space.state_patterns
         positions = self.state_space.state_positions
         # Note: the densities of all GMMs are just stacked on top of each
