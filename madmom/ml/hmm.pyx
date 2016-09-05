@@ -5,6 +5,9 @@ This module contains Hidden Markov Model (HMM) functionality.
 
 Notes
 -----
+The states are limited to 65535, which should be enough in most cases. However,
+if you need to model more states, change all occurrences of uint16 to uint32.
+
 If you want to change this module and use it interactively, use pyximport.
 
 >>> import pyximport
@@ -12,6 +15,7 @@ If you want to change this module and use it interactively, use pyximport.
 ...                   setup_args={'include_dirs': np.get_include()})
 ... # doctest: +ELLIPSIS
 (None, <pyximport.pyximport.PyxImporter object at 0x...>)
+
 """
 
 from __future__ import absolute_import, division, print_function
@@ -24,7 +28,9 @@ cimport cython
 from numpy.math cimport INFINITY
 
 
-ctypedef np.uint32_t uint32_t
+ctypedef np.uint16_t uint16_t
+
+MAX_STATES = np.iinfo(np.uint16).max
 
 
 class TransitionModel(object):
@@ -65,7 +71,7 @@ class TransitionModel(object):
     >>> tm  # doctest: +ELLIPSIS
     <madmom.ml.hmm.TransitionModel object at 0x...>
 
-    TransitionModel.from_dense will check if the supplied probabilties for
+    TransitionModel.from_dense will check if the supplied probabilities for
     each state sum to 1 (and thus represent a correct probability distribution)
 
     >>> tm = TransitionModel.from_dense([0, 1], [1, 0], [0.5, 1.0])
@@ -141,15 +147,22 @@ class TransitionModel(object):
         # check for a proper probability distribution, i.e. the emission
         # probabilities of each prev_state must sum to 1
         states = np.asarray(states)
-        prev_states = np.asarray(prev_states, dtype=np.int)
+        prev_states = np.asarray(prev_states)
         probabilities = np.asarray(probabilities)
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
         # convert everything into a sparse CSR matrix
         transitions = csr_matrix((probabilities, (states, prev_states)))
         # convert to correct types
-        states = transitions.indices.astype(np.uint32)
+        if transitions.indices.max() > MAX_STATES:
+            raise ValueError('state indices must not exceed %d.' % MAX_STATES)
+        # Note: use uint16 for `states` to limit the memory footprint of the
+        #       back tracking pointers of the Viterbi algorithm
+        states = transitions.indices.astype(np.uint16)
+        # Note: `pointers` must be uint32, because they point to entries in the
+        #       `states` array which may contain more than 65535 entries
         pointers = transitions.indptr.astype(np.uint32)
+        # Note: computations with floats are faster than float32
         probabilities = transitions.data.astype(dtype=np.float)
         # return them
         return states, pointers, probabilities
@@ -190,12 +203,12 @@ class ObservationModel(object):
 
     Parameters
     ----------
-    pointers : numpy array (num_states,)
+    pointers : numpy array (num_states,) np.uint32 dtype
         Pointers from HMM states to the correct densities. The length of the
         array must be equal to the number of states of the HMM and pointing
         from each state to the corresponding column of the array returned
         by one of the `log_densities()` or `densities()` methods. The
-        `pointers` type must be np.uint32.
+        `pointers` must have np.uint32 dtype.
 
     See Also
     --------
@@ -206,27 +219,7 @@ class ObservationModel(object):
 
     def __init__(self, pointers):
         # save parameters
-        self.pointers = pointers
-
-    def log_densities(self, observations):
-        """
-        Log densities (or probabilities) of the observations for each state.
-
-        Parameters
-        ----------
-        observations : numpy array
-            Observations.
-
-        Returns
-        -------
-        numpy array
-            Log densities as a 2D numpy array with the number of rows being
-            equal to the number of observations and the columns representing
-            the different observation log probability densities. The type must
-            be np.float.
-
-        """
-        raise NotImplementedError('must be implemented by subclass')
+        self.pointers = np.asarray(pointers, dtype=np.uint32)
 
     def densities(self, observations):
         """
@@ -242,14 +235,34 @@ class ObservationModel(object):
 
         Returns
         -------
-        numpy array
+        densities : numpy array, np.float dtype
             Densities as a 2D numpy array with the number of rows being equal
             to the number of observations and the columns representing the
-            different observation log probability densities. The type must be
-            np.float.
+            different observation log probability densities. Must be np.float
+            dtype.
 
         """
         return np.exp(self.log_densities(observations))
+
+    def log_densities(self, observations):
+        """
+        Log densities (or probabilities) of the observations for each state.
+
+        Parameters
+        ----------
+        observations : numpy array
+            Observations.
+
+        Returns
+        -------
+        log_densities : numpy array, np.float dtype
+            Log densities as a 2D numpy array with the number of rows being
+            equal to the number of observations and the columns representing
+            the different observation log probability densities. Must be
+            np.float dtype.
+
+        """
+        raise NotImplementedError('must be implemented by subclass')
 
 
 class DiscreteObservationModel(ObservationModel):
@@ -290,10 +303,11 @@ class DiscreteObservationModel(ObservationModel):
         if not np.allclose(observation_probabilities.sum(axis=1), 1):
             raise ValueError('Not a probability distribution.')
         # instantiate an ObservationModel
-        super(DiscreteObservationModel, self).__init__(
-            np.arange(observation_probabilities.shape[0], dtype=np.uint32))
+        pointers = np.arange(observation_probabilities.shape[0])
+        super(DiscreteObservationModel, self).__init__(pointers)
         # save the observation probabilities
-        self.observation_probabilities = observation_probabilities
+        self.observation_probabilities = np.asarray(observation_probabilities,
+                                                    dtype=np.float)
 
     def densities(self, observations):
         """
@@ -306,7 +320,7 @@ class DiscreteObservationModel(ObservationModel):
 
         Returns
         -------
-        numpy array
+        densities : numpy array, np.float dtype
             Densities of the observations.
 
         """
@@ -323,7 +337,7 @@ class DiscreteObservationModel(ObservationModel):
 
         Returns
         -------
-        numpy array
+        log_densities : numpy array, np.float dtype
             Log densities of the observations.
 
         """
@@ -365,7 +379,7 @@ class HiddenMarkovModel(object):
     >>> log_p  #  doctest: +ELLIPSIS
     -12.87...
     >>> seq
-    array([1, 1, 0, 0, 1, 1, 1, 0, 0], dtype=uint32)
+    array([1, 1, 0, 0, 1, 1, 1, 0, 0], dtype=uint16)
 
     Compute the forward variables:
 
@@ -417,14 +431,14 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned short [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.log_probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
+        cdef int num_observations = len(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.log_densities(observations)
 
@@ -435,12 +449,14 @@ class HiddenMarkovModel(object):
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
 
-        # back-tracking pointers
-        cdef uint32_t [:, ::1] bt_pointers = np.empty((num_observations,
+        # back-tracking pointers to save the best previous states for each
+        # state and frame
+        cdef uint16_t [:, ::1] bt_pointers = np.empty((num_observations,
                                                        num_states),
-                                                      dtype=np.uint32)
+                                                      dtype=np.uint16)
         # define counters etc.
-        cdef unsigned int state, frame, prev_state, pointer
+        cdef int frame, pointer
+        cdef unsigned short state, prev_state
         cdef double density, transition_prob
 
         # iterate over all observations
@@ -483,7 +499,7 @@ class HiddenMarkovModel(object):
         # set the path's probability to that of the best state
         log_probability = current_viterbi[state]
         # back tracked path, a.k.a. path sequence
-        path = np.empty(num_observations, dtype=np.uint32)
+        path = np.empty(num_observations, dtype=np.uint16)
         # track the path backwards, start with the last frame and do not
         # include the pointer for frame 0, since it includes the transitions
         # to the prior distribution states
@@ -518,14 +534,14 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned short [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
+        cdef int num_observations = len(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.densities(observations)
 
@@ -533,7 +549,7 @@ class HiddenMarkovModel(object):
         cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
                                            dtype=np.float)
         # define counters etc.
-        cdef unsigned int prev_pointer, frame, state, cur, prev
+        cdef int prev_pointer, frame, state, cur, prev
         cdef double prob_sum, norm_factor
 
         # init forward variables
@@ -594,14 +610,14 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
+        cdef unsigned short [::1] tm_states = tm.states
         cdef unsigned int [::1] tm_ptrs = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef unsigned int num_states = tm.num_states
+        cdef int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
+        cdef int num_observations = len(observations)
         cdef unsigned int [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities
 
@@ -610,8 +626,7 @@ class HiddenMarkovModel(object):
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.
-        cdef unsigned int prev_pointer, state
-        cdef unsigned int obs_start, obs_end, frame, block_sz
+        cdef int prev_pointer, state, obs_start, obs_end, frame, block_size_
         cdef double prob_sum, norm_factor
 
         # keep track which observations om_densities currently contains
@@ -620,7 +635,7 @@ class HiddenMarkovModel(object):
         obs_end = 0
 
         # compute everything at once if block_size was set to None
-        block_sz = num_observations if block_size is None else block_size
+        block_size_ = num_observations if block_size is None else block_size
 
         # iterate over all observations
         for frame in range(num_observations):
@@ -633,7 +648,7 @@ class HiddenMarkovModel(object):
             # check if we have to compute another block of observation densities
             if frame >= obs_end:
                 obs_start = frame
-                obs_end = obs_start + block_sz
+                obs_end = obs_start + block_size_
                 om_densities = om.densities(observations[obs_start:obs_end])
 
             # iterate over all states

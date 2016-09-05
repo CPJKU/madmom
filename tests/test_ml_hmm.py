@@ -68,7 +68,7 @@ class TestTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(self.tm.log_probabilities, np.ndarray)
         self.assertIsInstance(self.tm.num_states, int)
         self.assertIsInstance(self.tm.num_transitions, int)
-        self.assertTrue(self.tm.states.dtype == np.uint32)
+        self.assertTrue(self.tm.states.dtype == np.uint16)
         self.assertTrue(self.tm.pointers.dtype == np.uint32)
         self.assertTrue(self.tm.probabilities.dtype == np.float)
         self.assertTrue(self.tm.log_probabilities.dtype == np.float)
