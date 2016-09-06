@@ -25,10 +25,11 @@ cimport cython
 from numpy.math cimport INFINITY
 
 
+ctypedef np.int32_t int32_t
 ctypedef np.uint16_t uint16_t
 ctypedef np.uint32_t uint32_t
 
-cdef uint32_t uint16_max = np.iinfo(np.uint16).max
+cdef int32_t uint16_max = np.iinfo(np.uint16).max
 
 
 class TransitionModel(object):
@@ -425,11 +426,11 @@ class HiddenMarkovModel(object):
         cdef uint32_t [::1] tm_states = tm.states
         cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.log_probabilities
-        cdef uint32_t num_states = tm.num_states
+        cdef int32_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef uint32_t num_observations = len(observations)
+        cdef int32_t num_observations = <int32_t>len(observations)
         cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.log_densities(observations)
 
@@ -446,7 +447,7 @@ class HiddenMarkovModel(object):
         cdef uint32_t [:, ::1] bt_pointers_32 = None
         # init the array with the smallest possible data type based on the
         # maximum number of states to be stored
-        cdef bint is_uint16 = num_states <= uint16_max
+        cdef int32_t is_uint16 = num_states <= uint16_max
         if is_uint16:
             bt_pointers_16 = np.empty((num_observations, num_states),
                                       dtype=np.uint16)
@@ -455,7 +456,8 @@ class HiddenMarkovModel(object):
                                       dtype=np.uint32)
 
         # define counters etc.
-        cdef uint32_t frame, pointer, state, prev_state
+        cdef int32_t frame, state, prev_state
+        cdef uint32_t pointer
         cdef double density, transition_prob
 
         # iterate over all observations
@@ -489,7 +491,7 @@ class HiddenMarkovModel(object):
                         current_viterbi[state] = transition_prob
                         # update the back tracking pointers
                         if is_uint16:
-                            bt_pointers_16[frame, state] = prev_state
+                            bt_pointers_16[frame, state] = <uint16_t>prev_state
                         else:
                             bt_pointers_32[frame, state] = prev_state
 
@@ -544,11 +546,11 @@ class HiddenMarkovModel(object):
         cdef uint32_t [::1] tm_states = tm.states
         cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef uint32_t num_states = tm.num_states
+        cdef int32_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef uint32_t num_observations = len(observations)
+        cdef int32_t num_observations = <int32_t>len(observations)
         cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.densities(observations)
 
@@ -556,7 +558,8 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] fwd = np.zeros((num_observations + 1, num_states),
                                             dtype=np.float)
         # define counters etc.
-        cdef uint32_t prev_pointer, frame, state, cur, prev
+        cdef uint32_t prev_pointer
+        cdef int32_t frame, state, cur, prev
         cdef double prob_sum, norm_factor
 
         # init forward variables
@@ -620,11 +623,11 @@ class HiddenMarkovModel(object):
         cdef uint32_t [::1] tm_states = tm.states
         cdef uint32_t [::1] tm_ptrs = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
-        cdef uint32_t num_states = tm.num_states
+        cdef int32_t num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef uint32_t num_observations = len(observations)
+        cdef int32_t num_observations = <int32_t>len(observations)
         cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities
 
@@ -633,7 +636,8 @@ class HiddenMarkovModel(object):
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.
-        cdef uint32_t prev_pointer, state, obs_start, obs_end, frame, block_sz
+        cdef int32_t frame, state, obs_end
+        cdef uint32_t prev_pointer, obs_start, block_sz
         cdef double prob_sum, norm_factor
 
         # keep track which observations om_densities currently contains
