@@ -87,6 +87,22 @@ class TestMIDIFileClass(unittest.TestCase):
         notes_ = midi.notes(unit='b')[:, :4]
         self.assertTrue(np.allclose(notes, notes_))
 
+    def test_multitrack(self):
+        # read a multi-track MIDI file
+        midi = MIDIFile.from_file(pj(ANNOTATIONS_PATH, 'multitrack.mid'))
+        notes = midi.notes(unit='b')
+        self.assertTrue(np.allclose(notes[:4], [[0, 60, 0.5, 90, 2],
+                                                [0, 72, 2, 90, 1],
+                                                [0.5, 67, 0.5, 90, 2],
+                                                [1, 64, 0.5, 90, 2]],
+                                    atol=1e-2))
+        notes = midi.notes(unit='s')
+        self.assertTrue(np.allclose(notes[:4],
+                                    [[0, 60, 0.2272725, 90, 2],
+                                     [0, 72, 0.90814303, 90, 1],
+                                     [0.2272725, 67, 0.22632553, 90, 2],
+                                     [0.45359803, 64, 0.22821947, 90, 2]]))
+
 
 # clean up
 def teardown():

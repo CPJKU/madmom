@@ -51,6 +51,7 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'sample.beats'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.sv'),
+                    pj(ANNOTATIONS_PATH, 'multitrack.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]
 
