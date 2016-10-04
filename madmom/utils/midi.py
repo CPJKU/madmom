@@ -1488,14 +1488,16 @@ class MIDIFile(object):
             warnings.warn('this method will be removed soon, do not rely on '
                           'its output, rather fix issue #192 ;)')
         # create an empty tempo list
+        tempo_events = []
         for i, track in enumerate(self.tracks):
             # get a list with tempo events
-            tempo_events = [e for e in track.events if
-                            isinstance(e, SetTempoEvent)]
+            track_tempo_events = [e for e in track.events if
+                                  isinstance(e, SetTempoEvent)]
             # tempo events should be only in the first track of a MIDI file
-            if tempo_events and i > 0:
+            if track_tempo_events and i > 0:
                 raise ValueError('SetTempoEvents should be only in the first '
                                  'track of a MIDI file.')
+            tempo_events.extend(track_tempo_events)
 
         # convert to desired format (tick, microseconds per tick)
         tempi = [(e.tick, e.microseconds_per_quarter_note /
