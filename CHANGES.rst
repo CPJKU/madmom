@@ -8,10 +8,14 @@ Bug fixes:
 
 * Fix tempo handling of multi-track MIDI files (#219)
 
+Other changes:
+
+* `num_threads` is passed to `ParallelProcessor` in single mode (#217)
+
 Version 0.14.1 (release date: 2016-08-01)
 -----------------------------------------
 
-This is a maintainance release.
+This is a maintenance release.
 
 * `RNNDownBeatProcessor` returns only beat and downbeat activations (#197)
 * Update programs to reflect MIREX 2016 submissions (#198)

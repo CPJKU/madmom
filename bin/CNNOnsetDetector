@@ -79,7 +79,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a CNN to predict the onsets
-        in_processor = CNNOnsetProcessor()
+        in_processor = CNNOnsetProcessor(**vars(args))
 
     # output processor
     if args.save:

@@ -791,7 +791,7 @@ class RNNOnsetProcessor(SequentialProcessor):
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
         # process the pre-processed signal with a NN ensemble
-        nn = NeuralNetworkEnsemble.load(nn_files)
+        nn = NeuralNetworkEnsemble.load(nn_files, **kwargs)
 
         # instantiate a SequentialProcessor
         super(RNNOnsetProcessor, self).__init__((pre_processor, nn))
