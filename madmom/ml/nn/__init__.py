@@ -136,7 +136,7 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     """
 
     def __init__(self, networks, ensemble_fn=average_predictions,
-                 num_threads=None):
+                 num_threads=None, **kwargs):
         networks_processor = ParallelProcessor(networks,
                                                num_threads=num_threads)
         super(NeuralNetworkEnsemble, self).__init__((networks_processor,

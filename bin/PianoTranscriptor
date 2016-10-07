@@ -92,7 +92,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a RNN to predict the notes
-        in_processor = RNNPianoNoteProcessor()
+        in_processor = RNNPianoNoteProcessor(**vars(args))
 
     # output processor
     if args.save:

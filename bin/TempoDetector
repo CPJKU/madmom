@@ -81,7 +81,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a RNN to predict the beats
-        in_processor = RNNBeatProcessor()
+        in_processor = RNNBeatProcessor(**vars(args))
 
     # output processor
     if args.save:

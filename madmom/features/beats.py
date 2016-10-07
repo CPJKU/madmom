@@ -76,7 +76,7 @@ class RNNBeatProcessor(SequentialProcessor):
         # process the pre-processed signal with a NN ensemble and the given
         # post_processor
         nn = NeuralNetworkEnsemble.load(BEATS_BLSTM,
-                                        ensemble_fn=post_processor)
+                                        ensemble_fn=post_processor, **kwargs)
 
         # instantiate a SequentialProcessor
         super(RNNBeatProcessor, self).__init__((pre_processor, nn))
@@ -141,7 +141,7 @@ class RNNDownBeatProcessor(SequentialProcessor):
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
         # process the pre-processed signal with a NN ensemble
-        nn = NeuralNetworkEnsemble.load(DOWNBEATS_BLSTM)
+        nn = NeuralNetworkEnsemble.load(DOWNBEATS_BLSTM, **kwargs)
         # use only the beat & downbeat (i.e. remove non-beat) activations
         act = partial(np.delete, obj=0, axis=1)
         # instantiate a SequentialProcessor

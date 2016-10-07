@@ -84,7 +84,7 @@ def main():
     else:
         # use a RNN to predict the beats and perform multi-model selection
         selector = MultiModelSelectionProcessor(None)
-        in_processor = RNNBeatProcessor(post_processor=selector)
+        in_processor = RNNBeatProcessor(post_processor=selector, **vars(args))
 
     # output processor
     if args.save:

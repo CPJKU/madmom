@@ -98,7 +98,7 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # process everything with multiple RNNs and average the predictions
-        rnn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP)
+        rnn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP, **vars(args))
         # perform peak picking, i.e. select the local maxima
         pp = PeakPickingProcessor(**vars(args))
         from madmom.utils import write_events as writer

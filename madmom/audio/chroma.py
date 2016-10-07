@@ -258,7 +258,7 @@ class DeepChromaProcessor(SequentialProcessor):
             num_bands=24, fmin=fmin, fmax=fmax, unique_filters=unique_filters)
         spec_frames = FramedSignalProcessor(frame_size=15, hop_size=1)
 
-        nn = NeuralNetworkEnsemble.load(models or CHROMA_DNN)
+        nn = NeuralNetworkEnsemble.load(models or CHROMA_DNN, **kwargs)
 
         super(DeepChromaProcessor, self).__init__([
             sig, frames, spec, spec_frames, _dcp_flatten, nn
