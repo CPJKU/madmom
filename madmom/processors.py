@@ -49,20 +49,8 @@ class Processor(object):
             Processor.
 
         """
-        import pickle
-        # close the open file if needed and use its name
-        if not isinstance(infile, str):
-            infile.close()
-            infile = infile.name
-        # instantiate a new Processor and return it
-        with open(infile, 'rb') as f:
-            # Python 2 and 3 behave differently
-            try:
-                # Python 3
-                obj = pickle.load(f, encoding='latin1')
-            except TypeError:
-                # Python 2 doesn't have/need the encoding
-                obj = pickle.load(f)
+        from madmom.utils import load_pickle_file
+        obj = load_pickle_file(infile)
         # warn if the unpickled Processor is of other type
         if obj.__class__ is not cls:
             import warnings
