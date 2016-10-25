@@ -11,6 +11,7 @@ import os
 import tempfile
 import unittest
 from os.path import join as pj
+import sys
 
 from . import AUDIO_PATH, DATA_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
@@ -723,6 +724,9 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
+        if sys.version_info[0] == 2:
+            # test unicode string type (Python 2 only)
+            signal, sample_rate = load_audio_file(unicode(sample_file))
 
     def test_file_handle(self):
         # test wave loader

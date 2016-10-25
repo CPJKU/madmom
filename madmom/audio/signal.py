@@ -556,11 +556,13 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     from .ffmpeg import load_ffmpeg_file
 
     # determine the name of the file if it is a file handle
-    if not isinstance(filename, str):
+    try:
         # close the file handle if it is open
         filename.close()
         # use the file name
         filename = filename.name
+    except AttributeError:
+        pass
     # try reading as a wave file
     error = "All attempts to load audio file %r failed." % filename
     try:

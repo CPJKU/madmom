@@ -51,9 +51,11 @@ class Processor(object):
         """
         import pickle
         # close the open file if needed and use its name
-        if not isinstance(infile, str):
+        try:
             infile.close()
             infile = infile.name
+        except AttributeError:
+            pass
         # instantiate a new Processor and return it
         with open(infile, 'rb') as f:
             # Python 2 and 3 behave differently
@@ -87,9 +89,11 @@ class Processor(object):
         """
         import pickle
         # close the open file if needed and use its name
-        if not isinstance(outfile, str):
+        try:
             outfile.close()
             outfile = outfile.name
+        except AttributeError:
+            pass
         # dump the Processor to the given file
         # Note: for Python 2 / 3 compatibility reason use protocol 2
         pickle.dump(self, open(outfile, 'wb'), protocol=2)
