@@ -57,6 +57,12 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Multimedia :: Sound/Audio :: Analysis',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
+# requirements
+requirements = ['numpy>=1.8.1',
+                'scipy>=0.14',
+                'cython>=0.22.1',
+                ]
+
 # docs to be included
 long_description = open('README.rst').read()
 long_description += '\n' + open('CHANGES.rst').read()
@@ -77,6 +83,7 @@ setup(name='madmom',
       package_data={'madmom': package_data},
       exclude_package_data={'': ['tests', 'docs']},
       scripts=scripts,
+      install_requires=requirements,
       cmdclass={'build_ext': build_ext},
       test_suite='nose.collector',
       classifiers=classifiers)

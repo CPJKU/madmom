@@ -11,6 +11,7 @@ Bug fixes:
 Other changes:
 
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
+* use `install_requires` in `setup.py` to specify dependencies (#226)
 
 Version 0.14.1 (release date: 2016-08-01)
 -----------------------------------------
