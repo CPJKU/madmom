@@ -1534,7 +1534,7 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
 
-        import pickle
+        from madmom.utils import load_pickle_file
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
                                 MultiPatternTransitionModel,
@@ -1568,15 +1568,7 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
             raise ValueError('at least one rhythmical pattern must be given.')
         # load the patterns
         for p, pattern_file in enumerate(pattern_files):
-            with open(pattern_file, 'rb') as f:
-                # Python 2 and 3 behave differently
-                # TODO: use some other format to save the GMMs (.npz, .hdf5)
-                try:
-                    # Python 3
-                    pattern = pickle.load(f, encoding='latin1')
-                except TypeError:
-                    # Python 2 doesn't have/need the encoding
-                    pattern = pickle.load(f)
+            pattern = load_pickle_file(pattern_file)
             # get the fitted GMMs and number of beats
             gmms.append(pattern['gmms'])
             num_beats = pattern['num_beats']

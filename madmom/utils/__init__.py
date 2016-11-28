@@ -578,6 +578,56 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                                   dtype=signal.dtype)
 
 
+def load_pickle_file(infile):
+    """
+    Load a pickle file in both text and binary mode. Supports Python 2 and 3.
+
+    Parameters
+    ----------
+    infile : str or file handle
+            Pickle file.
+
+    Returns
+    -------
+    obj :
+        Unpickled object
+
+    Notes
+    -----
+    Loading files (that were pickled in text mode) in binary mode results in
+    an ImportError on Windows systems. On Unix systems this has not been
+    observed.
+
+    """
+    import pickle
+    # close the open file if needed and use its name
+    try:
+        infile.close()
+        infile = infile.name
+    except AttributeError:
+        pass
+    # open in binary mode
+    f = open(infile, 'rb')
+    # Python 2 and 3 behave differently
+    try:
+        # Python 3
+        obj = pickle.load(f, encoding='latin1')
+    except TypeError:
+        # Python 2 doesn't have/need the encoding
+        try:
+            obj = pickle.load(f)
+        except ImportError:
+            # open in text mode
+            f = open(infile, 'r')
+            obj = pickle.load(f)
+            pass
+    except ImportError:
+        # open in text mode
+        f = open(infile, 'r')
+        obj = pickle.load(f, encoding='latin1')
+    return obj
+
+
 # keep namespace clean
 del contextlib
 

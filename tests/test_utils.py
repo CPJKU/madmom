@@ -8,6 +8,7 @@ This file contains test functions for the madmom.utils module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+import tempfile
 from os.path import join as pj
 
 from madmom.utils import *
@@ -84,6 +85,7 @@ ONSET_ANNOTATIONS = [0.0943, 0.2844, 0.4528, 0.6160, 0.7630, 0.8025, 0.9847,
                      2.6710]
 ONSET_DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115, 1.365,
                     1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
 
 class TestFilterFilesFunction(unittest.TestCase):
@@ -401,3 +403,31 @@ class TestSegmentAxisFunction(unittest.TestCase):
         result = segment_axis(np.arange(11), 4, 3, axis=0)
         self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
                                              [6, 7, 8, 9]]))
+
+
+class TestLoadPickleFile(unittest.TestCase):
+
+    def setUp(self):
+        self.data = np.array([1, 2, 3, 4, 5])
+
+    def test_binary(self):
+        import pickle
+        # Note: for Python 2 / 3 compatibility reason use protocol 2
+        # save as binary
+        pickle.dump(self.data, open(tmp_file, 'wb'), protocol=2)
+        loaded = load_pickle_file(tmp_file)
+        self.assertTrue(np.allclose(self.data, loaded))
+
+    def test_text(self):
+        import pickle
+        # Note: for Python 2 / 3 compatibility reason use protocol 2
+        # save as text
+        pickle.dump(self.data, open(tmp_file, 'w'), protocol=2)
+        loaded = load_pickle_file(tmp_file)
+        self.assertTrue(np.allclose(self.data, loaded))
+
+
+# clean up
+def teardown():
+    import os
+    os.unlink(tmp_file)
