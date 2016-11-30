@@ -7,11 +7,13 @@ Version 0.15.dev0
 Bug fixes:
 
 * Fix tempo handling of multi-track MIDI files (#219)
+* Fix error loading unicode filenames (#223)
 
 Other changes:
 
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
-* use `install_requires` in `setup.py` to specify dependencies (#226)
+* Use `install_requires` in `setup.py` to specify dependencies (#226)
+
 
 Version 0.14.1 (release date: 2016-08-01)
 -----------------------------------------
