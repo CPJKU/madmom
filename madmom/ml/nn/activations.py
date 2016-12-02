@@ -148,6 +148,37 @@ def relu(x, out=None):
     return np.maximum(x, 0, out)
 
 
+def elu(x, out=None):
+    """
+    Exponential linear (unit) transfer function.
+
+    Parameters
+    ----------
+    x : numpy array
+        Input data.
+    out : numpy array, optional
+        Array to hold the output data.
+
+    Returns
+    -------
+    numpy array
+        Exponential linear of input data
+
+    References
+    ----------
+    .. [1] Djork-Arné Clevert, Thomas Unterthiner, Sepp Hochreiter (2015):
+       Fast and Accurate Deep Network Learning by Exponential Linear Units
+       (ELUs), http://arxiv.org/abs/1511.07289
+    """
+    if out is None:
+        out = x.copy()
+    elif out is not x:
+        out[:] = x[:]
+    m = x < 0
+    out[m] = np.exp(x[m]) - 1
+    return out
+
+
 def softmax(x, out=None):
     """
     Softmax transfer function.
