@@ -4,6 +4,10 @@ Release Notes
 Version 0.15.dev0
 -----------------
 
+New features:
+
+* Exponential linear unit (ELU) activation function (#232)
+
 Bug fixes:
 
 * Fix tempo handling of multi-track MIDI files (#219)
