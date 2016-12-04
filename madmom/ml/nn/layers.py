@@ -98,12 +98,16 @@ class RecurrentLayer(FeedForwardLayer):
         Recurrent weights.
     activation_fn : numpy ufunc
         Activation function.
+    hid_init : numpy array, shape (), optional
+        Initial state of hidden units.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, activation_fn):
+    def __init__(self, weights, bias, recurrent_weights, activation_fn,
+                 hid_init=None):
         super(RecurrentLayer, self).__init__(weights, bias, activation_fn)
         self.recurrent_weights = recurrent_weights
+        self.hid_init = hid_init
 
     def activate(self, data):
         """
@@ -125,6 +129,9 @@ class RecurrentLayer(FeedForwardLayer):
             return super(RecurrentLayer, self).activate(data)
         # weight input and add bias
         out = np.dot(data, self.weights) + self.bias
+        # if we have a pre-initialised hidden state, add it
+        if self.hid_init is not None:
+            out[0] += np.dot(self.hid_init, self.recurrent_weights)
         # loop through all time steps
         for i in range(len(data)):
             # add weighted previous step
@@ -283,16 +290,22 @@ class LSTMLayer(Layer):
         Output gate.
     activation_fn : numpy ufunc, optional
         Activation function.
+    out_init : numpy array, optional
+        Initial state after the output gate.
+    state_init : numpy array, optional
+        Initial state of the internal state.
 
     """
 
     def __init__(self, input_gate, forget_gate, cell, output_gate,
-                 activation_fn=tanh):
+                 activation_fn=tanh, out_init=None, state_init=None):
         self.input_gate = input_gate
         self.forget_gate = forget_gate
         self.cell = cell
         self.output_gate = output_gate
         self.activation_fn = activation_fn
+        self.out_init = out_init
+        self.state_init = state_init
 
     def activate(self, data):
         """
@@ -314,9 +327,15 @@ class LSTMLayer(Layer):
         # output matrix for the whole sequence
         out = np.zeros((size, self.cell.bias.size), dtype=NN_DTYPE)
         # output (of the previous time step)
-        out_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        if self.out_init is None:
+            out_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        else:
+            out_ = self.out_init
         # state (of the previous time step)
-        state_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        if self.state_init is None:
+            state_ = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        else:
+            state_ = self.state_init
         # process the input data
         for i in range(size):
             # cache input data
