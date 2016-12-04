@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+BarTracker (down-)beat detection algorithm.
+
+"""
+from __future__ import absolute_import, division, print_function
+import warnings
+import argparse
+from madmom.processors import IOProcessor, io_arguments
+from madmom.utils import search_files, match_file
+from madmom.features import ActivationsProcessor
+from madmom.features.downbeats import (
+    DBNBarTrackingProcessor, RNNBarProcessor, BarTrackerActivationsProcessor)
+import os.path
+
+
+def match_files(files, beat_suffix):
+    """
+    Find all matching pairs of audio/feature files and beat files
+
+    :param files:               list of filenames
+    :param beat_suffix:         suffix of beat files
+    :return matched_input_files:list of input files
+    :return matched_beat_files: list of beat files
+
+    """
+    matched_input_files = []
+    matched_beat_files = []
+    beat_files = search_files(files, beat_suffix)
+    input_files = list(set(files) - set(beat_files))
+    # check if each input file has a match in beat_files
+    for num_file, input_file in enumerate(input_files):
+        _, input_ext = os.path.splitext(input_file)
+        matches = match_file(input_file, beat_files, suffix=input_ext,
+                             match_suffix=beat_suffix, match_exactly=True)
+        if len(matches) > 1:
+            # exit if multiple detections were found
+            raise SystemExit("multiple beat files for %s "
+                             "found" % input_file)
+        elif len(matches) == 0:
+            # output a warning if no detections were found
+            warnings.warn(" can't find input file for %s" % input_file)
+            continue
+        else:
+            # use the first (and only) matched detection file
+            matched_input_files.append(input_file)
+            matched_beat_files.append(matches[0])
+    return matched_input_files, matched_beat_files
+
+
+def main():
+    """BarTracker"""
+
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    The BarTracker program detects all (down-)beats in an audio file
+    according to the method described in:
+
+    "Downbeat Tracking Using Beat-Synchronous Features and Recurrent Networks"
+    Florian Krebs, Sebastian Böck, Matthias Dorfer and Gerhard Widmer.
+    Proceedings of the 17th International Society for Music Information
+    Retrieval Conference (ISMIR), 2016.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the detected beats to STDOUT or the given output file.
+
+    $ BarTracker single INFILE [-o OUTFILE]
+
+    If multiple audio files should be processed, the program can also be run
+    in 'batch' mode to save the detected beats to files with the given suffix.
+
+    $ BarTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+
+    If no output directory is given, the program writes the files with the
+    detected beats to same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
+    ''')
+    # version
+    p.add_argument('--version', action='version',
+                   version='BarTracker.2016')
+    g = p.add_argument_group('beat detection arguments')
+    g.add_argument('--load_beats', action='store_true', default=False,
+                   help='load beats from file [default=%(default)s]')
+    g.add_argument('--ext', dest='beat_suffix', type=str, default='.beats',
+                   help='extension of beat annotation files '
+                   '[default=%(default)s]', action='store')
+    p.add_argument('--beat_div', type=int, default=1,
+                   help='number of beat sub-divisions', action='store')
+    # add processor arguments
+    io_arguments(p, output_suffix='.beats.txt')
+    ActivationsProcessor.add_arguments(p)
+    DBNBarTrackingProcessor.add_arguments(p)
+    # parse arguments
+    args = p.parse_args()
+
+    # input processor
+    if args.load:
+        # load the activations from file
+        rnn_activations = BarTrackerActivationsProcessor(mode='r',
+                                                         **vars(args))
+    else:
+        # First, beats are detected/loaded to synchronise the input features
+        if args.load_beats:
+            # load beats from file
+            audio_files, beat_files = match_files(args.files, args.beat_suffix)
+            args.files = audio_files
+            args.beat_files = beat_files
+        # Process beat-synchronous features with an RNN
+        rnn_activations = RNNBarProcessor()
+
+    # output processor
+    if args.save:
+        # save the RNN beat activations to file
+        out_processor = BarTrackerActivationsProcessor(mode='w', **vars(args))
+    else:
+        # Post-processing with a dynamic Bayesian network
+        bar_dbn_processor = DBNBarTrackingProcessor(**vars(args))
+        if args.downbeats:
+            # simply write the timestamps
+            from madmom.utils import write_events as writer
+        else:
+            # borrow the note writer for outputting timestamps + beat numbers
+            from madmom.features.notes import write_notes as writer
+            # sequentially process them
+        out_processor = [bar_dbn_processor, writer]
+
+    # create an IOProcessor
+    processor = IOProcessor(rnn_activations, out_processor, pass_kwargs=True)
+
+    # and call args.func (process_single or process_batch)
+    args.func(processor, **vars(args))
+
+
+if __name__ == '__main__':
+    main()
