@@ -34,7 +34,7 @@ class TestBeatSyncProcessorClass(unittest.TestCase):
                   0.23444982, 0.21910049, 0.25676728, 0.13382165, 0.19957431,
                   0.47225753, 0.18936998, 0.17014103, 0.14079712, 0.18317944,
                   0.60692955, 0.20016842, 0.17619181, 0.24408179]
-        self.assertTrue(np.allclose(feat_sync[0, :], target))
+        self.assertTrue(np.allclose(feat_sync[0, :], target, rtol=1e-3))
 
 
 class TestRNNBarTrackingProcessorClass(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestRNNBarTrackingProcessorClass(unittest.TestCase):
         activations, beats = self.processor.process(sample_file, params)
         print(activations)
         target = [0.4819403, 0.1262536, 0.1980488]
-        self.assertTrue(np.allclose(activations, target))
+        self.assertTrue(np.allclose(activations, target, rtol=1e-4))
 
 
 class TestDBNBarTrackingProcessorClass(unittest.TestCase):
