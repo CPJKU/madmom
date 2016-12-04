@@ -100,8 +100,6 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         in_ac = str(int(infile.num_channels))
         in_ar = str(int(infile.sample_rate))
         infile = str("pipe:0")
-    elif isinstance(infile, str):
-        infile = infile.encode(sys.getfilesystemencoding())
     else:
         infile = str(infile)
     # general options
