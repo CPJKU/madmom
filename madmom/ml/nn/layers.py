@@ -355,11 +355,11 @@ class GRUCell(object):
     ----------
     weights : numpy array, shape (num_inputs, num_hiddens)
         Weights of the connections between inputs and cell.
+    bias : scalar or numpy array, shape (num_hiddens,)
+        Bias.
     recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Weights of the connections between cell and cell output of the
         previous time step.
-    bias : scalar or numpy array, shape (num_hiddens,)
-        Bias.
     activation_fn : numpy ufunc, optional
         Activation function.
 
@@ -368,8 +368,7 @@ class GRUCell(object):
     .. [1] Kyunghyun Cho, Bart Van Merrienboer, Dzmitry Bahdanau, and Yoshua
            Bengio,
            "On the properties of neural machine translation: Encoder-decoder
-           approaches",
-           http://arxiv.org/abs/1409.1259, 2014.
+           approaches", http://arxiv.org/abs/1409.1259, 2014.
 
     Notes
     -----
@@ -379,30 +378,29 @@ class GRUCell(object):
 
     """
 
-    def __init__(self, weights, recurrent_weights, bias, activation_fn=tanh):
+    def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh):
         self.weights = weights
-        self.recurrent_weights = recurrent_weights
         self.bias = bias
+        self.recurrent_weights = recurrent_weights
         self.activation_fn = activation_fn
 
-    def activate(self, data, reset_gate, prev):
+    def activate(self, data, prev, reset_gate):
         """
-        Activate the gate with the given input, reset_gate and the previous
-        output.
+        Activate the cell with the given input, previous output and reset gate.
 
         Parameters
         ----------
-        data : scalar or numpy array, shape (num_frames, num_inputs)
+        data : numpy array, shape (, num_inputs)
             Input data for the cell.
+        prev : numpy array, shape (num_hiddens,)
+            Output of the previous time step.
         reset_gate : scalar or numpy array, shape (num_hiddens,)
             Activation of the reset gate.
-        prev : scalar or numpy array, shape (num_hiddens,)
-            Cell output of the previous time step.
 
         Returns
         -------
-        numpy array, shape (num_frames, num_hiddens)
-            Activations of the gate for this data.
+        numpy array, shape (1, num_hiddens)
+            Activations of the cell for this data.
 
         """
         # weight input and add bias
@@ -425,13 +423,13 @@ class GRULayer(Layer):
     update_gate : :class:`Gate`
         Update gate.
     cell : :class:`GRUCell`
-        GRU cell
+        GRU cell.
     hid_init : numpy array, shape (num_hiddens,), optional
         Initial state of hidden units.
 
     References
     ----------
-    .. [1] Kyunghyun Cho, Bart Van Merrienboer, Dzmitry Bahdanau, and Yoshua
+    .. [1] Kyunghyun Cho, Bart van Merriënboer, Dzmitry Bahdanau, and Yoshua
            Bengio,
            "On the properties of neural machine translation: Encoder-decoder
            approaches",
@@ -480,16 +478,16 @@ class GRULayer(Layer):
             # cache input data
             data_ = data[i]
             # reset gate:
-            # operate on current data and previous output (activation)
+            # operate on current data and previous output
             rg = self.reset_gate.activate(data_, out_)
             # update gate:
-            # operate on current data and previous output (activation)
+            # operate on current data and previous output
             ug = self.update_gate.activate(data_, out_)
-            # hidden_update:
-            # implemented as proposed in [1]
-            hug = self.cell.activate(data_, rg, out_)
+            # cell (implemented as in [1]):
+            # operate on current data, previous output and reset gate
+            cell = self.cell.activate(data_, out_, rg)
             # output (activation)
-            out_ = ug * hug + (1 - ug) * out_
+            out_ = ug * cell + (1 - ug) * out_
             out[i] = out_
         return out
 
