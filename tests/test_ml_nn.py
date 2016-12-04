@@ -109,7 +109,7 @@ class TestGRUClass(unittest.TestCase):
             TestGRUClass.W_xu, TestGRUClass.b_u, TestGRUClass.W_hu,
             activation_fn=activations.sigmoid)
         self.gru_cell = layers.GRUCell(
-            TestGRUClass.W_xhu, TestGRUClass.W_hhu, TestGRUClass.b_hu)
+            TestGRUClass.W_xhu, TestGRUClass.b_hu, TestGRUClass.W_hhu)
         self.gru_1 = layers.GRULayer(self.reset_gate, self.update_gate,
                                      self.gru_cell)
         self.gru_2 = layers.GRULayer(self.reset_gate, self.update_gate,

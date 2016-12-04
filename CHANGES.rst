@@ -14,6 +14,10 @@ Bug fixes:
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)
 
+API relevant changes:
+
+* Reorder `GRUCell` parameters, to be consistent with all other layers (#235)
+
 Other changes:
 
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
