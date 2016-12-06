@@ -51,9 +51,9 @@ class FeedForwardLayer(Layer):
 
     Parameters
     ----------
-    weights : numpy array, shape ()
+    weights : numpy array, shape (num_inputs, num_hiddens)
         Weights.
-    bias : scalar or numpy array, shape ()
+    bias : scalar or numpy array, shape (num_hiddens,)
         Bias.
     activation_fn : numpy ufunc
         Activation function.
@@ -90,11 +90,11 @@ class RecurrentLayer(FeedForwardLayer):
 
     Parameters
     ----------
-    weights : numpy array, shape ()
+    weights : numpy array, shape (num_inputs, num_hiddens)
         Weights.
-    bias : scalar or numpy array, shape ()
+    bias : scalar or numpy array, shape (num_hiddens,)
         Bias.
-    recurrent_weights : numpy array, shape ()
+    recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Recurrent weights.
     activation_fn : numpy ufunc
         Activation function.
@@ -111,12 +111,12 @@ class RecurrentLayer(FeedForwardLayer):
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_hiddens)
             Activations for this data.
 
         """
@@ -163,12 +163,12 @@ class BidirectionalLayer(Layer):
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_hiddens)
             Activations for this data.
 
         """
@@ -187,13 +187,13 @@ class Gate(Layer):
 
     Parameters
     ----------
-    weights : numpy array, shape ()
+    weights : numpy array, shape (num_inputs, num_hiddens)
         Weights.
-    bias : scalar or numpy array, shape ()
+    bias : scalar or numpy array, shape (num_hiddens,)
         Bias.
-    recurrent_weights : numpy array, shape ()
+    recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Recurrent weights.
-    peephole_weights : numpy array, optional, shape ()
+    peephole_weights : numpy array, shape (num_hiddens,), optional
         Peephole weights.
     activation_fn : numpy ufunc, optional
         Activation function.
@@ -215,16 +215,16 @@ class Gate(Layer):
 
         Parameters
         ----------
-        data : scalar or numpy array, shape ()
+        data : scalar or numpy array, shape (num_hiddens,)
             Input data for the cell.
-        prev : scalar or numpy array, shape ()
+        prev : scalar or numpy array, shape (num_hiddens,)
             Output data of the previous time step.
-        state : scalar or numpy array, shape ()
+        state : scalar or numpy array, shape (num_hiddens,)
             State data of the {current | previous} time step.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_hiddens,)
             Activations of the gate for this data.
 
         """
@@ -246,11 +246,11 @@ class Cell(Gate):
 
     Parameters
     ----------
-    weights : numpy array, shape ()
+    weights : numpy array, shape (num_inputs, num_hiddens)
         Weights.
-    bias : scalar or numpy array, shape ()
+    bias : scalar or numpy array, shape (num_hiddens,)
         Bias.
-    recurrent_weights : numpy array, shape ()
+    recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Recurrent weights.
     activation_fn : numpy ufunc, optional
         Activation function.
@@ -300,12 +300,12 @@ class LSTMLayer(Layer):
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_hiddens)
             Activations for this data.
 
         """
@@ -390,16 +390,16 @@ class GRUCell(object):
 
         Parameters
         ----------
-        data : numpy array, shape (, num_inputs)
+        data : numpy array, shape (num_inputs,)
             Input data for the cell.
         prev : numpy array, shape (num_hiddens,)
             Output of the previous time step.
-        reset_gate : scalar or numpy array, shape (num_hiddens,)
+        reset_gate : numpy array, shape (num_hiddens,)
             Activation of the reset gate.
 
         Returns
         -------
-        numpy array, shape (1, num_hiddens)
+        numpy array, shape (num_hiddens,)
             Activations of the cell for this data.
 
         """
