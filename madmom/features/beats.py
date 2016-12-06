@@ -48,23 +48,34 @@ class RNNBeatProcessor(SequentialProcessor):
 
     """
 
-    def __init__(self, post_processor=average_predictions, **kwargs):
+    def __init__(self, post_processor=average_predictions,
+                 online=False, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
         from ..ml.nn import NeuralNetworkEnsemble
-        from ..models import BEATS_BLSTM
+        from ..models import BEATS_LSTM, BEATS_BLSTM
+
+        # choose the appropriate models and set frame sizes accordingly
+        if online:
+            nn_files = BEATS_LSTM
+            frame_sizes = [2048]
+            num_bands = 12
+        else:
+            nn_files = BEATS_BLSTM
+            frame_sizes = [1024, 2048, 4096]
+            num_bands = 6
 
         # define pre-processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
-        for frame_size in [1024, 2048, 4096]:
-            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
-            filt = FilteredSpectrogramProcessor(
-                num_bands=6, fmin=30, fmax=17000, norm_filters=True)
+        for frame_size in frame_sizes:
+            frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
+            filt = FilteredSpectrogramProcessor(num_bands=num_bands, fmin=30,
+                                                fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
             diff = SpectrogramDifferenceProcessor(
                 diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
@@ -75,7 +86,7 @@ class RNNBeatProcessor(SequentialProcessor):
 
         # process the pre-processed signal with a NN ensemble and the given
         # post_processor
-        nn = NeuralNetworkEnsemble.load(BEATS_BLSTM,
+        nn = NeuralNetworkEnsemble.load(nn_files,
                                         ensemble_fn=post_processor, **kwargs)
 
         # instantiate a SequentialProcessor
@@ -113,7 +124,7 @@ class RNNDownBeatProcessor(SequentialProcessor):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, online=False, **kwargs):
         # pylint: disable=unused-argument
         from functools import partial
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
@@ -121,16 +132,24 @@ class RNNDownBeatProcessor(SequentialProcessor):
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
         from ..ml.nn import NeuralNetworkEnsemble
-        from ..models import DOWNBEATS_BLSTM
+        from ..models import DOWNBEATS_LSTM, DOWNBEATS_BLSTM
+
+        # choose the appropriate models and set frame sizes accordingly
+        if online:
+            nn_files = DOWNBEATS_LSTM
+            frame_sizes = [2048]
+            num_bands = [12]
+        else:
+            nn_files = DOWNBEATS_BLSTM
+            frame_sizes = [1024, 2048, 4096]
+            num_bands = [3, 6, 12]
 
         # define pre-processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
-        frame_sizes = [1024, 2048, 4096]
-        num_bands = [3, 6, 12]
         for frame_size, num_bands in zip(frame_sizes, num_bands):
-            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
             filt = FilteredSpectrogramProcessor(
                 num_bands=num_bands, fmin=30, fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
@@ -140,10 +159,12 @@ class RNNDownBeatProcessor(SequentialProcessor):
             multi.append(SequentialProcessor((frames, filt, spec, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
+
         # process the pre-processed signal with a NN ensemble
-        nn = NeuralNetworkEnsemble.load(DOWNBEATS_BLSTM, **kwargs)
+        nn = NeuralNetworkEnsemble.load(nn_files, **kwargs)
         # use only the beat & downbeat (i.e. remove non-beat) activations
         act = partial(np.delete, obj=0, axis=1)
+
         # instantiate a SequentialProcessor
         super(RNNDownBeatProcessor, self).__init__((pre_processor, nn, act))
 

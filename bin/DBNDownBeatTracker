@@ -51,7 +51,7 @@ def main():
     p.add_argument('--version', action='version',
                    version='DBNDownBeatTracker')
     # input/output options
-    io_arguments(p, output_suffix='.beats.txt')
+    io_arguments(p, output_suffix='.beats.txt', online=True)
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
@@ -83,8 +83,11 @@ def main():
     else:
         # track the beats with a DBN
         downbeat_processor = DBNDownBeatTrackingProcessor(**vars(args))
-        if args.downbeats:
-            # simply write the timestamps
+        if args.online:
+            # do not write anything (right now)
+            writer = None
+        elif args.downbeats:
+            # simply write the timestamps of the downbeats
             from madmom.utils import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
