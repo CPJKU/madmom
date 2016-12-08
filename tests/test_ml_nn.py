@@ -11,6 +11,7 @@ import unittest
 
 from madmom.models import *
 from madmom.ml.nn import *
+from madmom.ml.nn.layers import *
 
 
 class TestNeuralNetworkClass(unittest.TestCase):
@@ -71,6 +72,103 @@ class TestNeuralNetworkClass(unittest.TestCase):
         result = cnn.process(data)
         self.assertTrue(np.allclose(result, [0.0021432, 0.02647826, 0.92750794,
                                              0.84207922, 0.21631248]))
+
+
+class TestFeedForwardLayerClass(unittest.TestCase):
+
+    def setUp(self):
+        # borrow an FeedForwardLayer from an existing network
+        rnn = NeuralNetwork.load(ONSETS_RNN[0])
+        self.layer = rnn.layers[-1]
+        input_size = self.layer.weights.shape[0]
+        self.data = np.zeros((4, input_size))
+        self.data[1] = 1.
+
+    def test_types(self):
+        self.assertTrue(isinstance(self.layer, FeedForwardLayer))
+        self.assertTrue(self.layer.activation_fn == sigmoid)
+
+    def test_init(self):
+        self.assertFalse(hasattr(self.layer, 'init'))
+        self.assertFalse(hasattr(self.layer, '_prev'))
+
+    def test_activate(self):
+        # test result
+        result_1 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1,
+                                    [[0.16283005], [0.14362903],
+                                     [0.16283005], [0.16283005]]))
+        # two runs must yield identical results
+        result_2 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1, result_2))
+
+
+class TestRecurrentLayerClass(unittest.TestCase):
+
+    def setUp(self):
+        # borrow an RecurrentLayer from an existing network
+        rnn = NeuralNetwork.load(ONSETS_RNN[0])
+        self.layer = rnn.layers[0]
+        input_size = self.layer.weights.shape[0]
+        self.data = np.zeros((4, input_size))
+        self.data[1] = 1.
+
+    def test_types(self):
+        self.assertTrue(isinstance(self.layer, RecurrentLayer))
+        self.assertTrue(self.layer.activation_fn == tanh)
+
+    def test_init(self):
+        self.assertFalse(hasattr(self.layer, 'init'))
+        self.assertFalse(hasattr(self.layer, '_prev'))
+
+    def test_activate(self):
+        # test result
+        result_1 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1[0, :2],
+                                    [-0.33919713, -0.02091585]))
+        self.assertTrue(np.allclose(result_1[-1, -2:],
+                                    [0.4419672, -0.261151]))
+        # two runs must yield identical results
+        result_2 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1, result_2))
+
+
+class TestLSTMLayerClass(unittest.TestCase):
+
+    def setUp(self):
+        # borrow an LSTMLayer from an existing network
+        rnn = NeuralNetwork.load(BEATS_BLSTM[0])
+        self.layer = rnn.layers[0].fwd_layer
+        input_size = self.layer.cell.weights.shape[0]
+        self.data = np.zeros((4, input_size))
+        self.data[1] = 1.
+
+    def test_types(self):
+        self.assertTrue(isinstance(self.layer, LSTMLayer))
+        self.assertTrue(isinstance(self.layer.input_gate, Gate))
+        self.assertTrue(isinstance(self.layer.forget_gate, Gate))
+        self.assertTrue(isinstance(self.layer.cell, Cell))
+        self.assertTrue(isinstance(self.layer.output_gate, Gate))
+        self.assertTrue(self.layer.activation_fn == tanh)
+        self.assertTrue(self.layer.input_gate.activation_fn == sigmoid)
+        self.assertTrue(self.layer.forget_gate.activation_fn == sigmoid)
+        self.assertTrue(self.layer.cell.activation_fn == tanh)
+        self.assertTrue(self.layer.output_gate.activation_fn == sigmoid)
+
+    def test_init(self):
+        self.assertFalse(hasattr(self.layer, 'init'))
+        self.assertFalse(hasattr(self.layer, '_prev'))
+
+    def test_activate(self):
+        # test result
+        result_1 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1[0, :2],
+                                    [8.15829188e-02, 1.14209838e-02]))
+        self.assertTrue(np.allclose(result_1[-1, -2:],
+                                    [-1.81968838e-01, -2.32963227e-02]))
+        # two runs must yield identical results
+        result_2 = self.layer(self.data)
+        self.assertTrue(np.allclose(result_1, result_2))
 
 
 class TestGRUClass(unittest.TestCase):
