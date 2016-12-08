@@ -499,7 +499,7 @@ class HiddenMarkovModel(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def forward(self, observations):
+    def forward(self, observations, init=None):
         """
         Compute the forward variables at each time step. Instead of computing
         in the log domain, we normalise at each step, which is faster for
@@ -537,8 +537,12 @@ class HiddenMarkovModel(object):
         cdef double prob_sum, norm_factor
 
         # init forward variables
-        for state in range(self.initial_distribution.shape[0]):
-            fwd[0, state] = self.initial_distribution[state]
+        if init is None:
+            for state in range(num_states):
+                fwd[0, state] = self.initial_distribution[state]
+        else:
+            for state in range(num_states):
+                fwd[0, state] = init[state]
 
         # iterate over all observations
         for frame in range(num_observations):

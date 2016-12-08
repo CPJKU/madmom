@@ -946,7 +946,7 @@ class DBNBeatTrackingProcessor(Processor):
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT,
-                 threshold=THRESHOLD, fps=None, **kwargs):
+                 threshold=THRESHOLD, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
         from .beats_hmm import (BeatStateSpace as St,
@@ -968,8 +968,71 @@ class DBNBeatTrackingProcessor(Processor):
         self.correct = correct
         self.threshold = threshold
         self.fps = fps
+        # kepp state in online mode
+        self.online = online
+        self.fwd_variables = None
 
     def process(self, activations):
+        """
+        Detect the beats in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions and beat numbers.
+
+        Notes
+        -----
+        Depending on online/offline mode the beats are either reported on a
+        frame-by-frame basis or for the whole sequence, respectively.
+
+        """
+        if self.online:
+            return self.process_online(activations)
+        return self.process_offline(activations)
+
+    def process_online(self, activations):
+        """
+        Detect the beats in the given activation function on a frame-by-frame
+        basis.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats
+            Detected beat position and beat number.
+
+        """
+        import sys
+        activations = np.atleast_1d(np.sum(activations))
+        if np.max(activations) < self.threshold:
+            self.fwd_variables = None
+        # FIXME: use all HMMs
+        hmm = self.hmm
+        fwd = hmm.forward(activations, init=self.fwd_variables)
+        self.fwd_variables = fwd.flatten()
+        state = np.argmax(fwd)
+        st = hmm.transition_model.state_space
+        om = hmm.observation_model
+        # the positions inside the pattern (0..num_beats)
+        position = st.state_positions[state]
+        beat_length = 80
+        beat = [' '] * beat_length
+        beat[int(position * beat_length)] = '*'
+        sys.stderr.write('\n%s| %.2f' % (''.join(beat), activations))
+        sys.stderr.flush()
+        return np.zeros(1)
+
+    def process_offline(self, activations):
         """
         Detect the beats in the given activation function.
 
@@ -1202,10 +1265,10 @@ class DBNDownBeatTrackingProcessor(Processor):
     def __init__(self, beats_per_bar, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA, threshold=THRESHOLD,
-                 correct=CORRECT, downbeats=False, fps=None, **kwargs):
+                 correct=CORRECT, downbeats=False, fps=None, online=False,
+                 **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
-
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BarStateSpace as St, BarTransitionModel as Tm,
                                 RNNDownBeatTrackingObservationModel as Om)
@@ -1255,15 +1318,112 @@ class DBNDownBeatTrackingProcessor(Processor):
         self.correct = correct
         self.downbeats = downbeats
         self.fps = fps
+        # kepp state in online mode
+        self.online = online
+        self.fwd_variables = None
+        # TODO: remove or refactor this
+        self.counter = 0
+        self.beat_counter = 0
+        self.strength = np.zeros(2)
 
     def process(self, activations):
+        """
+        Detect the (down-)beats in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Downbeat activation function.
+
+        Returns
+        -------
+        beats
+            Detected (down-)beat positions and beat numbers.
+
+        Notes
+        -----
+        Depending on online/offline mode the beats are either reported on a
+        frame-by-frame basis or for the whole sequence, respectively.
+
+        """
+        if self.online:
+            return self.process_online(activations)
+        return self.process_offline(activations)
+
+    def process_online(self, activations):
+        """
+        Detect the beats in the given activation function on a frame-by-frame
+        basis.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Downbeat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected (down-)beat positions and beat numbers.
+
+        """
+        import sys
+        # FIXME: use all HMMs
+        hmm = self.hmms[1]
+        # FIXME: reset only after a certain period low activations
+        if np.max(activations) < self.threshold:
+            self.fwd_variables = None
+        fwd = hmm.forward(activations, init=self.fwd_variables)
+        self.fwd_variables = fwd[0]
+        state = np.argmax(fwd)
+        st = hmm.transition_model.state_space
+        om = hmm.observation_model
+        # the positions inside the pattern (0..num_beats)
+        position = st.state_positions[state]
+
+        # visualisation stuff
+        self.counter += 1
+        # bar pointer indicator
+        beat_length = 20
+        bar = [' '] * 4 * beat_length
+        bar[0 * beat_length] = '1'
+        bar[1 * beat_length] = '2'
+        bar[2 * beat_length] = '3'
+        bar[3 * beat_length] = '4'
+        bar[int(position * beat_length)] = '*'
+        # beat indicator
+        if int(position * beat_length) % beat_length == 0:
+            self.beat_counter = 3
+        if self.beat_counter > 0:
+            bar.append('| X ')
+        else:
+            bar.append('|   ')
+        self.beat_counter -= 1
+
+        # strength indicator
+        vu_length = 10
+        self.strength = np.maximum(self.strength,
+                                   activations[0] * 10)
+        bar.append('| ')
+        bar.extend(['*'] * self.strength[0])
+        bar.extend([' '] * (vu_length - self.strength[0]))
+        bar.append('| ')
+        bar.extend(['*'] * self.strength[1])
+        bar.extend([' '] * (vu_length - self.strength[1]))
+        bar.append('|')
+        if self.counter % 10 == 0:
+            self.strength -= 1
+        sys.stderr.write('\r%s' % (''.join(bar)))
+        sys.stderr.flush()
+        return np.zeros((1, 2))
+
+    def process_offline(self, activations):
         """
         Detect the beats in the given activation function.
 
         Parameters
         ----------
         activations : numpy array
-            (down-)beat activation function.
+            Downbeat activation function.
 
         Returns
         -------
