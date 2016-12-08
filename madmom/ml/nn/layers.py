@@ -23,9 +23,9 @@ class Layer(object):
 
     """
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
         # this magic method makes a Layer callable
-        return self.activate(*args)
+        return self.activate(*args, **kwargs)
 
     def activate(self, data):
         """
@@ -65,7 +65,7 @@ class FeedForwardLayer(Layer):
         self.bias = bias
         self.activation_fn = activation_fn
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 
@@ -180,7 +180,7 @@ class BidirectionalLayer(Layer):
         self.fwd_layer = fwd_layer
         self.bwd_layer = bwd_layer
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 
@@ -200,9 +200,9 @@ class BidirectionalLayer(Layer):
 
         """
         # activate in forward direction
-        fwd = self.fwd_layer(data)
+        fwd = self.fwd_layer(data, **kwargs)
         # also activate with reverse input
-        bwd = self.bwd_layer(data[::-1])
+        bwd = self.bwd_layer(data[::-1], **kwargs)
         # stack data
         return np.hstack((fwd, bwd[::-1]))
 
@@ -700,7 +700,7 @@ class ConvolutionalLayer(FeedForwardLayer):
             raise NotImplementedError('only `pad` == "valid" implemented.')
         self.pad = pad
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 
@@ -757,7 +757,7 @@ class StrideLayer(Layer):
     def __init__(self, block_size):
         self.block_size = block_size
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 
@@ -798,7 +798,7 @@ class MaxPoolLayer(Layer):
             stride = size
         self.stride = stride
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 
@@ -862,7 +862,7 @@ class BatchNormLayer(Layer):
         self.inv_std = inv_std
         self.activation_fn = activation_fn
 
-    def activate(self, data):
+    def activate(self, data, **kwargs):
         """
         Activate the layer.
 

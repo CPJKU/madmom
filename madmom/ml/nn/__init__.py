@@ -71,8 +71,9 @@ class NeuralNetwork(Processor):
 
     """
 
-    def __init__(self, layers):
+    def __init__(self, layers, online=False):
         self.layers = layers
+        self.online = online
 
     def process(self, data):
         """
@@ -89,13 +90,16 @@ class NeuralNetwork(Processor):
             Network predictions for this data.
 
         """
+        # reset the layers? (online: do not reset, keep the state)
+        # Note: use getattr to be able to process old models
+        reset = not getattr(self, 'online', False)
         # check the dimensions of the data
         if data.ndim == 1:
             data = np.atleast_2d(data).T
         # loop over all layers
         for layer in self.layers:
             # activate the layer and feed the output into the next one
-            data = layer(data)
+            data = layer(data, reset=reset)
         # ravel the predictions if needed
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()
