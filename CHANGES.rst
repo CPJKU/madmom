@@ -17,11 +17,13 @@ Bug fixes:
 API relevant changes:
 
 * Reorder `GRUCell` parameters, to be consistent with all other layers (#243)
+* Rename `GRULayer` parameters, to be consistent with all other layers (#243)
 
 Other changes:
 
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
 * Use `install_requires` in `setup.py` to specify dependencies (#226)
+* Allow initialisation of previous/hidden states in RNNs (#243)
 
 
 Version 0.14.1 (release date: 2016-08-01)

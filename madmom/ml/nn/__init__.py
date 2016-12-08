@@ -57,11 +57,11 @@ class NeuralNetwork(Processor):
 
     >>> from madmom.ml.nn.layers import FeedForwardLayer
     >>> from madmom.ml.nn.activations import tanh, sigmoid
-    >>> l1_weights = [[0.5, -1., -0.3 , -0.2]]
-    >>> l1_bias = [0.05, 0., 0.8, -0.5]
+    >>> l1_weights = np.array([[0.5, -1., -0.3 , -0.2]])
+    >>> l1_bias = np.array([0.05, 0., 0.8, -0.5])
     >>> l1 = FeedForwardLayer(l1_weights, l1_bias, activation_fn=tanh)
-    >>> l2_weights = [-1, 0.9, -0.2 , 0.4]
-    >>> l2_bias = [0.5]
+    >>> l2_weights = np.array([-1, 0.9, -0.2 , 0.4])
+    >>> l2_bias = np.array([0.5])
     >>> l2 = FeedForwardLayer(l2_weights, l2_bias, activation_fn=sigmoid)
     >>> nn = NeuralNetwork([l1, l2])
     >>> nn  # doctest: +ELLIPSIS
@@ -71,10 +71,50 @@ class NeuralNetwork(Processor):
 
     """
 
-    def __init__(self, layers):
+    def __init__(self, layers, online=False):
         self.layers = layers
+        self.online = online
+
+    def __setstate__(self, state):
+        # restore instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have the online attribute, thus create it
+        #       remove this initialisation code after updating the models
+        #       At least we should pudate the online models so that we can set
+        #       the default value to False
+        if not hasattr(self, 'online'):
+            self.online = None
 
     def process(self, data):
+        """
+        Process the given data with the neural network.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate the network with this data.
+
+        Returns
+        -------
+        numpy array
+            Network predictions for this data.
+
+        Notes
+        -----
+        Depending on online/offline mode the predictions are either reported
+        on a step-by-step basis or for the whole sequence, respectively.
+
+        """
+        if self.online:
+            data = self.process_step(data)
+        else:
+            data = self.process_sequence(data)
+        # ravel the predictions if needed
+        if data.ndim == 2 and data.shape[1] == 1:
+            data = data.ravel()
+        return data
+
+    def process_sequence(self, data):
         """
         Process the given data with the neural network.
 
@@ -96,10 +136,38 @@ class NeuralNetwork(Processor):
         for layer in self.layers:
             # activate the layer and feed the output into the next one
             data = layer(data)
-        # ravel the predictions if needed
-        if data.ndim == 2 and data.shape[1] == 1:
-            data = data.ravel()
+        # return the data
         return data
+
+    def process_step(self, data):
+        """
+        Process the given data with the neural network step-by-step.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate the network with this data.
+
+        Returns
+        -------
+        numpy array
+            Network predictions for this data.
+
+        """
+        # loop over all layers
+        for layer in self.layers:
+            # activate the layer and feed the output into the next one
+            data = layer.activate_step(data)
+        # return the data
+        return data
+
+    def reset(self):
+        """
+        Reset the neural network to its initial state.
+
+        """
+        for layer in self.layers:
+            layer.reset()
 
 
 class NeuralNetworkEnsemble(SequentialProcessor):
