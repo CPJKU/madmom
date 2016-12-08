@@ -132,6 +132,19 @@ class TestRecurrentLayerClass(unittest.TestCase):
         result_2 = self.layer(self.data)
         self.assertTrue(np.allclose(result_1, result_2))
 
+    def test_activate_reset(self):
+        result_1 = self.layer(self.data)
+        # activate without resetting the layer
+        result_2 = self.layer.activate(self.data, reset=False)
+        self.assertFalse(np.allclose(result_1, result_2))
+        self.assertTrue(np.allclose(result_2[0, :2],
+                                    [-3.14807342e-01, -2.22700375e-01]))
+        self.assertTrue(np.allclose(result_2[-1, -2:],
+                                    [4.40259654e-01, -2.59141315e-01]))
+        self.assertTrue(np.allclose(self.layer._prev, result_2[-1]))
+        # initialisation must not change
+        self.assertTrue(np.allclose(self.layer.init, np.zeros(25)))
+
 
 class TestLSTMLayerClass(unittest.TestCase):
 
@@ -169,6 +182,21 @@ class TestLSTMLayerClass(unittest.TestCase):
         # two runs must yield identical results
         result_2 = self.layer(self.data)
         self.assertTrue(np.allclose(result_1, result_2))
+        # previous step must be last result
+        self.assertTrue(np.allclose(self.layer._prev, result_2[-1]))
+
+    def test_activate_reset(self):
+        result_1 = self.layer(self.data)
+        # activate without resetting the layer
+        result_2 = self.layer.activate(self.data, reset=False)
+        self.assertFalse(np.allclose(result_1, result_2))
+        self.assertTrue(np.allclose(result_2[0, :2],
+                                    [2.34878659e-01, -1.26488507e-03]))
+        self.assertTrue(np.allclose(result_2[-1, -2:],
+                                    [-2.45573238e-01, -2.92062219e-02]))
+        self.assertTrue(np.allclose(self.layer._prev, result_2[-1]))
+        # initialisation must not change
+        self.assertTrue(np.allclose(self.layer.init, np.zeros(25)))
 
 
 class TestGRUClass(unittest.TestCase):
@@ -197,6 +225,11 @@ class TestGRUClass(unittest.TestCase):
                    [-1.12282135, 0.3780883, 1.42017503],
                    [0.62669439, 0.89438929, -0.69354132],
                    [0.16162221, -1.00166208, 0.23579985]])
+    OUT = np.array([[0.22772433, -0.13181415],
+                    [0.49479958, 0.51224858],
+                    [0.08539771, -0.56119639],
+                    [0.1946809, -0.50421363],
+                    [0.17403202, -0.27258521]])
     H = np.array([0.02345737, 0.34454183])
 
     def setUp(self):
@@ -211,9 +244,9 @@ class TestGRUClass(unittest.TestCase):
         self.gru_1 = layers.GRULayer(self.reset_gate, self.update_gate,
                                      self.gru_cell)
         self.gru_2 = layers.GRULayer(self.reset_gate, self.update_gate,
-                                     self.gru_cell, hid_init=TestGRUClass.H)
+                                     self.gru_cell, init=TestGRUClass.H)
 
-    def test_process(self):
+    def test_activate(self):
         self.assertTrue(
             np.allclose(self.reset_gate.activate(TestGRUClass.IN[0, :],
                         TestGRUClass.H), np.array([0.20419282, 0.08861294])))
@@ -224,13 +257,13 @@ class TestGRUClass(unittest.TestCase):
             np.allclose(self.gru_cell.activate(TestGRUClass.IN[0, :],
                         TestGRUClass.H, TestGRUClass.H),
                         np.array([0.9366396, -0.67876764])))
-        self.assertTrue(
-            np.allclose(self.gru_1.activate(TestGRUClass.IN),
-                        np.array([[0.22772433, -0.13181415],
-                                  [0.49479958, 0.51224858],
-                                  [0.08539771, -0.56119639],
-                                  [0.1946809, -0.50421363],
-                                  [0.17403202, -0.27258521]])))
+        # activation of the layer
+        self.assertTrue(np.allclose(self.gru_1.activate(TestGRUClass.IN),
+                                    TestGRUClass.OUT))
+        # activating the layer a second time must give the same results
+        self.assertTrue(np.allclose(self.gru_1.activate(TestGRUClass.IN),
+                                    TestGRUClass.OUT))
+        # activating the other layer
         self.assertTrue(
             np.allclose(self.gru_2.activate(TestGRUClass.IN),
                         np.array([[0.30988133, 0.13258138],
@@ -238,6 +271,24 @@ class TestGRUClass(unittest.TestCase):
                                   [0.21366976, -0.55568963],
                                   [0.30860096, -0.43686554],
                                   [0.28866628, -0.23025239]])))
+
+    def test_activate_reset(self):
+        # first activate the layer normally
+        self.assertTrue(np.allclose(self.gru_1.activate(TestGRUClass.IN),
+                                    TestGRUClass.OUT))
+        # then again, but reset it first
+        self.assertTrue(np.allclose(self.gru_1.activate(TestGRUClass.IN,
+                                                        reset=False),
+                                    np.array([[0.3254016, -0.33195618],
+                                              [0.53048187, 0.51293057],
+                                              [0.12495148, -0.559039],
+                                              [0.22988503, -0.48455557],
+                                              [0.20934506, -0.25959042]])))
+        # the previous state must be the last output
+        self.assertTrue(np.allclose(self.gru_1._prev,
+                                    [0.20934506, -0.25959042]))
+        # initialisation must not change
+        self.assertTrue(np.allclose(self.gru_1.init, [0, 0]))
 
 
 class TestBatchNormLayerClass(unittest.TestCase):
