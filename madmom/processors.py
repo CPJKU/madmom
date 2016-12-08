@@ -811,6 +811,7 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                     default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of parallel threads [default=%(default)s]')
+    sp.set_defaults(online=None)
 
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
@@ -831,6 +832,7 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                          'working threads [default=process them in sorted '
                          'order]')
     sp.set_defaults(num_threads=1)
+    sp.set_defaults(online=None)
 
     # online processing options
     if online:

@@ -75,6 +75,7 @@ def main():
 
     # set immutable defaults
     args.fps = 100
+    args.online = True
     args.pre_max = 1. / args.fps
     args.post_max = 0
     args.post_avg = 0
@@ -89,7 +90,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a RNN to predict the onsets
-        in_processor = RNNOnsetProcessor(online=True, **vars(args))
+        in_processor = RNNOnsetProcessor(**vars(args))
 
     # output processor
     if args.save:
