@@ -847,3 +847,4 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
         sp.set_defaults(origin='future')
         sp.set_defaults(num_frames=1)
         sp.set_defaults(stream=None)
+        sp.set_defaults(online=True)
