@@ -713,17 +713,18 @@ class BufferProcessor(Processor):
 
 
 # function to process live input
-def process_online(processor, stream, outfile, **kwargs):
+def process_online(processor, infile, outfile, **kwargs):
     """
-    Process a stream with the given Processor.
+    Process a file or audio stream with the given Processor.
 
     Parameters
     ----------
     processor : :class:`Processor` instance
         Processor to be processed.
-    stream : :class:`.audio.signal.Stream`
-        Stream to get the data from. If 'None' a new stream is created with
-        the additional keyword arguments.
+    infile : str or file handle, optional
+        Input file (handle). If none is given, the stream present at the
+        system's audio inpup is used. Additional keyword arguments can be used
+        to influence the frame size and hop size.
     outfile : str or file handle
         Output file (handle).
     kwargs : dict, optional
@@ -731,15 +732,23 @@ def process_online(processor, stream, outfile, **kwargs):
         `in_stream` is 'None'.
 
     """
-    from madmom.audio.signal import Stream
-    # FIXME: If a Stream is given we must check if the arguments match the ones
-    #        of the Processor. Maybe just always do the stream creation in here
-    #        and infer the needed arguments from the Processor?
-    if not isinstance(stream, Stream):
+    from madmom.audio.signal import Stream, FramedSignal
+    # if no iput file is given, create a Stream with the given arguments
+    if infile is None:
         stream = Stream(**kwargs)
-    # start the stream if not running already
-    if not stream.is_running():
-        stream.start()
+        # start the stream if not running already
+        if not stream.is_running():
+            stream.start()
+    # use the input file
+    else:
+        # set default parameters for opening the file
+        from .audio.signal import FRAME_SIZE, HOP_SIZE, FPS
+        frame_size = kwargs.get('frame_size', FRAME_SIZE)
+        hop_size = kwargs.get('hop_size', HOP_SIZE)
+        fps = kwargs.get('fps', FPS)
+        origin = kwargs.get('origin', 'online')
+        stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
+                              fps=fps, origin=origin, num_frames=None)
     # process all frames with the given processor
     for frame in stream:
         if isinstance(processor, IOProcessor):
@@ -838,15 +847,16 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
     if online:
         sp = sub_parsers.add_parser('online', help='online processing')
         sp.set_defaults(func=process_online)
-        # Note: requiring '-o' is a simple safety measure to not overwrite
-        #       existing audio files after using the processor in 'batch' mode
+        sp.add_argument('infile', nargs='?', type=argparse.FileType('rb'),
+                        default=None, help='input audio file (if no file is '
+                                           'given, a stream operating on the '
+                                           'system audio input is used)')
         sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
-        sp.add_argument('--block_size', dest='block_size', type=int,
-                        default=1, help='number of frames used for processing')
         sp.set_defaults(sample_rate=44100)
         sp.set_defaults(num_channels=1)
         sp.set_defaults(origin='future')
+        # Note: set the number of frames to 1 in order to process everything
+        #       frame-by-frame
         sp.set_defaults(num_frames=1)
-        sp.set_defaults(stream=None)
         sp.set_defaults(online=True)
