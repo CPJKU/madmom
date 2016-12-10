@@ -9,6 +9,7 @@ This module contains beat tracking related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import numpy as np
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
@@ -953,7 +954,8 @@ class DBNBeatTrackingProcessor(Processor):
                                 BeatTransitionModel as Tm,
                                 RNNBeatTrackingObservationModel as Om)
         from ..ml.hmm import HiddenMarkovModel as Hmm
-
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
         # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
         max_interval = 60. * fps / min_bpm
@@ -971,10 +973,13 @@ class DBNBeatTrackingProcessor(Processor):
         # kepp state in online mode
         self.online = online
         self.fwd_variables = None
-        # TODO: remove or refactor this
+        # TODO: refactor the visualisation stuff
+        self.visualize = kwargs.get('verbose', False)
         self.counter = 0
         self.beat_counter = 0
+        self.last_beat = 0
         self.strength = 0
+        self.tempo = 0
 
     def process(self, activations):
         """
@@ -1013,48 +1018,62 @@ class DBNBeatTrackingProcessor(Processor):
         Returns
         -------
         beats
-            Detected beat position and beat number.
+            Detected beat position.
 
         """
-        import sys
-        activations = np.atleast_1d(np.sum(activations))
+        # increase counter
+        self.counter += 1
+        # FIXME: reset only after a certain period low activations
         if np.max(activations) < self.threshold:
             self.fwd_variables = None
-        # FIXME: use all HMMs
-        hmm = self.hmm
-        fwd = hmm.forward(activations, init=self.fwd_variables)
+        # forward HMM decoding
+        fwd = self.hmm.forward(activations, init=self.fwd_variables)
         self.fwd_variables = fwd.flatten()
+        # use simply the most probable state
         state = np.argmax(fwd)
-        st = hmm.transition_model.state_space
-        om = hmm.observation_model
-        # the positions inside the pattern (0..num_beats)
-        position = st.state_positions[state]
+        # decide if it is a beat
+        beat = self.om.pointers[state] == 1
+        # the position inside the beat
+        position = self.st.state_positions[state]
 
-        # visualisation stuff
-        self.counter += 1
-        beat_length = 80
-        beat = [' '] * beat_length
-        beat[int(position * beat_length)] = '*'
-        # beat indicator
-        if self.om.pointers[state] == 1:
-            self.beat_counter = 3
-        if self.beat_counter > 0:
-            beat.append('| X ')
-        else:
-            beat.append('|   ')
-        self.beat_counter -= 1
-        # strength indicator
-        vu_length = 10
-        self.strength = int(max(self.strength, activations * 10))
-        beat.append('| ')
-        beat.extend(['*'] * self.strength)
-        beat.extend([' '] * (vu_length - self.strength))
-        beat.append('| ')
-        if self.counter % 5 == 0:
-            self.strength -= 1
-        sys.stderr.write('\r%s' % (''.join(beat)))
-        sys.stderr.flush()
-        return np.zeros(1)
+        # visulalisation stuff
+        if self.visualize:
+            beat_length = 80
+            display = [' '] * beat_length
+            display[int(position * beat_length)] = '*'
+            # activation strength indicator
+            strength_length = 10
+            self.strength = int(max(self.strength, activations * 10))
+            display.append('| ')
+            display.extend(['*'] * self.strength)
+            display.extend([' '] * (strength_length - self.strength))
+            # reduce the displayed strength every couple of frames
+            if self.counter % 5 == 0:
+                self.strength -= 1
+            # beat indicator
+            if beat:
+                self.beat_counter = 3
+            if self.beat_counter > 0:
+                display.append('| X ')
+            else:
+                display.append('|   ')
+            self.beat_counter -= 1
+            # display tempo
+            display.append('| %5.1f | ' % self.tempo)
+            sys.stderr.write('\r%s' % ''.join(display))
+            sys.stderr.flush()
+
+        # current beat position
+        beat_pos = self.counter / float(self.fps)
+        # output the beats as they occur
+        next_beat = self.last_beat + 60. / self.max_bpm
+        if beat and beat_pos >= next_beat:
+            # update tempo
+            self.tempo = 60. / (beat_pos - self.last_beat)
+            # update last beat
+            self.last_beat = beat_pos
+            return beat_pos
+        # else do not report a beat at all
 
     def process_offline(self, activations):
         """
@@ -1319,6 +1338,10 @@ class DBNDownBeatTrackingProcessor(Processor):
             raise ValueError('`min_bpm`, `max_bpm`, `num_tempi`, `num_beats` '
                              'and `transition_lambda` must all have the same '
                              'length.')
+        self.beats_per_bar = beats_per_bar
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+
         # get num_threads from kwargs
         num_threads = min(len(beats_per_bar), kwargs.get('num_threads', 1))
         # init a pool of workers (if needed)
@@ -1345,10 +1368,13 @@ class DBNDownBeatTrackingProcessor(Processor):
         # kepp state in online mode
         self.online = online
         self.fwd_variables = None
-        # TODO: remove or refactor this
+        # TODO: refactor the visualisation stuff
+        self.visualize = kwargs.get('verbose', False)
         self.counter = 0
         self.beat_counter = 0
+        self.last_beat = 0
         self.strength = np.zeros(2)
+        self.tempo = 0
 
     def process(self, activations):
         """
@@ -1386,59 +1412,72 @@ class DBNDownBeatTrackingProcessor(Processor):
 
         Returns
         -------
-        beats : numpy array
-            Detected (down-)beat positions and beat numbers.
+        beats
+            Detected (down-)beat position and beat number.
 
         """
-        import sys
+        # increase counter
+        self.counter += 1
         # FIXME: use all HMMs
         hmm = self.hmms[1]
+        st = hmm.transition_model.state_space
+        om = hmm.observation_model
+        num_beats = np.max(self.beats_per_bar)
         # FIXME: reset only after a certain period low activations
         if np.max(activations) < self.threshold:
             self.fwd_variables = None
         fwd = hmm.forward(activations, init=self.fwd_variables)
-        self.fwd_variables = fwd[0]
+        self.fwd_variables = fwd.flatten()
         state = np.argmax(fwd)
-        st = hmm.transition_model.state_space
-        om = hmm.observation_model
-        # the positions inside the pattern (0..num_beats)
+        # decide if it is a beat or downbeat
+        beat = om.pointers[state] >= 1
+        # the position inside the bar
         position = st.state_positions[state]
 
-        # visualisation stuff
-        self.counter += 1
-        # bar pointer indicator
-        beat_length = 20
-        bar = [' '] * 4 * beat_length
-        bar[0 * beat_length] = '1'
-        bar[1 * beat_length] = '2'
-        bar[2 * beat_length] = '3'
-        bar[3 * beat_length] = '4'
-        bar[int(position * beat_length)] = '*'
-        # beat indicator
-        if om.pointers[state] >= 1:
-            self.beat_counter = 3
-        if self.beat_counter > 0:
-            bar.append('| X ')
-        else:
-            bar.append('|   ')
-        self.beat_counter -= 1
+        if self.visualize:
+            beat_length = 16
+            display = [' '] * num_beats * beat_length
+            display[0 * beat_length] = '1'
+            display[1 * beat_length] = '2'
+            display[2 * beat_length] = '3'
+            display[3 * beat_length] = '4'
+            display[int(position * beat_length)] = '*'
+            # activation strength indicator
+            strength_length = 10
+            self.strength = np.maximum(self.strength, activations[0] * 10)
+            display.append('| ')
+            display.extend(['*'] * int(self.strength[0]))
+            display.extend([' '] * int(strength_length - self.strength[0]))
+            display.append('| ')
+            display.extend(['*'] * int(self.strength[1]))
+            display.extend([' '] * int(strength_length - self.strength[1]))
+            # reduce the displayed strength every couple of frames
+            if self.counter % 5 == 0:
+                self.strength -= 1
+            # beat indicator
+            if beat:
+                self.beat_counter = 3
+            if self.beat_counter > 0:
+                display.append('| X ')
+            else:
+                display.append('|   ')
+            self.beat_counter -= 1
+            # display tempo
+            display.append('| %5.1f | ' % self.tempo)
+            sys.stderr.write('\r%s' % ''.join(display))
+            sys.stderr.flush()
 
-        # strength indicator
-        vu_length = 10
-        self.strength = np.maximum(self.strength,
-                                   activations[0] * 10)
-        bar.append('| ')
-        bar.extend(['*'] * self.strength[0])
-        bar.extend([' '] * (vu_length - self.strength[0]))
-        bar.append('| ')
-        bar.extend(['*'] * self.strength[1])
-        bar.extend([' '] * (vu_length - self.strength[1]))
-        bar.append('|')
-        if self.counter % 10 == 0:
-            self.strength -= 1
-        sys.stderr.write('\r%s' % (''.join(bar)))
-        sys.stderr.flush()
-        return np.zeros((1, 2))
+        # current beat position
+        beat_pos = self.counter / float(self.fps)
+        # output the beats as they occur
+        next_beat = self.last_beat + 60. / np.max(self.max_bpm)
+        if beat and beat_pos >= next_beat:
+            # update tempo
+            self.tempo = 60. / (beat_pos - self.last_beat)
+            # update last beat
+            self.last_beat = beat_pos
+            return beat_pos, int(position + 1)
+        # else do not report a beat at all
 
     def process_offline(self, activations):
         """

@@ -96,8 +96,7 @@ def main():
         beat_processor = DBNBeatTrackingProcessor(**vars(args))
         # output handler
         if args.online:
-            # do not write anything (right now)
-            writer = None
+            from madmom.utils import write_output as writer
         else:
             from madmom.utils import write_events as writer
         # sequentially process everything

@@ -83,9 +83,10 @@ def main():
     else:
         # track the beats with a DBN
         downbeat_processor = DBNDownBeatTrackingProcessor(**vars(args))
+        # output handler
         if args.online:
-            # do not write anything (right now)
-            writer = None
+            # simply output the given string
+            from madmom.utils import write_output as writer
         elif args.downbeats:
             # simply write the timestamps of the downbeats
             from madmom.utils import write_events as writer
