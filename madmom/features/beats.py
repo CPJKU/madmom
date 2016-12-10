@@ -971,6 +971,10 @@ class DBNBeatTrackingProcessor(Processor):
         # kepp state in online mode
         self.online = online
         self.fwd_variables = None
+        # TODO: remove or refactor this
+        self.counter = 0
+        self.beat_counter = 0
+        self.strength = 0
 
     def process(self, activations):
         """
@@ -1025,10 +1029,30 @@ class DBNBeatTrackingProcessor(Processor):
         om = hmm.observation_model
         # the positions inside the pattern (0..num_beats)
         position = st.state_positions[state]
+
+        # visualisation stuff
+        self.counter += 1
         beat_length = 80
         beat = [' '] * beat_length
         beat[int(position * beat_length)] = '*'
-        sys.stderr.write('\n%s| %.2f' % (''.join(beat), activations))
+        # beat indicator
+        if self.om.pointers[state] == 1:
+            self.beat_counter = 3
+        if self.beat_counter > 0:
+            beat.append('| X ')
+        else:
+            beat.append('|   ')
+        self.beat_counter -= 1
+        # strength indicator
+        vu_length = 10
+        self.strength = int(max(self.strength, activations * 10))
+        beat.append('| ')
+        beat.extend(['*'] * self.strength)
+        beat.extend([' '] * (vu_length - self.strength))
+        beat.append('| ')
+        if self.counter % 5 == 0:
+            self.strength -= 1
+        sys.stderr.write('\r%s' % (''.join(beat)))
         sys.stderr.flush()
         return np.zeros(1)
 
@@ -1391,7 +1415,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         bar[3 * beat_length] = '4'
         bar[int(position * beat_length)] = '*'
         # beat indicator
-        if int(position * beat_length) % beat_length == 0:
+        if om.pointers[state] >= 1:
             self.beat_counter = 3
         if self.beat_counter > 0:
             bar.append('| X ')
