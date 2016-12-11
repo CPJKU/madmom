@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import sys
 import argparse
+import itertools as it
 import multiprocessing as mp
 
 import numpy as np
@@ -374,7 +375,9 @@ class ParallelProcessor(SequentialProcessor):
             Processed data.
 
         """
-        import itertools as it
+        # if there's only a single processor, do not map at all
+        if len(self.processors) == 1:
+            return list((_process((self.processors[0], data)),))
         # process data in parallel and return a list with processed data
         return list(self.map(_process, zip(self.processors, it.repeat(data))))
 
