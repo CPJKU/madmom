@@ -11,6 +11,7 @@ import argparse
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
@@ -99,11 +100,12 @@ def main():
         # define an input processor
         sig = SignalProcessor(**vars(args))
         frames = FramedSignalProcessor(**vars(args))
+        stft = ShortTimeFourierTransformProcessor(**vars(args))
         filt = FilteredSpectrogramProcessor(**vars(args))
         log = LogarithmicSpectrogramProcessor(**vars(args))
         diff = SpectrogramDifferenceProcessor(**vars(args))
         mb = MultiBandSpectrogramProcessor(**vars(args))
-        in_processor = [sig, frames, filt, log, diff, mb]
+        in_processor = [sig, frames, stft, filt, log, diff, mb]
 
     # output processor
     if args.save:
