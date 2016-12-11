@@ -62,7 +62,7 @@ class FeedForwardLayer(Layer):
 
     def __init__(self, weights, bias, activation_fn):
         self.weights = weights
-        self.bias = bias
+        self.bias = bias.flatten()
         self.activation_fn = activation_fn
 
     def activate(self, data, **kwargs):
@@ -81,7 +81,9 @@ class FeedForwardLayer(Layer):
 
         """
         # weight input, add bias and apply activations function
-        return self.activation_fn(np.dot(data, self.weights) + self.bias)
+        out = np.dot(data, self.weights)
+        out += self.bias
+        return self.activation_fn(out)
 
 
 class RecurrentLayer(FeedForwardLayer):
@@ -230,8 +232,10 @@ class Gate(Layer):
     def __init__(self, weights, bias, recurrent_weights, peephole_weights=None,
                  activation_fn=sigmoid):
         self.weights = weights
-        self.bias = bias
+        self.bias = bias.flatten()
         self.recurrent_weights = recurrent_weights
+        if peephole_weights is not None:
+            peephole_weights = peephole_weights.flatten()
         self.peephole_weights = peephole_weights
         self.activation_fn = activation_fn
 
@@ -256,13 +260,13 @@ class Gate(Layer):
 
         """
         # weight input and add bias
-        out = np.dot(data, self.weights) + self.bias
+        out = np.dot(data, self.weights)
+        out += self.bias
         # add the previous state weighted by the peephole
         if self.peephole_weights is not None:
             out += state * self.peephole_weights
         # add recurrent connection
-        if self.recurrent_weights is not None:
-            out += np.dot(prev, self.recurrent_weights)
+        out += np.dot(prev, self.recurrent_weights)
         # apply activation function and return it
         return self.activation_fn(out)
 
