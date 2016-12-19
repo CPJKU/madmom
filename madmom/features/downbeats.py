@@ -154,7 +154,7 @@ class BeatSyncProcessor_gmm(ParallelProcessor):
             beat_features[i_beat, :, :] = np.array([self.sum_func(x, axis=0)
                                                     for x in feats_sorted])
             # beat_div[beat_pos_idx] = np.arange(1, self.beat_subdivision + 1)
-        return beat_features, beats
+        return beats, beat_features
 
 
 class BeatSyncProcessor(Processor):
@@ -162,7 +162,7 @@ class BeatSyncProcessor(Processor):
     Synchronize features to the beat.
 
     """
-    def __init__(self, beat_subdivision=4, fps=100):
+    def __init__(self, beat_subdivisions, feat_dim, fps=100):
         """
         Creates a new BeatSyncProcessor instance.
 
@@ -180,18 +180,22 @@ class BeatSyncProcessor(Processor):
             subdivision.
 
         """
-        self.beat_subdivision = beat_subdivision
+        self.feat_dim = feat_dim
+        self.beat_subdivisions = beat_subdivisions
         # sum up the feature values of one beat division
         self.feat_sum = 0.
         # count the frames since last beat division
         self.frame_counter = 0
+        self.current_div = 0
         # length of one beat division in audio frames (depends on tempo)
         self.div_frames = 0
         self.fps = fps
         # store last beat time to compute tempo
         self.last_beat_time = 0
+        # self.next_beat_time = 0
         # min beat period in frames
-        self.min_beat_length = 5
+        self.min_div_length = 3
+        self.beat_features = np.zeros((1, beat_subdivisions, feat_dim))
 
     def process(self, data):
         """
@@ -210,7 +214,7 @@ class BeatSyncProcessor(Processor):
 
         Returns
         -------
-        feats : numpy array [num_beats - 1, beat_subdivision * feat_dim]
+        beat_feat : numpy array [1, beat_subdivisions, feat_dim]
             Beat synchronous features.
 
         """
@@ -218,22 +222,37 @@ class BeatSyncProcessor(Processor):
         self.feat_sum += features
         self.frame_counter += 1
         is_beat = beat_time is not None
-        mean_feat = None
-        if (self.frame_counter == self.div_frames) or is_beat:
-            if self.frame_counter > self.min_beat_length:
-                mean_feat = self.feat_sum / self.frame_counter
-                # update tempo and prevent beat detections
-                if is_beat and (self.frame_counter > self.min_beat_length):
+        beat_feat = None
+        # check if new beat division is reached
+        if (self.frame_counter >= self.div_frames) or is_beat:
+            # one div has to be at least min_div_length frames long
+            # if self.frame_counter > self.min_div_length:
+            # compute div-features (if last beat division, wait for the beat)
+            if self.current_div < (self.beat_subdivisions - 1) or is_beat:
+                self.beat_features[0, self.current_div, :] = self.feat_sum / \
+                    self.frame_counter
+                self.current_div += 1
+                # check if it the last beat division of a beat
+                if is_beat:
                     beat_interval = beat_time - self.last_beat_time
                     # update beat division because of potential new tempo
                     self.div_frames = np.round(beat_interval * self.fps /
-                                               self.beat_subdivision)
+                                               self.beat_subdivisions)
+                    if self.div_frames < self.min_div_length:
+                        print('Tempo too fast, reset to max tempo')
+                        self.div_frames = self.min_div_length
                     # store last beat
                     self.last_beat_time = beat_time
-            # reset buffer
-            self.feat_sum = 0.
-            self.frame_counter = 0
-        return beat_time, mean_feat
+                    # predict next beat_time
+                    # self.next_beat_time = beat_time + beat_interval
+                    self.current_div = 0
+                    beat_feat = self.beat_features
+                    self.beat_features = np.zeros((1, self.beat_subdivisions,
+                                                   self.feat_dim))
+                # reset buffer
+                self.feat_sum = 0.
+                self.frame_counter = 0
+        return beat_time, beat_feat
 
 
 class LoadBeatsProcessor(Processor):
@@ -324,7 +343,7 @@ class DBNBarTrackingProcessor(Processor):
     def __init__(self, observation_param=100, downbeats=False,
                  pattern_change_prob=0.0, beats_per_bar=[3, 4],
                  observation_model=RNNBeatTrackingObservationModel,
-                 **kwargs):
+                 online=False, obslik_floor=None, **kwargs):
         """
         Track the downbeats with a Dynamic Bayesian Network (DBN).
 
@@ -348,6 +367,8 @@ class DBNBarTrackingProcessor(Processor):
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
                                 MultiPatternTransitionModel)
+        self.online = online
+        self.fwd_variables = None
         self.num_beats = beats_per_bar
         num_patterns = len(self.num_beats)
         # save additional variables
@@ -373,14 +394,42 @@ class DBNBarTrackingProcessor(Processor):
             transition_models, pattern_change_prob=pattern_change_prob)
         # observation model
         self.om = observation_model(
-            self.st, observation_param)
+            self.st, observation_param, obslik_floor=obslik_floor)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
-    def infer_states(self, activations):
-        # get the best state path by calling the viterbi algorithm
+    def infer_online(self, activation, beat):
+        if activation is None:
+            return None
+        fwd = self.hmm.forward(activation)
+        self.fwd_variables = fwd.flatten()
+        # use simply the most probable state
+        state = np.argmax(fwd)
+        # get the position inside the bar
+        position = self.st.state_positions[state]
+        # the beat numbers are the counters + 1 at the transition points
+        beat_numbers = position.astype(int) + 1
+        # as we computed the last beat number, add 1 to get the current one
+        num_beats = self.num_beats[self.st.state_patterns[state]]
+        beat_numbers = beat_numbers % num_beats + 1
+        return beat, beat_numbers
+
+    def infer_offline(self, activations, beats):
         path, _ = self.hmm.viterbi(activations)
-        return path
+        # get the position inside the bar
+        position = self.st.state_positions[path]
+        # the beat numbers are the counters + 1 at the transition points
+        beat_numbers = position.astype(int) + 1
+        # add the last beat
+        last_beat_number = np.mod(beat_numbers[-1], self.num_beats[
+            self.st.state_patterns[path[-1]]]) + 1
+        beat_numbers = np.append(beat_numbers, last_beat_number)
+        # return the downbeats or beats and their beat numbers
+        # print(np.squeeze(beats[np.where(beat_numbers == 1), 0]))
+        if self.downbeats:
+            return np.squeeze(beats[np.where(beat_numbers == 1)])
+        else:
+            return np.vstack(zip(beats, beat_numbers))
 
     def process(self, data):
         """
@@ -398,29 +447,17 @@ class DBNBarTrackingProcessor(Processor):
             beat or downbeat times
 
         """
-        # if data[0].ndim == 1:
-        activations = data[0]
-        # else:
-        #     activations = data[0][:, 0]
-        beats = data[1]
-        if beats.size == 0:
-            return np.array([])
+        beats, activations = data
+        # print(data)
+        # beats = data[1]
+        # if beats.size == 0:
+        #     return np.array([])
         # get the best state path by calling the inference algorithm
-        path = self.infer_states(activations)
-        # get the position inside the bar
-        position = self.st.state_positions[path]
-        # the beat numbers are the counters + 1 at the transition points
-        beat_numbers = position.astype(int) + 1
-        # add the last beat
-        last_beat_number = np.mod(beat_numbers[-1], self.num_beats[
-            self.st.state_patterns[path[-1]]]) + 1
-        beat_numbers = np.append(beat_numbers, last_beat_number)
-        # return the downbeats or beats and their beat numbers
-        print(np.squeeze(beats[np.where(beat_numbers == 1), 0]))
-        if self.downbeats:
-            return np.squeeze(beats[np.where(beat_numbers == 1)])
+        if self.online:
+            return self.infer_online(activations, beats)
         else:
-            return np.vstack(zip(beats, beat_numbers))
+            # get the best state path by calling the viterbi algorithm
+            return self.infer_offline(activations, beats)
 
     @classmethod
     def add_arguments(cls, parser, observation_weight=100,
@@ -534,9 +571,9 @@ class DownbeatFeatureProcessor(Processor):
             num_bands=num_bands, fmin=60., fmax=17000., norm_filters=True)
         log_spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
         diff = SpectrogramDifferenceProcessor(
-            diff_ratio=0.5, positive_diffs=True, sum_diffs=True)
+            diff_ratio=0.5, positive_diffs=False)
         self.feat_processor = SequentialProcessor((sig, frames, spec, log_spec,
-                                                  diff))
+                                                  diff, np.sum))
 
     def process(self, data):
         """
@@ -562,7 +599,7 @@ class GMMBarProcessor(Processor):
 
     """
     def __init__(self, fps=100, pattern_files=None, downbeats=False,
-                 pattern_change_prob=0., **kwargs):
+                 pattern_change_prob=0., online=False, **kwargs):
         # load the patterns
         patterns = []
         for pattern_file in pattern_files:
@@ -586,7 +623,8 @@ class GMMBarProcessor(Processor):
         observation_model = GMMDownBeatTrackingObservationModel
         self.dbn_processor = DBNBarTrackingProcessor(
             observation_param=gmms, beats_per_bar=self.num_beats,
-            observation_model=observation_model, **kwargs)
+            observation_model=observation_model, online=online,
+            obslik_floor=1e-10, **kwargs)
 
     def process(self, data):
         """
@@ -654,6 +692,10 @@ class GMMBarProcessor(Processor):
         g.add_argument('--downbeats', action='store_true', default=False,
                        help='output only the downbeats')
         # return the argument group so it can be modified if needed
+        g = parser.add_argument_group('Downbeat DBN arguments')
+        g.add_argument('--beat_div', default=4, type=int,
+                       help='Number of beat subdivisions '
+                            '[default=%(default)d]')
         return g
 
 
@@ -715,11 +757,15 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
 
         :param observations: observations (i.e. activations of the NN)
                              [n_beats, n_subdivisions, feat_dim]
-        :return:             log densities of the observations
+        :return:             log densities of the observations [n_beats,
+                                n_states]
 
         """
+        if observations.ndim != 3:
+            print('observation shape', observations.shape)
+            raise ValueError('Wrong shape of observations')
         # counter, etc.
-        num_observations = len(observations)
+        num_observations = observations.shape[0]
         num_patterns = len(self.gmms)
         num_states = 0
         # maximum number of GMMs of all patterns
@@ -730,9 +776,9 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         # define the observation densities
         c = 0
         for i in range(num_patterns):
-            for j in range(len(self.gmms[i])): # over beat positions
+            for j in range(len(self.gmms[i])):  # over beat positions
                 log_densities[:, c] = 0
-                for bd in range(len(self.gmms[i][j])): # over beat divisions
+                for bd in range(len(self.gmms[i][j])):  # over beat divisions
                     # get the predictions of each GMM for the observations
                     log_densities[:, c] += self.gmms[i][j][bd].score(
                         np.squeeze(observations[:, [bd], :], axis=1))
@@ -741,6 +787,5 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
             # limit the range of the observation likelihood to avoid
             # problems if the probability gets 0 (impossible state)
             log_densities = np.maximum(log_densities, self.obslik_floor)
-
         # return the densities
         return log_densities

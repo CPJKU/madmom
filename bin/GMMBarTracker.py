@@ -23,8 +23,8 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       MultiBandSpectrogramProcessor)
 from madmom.features import ActivationsProcessor
 from madmom.features.downbeats import GMMBarProcessor
-BEAT_DIV = 16
-MODEL_PATH = '/home/flokadillo/diss/projects/madrum/models/temp'
+BEAT_DIV = 4
+MODEL_PATH = '/home/flokadillo/diss/src/python/madmom/madmom/models/downbeats/2016'
 
 
 def match_files(files, input_suffix, beat_suffix):
@@ -120,7 +120,7 @@ def main():
     args = p.parse_args()
     # set immutable defaults
     args.fps = 100
-    args.pattern_files = glob.glob(os.path.join(args.model_path, "*.pkl"))
+    args.pattern_files = glob.glob(os.path.join(args.model_path, "gmm*.pkl"))
     # print arguments
     if args.verbose:
         print(args)

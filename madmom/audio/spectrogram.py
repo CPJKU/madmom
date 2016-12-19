@@ -1115,7 +1115,7 @@ class SpectrogramDifferenceProcessor(BufferProcessor):
 
     def __init__(self, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
-                 stack_diffs=None, sum_diffs=False, **kwargs):
+                 stack_diffs=None, **kwargs):
         # pylint: disable=unused-argument
         super(SpectrogramDifferenceProcessor, self).__init__(diff_frames)
         self.diff_ratio = diff_ratio
@@ -1123,7 +1123,6 @@ class SpectrogramDifferenceProcessor(BufferProcessor):
         self.diff_max_bins = diff_max_bins
         self.positive_diffs = positive_diffs
         self.stack_diffs = stack_diffs
-        self.sum_diffs = sum_diffs
 
     def process(self, data, **kwargs):
         """
@@ -1187,8 +1186,6 @@ class SpectrogramDifferenceProcessor(BufferProcessor):
             # TODO: check if this is still true, even with the buffer
             diff = self.stack_diffs((diff.spectrogram[self.diff_frames:],
                                      diff))
-        if self.sum_diffs:
-            diff = diff.sum()
         return diff
 
     @staticmethod

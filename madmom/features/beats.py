@@ -1035,7 +1035,7 @@ class DBNBeatTrackingProcessor(Processor):
         # the position inside the beat
         position = self.st.state_positions[state]
 
-        # visulalisation stuff
+        # visualisation stuff
         if self.visualize:
             beat_length = 80
             display = [' '] * beat_length
