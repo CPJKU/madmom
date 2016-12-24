@@ -394,6 +394,9 @@ class HiddenMarkovModel(object):
             raise ValueError('Initial distribution is not a probability '
                              'distribution.')
         self.initial_distribution = initial_distribution
+        # FIXME: this works only for online mode (frame-by-frame)
+        self.fwd_prev = self.initial_distribution.copy()
+        self.fwd_cur = np.zeros_like(self.fwd_prev)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -499,9 +502,9 @@ class HiddenMarkovModel(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def forward(self, observations, init=None):
+    def forward(self, observations):
         """
-        Compute the forward variables at each time step. Instead of computing
+        Compute the forward variables frame-by-frame. Instead of computing
         in the log domain, we normalise at each step, which is faster for
         the forward algorithm.
 
@@ -530,44 +533,34 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] om_densities = om.densities(observations)
 
         # forward variables
-        cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
-                                           dtype=np.float)
+        cdef double[::1] fwd_cur = self.fwd_cur
+        cdef double[::1] fwd_prev = self.fwd_prev
+
         # define counters etc.
-        cdef unsigned int prev_pointer, frame, state, cur, prev
+        cdef unsigned int prev_pointer, state
         cdef double prob_sum, norm_factor
 
-        # init forward variables
-        if init is None:
-            for state in range(num_states):
-                fwd[0, state] = self.initial_distribution[state]
-        else:
-            for state in range(num_states):
-                fwd[0, state] = init[state]
+        # keep track of the normalisation sum
+        prob_sum = 0
+        # iterate over all states
+        for state in range(num_states):
+            fwd_cur[state] = 0
+            # sum over all possible predecessors
+            for prev_pointer in range(tm_pointers[state],
+                                      tm_pointers[state + 1]):
+                fwd_cur[state] += fwd_prev[tm_states[prev_pointer]] * \
+                                  tm_probabilities[prev_pointer]
+            # multiply with the observation probability
+            fwd_cur[state] *= om_densities[0, om_pointers[state]]
+            prob_sum += fwd_cur[state]
+        # normalise
+        norm_factor = 1. / prob_sum
+        for state in range(num_states):
+            # Note: overwrite the previous variables and return them
+            fwd_prev[state] = fwd_cur[state] * norm_factor
 
-        # iterate over all observations
-        for frame in range(num_observations):
-            # indices for current and previous time step
-            cur = frame + 1
-            prev = frame
-            # keep track of the normalisation sum
-            prob_sum = 0
-            # iterate over all states
-            for state in range(num_states):
-                # sum over all possible predecessors
-                for prev_pointer in range(tm_pointers[state],
-                                          tm_pointers[state + 1]):
-                    fwd[cur, state] += fwd[prev, tm_states[prev_pointer]] * \
-                                       tm_probabilities[prev_pointer]
-                # multiply with the observation probability
-                fwd[cur, state] *= om_densities[frame, om_pointers[state]]
-                prob_sum += fwd[cur, state]
-            # normalise
-            norm_factor = 1. / prob_sum
-            for state in range(num_states):
-                fwd[cur, state] *= norm_factor
-
-        # return the forward variables
-        return np.asarray(fwd)[1:]
+        # return the previous forward variables
+        return self.fwd_prev
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
