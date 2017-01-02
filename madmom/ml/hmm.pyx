@@ -179,6 +179,53 @@ class TransitionModel(object):
         # instantiate a new TransitionModel and return it
         return cls(*transitions)
 
+    @staticmethod
+    def make_dense(states, pointers, probabilities):
+        """
+        Return a dense representation of sparse transitions.
+
+        Parameters
+        ----------
+        states : numpy array
+            All states transitioning to state s are returned in:
+            states[pointers[s]:pointers[s+1]]
+        pointers : numpy array
+            Pointers for the `states` array for state s.
+        probabilities : numpy array
+            The corresponding transition are returned in:
+            probabilities[pointers[s]:pointers[s+1]].
+
+
+        Returns
+        -------
+        states : numpy array, shape (num_transitions,)
+            Array with states (i.e. destination states).
+        prev_states : numpy array, shape (num_transitions,)
+            Array with previous states (i.e. origination states).
+        probabilities : numpy array, shape (num_transitions,)
+            Transition probabilities.
+
+        See Also
+        --------
+        :class:`TransitionModel`
+
+        Notes
+        -----
+        Three 1D numpy arrays of same length must be given. The indices
+        correspond to each other, i.e. the first entry of all three arrays
+        define the transition from the state defined prev_states[0] to that
+        defined in states[0] with the probability defined in probabilities[0].
+
+        """
+        from scipy.sparse import csr_matrix
+        # convert everything into a sparse CSR matrix
+        transitions = csr_matrix((np.array(probabilities),
+                                  np.array(states), np.array(pointers)))
+        # convert to correct types
+        states, prev_states = transitions.nonzero()
+        # return them
+        return states, prev_states, probabilities
+
 
 class ObservationModel(object):
     """
