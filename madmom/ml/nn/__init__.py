@@ -75,6 +75,14 @@ class NeuralNetwork(Processor):
         self.layers = layers
         self.online = online
 
+    def __setstate__(self, state):
+        # restore instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have the online attribute, thus create it
+        #       remove this initialisation code after updating the models
+        if not hasattr(self, 'online'):
+            self.online = None
+
     def process(self, data):
         """
         Process the given data with the neural network.
@@ -89,21 +97,74 @@ class NeuralNetwork(Processor):
         numpy array
             Network predictions for this data.
 
+        Notes
+        -----
+        Depending on online/offline mode the predictions are either reported
+        on a frame-by-frame basis or for the whole sequence, respectively.
+
         """
-        # reset the layers? (online: do not reset, keep the state)
-        # Note: use getattr to be able to process old models
-        reset = not getattr(self, 'online', False)
+        if self.online:
+            return self.process_online(data)
+        return self.process_offline(data)
+
+    def process_offline(self, data):
+        """
+        Process the given data with the neural network.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate the network with this data.
+
+        Returns
+        -------
+        numpy array
+            Network predictions for this data.
+
+        """
         # check the dimensions of the data
         if data.ndim == 1:
             data = np.atleast_2d(data).T
         # loop over all layers
         for layer in self.layers:
             # activate the layer and feed the output into the next one
-            data = layer(data, reset=reset)
+            data = layer(data)
         # ravel the predictions if needed
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()
         return data
+
+    def process_online(self, data):
+        """
+        Process the given data with the neural network.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate the network with this data.
+
+        Returns
+        -------
+        numpy array
+            Network predictions for this data.
+
+        """
+        # loop over all layers
+        for layer in self.layers:
+            # activate the layer and feed the output into the next one
+            data = layer.activate_online(data)
+        # ravel the predictions if needed
+        if data.ndim == 2 and data.shape[1] == 1:
+            data = data.ravel()
+        return data
+
+    def reset(self):
+        """
+        Reset the neural network to its initial state.
+
+        """
+        for layer in self.layers:
+            layer.reset()
 
 
 class NeuralNetworkEnsemble(SequentialProcessor):

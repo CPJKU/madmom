@@ -27,6 +27,13 @@ class Layer(object):
         # this magic method makes a Layer callable
         return self.activate(*args, **kwargs)
 
+    def __getstate__(self):
+        # copy everything to a pickleable object
+        state = self.__dict__.copy()
+        # do not pickle attributes needed for stateful processing
+        state.pop('_prev', None)
+        return state
+
     def activate(self, data):
         """
         Activate the layer.
@@ -43,6 +50,13 @@ class Layer(object):
 
         """
         raise NotImplementedError('must be implemented by subclass.')
+
+    def reset(self):
+        """
+        Reset the layer to its initial state.
+
+        """
+        return None
 
 
 class FeedForwardLayer(Layer):
@@ -71,19 +85,20 @@ class FeedForwardLayer(Layer):
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_hiddens)
             Activations for this data.
 
         """
         # weight input, add bias and apply activations function
-        out = np.dot(data, self.weights)
-        out += self.bias
+        out = np.dot(data, self.weights) + self.bias
         return self.activation_fn(out)
+
+    activate_online = activate
 
 
 class RecurrentLayer(FeedForwardLayer):
@@ -112,40 +127,18 @@ class RecurrentLayer(FeedForwardLayer):
         if init is None:
             init = np.zeros(self.bias.size, dtype=NN_DTYPE)
         self.init = init
-        self._prev = init
+        # attributes needed for stateful processing
+        self._prev = self.init
 
-    def activate(self, data, reset=True):
-        """
-        Activate the layer.
-
-        Parameters
-        ----------
-        data : numpy array, shape (num_frames, num_inputs)
-            Activate with this data.
-        reset : bool, optional
-            Reset the state of the layer before activating it.
-
-        Returns
-        -------
-        numpy array, shape (num_frames, num_hiddens)
-            Activations for this data.
-
-        """
-        # reset state
-        if reset:
-            self.reset()
-        # weight input and add bias
-        out = np.dot(data, self.weights) + self.bias
-        # loop through all time steps
-        for i in range(len(data)):
-            # add weighted previous step
-            out[i] += np.dot(self._prev, self.recurrent_weights)
-            # apply activation function
-            self.activation_fn(out[i], out=out[i])
-            # set reference to current output
-            self._prev = out[i]
-        # return
-        return out
+    def __setstate__(self, state):
+        # restore pickled instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have the init attribute, thus create it
+        #       remove this initialisation code after updating the models
+        if not hasattr(self, 'init'):
+            self.init = np.zeros(self.bias.size, dtype=NN_DTYPE)
+        # add non-pickled attributes needed for stateful processing
+        self._prev = self.init
 
     def reset(self, init=None):
         """
@@ -157,12 +150,61 @@ class RecurrentLayer(FeedForwardLayer):
             Reset the hidden units to this initial state.
 
         """
-        # TODO: old models do not have the init attribute, thus create it
-        #       remove this initialisation code after updating the models
-        if not hasattr(self, 'init'):
-            self.init = np.zeros(self.bias.size, dtype=NN_DTYPE)
         # reset previous time step to initial value
         self._prev = self.init if init is None else init
+
+    def activate(self, data):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array, shape (num_frames, num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_frames, num_hiddens)
+            Activations for this data.
+
+        """
+        # reset layer to initial state
+        prev = self.init
+        # weight input and add bias
+        out = np.dot(data, self.weights) + self.bias
+        # loop through all time steps
+        for i in range(len(data)):
+            # add weighted previous step
+            out[i] += np.dot(prev, self.recurrent_weights)
+            # apply activation function
+            out[i] = self.activation_fn(out[i])
+            # set reference to current output
+            prev = out[i]
+        # return
+        return out
+
+    def activate_online(self, data):
+        """
+        Activate the layer frame-by-frame.
+
+        Parameters
+        ----------
+        data : numpy array, shape (num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_hiddens)
+            Activations for this data.
+
+        """
+        # weight input and add bias
+        out = np.dot(data, self.weights) + self.bias
+        # add weighted previous step
+        out += np.dot(self._prev, self.recurrent_weights)
+        # apply activation function, save as previous output and return it
+        self._prev = self.activation_fn(out)
+        return self._prev
 
 
 class BidirectionalLayer(Layer):
@@ -210,7 +252,7 @@ class BidirectionalLayer(Layer):
 
 
 # LSTM stuff
-class Gate(Layer):
+class Gate(RecurrentLayer):
     """
     Gate as used by LSTM layers.
 
@@ -231,13 +273,11 @@ class Gate(Layer):
 
     def __init__(self, weights, bias, recurrent_weights, peephole_weights=None,
                  activation_fn=sigmoid):
-        self.weights = weights
-        self.bias = bias.flatten()
-        self.recurrent_weights = recurrent_weights
+        super(Gate, self).__init__(weights, bias, recurrent_weights,
+                                   activation_fn=activation_fn)
         if peephole_weights is not None:
             peephole_weights = peephole_weights.flatten()
         self.peephole_weights = peephole_weights
-        self.activation_fn = activation_fn
 
     def activate(self, data, prev, state=None):
         """
@@ -260,8 +300,7 @@ class Gate(Layer):
 
         """
         # weight input and add bias
-        out = np.dot(data, self.weights)
-        out += self.bias
+        out = np.dot(data, self.weights) + self.bias
         # add the previous state weighted by the peephole
         if self.peephole_weights is not None:
             out += state * self.peephole_weights
@@ -338,56 +377,18 @@ class LSTMLayer(RecurrentLayer):
         self.cell_init = cell_init
         self._state = self.cell_init
 
-    def activate(self, data, reset=True):
-        """
-        Activate the LSTM layer.
-
-        Parameters
-        ----------
-        data : numpy array, shape (num_frames, num_inputs)
-            Activate with this data.
-        reset : bool, optional
-            Reset the state of the layer before activating it.
-
-        Returns
-        -------
-        numpy array, shape (num_frames, num_hiddens)
-            Activations for this data.
-
-        """
-        # init / reset previous time step
-        if reset:
-            self.reset()
-        # init arrays
-        size = len(data)
-        # output matrix for the whole sequence
-        out = np.zeros((size, self.cell.bias.size), dtype=NN_DTYPE)
-        # process the input data
-        for i in range(size):
-            # cache input data
-            data_ = data[i]
-            # input gate:
-            # operate on current data, previous output and state
-            ig = self.input_gate.activate(data_, self._prev, self._state)
-            # forget gate:
-            # operate on current data, previous output and state
-            fg = self.forget_gate.activate(data_, self._prev, self._state)
-            # cell:
-            # operate on current data and previous output
-            cell = self.cell.activate(data_, self._prev)
-            # internal state:
-            # weight the cell with the input gate
-            # and add the previous state weighted by the forget gate
-            self._state = cell * ig + self._state * fg
-            # output gate:
-            # operate on current data, previous output and current state
-            og = self.output_gate.activate(data_, self._prev, self._state)
-            # output:
-            # apply activation function to state and weight by output gate
-            out[i] = self.activation_fn(self._state) * og
-            # set reference to current output
-            self._prev = out[i]
-        return out
+    def __setstate__(self, state):
+        # restore pickled instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have the init attributes, thus create them
+        #       remove this initialisation code after updating the models
+        if not hasattr(self, 'init'):
+            self.init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        if not hasattr(self, 'cell_init'):
+            self.cell_init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        # add non-pickled attributes needed for stateful processing
+        self._prev = self.init
+        self._state = self.cell_init
 
     def reset(self, init=None, cell_init=None):
         """
@@ -401,18 +402,97 @@ class LSTMLayer(RecurrentLayer):
             Reset the cells to this initial state.
 
         """
-        # TODO: old models do not have the init attribute, thus create it
-        #       remove this initialisation code after updating the models
-        if not hasattr(self, 'init'):
-            self.init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
-        if not hasattr(self, 'cell_init'):
-            self.cell_init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # reset previous time step and state to initial value
         self._prev = self.init if init is None else init
         self._state = self.cell_init if cell_init is None else cell_init
 
+    def activate(self, data):
+        """
+        Activate the LSTM layer.
 
-class GRUCell(object):
+        Parameters
+        ----------
+        data : numpy array, shape (num_frames, num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_frames, num_hiddens)
+            Activations for this data.
+
+        """
+        # reset layer
+        prev = self.init
+        state = self.cell_init
+        # init arrays
+        size = len(data)
+        # output matrix for the whole sequence
+        out = np.zeros((size, self.cell.bias.size), dtype=NN_DTYPE)
+        # process the input data
+        for i in range(size):
+            # cache input data
+            data_ = data[i]
+            # input gate:
+            # operate on current data, previous output and state
+            ig = self.input_gate.activate(data_, prev, state)
+            # forget gate:
+            # operate on current data, previous output and state
+            fg = self.forget_gate.activate(data_, prev, state)
+            # cell:
+            # operate on current data and previous output
+            cell = self.cell.activate(data_, prev)
+            # internal state:
+            # weight the cell with the input gate
+            # and add the previous state weighted by the forget gate
+            state = cell * ig + state * fg
+            # output gate:
+            # operate on current data, previous output and current state
+            og = self.output_gate.activate(data_, prev, state)
+            # output:
+            # apply activation function to state and weight by output gate
+            out[i] = self.activation_fn(state) * og
+            # set reference to current output
+            prev = out[i]
+        return out
+
+    def activate_online(self, data):
+        """
+        Activate the LSTM layer frame-by-frame.
+
+        Parameters
+        ----------
+        data : numpy array, shape (num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_hiddens)
+            Activations for this data.
+
+        """
+        # input gate:
+        # operate on current data, previous output and state
+        ig = self.input_gate.activate(data, self._prev, self._state)
+        # forget gate:
+        # operate on current data, previous output and state
+        fg = self.forget_gate.activate(data, self._prev, self._state)
+        # cell:
+        # operate on current data and previous output
+        cell = self.cell.activate(data, self._prev)
+        # internal state:
+        # weight the cell with the input gate
+        # and add the previous state weighted by the forget gate
+        self._state = (cell * ig + self._state * fg)
+        # output gate:
+        # operate on current data, previous output and current state
+        og = self.output_gate.activate(data, self._prev, self._state)
+        # output:
+        # apply activation function to state and weight by output gate
+        self._prev = self.activation_fn(self._state) * og
+        return self._prev
+
+
+class GRUCell(Cell):
     """
     Cell as used by GRU layers proposed in [1]_. The cell output is computed by
 
@@ -447,10 +527,8 @@ class GRUCell(object):
     """
 
     def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh):
-        self.weights = weights
-        self.bias = bias
-        self.recurrent_weights = recurrent_weights
-        self.activation_fn = activation_fn
+        super(GRUCell, self).__init__(weights, bias, recurrent_weights,
+                                      activation_fn)
 
     def activate(self, data, prev, reset_gate):
         """
@@ -520,9 +598,20 @@ class GRULayer(RecurrentLayer):
         if init is None:
             init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         self.init = init
-        self._prev = init
+        # keep the state of the layer
+        self._prev = self.init
 
-    def activate(self, data, reset=True):
+    def __setstate__(self, state):
+        # restore pickled instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have the init attributes, thus create them
+        #       remove this initialisation code after updating the models
+        if not hasattr(self, 'init'):
+            self.init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
+        # add non-pickled attributes needed for stateful processing
+        self._prev = self.init
+
+    def activate(self, data):
         """
         Activate the GRU layer.
 
@@ -530,8 +619,6 @@ class GRULayer(RecurrentLayer):
         ----------
         data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
-        reset : bool, optional
-            Reset the state of the layer before activating it.
 
         Returns
         -------
@@ -539,9 +626,8 @@ class GRULayer(RecurrentLayer):
             Activations for this data.
 
         """
-        # init / reset previous time step
-        if reset:
-            self.reset()
+        # reset layer
+        prev = self.init
         # init arrays
         size = len(data)
         # output matrix for the whole sequence
@@ -552,35 +638,46 @@ class GRULayer(RecurrentLayer):
             data_ = data[i]
             # reset gate:
             # operate on current data and previous output
-            rg = self.reset_gate.activate(data_, self._prev)
+            rg = self.reset_gate.activate(data_, prev)
             # update gate:
             # operate on current data and previous output
-            ug = self.update_gate.activate(data_, self._prev)
+            ug = self.update_gate.activate(data_, prev)
             # cell (implemented as in [1]):
             # operate on current data, previous output and reset gate
-            cell = self.cell.activate(data_, self._prev, rg)
+            cell = self.cell.activate(data_, prev, rg)
             # output:
-            out[i] = ug * cell + (1 - ug) * self._prev
+            out[i] = ug * cell + (1 - ug) * prev
             # set reference to current output
-            self._prev = out[i]
+            prev = out[i]
         return out
 
-    def reset(self, init=None):
+    def activate_online(self, data):
         """
-        Reset the layer to its initial state.
+        Activate the GRU layer frame-by-frame.
 
         Parameters
         ----------
-        init : scalar or numpy array, shape (num_hiddens,), optional
-            Reset the hidden units to this initial state.
+        data : numpy array, shape (num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array, shape (num_hiddens)
+            Activations for this data.
 
         """
-        # TODO: old models do not have the init attribute, thus create it
-        #       remove this initialisation code after updating the models
-        if not hasattr(self, 'init'):
-            self.init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
-        # reset previous time step to initial value
-        self._prev = self.init if init is None else init
+        # reset gate:
+        # operate on current data and previous output
+        rg = self.reset_gate.activate(data, self._prev)
+        # update gate:
+        # operate on current data and previous output
+        ug = self.update_gate.activate(data, self._prev)
+        # cell (implemented as in [1]):
+        # operate on current data, previous output and reset gate
+        cell = self.cell.activate(data, self._prev, rg)
+        # output:
+        self._prev = ug * cell + (1 - ug) * self._prev
+        return self._prev
 
 
 def _kernel_margins(kernel_shape, margin_shift):
