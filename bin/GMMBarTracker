@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+GMMBarTracker bar tracking algorithm.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
+import sys
+import argparse
+
+from madmom.processors import (Processor, ParallelProcessor,
+                               SequentialProcessor, IOProcessor, io_arguments)
+from madmom.audio.signal import SignalProcessor
+from madmom.features import ActivationsProcessor
+from madmom.features.beats import DBNBeatTrackingProcessor
+from madmom.features.downbeats import (DownbeatFeatureProcessor,
+                                       BeatSyncProcessor, GMMBarProcessor)
+from madmom.utils import write_output as writer
+from madmom.models import DOWNBEATS_GMM
+
+
+class RetrieveBeatsProcessor(Processor):
+    """
+    Retrieve beats from an input stream.
+
+    Parameters
+    ----------
+    beats : input stream
+        Input stream to read the beat positions from.
+
+    Notes
+    -----
+    The input stream is polled in blocking mode with readline().
+
+    """
+
+    def __init__(self, beats, **kwargs):
+        self.beats = beats
+
+    def process(self, data):
+        """
+
+        Parameters
+        ----------
+        data : input data
+            Will be ignored.
+
+        Returns
+        -------
+        beat : float or None
+            If a beat is read from the input stream it is returned, otherwise
+            None will be returned.
+
+        """
+        while True:
+            # read the input stream
+            try:
+                data = float(self.beats.readline())
+            except ValueError:
+                return None
+            return data
+
+
+def main():
+    """GMMBarTracker"""
+
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    The GMMBarTracker program detects all downbeats in an audio file given the
+    beat positions.
+
+    ''')
+    # version
+    p.add_argument('--version', action='version',
+                   version='GMMBarTracker.2016')
+    p.add_argument('--beats', type=argparse.FileType('b'), default=sys.stdin,
+                   help='where to read the beat positions from '
+                        '[default: STDIN]')
+
+    # input/output options
+    io_arguments(p, output_suffix='.beats.txt', online=True)
+    ActivationsProcessor.add_arguments(p)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, norm=False, gain=0)
+    # peak picking arguments
+    DBNBeatTrackingProcessor.add_arguments(p)
+    GMMBarProcessor.add_arguments(p)
+
+    # parse arguments
+    args = p.parse_args()
+
+    # set immutable arguments
+    args.fps = 100
+
+    # print arguments
+    if args.verbose:
+        print(args)
+
+    # beat processor
+    beats_proc = RetrieveBeatsProcessor(**vars(args))
+
+    # downbeat stuff
+    downbeats_feats = DownbeatFeatureProcessor(fps=args.fps, num_bands=12)
+    # combine the beats and downbeat features in a list
+    feat_processor = ParallelProcessor([beats_proc, downbeats_feats])
+    beat_sync = BeatSyncProcessor(beat_subdivisions=args.beat_div,
+                                  feat_dim=1, fps=args.fps)
+    gmm_bar_processor = GMMBarProcessor(pattern_files=DOWNBEATS_GMM,
+                                        pattern_change_prob=0.001,
+                                        **vars(args))
+    # sync the features to beats and score them with GMMs
+    downbeats_processor = SequentialProcessor([feat_processor, beat_sync,
+                                               gmm_bar_processor])
+
+    # create an IOProcessor
+    processor = IOProcessor(downbeats_processor, writer)
+
+    # and call the processing function
+    args.func(processor, **vars(args))
+
+
+if __name__ == '__main__':
+    main()
