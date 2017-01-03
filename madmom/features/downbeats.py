@@ -24,14 +24,12 @@ class BeatSyncProcessor(Processor):
     Synchronize features to the beat.
 
     """
-    def __init__(self, beat_subdivisions, feat_dim=1, fps=100,
-                 aggregate_fn=np.max, online=False, **kwargs):
+    def __init__(self, beat_subdivisions, feat_dim=1, fps=100, online=False,
+                 **kwargs):
         self.beat_subdivisions = beat_subdivisions
         # FIXME: feat_dim must be determined automatically
         self.feat_dim = feat_dim
         self.fps = fps
-        # FIXME: aggregate_fn is only used in offline mode!
-        self.aggregate_fn = aggregate_fn
         self.online = online
         # sum up the feature values of one beat division
         self.feat_sum = 0.
@@ -209,7 +207,7 @@ class BeatSyncProcessor(Processor):
                             np.arange(0, self.beat_subdivisions)]
             feats_sorted = self.interpolate_missing(feats_sorted, feat_dim)
             beat_features[i_beat, :, :] = np.array(
-                [self.aggregate_fn(x, axis=0) for x in feats_sorted])
+                [np.mean(x, axis=0) for x in feats_sorted])
             # beat_div[beat_pos_idx] = np.arange(1, self.beat_subdivision + 1)
         return beats, beat_features
 
