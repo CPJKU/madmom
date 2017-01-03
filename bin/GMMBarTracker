@@ -50,11 +50,8 @@ def main():
     args.fps = 100
 
     # beats processor
-    if args.online:
-        # online mode: read the beats from STDIN frame-by-frame
-        beats_processor = LoadBeatsProcessor(**vars(args))
-    elif hasattr(args, 'infile'):
-        # single mode: read the beats from STDIN all at once
+    if args.online or hasattr(args, 'infile'):
+        # online/single mode: read the beats from STDIN
         beats_processor = LoadBeatsProcessor(**vars(args))
     elif hasattr(args, 'files'):
         # batch mode: load the beats from file
