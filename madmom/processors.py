@@ -861,6 +861,8 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                              '[default=%(default)s]')
         sp.set_defaults(sample_rate=44100)
         sp.set_defaults(num_channels=1)
+        # FIXME: right now we fake the origin in order to get the whole frame
+        #        in online mode
         sp.set_defaults(origin='future')
         # Note: set the number of frames to 1 in order to process everything
         #       frame-by-frame

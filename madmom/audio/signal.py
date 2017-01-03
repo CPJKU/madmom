@@ -1350,7 +1350,7 @@ class FramedSignalProcessor(Processor):
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=FPS,
                  origin=ORIGIN, end=END_OF_SIGNAL, num_frames=NUM_FRAMES,
-                 online=None, **kwargs):
+                 **kwargs):
         # pylint: disable=unused-argument
         self.frame_size = frame_size
         self.hop_size = hop_size
@@ -1358,15 +1358,6 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
-
-        if online is not None:
-            import warnings
-            warnings.warn('`online` is deprecated as of version 0.14 and will '
-                          'be removed in version 0.15. Use `origin` instead.')
-            if online:
-                self.origin = 'online'
-            else:
-                self.origin = 'offline'
 
     def process(self, data, **kwargs):
         """
@@ -1554,12 +1545,13 @@ class Stream(object):
         """
         # get the data from the stream
         data = np.fromstring(data, 'float32').astype(self.dtype, copy=False)
-        # buffer the data
+        # buffer the data (i.e. append hop_size samples and rotate)
         data = self.buffer(data)
-        # wrap it as a Signal (including the start position)
-        # TODO: check float/int hop size
+        # wrap the last frame_size samples as a Signal
+        # FIXME: is the start position of interest?
+        # TODO: check float / int hop size
         start = (self.frame_idx * float(self.hop_size) / self.sample_rate)
-        signal = Signal(data, sample_rate=self.sample_rate,
+        signal = Signal(data[-self.frame_size:], sample_rate=self.sample_rate,
                         dtype=self.dtype, num_channels=self.num_channels,
                         start=start)
         # if the queue if full erase the first item from the queue
