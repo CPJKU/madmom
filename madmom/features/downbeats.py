@@ -6,155 +6,17 @@ This file contains downbeat tracking related functionality.
 
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
-from madmom.utils import match_file
-from madmom.processors import Processor, ParallelProcessor, SequentialProcessor
-
-# from madmom.audio.chroma import CLPChromaProcessor
-from madmom.features.beats import (RNNBeatProcessor, DBNBeatTrackingProcessor)
-from madmom.features import ActivationsProcessor
-from madmom.features.beats_hmm import RNNBeatTrackingObservationModel
-
+import warnings
 import pickle
 import os.path
+
+import numpy as np
+
+from madmom.utils import match_file
+from madmom.processors import Processor, SequentialProcessor
+from madmom.features.beats_hmm import RNNBeatTrackingObservationModel
 from madmom.ml.hmm import ObservationModel
-# from ..models import DOWNBEATS_BGRU
-
-
-class BeatSyncProcessor_gmm(ParallelProcessor):
-    """
-    Resample features to be beat synchronous.
-
-    """
-    def __init__(self, feature, beats, beat_subdivision=16,
-                 sum_func=np.max, fps=None, **kwargs):
-        """
-        Creates a new BeatSyncProcessor instance.
-
-        :param feature: list of processors to compute features, which are
-                        processed in sequential order
-        :param beats:   processor that yields beat times
-        :param beat_subdivision:
-        :param sum_func:
-
-        """
-        self.fps = fps
-        self.beat_subdivision = beat_subdivision
-        self.sum_func = sum_func
-        # FIXME: read fps from FeatureProcessor!
-        # Set up parallel processor with feature and beat processor
-        # First, the feature processor
-        processors = [feature, [beats]]
-        # FIXME: works only with a single thread
-        super(BeatSyncProcessor_gmm, self).__init__(processors, num_threads=1)
-
-    def process(self, data):
-        """
-        Compute features, get beats and sync features to beats.
-
-        :param data: Audio filename
-        :return:     list of [beat_sync_features, beat times]
-
-        """
-        # process everything, returns a list [features, beats]
-        data = super(BeatSyncProcessor_gmm, self).process(data)
-        return self.sync_features(data)
-
-    def interpolate_missing(self, feats_sorted, feat_dim):
-        nan_fill = np.empty(feat_dim) * np.nan
-        means = np.array([np.mean(x, axis=0) if len(x) > 0 else nan_fill
-                          for x in feats_sorted])
-        good_rows = np.unique(np.where(np.logical_not(np.isnan(means)))[0])
-        if len(good_rows) < self.beat_subdivision:
-            bad_rows = np.unique(np.where(np.isnan(means))[0])
-            # initialise missing values with empty array
-            for r in bad_rows:
-                feats_sorted[r] = np.empty((1, feat_dim))
-            for d in range(feat_dim):
-                means_p = np.interp(np.arange(0, self.beat_subdivision),
-                                    good_rows,
-                                    means[good_rows, d])
-                for r in bad_rows:
-                    feats_sorted[r][0, d] = means_p[r]
-        return feats_sorted
-
-    def sync_features(self, data):
-
-        """
-        This function organises the features of one song according to the
-        given beats. First, a beat interval is divided into <beat_subdivision>
-        divisions. Then all features that fall into one subdivision are
-        summarised by a <summarise> function. If no feature value for a
-        subdivision is found, it is interpolated.
-
-        :param data:                list of two elements: 1) are
-                                    the features e.g., MultiBandSpectrogram
-                                    2) numpy array of beat times
-        :return: beat_features      numpy array of features in beat sync
-                                    [num_beats x beat_subdivision x feat_dim]
-        :return: beat_div           numpy array of beat subdivision for each
-                                    beat
-        """
-        features = data[0]
-        # beats can be 1d (only beat times), or 2d (beat and beat counter)
-        if data[1].ndim == 1:
-            beats = np.atleast_2d(data[1]).T
-        else:
-            beats = data[1]
-        if beats.size == 0:
-            return np.array([]), np.array([])
-        while (float(len(features)) / self.fps) < beats[-1, 0]:
-            beats = beats[:-1, :]
-            print('WARNING: Beat sequence too long compared to feature '
-                             'sequence')
-        if features.ndim > 1:
-            feat_dim = features.shape[1]
-        else:
-            # last singleton dimension is deleted by activations.load. Here,
-            #  we re-introduce it
-            features = features[:, np.newaxis]
-            feat_dim = 1
-
-        n_beats = beats.shape[0]
-        beat_features = np.empty((n_beats - 1, self.beat_subdivision,
-                                  feat_dim))
-        #beat_div = np.empty(((n_beats - 1) * self.beat_subdivision),
-        # dtype=int)
-        # allow the note on the first beat to be 20 ms too early
-        first_next_beat_frame = int(
-            np.max([0, np.floor((beats[0, 0] - 0.02) * self.fps)]))
-        for i_beat in range(n_beats - 1):
-            duration_beat = beats[i_beat + 1, 0] - beats[i_beat, 0]
-            # gmms should be centered on the annotations and cover a
-            # timespan that is duration_bar/num_gmms_per_bar. Subtract half of
-            # this timespan to get the start frame of the first gmm of this
-            # and the next bar
-            offset = 0.5 * duration_beat / self.beat_subdivision
-            # first frame of first gmm that corresponds to current beat
-            beat_start_frame = first_next_beat_frame
-            # first frame of first gmm that corresponds to next beat
-            first_next_beat_frame = int(np.floor(
-                (beats[i_beat + 1, 0] - offset) * self.fps))
-            # set up array with time in sec of each frame center. last frame
-            #  is the last frame of the last gmm of the current bar
-            n_beat_frames = first_next_beat_frame - beat_start_frame
-            # we need to put each feature frame in its corresponding
-            # beat subdivison. We use a hack to get n_beat_frames equally
-            # distributed bins between 0 and (self.beat_subdivision-1)
-            beat_pos_of_frames = np.floor(
-                np.linspace(0.00000001, self.beat_subdivision - 0.00000001,
-                            n_beat_frames))
-            features_beat = features[beat_start_frame:first_next_beat_frame]
-            # group features in list by gmms (bar position)
-            feats_sorted = [features_beat[beat_pos_of_frames == x] for x in
-                            np.arange(0, self.beat_subdivision)]
-            feats_sorted = self.interpolate_missing(feats_sorted, feat_dim)
-            #beat_pos_idx = np.arange(i_beat * self.beat_subdivision,
-            #                         (i_beat + 1) * self.beat_subdivision)
-            beat_features[i_beat, :, :] = np.array([self.sum_func(x, axis=0)
-                                                    for x in feats_sorted])
-            # beat_div[beat_pos_idx] = np.arange(1, self.beat_subdivision + 1)
-        return beats, beat_features
+from madmom.utils import search_files, load_events
 
 
 class BeatSyncProcessor(Processor):
@@ -162,27 +24,15 @@ class BeatSyncProcessor(Processor):
     Synchronize features to the beat.
 
     """
-    def __init__(self, beat_subdivisions, feat_dim, fps=100, beat=None):
-        """
-        Creates a new BeatSyncProcessor instance.
-
-        Parameters
-        ----------
-
-        fps :
-            frames per second
-
-        beat_subdivision :
-            number of divisions of the beat
-
-        sum_func :
-            function to summarise the features that belong to the same beat
-            subdivision.
-
-        """
-        self.beat = beat
-        self.feat_dim = feat_dim
+    def __init__(self, beat_subdivisions, feat_dim=1, fps=100,
+                 aggregate_fn=np.max, online=False, **kwargs):
         self.beat_subdivisions = beat_subdivisions
+        # FIXME: feat_dim must be determined automatically
+        self.feat_dim = feat_dim
+        self.fps = fps
+        # FIXME: aggregate_fn is only used in offline mode!
+        self.aggregate_fn = aggregate_fn
+        self.online = online
         # sum up the feature values of one beat division
         self.feat_sum = 0.
         # count the frames since last beat division
@@ -190,7 +40,6 @@ class BeatSyncProcessor(Processor):
         self.current_div = 0
         # length of one beat division in audio frames (depends on tempo)
         self.div_frames = 0
-        self.fps = fps
         # store last beat time to compute tempo
         self.last_beat_time = 0
         # self.next_beat_time = 0
@@ -199,6 +48,32 @@ class BeatSyncProcessor(Processor):
         self.beat_features = np.zeros((1, beat_subdivisions, feat_dim))
 
     def process(self, data):
+        """
+        Syncronize features to the beats.
+
+        Parameters
+        ----------
+        data : tuple (beat_time(s), feature(s))
+
+        Returns
+        -------
+        beat_times : None or float, or numpy array
+            Beat time.
+        beat_features : numpy array, shape (1, beat_subdivisions, feat_dim)
+            Beat synchronous features.
+
+        Notes
+        -----
+        Depending on online/offline mode the beats and features are either
+        syncronized on a frame-by-frame basis or for the whole sequence,
+        respectively.
+
+        """
+        if self.online:
+            return self.process_online(data)
+        return self.process_offline(data)
+
+    def process_online(self, data):
         """
         This function organises the features of a piece according to the
         given beats. First, a beat interval is divided into <beat_subdivision>
@@ -214,19 +89,16 @@ class BeatSyncProcessor(Processor):
         -------
         beat_time : None or float
             Beat time (or None if no beat is present).
-        beat_feat : numpy array [1, beat_subdivisions, feat_dim]
+        beat_feat : numpy array, shape (1, beat_subdivisions, feat_dim)
             Beat synchronous features.
 
         """
-        beat_time, features = data
-        self.feat_sum += features
+        beat, feature = data
+        self.feat_sum += feature
         self.frame_counter += 1
-        is_beat = False
+        is_beat = beat is not None
+        # FIXME: returned beat feature is computed differently to offline mode
         beat_feat = None
-        if beat_time is not None or self.beat is not None:
-            is_beat = True
-            if beat_time is None:
-                beat_time = self.beat
         # check if new beat division is reached
         if (self.frame_counter >= self.div_frames) or is_beat:
             # one div has to be at least min_div_length frames long
@@ -238,7 +110,7 @@ class BeatSyncProcessor(Processor):
                 self.current_div += 1
                 # check if it is the last beat division of a beat
                 if is_beat:
-                    beat_interval = beat_time - self.last_beat_time
+                    beat_interval = beat - self.last_beat_time
                     # update beat division because of potential new tempo
                     self.div_frames = np.round(beat_interval * self.fps /
                                                self.beat_subdivisions)
@@ -246,7 +118,7 @@ class BeatSyncProcessor(Processor):
                         print('Tempo too fast, reset to max tempo')
                         self.div_frames = self.min_div_length
                     # store last beat
-                    self.last_beat_time = beat_time
+                    self.last_beat_time = beat
                     # predict next beat_time
                     # self.next_beat_time = beat_time + beat_interval
                     self.current_div = 0
@@ -257,37 +129,181 @@ class BeatSyncProcessor(Processor):
                 self.feat_sum = 0.
                 self.frame_counter = 0
         # return beat time and feature, (None, None) if there is no beat
-        return beat_time, beat_feat
+        return beat, beat_feat
+
+    def process_offline(self, data):
+        """
+        This function organises the features of one song according to the
+        given beats. First, a beat interval is divided into <beat_subdivision>
+        divisions. Then all features that fall into one subdivision are
+        summarised by a <summarise> function. If no feature value for a
+        subdivision is found, it is interpolated.
+
+        Parameters
+        ----------
+        data : tuple (beat_times, features)
+            Tuple of two numpy arrays, the first containing the beat times in
+            seconds, the second features with the given frame rate.
+
+        Returns
+        -------
+        beat_times : numpy array
+            Beat times.
+        beat_features : numpy array [1, beat_subdivisions, feat_dim]
+            Beat synchronous features.
+
+        """
+        beats, features = data
+        # no beats, return immediately
+        if beats.size == 0:
+            return np.array([]), np.array([])
+        # beats can be 1D (only beat times) or 2D (times, position inside bar)
+        if beats.ndim == 1:
+            beats = np.atleast_2d(beats).T
+
+        while (float(len(features)) / self.fps) < beats[-1, 0]:
+            beats = beats[:-1, :]
+            warnings.warn('Beat sequence too long compared to features.')
+
+        if features.ndim > 1:
+            feat_dim = features.shape[1]
+        else:
+            # last singleton dimension is deleted by activations.load. Here,
+            #  we re-introduce it
+            warnings.warn('FIXME: feature loading')
+            features = features[:, np.newaxis]
+            feat_dim = 1
+
+        num_beats = len(beats)
+
+        # init a 3D feature aggregation array
+        beat_features = np.empty((num_beats - 1, self.beat_subdivisions,
+                                  feat_dim))
+        # allow the first beat to be 20 ms too early
+        first_next_beat_frame = int(
+            np.max([0, np.floor((beats[0, 0] - 0.02) * self.fps)]))
+        for i_beat in range(num_beats - 1):
+            duration_beat = beats[i_beat + 1, 0] - beats[i_beat, 0]
+            # gmms should be centered on the annotations and cover a
+            # timespan that is duration_bar/num_gmms_per_bar. Subtract half of
+            # this timespan to get the start frame of the first gmm of this
+            # and the next bar
+            offset = 0.5 * duration_beat / self.beat_subdivisions
+            # first frame of first gmm that corresponds to current beat
+            beat_start_frame = first_next_beat_frame
+            # first frame of first gmm that corresponds to next beat
+            first_next_beat_frame = int(np.floor(
+                (beats[i_beat + 1, 0] - offset) * self.fps))
+            # set up array with time in sec of each frame center. last frame
+            #  is the last frame of the last gmm of the current bar
+            n_beat_frames = first_next_beat_frame - beat_start_frame
+            # we need to put each feature frame in its corresponding
+            # beat subdivison. We use a hack to get n_beat_frames equally
+            # distributed bins between 0 and (self.beat_subdivision-1)
+            beat_pos_of_frames = np.floor(
+                np.linspace(0.00000001, self.beat_subdivisions - 0.00000001,
+                            n_beat_frames))
+            features_beat = features[beat_start_frame:first_next_beat_frame]
+            # group features in list by gmms (bar position)
+            feats_sorted = [features_beat[beat_pos_of_frames == x] for x in
+                            np.arange(0, self.beat_subdivisions)]
+            feats_sorted = self.interpolate_missing(feats_sorted, feat_dim)
+            beat_features[i_beat, :, :] = np.array(
+                [self.aggregate_fn(x, axis=0) for x in feats_sorted])
+            # beat_div[beat_pos_idx] = np.arange(1, self.beat_subdivision + 1)
+        return beats, beat_features
+
+    def interpolate_missing(self, feats_sorted, feat_dim):
+        nan_fill = np.empty(feat_dim) * np.nan
+        means = np.array([np.mean(x, axis=0) if len(x) > 0 else nan_fill
+                          for x in feats_sorted])
+        good_rows = np.unique(np.where(np.logical_not(np.isnan(means)))[0])
+        if len(good_rows) < self.beat_subdivisions:
+            bad_rows = np.unique(np.where(np.isnan(means))[0])
+            # initialise missing values with empty array
+            for r in bad_rows:
+                feats_sorted[r] = np.empty((1, feat_dim))
+            for d in range(feat_dim):
+                means_p = np.interp(np.arange(0, self.beat_subdivisions),
+                                    good_rows,
+                                    means[good_rows, d])
+                for r in bad_rows:
+                    feats_sorted[r][0, d] = means_p[r]
+        return feats_sorted
 
 
 class LoadBeatsProcessor(Processor):
     """
-    Load beat times from file.
+    Load beat times from file or handle.
 
     """
-    def __init__(self, beat_files, beat_suffix):
+    def __init__(self, beats, suffix=None, online=False, **kwargs):
+        # FIXME: check if mode distinction is correct
+        if online:
+            self.mode = 'online'
+        elif isinstance(beats, list) and suffix is not None:
+            beats = search_files(beats, suffix=suffix)
+            self.mode = 'batch'
+        else:
+            self.mode = 'single'
+        self.beats = beats
+        self.suffix = suffix
+
+    def process(self, data=None, **kwargs):
         """
-        Creates a new LoadBeatProcessor instance.
+        Load the beats from file or handle.
+
+        """
+        if self.mode == 'online':
+            return self.process_online()
+        elif self.mode == 'single':
+            return self.process_single()
+        elif self.mode == 'batch':
+            return self.process_batch(data)
+        else:
+            raise ValueError("don't know how to obtain the beats")
+
+    def process_online(self, *args, **kwargs):
+        """
+        Read the beats on a frame-by-frame basis.
+        If no input is present when being called, return None
+
+        Returns
+        -------
+        beat : float or None
+            Beat position [seconds] or None if no beat is present.
+
+        """
+        while True:
+            try:
+                data = float(self.beats.readline())
+            except ValueError:
+                return None
+            return data
+
+    def process_single(self, *args, **kwargs):
+        """
+        Load the beats in bulk-mode (i.e. all at once) from the input stream
+        or file.
+
+        Returns
+        -------
+        beats : numpy array
+            Beat positions [seconds].
+
+        """
+        return load_events(self.beats)
+
+    def process_batch(self, filename):
+        """
+        Load beat times from file.
+
+        First match the given input filename to the beat filenames, then load
+        the beats.
 
         Parameters
         ----------
-        beat_files :
-            List of beat filenames.
-        beat_suffix :
-            Extension of beat filenames.
-
-        """
-        self.beat_files = beat_files
-        self.beat_suffix = beat_suffix
-
-    def process(self, data):
-        """
-        Load beat times from file. First match the given input filename to
-        the pool of beat filenames, then load the beats.
-
-        Parameters
-        ----------
-        data :
+        filename : str
             Input file name.
 
         Returns
@@ -296,20 +312,19 @@ class LoadBeatsProcessor(Processor):
             Beat positions [seconds].
 
         """
-        if type(data) is not str:
-            raise ValueError('Please supply a filename.')
-
-        # select the filename among the beat file pool that matches the
-        # input file
-        basename, ext = os.path.splitext(os.path.basename(data))
-        matches = match_file(basename, self.beat_files,
-                             suffix=ext, match_suffix=self.beat_suffix,
-                             match_exactly=True)
-        beat_fln = matches[0]
+        if not isinstance(filename, str):
+            raise SystemExit('Please supply a filename, not %s.' % filename)
+        # select the matching beat file to a given input file from all files
+        basename, ext = os.path.splitext(os.path.basename(filename))
+        matches = match_file(basename, self.beats, suffix=ext,
+                             match_suffix=self.suffix, match_exactly=True)
+        if not matches:
+            raise SystemExit("can't find a beat file for %s" % filename)
+        # load the beats and return them
         # TODO: Use load_beats function
-        beats = np.loadtxt(beat_fln)
+        beats = np.loadtxt(matches[0])
         if beats.ndim == 2:
-            # only use beat times
+            # only use beat times, omit the beat positions inside the bar
             beats = beats[:, 0]
         return beats
 
@@ -430,7 +445,6 @@ class DBNBarTrackingProcessor(Processor):
             self.st.state_patterns[path[-1]]]) + 1
         beat_numbers = np.append(beat_numbers, last_beat_number)
         # return the downbeats or beats and their beat numbers
-        # print(np.squeeze(beats[np.where(beat_numbers == 1), 0]))
         if self.downbeats:
             return np.squeeze(beats[np.where(beat_numbers == 1)])
         else:
@@ -451,10 +465,6 @@ class DBNBarTrackingProcessor(Processor):
 
         """
         beats, activations = data
-        # print(data)
-        # beats = data[1]
-        # if beats.size == 0:
-        #     return np.array([])
         # get the best state path by calling the inference algorithm
         if self.online:
             return self.infer_online(activations, beats)
@@ -510,75 +520,31 @@ class DBNBarTrackingProcessor(Processor):
         return parser
 
 
-class OnlineDBNBarTrackingProcessor(DBNBarTrackingProcessor):
-
-    def __init__(self, observation_lambda=100, downbeats=False,
-                 pattern_change_prob=0.0, beats_per_bar=[3, 4],
-                 debug=False, **kwargs):
-        """
-        Track the downbeats with a Dynamic Bayesian Network (DBN).
-
-        Parameters
-        ----------
-        observation_lambda :
-            weight for the activations at downbeat times.
-
-        downbeats : bool, optional
-            Return only the downbeat times. If false, return beat times and
-            their respective position within the bar)
-
-        pattern_change_prob :
-            probability of a change in time signature.
-
-        beats_per_bar :
-            number of beats per bar to be modeled by the DBN
-        """
-        # call init of the superclass
-        super(OnlineDBNBarTrackingProcessor, self).__init__(
-            observation_lambda=100, downbeats=False, pattern_change_prob=0.0,
-            beats_per_bar=[3, 4], **kwargs)
-        self.debug = debug
-
-    def infer_states(self, activations):
-        # get the filtering distributions by calling the forward algorithm
-        fwd = self.hmm.forward_generator(activations)
-        # loop through frames to select the "winning state"
-        path = np.zeros((activations.shape[0]), dtype=int)
-        if self.debug:
-            fwd_mat = np.zeros((activations.shape[0], self.st.num_states))
-        for i, f in enumerate(fwd):
-            path[i] = np.argmax(f)
-            if self.debug:
-                fwd_mat[i, :] = f
-        if self.debug:
-            npz = {'fwd': fwd_mat, 'positions': self.st.state_positions,
-                   'path': path}
-            np.savez('/tmp/debug_info_OnlineDBNBarTracker.npz', **npz)
-        return path
-
-# TODO: this should be loaded from the model file!
-SUB_DIVISIONS = [4, 2]
-
-
 class DownbeatFeatureProcessor(SequentialProcessor):
 
-    def __init__(self, fps=100, num_bands=12):
+    def __init__(self, num_bands=12, online=False, **kwargs):
+        # pylint: disable=unused-argument
+        from functools import partial
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
-        from ..audio.signal import SignalProcessor, FramedSignalProcessor
-        from ..audio.stft import ShortTimeFourierTransformProcessor
+
         # percussive feature
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
-        frames = FramedSignalProcessor(frame_size=2048, fps=fps)
+        # Note: we need to pass kwargs to FramedSignalProcessor, otherwise
+        #       num_frames is not set correctly in online/offline mode
+        frames = FramedSignalProcessor(frame_size=2048, **kwargs)
         stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-        spec = FilteredSpectrogramProcessor(
-            num_bands=num_bands, fmin=60., fmax=17000., norm_filters=True)
-        log_spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+        filt = FilteredSpectrogramProcessor(num_bands=num_bands, fmin=60,
+                                            fmax=17000, norm_filters=True)
+        spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
         diff = SpectrogramDifferenceProcessor(
             diff_ratio=0.5, positive_diffs=False)
+        agg = partial(np.sum, axis=1)
         super(DownbeatFeatureProcessor, self).__init__(
-            (sig, frames, stft, spec, log_spec, diff, np.sum))
+            (sig, frames, stft, filt, spec, diff, agg))
 
 
 class GMMBarProcessor(Processor):
@@ -676,9 +642,9 @@ class GMMBarProcessor(Processor):
                        help='output only the downbeats')
         # return the argument group so it can be modified if needed
         g = parser.add_argument_group('Downbeat DBN arguments')
-        g.add_argument('--beat_div', default=4, type=int,
-                       help='Number of beat subdivisions '
-                            '[default=%(default)d]')
+        g.add_argument('--beat_div', dest='beat_subdivisions', default=4,
+                       type=int, help='Number of beat subdivisions '
+                                      '[default=%(default)d]')
         return g
 
 

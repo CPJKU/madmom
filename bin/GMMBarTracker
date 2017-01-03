@@ -10,57 +10,12 @@ from __future__ import absolute_import, division, print_function
 import sys
 import argparse
 
-from madmom.processors import (Processor, ParallelProcessor,
-                               SequentialProcessor, IOProcessor, io_arguments)
+from madmom.processors import ParallelProcessor, IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import DBNBeatTrackingProcessor
 from madmom.features.downbeats import (DownbeatFeatureProcessor,
-                                       BeatSyncProcessor, GMMBarProcessor)
-from madmom.utils import write_output as writer
+                                       BeatSyncProcessor, GMMBarProcessor,
+                                       LoadBeatsProcessor)
 from madmom.models import DOWNBEATS_GMM
-
-
-class RetrieveBeatsProcessor(Processor):
-    """
-    Retrieve beats from an input stream.
-
-    Parameters
-    ----------
-    beats : input stream
-        Input stream to read the beat positions from.
-
-    Notes
-    -----
-    The input stream is polled in blocking mode with readline().
-
-    """
-
-    def __init__(self, beats, **kwargs):
-        self.beats = beats
-
-    def process(self, data):
-        """
-
-        Parameters
-        ----------
-        data : input data
-            Will be ignored.
-
-        Returns
-        -------
-        beat : float or None
-            If a beat is read from the input stream it is returned, otherwise
-            None will be returned.
-
-        """
-        while True:
-            # read the input stream
-            try:
-                data = float(self.beats.readline())
-            except ValueError:
-                return None
-            return data
 
 
 def main():
@@ -76,17 +31,16 @@ def main():
     # version
     p.add_argument('--version', action='version',
                    version='GMMBarTracker.2016')
-    p.add_argument('--beats', type=argparse.FileType('b'), default=sys.stdin,
-                   help='where to read the beat positions from '
-                        '[default: STDIN]')
-
     # input/output options
-    io_arguments(p, output_suffix='.beats.txt', online=True)
-    ActivationsProcessor.add_arguments(p)
+    io_arguments(p, output_suffix='.downbeats.txt', online=True)
+    p.add_argument('--beats', type=argparse.FileType('b'),
+                   default=sys.stdin,
+                   help='where/how to read the beat positions from [defaults: '
+                        'online: STDIN, single: STDIN, batch: .beats.txt]')
+
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
-    # peak picking arguments
-    DBNBeatTrackingProcessor.add_arguments(p)
+    # tracking arguments
     GMMBarProcessor.add_arguments(p)
 
     # parse arguments
@@ -95,28 +49,49 @@ def main():
     # set immutable arguments
     args.fps = 100
 
+    # beats processor
+    if args.online:
+        # online mode: read the beats from STDIN frame-by-frame
+        beats_processor = LoadBeatsProcessor(**vars(args))
+    elif hasattr(args, 'infile'):
+        # single mode: read the beats from STDIN all at once
+        beats_processor = LoadBeatsProcessor(**vars(args))
+    elif hasattr(args, 'files'):
+        # batch mode: load the beats from file
+        if args.beats == sys.stdin:
+            args.beats = '.beats.txt'
+        beats_processor = LoadBeatsProcessor(args.files, suffix=args.beats)
+        # remove the beats files from the list of files to be processed
+        args.files = list(set(args.files) - set(beats_processor.beats))
+
     # print arguments
     if args.verbose:
         print(args)
 
-    # beat processor
-    beats_proc = RetrieveBeatsProcessor(**vars(args))
-
-    # downbeat stuff
-    downbeats_feats = DownbeatFeatureProcessor(fps=args.fps, num_bands=12)
-    # combine the beats and downbeat features in a list
-    feat_processor = ParallelProcessor([beats_proc, downbeats_feats])
-    beat_sync = BeatSyncProcessor(beat_subdivisions=args.beat_div,
-                                  feat_dim=1, fps=args.fps)
+    # downbeat features
+    downbeats_processor = DownbeatFeatureProcessor(**vars(args))
+    # combine the beats and downbeat features
+    feat_processor = ParallelProcessor([beats_processor, downbeats_processor])
+    # sync the features to the beats
+    beat_sync = BeatSyncProcessor(**vars(args))
+    # score them with a GMM
     gmm_bar_processor = GMMBarProcessor(pattern_files=DOWNBEATS_GMM,
                                         pattern_change_prob=0.001,
                                         **vars(args))
-    # sync the features to beats and score them with GMMs
-    downbeats_processor = SequentialProcessor([feat_processor, beat_sync,
-                                               gmm_bar_processor])
+    # output handler
+    if args.online:
+        # simply output the given string
+        from madmom.utils import write_output as writer
+    elif args.downbeats:
+        # simply write the timestamps of the downbeats
+        from madmom.utils import write_events as writer
+    else:
+        # borrow the note writer for outputting timestamps + beat numbers
+        from madmom.features.notes import write_notes as writer
 
     # create an IOProcessor
-    processor = IOProcessor(downbeats_processor, writer)
+    processor = IOProcessor([feat_processor, beat_sync, gmm_bar_processor],
+                            writer)
 
     # and call the processing function
     args.func(processor, **vars(args))
