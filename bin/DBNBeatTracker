@@ -75,7 +75,7 @@ def main():
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # peak picking arguments
-    DBNBeatTrackingProcessor.add_arguments(p)
+    DBNBeatTrackingProcessor.add_arguments(p, min_bpm=65, max_bpm=200)
     NeuralNetworkEnsemble.add_arguments(p, nn_files=None)
 
     # parse arguments
