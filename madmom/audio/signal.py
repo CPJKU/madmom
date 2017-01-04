@@ -1359,15 +1359,6 @@ class FramedSignalProcessor(Processor):
         self.end = end
         self.num_frames = num_frames
 
-        if online is not None:
-            import warnings
-            warnings.warn('`online` is deprecated as of version 0.14 and will '
-                          'be removed in version 0.15. Use `origin` instead.')
-            if online:
-                self.origin = 'online'
-            else:
-                self.origin = 'offline'
-
     def process(self, data, **kwargs):
         """
         Slice the signal into (overlapping) frames.
