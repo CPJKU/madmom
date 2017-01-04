@@ -56,7 +56,8 @@ def main():
         print(args)
 
     # input processor
-    downbeats_feats = DownbeatFeatureProcessor(fps=args.fps, num_bands=12)
+    downbeats_feats = DownbeatFeatureProcessor(
+        num_bands=12, **vars(args))
     beats_rnn = RNNBeatProcessor(**vars(args))
     beats_dbn = DBNBeatTrackingProcessor(**vars(args))
     beat_processor = SequentialProcessor([beats_rnn, beats_dbn])

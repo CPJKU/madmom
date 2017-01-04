@@ -188,7 +188,7 @@ class BeatSyncProcessor(Processor):
         self.frame_counter = 0
         self.current_div = 0
         # length of one beat division in audio frames (depends on tempo)
-        self.div_frames = 0
+        self.div_frames = np.inf
         self.fps = fps
         # store last beat time to compute tempo
         self.last_beat_time = 0
@@ -559,14 +559,14 @@ SUB_DIVISIONS = [4, 2]
 
 class DownbeatFeatureProcessor(Processor):
 
-    def __init__(self, fps=100, num_bands=12):
+    def __init__(self, num_bands=12, **kwargs):
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         # percussive feature
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
-        frames = FramedSignalProcessor(frame_size=2048, fps=fps)
+        frames = FramedSignalProcessor(frame_size=2048, **kwargs)
         spec = FilteredSpectrogramProcessor(
             num_bands=num_bands, fmin=60., fmax=17000., norm_filters=True)
         log_spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
