@@ -8,6 +8,8 @@ DBNBeatTracker beat tracking algorithm.
 from __future__ import absolute_import, division, print_function
 
 import argparse
+from functools import partial
+
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
@@ -61,6 +63,11 @@ def main():
     # version
     p.add_argument('--version', action='version',
                    version='DBNBeatTracker.2016')
+    p.add_argument('--no_beat', action='store_true', default=False,
+                   help='also output no-beat positions as empty values; this '
+                        'option is needed in online mode to signal other '
+                        'processes that no beat is present at this time, '
+                        'but processing of this frame has completed.')
     # input/output options
     io_arguments(p, output_suffix='.beats.txt', online=True)
     ActivationsProcessor.add_arguments(p)
@@ -97,6 +104,9 @@ def main():
         # output handler
         if args.online:
             from madmom.utils import write_output as writer
+            # FIXME: refactor this into a proper BeatsWriter processor
+            if args.no_beat:
+                writer = partial(writer, output_empty=True)
         else:
             from madmom.utils import write_events as writer
         # sequentially process everything

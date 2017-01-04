@@ -271,13 +271,18 @@ class LoadBeatsProcessor(Processor):
         beat : float or None
             Beat position [seconds] or None if no beat is present.
 
+        Notes
+        -----
+        To be able to parse incoming beats from STDIN at the correct frame
+        rate, the sender must output empty values (i.e. newlines) at the same
+        rate, because this method blocks until a new value can be read in.
+
         """
-        while True:
-            try:
-                data = float(self.beats.readline())
-            except ValueError:
-                return None
-            return data
+        try:
+            data = float(self.beats.readline())
+        except ValueError:
+            data = None
+        return data
 
     def process_single(self, *args, **kwargs):
         """

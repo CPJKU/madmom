@@ -578,7 +578,7 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                                   dtype=signal.dtype)
 
 
-def write_output(data, output, delimiter='\t'):
+def write_output(data, output, delimiter='\t', output_empty=False):
     """
     Write data to output.
 
@@ -590,17 +590,24 @@ def write_output(data, output, delimiter='\t'):
         Where to write the data to.
     delimiter : str, optional
         String or character separating multiple values.
+    output_empty : bool, optional
+        Also output empty values (i.e. None) as empty lines.
 
     Notes
     -----
     If `data` is a tuple or list, the individual values are concatenated as a
     string with `delimiter` separating them.
 
+    The option to also output empty values can be used to signal other
+    processes that no values is present, but the processing is completed.
+
     """
     if data is not None:
         if isinstance(data, (list, tuple)):
             data = delimiter.join([str(d) for d in data])
-        output.write('%s\n' % str(data))
+        output.write('%s' % str(data))
+    if data or output_empty:
+        output.write('\n')
         output.flush()
 
 
