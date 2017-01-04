@@ -14,6 +14,7 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import RNNBeatProcessor, DBNBeatTrackingProcessor
+from madmom.ml.nn import NeuralNetworkEnsemble
 
 
 def main():
@@ -75,6 +76,7 @@ def main():
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # peak picking arguments
     DBNBeatTrackingProcessor.add_arguments(p)
+    NeuralNetworkEnsemble.add_arguments(p, nn_files=None)
 
     # parse arguments
     args = p.parse_args()

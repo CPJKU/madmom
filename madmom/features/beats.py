@@ -50,7 +50,7 @@ class RNNBeatProcessor(SequentialProcessor):
     """
 
     def __init__(self, post_processor=average_predictions,
-                 online=False, **kwargs):
+                 online=False, nn_files=None, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
@@ -62,11 +62,13 @@ class RNNBeatProcessor(SequentialProcessor):
 
         # choose the appropriate models and set frame sizes accordingly
         if online:
-            nn_files = BEATS_LSTM
+            if nn_files is None:
+                nn_files = BEATS_LSTM
             frame_sizes = [2048]
             num_bands = 12
         else:
-            nn_files = BEATS_BLSTM
+            if nn_files is None:
+                nn_files = BEATS_BLSTM
             frame_sizes = [1024, 2048, 4096]
             num_bands = 6
 
