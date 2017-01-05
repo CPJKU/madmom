@@ -543,8 +543,8 @@ class DownbeatFeatureProcessor(SequentialProcessor):
         filt = FilteredSpectrogramProcessor(num_bands=num_bands, fmin=60,
                                             fmax=17000, norm_filters=True)
         spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
-        diff = SpectrogramDifferenceProcessor(
-            diff_ratio=0.5, positive_diffs=False)
+        diff = SpectrogramDifferenceProcessor(diff_ratio=0.5,
+                                              positive_diffs=True)
         agg = partial(np.sum, axis=1)
         super(DownbeatFeatureProcessor, self).__init__(
             (sig, frames, stft, filt, spec, diff, agg))

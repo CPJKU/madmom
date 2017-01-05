@@ -15,7 +15,7 @@ from madmom.audio.signal import SignalProcessor
 from madmom.features.downbeats import (DownbeatFeatureProcessor,
                                        BeatSyncProcessor, GMMBarProcessor,
                                        LoadBeatsProcessor)
-from madmom.models import DOWNBEATS_GMM
+from madmom.models import PATTERNS_GUITAR
 
 
 def main():
@@ -72,7 +72,7 @@ def main():
     # sync the features to the beats
     beat_sync = BeatSyncProcessor(**vars(args))
     # score them with a GMM
-    gmm_bar_processor = GMMBarProcessor(pattern_files=DOWNBEATS_GMM,
+    gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
                                         pattern_change_prob=0.001,
                                         **vars(args))
     # output handler
