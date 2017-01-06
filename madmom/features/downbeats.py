@@ -37,13 +37,12 @@ class BeatSyncProcessor(Processor):
         self.frame_counter = 0
         self.current_div = 0
         # length of one beat division in audio frames (depends on tempo)
-        self.div_frames = 0
+        self.div_frames = None
         # store last beat time to compute tempo
-        self.last_beat_time = 0
-        # self.next_beat_time = 0
-        # min beat period in frames
-        self.min_div_length = 3
-        self.beat_features = np.zeros((1, beat_subdivisions, feat_dim))
+        self.last_beat_time = None
+        self.beat_features = np.zeros((beat_subdivisions, feat_dim))
+        # offset the beat subdivision borders
+        self.offset = 2
 
     def process(self, data):
         """
@@ -88,45 +87,66 @@ class BeatSyncProcessor(Processor):
         beat_time : None or float
             Beat time (or None if no beat is present).
         beat_feat : numpy array, shape (1, beat_subdivisions, feat_dim)
-            Beat synchronous features.
+            Beat synchronous features (or None if no beat is present)
 
         """
         beat, feature = data
+        is_beat = beat is not None
+
+        # init before first beat:
+        if self.last_beat_time is None:
+            if is_beat:
+                # store last_beat_time
+                self.last_beat_time = beat
+                return None, None
+            else:
+                return None, None
+
+        # init before second beat:
+        if self.div_frames is None:
+            if is_beat:
+                # set tempo (div_frames)
+                beat_interval = beat - self.last_beat_time
+                self.div_frames = np.diff(np.round(
+                    np.linspace(0, beat_interval * self.fps,
+                                self.beat_subdivisions + 1)))
+                self.last_beat_time = beat
+                return None, None
+            else:
+                return None, None
+
+        # normal action, everything is initialised
+        # add feature to the cumulative sum
         self.feat_sum += feature
         self.frame_counter += 1
-        is_beat = beat is not None
-        # FIXME: returned beat feature is computed differently to offline mode
+        # check if a new beat subdivision is reached
+        is_new_div = (self.frame_counter >= self.div_frames[self.current_div])
         beat_feat = None
-        # check if new beat division is reached
-        if (self.frame_counter >= self.div_frames) or is_beat:
-            # one div has to be at least min_div_length frames long
-            # if self.frame_counter > self.min_div_length:
-            # compute div-features (if last beat division, wait for the beat)
-            if self.current_div < (self.beat_subdivisions - 1) or is_beat:
-                self.beat_features[0, self.current_div, :] = self.feat_sum / \
-                                                             self.frame_counter
-                self.current_div += 1
-                # check if it is the last beat division of a beat
-                if is_beat:
-                    beat_interval = beat - self.last_beat_time
-                    # update beat division because of potential new tempo
-                    self.div_frames = np.round(beat_interval * self.fps /
-                                               self.beat_subdivisions)
-                    if self.div_frames < self.min_div_length:
-                        print('Tempo too fast, reset to max tempo')
-                        self.div_frames = self.min_div_length
-                    # store last beat
-                    self.last_beat_time = beat
-                    # predict next beat_time
-                    # self.next_beat_time = beat_time + beat_interval
-                    self.current_div = 0
-                    beat_feat = self.beat_features
-                    self.beat_features = np.zeros((1, self.beat_subdivisions,
-                                                   self.feat_dim))
-                # reset buffer
-                self.feat_sum = 0.
-                self.frame_counter = 0
-        # return beat time and feature, (None, None) if there is no beat
+        if is_new_div:
+            # compute mean of the features in the previous subdivision
+            self.beat_features[self.current_div, :] = \
+                self.feat_sum / self.frame_counter
+            # proceed to the next subdivision
+            self.current_div = (self.current_div + 1) % self.beat_subdivisions
+            # reset cumulative sum and the frame counter
+            self.feat_sum = 0.
+            self.frame_counter = 0
+        if is_beat:
+            beat_feat = self.beat_features[np.newaxis, :]
+            # compute new beat interval (tempo)
+            beat_interval = beat - self.last_beat_time
+            # update beat subdivision lengths
+            self.div_frames = np.diff(np.round(np.linspace(
+                0, beat_interval * self.fps, self.beat_subdivisions + 1)))
+            # reset frame counter. If we want to collect features before the
+            #  actual subdivision borders, we start counting with an offset
+            self.frame_counter = self.offset
+            # store last beat time
+            self.last_beat_time = beat
+            self.current_div = 0
+            # remove old entries
+            self.beat_features = np.zeros((self.beat_subdivisions,
+                                           self.feat_dim))
         return beat, beat_feat
 
     def process_offline(self, data):
