@@ -601,7 +601,8 @@ class GMMBarProcessor(Processor):
         self.dbn_processor = DBNBarTrackingProcessor(
             observation_param=gmms, beats_per_bar=self.num_beats,
             observation_model=observation_model, online=online,
-            obslik_floor=1e-10, **kwargs)
+            obslik_floor=1e-10, pattern_change_prob=pattern_change_prob,
+            **kwargs)
 
     def process(self, data):
         """
