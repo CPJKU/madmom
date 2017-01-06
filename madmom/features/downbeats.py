@@ -118,11 +118,11 @@ class BeatSyncProcessor(Processor):
         # normal action, everything is initialised
         # add feature to the cumulative sum
         self.feat_sum += feature
-        self.frame_counter += 1
-        # check if a new beat subdivision is reached
-        is_new_div = (self.frame_counter >= self.div_frames[self.current_div])
+        self.frame_counter += 1  # starts with 1
+        # check if the current frame is the end of a beat subdivision
+        is_end_div = (self.frame_counter >= self.div_frames[self.current_div])
         beat_feat = None
-        if is_new_div:
+        if is_end_div:
             # compute mean of the features in the previous subdivision
             self.beat_features[self.current_div, :] = \
                 self.feat_sum / self.frame_counter
@@ -138,7 +138,14 @@ class BeatSyncProcessor(Processor):
             # update beat subdivision lengths
             self.div_frames = np.diff(np.round(np.linspace(
                 0, beat_interval * self.fps, self.beat_subdivisions + 1)))
-            # reset frame counter. If we want to collect features before the
+            # If we reset the frame_counter, we also have to modify feat_sum
+            #  accordingly
+            if self.frame_counter > self.offset:
+                self.feat_sum = self.feat_sum * \
+                                self.offset / self.frame_counter
+            else:
+                self.feat_sum = self.beat_features[-1, :] * self.offset
+            # Reset frame counter. If we want to collect features before the
             #  actual subdivision borders, we start counting with an offset
             self.frame_counter = self.offset
             # store last beat time
