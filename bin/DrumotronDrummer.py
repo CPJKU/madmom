@@ -103,7 +103,7 @@ def main():
     # score them with a GMM
     gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
                                         pattern_change_prob=0.001,
-                                        **vars(args))
+                                        output_patterns=True, **vars(args))
     dhp = DrumotronHardwareProcessor()
     control_processor = DrumotronControlProcessor(
         DRUM_PATTERNS, delay=0, smooth_win_len=5, out=dhp)

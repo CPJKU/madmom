@@ -393,7 +393,7 @@ class DBNBarTrackingProcessor(Processor):
     def __init__(self, observation_param=100, downbeats=False,
                  pattern_change_prob=0.0, beats_per_bar=[3, 4],
                  observation_model=RNNBeatTrackingObservationModel,
-                 online=False, **kwargs):
+                 online=False, output_patterns=False, **kwargs):
         """
         Track the downbeats with a Dynamic Bayesian Network (DBN).
 
@@ -422,6 +422,7 @@ class DBNBarTrackingProcessor(Processor):
         self.fwd_variables = None
         self.num_beats = beats_per_bar
         num_patterns = len(self.num_beats)
+        self.output_patterns = output_patterns
         # save additional variables
         self.downbeats = downbeats
         # state space
@@ -463,11 +464,14 @@ class DBNBarTrackingProcessor(Processor):
         beat_numbers = position.astype(int) + 1
         # as we computed the last beat number, add 1 to get the current one
         num_beats = self.num_beats[self.st.state_patterns[state]]
+        # Our prediction is one beat behind -> predict for current beat
         beat_numbers = beat_numbers % num_beats + 1
         beat_interval = self.frame_counter
         self.frame_counter = 0
-        return beat_interval, beat_numbers, pattern
-        # return beat, beat_numbers
+        if self.output_patterns:
+            return beat_interval, beat_numbers, pattern
+        else:
+            return beat, beat_numbers
 
     def infer_offline(self, beats, activations):
         path, _ = self.hmm.viterbi(activations)
@@ -587,7 +591,8 @@ class GMMBarProcessor(Processor):
 
     """
     def __init__(self, fps=100, pattern_files=None, downbeats=False,
-                 pattern_change_prob=0., online=False, **kwargs):
+                 pattern_change_prob=0., online=False,
+                 output_patterns=False, **kwargs):
         # load the patterns
         patterns = []
         for pattern_file in pattern_files:
@@ -613,7 +618,7 @@ class GMMBarProcessor(Processor):
             observation_param=gmms, beats_per_bar=self.num_beats,
             observation_model=observation_model, online=online,
             pattern_change_prob=pattern_change_prob,
-            **kwargs)
+            output_patterns=output_patterns, **kwargs)
 
     def process(self, data):
         """

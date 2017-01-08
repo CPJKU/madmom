@@ -77,7 +77,10 @@ class DrumotronControlProcessor(Processor):
 
         """
         # print('======= %s ======' % str(self.beat_frame_counter_int))
-        (beat_interval, beat_count, pattern_id) = data
+        if data is None:
+            beat_count = None
+        else:
+            (beat_interval, beat_count, pattern_id) = data
         is_beat = beat_count is not None
         if is_beat:
             self.pattern_id = pattern_id
