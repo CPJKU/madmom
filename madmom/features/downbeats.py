@@ -393,7 +393,7 @@ class DBNBarTrackingProcessor(Processor):
     def __init__(self, observation_param=100, downbeats=False,
                  pattern_change_prob=0.0, beats_per_bar=[3, 4],
                  observation_model=RNNBeatTrackingObservationModel,
-                 online=False, obslik_floor=None, **kwargs):
+                 online=False, **kwargs):
         """
         Track the downbeats with a Dynamic Bayesian Network (DBN).
 
@@ -443,12 +443,11 @@ class DBNBarTrackingProcessor(Processor):
         self.tm = MultiPatternTransitionModel(
             transition_models, pattern_change_prob=pattern_change_prob)
         # observation model
-        self.om = observation_model(
-            self.st, observation_param, obslik_floor=obslik_floor)
+        self.om = observation_model(self.st, observation_param)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
-    def infer_online(self, activation, beat):
+    def infer_online(self, beat, activation):
         # infer beat numbers only at beat positions
         if beat is None:
             return None
@@ -464,7 +463,7 @@ class DBNBarTrackingProcessor(Processor):
         beat_numbers = beat_numbers % num_beats + 1
         return beat, beat_numbers
 
-    def infer_offline(self, activations, beats):
+    def infer_offline(self, beats, activations):
         path, _ = self.hmm.viterbi(activations)
         # get the position inside the bar
         position = self.st.state_positions[path]
@@ -494,13 +493,12 @@ class DBNBarTrackingProcessor(Processor):
             beat or downbeat times
 
         """
-        beats, activations = data
         # get the best state path by calling the inference algorithm
         if self.online:
-            return self.infer_online(activations, beats)
+            return self.infer_online(*data)
         else:
             # get the best state path by calling the viterbi algorithm
-            return self.infer_offline(activations, beats)
+            return self.infer_offline(*data)
 
     @classmethod
     def add_arguments(cls, parser, observation_weight=100,
@@ -608,7 +606,7 @@ class GMMBarProcessor(Processor):
         self.dbn_processor = DBNBarTrackingProcessor(
             observation_param=gmms, beats_per_bar=self.num_beats,
             observation_model=observation_model, online=online,
-            obslik_floor=1e-10, pattern_change_prob=pattern_change_prob,
+            pattern_change_prob=pattern_change_prob,
             **kwargs)
 
     def process(self, data):
@@ -685,7 +683,7 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
 
     """
 
-    def __init__(self, state_space, gmms, obslik_floor=None):
+    def __init__(self, state_space, gmms):
         """
         Construct a observation model instance using Gaussian Mixture Models
         (GMMs).
@@ -704,10 +702,6 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
         """
         self.gmms = gmms
         self.state_space = state_space
-        # set observation likelihood floor
-        self.obslik_floor = obslik_floor
-        if obslik_floor is not None:
-            self.obslik_floor = np.log(self.obslik_floor)
         # define the pointers of the log densities
         pointers = np.zeros(state_space.num_states, dtype=np.uint32)
         states = np.arange(self.state_space.num_states)
@@ -763,9 +757,5 @@ class GMMDownBeatTrackingObservationModel(ObservationModel):
                     log_densities[:, c] += self.gmms[i][j][bd].score(
                         np.squeeze(observations[:, [bd], :], axis=1))
                 c += 1
-        if self.obslik_floor is not None:
-            # limit the range of the observation likelihood to avoid
-            # problems if the probability gets 0 (impossible state)
-            log_densities = np.maximum(log_densities, self.obslik_floor)
         # return the densities
         return log_densities
