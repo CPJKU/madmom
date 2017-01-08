@@ -1,0 +1,250 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Drumotron beat tracking, pattern selection and drum control algorithm.
+
+Drumotron uses different algorithms for different parts:
+1. DBNBeatTracker for tracking the beats,
+2. GMMBarTracker for tracking the bar and selecting the pattern,
+3. logic to control the servos to play a drum kit.
+
+The logic of 1. and 2. is incorporated and modified within this file, since it
+needs to run on a Raspberry Pi. However, to be able to do so, the different
+parts need to run on different CPU cores, since the Pi has rather limited
+processing power.
+
+Process 1 covers all beat tracking related stuff plus the GMM feature
+generation which are fed into the second Process which covers the feature
+to beat syncronisation, GMM scoring, the final DBN and the drumotron control
+logic.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
+import argparse
+import multiprocessing as mp
+from functools import partial
+
+import numpy as np
+
+from madmom.processors import (IOProcessor, io_arguments, SequentialProcessor,
+                               ParallelProcessor)
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor)
+from madmom.ml.nn import NeuralNetwork
+from madmom.models import BEATS_LSTM, PATTERNS_GUITAR
+from madmom.features.beats import DBNBeatTrackingProcessor
+from madmom.features.downbeats import BeatSyncProcessor, GMMBarProcessor
+
+
+# adapted from madmom.processors.process_online
+def open_input(**kwargs):
+    """
+    Open a file or audio stream.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Dictionary containing options needed to open a Stream or FramedSignal.
+
+    Returns
+    -------
+    stream : Iterable
+        Open Stream or FramedSignal.
+
+    """
+    from madmom.audio.signal import Stream, FramedSignal
+    # if no iput file is given, create a Stream with the given arguments
+    infile = kwargs.get('infile', None)
+    if infile is None:
+        stream = Stream(**kwargs)
+        # start the stream if not running already
+        if not stream.is_running():
+            stream.start()
+    # use the input file
+    else:
+        # set default parameters for opening the file
+        from madmom.audio.signal import FRAME_SIZE, HOP_SIZE, FPS
+        frame_size = kwargs.get('frame_size', FRAME_SIZE)
+        hop_size = kwargs.get('hop_size', HOP_SIZE)
+        fps = kwargs.get('fps', FPS)
+        origin = kwargs.get('origin', 'online')
+        stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
+                              fps=fps, origin=origin, num_frames=None)
+    # return an iterable stream
+    return iter(stream)
+
+
+class InputProcess(mp.Process):
+    """
+    Class for extracting beats and features and putting them into a queue.
+
+    Parameters
+    ----------
+    infile : Iterable
+        Iterable to get the frames from, e.g. Stream or iter(FramedSignal).
+    queue : Queue
+        Queue for beats & features.
+
+    """
+
+    def __init__(self, processor, queue, **kwargs):
+        super(InputProcess, self).__init__()
+        self.processor = processor
+        self.queue = queue
+        self.kwargs = kwargs
+
+    def run(self):
+        """Process all frames from the given input."""
+        # Note: we need open the infile in here, since starting a PyAudio
+        #       stream before starting this process does not work
+        infile = open_input(**self.kwargs)
+        while True:
+            # get the next frame
+            try:
+                data = infile.next()
+            except StopIteration:
+                self.queue.put((None, None))
+                break
+            # process the Processor with the data
+            beat, feature = self.processor(data)
+            # put the result in the queue
+            data = beat, float(feature)
+            self.queue.put(data)
+
+
+class OutputProcess(mp.Process):
+    """
+    Class for retrieving beats and features from a queue and extracting the
+    pattern and position inside bar.
+
+    Parameters
+    ----------
+    queue : Queue
+        Queue for beats & features.
+    outfile : file or file handle
+        Where to put the results into.
+
+    """
+
+    def __init__(self, processor, queue, outfile):
+        super(OutputProcess, self).__init__()
+        self.processor = processor
+        self.queue = queue
+        self.outfile = outfile
+        self.counter = 0
+
+    def run(self):
+        """Process all tasks from the task queue."""
+        while True:
+            self.counter += 1
+            # get the data to be processed
+            data = self.queue.get()
+            if data == (None, None):
+                break
+            # process the Processor with the data and output everything
+            self.processor(data, self.outfile)
+            self.queue.task_done()
+
+
+def main():
+    """Drumotron"""
+
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    Drumotron
+    ''')
+    # version
+    p.add_argument('--version', action='version',
+                   version='Drumotron.2016')
+    # input/output options
+    io_arguments(p, output_suffix=None, online=True)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, gain=0)
+    # tracking arguments
+    DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
+    GMMBarProcessor.add_arguments(p)
+
+    # parse arguments
+    args = p.parse_args()
+
+    # set immutable arguments
+    args.fps = 100
+
+    # print arguments
+    if args.verbose:
+        print(args)
+
+    # define signal processing used by all others
+    sig = SignalProcessor(num_channels=1, sample_rate=44100)
+    frames = FramedSignalProcessor(frame_size=2048, **vars(args))
+    stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+    sig_proc = SequentialProcessor((sig, frames, stft))
+    # here, the processing for the RNN & GMM diverges
+
+    # beat tracking processor
+    filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
+                                        fmax=17000, norm_filters=True)
+    spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
+                                          stack_diffs=np.hstack)
+    nn = NeuralNetwork.load(BEATS_LSTM[1])
+    dbn = DBNBeatTrackingProcessor(**vars(args))
+    beat_processor = SequentialProcessor((filt, spec, diff, nn, dbn))
+
+    # gmm feature
+    filt = FilteredSpectrogramProcessor(num_bands=12, fmin=60,
+                                        fmax=17000, norm_filters=True)
+    spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True)
+    agg = partial(np.sum, axis=1)
+    gmm_feat_processor = SequentialProcessor((filt, spec, diff, agg))
+
+    # extract beat & gmm feature in parallel
+    beat_feat_processor = ParallelProcessor((beat_processor,
+                                             gmm_feat_processor))
+
+    # here we have to split into two separate processes
+
+    # sync the features to the beats
+    beat_sync = BeatSyncProcessor(**vars(args))
+    # score them with a GMM
+    gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
+                                        pattern_change_prob=0.001,
+                                        **vars(args))
+
+    # output handler
+    if args.online:
+        # simply output the given string
+        from madmom.utils import write_output as writer
+    elif args.downbeats:
+        # simply write the timestamps of the downbeats
+        from madmom.utils import write_events as writer
+    else:
+        # borrow the note writer for outputting timestamps + beat numbers
+        from madmom.features.notes import write_notes as writer
+
+    # define processors for the separate processes
+    input_processor = SequentialProcessor([sig_proc, beat_feat_processor])
+    output_processor = IOProcessor([beat_sync, gmm_bar_processor], writer)
+
+    # create a queue to pass beats and features to the second process
+    q = mp.JoinableQueue(1)
+
+    # create working threads
+    processes = [InputProcess(input_processor, queue=q, **vars(args)),
+                 OutputProcess(output_processor, q, args.outfile)]
+    for p in processes:
+        p.daemon = False
+        p.start()
+
+    q.join()
+
+
+if __name__ == '__main__':
+    main()
