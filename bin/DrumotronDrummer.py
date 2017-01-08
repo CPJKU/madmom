@@ -105,7 +105,8 @@ def main():
                                         pattern_change_prob=0.001,
                                         **vars(args))
     dhp = DrumotronHardwareProcessor()
-    dp = DrumotronControlProcessor(fps, DRUM_PATTERNS, delay=0, out=dhp)
+    control_processor = DrumotronControlProcessor(
+        DRUM_PATTERNS, delay=0, smooth_win_len=5, out=dhp)
 
     # output handler
     if args.online:
@@ -120,7 +121,7 @@ def main():
 
     # create an IOProcessor
     processor = IOProcessor([sig_proc, beat_downbeat_processor, beat_sync,
-                             gmm_bar_processor], writer)
+                             gmm_bar_processor, control_processor], writer)
 
     # and call the processing function
     args.func(processor, **vars(args))

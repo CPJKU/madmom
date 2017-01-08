@@ -13,8 +13,9 @@ from madmom.processors import Processor
 class DrumotronHardwareProcessor(Processor):
 
     def __init__(self, arduino=False):
-        import serial
-        self.ser = serial.Serial('/dev/ttyACM0', 9600)
+        if arduino:
+            import serial
+            self.ser = serial.Serial('/dev/ttyACM0', 9600)
         self.arduino = arduino
 
     def process(self, cmd):
@@ -32,10 +33,9 @@ class DrumotronControlProcessor(Processor):
     grid : int, optional
         Number of grid points per beat.
     """
-    def __init__(self, fps, pattern_files, delay=0, smooth_win_len=0,
+    def __init__(self, pattern_files, delay=0, smooth_win_len=0,
                  grid=4, out=print):
         # store parameters
-        self.fps = fps
         self.delay = delay
         self.smooth_win_len = smooth_win_len
         self.grid = grid
@@ -53,7 +53,7 @@ class DrumotronControlProcessor(Processor):
         # variables for storing intermediate data
         self.last_position = None
         self.beat_frame_counter_int = None
-        # self.beat_periods = [None] * smooth_win_len
+        self.beat_periods = [None] * smooth_win_len
         self.current_beat_period = None
         self.beat_count = None
         self.pattern_id = None
@@ -80,9 +80,16 @@ class DrumotronControlProcessor(Processor):
         (beat_interval, beat_count, pattern_id) = data
         is_beat = beat_count is not None
         if is_beat:
-            # print('--- beat ---')
             self.pattern_id = pattern_id
+            if self.smooth_win_len > 0:
+                # shift entries to the left
+                self.beat_periods[:-1] = self.beat_periods[1:]
+                # append new beat period
+                self.beat_periods[-1] = beat_interval
+                if None not in self.beat_periods:
+                    beat_interval = np.median(self.beat_periods)
             self.current_beat_period = beat_interval
+            # print('--- beat (period %i) ---' % beat_interval)
             self.beat_count = beat_count
             self.beat_frame_counter_int = self.delay
             self.beat_frame_counter_ext = self.beat_frame_counter_int
@@ -106,13 +113,13 @@ class DrumotronControlProcessor(Processor):
             self.last_position = current_position
             if current_position != self.last_played_position:
                 if current_position in self.patterns[self.pattern_id]['hh']:
-                    self.out('1')
+                    self.out('hh')
                     self.last_played_position = current_position
                 if current_position in self.patterns[self.pattern_id]['sn']:
-                    self.out('2')
+                    self.out('sn')
                     self.last_played_position = current_position
                 if current_position in self.patterns[self.pattern_id]['bd']:
-                    self.out('3')
+                    self.out('bd')
                     self.last_played_position = current_position
         # update state variables
         self.beat_frame_counter_int += 1
