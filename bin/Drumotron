@@ -68,26 +68,25 @@ def main():
     sig = SignalProcessor(num_channels=1, sample_rate=44100)
     frames = FramedSignalProcessor(frame_size=2048, **vars(args))
     stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-    sig_proc = SequentialProcessor((sig, frames, stft))
-    # here, the processing for the RNN & GMM diverges
-
-    # beat tracking processor
     filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
                                         fmax=17000, norm_filters=True)
     spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
     diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
                                           stack_diffs=np.hstack)
+    sig_proc = SequentialProcessor((sig, frames, stft, filt, spec, diff))
+    # here, the processing for the RNN & GMM diverges
+
+    # beat tracking processor
     nn = NeuralNetwork.load(BEATS_LSTM[1])
     dbn = DBNBeatTrackingProcessor(**vars(args))
-    beat_processor = SequentialProcessor((filt, spec, diff, nn, dbn))
+    beat_processor = SequentialProcessor((nn, dbn))
 
     # gmm feature
-    filt = FilteredSpectrogramProcessor(num_bands=12, fmin=60,
-                                        fmax=17000, norm_filters=True)
-    spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
-    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True)
-    agg = partial(np.sum, axis=1)
-    gmm_feat_processor = SequentialProcessor((filt, spec, diff, agg))
+    # take only the second part of the stacked diff (i.e. the diffs themselve)
+    take = partial(np.take, indices=np.arange(81, 162))
+    # and sum these positive differences
+    agg = partial(np.sum)
+    gmm_feat_processor = SequentialProcessor((take, agg))
 
     # extract beat & gmm feature in parallel
     beat_feat_processor = ParallelProcessor((beat_processor,
