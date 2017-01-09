@@ -896,7 +896,7 @@ class SignalProcessor(Processor):
         # add signal processing options to the existing parser
         g = parser.add_argument_group('signal processing arguments')
         if sample_rate is not None:
-            g.add_argument('--sample_rate', action='store_true',
+            g.add_argument('--sample_rate', action='store', type=int,
                            default=sample_rate,
                            help='re-sample the signal to this sample rate '
                                 '[Hz]')
