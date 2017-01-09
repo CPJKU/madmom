@@ -1368,7 +1368,6 @@ class DBNDownBeatTrackingProcessor(Processor):
         self.fps = fps
         # kepp state in online mode
         self.online = online
-        self.fwd_variables = None
         # TODO: refactor the visualisation stuff
         self.visualize = kwargs.get('verbose', False)
         self.counter = 0
@@ -1425,10 +1424,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         om = hmm.observation_model
         num_beats = np.max(self.beats_per_bar)
         # FIXME: reset only after a certain period low activations
-        if np.max(activations) < self.threshold:
-            self.fwd_variables = None
-        fwd = hmm.forward(activations, init=self.fwd_variables)
-        self.fwd_variables = fwd.flatten()
+        fwd = hmm.forward(activations)
         state = np.argmax(fwd)
         # decide if it is a beat or downbeat
         beat = om.pointers[state] >= 1
