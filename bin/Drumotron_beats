@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Drumotron beat tracking, pattern selection and drum control algorithm.
+Drumotron beat tracking program.
 
 Drumotron uses different algorithms for different parts:
 1. DBNBeatTracker for tracking the beats,
@@ -17,6 +17,7 @@ processing power.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import argparse
 from functools import partial
 
@@ -30,18 +31,38 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
 from madmom.ml.nn import NeuralNetwork
-from madmom.models import BEATS_LSTM, PATTERNS_GUITAR
+from madmom.models import BEATS_LSTM
 from madmom.features.beats import DBNBeatTrackingProcessor
-from madmom.features.downbeats import BeatSyncProcessor, GMMBarProcessor
+
+
+def writer(data, output):
+    """
+    Write data to output.
+
+    Parameters
+    ----------
+    data : str, tuple or list
+        Data to be written to output.
+    output : open file handle
+        Where to write the data to.
+
+    """
+    beat, feature = data
+    if beat is None:
+        # substitute None beats with a float
+        beat = 0
+    if data is not None:
+        output.write('%f %f\n' % (beat, feature))
+        output.flush()
 
 
 def main():
-    """Drumotron"""
+    """Drumotron beats"""
 
     # define parser
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-    Drumotron
+    Drumotron beats.
     ''')
     # version
     p.add_argument('--version', action='version',
@@ -52,7 +73,6 @@ def main():
     SignalProcessor.add_arguments(p, sample_rate=48000, gain=0)
     # tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
-    GMMBarProcessor.add_arguments(p)
 
     # parse arguments
     args = p.parse_args()
@@ -62,7 +82,7 @@ def main():
 
     # print arguments
     if args.verbose:
-        print(args)
+        print(args, file=sys.stderr)
 
     # define signal processing used by all others
     sig = SignalProcessor(num_channels=1, sample_rate=args.sample_rate)
@@ -71,7 +91,8 @@ def main():
     filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
                                         fmax=17000, norm_filters=True)
     spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
-    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
+    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5,
+                                          positive_diffs=True,
                                           stack_diffs=np.hstack)
     sig_proc = SequentialProcessor((sig, frames, stft, filt, spec, diff))
     # here, the processing for the RNN & GMM diverges
@@ -92,27 +113,8 @@ def main():
     beat_feat_processor = ParallelProcessor((beat_processor,
                                              gmm_feat_processor))
 
-    # sync the features to the beats
-    beat_sync = BeatSyncProcessor(**vars(args))
-    # score them with a GMM
-    gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
-                                        pattern_change_prob=0.001,
-                                        **vars(args))
-
-    # output handler
-    if args.online:
-        # simply output the given string
-        from madmom.utils import write_output as writer
-    elif args.downbeats:
-        # simply write the timestamps of the downbeats
-        from madmom.utils import write_events as writer
-    else:
-        # borrow the note writer for outputting timestamps + beat numbers
-        from madmom.features.notes import write_notes as writer
-
     # create an IOProcessor
-    processor = IOProcessor([sig_proc, beat_feat_processor, beat_sync,
-                             gmm_bar_processor], writer)
+    processor = IOProcessor([sig_proc, beat_feat_processor], writer)
 
     # and call the processing function
     args.func(processor, **vars(args))
