@@ -108,13 +108,13 @@ class InputProcess(mp.Process):
             try:
                 data = infile.next()
             except StopIteration:
-                self.queue.put((None, None))
+                self.queue.send((None, None))
                 break
             # process the Processor with the data
             beat, feature = self.processor(data)
             # put the result in the queue
             data = beat, float(feature)
-            self.queue.put(data)
+            self.queue.send(data)
 
 
 class OutputProcess(mp.Process):
@@ -143,12 +143,11 @@ class OutputProcess(mp.Process):
         while True:
             self.counter += 1
             # get the data to be processed
-            data = self.queue.get()
+            data = self.queue.recv()
             if data == (None, None):
                 break
             # process the Processor with the data and output everything
             self.processor(data, self.outfile)
-            self.queue.task_done()
 
 
 def main():
@@ -165,7 +164,7 @@ def main():
     # input/output options
     io_arguments(p, output_suffix=None, online=True)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, gain=0)
+    SignalProcessor.add_arguments(p, sample_rate=48000, gain=0)
     # tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
     GMMBarProcessor.add_arguments(p)
@@ -181,7 +180,7 @@ def main():
         print(args)
 
     # define signal processing used by all others
-    sig = SignalProcessor(num_channels=1, sample_rate=44100)
+    sig = SignalProcessor(num_channels=1, sample_rate=args.sample_rate)
     frames = FramedSignalProcessor(frame_size=2048, **vars(args))
     stft = ShortTimeFourierTransformProcessor()  # caching FFT window
     filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
@@ -193,9 +192,9 @@ def main():
     # here, the processing for the RNN & GMM diverges
 
     # beat tracking processor
-    nn = NeuralNetwork.load(BEATS_LSTM[1])
+    nn = NeuralNetwork.load(BEATS_LSTM[0])
     dbn = DBNBeatTrackingProcessor(**vars(args))
-    beat_processor = SequentialProcessor((filt, spec, diff, nn, dbn))
+    beat_processor = SequentialProcessor((nn, dbn))
 
     # gmm feature
     # take only the second part of the stacked diff (i.e. the diffs themselve)
@@ -232,17 +231,15 @@ def main():
     input_processor = SequentialProcessor([sig_proc, beat_feat_processor])
     output_processor = IOProcessor([beat_sync, gmm_bar_processor], writer)
 
-    # create a queue to pass beats and features to the second process
-    q = mp.JoinableQueue(1)
+    # create a pipe to pass beats and features to the second process
+    recv, send = mp.Pipe()
 
     # create working threads
-    processes = [InputProcess(input_processor, queue=q, **vars(args)),
-                 OutputProcess(output_processor, q, args.outfile)]
+    processes = [InputProcess(input_processor, send, **vars(args)),
+                 OutputProcess(output_processor, recv, args.outfile)]
     for p in processes:
         p.daemon = False
         p.start()
-
-    q.join()
 
 
 if __name__ == '__main__':
