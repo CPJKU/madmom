@@ -49,7 +49,7 @@ def main():
     # input/output options
     io_arguments(p, output_suffix=None, online=True)
     # signal processing arguments
-    SignalProcessor.add_arguments(p, sample_rate=48000, gain=0)
+    SignalProcessor.add_arguments(p, sample_rate=44100, gain=0)
     # tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
     GMMBarProcessor.add_arguments(p)
