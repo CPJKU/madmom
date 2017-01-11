@@ -138,8 +138,8 @@ class BeatSyncProcessor(Processor):
             # update beat subdivision lengths
             self.div_frames = np.diff(np.round(np.linspace(
                 0, beat_interval * self.fps, self.beat_subdivisions + 1)))
-            # If we reset the frame_counter, we also have to modify feat_sum
-            #  accordingly
+            # If we reset the beat_frame_counter_int, we also have to modify
+            # feat_sum accordingly
             if self.frame_counter > self.offset:
                 self.feat_sum = self.feat_sum * \
                                 self.offset / self.frame_counter
@@ -417,6 +417,7 @@ class DBNBarTrackingProcessor(Processor):
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
                                 MultiPatternTransitionModel)
+        self.frame_counter = 0
         self.online = online
         self.fwd_variables = None
         self.num_beats = beats_per_bar
@@ -450,18 +451,23 @@ class DBNBarTrackingProcessor(Processor):
     def infer_online(self, beat, activation):
         # infer beat numbers only at beat positions
         if beat is None:
+            self.frame_counter += 1
             return None
         fwd = self.hmm.forward(activation)
         # use simply the most probable state
         state = np.argmax(fwd)
         # get the position inside the bar
         position = self.st.state_positions[state]
+        pattern = self.st.state_patterns[state]
         # the beat numbers are the counters + 1 at the transition points
         beat_numbers = position.astype(int) + 1
         # as we computed the last beat number, add 1 to get the current one
         num_beats = self.num_beats[self.st.state_patterns[state]]
         beat_numbers = beat_numbers % num_beats + 1
-        return beat, beat_numbers
+        beat_interval = self.frame_counter
+        self.frame_counter = 0
+        return beat_interval, beat_numbers, pattern
+        # return beat, beat_numbers
 
     def infer_offline(self, beats, activations):
         path, _ = self.hmm.viterbi(activations)
