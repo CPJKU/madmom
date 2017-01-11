@@ -21,7 +21,7 @@ class DrumotronHardwareProcessor(Processor):
     def process(self, cmd):
         if self.arduino:
             self.ser.write(cmd)
-        print('command ', cmd)
+            print('a command ', cmd)
 
 
 class DrumotronControlProcessor(Processor):
@@ -83,6 +83,7 @@ class DrumotronControlProcessor(Processor):
             (beat_interval, beat_count, pattern_id) = data
         is_beat = beat_count is not None
         if is_beat:
+            # print('-- new ext beat', beat_count)
             self.pattern_id = pattern_id
             if self.smooth_win_len > 0:
                 # shift entries to the left
@@ -102,27 +103,31 @@ class DrumotronControlProcessor(Processor):
             return None
         if (is_beat is False) and (self.beat_frame_counter_int >
                                    self.current_beat_period - 1):
-            # print('-- new int beat')
             # start new bar
             self.beat_frame_counter_int = 0
             # increase beat counter
-            self.beat_count = self.beat_count % self.patterns[
-                self.pattern_id]['num_beats'] + 1
-        current_position = np.digitize(
+            self.beat_count = int(self.beat_count % self.patterns[
+                self.pattern_id]['num_beats'] + 1)
+            # print('-- new int beat', self.beat_count)
+        current_position = int(np.digitize(
             self.beat_frame_counter_int, self.beat_grid) - 1 + \
-            (self.beat_count - 1) * self.grid
+            (self.beat_count - 1) * self.grid)
+        # if is_beat or self.beat_frame_counter_int == 0:
+            # print('cp =', current_position)
 
         if self.last_position != current_position:
             self.last_position = current_position
             if current_position != self.last_played_position:
                 if current_position in self.patterns[self.pattern_id]['hh']:
-                    self.out('hh')
+                    self.out('2')
                     self.last_played_position = current_position
+                    self.out('1')
                 if current_position in self.patterns[self.pattern_id]['sn']:
-                    self.out('sn')
+                    self.out('4')
                     self.last_played_position = current_position
+                    self.out('1')
                 if current_position in self.patterns[self.pattern_id]['bd']:
-                    self.out('bd')
+                    # self.out('3')
                     self.last_played_position = current_position
         # update state variables
         self.beat_frame_counter_int += 1

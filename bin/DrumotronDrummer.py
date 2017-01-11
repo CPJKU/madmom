@@ -104,9 +104,9 @@ def main():
     gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
                                         pattern_change_prob=0.001,
                                         output_patterns=True, **vars(args))
-    dhp = DrumotronHardwareProcessor()
+    dhp = DrumotronHardwareProcessor(arduino=True)
     control_processor = DrumotronControlProcessor(
-        DRUM_PATTERNS, delay=0, smooth_win_len=5, out=dhp)
+        DRUM_PATTERNS, delay=3, smooth_win_len=0, out=dhp)
 
     # output handler
     if args.online:
