@@ -21,7 +21,7 @@ class DrumotronHardwareProcessor(Processor):
     def process(self, cmd):
         if self.arduino:
             self.ser.write(cmd)
-            print('a command ', cmd)
+        # print('command ', cmd)
 
 
 class DrumotronControlProcessor(Processor):
@@ -108,28 +108,27 @@ class DrumotronControlProcessor(Processor):
             # increase beat counter
             self.beat_count = int(self.beat_count % self.patterns[
                 self.pattern_id]['num_beats'] + 1)
-            # print('-- new int beat', self.beat_count)
         current_position = int(np.digitize(
             self.beat_frame_counter_int, self.beat_grid) - 1 + \
             (self.beat_count - 1) * self.grid)
-        # if is_beat or self.beat_frame_counter_int == 0:
-            # print('cp =', current_position)
 
         if self.last_position != current_position:
             self.last_position = current_position
             if current_position != self.last_played_position:
                 if current_position in self.patterns[self.pattern_id]['hh']:
+                    self.last_played_position = current_position
+                if current_position in self.patterns[self.pattern_id]['sn']:
                     self.out('2')
                     self.last_played_position = current_position
                     self.out('1')
-                if current_position in self.patterns[self.pattern_id]['sn']:
-                    self.out('4')
+                if current_position in self.patterns[self.pattern_id]['bd']:
+                    self.out('3')
                     self.last_played_position = current_position
                     self.out('1')
-                if current_position in self.patterns[self.pattern_id]['bd']:
-                    # self.out('3')
-                    self.last_played_position = current_position
         # update state variables
         self.beat_frame_counter_int += 1
         self.beat_frame_counter_ext += 1
         self.last_position = current_position
+        if self.beat_frame_counter_ext > 2 * self.beat_periods[-1]:
+            # stop tracking if no beat has been observed for 2 beat periods
+            self.beat_frame_counter_int = None

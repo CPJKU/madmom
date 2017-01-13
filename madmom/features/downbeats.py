@@ -393,7 +393,8 @@ class DBNBarTrackingProcessor(Processor):
     def __init__(self, observation_param=100, downbeats=False,
                  pattern_change_prob=0.0, beats_per_bar=[3, 4],
                  observation_model=RNNBeatTrackingObservationModel,
-                 online=False, output_patterns=False, **kwargs):
+                 online=False, output_patterns=False,
+                 out_processor=None, **kwargs):
         """
         Track the downbeats with a Dynamic Bayesian Network (DBN).
 
@@ -448,30 +449,43 @@ class DBNBarTrackingProcessor(Processor):
         self.om = observation_model(self.st, observation_param)
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
+        self.out_processor = out_processor
+        # remember pattern id and beat counter
+        self.pattern_id = None
+        self.beat_counter = None
 
     def infer_online(self, beat, activation):
         # infer beat numbers only at beat positions
         if beat is None:
             self.frame_counter += 1
+            if self.out_processor is not None:
+                self.out_processor(None)
             return None
+        # call the control module before computing the forward path because
+        # this introduces delay. Extrapolate beat counter:
+        if self.pattern_id is not None:
+            beat_counter = self.beat_counter % self.num_beats[
+                self.pattern_id] + 1
+        else:
+            beat_counter = None
+        if self.out_processor is not None:
+            self.out_processor((
+                self.frame_counter, beat_counter, self.pattern_id))
         fwd = self.hmm.forward(activation)
         # use simply the most probable state
         state = np.argmax(fwd)
         # get the position inside the bar
         position = self.st.state_positions[state]
-        pattern = self.st.state_patterns[state]
+        self.pattern_id = self.st.state_patterns[state]
         # the beat numbers are the counters + 1 at the transition points
-        beat_numbers = position.astype(int) + 1
+        self.beat_counter = position.astype(int) + 1
         # as we computed the last beat number, add 1 to get the current one
-        num_beats = self.num_beats[self.st.state_patterns[state]]
+        num_beats = self.num_beats[self.pattern_id]
         # Our prediction is one beat behind -> predict for current beat
-        beat_numbers = beat_numbers % num_beats + 1
-        beat_interval = self.frame_counter
+        self.beat_counter = self.beat_counter % num_beats + 1
+        # reset beat frame counter
         self.frame_counter = 0
-        if self.output_patterns:
-            return beat_interval, beat_numbers, pattern
-        else:
-            return beat, beat_numbers
+        return beat, self.beat_counter
 
     def infer_offline(self, beats, activations):
         path, _ = self.hmm.viterbi(activations)
@@ -592,7 +606,7 @@ class GMMBarProcessor(Processor):
     """
     def __init__(self, fps=100, pattern_files=None, downbeats=False,
                  pattern_change_prob=0., online=False,
-                 output_patterns=False, **kwargs):
+                 output_patterns=False, out_processor=None, **kwargs):
         # load the patterns
         patterns = []
         for pattern_file in pattern_files:
@@ -618,7 +632,8 @@ class GMMBarProcessor(Processor):
             observation_param=gmms, beats_per_bar=self.num_beats,
             observation_model=observation_model, online=online,
             pattern_change_prob=pattern_change_prob,
-            output_patterns=output_patterns, **kwargs)
+            output_patterns=output_patterns, out_processor=out_processor,
+            **kwargs)
 
     def process(self, data):
         """

@@ -94,6 +94,11 @@ def main():
     agg = partial(np.sum, axis=1)
     gmm_feat_processor = SequentialProcessor((filt, spec, diff, agg))
 
+    # drum controller
+    dhp = DrumotronHardwareProcessor(arduino=True)
+    control_processor = DrumotronControlProcessor(
+        DRUM_PATTERNS, delay=3, smooth_win_len=3, out=dhp)
+
     # extract beat & gmm feature in parallel
     beat_downbeat_processor = ParallelProcessor((beat_processor,
                                                  gmm_feat_processor))
@@ -103,11 +108,9 @@ def main():
     # score them with a GMM
     gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
                                         pattern_change_prob=0.001,
-                                        output_patterns=True, **vars(args))
-    dhp = DrumotronHardwareProcessor(arduino=True)
-    control_processor = DrumotronControlProcessor(
-        DRUM_PATTERNS, delay=3, smooth_win_len=0, out=dhp)
-
+                                        output_patterns=True,
+                                        out_processor=control_processor,
+                                        **vars(args))
     # output handler
     if args.online:
         # simply output the given string
@@ -121,7 +124,7 @@ def main():
 
     # create an IOProcessor
     processor = IOProcessor([sig_proc, beat_downbeat_processor, beat_sync,
-                             gmm_bar_processor, control_processor], writer)
+                             gmm_bar_processor], writer)
 
     # and call the processing function
     args.func(processor, **vars(args))
