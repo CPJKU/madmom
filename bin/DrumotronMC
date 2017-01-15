@@ -180,7 +180,7 @@ def main():
         print(args)
 
     # define signal processing used by all others
-    sig = SignalProcessor(num_channels=1, sample_rate=args.sample_rate)
+    sig = SignalProcessor(**vars(args))
     frames = FramedSignalProcessor(frame_size=2048, **vars(args))
     stft = ShortTimeFourierTransformProcessor()  # caching FFT window
     filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
