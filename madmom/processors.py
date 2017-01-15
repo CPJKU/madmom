@@ -856,6 +856,9 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                                            'system audio input is used)')
         sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
+        sp.add_argument('-r', dest='record_fln', type=argparse.FileType(
+            'wb'), default=None, help='file for recording the audio '
+                                      '[default=%(default)s]')
         sp.add_argument('-j', dest='num_threads', type=int, default=1,
                         help='number of parallel threads '
                              '[default=%(default)s]')

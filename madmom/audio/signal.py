@@ -1475,7 +1475,7 @@ class Stream(object):
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=FPS, **kwargs):
+                 fps=FPS, record_fln=None, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
         # set attributes
@@ -1491,6 +1491,15 @@ class Stream(object):
             raise ValueError(
                 'only integer `hop_size` supported, not %s' % hop_size)
         self.hop_size = int(hop_size)
+        # set recording settings
+        if record_fln is not None:
+            self.record = True
+            # recording length in seconds
+            duration = 5
+            self.filename = record_fln
+            self.frames = np.zeros((duration * self.sample_rate))
+        else:
+            self.record = False
         # init PyAudio
         self.pa = pyaudio.PyAudio()
         # init a stream to read audio samples from
@@ -1515,6 +1524,15 @@ class Stream(object):
         data = self.stream.read(self.hop_size, exception_on_overflow=False)
         # convert it to a numpy array
         data = np.fromstring(data, 'float32').astype(self.dtype, copy=False)
+        if self.record:
+            start = self.frame_idx * self.hop_size
+            stop = start + self.hop_size
+            if stop > len(self.frames):
+                self.record = False
+                write_wave_file(self.frames, self.filename,
+                                sample_rate=self.sample_rate)
+            else:
+                self.frames[start:stop] = data
         # buffer the data (i.e. append hop_size samples and rotate)
         data = self.buffer(data)
         # wrap the last frame_size samples as a Signal
