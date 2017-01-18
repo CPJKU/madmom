@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 
 
 # signal functions
@@ -1285,7 +1285,10 @@ class FramedSignal(object):
 
     @property
     def shape(self):
-        """Shape of the FramedSignal (`num_frames` x `frame_size`)."""
+        """
+        Shape of the FramedSignal (num_frames, frame_size[, num_channels]).
+
+        """
         shape = self.num_frames, self.frame_size
         if self.signal.num_channels != 1:
             shape += (self.signal.num_channels, )
@@ -1476,23 +1479,16 @@ class Stream(object):
 
     Notes
     -----
-    Stream is implemented as an iterable which operates on a blocking queue.
-    The queue is filled by PyAudio and iterating over the stream returns the
-    live audio signal frame by frame. It blocks when no new data is available.
+    Stream is implemented as an iterable which blocks until enough new data is
+    available.
 
     """
-    QUEUE_SIZE = 1
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=FPS, queue_size=QUEUE_SIZE, **kwargs):
+                 fps=FPS, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
-        try:
-            from Queue import Queue  # Python 2
-        except ImportError:
-            from queue import Queue  # Python 3
-
         # set attributes
         self.sample_rate = sample_rate
         self.num_channels = 1 if None else num_channels
@@ -1506,20 +1502,17 @@ class Stream(object):
             raise ValueError(
                 'only integer `hop_size` supported, not %s' % hop_size)
         self.hop_size = int(hop_size)
-        # set up a queue
-        self.queue_size = queue_size
-        self.queue = Queue(maxsize=self.queue_size)
-        # init PyAudio for recording
+        # init PyAudio
         self.pa = pyaudio.PyAudio()
-
+        # init a stream to read audio samples from
         self.stream = self.pa.open(rate=self.sample_rate,
                                    channels=self.num_channels,
                                    format=pyaudio.paFloat32, input=True,
                                    frames_per_buffer=self.hop_size,
-                                   stream_callback=self.callback, start=True)
-
-        # internal variables
-        self.buffer = None
+                                   start=True)
+        # create a buffer
+        self.buffer = BufferProcessor(self.frame_size)
+        # frame index counter
         self.frame_idx = 0
         # PyAudio flags
         self.paComplete = pyaudio.paComplete
@@ -1529,53 +1522,25 @@ class Stream(object):
         return self
 
     def __next__(self):
-        return self.queue.get()
-
-    next = __next__
-
-    def callback(self, data, *args):
-        """
-        Callback function called by PyAudio every time a new audio chunk is
-        ready.
-
-        Parameters
-        ----------
-        data : str
-            Audio data represented as a string.
-
-        Returns
-        -------
-        data : numpy array
-            Audio data as numpy array.
-        flag : PortAudio callback flag
-            Indicate whether to continue the stream.
-
-        """
-        # get the data from the stream
+        # get the desired number of samples (block until all are present)
+        data = self.stream.read(self.hop_size, exception_on_overflow=False)
+        # convert it to a numpy array
         data = np.fromstring(data, 'float32').astype(self.dtype, copy=False)
-        # buffer the data
+        # buffer the data (i.e. append hop_size samples and rotate)
         data = self.buffer(data)
-        # wrap it as a Signal (including the start position)
-        # TODO: check float/int hop size
+        # wrap the last frame_size samples as a Signal
+        # TODO: check float / int hop size; theoretically a float hop size
+        #       can be accomplished by making the buffer N samples bigger and
+        #       take the correct portion of the buffer
         start = (self.frame_idx * float(self.hop_size) / self.sample_rate)
-        signal = Signal(self.buffer, sample_rate=self.sample_rate,
+        signal = Signal(data[-self.frame_size:], sample_rate=self.sample_rate,
                         dtype=self.dtype, num_channels=self.num_channels,
                         start=start)
-        # if the queue if full erase the first item from the queue
-        if self.queue.qsize() >= self.queue_size:
-            # TODO: how to warn if we missed a frame? Raise an error,
-            #       or is a simple warning enough? Maybe a counter...
-            import warnings
-            warnings.warn('dropping frame...')
-            self.queue.get()
-        # put the signal into the queue
-        self.queue.put(signal, block=False)
         # increment the frame index
         self.frame_idx += 1
-        # return data and indicate that the PyAudio stream should continue
-        # TODO: returning the data is pointless, since this callback is only
-        #       used for recording, not for playback
-        return data, self.paContinue
+        return signal
+
+    next = __next__
 
     def is_running(self):
         return self.stream.is_active()
@@ -1584,3 +1549,11 @@ class Stream(object):
         self.stream.close()
         # TODO: is this the correct place to terminate PyAudio?
         self.pa.terminate()
+
+    @property
+    def shape(self):
+        """Shape of the Stream (None, frame_size[, num_channels])."""
+        shape = None, self.frame_size
+        if self.signal.num_channels != 1:
+            shape += (self.signal.num_channels,)
+        return shape
