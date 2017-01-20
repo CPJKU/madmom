@@ -394,6 +394,34 @@ class HiddenMarkovModel(object):
             raise ValueError('Initial distribution is not a probability '
                              'distribution.')
         self.initial_distribution = initial_distribution
+        # attributes needed for stateful processing (i.e. forward_step())
+        self._prev = self.initial_distribution.copy()
+
+    def __getstate__(self):
+        # copy everything to a pickleable object
+        state = self.__dict__.copy()
+        # do not pickle attributes needed for stateful processing
+        state.pop('_prev', None)
+        return state
+
+    def __setstate__(self, state):
+        # restore pickled instance attributes
+        self.__dict__.update(state)
+        # add non-pickled attributes needed for stateful processing
+        self._prev = self.initial_distribution.copy()
+
+    def reset(self, initial_distribution=None):
+        """
+        Reset the HMM to its initial state.
+
+        Parameters
+        ----------
+        initial_distribution : numpy array, optional
+            Reset to this initial state distribution.
+
+        """
+        # reset initial state distribution
+        self._prev = initial_distribution or self.initial_distribution.copy()
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -417,15 +445,15 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.log_probabilities
         cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
         cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities = om.log_densities(observations)
 
         # current viterbi variables
@@ -499,16 +527,20 @@ class HiddenMarkovModel(object):
     @cython.cdivision(True)
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    def forward(self, observations):
+    @cython.initializedcheck(False)
+    def forward(self, observations, reset=True):
         """
         Compute the forward variables at each time step. Instead of computing
-        in the log domain, we normalise at each step, which is faster for
-        the forward algorithm.
+        in the log domain, we normalise at each step, which is faster for the
+        forward algorithm.
 
         Parameters
         ----------
-        observations : numpy array
+        observations : numpy array, shape (num_frames, num_densities)
             Observations to compute the forward variables for.
+        reset : bool, optional
+            Reset the HMM to its inital state before computing the forward
+            variables.
 
         Returns
         -------
@@ -518,33 +550,35 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_pointers = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_pointers = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
         cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
-        cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
-        cdef double [:, ::1] om_densities = om.densities(observations)
+        cdef uint32_t [::1] om_pointers = om.pointers
+        # TODO: check why ascontiguousarray is needed for framewise processing
+        # make sure we can iterate over the observations
+        cdef double [:, ::1] om_densities = np.ascontiguousarray(
+            np.atleast_2d(om.densities(observations)))
+        cdef unsigned int num_observations = len(om_densities)
+
+        # reset HMM
+        if reset:
+            self.reset()
 
         # forward variables
-        cdef double[:, ::1] fwd = np.zeros((num_observations + 1, num_states),
+        cdef double[::1] fwd_prev = self._prev
+        cdef double[:, ::1] fwd = np.zeros((num_observations, num_states),
                                            dtype=np.float)
-        # define counters etc.
-        cdef unsigned int prev_pointer, frame, state, cur, prev
-        cdef double prob_sum, norm_factor
 
-        # init forward variables
-        for state in range(self.initial_distribution.shape[0]):
-            fwd[0, state] = self.initial_distribution[state]
+        # define counters etc.
+        cdef unsigned int prev_pointer, frame, state
+        cdef double prob_sum, norm_factor
 
         # iterate over all observations
         for frame in range(num_observations):
-            # indices for current and previous time step
-            cur = frame + 1
-            prev = frame
             # keep track of the normalisation sum
             prob_sum = 0
             # iterate over all states
@@ -552,18 +586,20 @@ class HiddenMarkovModel(object):
                 # sum over all possible predecessors
                 for prev_pointer in range(tm_pointers[state],
                                           tm_pointers[state + 1]):
-                    fwd[cur, state] += fwd[prev, tm_states[prev_pointer]] * \
-                                       tm_probabilities[prev_pointer]
+                    fwd[frame, state] += (fwd_prev[tm_states[prev_pointer]] *
+                                          tm_probabilities[prev_pointer])
                 # multiply with the observation probability
-                fwd[cur, state] *= om_densities[frame, om_pointers[state]]
-                prob_sum += fwd[cur, state]
+                fwd[frame, state] *= om_densities[frame, om_pointers[state]]
+                prob_sum += fwd[frame, state]
             # normalise
             norm_factor = 1. / prob_sum
             for state in range(num_states):
-                fwd[cur, state] *= norm_factor
+                fwd[frame, state] *= norm_factor
+                # also save it as the previous variables for the next frame
+                fwd_prev[state] = fwd[frame, state]
 
         # return the forward variables
-        return np.asarray(fwd)[1:]
+        return np.array(fwd)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
@@ -594,15 +630,15 @@ class HiddenMarkovModel(object):
         """
         # transition model stuff
         tm = self.transition_model
-        cdef unsigned int [::1] tm_states = tm.states
-        cdef unsigned int [::1] tm_ptrs = tm.pointers
+        cdef uint32_t [::1] tm_states = tm.states
+        cdef uint32_t [::1] tm_ptrs = tm.pointers
         cdef double [::1] tm_probabilities = tm.probabilities
         cdef unsigned int num_states = tm.num_states
 
         # observation model stuff
         om = self.observation_model
         cdef unsigned int num_observations = len(observations)
-        cdef unsigned int [::1] om_pointers = om.pointers
+        cdef uint32_t [::1] om_pointers = om.pointers
         cdef double [:, ::1] om_densities
 
         # forward variables
