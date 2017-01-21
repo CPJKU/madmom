@@ -10,6 +10,7 @@ New features:
 
 Bug fixes:
 
+* Fix downbeat evaluation failure with a single annotation / detection (#216)
 * Fix tempo handling of multi-track MIDI files (#219)
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)

@@ -558,11 +558,6 @@ class TestContinuityFunction(unittest.TestCase):
             continuity(None, ANNOTATIONS, 0.175, 0.175)
         with self.assertRaises(TypeError):
             continuity(DETECTIONS, None, 0.175, 0.175)
-        # score relies on intervals, hence at least 2 ann/det must be given
-        with self.assertRaises(BeatIntervalError):
-            continuity(DETECTIONS, [1.], 0.175, 0.175)
-        with self.assertRaises(BeatIntervalError):
-            continuity([1.], ANNOTATIONS, 0.175, 0.175)
 
     def test_values(self):
         # two empty sequences should have a perfect score
@@ -573,6 +568,11 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertEqual(scores, (0, 0, 0, 0))
         # no detections should return 0
         scores = continuity([], ANNOTATIONS, 0.175, 0.175)
+        self.assertEqual(scores, (0, 0, 0, 0))
+        # single annotation/detection should return 0
+        scores = continuity(DETECTIONS, [1.], 0.175, 0.175)
+        self.assertEqual(scores, (0, 0, 0, 0))
+        scores = continuity([1.], ANNOTATIONS, 0.175, 0.175)
         self.assertEqual(scores, (0, 0, 0, 0))
         # normal calculation
         scores = continuity(DETECTIONS, ANNOTATIONS, 0.175, 0.175)
@@ -821,11 +821,6 @@ class TestInformationGainFunction(unittest.TestCase):
             information_gain(None, ANNOTATIONS, 40)
         with self.assertRaises(TypeError):
             information_gain(DETECTIONS, None, 40)
-        # score relies on intervals, hence at least 2 annotations must be given
-        with self.assertRaises(BeatIntervalError):
-            information_gain([1.], ANNOTATIONS, 4)
-        with self.assertRaises(BeatIntervalError):
-            information_gain(DETECTIONS, [1.], 4)
 
     def test_values(self):
         # empty sequences should return max score and a zero histogram
@@ -839,6 +834,14 @@ class TestInformationGainFunction(unittest.TestCase):
         self.assertEqual(ig, 0)
         self.assertTrue(np.allclose(histogram, uniform))
         ig, histogram = information_gain(DETECTIONS, [], 4)
+        self.assertEqual(ig, 0)
+        self.assertTrue(np.allclose(histogram, uniform))
+        # same if only one annotation/detection is given
+        # single annotation/detection should return 0
+        ig, histogram = information_gain([1.], ANNOTATIONS, 4)
+        self.assertEqual(ig, 0)
+        self.assertTrue(np.allclose(histogram, uniform))
+        ig, histogram = information_gain(DETECTIONS, [1.], 4)
         self.assertEqual(ig, 0)
         self.assertTrue(np.allclose(histogram, uniform))
         # normal calculation

@@ -639,7 +639,7 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                                 "continuity scores, %s given." % annotations)
     # TODO: remove this, see TODO below
     if len(detections) < 2:
-        raise BeatIntervalError("At least 2 detections are needed for"
+        raise BeatIntervalError("At least 2 detections are needed for "
                                 "continuity scores, %s given." % detections)
 
     # tolerances must be greater than 0
@@ -732,8 +732,8 @@ def continuity(detections, annotations,
     # neither detections nor annotations are given
     if len(detections) == 0 and len(annotations) == 0:
         return 1., 1., 1., 1.
-    # either beat detections or annotations are empty, score 0
-    if (len(detections) == 0) != (len(annotations) == 0):
+    # either a single beat detections or annotations given, score 0
+    if len(detections) <= 1 or len(annotations) <= 1:
         return 0., 0., 0., 0.
 
     # evaluate the correct tempo
@@ -928,7 +928,7 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     # either beat detections or annotations are empty, score 0
     # Note: use "or" here since we test both the detections against the
     #       annotations and vice versa during the evaluation process
-    if len(detections) == 0 or len(annotations) == 0:
+    if len(detections) <= 1 or len(annotations) <= 1:
         # return an information gain of 0 and a uniform beat error histogram
         # Note: because swapped detections and annotations should return the
         #       same uniform histogram, the maximum length of the detections
