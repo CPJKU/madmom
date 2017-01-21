@@ -171,9 +171,9 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     """
     # number of states
-    cdef int num_st = activations.shape[0]
+    cdef int num_st = int(activations.shape[0])
     # number of transitions
-    cdef int num_tr = transition.shape[0]
+    cdef int num_tr = int(transition.shape[0])
     # number of beat variables
     cdef int num_x = num_st / tau
 
@@ -188,7 +188,8 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
 
     # counters etc.
     cdef int k, i, j, next_state
-    cdef double new_prob, path_prob
+    cdef float new_prob, path_prob
+    cdef float infinity = float(INFINITY)
 
     # init first beat
     for i in range(num_st):
@@ -197,7 +198,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # iterate over all beats; the 1st beat is given by prior
     for k in range(num_x - 1):
         # reset all current viterbi variables
-        v_c[:] = -INFINITY
+        v_c[:] = -infinity
 
         # find the best transition for each state i
         for i in range(num_st):
@@ -223,7 +224,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
         v_p, v_c = v_c, v_p
 
     # add the final best state to the path
-    path_prob = -INFINITY
+    path_prob = -infinity
     for i in range(num_st):
         # subtract the norm factor because they shouldn't have been added
         # for the last random variable
