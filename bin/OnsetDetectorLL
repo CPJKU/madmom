@@ -78,6 +78,7 @@ def main():
     args.pre_max = 1. / args.fps
     args.post_max = 0
     args.post_avg = 0
+    args.online = True
 
     # print arguments
     if args.verbose:
@@ -89,7 +90,7 @@ def main():
         in_processor = ActivationsProcessor(mode='r', **vars(args))
     else:
         # use a RNN to predict the onsets
-        in_processor = RNNOnsetProcessor(online=True, **vars(args))
+        in_processor = RNNOnsetProcessor(**vars(args))
 
     # output processor
     if args.save:
