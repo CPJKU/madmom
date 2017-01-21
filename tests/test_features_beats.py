@@ -11,6 +11,7 @@ import unittest
 from os.path import join as pj
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH
+from madmom.audio.signal import FramedSignal
 from madmom.features import Activations
 from madmom.features.beats import *
 from madmom.features.beats_hmm import *
@@ -19,7 +20,8 @@ from madmom.models import PATTERNS_BALLROOM
 
 
 sample_file = pj(AUDIO_PATH, "sample.wav")
-sample_beat_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
+sample_lstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_lstm.npz"))
+sample_blstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
 sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
                                      "sample.downbeats_blstm.npz"))
 sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
@@ -31,9 +33,29 @@ class TestRNNBeatProcessorClass(unittest.TestCase):
     def setUp(self):
         self.processor = RNNBeatProcessor()
 
-    def test_process(self):
+    def test_process_blstm(self):
+        # load bi-directional RNN models
         beat_act = self.processor(sample_file)
-        self.assertTrue(np.allclose(beat_act, sample_beat_act, atol=1e-5))
+        self.assertTrue(np.allclose(beat_act, sample_blstm_act, atol=1e-5))
+
+    def test_process_lstm(self):
+        # load uni-directional RNN models
+        self.processor = RNNBeatProcessor(online=True, origin='online')
+        # process the whole sequence at once
+        result = self.processor(sample_file)
+        self.assertTrue(np.allclose(result, sample_lstm_act, atol=1e-5))
+        # result must be the same if processed a second time
+        result_1 = self.processor(sample_file)
+        self.assertTrue(np.allclose(result, result_1))
+        # result must be the same if processed frame-by-frame
+        frames = FramedSignal(sample_file, origin='online')
+        self.processor = RNNBeatProcessor(online=True, num_frames=1,
+                                          origin='future')
+        result_2 = np.hstack([self.processor(f, reset=False) for f in frames])
+        self.assertTrue(np.allclose(result, result_2))
+        # result must be different without resetting
+        result_3 = np.hstack([self.processor(f, reset=False) for f in frames])
+        self.assertFalse(np.allclose(result, result_3))
 
 
 class TestRNNDownBeatProcessorClass(unittest.TestCase):
@@ -50,10 +72,10 @@ class TestRNNDownBeatProcessorClass(unittest.TestCase):
 class TestBeatTrackingProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = BeatTrackingProcessor(fps=sample_beat_act.fps)
+        self.processor = BeatTrackingProcessor(fps=sample_blstm_act.fps)
 
     def test_process(self):
-        beats = self.processor(sample_beat_act)
+        beats = self.processor(sample_blstm_act)
         self.assertTrue(np.allclose(beats, [0.11, 0.45, 0.79, 1.13, 1.47,
                                             1.81, 2.15, 2.49]))
 
@@ -61,10 +83,10 @@ class TestBeatTrackingProcessorClass(unittest.TestCase):
 class TestBeatDetectionProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = BeatDetectionProcessor(fps=sample_beat_act.fps)
+        self.processor = BeatDetectionProcessor(fps=sample_blstm_act.fps)
 
     def test_process(self):
-        beats = self.processor(sample_beat_act)
+        beats = self.processor(sample_blstm_act)
         self.assertTrue(np.allclose(beats, [0.11, 0.45, 0.79, 1.13, 1.47,
                                             1.81, 2.15, 2.49]))
 
@@ -72,17 +94,17 @@ class TestBeatDetectionProcessorClass(unittest.TestCase):
 class TestCRFBeatDetectionProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = CRFBeatDetectionProcessor(fps=sample_beat_act.fps)
+        self.processor = CRFBeatDetectionProcessor(fps=sample_blstm_act.fps)
 
     def test_process(self):
-        beats = self.processor(sample_beat_act)
+        beats = self.processor(sample_blstm_act)
         self.assertTrue(np.allclose(beats, [0.09, 0.79, 1.49]))
 
 
 class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = DBNBeatTrackingProcessor(fps=sample_beat_act.fps)
+        self.processor = DBNBeatTrackingProcessor(fps=sample_blstm_act.fps)
 
     def test_types(self):
         self.assertIsInstance(self.processor.correct, bool)
@@ -94,7 +116,7 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
 
     def test_values(self):
         self.assertTrue(self.processor.correct)
-        path, prob = self.processor.hmm.viterbi(sample_beat_act)
+        path, prob = self.processor.hmm.viterbi(sample_blstm_act)
         self.assertTrue(np.allclose(path[:15], [207, 208, 209, 210, 211, 212,
                                                 213, 214, 215, 216, 183, 184,
                                                 185, 186, 187]))
@@ -108,13 +130,29 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(intervals[:10], 34))
 
     def test_process(self):
-        beats = self.processor(sample_beat_act)
+        beats = self.processor(sample_blstm_act)
         self.assertTrue(np.allclose(beats, [0.1, 0.45, 0.8, 1.12, 1.48, 1.8,
                                             2.15, 2.49]))
         # set the threshold
         self.processor.threshold = 1
-        beats = self.processor(sample_beat_act)
+        beats = self.processor(sample_blstm_act)
         self.assertTrue(np.allclose(beats, []))
+
+    def test_process_forward(self):
+        processor = DBNBeatTrackingProcessor(fps=100, online=True)
+        # compute the forward path at once
+        beats = processor.process_forward(sample_lstm_act)
+        self.assertTrue(np.allclose(beats, [0.47, 0.79, 1.48, 2.16, 2.5]))
+        # compute the forward path framewise
+        processor.reset()
+        beats = [processor.process_forward(act, reset=False)
+                 for act in sample_lstm_act]
+        self.assertTrue(np.allclose(np.nonzero(beats),
+                                    [47, 79, 148, 216, 250]))
+        # without resetting results are different
+        beats = [processor.process_forward(act, reset=False)
+                 for act in sample_lstm_act]
+        self.assertTrue(np.allclose(np.nonzero(beats), [3, 79, 149, 216, 252]))
 
 
 class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
