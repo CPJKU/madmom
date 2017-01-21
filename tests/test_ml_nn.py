@@ -24,8 +24,11 @@ class TestRNNClass(unittest.TestCase):
         self.result = [1.78801871e-04, 8.00144131e-01,
                        3.30476369e-05, 1.36037513e-04]
 
-    def test_values(self):
-        # calling normally
+    def test_process(self):
+        # process the whole sequence at once
+        result = self.rnn.process(self.data)
+        self.assertTrue(np.allclose(result, self.result))
+        # two runs must produce the same output
         result_1 = self.rnn.process(self.data)
         self.assertTrue(np.allclose(result_1, self.result))
         # after resetting the RNN, it must produce the same output as before
@@ -37,6 +40,32 @@ class TestRNNClass(unittest.TestCase):
         self.assertTrue(np.allclose(np.hstack(result_3),
                                     [9.15636891e-04, 9.74331021e-01,
                                      4.83996118e-05, 2.72355013e-04]))
+
+
+class TestLSTMClass(unittest.TestCase):
+    def setUp(self):
+        # uni-directional LSTM-RNN
+        self.rnn = NeuralNetwork.load(BEATS_LSTM[0])
+        self.data = np.zeros((4, self.rnn.layers[0].cell.weights.shape[0]))
+        self.data[1] = 1.
+        self.result = [0.00126955, 0.03134079, 0.01535073, 0.00207471]
+
+    def test_process(self):
+        # process the whole sequence at once
+        result = self.rnn.process(self.data)
+        self.assertTrue(np.allclose(result, self.result))
+        # two runs must produce the same output
+        result_1 = self.rnn.process(self.data)
+        self.assertTrue(np.allclose(result_1, self.result))
+        # after resetting the RNN, it must produce the same output
+        self.rnn.reset()
+        result_2 = [self.rnn.process(d, reset=False) for d in self.data]
+        self.assertTrue(np.allclose(np.hstack(result_2), self.result))
+        # without resetting it produces different output
+        result_3 = [self.rnn.process(d, reset=False) for d in self.data]
+        self.assertTrue(np.allclose(np.hstack(result_3),
+                                    [0.00054101, 0.05323271,
+                                     0.0548761, 0.00785541]))
 
 
 # class for testing all other (offline-only) networks
