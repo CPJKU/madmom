@@ -89,7 +89,7 @@ class BeatStateSpace(object):
         self.first_states = first_states.astype(np.uint32)
         self.last_states = np.cumsum(self.intervals).astype(np.uint32) - 1
         # define the positions and intervals of the states
-        self.state_positions = np.empty(self.num_states)
+        self.state_positions = np.empty(self.num_states, dtype=np.float)
         self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
         # Note: having an index counter is faster than ndenumerate
         idx = 0
@@ -295,7 +295,7 @@ class BeatTransitionModel(TransitionModel):
         # same tempo transitions probabilities within the state space is 1
         # Note: use all states, but remove all first states because there are
         #       no same tempo transitions into them
-        states = np.arange(state_space.num_states, dtype=np.uint32)
+        states = np.arange(state_space.num_states)
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
         probabilities = np.ones_like(states, dtype=np.float)
@@ -367,7 +367,7 @@ class BarTransitionModel(TransitionModel):
         # same tempo transitions probabilities within the state space is 1
         # Note: use all states, but remove all first states of the individual
         #       beats, because there are no same tempo transitions into them
-        states = np.arange(state_space.num_states, dtype=np.uint32)
+        states = np.arange(state_space.num_states)
         states = np.setdiff1d(states, state_space.first_states)
         prev_states = states - 1
         probabilities = np.ones_like(states, dtype=np.float)
@@ -477,7 +477,7 @@ class RNNBeatTrackingObservationModel(ObservationModel):
         self.observation_lambda = observation_lambda
         # compute observation pointers
         # always point to the non-beat densities
-        pointers = np.zeros(state_space.num_states, dtype=np.uint32)
+        pointers = np.zeros(state_space.num_states)
         # unless they are in the beat range of the state space
         border = 1. / observation_lambda
         pointers[state_space.state_positions < border] = 1
