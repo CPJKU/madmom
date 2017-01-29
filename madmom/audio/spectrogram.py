@@ -901,6 +901,26 @@ POSITIVE_DIFFS = False
 
 
 def _diff_frames(diff_ratio, hop_size, frame_size, window=np.hanning):
+    """
+    Compute the number of `diff_frames` for the given ratio of overlap.
+
+    Parameters
+    ----------
+    diff_ratio : float
+        Ratio of overlap of windows of two consecutive STFT frames.
+    hop_size : int
+        Samples between two adjacent frames.
+    frame_size : int
+        Size of one frames in samples.
+    window : numpy ufunc or array
+        Window funtion.
+
+    Returns
+    -------
+    diff_frames : int
+        Number of frames to calculate the difference to.
+
+    """
     # calculate the number of diff frames on basis of the diff_ratio
     # first sample of the window with a higher magnitude than given ratio
     if hasattr(window, '__call__'):
@@ -1116,15 +1136,15 @@ class SpectrogramDifferenceProcessor(Processor):
 
     def __init__(self, diff_ratio=DIFF_RATIO, diff_frames=DIFF_FRAMES,
                  diff_max_bins=DIFF_MAX_BINS, positive_diffs=POSITIVE_DIFFS,
-                 stack_diffs=None, online=False, **kwargs):
+                 stack_diffs=None, **kwargs):
         # pylint: disable=unused-argument
         self.diff_ratio = diff_ratio
         self.diff_frames = diff_frames
         self.diff_max_bins = diff_max_bins
         self.positive_diffs = positive_diffs
         self.stack_diffs = stack_diffs
-        self.online = online
         # attributes needed for stateful processing
+        # Note: do not init the buffer here, since it depends on the data
         self._buffer = None
 
     def __getstate__(self):
@@ -1140,7 +1160,7 @@ class SpectrogramDifferenceProcessor(Processor):
         # add non-pickled attributes needed for stateful processing
         self._buffer = None
 
-    def process(self, data, **kwargs):
+    def process(self, data, reset=True, **kwargs):
         """
         Perform a temporal difference calculation on the given data.
 
@@ -1148,6 +1168,8 @@ class SpectrogramDifferenceProcessor(Processor):
         ----------
         data : numpy array
             Data to be processed.
+        reset : bool, optional
+            Reset the spectrogram buffer before computing the difference.
         kwargs : dict
             Keyword arguments passed to :class:`SpectrogramDifference`.
 
@@ -1158,56 +1180,48 @@ class SpectrogramDifferenceProcessor(Processor):
 
         Notes
         -----
-        Depending on online/offline mode the differences are either computed
-        on a step-by-step basis or for the whole sequence, respectively.
+        If `reset` is 'True', the first `diff_frames` differences will be 0.
 
         """
-        if self.online:
-            diff = self.process_step(data, **kwargs)
+        # expand to 2D
+        data = np.atleast_2d(data)
+        # calculate the number of diff frames
+        if self.diff_frames is None:
+            self.diff_frames = _diff_frames(
+                self.diff_ratio, frame_size=data.stft.frames.frame_size,
+                hop_size=data.stft.frames.hop_size, window=data.stft.window)
+        # init buffer or shift it
+        if self._buffer is None or reset:
+            # put diff_frames NaNs before the data (will be replaced by 0s)
+            init = np.empty((self.diff_frames, data.shape[1]))
+            init[:] = np.nan
+            data = np.insert(data, 0, init, axis=0)
+            # use the data for the buffer
+            self._buffer = BufferProcessor(init=data)
         else:
-            diff = self.process_sequence(data, **kwargs)
+            # shift buffer by length of data and put new data at end of buffer
+            data = self._buffer(data)
+        # compute difference based on this data (reduce 1st dimension)
+        diff = SpectrogramDifference(data, diff_ratio=self.diff_ratio,
+                                     diff_frames=self.diff_frames,
+                                     diff_max_bins=self.diff_max_bins,
+                                     positive_diffs=self.positive_diffs,
+                                     keep_dims=False, **kwargs)
+        # set all NaN-diffs to 0
+        diff[np.isnan(diff)] = 0
         # stack the diff and the data if needed
         if self.stack_diffs is None:
             return diff
         else:
-            # we can't use `data` directly, because it could be a str
-            # we ave to access diff.spectrogram (i.e. converted data)
-            return self.stack_diffs((diff.spectrogram, diff))
+            # Note: don't use `data` directly, because it could be a str
+            #       we ave to access diff.spectrogram (i.e. converted data)
+            return self.stack_diffs((diff.spectrogram[self.diff_frames:],
+                                     diff))
 
-    def process_sequence(self, data, **kwargs):
-        # instantiate a SpectrogramDifference
-        return SpectrogramDifference(data, diff_ratio=self.diff_ratio,
-                                     diff_frames=self.diff_frames,
-                                     diff_max_bins=self.diff_max_bins,
-                                     positive_diffs=self.positive_diffs,
-                                     **kwargs)
-
-    def process_step(self, data, **kwargs):
-        # being called the first time, init the buffer and set diff_frames
-        if self._buffer is None:
-            # FIXME: setting the diff_frames might be a problem if the signal's
-            #        sample rate changes from song to song!
-            #        reset() the buffer (i.e. _buffer) to None?
-            #        Additionally, if not a Spectrogram but a simple numpy
-            #        array or a filename is given, there is no chance to access
-            #        stft.frames.frame_size this way
-            if self.diff_frames is None:
-                # calculate the number of diff frames
-                self.diff_frames = _diff_frames(
-                    self.diff_ratio, frame_size=data.stft.frames.frame_size,
-                    hop_size=data.stft.frames.hop_size,
-                    window=data.stft.window)
-            # init the buffer (repeat the first frame diff_frames + 1 times)
-            data = np.array(data, copy=False, subok=True, ndmin=2)
-            init = np.repeat(data, self.diff_frames + 1, axis=0)
-            self._buffer = BufferProcessor(init=init)
-        # buffer the frames needed for difference calculation
-        data = self._buffer(data)
-        # instantiate a SpectrogramDifference (and reduce 1st dimension)
-        return SpectrogramDifference(data, diff_frames=self.diff_frames,
-                                     diff_max_bins=self.diff_max_bins,
-                                     positive_diffs=self.positive_diffs,
-                                     keep_dims=False, **kwargs)
+    def reset(self):
+        """Reset the SpectrogramDifferenceProcessor."""
+        # reset cached spectrogram data
+        self._buffer = None
 
     @staticmethod
     def add_arguments(parser, diff=None, diff_ratio=None, diff_frames=None,

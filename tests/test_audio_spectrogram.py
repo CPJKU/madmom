@@ -567,31 +567,52 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.diff_max_bins is None)
         self.assertTrue(self.processor.positive_diffs is False)
 
-    def test_process_spec(self):
+    def test_process(self):
         result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
-        self.assertTrue(np.max(result[:2]) >= 0)
+        self.assertTrue(np.max(result[:2]) > 0)
         self.assertTrue(np.min(result) < 0)
+        self.assertTrue(np.allclose(result[0], 0))
+        self.assertTrue(np.allclose(result[1:], np.diff(sample_spec, axis=0)))
         # if called a second time, result must be the exact same
-        result_ = self.processor.process(sample_spec)
-        self.assertTrue(np.allclose(result, result_))
+        result_1 = self.processor.process(sample_spec)
+        self.assertTrue(np.allclose(result, result_1))
+        # result must be the same if processed frame-by-frame
+        self.processor.reset()
+        result_2 = np.vstack([self.processor.process(frame, reset=False)
+                              for frame in sample_spec])
+        self.assertTrue(np.allclose(result_2, result))
+        # result must be different without resetting (first frame != 0)
+        result_3 = np.vstack([self.processor.process(frame, reset=False)
+                              for frame in sample_spec])
+        self.assertFalse(np.allclose(result_3, result))
+        self.assertFalse(np.sum(result_3[0]) == 0)
 
     def test_diff_frames(self):
         # re-initialise the processor, because of the buffer
         self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
+        self.assertTrue(self.processor.diff_frames == 2)
         result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) < 0)
-
-    def test_streaming_mode(self):
-        self.processor = SpectrogramDifferenceProcessor(diff_frames=1)
-        result = self.processor.process(sample_spec)
-        # result must be the same if processed fram-by-frame
-        result_step = np.vstack([self.processor.process_step(frame) for
-                                 frame in sample_spec])
-        self.assertTrue(np.allclose(result, result_step))
+        self.assertTrue(result.diff_frames == 2)
+        # if called a second time, result must be the exact same
+        result_1 = self.processor.process(sample_spec)
+        self.assertTrue(np.allclose(result, result_1))
+        # result must be the same if processed frame-by-frame
+        self.processor.reset()
+        self.assertTrue(self.processor.diff_frames == 2)
+        result_2 = np.vstack([self.processor.process(frame, reset=False)
+                              for frame in sample_spec])
+        self.assertTrue(np.allclose(result_2, result))
+        # result must be different without resetting (first 2 frame != 0)
+        result_3 = np.vstack([self.processor.process(frame, reset=False)
+                              for frame in sample_spec])
+        self.assertFalse(np.allclose(result_3, result))
+        self.assertFalse(np.sum(result_3[0]) == 0)
+        self.assertFalse(np.sum(result_3[1]) == 0)
 
     def test_positive_diffs(self):
         # re-initialise the processor, because of the buffer
