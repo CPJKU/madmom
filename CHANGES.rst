@@ -17,6 +17,7 @@ Bug fixes:
 
 API relevant changes:
 
+* `NeuralNetwork` expect 2D inputs; activation can be computed stepwise (#244)
 * Reorder `GRUCell` parameters, to be consistent with all other layers (#243)
 * Rename `GRULayer` parameters, to be consistent with all other layers (#243)
 

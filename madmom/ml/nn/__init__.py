@@ -66,99 +66,39 @@ class NeuralNetwork(Processor):
     >>> nn = NeuralNetwork([l1, l2])
     >>> nn  # doctest: +ELLIPSIS
     <madmom.ml.nn.NeuralNetwork object at 0x...>
-    >>> nn(np.array([0, 0.5, 1, 0, 1, 2, 0]))  # doctest: +NORMALIZE_WHITESPACE
+    >>> nn(np.array([[0], [0.5], [1], [0], [1], [2], [0]]))
+    ... # doctest: +NORMALIZE_WHITESPACE
     array([ 0.53305, 0.36903, 0.265 , 0.53305, 0.265 , 0.18612, 0.53305])
 
     """
 
-    def __init__(self, layers, online=False):
+    def __init__(self, layers):
         self.layers = layers
-        self.online = online
 
-    def __setstate__(self, state):
-        # restore instance attributes
-        self.__dict__.update(state)
-        # TODO: old models do not have the online attribute, thus create it
-        #       remove this initialisation code after updating the models
-        #       At least we should pudate the online models so that we can set
-        #       the default value to False
-        if not hasattr(self, 'online'):
-            self.online = None
-
-    def process(self, data):
+    def process(self, data, reset=True, **kwargs):
         """
         Process the given data with the neural network.
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_inputs)
             Activate the network with this data.
+        reset : bool, optional
+            Reset the network to its initial state before activating it.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_outputs)
             Network predictions for this data.
 
-        Notes
-        -----
-        Depending on online/offline mode the predictions are either reported
-        on a step-by-step basis or for the whole sequence, respectively.
-
         """
-        if self.online:
-            data = self.process_step(data)
-        else:
-            data = self.process_sequence(data)
+        # loop over all layers
+        for layer in self.layers:
+            # activate the layer and feed the output into the next one
+            data = layer.activate(data, reset=reset)
         # ravel the predictions if needed
         if data.ndim == 2 and data.shape[1] == 1:
             data = data.ravel()
-        return data
-
-    def process_sequence(self, data):
-        """
-        Process the given data with the neural network.
-
-        Parameters
-        ----------
-        data : numpy array
-            Activate the network with this data.
-
-        Returns
-        -------
-        numpy array
-            Network predictions for this data.
-
-        """
-        # check the dimensions of the data
-        if data.ndim == 1:
-            data = np.atleast_2d(data).T
-        # loop over all layers
-        for layer in self.layers:
-            # activate the layer and feed the output into the next one
-            data = layer(data)
-        # return the data
-        return data
-
-    def process_step(self, data):
-        """
-        Process the given data with the neural network step-by-step.
-
-        Parameters
-        ----------
-        data : numpy array
-            Activate the network with this data.
-
-        Returns
-        -------
-        numpy array
-            Network predictions for this data.
-
-        """
-        # loop over all layers
-        for layer in self.layers:
-            # activate the layer and feed the output into the next one
-            data = layer.activate_step(data)
-        # return the data
         return data
 
     def reset(self):
@@ -198,7 +138,8 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     >>> nn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP)
     >>> nn  # doctest: +ELLIPSIS
     <madmom.ml.nn.NeuralNetworkEnsemble object at 0x...>
-    >>> nn(np.array([0, 0.5, 1, 0, 1, 2, 0]))  # doctest: +NORMALIZE_WHITESPACE
+    >>> nn(np.array([[0], [0.5], [1], [0], [1], [2], [0]]))
+    ... # doctest: +NORMALIZE_WHITESPACE
     array([ 0.00116, 0.00213, 0.01428, 0.00729, 0.0088 , 0.21965, 0.00532])
 
     """
