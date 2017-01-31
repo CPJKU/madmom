@@ -80,7 +80,7 @@ class ConditionalRandomField(Processor):
         self.A = transition
         self.W = observation
 
-    def process(self, observations):
+    def process(self, observations, **kwargs):
         """
         Determine the most probable configuration of Y given the state
         sequence x:

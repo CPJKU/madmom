@@ -212,7 +212,7 @@ class ActivationsProcessor(Processor):
         self.fps = fps
         self.sep = sep
 
-    def process(self, data, output=None):
+    def process(self, data, output=None, **kwargs):
         """
         Depending on the mode, either loads the data stored in the given file
         and returns it as an Activations instance or save the data to the given

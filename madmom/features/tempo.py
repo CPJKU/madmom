@@ -309,7 +309,7 @@ class TempoEstimationProcessor(Processor):
         """Maximum beat interval [frames]."""
         return int(np.ceil(60. * self.fps / self.min_bpm))
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the tempi from the (beat) activations.
 

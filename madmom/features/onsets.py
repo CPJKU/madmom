@@ -1066,7 +1066,7 @@ class PeakPickingProcessor(Processor):
         self.delay = delay
         self.fps = fps
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the onsets in the given activation function.
 

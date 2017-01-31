@@ -689,12 +689,13 @@ class Signal(np.ndarray):
 
     def __init__(self, data, sample_rate=SAMPLE_RATE,
                  num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
-                 gain=GAIN, dtype=DTYPE):
+                 gain=GAIN, dtype=DTYPE, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE):
+                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
+                **kwargs):
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate=sample_rate,
@@ -826,7 +827,7 @@ class SignalProcessor(Processor):
         self.norm = norm
         self.gain = gain
 
-    def process(self, data, start=None, stop=None, **kwargs):
+    def process(self, data, **kwargs):
         """
         Processes the given audio file.
 
@@ -834,10 +835,8 @@ class SignalProcessor(Processor):
         ----------
         data : numpy array, str or file handle
             Data to be processed.
-        start : float, optional
-            Start position [seconds].
-        stop : float, optional
-            Stop position [seconds].
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`Signal`.
 
         Returns
         -------
@@ -846,17 +845,13 @@ class SignalProcessor(Processor):
 
         """
         # pylint: disable=unused-argument
-        # overwrite the default start & stop time
-        if start is None:
-            start = self.start
-        if stop is None:
-            stop = self.stop
-        # instantiate a Signal
-        data = Signal(data, sample_rate=self.sample_rate,
-                      num_channels=self.num_channels, start=start, stop=stop,
-                      norm=self.norm, gain=self.gain)
-        # return processed data
-        return data
+        # update arguments passed to FramedSignal
+        args = dict(sample_rate=self.sample_rate,
+                    num_channels=self.num_channels, start=self.start,
+                    stop=self.stop, norm=self.norm, gain=self.gain)
+        args.update(kwargs)
+        # instantiate a Signal and return it
+        return Signal(data, **args)
 
     @staticmethod
     def add_arguments(parser, sample_rate=None, mono=None, start=None,
@@ -1379,9 +1374,8 @@ class FramedSignalProcessor(Processor):
         ----------
         data : :class:`Signal` instance
             Signal to be sliced into frames.
-        kwargs : dict
-            Keyword arguments passed to :class:`FramedSignal` to instantiate
-            the returned object.
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`FramedSignal`.
 
         Returns
         -------
@@ -1389,11 +1383,13 @@ class FramedSignalProcessor(Processor):
             FramedSignal instance
 
         """
+        # update arguments passed to FramedSignal
+        args = dict(frame_size=self.frame_size, hop_size=self.hop_size,
+                    fps=self.fps, origin=self.origin, end=self.end,
+                    num_frames=self.num_frames)
+        args.update(kwargs)
         # instantiate a FramedSignal from the data and return it
-        return FramedSignal(data, frame_size=self.frame_size,
-                            hop_size=self.hop_size, fps=self.fps,
-                            origin=self.origin, end=self.end,
-                            num_frames=self.num_frames, **kwargs)
+        return FramedSignal(data, **args)
 
     @staticmethod
     def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS,

@@ -218,7 +218,7 @@ class MultiModelSelectionProcessor(Processor):
 
         self.num_ref_predictions = num_ref_predictions
 
-    def process(self, predictions):
+    def process(self, predictions, **kwargs):
         """
         Selects the most appropriate predictions form the list of predictions.
 
@@ -444,7 +444,7 @@ class BeatTrackingProcessor(Processor):
         # tempo estimator
         self.tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
 
@@ -725,7 +725,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
             import multiprocessing as mp
             self.map = mp.Pool(num_threads).map
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
 
@@ -952,7 +952,7 @@ class DBNBeatTrackingProcessor(Processor):
         self.threshold = threshold
         self.fps = fps
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
 
@@ -1239,7 +1239,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         self.downbeats = downbeats
         self.fps = fps
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
 
@@ -1599,7 +1599,7 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
         # instantiate a HMM
         self.hmm = Hmm(self.tm, self.om, None)
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the beats based on the given activations.
 
