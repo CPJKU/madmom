@@ -92,6 +92,9 @@ class NeuralNetwork(Processor):
             Network predictions for this data.
 
         """
+        # make data at least 2d (required by NN-layers)
+        if data.ndim < 2:
+            data = np.array(data, subok=True, copy=False, ndmin=2)
         # loop over all layers
         for layer in self.layers:
             # activate the layer and feed the output into the next one
