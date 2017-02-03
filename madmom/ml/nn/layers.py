@@ -91,8 +91,6 @@ class FeedForwardLayer(Layer):
         out = np.dot(data, self.weights) + self.bias
         return self.activation_fn(out)
 
-    activate_step = activate
-
 
 class RecurrentLayer(FeedForwardLayer):
     """
@@ -153,7 +151,7 @@ class RecurrentLayer(FeedForwardLayer):
         # reset previous time step to initial value
         self._prev = init or self.init
 
-    def activate(self, data):
+    def activate(self, data, reset=True):
         """
         Activate the layer.
 
@@ -161,6 +159,8 @@ class RecurrentLayer(FeedForwardLayer):
         ----------
         data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
+        reset : bool, optional
+            Reset the layer to its initial state before activating it.
 
         Returns
         -------
@@ -168,43 +168,23 @@ class RecurrentLayer(FeedForwardLayer):
             Activations for this data.
 
         """
+        # make sure we can iterate over the data
+        data = np.atleast_2d(data)
         # reset layer to initial state
-        prev = self.init
+        if reset:
+            self.reset()
         # weight input and add bias
         out = np.dot(data, self.weights) + self.bias
         # loop through all time steps
         for i in range(len(data)):
             # add weighted previous step
-            out[i] += np.dot(prev, self.recurrent_weights)
+            out[i] += np.dot(self._prev, self.recurrent_weights)
             # apply activation function
             out[i] = self.activation_fn(out[i])
             # set reference to current output
-            prev = out[i]
+            self._prev = out[i]
         # return
         return out
-
-    def activate_step(self, data):
-        """
-        Activate the layer step-by-step.
-
-        Parameters
-        ----------
-        data : numpy array, shape (num_inputs)
-            Activate with this data.
-
-        Returns
-        -------
-        numpy array, shape (num_hiddens)
-            Activations for this time step.
-
-        """
-        # weight input and add bias
-        out = np.dot(data, self.weights) + self.bias
-        # add weighted previous step
-        out += np.dot(self._prev, self.recurrent_weights)
-        # apply activation function, save as previous output and return it
-        self._prev = self.activation_fn(out)
-        return self._prev
 
 
 class BidirectionalLayer(Layer):
@@ -271,9 +251,7 @@ class Gate(RecurrentLayer):
 
     Notes
     -----
-    Gate should not be used directly, only inside a LSTMLayer. Contrary to the
-    overall design of stateful processing, it does not keep the state and thus
-    behaves differently.
+    Gate should not be used directly, only inside an LSTMLayer.
 
     """
 
@@ -334,11 +312,8 @@ class Cell(Gate):
     Notes
     -----
     A Cell is the same as a Gate except it misses peephole connections and
-    has a `tanh` activation function.
-
-    Likewise it should not be used directly, only inside a LSTMLayer. Contrary
-    to the overall design of stateful processing, it does not keep the state
-    and thus behaves differently.
+    has a `tanh` activation function. It should not be used directly, only
+    inside an LSTMLayer.
 
     """
 
@@ -424,7 +399,7 @@ class LSTMLayer(RecurrentLayer):
         self._prev = init or self.init
         self._state = cell_init or self.cell_init
 
-    def activate(self, data):
+    def activate(self, data, reset=True):
         """
         Activate the LSTM layer.
 
@@ -432,6 +407,8 @@ class LSTMLayer(RecurrentLayer):
         ----------
         data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
+        reset : bool, optional
+            Reset the layer to its initial state before activating it.
 
         Returns
         -------
@@ -439,9 +416,11 @@ class LSTMLayer(RecurrentLayer):
             Activations for this data.
 
         """
+        # make sure we can iterate over the data
+        data = np.atleast_2d(data)
         # reset layer
-        prev = self.init
-        state = self.cell_init
+        if reset:
+            self.reset()
         # init arrays
         size = len(data)
         # output matrix for the whole sequence
@@ -452,62 +431,26 @@ class LSTMLayer(RecurrentLayer):
             data_ = data[i]
             # input gate:
             # operate on current data, previous output and state
-            ig = self.input_gate.activate(data_, prev, state)
+            ig = self.input_gate.activate(data_, self._prev, self._state)
             # forget gate:
             # operate on current data, previous output and state
-            fg = self.forget_gate.activate(data_, prev, state)
+            fg = self.forget_gate.activate(data_, self._prev, self._state)
             # cell:
             # operate on current data and previous output
-            cell = self.cell.activate(data_, prev)
+            cell = self.cell.activate(data_, self._prev)
             # internal state:
             # weight the cell with the input gate
             # and add the previous state weighted by the forget gate
-            state = cell * ig + state * fg
+            self._state = cell * ig + self._state * fg
             # output gate:
             # operate on current data, previous output and current state
-            og = self.output_gate.activate(data_, prev, state)
+            og = self.output_gate.activate(data_, self._prev, self._state)
             # output:
             # apply activation function to state and weight by output gate
-            out[i] = self.activation_fn(state) * og
+            out[i] = self.activation_fn(self._state) * og
             # set reference to current output
-            prev = out[i]
+            self._prev = out[i]
         return out
-
-    def activate_step(self, data):
-        """
-        Activate the LSTM layer step-by-step.
-
-        Parameters
-        ----------
-        data : numpy array, shape (num_inputs)
-            Activate with this data.
-
-        Returns
-        -------
-        numpy array, shape (num_hiddens)
-            Activations for this time step.
-
-        """
-        # input gate:
-        # operate on current data, previous output and state
-        ig = self.input_gate.activate(data, self._prev, self._state)
-        # forget gate:
-        # operate on current data, previous output and state
-        fg = self.forget_gate.activate(data, self._prev, self._state)
-        # cell:
-        # operate on current data and previous output
-        cell = self.cell.activate(data, self._prev)
-        # internal state:
-        # weight the cell with the input gate
-        # and add the previous state weighted by the forget gate
-        self._state = (cell * ig + self._state * fg)
-        # output gate:
-        # operate on current data, previous output and current state
-        og = self.output_gate.activate(data, self._prev, self._state)
-        # output:
-        # apply activation function to state and weight by output gate
-        self._prev = self.activation_fn(self._state) * og
-        return self._prev
 
 
 class GRUCell(Cell):
@@ -542,9 +485,7 @@ class GRUCell(Cell):
     we adopted the (slightly older) one proposed in [1]_, which is also
     implemented in the Lasagne toolbox.
 
-    It should not be used directly, only inside a GRULayer. Contrary to the
-    overall design of stateful processing, it does not keep the state and thus
-    behaves differently.
+    It should not be used directly, only inside a GRULayer.
 
     """
 
@@ -640,7 +581,7 @@ class GRULayer(RecurrentLayer):
         # add non-pickled attributes needed for stateful processing
         self._prev = self.init
 
-    def activate(self, data):
+    def activate(self, data, reset=True):
         """
         Activate the GRU layer.
 
@@ -648,6 +589,8 @@ class GRULayer(RecurrentLayer):
         ----------
         data : numpy array, shape (num_frames, num_inputs)
             Activate with this data.
+        reset : bool, optional
+            Reset the layer to its initial state before activating it.
 
         Returns
         -------
@@ -655,8 +598,11 @@ class GRULayer(RecurrentLayer):
             Activations for this data.
 
         """
+        # make sure we can iterate over the data
+        data = np.atleast_2d(data)
         # reset layer
-        prev = self.init
+        if reset:
+            self.reset()
         # init arrays
         size = len(data)
         # output matrix for the whole sequence
@@ -667,46 +613,18 @@ class GRULayer(RecurrentLayer):
             data_ = data[i]
             # reset gate:
             # operate on current data and previous output
-            rg = self.reset_gate.activate(data_, prev)
+            rg = self.reset_gate.activate(data_, self._prev)
             # update gate:
             # operate on current data and previous output
-            ug = self.update_gate.activate(data_, prev)
+            ug = self.update_gate.activate(data_, self._prev)
             # cell (implemented as in [1]):
             # operate on current data, previous output and reset gate
-            cell = self.cell.activate(data_, prev, rg)
+            cell = self.cell.activate(data_, self._prev, rg)
             # output:
-            out[i] = ug * cell + (1 - ug) * prev
+            out[i] = ug * cell + (1 - ug) * self._prev
             # set reference to current output
-            prev = out[i]
+            self._prev = out[i]
         return out
-
-    def activate_step(self, data):
-        """
-        Activate the GRU layer step-by-step.
-
-        Parameters
-        ----------
-        data : numpy array, shape (num_inputs)
-            Activate with this data.
-
-        Returns
-        -------
-        numpy array, shape (num_hiddens)
-            Activations for this time step.
-
-        """
-        # reset gate:
-        # operate on current data and previous output
-        rg = self.reset_gate.activate(data, self._prev)
-        # update gate:
-        # operate on current data and previous output
-        ug = self.update_gate.activate(data, self._prev)
-        # cell (implemented as in [1]):
-        # operate on current data, previous output and reset gate
-        cell = self.cell.activate(data, self._prev, rg)
-        # output:
-        self._prev = ug * cell + (1 - ug) * self._prev
-        return self._prev
 
 
 def _kernel_margins(kernel_shape, margin_shift):

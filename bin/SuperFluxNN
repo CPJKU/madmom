@@ -8,6 +8,7 @@ SuperFlux with neural network based peak picking onset detection algorithm.
 from __future__ import absolute_import, division, print_function
 
 import argparse
+import numpy as np
 
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
@@ -103,7 +104,9 @@ def main():
         pp = PeakPickingProcessor(**vars(args))
         from madmom.utils import write_events as writer
         # sequentially process them
-        out_processor = [rnn, pp, writer]
+        # Note: we need np.atleast_2d and np.transpose before the RNN, since
+        #       it expects the data in 2D (1D means framewise processing)
+        out_processor = [np.atleast_2d, np.transpose, rnn, pp, writer]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

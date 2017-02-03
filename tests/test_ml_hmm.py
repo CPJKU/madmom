@@ -127,8 +127,23 @@ class TestHiddenMarkovModelClass(unittest.TestCase):
     def test_forward(self):
         fwd = self.hmm.forward(OBS_SEQ)
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
+        # two runs must yield identical results
+        fwd = self.hmm.forward(OBS_SEQ)
+        self.assertTrue(np.allclose(fwd, CORRECT_FWD))
+        # after resetting the HMM, it must produce the same output as before
+        self.hmm.reset()
+        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        self.assertTrue(np.allclose(fwd, CORRECT_FWD))
+        # without resetting it produces different results
+        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        self.assertFalse(np.allclose(fwd, CORRECT_FWD))
+        # after resetting it must yield the correct result again
+        self.hmm.reset()
+        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        self.assertTrue(np.allclose(fwd, CORRECT_FWD))
+        # initialisation must not change
+        self.assertTrue(np.allclose(self.hmm.initial_distribution, PRIOR))
 
     def test_forward_generator(self):
-        fwd = np.vstack(list(self.hmm.forward_generator(OBS_SEQ,
-                                                        block_size=5)))
+        fwd = np.vstack(self.hmm.forward_generator(OBS_SEQ, block_size=5))
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
