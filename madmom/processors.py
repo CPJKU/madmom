@@ -98,7 +98,7 @@ class Processor(object):
         # Note: for Python 2 / 3 compatibility reason use protocol 2
         pickle.dump(self, open(outfile, 'wb'), protocol=2)
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Process the data.
 
@@ -109,6 +109,8 @@ class Processor(object):
         ----------
         data : depends on the implementation of subclass
             Data to be processed.
+        kwargs : dict, optional
+            Keyword arguments for processing.
 
         Returns
         -------
@@ -129,7 +131,7 @@ class OutputProcessor(Processor):
 
     """
 
-    def process(self, data, output):
+    def process(self, data, output, **kwargs):
         """
         Processes the data and feed it to the output.
 
@@ -142,6 +144,8 @@ class OutputProcessor(Processor):
             Data to be processed (e.g. written to file).
         output : str or file handle
             Output file name or file handle.
+        kwargs : dict, optional
+            Keyword arguments for processing.
 
         Returns
         -------
@@ -163,14 +167,17 @@ def _process(process_tuple):
 
     Parameters
     ----------
-    process_tuple : tuple (Processor/function, data, [output])
+    process_tuple : tuple (Processor/function, data[, output], kwargs)
+
         The tuple must contain a Processor object as the first item and the
         data to be processed as the second tuple item. If a third tuple item
-        is given, it is used as an output.
+        is given, it is used as an output argument. The last item is passed
+        as keyword arguments to the processor's process() method.
         Instead of a Processor also a function accepting a single positional
         argument (data) or two positional arguments (data, output) can be
         given. It must behave exactly as a :class:`Processor`, i.e. return
-        the processed data and optionally pipe it to the output.
+        the processed data and optionally pipe it to the output. Keyword
+        arguments are not passed to the function.
 
     Returns
     -------
@@ -185,9 +192,12 @@ def _process(process_tuple):
     if process_tuple[0] is None:
         # do not process the data, if the first item (i.e. Processor) is None
         return process_tuple[1]
+    elif isinstance(process_tuple[0], Processor):
+        # call the Processor with data and kwargs
+        return process_tuple[0](*process_tuple[1:-1], **process_tuple[-1])
     else:
-        # just call whatever we got here (every Processor is callable)
-        return process_tuple[0](*process_tuple[1:])
+        # just call whatever we got here (e.g. a function) without kwargs
+        return process_tuple[0](*process_tuple[1:-1])
 
 
 class SequentialProcessor(MutableSequence, Processor):
@@ -301,7 +311,7 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         self.processors.extend(other)
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Process the data sequentially with the defined processing chain.
 
@@ -309,6 +319,8 @@ class SequentialProcessor(MutableSequence, Processor):
         ----------
         data : depends on the first processor of the processing chain
             Data to be processed.
+        kwargs : dict, optional
+            Keyword arguments for processing.
 
         Returns
         -------
@@ -318,7 +330,7 @@ class SequentialProcessor(MutableSequence, Processor):
         """
         # sequentially process the data
         for processor in self.processors:
-            data = _process((processor, data))
+            data = _process((processor, data, kwargs))
         return data
 
 
@@ -357,7 +369,7 @@ class ParallelProcessor(SequentialProcessor):
         if min(len(processors), max(1, num_threads)) > 1:
             self.map = mp.Pool(num_threads).map
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Process the data in parallel.
 
@@ -365,6 +377,8 @@ class ParallelProcessor(SequentialProcessor):
         ----------
         data : depends on the processors
             Data to be processed.
+        kwargs : dict, optional
+            Keyword arguments for processing.
 
         Returns
         -------
@@ -374,7 +388,8 @@ class ParallelProcessor(SequentialProcessor):
         """
         import itertools as it
         # process data in parallel and return a list with processed data
-        return list(self.map(_process, zip(self.processors, it.repeat(data))))
+        return list(self.map(_process, zip(self.processors, it.repeat(data),
+                                           it.repeat(kwargs))))
 
     @staticmethod
     def add_arguments(parser, num_threads):
@@ -478,7 +493,7 @@ class IOProcessor(OutputProcessor):
             raise IndexError('Only `in_processor` at index 0 and '
                              '`out_processor` at index 1 are defined.')
 
-    def process(self, data, output=None):
+    def process(self, data, output=None, **kwargs):
         """
         Processes the data with the input processor and pipe everything into
         the output processor, which also pipes it to `output`.
@@ -489,6 +504,8 @@ class IOProcessor(OutputProcessor):
             Data to be processed.
         output: str or file handle
             Output file (handle).
+        kwargs : dict, optional
+            Keyword arguments for processing.
 
         Returns
         -------
@@ -498,9 +515,9 @@ class IOProcessor(OutputProcessor):
 
         """
         # process the data by the input processor
-        data = _process((self.in_processor, data, ))
+        data = _process((self.in_processor, data, kwargs))
         # process the data by the output processor and return it
-        return _process((self.out_processor, data, output))
+        return _process((self.out_processor, data, output, kwargs))
 
 
 # functions and classes to process files with a Processor
