@@ -9,11 +9,12 @@ This module contains spectrogram related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import inspect
 import numpy as np
 
 from ..processors import Processor, SequentialProcessor, BufferProcessor
-from .filters import (LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX, A4,
-                      NORM_FILTERS, UNIQUE_FILTERS)
+from .filters import (Filterbank, LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX,
+                      A4, NORM_FILTERS, UNIQUE_FILTERS)
 
 
 def spec(stft):
@@ -217,11 +218,6 @@ class Spectrogram(np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-        # Note: these attributes are added for compatibility, if they are
-        #       present any spectrogram sub-class behaves exactly the same
-        self.filterbank = getattr(obj, 'filterbank', None)
-        self.mul = getattr(obj, 'mul', None)
-        self.add = getattr(obj, 'add', None)
 
     @property
     def num_frames(self):
@@ -236,9 +232,7 @@ class Spectrogram(np.ndarray):
     @property
     def bin_frequencies(self):
         """Bin frequencies."""
-        if self.filterbank is None:
-            return self.stft.bin_frequencies
-        return self.filterbank.center_frequencies
+        return self.stft.bin_frequencies
 
     def diff(self, **kwargs):
         """
@@ -444,8 +438,6 @@ class FilteredSpectrogram(Spectrogram):
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=unused-argument
-        import inspect
-        from .filters import Filterbank
         # instantiate a Spectrogram if needed
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
@@ -468,8 +460,6 @@ class FilteredSpectrogram(Spectrogram):
         obj.filterbank = filterbank
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
-        obj.mul = spectrogram.mul
-        obj.add = spectrogram.add
         # return the object
         return obj
 
@@ -477,8 +467,8 @@ class FilteredSpectrogram(Spectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
         self.filterbank = getattr(obj, 'filterbank', None)
-        super(FilteredSpectrogram, self).__array_finalize__(obj)
 
     @property
     def bin_frequencies(self):
@@ -622,7 +612,7 @@ class LogarithmicSpectrogram(Spectrogram):
         obj.add = add
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
-        obj.filterbank = spectrogram.filterbank
+        obj.spectrogram = spectrogram
         # return the object
         return obj
 
@@ -630,9 +620,20 @@ class LogarithmicSpectrogram(Spectrogram):
         if obj is None:
             return
         # set default values here, also needed for views
+        self.stft = getattr(obj, 'stft', None)
+        self.spectrogram = getattr(obj, 'spectrogram', None)
         self.mul = getattr(obj, 'mul', MUL)
         self.add = getattr(obj, 'add', ADD)
-        super(LogarithmicSpectrogram, self).__array_finalize__(obj)
+
+    @property
+    def filterbank(self):
+        """Filterbank."""
+        return self.spectrogram.filterbank
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        return self.spectrogram.bin_frequencies
 
 
 class LogarithmicSpectrogramProcessor(Processor):
@@ -806,18 +807,19 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
         obj.add = data.add
         # and those from the given spectrogram
         obj.stft = spectrogram.stft
-        obj.filterbank = spectrogram.filterbank
+        obj.spectrogram = spectrogram
         # return the object
         return obj
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        # set default values here, also needed for views
-        self.filterbank = getattr(obj, 'filterbank', None)
-        self.mul = getattr(obj, 'mul', MUL)
-        self.add = getattr(obj, 'add', ADD)
-        super(LogarithmicFilteredSpectrogram, self).__array_finalize__(obj)
+    @property
+    def filterbank(self):
+        """Filterbank."""
+        return self.spectrogram.filterbank
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        return self.filterbank.center_frequencies
 
 
 class LogarithmicFilteredSpectrogramProcessor(Processor):
@@ -1073,10 +1075,6 @@ class SpectrogramDifference(Spectrogram):
         obj.diff_frames = diff_frames
         obj.diff_max_bins = diff_max_bins
         obj.positive_diffs = positive_diffs
-        # and those from the given spectrogram
-        obj.filterbank = spectrogram.filterbank
-        obj.mul = spectrogram.mul
-        obj.add = spectrogram.add
         # return the object
         return obj
 
@@ -1088,7 +1086,6 @@ class SpectrogramDifference(Spectrogram):
         self.diff_frames = getattr(obj, 'diff_frames', None)
         self.diff_max_bins = getattr(obj, 'diff_max_bins', None)
         self.positive_diffs = getattr(obj, 'positive_diffs', False)
-        super(SpectrogramDifference, self).__array_finalize__(obj)
 
     @property
     def bin_frequencies(self):
@@ -1183,8 +1180,6 @@ class SpectrogramDifferenceProcessor(Processor):
         If `reset` is 'True', the first `diff_frames` differences will be 0.
 
         """
-        # expand to 2D
-        data = np.atleast_2d(data)
         # calculate the number of diff frames
         if self.diff_frames is None:
             self.diff_frames = _diff_frames(

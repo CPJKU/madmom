@@ -132,10 +132,6 @@ class TestSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_bins, int)
         self.assertIsInstance(result.num_frames, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
 
     def test_values(self):
         # from file
@@ -197,9 +193,6 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_bins, int)
         self.assertIsInstance(result.num_frames, int)
-        # other faked attributes
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
         # wrong filterbank type
         with self.assertRaises(TypeError):
             FilteredSpectrogram(sample_file, filterbank='bla')
@@ -342,8 +335,6 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.num_bins, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
 
     def test_values(self):
         result = LogarithmicSpectrogram(sample_file)
@@ -443,8 +434,7 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 81)
         # test other values
-        result = LogarithmicFilteredSpectrogram(sample_file,
-                                                mul=2, add=2)
+        result = LogarithmicFilteredSpectrogram(sample_file, mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
 
@@ -519,10 +509,6 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.num_bins, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
 
     def test_values(self):
         result = SpectrogramDifference(sample_file)
@@ -580,11 +566,13 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(result, result_1))
         # result must be the same if processed frame-by-frame
         self.processor.reset()
-        result_2 = np.vstack([self.processor.process(frame, reset=False)
+        result_2 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
                               for frame in sample_spec])
         self.assertTrue(np.allclose(result_2, result))
         # result must be different without resetting (first frame != 0)
-        result_3 = np.vstack([self.processor.process(frame, reset=False)
+        result_3 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
                               for frame in sample_spec])
         self.assertFalse(np.allclose(result_3, result))
         self.assertFalse(np.sum(result_3[0]) == 0)
@@ -604,11 +592,13 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         # result must be the same if processed frame-by-frame
         self.processor.reset()
         self.assertTrue(self.processor.diff_frames == 2)
-        result_2 = np.vstack([self.processor.process(frame, reset=False)
+        result_2 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
                               for frame in sample_spec])
         self.assertTrue(np.allclose(result_2, result))
         # result must be different without resetting (first 2 frame != 0)
-        result_3 = np.vstack([self.processor.process(frame, reset=False)
+        result_3 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
                               for frame in sample_spec])
         self.assertFalse(np.allclose(result_3, result))
         self.assertFalse(np.sum(result_3[0]) == 0)
@@ -657,12 +647,6 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_bins == 140)
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.shape == (281, 140))
-        # filterbank stuff
-        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
-        self.assertTrue(result.filterbank.num_bands_per_octave == 24)
-        # log stuff
-        self.assertTrue(result.mul == 1)
-        self.assertTrue(result.add == 1)
         # diff stuff
         self.assertTrue(result.diff_ratio == 0.5)
         self.assertTrue(result.diff_max_bins == 3)
