@@ -168,8 +168,6 @@ class RecurrentLayer(FeedForwardLayer):
             Activations for this data.
 
         """
-        # make sure we can iterate over the data
-        data = np.atleast_2d(data)
         # reset layer to initial state
         if reset:
             self.reset()
@@ -416,8 +414,6 @@ class LSTMLayer(RecurrentLayer):
             Activations for this data.
 
         """
-        # make sure we can iterate over the data
-        data = np.atleast_2d(data)
         # reset layer
         if reset:
             self.reset()
@@ -598,8 +594,6 @@ class GRULayer(RecurrentLayer):
             Activations for this data.
 
         """
-        # make sure we can iterate over the data
-        data = np.atleast_2d(data)
         # reset layer
         if reset:
             self.reset()

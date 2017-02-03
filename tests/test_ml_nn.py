@@ -33,10 +33,12 @@ class TestRNNClass(unittest.TestCase):
         self.assertTrue(np.allclose(result_1, self.result))
         # after resetting the RNN, it must produce the same output as before
         self.rnn.reset()
-        result_2 = [self.rnn.process(d, reset=False) for d in self.data]
+        result_2 = [self.rnn.process(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         self.assertTrue(np.allclose(np.hstack(result_2), self.result))
         # without resetting it produces different results
-        result_3 = [self.rnn.process(d, reset=False) for d in self.data]
+        result_3 = [self.rnn.process(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         self.assertTrue(np.allclose(np.hstack(result_3),
                                     [9.15636891e-04, 9.74331021e-01,
                                      4.83996118e-05, 2.72355013e-04]))
@@ -59,10 +61,12 @@ class TestLSTMClass(unittest.TestCase):
         self.assertTrue(np.allclose(result_1, self.result))
         # after resetting the RNN, it must produce the same output
         self.rnn.reset()
-        result_2 = [self.rnn.process(d, reset=False) for d in self.data]
+        result_2 = [self.rnn.process(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         self.assertTrue(np.allclose(np.hstack(result_2), self.result))
         # without resetting it produces different output
-        result_3 = [self.rnn.process(d, reset=False) for d in self.data]
+        result_3 = [self.rnn.process(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         self.assertTrue(np.allclose(np.hstack(result_3),
                                     [0.00054101, 0.05323271,
                                      0.0548761, 0.00785541]))
@@ -86,8 +90,9 @@ class TestNeuralNetworkClass(unittest.TestCase):
         data = np.zeros((4, input_size))
         data[1] = 1.
         result = rnn.process(data)
-        self.assertTrue(np.allclose(result, [3.88076517e-03, 1.67354920e-03,
-                                             1.14450835e-03, 5.01533471e-05]))
+        self.assertTrue(np.allclose(result,
+                                    [3.88076517e-03, 1.67354920e-03,
+                                     1.14450835e-03, 5.01533471e-05]))
 
     def test_brnn_regression(self):
         rnn = NeuralNetwork.load(NOTES_BRNN[0])
@@ -189,12 +194,14 @@ class TestRecurrentLayerClass(unittest.TestCase):
         self.assertTrue(np.allclose(self.layer.init, np.zeros(25)))
         # reset layer, activate framewise must yield the same result
         self.layer.reset()
-        result_3 = [self.layer.activate(d, reset=False) for d in self.data]
+        result_3 = [self.layer.activate(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         result_3 = np.vstack(result_3)
         self.assertTrue(np.allclose(result_3, result_1))
         self.assertTrue(np.allclose(self.layer._prev, result_3[-1]))
         # activate framewise without resetting must yield a different result
-        result_4 = [self.layer.activate(d, reset=False) for d in self.data]
+        result_4 = [self.layer.activate(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         result_4 = np.vstack(result_4)
         self.assertFalse(np.allclose(result_4, result_1))
         self.assertTrue(np.allclose(result_4[0, :2],
@@ -247,10 +254,12 @@ class TestLSTMLayerClass(unittest.TestCase):
         self.assertTrue(np.allclose(self.layer._prev, result_2[-1]))
         # reset layer, activate framewise must yield the same result
         self.layer.reset()
-        result_3 = [self.layer.activate(d, reset=False) for d in self.data]
+        result_3 = [self.layer.activate(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         self.assertTrue(np.allclose(np.vstack(result_3), result_1))
         # activate framewise without resetting must yield a different result
-        result_4 = [self.layer.activate(d, reset=False) for d in self.data]
+        result_4 = [self.layer.activate(np.atleast_2d(d), reset=False)
+                    for d in self.data]
         result_4 = np.vstack(result_4)
         self.assertFalse(np.allclose(result_4, result_1))
         self.assertTrue(np.allclose(result_4[0, :2],
@@ -337,12 +346,14 @@ class TestGRUClass(unittest.TestCase):
                                   [0.28866628, -0.23025239]])))
         # reset layer, activate framewise must yield the same result
         self.gru_1.reset()
-        result_1 = [self.gru_1.activate(d, reset=False) for d in self.IN]
+        result_1 = [self.gru_1.activate(np.atleast_2d(d), reset=False)
+                    for d in self.IN]
         self.assertTrue(np.allclose(np.vstack(result_1), self.OUT))
         # the previous state must be the last output
         self.assertTrue(np.allclose(self.gru_1._prev, self.OUT[-1]))
         # activate with same data without resetting
-        result_2 = [self.gru_1.activate(d, reset=False) for d in self.IN]
+        result_2 = [self.gru_1.activate(np.atleast_2d(d), reset=False)
+                    for d in self.IN]
         # results must differ
         self.assertFalse(np.allclose(result_1, result_2))
         self.assertTrue(np.allclose(np.vstack(result_2),
