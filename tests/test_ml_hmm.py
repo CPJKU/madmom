@@ -132,14 +132,17 @@ class TestHiddenMarkovModelClass(unittest.TestCase):
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
         # after resetting the HMM, it must produce the same output as before
         self.hmm.reset()
-        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        fwd = np.vstack([self.hmm.forward(np.atleast_1d(o), reset=False)
+                         for o in OBS_SEQ])
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
         # without resetting it produces different results
-        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        fwd = np.vstack([self.hmm.forward(np.atleast_1d(o), reset=False)
+                         for o in OBS_SEQ])
         self.assertFalse(np.allclose(fwd, CORRECT_FWD))
         # after resetting it must yield the correct result again
         self.hmm.reset()
-        fwd = np.vstack([self.hmm.forward(o, reset=False) for o in OBS_SEQ])
+        fwd = np.vstack([self.hmm.forward(np.atleast_1d(o), reset=False)
+                         for o in OBS_SEQ])
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
         # initialisation must not change
         self.assertTrue(np.allclose(self.hmm.initial_distribution, PRIOR))
