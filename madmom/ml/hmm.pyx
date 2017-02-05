@@ -558,10 +558,7 @@ class HiddenMarkovModel(object):
         # observation model stuff
         om = self.observation_model
         cdef uint32_t [::1] om_pointers = om.pointers
-        # TODO: check why ascontiguousarray is needed for framewise processing
-        # make sure we can iterate over the observations
-        cdef double [:, ::1] om_densities = np.ascontiguousarray(
-            np.atleast_2d(om.densities(observations)))
+        cdef double [:, ::1] om_densities = om.densities(observations)
         cdef unsigned int num_observations = len(om_densities)
 
         # reset HMM
@@ -599,7 +596,7 @@ class HiddenMarkovModel(object):
                 fwd_prev[state] = fwd[frame, state]
 
         # return the forward variables
-        return np.array(fwd)
+        return np.asarray(fwd)
 
     @cython.cdivision(True)
     @cython.boundscheck(False)
