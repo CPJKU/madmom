@@ -509,6 +509,10 @@ def process_single(processor, infile, outfile, **kwargs):
 
     """
     # pylint: disable=unused-argument
+    # adjust origin in online mode
+    if kwargs.get('online'):
+        kwargs['origin'] = 'online'
+        kwargs['reset'] = False
     # process the input file
     _process((processor, infile, outfile, kwargs))
 
@@ -808,7 +812,10 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                     default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
                     help='number of threads [default=%(default)s]')
-    sp.set_defaults(online=None)
+    # add arguments needed for loading processors
+    if online:
+        sp.add_argument('--online', action='store_true', default=None,
+                        help='use online settings [default: offline]')
 
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
