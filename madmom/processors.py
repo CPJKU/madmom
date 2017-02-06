@@ -656,9 +656,9 @@ class BufferProcessor(Processor):
         if buffer_size is None and init is not None:
             buffer_size = init.shape
         # if buffer_size is int, make a tuple
-        elif isinstance(buffer_size, int):
+        elif isinstance(buffer_size, (int, np.integer)):
             buffer_size = (buffer_size, )
-        # FIXME: use np.pad for fancy initialisation (can be done in process())
+        # TODO: use np.pad for fancy initialisation (can be done in process())
         # init buffer if needed
         if buffer_size is not None and init is None:
             init = np.ones(buffer_size) * init_value
@@ -684,7 +684,8 @@ class BufferProcessor(Processor):
         # expected minimum number of dimensions
         ndmin = len(self.buffer_size)
         # cast the data to have that many dimensions
-        data = np.array(data, copy=False, subok=True, ndmin=ndmin)
+        if data.ndim < ndmin:
+            data = np.array(data, copy=False, subok=True, ndmin=ndmin)
         # length of the data
         data_length = len(data)
         # remove `data_length` from buffer at the beginning and append new data
@@ -736,10 +737,11 @@ def process_online(processor, infile, outfile, **kwargs):
     # use the input file
     else:
         # set parameters for opening the file
-        from .audio.signal import FRAME_SIZE, HOP_SIZE, FPS
+        from .audio.signal import FRAME_SIZE, HOP_SIZE, FPS, NUM_CHANNELS
         frame_size = kwargs.get('frame_size', FRAME_SIZE)
         hop_size = kwargs.get('hop_size', HOP_SIZE)
         fps = kwargs.get('fps', FPS)
+        num_channels = kwargs.get('num_channels', NUM_CHANNELS)
         # FIXME: overwrite the frame size with the maximum value of all used
         #        processors. This is needed if multiple frame sizes are used
         import warnings
@@ -749,7 +751,8 @@ def process_online(processor, infile, outfile, **kwargs):
         # Note: origin must be 'online' and num_frames 'None' to behave exactly
         #       the same as with live input
         stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
-                              fps=fps, origin='online', num_frames=None)
+                              fps=fps, origin='online', num_frames=None,
+                              num_channels=num_channels)
     # set arguments for online processing
     # Note: pass only certain arguments, because these will be passed to the
     #       processors at every time step (kwargs contains file handles etc.)
