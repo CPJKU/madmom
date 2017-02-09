@@ -236,6 +236,7 @@ class TestPeakPickingFunction(unittest.TestCase):
     def test_values(self):
         onsets = peak_picking(sample_superflux_act, 1.1)
         self.assertTrue(np.allclose(onsets[:6], [2, 10, 17, 48, 55, 80]))
+        self.assertTrue(len(onsets) == 35)
         # smooth
         onsets = peak_picking(sample_superflux_act, 1.1, smooth=3)
         self.assertTrue(np.allclose(onsets[:6], [2, 10, 17, 24, 48, 55]))
@@ -245,34 +246,26 @@ class TestPeakPickingFunction(unittest.TestCase):
         self.assertTrue(np.allclose(onsets[:6], [2, 17, 55, 89, 122, 159]))
 
 
-class TestPeakPickingProcessorClass(unittest.TestCase):
+class TestOnsetPeakPickingProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = PeakPickingProcessor(threshold=1.1, pre_max=0.01,
-                                              post_max=0.05, pre_avg=0.15,
-                                              post_avg=0, combine=0.03,
-                                              delay=0,
-                                              fps=sample_superflux_act.fps)
+        self.processor = OnsetPeakPickingProcessor(
+            threshold=1.1, pre_max=0.01, post_max=0.05, pre_avg=0.15,
+            post_avg=0, combine=0.03, delay=0, fps=sample_superflux_act.fps)
+        self.result = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115,
+                       1.365, 1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
 
     def test_online(self):
-        proc = PeakPickingProcessor(online=True)
+        proc = OnsetPeakPickingProcessor(online=True)
         self.assertEqual(proc.smooth, 0)
         self.assertEqual(proc.post_avg, 0)
         self.assertEqual(proc.post_max, 0)
 
     def test_process(self):
         onsets = self.processor(sample_superflux_act)
-        self.assertTrue(np.allclose(onsets, [0.01, 0.085, 0.275, 0.445, 0.61,
-                                             0.795, 0.98, 1.115, 1.365, 1.475,
-                                             1.62, 1.795, 2.14, 2.33, 2.485,
-                                             2.665]))
+        self.assertTrue(np.allclose(onsets, self.result))
 
     def test_delay(self):
-        proc = PeakPickingProcessor(threshold=1.1, pre_max=0.01, post_max=0.05,
-                                    pre_avg=0.15, post_avg=0, combine=0.03,
-                                    delay=1, fps=sample_superflux_act.fps)
-        onsets = proc(sample_superflux_act)
-        self.assertTrue(np.allclose(onsets,
-                                    [1.01, 1.085, 1.275, 1.445, 1.61, 1.795,
-                                     1.98, 2.115, 2.365, 2.475, 2.62, 2.795,
-                                     3.14, 3.33, 3.485, 3.665]))
+        self.processor.delay = 1
+        onsets = self.processor(sample_superflux_act)
+        self.assertTrue(np.allclose(onsets, np.array(self.result) + 1))

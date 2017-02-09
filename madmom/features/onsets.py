@@ -13,8 +13,8 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from madmom.audio.signal import smooth as smooth_signal
+from ..processors import Processor, SequentialProcessor, ParallelProcessor
+from ..audio.signal import smooth as smooth_signal
 
 EPSILON = np.spacing(1)
 
@@ -885,7 +885,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         Activation function.
     threshold : float
         Threshold for peak-picking
-    smooth : int or numpy array
+    smooth : int or numpy array, optional
         Smooth the activation function with the kernel (size).
     pre_avg : int, optional
         Use `pre_avg` frames past information for moving average.
@@ -967,9 +967,61 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
 class PeakPickingProcessor(Processor):
     """
-    This class implements the onset peak-picking functionality which can be
-    used universally. It transparently converts the chosen values from seconds
-    to frames.
+    Deprecated as of version 0.15. Will be removed in version 0.16. Use either
+    :class:`OnsetPeakPickingProcessor` or :class:`NotePeakPickingProcessor`
+    instead.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        self.kwargs = kwargs
+
+    def process(self, activations, **kwargs):
+        """
+        Detect the peaks in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        peaks : numpy array
+            Detected onsets [seconds[, frequency bin]].
+
+        """
+        import warnings
+        if activations.ndim == 1:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`OnsetPeakPickingProcessor` instead.')
+            ppp = OnsetPeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+        elif activations.ndim == 2:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`NotePeakPickingProcessor` instead.')
+            from .notes import NotePeakPickingProcessor
+            ppp = NotePeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+
+    @staticmethod
+    def add_arguments(parser, **kwargs):
+        """
+        Deprecated as of version 0.15. Will be removed in version 0.16. Use
+        either :class:`OnsetPeakPickingProcessor` or
+        :class:`NotePeakPickingProcessor` instead.
+
+        """
+        return OnsetPeakPickingProcessor.add_arguments(parser, **kwargs)
+
+
+class OnsetPeakPickingProcessor(Processor):
+    """
+    This class implements the onset peak-picking functionality.
+    It transparently converts the chosen values from seconds to frames.
 
     Parameters
     ----------
@@ -1020,12 +1072,12 @@ class PeakPickingProcessor(Processor):
     Create a PeakPickingProcessor. The returned array represents the positions
     of the onsets in seconds, thus the expected sampling rate has to be given.
 
-    >>> proc = PeakPickingProcessor(fps=100)
+    >>> proc = OnsetPeakPickingProcessor(fps=100)
     >>> proc  # doctest: +ELLIPSIS
-    <madmom.features.onsets.PeakPickingProcessor object at 0x...>
+    <madmom.features.onsets.OnsetPeakPickingProcessor object at 0x...>
 
-    Call this PeakPickingProcessor with the onset activation function obtained
-    by RNNOnsetProcessor to obtain the onset positions.
+    Call this OnsetPeakPickingProcessor with the onset activation function from
+    an RNNOnsetProcessor to obtain the onset positions.
 
     >>> act = RNNOnsetProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
@@ -1082,61 +1134,24 @@ class PeakPickingProcessor(Processor):
         """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.fps * self.smooth))
-        pre_avg = int(round(self.fps * self.pre_avg))
-        post_avg = int(round(self.fps * self.post_avg))
-        pre_max = int(round(self.fps * self.pre_max))
-        post_max = int(round(self.fps * self.post_max))
+        timings = np.array([self.smooth, self.pre_avg, self.post_avg,
+                            self.pre_max, self.post_max]) * self.fps
+        timings = np.round(timings).astype(int)
         # detect the peaks (function returns int indices)
-        detections = peak_picking(activations, self.threshold, smooth,
-                                  pre_avg, post_avg, pre_max, post_max)
-
-        if isinstance(detections, tuple):
-            # 2D detections (i.e. notes)
-            onsets = detections[0].astype(np.float) / self.fps
-            midi_notes = detections[1] + 21
-            # shift if necessary
-            if self.delay != 0:
-                onsets += self.delay
-            # combine multiple notes
-            if self.combine > 0:
-                detections = []
-                # iterate over each detected note separately
-                for note in np.unique(midi_notes):
-                    # get all note detections
-                    note_onsets = onsets[midi_notes == note]
-                    # always use the first note
-                    detections.append((note_onsets[0], note))
-                    # filter all notes which occur within `combine` seconds
-                    combined_note_onsets = note_onsets[1:][
-                        np.diff(note_onsets) > self.combine]
-                    # zip the onsets with the MIDI note number and add them to
-                    # the list of detections
-                    notes = zip(combined_note_onsets,
-                                [note] * len(combined_note_onsets))
-                    detections.extend(list(notes))
-            else:
-                # just zip all detected notes
-                detections = list(zip(onsets, midi_notes))
-            # sort the detections and save as numpy array
-            detections = np.asarray(sorted(detections))
-        else:
-            # 1D detections (i.e. onsets)
-            # convert detections to a list of timestamps
-            detections = detections.astype(np.float) / self.fps
-            # shift if necessary
-            if self.delay != 0:
-                detections += self.delay
-            # always use the first detection and all others if none was
-            # reported within the last `combine` seconds
-            if detections.size > 1:
-                # filter all detections which occur within `combine` seconds
-                combined_detections = detections[1:][np.diff(detections) >
-                                                     self.combine]
-                # add them after the first detection
-                detections = np.append(detections[0], combined_detections)
-            else:
-                detections = detections
+        detections = peak_picking(activations, self.threshold, *timings)
+        # convert detections to a list of timestamps
+        detections = detections.astype(np.float) / self.fps
+        # shift if necessary
+        if self.delay:
+            detections += self.delay
+        # combine onsets
+        if self.combine and detections.size > 1:
+            # always use the first onset
+            # filter all onsets which occur within `combine` seconds
+            combined_detections = detections[1:][np.diff(detections) >
+                                                 self.combine]
+            # append them after the first onset
+            detections = np.append(detections[0], combined_detections)
         # return the detections
         return detections
 

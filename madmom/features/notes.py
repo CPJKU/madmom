@@ -15,8 +15,9 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import SequentialProcessor, ParallelProcessor
-from madmom.utils import suppress_warnings
+from .onsets import peak_picking, OnsetPeakPickingProcessor
+from ..processors import SequentialProcessor, ParallelProcessor
+from ..utils import suppress_warnings
 
 
 @suppress_warnings
@@ -263,3 +264,132 @@ class RNNPianoNoteProcessor(SequentialProcessor):
 
         # instantiate a SequentialProcessor
         super(RNNPianoNoteProcessor, self).__init__((pre_processor, nn))
+
+
+class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
+    """
+    This class implements the note peak-picking functionality.
+
+    Parameters
+    ----------
+    threshold : float
+        Threshold for peak-picking.
+    smooth : float, optional
+        Smooth the activation function over `smooth` seconds.
+    pre_avg : float, optional
+        Use `pre_avg` seconds past information for moving average.
+    post_avg : float, optional
+        Use `post_avg` seconds future information for moving average.
+    pre_max : float, optional
+        Use `pre_max` seconds past information for moving maximum.
+    post_max : float, optional
+        Use `post_max` seconds future information for moving maximum.
+    combine : float, optional
+        Only report one note per pitch within `combine` seconds.
+    delay : float, optional
+        Report the detected notes `delay` seconds delayed.
+    online : bool, optional
+        Use online peak-picking, i.e. no future information.
+    fps : float, optional
+        Frames per second used for conversion of timings.
+
+    Returns
+    -------
+    notes : numpy array
+        Detected notes [seconds, pitch].
+
+    Notes
+    -----
+    If no moving average is needed (e.g. the activations are independent of
+    the signal's level as for neural network activations), `pre_avg` and
+    `post_avg` should be set to 0.
+    For peak picking of local maxima, set `pre_max` >= 1. / `fps` and
+    `post_max` >= 1. / `fps`.
+    For online peak picking, all `post_` parameters are set to 0.
+
+    Examples
+    --------
+    Create a PeakPickingProcessor. The returned array represents the positions
+    of the onsets in seconds, thus the expected sampling rate has to be given.
+
+    >>> proc = NotePeakPickingProcessor(fps=100)
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.notes.NotePeakPickingProcessor object at 0x...>
+
+    Call this NotePeakPickingProcessor with the note activations from an
+    RNNPianoNoteProcessor.
+
+    >>> act = RNNPianoNoteProcessor()('tests/data/audio/stereo_sample.wav')
+    >>> proc(act)  # doctest: +ELLIPSIS
+    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
+
+    """
+    FPS = 100
+    THRESHOLD = 0.5  # binary threshold
+    SMOOTH = 0.
+    PRE_AVG = 0.
+    POST_AVG = 0.
+    PRE_MAX = 0.
+    POST_MAX = 0.
+    COMBINE = 0.03
+    DELAY = 0.
+    ONLINE = False
+
+    def __init__(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
+                 post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
+                 combine=COMBINE, delay=DELAY, online=ONLINE, fps=FPS,
+                 **kwargs):
+        # pylint: disable=unused-argument
+        super(NotePeakPickingProcessor, self).__init__(
+            threshold=threshold, smooth=smooth, pre_avg=pre_avg,
+            post_avg=post_avg, pre_max=pre_max, post_max=post_max,
+            combine=combine, delay=delay, online=online, fps=fps)
+
+    def process(self, activations, **kwargs):
+        """
+        Detect the notes in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Note activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected notes [seconds, pitches].
+
+        """
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        timings = np.array([self.smooth, self.pre_avg, self.post_avg,
+                            self.pre_max, self.post_max]) * self.fps
+        timings = np.round(timings).astype(int)
+        # detect the peaks (function returns int indices)
+        detections = peak_picking(activations, self.threshold, *timings)
+        # split onsets and pitches
+        onsets = detections[0].astype(np.float) / self.fps
+        pitches = detections[1] + 21
+        # shift if necessary
+        if self.delay:
+            onsets += self.delay
+        # combine notes
+        if self.combine > 0:
+            detections = []
+            # iterate over each detected note separately
+            for pitch in np.unique(pitches):
+                # get all note detections
+                note_onsets = onsets[pitches == pitch]
+                # always use the first note
+                detections.append((note_onsets[0], pitch))
+                # filter all notes which occur within `combine` seconds
+                combined_note_onsets = note_onsets[1:][np.diff(note_onsets) >
+                                                       self.combine]
+                # zip onsets and pitches and add them to list of detections
+                detections.extend(list(zip(combined_note_onsets,
+                                       [pitch] * len(combined_note_onsets))))
+        else:
+            # just zip all detected notes
+            detections = list(zip(onsets, pitches))
+        # sort the detections and return as numpy array
+        return np.asarray(sorted(detections))

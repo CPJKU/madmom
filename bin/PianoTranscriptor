@@ -12,9 +12,9 @@ import argparse
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
-from madmom.features.notes import (RNNPianoNoteProcessor, write_midi,
+from madmom.features.notes import (RNNPianoNoteProcessor,
+                                   NotePeakPickingProcessor, write_midi,
                                    write_notes, write_mirex_format)
-from madmom.features.onsets import PeakPickingProcessor
 
 
 def main():
@@ -59,8 +59,8 @@ def main():
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0, start=True, stop=True)
     # peak picking arguments
-    PeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
-                                       combine=0.05)
+    NotePeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
+                                           combine=0.05)
     # midi arguments
     # import madmom.utils.midi as midi
     # midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
@@ -100,7 +100,7 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # perform peak picking on the activation function
-        peak_picking = PeakPickingProcessor(**vars(args))
+        peak_picking = NotePeakPickingProcessor(**vars(args))
         # output everything in the right format
         if args.output_format is None:
             output = write_notes
