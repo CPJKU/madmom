@@ -11,6 +11,7 @@ Madmom documentation
    usage
    tutorial
    development
+   citation
 
 .. _api_reference:
 
