@@ -1007,6 +1007,19 @@ class TestSignalClass(unittest.TestCase):
         result = Signal(tmp_file)
         self.assertTrue(np.allclose(orig, result))
 
+    def test_methods(self):
+        # mono signals
+        signal = Signal(sig_1d)
+        self.assertTrue(np.allclose(signal.energy(), 3))
+        self.assertTrue(np.allclose(signal.rms(), 0.57735026919))
+        self.assertTrue(np.allclose(signal.spl(), -4.7712125472))
+        # multi-channel signals
+        signal = Signal(sig_2d)
+        self.assertTrue(np.allclose(signal.energy(), 8))
+        self.assertTrue(np.allclose(signal.root_mean_square(), 2. / 3))
+        self.assertTrue(np.allclose(signal.sound_pressure_level(),
+                                    -3.52182518111))
+
 
 class TestSignalProcessorClass(unittest.TestCase):
 
@@ -1457,6 +1470,25 @@ class TestFramedSignalClass(unittest.TestCase):
         result = FramedSignal(sample_file, fps=50)
         self.assertTrue(result.frame_size == 2048)
         self.assertTrue(result.hop_size == 882.)
+
+    def test_methods(self):
+        # mono signals
+        frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
+        self.assertTrue(np.allclose(frames.energy(), [0, 1, 2, 1, 1]))
+        self.assertTrue(np.allclose(frames.rms(),
+                                    [0, 0.5, 0.70710678, 0.5, 0.5]))
+        self.assertTrue(np.allclose(frames.spl(),
+                                    [-np.finfo(float).max, -6.0206, -3.0103,
+                                     -6.0206, -6.0206]))
+        # multi-channel signals
+        frames = FramedSignal(sig_2d, frame_size=4, hop_size=2)
+        self.assertTrue(np.allclose(frames.energy(), [1, 3, 4, 3, 3]))
+        self.assertTrue(np.allclose(frames.root_mean_square(),
+                                    [0.35355339, 0.61237244, 0.70710678,
+                                     0.61237244, 0.61237244]))
+        self.assertTrue(np.allclose(frames.sound_pressure_level(),
+                                    [-9.03089987, -4.25968732, -3.01029996,
+                                     -4.25968732, -4.25968732]))
 
 
 class TestFramedSignalProcessorClass(unittest.TestCase):
