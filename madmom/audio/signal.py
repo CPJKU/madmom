@@ -1475,13 +1475,14 @@ class Stream(object):
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=FPS, record_fln=None, **kwargs):
+                 fps=FPS, record_fln=None, gain=0, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
         # set attributes
         self.sample_rate = sample_rate
         self.num_channels = 1 if None else num_channels
         self.dtype = dtype
+        self.gain = gain
         if frame_size:
             self.frame_size = int(frame_size)
         if fps:

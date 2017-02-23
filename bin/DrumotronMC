@@ -188,7 +188,7 @@ def main():
     spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
     diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
                                           stack_diffs=np.hstack)
-    sig_proc = SequentialProcessor((sig, frames, stft, filt, spec, diff))
+    sig_proc = SequentialProcessor((frames, stft, filt, spec, diff))
     # here, the processing for the RNN & GMM diverges
 
     # beat tracking processor
