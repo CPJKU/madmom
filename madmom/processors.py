@@ -716,6 +716,12 @@ def process_online(processor, infile, outfile, **kwargs):
         Keyword arguments passed to :class:`.audio.signal.Stream` if
         `in_stream` is 'None'.
 
+    Notes
+    -----
+    Right now there is no way to determine if a processor is online-capable or
+    not. Thus, calling any processor with this function may not produce the
+    results expected.
+
     """
     from madmom.audio.signal import Stream, FramedSignal
     # set default values
