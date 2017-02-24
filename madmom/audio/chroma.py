@@ -249,19 +249,23 @@ class DeepChromaProcessor(SequentialProcessor):
                  **kwargs):
         from ..models import CHROMA_DNN
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
         from madmom.ml.nn import NeuralNetworkEnsemble
-
+        # signal pre-processing
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         frames = FramedSignalProcessor(frame_size=8192, fps=10)
+        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
         spec = LogarithmicFilteredSpectrogramProcessor(
             num_bands=24, fmin=fmin, fmax=fmax, unique_filters=unique_filters)
-        spec_frames = FramedSignalProcessor(frame_size=15, hop_size=1)
-
+        # split the spectrogram into overlapping frames
+        spec_signal = SignalProcessor(sample_rate=10)
+        spec_frames = FramedSignalProcessor(frame_size=15, hop_size=1, fps=10)
+        # predict chroma bins with a DNN
         nn = NeuralNetworkEnsemble.load(models or CHROMA_DNN, **kwargs)
-
+        # instantiate a SequentialProcessor
         super(DeepChromaProcessor, self).__init__([
-            sig, frames, spec, spec_frames, _dcp_flatten, nn
+            sig, frames, stft, spec, spec_signal, spec_frames, _dcp_flatten, nn
         ])
 
 

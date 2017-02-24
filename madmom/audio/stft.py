@@ -10,8 +10,9 @@ This module contains Short-Time Fourier Transform (STFT) related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import scipy.fftpack as fftpack
 
-from madmom.processors import Processor
+from ..processors import Processor
 from .signal import Signal, FramedSignal
 
 STFT_DTYPE = np.complex64
@@ -51,7 +52,7 @@ def stft(frames, window, fft_size=None, circular_shift=False):
     fft_size : int, optional
         FFT size (should be a power of 2); if 'None', the 'frame_size' given
         by `frames` is used; if the given `fft_size` is greater than the
-        'frame_size', the frames are zero-padded accordingly.
+        'frame_size', the frames are zero-padded, if smaller truncated.
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
         needed for correct phase.
@@ -62,25 +63,18 @@ def stft(frames, window, fft_size=None, circular_shift=False):
         The complex STFT of the framed signal.
 
     """
-    import scipy.fftpack as fft
     # check for correct shape of input
     if frames.ndim != 2:
         # TODO: add multi-channel support
-        raise ValueError('frames must be a 2D array or iterable')
+        raise ValueError('frames must be a 2D array or iterable, got %s with '
+                         'shape %s.' % (type(frames), frames.shape))
 
-    # size of the frames
-    frame_size = frames.shape[1]
-
-    # window size must match frame size
-    if window is not None and len(window) != frame_size:
-        raise ValueError('window size must match frame size')
+    # shape of the frames
+    num_frames, frame_size = frames.shape
 
     # FFT size to use
     if fft_size is None:
         fft_size = frame_size
-    # fft size must be at least the frame size
-    if fft_size < frame_size:
-        raise ValueError('FFT size must greater or equal the frame size')
     # number of FFT bins to store
     num_fft_bins = fft_size >> 1
 
@@ -89,9 +83,7 @@ def stft(frames, window, fft_size=None, circular_shift=False):
         fft_shift = frame_size >> 1
 
     # init objects
-    data = np.empty((len(frames), num_fft_bins), STFT_DTYPE)
-    signal = np.zeros(frame_size)
-    fft_signal = np.zeros(fft_size)
+    data = np.empty((num_frames, num_fft_bins), STFT_DTYPE)
 
     # iterate over all frames
     for f, frame in enumerate(frames):
@@ -100,23 +92,24 @@ def stft(frames, window, fft_size=None, circular_shift=False):
             # first multiply the signal frame with the window (or just use it
             # as it is if no window function is given)
             if window is not None:
-                np.multiply(frame, window, out=signal)
+                signal = np.multiply(frame, window)
             else:
                 signal = frame
             # then swap the two halves of the windowed signal; if the FFT size
             # is bigger than the frame size, we need to pad the (windowed)
             # signal with additional zeros in between the two halves
+            fft_signal = np.zeros(fft_size)
             fft_signal[:fft_shift] = signal[fft_shift:]
             fft_signal[-fft_shift:] = signal[:fft_shift]
         else:
             # multiply the signal frame with the window and or save it directly
             # to fft_signal (i.e. bypass the additional copying step above)
             if window is not None:
-                np.multiply(frame, window, out=fft_signal[:frame_size])
+                fft_signal = np.multiply(frame, window)
             else:
-                fft_signal[:frame_size] = frame
+                fft_signal = frame
         # perform DFT
-        data[f] = fft.fft(fft_signal, axis=0)[:num_fft_bins]
+        data[f] = fftpack.fft(fft_signal, axis=0)[:num_fft_bins]
     # return STFT
     return data
 
@@ -295,11 +288,10 @@ frame_size=2048, fps=100, sample_rate=22050)
         pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
-                circular_shift=False, **kwargs):
+                circular_shift=False, fft_window=None, **kwargs):
         # pylint: disable=unused-argument
-        # take the FramedSignal from the given STFT
         if isinstance(frames, ShortTimeFourierTransform):
-            # already a STFT
+            # already a STFT, use the frames thereof
             frames = frames.frames
         # instantiate a FramedSignal if needed
         if not isinstance(frames, FramedSignal):
@@ -308,24 +300,25 @@ frame_size=2048, fps=100, sample_rate=22050)
         # size of the frames
         frame_size = frames.shape[1]
 
-        # if a callable window function is given, use the frame size to create
-        # a window of this size
-        if hasattr(window, '__call__'):
-            window = window(frame_size)
-        # window used for FFT
-        try:
-            # if the audio signal is not scaled, scale the window accordingly
-            max_range = float(np.iinfo(frames.signal.dtype).max)
+        if fft_window is None:
+            # if a callable window function is given, use the frame size to
+            # create a window of this size
+            if hasattr(window, '__call__'):
+                window = window(frame_size)
+            # window used for FFT
             try:
-                # scale the window by the max_range
-                fft_window = window / max_range
-            except TypeError:
-                # if the window is None we can't scale it, thus create a
-                # uniform window and scale it accordingly
-                fft_window = np.ones(frame_size) / max_range
-        except ValueError:
-            # no scaling needed, use the window as is (can also be None)
-            fft_window = window
+                # if the signal is not scaled, scale the window accordingly
+                max_range = float(np.iinfo(frames.signal.dtype).max)
+                try:
+                    # scale the window by the max_range
+                    fft_window = window / max_range
+                except TypeError:
+                    # if the window is None we can't scale it, thus create a
+                    # uniform window and scale it accordingly
+                    fft_window = np.ones(frame_size) / max_range
+            except ValueError:
+                # no scaling needed, use the window as is (can also be None)
+                fft_window = window
 
         # calculate the STFT
         data = stft(frames, fft_window, fft_size=fft_size,
@@ -335,8 +328,6 @@ frame_size=2048, fps=100, sample_rate=22050)
         obj = np.asarray(data).view(cls)
         # save the other parameters
         obj.frames = frames
-        obj.bin_frequencies = fft_frequencies(obj.shape[1],
-                                              frames.signal.sample_rate)
         obj.window = window
         obj.fft_window = fft_window
         obj.fft_size = fft_size if fft_size else frame_size
@@ -349,11 +340,15 @@ frame_size=2048, fps=100, sample_rate=22050)
             return
         # set default values here, also needed for views
         self.frames = getattr(obj, 'frames', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.window = getattr(obj, 'window', np.hanning)
         self.fft_window = getattr(obj, 'fft_window', None)
         self.fft_size = getattr(obj, 'fft_size', None)
         self.circular_shift = getattr(obj, 'circular_shift', False)
+
+    @property
+    def bin_frequencies(self):
+        """Bin frequencies."""
+        return fft_frequencies(self.num_bins, self.frames.signal.sample_rate)
 
     def spec(self, **kwargs):
         """
@@ -440,6 +435,7 @@ class ShortTimeFourierTransformProcessor(Processor):
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
+        self.fft_window = None  # caching only, not intended for general use
 
     def process(self, data, **kwargs):
         """
@@ -459,10 +455,14 @@ class ShortTimeFourierTransformProcessor(Processor):
 
         """
         # instantiate a STFT
-        return ShortTimeFourierTransform(data, window=self.window,
+        data = ShortTimeFourierTransform(data, window=self.window,
                                          fft_size=self.fft_size,
                                          circular_shift=self.circular_shift,
-                                         **kwargs)
+                                         fft_window=self.fft_window, **kwargs)
+        # cache the window used for FFT
+        # Note: depending on the signal this may be scaled already
+        self.fft_window = data.fft_window
+        return data
 
     @staticmethod
     def add_arguments(parser, window=None, fft_size=None):
@@ -563,7 +563,6 @@ class Phase(_PropertyMixin, np.ndarray):
         obj = np.asarray(phase(stft)).view(cls)
         # save additional attributes
         obj.stft = stft
-        obj.bin_frequencies = stft.bin_frequencies
         # return the object
         return obj
 
@@ -572,7 +571,10 @@ class Phase(_PropertyMixin, np.ndarray):
             return
         # set default values here, also needed for views
         self.stft = getattr(obj, 'stft', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
+
+    @property
+    def bin_frequencies(self):
+        return self.stft.bin_frequencies
 
     def local_group_delay(self, **kwargs):
         """
@@ -645,7 +647,6 @@ class LocalGroupDelay(_PropertyMixin, np.ndarray):
         # save additional attributes
         obj.phase = phase
         obj.stft = phase.stft
-        obj.bin_frequencies = phase.bin_frequencies
         # return the object
         return obj
 
@@ -655,7 +656,9 @@ class LocalGroupDelay(_PropertyMixin, np.ndarray):
         # set default values here, also needed for views
         self.phase = getattr(obj, 'phase', None)
         self.stft = getattr(obj, 'stft', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
 
+    @property
+    def bin_frequencies(self):
+        return self.stft.bin_frequencies
 
 LGD = LocalGroupDelay

@@ -757,6 +757,7 @@ class RNNOnsetProcessor(SequentialProcessor):
     def __init__(self, online=False, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
@@ -780,13 +781,14 @@ class RNNOnsetProcessor(SequentialProcessor):
         for frame_size in frame_sizes:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100,
                                            origin=origin)
+            stft = ShortTimeFourierTransformProcessor()  # caching FFT window
             filt = FilteredSpectrogramProcessor(
                 num_bands=6, fmin=30, fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=5, add=1)
             diff = SpectrogramDifferenceProcessor(
                 diff_ratio=0.25, positive_diffs=True, stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+            multi.append(SequentialProcessor((frames, stft, filt, spec, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
@@ -838,6 +840,7 @@ class CNNOnsetProcessor(SequentialProcessor):
     def __init__(self, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.filters import MelFilterbank
         from ..audio.spectrogram import (FilteredSpectrogramProcessor,
                                          LogarithmicSpectrogramProcessor)
@@ -850,12 +853,13 @@ class CNNOnsetProcessor(SequentialProcessor):
         multi = ParallelProcessor([])
         for frame_size in [2048, 1024, 4096]:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            stft = ShortTimeFourierTransformProcessor()  # caching FFT window
             filt = FilteredSpectrogramProcessor(
                 filterbank=MelFilterbank, num_bands=80, fmin=27.5, fmax=16000,
                 norm_filters=True, unique_filters=False)
             spec = LogarithmicSpectrogramProcessor(log=np.log, add=EPSILON)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, filt, spec)))
+            multi.append(SequentialProcessor((frames, stft, filt, spec)))
         # stack the features (in depth) and pad at beginning and end
         stack = np.dstack
         pad = _cnn_onset_processor_pad
@@ -1062,7 +1066,7 @@ class PeakPickingProcessor(Processor):
         self.delay = delay
         self.fps = fps
 
-    def process(self, activations):
+    def process(self, activations, **kwargs):
         """
         Detect the onsets in the given activation function.
 

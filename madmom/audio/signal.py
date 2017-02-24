@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 
 
 # signal functions
@@ -689,12 +689,13 @@ class Signal(np.ndarray):
 
     def __init__(self, data, sample_rate=SAMPLE_RATE,
                  num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
-                 gain=GAIN, dtype=DTYPE):
+                 gain=GAIN, dtype=DTYPE, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE):
+                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
+                **kwargs):
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
             data, sample_rate = load_audio_file(data, sample_rate=sample_rate,
@@ -713,8 +714,12 @@ class Signal(np.ndarray):
             data = adjust_gain(data, gain)
         # resample if needed
         if sample_rate != data.sample_rate:
-            print("resampling")
             data = resample(data, sample_rate)
+        # save start and stop position
+        if start is not None:
+            # FIXME: start and stop settings are not checked
+            data.start = start
+            data.stop = start + float(len(data)) / sample_rate
         # return the object
         return data
 
@@ -723,6 +728,8 @@ class Signal(np.ndarray):
             return
         # set default values here, also needed for views of the Signal
         self.sample_rate = getattr(obj, 'sample_rate', None)
+        self.start = getattr(obj, 'start', None)
+        self.stop = getattr(obj, 'stop', None)
 
     @property
     def num_samples(self):
@@ -820,7 +827,7 @@ class SignalProcessor(Processor):
         self.norm = norm
         self.gain = gain
 
-    def process(self, data, start=None, stop=None, **kwargs):
+    def process(self, data, **kwargs):
         """
         Processes the given audio file.
 
@@ -828,10 +835,8 @@ class SignalProcessor(Processor):
         ----------
         data : numpy array, str or file handle
             Data to be processed.
-        start : float, optional
-            Start position [seconds].
-        stop : float, optional
-            Stop position [seconds].
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`Signal`.
 
         Returns
         -------
@@ -840,17 +845,13 @@ class SignalProcessor(Processor):
 
         """
         # pylint: disable=unused-argument
-        # overwrite the default start & stop time
-        if start is None:
-            start = self.start
-        if stop is None:
-            stop = self.stop
-        # instantiate a Signal
-        data = Signal(data, sample_rate=self.sample_rate,
-                      num_channels=self.num_channels, start=start, stop=stop,
-                      norm=self.norm, gain=self.gain)
-        # return processed data
-        return data
+        # update arguments passed to FramedSignal
+        args = dict(sample_rate=self.sample_rate,
+                    num_channels=self.num_channels, start=self.start,
+                    stop=self.stop, norm=self.norm, gain=self.gain)
+        args.update(kwargs)
+        # instantiate a Signal and return it
+        return Signal(data, **args)
 
     @staticmethod
     def add_arguments(parser, sample_rate=None, mono=None, start=None,
@@ -890,7 +891,7 @@ class SignalProcessor(Processor):
         # add signal processing options to the existing parser
         g = parser.add_argument_group('signal processing arguments')
         if sample_rate is not None:
-            g.add_argument('--sample_rate', action='store_true',
+            g.add_argument('--sample_rate', action='store', type=int,
                            default=sample_rate,
                            help='re-sample the signal to this sample rate '
                                 '[Hz]')
@@ -1101,6 +1102,9 @@ class FramedSignal(object):
     `frame_size`. It is not guaranteed that every sample of the signal is
     returned in a frame unless the `origin` is either 'right' or 'future'.
 
+    If used in online real-time mode the parameters `origin` and `num_frames`
+    should be set to 'future' and 1, respectively.
+
     Examples
     --------
     To chop a :class:`Signal` (or anything a :class:`Signal` can be
@@ -1164,10 +1168,12 @@ class FramedSignal(object):
     def __init__(self, signal, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
                  fps=FPS, origin=ORIGIN, end=END_OF_SIGNAL,
                  num_frames=NUM_FRAMES, **kwargs):
+
         # signal handling
         if not isinstance(signal, Signal):
             # try to instantiate a Signal
             signal = Signal(signal, **kwargs)
+
         # save the signal
         self.signal = signal
 
@@ -1274,7 +1280,10 @@ class FramedSignal(object):
 
     @property
     def shape(self):
-        """Shape of the FramedSignal (`num_frames` x `frame_size`)."""
+        """
+        Shape of the FramedSignal (num_frames, frame_size[, num_channels]).
+
+        """
         shape = self.num_frames, self.frame_size
         if self.signal.num_channels != 1:
             shape += (self.signal.num_channels, )
@@ -1347,6 +1356,7 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
+
         if online is not None:
             import warnings
             warnings.warn('`online` is deprecated as of version 0.14 and will '
@@ -1364,9 +1374,8 @@ class FramedSignalProcessor(Processor):
         ----------
         data : :class:`Signal` instance
             Signal to be sliced into frames.
-        kwargs : dict
-            Keyword arguments passed to :class:`FramedSignal` to instantiate
-            the returned object.
+        kwargs : dict, optional
+            Keyword arguments passed to :class:`FramedSignal`.
 
         Returns
         -------
@@ -1374,11 +1383,13 @@ class FramedSignalProcessor(Processor):
             FramedSignal instance
 
         """
+        # update arguments passed to FramedSignal
+        args = dict(frame_size=self.frame_size, hop_size=self.hop_size,
+                    fps=self.fps, origin=self.origin, end=self.end,
+                    num_frames=self.num_frames)
+        args.update(kwargs)
         # instantiate a FramedSignal from the data and return it
-        return FramedSignal(data, frame_size=self.frame_size,
-                            hop_size=self.hop_size, fps=self.fps,
-                            origin=self.origin, end=self.end,
-                            num_frames=self.num_frames, **kwargs)
+        return FramedSignal(data, **args)
 
     @staticmethod
     def add_arguments(parser, frame_size=FRAME_SIZE, fps=FPS,
@@ -1436,3 +1447,109 @@ class FramedSignalProcessor(Processor):
                            help='operate in offline mode [default=online]')
         # return the argument group so it can be modified if needed
         return g
+
+
+# class for online processing
+class Stream(object):
+    """
+    A Stream handles live (i.e. online, real-time) audio input via PyAudio.
+
+    Parameters
+    ----------
+    sample_rate : int
+        Sample rate of the signal.
+    num_channels : int, optional
+        Number of channels.
+    dtype : numpy dtype, optional
+        Data type for the signal.
+    frame_size : int, optional
+        Size of one frame [samples].
+    hop_size : int, optional
+        Progress `hop_size` samples between adjacent frames.
+    fps : float, optional
+        Use given frames per second; if set, this computes and overwrites the
+        given `hop_size` value (the resulting `hop_size` must be an integer).
+    queue_size : int
+        Size of the FIFO (first in first out) queue. If the queue is full and
+        new audio samples arrive, the oldest item in the queue will be dropped.
+
+    Notes
+    -----
+    Stream is implemented as an iterable which blocks until enough new data is
+    available.
+
+    """
+
+    def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
+                 dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
+                 fps=FPS, **kwargs):
+        # import PyAudio here and not at the module level
+        import pyaudio
+        # set attributes
+        self.sample_rate = sample_rate
+        self.num_channels = 1 if None else num_channels
+        self.dtype = dtype
+        if frame_size:
+            self.frame_size = int(frame_size)
+        if fps:
+            # use fps instead of hop_size
+            hop_size = self.sample_rate / float(fps)
+        if int(hop_size) != hop_size:
+            raise ValueError(
+                'only integer `hop_size` supported, not %s' % hop_size)
+        self.hop_size = int(hop_size)
+        # init PyAudio
+        self.pa = pyaudio.PyAudio()
+        # init a stream to read audio samples from
+        self.stream = self.pa.open(rate=self.sample_rate,
+                                   channels=self.num_channels,
+                                   format=pyaudio.paFloat32, input=True,
+                                   frames_per_buffer=self.hop_size,
+                                   start=True)
+        # create a buffer
+        self.buffer = BufferProcessor(self.frame_size)
+        # frame index counter
+        self.frame_idx = 0
+        # PyAudio flags
+        self.paComplete = pyaudio.paComplete
+        self.paContinue = pyaudio.paContinue
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        # get the desired number of samples (block until all are present)
+        data = self.stream.read(self.hop_size, exception_on_overflow=False)
+        # convert it to a numpy array
+        data = np.fromstring(data, 'float32').astype(self.dtype, copy=False)
+        # buffer the data (i.e. append hop_size samples and rotate)
+        data = self.buffer(data)
+        # wrap the last frame_size samples as a Signal
+        # TODO: check float / int hop size; theoretically a float hop size
+        #       can be accomplished by making the buffer N samples bigger and
+        #       take the correct portion of the buffer
+        start = (self.frame_idx * float(self.hop_size) / self.sample_rate)
+        signal = Signal(data[-self.frame_size:], sample_rate=self.sample_rate,
+                        dtype=self.dtype, num_channels=self.num_channels,
+                        start=start)
+        # increment the frame index
+        self.frame_idx += 1
+        return signal
+
+    next = __next__
+
+    def is_running(self):
+        return self.stream.is_active()
+
+    def close(self):
+        self.stream.close()
+        # TODO: is this the correct place to terminate PyAudio?
+        self.pa.terminate()
+
+    @property
+    def shape(self):
+        """Shape of the Stream (None, frame_size[, num_channels])."""
+        shape = None, self.frame_size
+        if self.signal.num_channels != 1:
+            shape += (self.signal.num_channels,)
+        return shape

@@ -18,7 +18,10 @@ from __future__ import absolute_import, division, print_function
 import os
 import sys
 import argparse
+import itertools as it
 import multiprocessing as mp
+
+import numpy as np
 
 from collections import MutableSequence
 
@@ -386,41 +389,12 @@ class ParallelProcessor(SequentialProcessor):
             Processed data.
 
         """
-        import itertools as it
+        # if only a single processor is given, there's no need to map()
+        if len(self.processors) == 1:
+            return [_process((self.processors[0], data, kwargs))]
         # process data in parallel and return a list with processed data
         return list(self.map(_process, zip(self.processors, it.repeat(data),
                                            it.repeat(kwargs))))
-
-    @staticmethod
-    def add_arguments(parser, num_threads):
-        """
-        Add parallel processing options to an existing parser object.
-
-        Parameters
-        ----------
-        parser : argparse parser instance
-            Existing argparse parser object.
-        num_threads : int, optional
-            Number of parallel working threads.
-
-        Returns
-        -------
-        argparse argument group
-            Parallel processing argument parser group.
-
-        Notes
-        -----
-        The group is only returned if only if `num_threads` is not 'None'.
-        Setting it smaller or equal to 0 sets it the number of CPU cores.
-
-        """
-        # add parallel processing options
-        g = parser.add_argument_group('parallel processing arguments')
-        g.add_argument('-j', '--threads', dest='num_threads',
-                       action='store', type=int, default=num_threads,
-                       help='number of parallel threads [default=%(default)s]')
-        # return the argument group so it can be modified if needed
-        return g
 
 
 class IOProcessor(OutputProcessor):
@@ -512,7 +486,6 @@ class IOProcessor(OutputProcessor):
         depends on the output processors
             Processed data.
 
-
         """
         # process the data by the input processor
         data = _process((self.in_processor, data, kwargs))
@@ -536,7 +509,12 @@ def process_single(processor, infile, outfile, **kwargs):
 
     """
     # pylint: disable=unused-argument
-    processor(infile, outfile)
+    # adjust origin in online mode
+    if kwargs.get('online'):
+        kwargs['origin'] = 'online'
+        kwargs['reset'] = False
+    # process the input file
+    _process((processor, infile, outfile, kwargs))
 
 
 class _ParallelProcess(mp.Process):
@@ -562,10 +540,10 @@ class _ParallelProcess(mp.Process):
         from .audio.signal import LoadAudioFileError
         while True:
             # get the task tuple
-            processor, infile, outfile = self.task_queue.get()
+            processor, infile, outfile, kwargs = self.task_queue.get()
             try:
                 # process the Processor with the data
-                processor.process(infile, outfile)
+                _process((processor, infile, outfile, kwargs))
             except LoadAudioFileError as e:
                 print(e)
             # signal that it is done
@@ -647,9 +625,132 @@ def process_batch(processor, files, output_dir=None, output_suffix=None,
         if output_suffix is not None:
             output_file += output_suffix
         # put processing tasks in the queue
-        tasks.put((processor, input_file, output_file))
+        tasks.put((processor, input_file, output_file, kwargs))
     # wait for all processing tasks to finish
     tasks.join()
+
+
+# processor for buffering data
+class BufferProcessor(Processor):
+    """
+    Buffer for processors which need context to do their processing.
+
+    Parameters
+    ----------
+    buffer_size : int or tuple
+        Size of the buffer (time steps, [additional dimensions]).
+
+    Notes
+    -----
+    If `buffer_size` (or the first value thereof) is 1, only the un-buffered
+    current value is returned.
+
+    If context is needed, `buffer_size` must be set to >1.
+    E.g. SpectrogramDifference needs a context of two frames to be able to
+    compute the difference between two consecutive frames.
+
+    """
+
+    def __init__(self, buffer_size=None, init=None, init_value=0):
+        # if init is given, infer buffer_size from it
+        if buffer_size is None and init is not None:
+            buffer_size = init.shape
+        # if buffer_size is int, make a tuple
+        elif isinstance(buffer_size, int):
+            buffer_size = (buffer_size, )
+        # FIXME: use np.pad for fancy initialisation (can be done in process())
+        # init buffer if needed
+        if buffer_size is not None and init is None:
+            init = np.ones(buffer_size) * init_value
+        # save variables
+        self.buffer_size = buffer_size
+        self.buffer = init
+
+    def process(self, data, **kwargs):
+        """
+        Buffer the data.
+
+        Parameters
+        ----------
+        data : numpy array or subclass thereof
+            Data to be buffered.
+
+        Returns
+        -------
+        numpy array or subclass thereof
+            Data with buffered context.
+
+        """
+        # expected minimum number of dimensions
+        ndmin = len(self.buffer_size)
+        # cast the data to have that many dimensions
+        data = np.array(data, copy=False, subok=True, ndmin=ndmin)
+        # length of the data
+        data_length = len(data)
+        # remove `data_length` from buffer at the beginning and append new data
+        self.buffer = np.roll(self.buffer, -data_length, axis=0)
+        self.buffer[-data_length:] = data
+        # return the complete buffer
+        return self.buffer
+
+    # alias for easier / more intuitive calling
+    buffer = process
+
+
+# function to process live input
+def process_online(processor, infile, outfile, **kwargs):
+    """
+    Process a file or audio stream with the given Processor.
+
+    Parameters
+    ----------
+    processor : :class:`Processor` instance
+        Processor to be processed.
+    infile : str or file handle, optional
+        Input file (handle). If none is given, the stream present at the
+        system's audio inpup is used. Additional keyword arguments can be used
+        to influence the frame size and hop size.
+    outfile : str or file handle
+        Output file (handle).
+    kwargs : dict, optional
+        Keyword arguments passed to :class:`.audio.signal.Stream` if
+        `in_stream` is 'None'.
+
+    Notes
+    -----
+    Right now there is no way to determine if a processor is online-capable or
+    not. Thus, calling any processor with this function may not produce the
+    results expected.
+
+    """
+    from madmom.audio.signal import Stream, FramedSignal
+    # set default values
+    kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
+    kwargs['num_channels'] = kwargs.get('num_channels', 1)
+    # if no iput file is given, create a Stream with the given arguments
+    if infile is None:
+        # open a stream and start if not running already
+        stream = Stream(**kwargs)
+        if not stream.is_running():
+            stream.start()
+    # use the input file
+    else:
+        # set parameters for opening the file
+        from .audio.signal import FRAME_SIZE, HOP_SIZE, FPS
+        frame_size = kwargs.get('frame_size', FRAME_SIZE)
+        hop_size = kwargs.get('hop_size', HOP_SIZE)
+        fps = kwargs.get('fps', FPS)
+        # Note: origin must be 'online' and num_frames 'None' to behave the
+        #       same as live input
+        stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
+                              fps=fps, origin='online', num_frames=None)
+    # set arguments for online processing
+    # Note: pass only certain arguments, because these will be passed to the
+    #       processors at every time step (kwargs contains file handles etc.)
+    process_args = {'reset': False}  # do not reset stateful processors
+    # process everything frame-by-frame
+    for frame in stream:
+        _process((processor, frame, outfile, process_args))
 
 
 # function for pickling a processor
@@ -670,7 +771,7 @@ def pickle_processor(processor, outfile, **kwargs):
 
 
 # generic input/output arguments for scripts
-def io_arguments(parser, output_suffix='.txt', pickle=True):
+def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
     """
     Add input / output related arguments to an existing parser.
 
@@ -681,7 +782,9 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     output_suffix : str, optional
         Suffix appended to the output files.
     pickle : bool, optional
-        Add a 'pickle' sub-parser to the parser?
+        Add a 'pickle' sub-parser to the parser.
+    online : bool, optional
+        Add a 'online' sub-parser to the parser.
 
     """
     # default output
@@ -694,14 +797,16 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                         help='increase verbosity level')
     # add subparsers
     sub_parsers = parser.add_subparsers(title='processing options')
+
+    # pickle processor options
     if pickle:
-        # pickle processor options
         sp = sub_parsers.add_parser('pickle', help='pickle processor')
         sp.set_defaults(func=pickle_processor)
         # Note: requiring '-o' is a simple safety measure to not overwrite
         #       existing audio files after using the processor in 'batch' mode
         sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                         default=output, help='output file [default: STDOUT]')
+
     # single file processing options
     sp = sub_parsers.add_parser('single', help='single file processing')
     sp.set_defaults(func=process_single)
@@ -712,7 +817,12 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
     sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
                     default=output, help='output file [default: STDOUT]')
     sp.add_argument('-j', dest='num_threads', type=int, default=mp.cpu_count(),
-                    help='number of parallel threads [default=%(default)s]')
+                    help='number of threads [default=%(default)s]')
+    # add arguments needed for loading processors
+    if online:
+        sp.add_argument('--online', action='store_true', default=None,
+                        help='use online settings [default: offline]')
+
     # batch file processing options
     sp = sub_parsers.add_parser('batch', help='batch file processing')
     sp.set_defaults(func=process_batch)
@@ -726,9 +836,26 @@ def io_arguments(parser, output_suffix='.txt', pickle=True):
                     help='keep the extension of the input file [default='
                          'strip it off before appending the output suffix]')
     sp.add_argument('-j', dest='num_workers', type=int, default=mp.cpu_count(),
-                    help='number of parallel workers [default=%(default)s]')
+                    help='number of workers [default=%(default)s]')
     sp.add_argument('--shuffle', action='store_true',
                     help='shuffle files before distributing them to the '
                          'working threads [default=process them in sorted '
                          'order]')
     sp.set_defaults(num_threads=1)
+
+    # online processing options
+    if online:
+        sp = sub_parsers.add_parser('online', help='online processing')
+        sp.set_defaults(func=process_online)
+        sp.add_argument('infile', nargs='?', type=argparse.FileType('rb'),
+                        default=None, help='input audio file (if no file is '
+                                           'given, a stream operating on the '
+                                           'system audio input is used)')
+        sp.add_argument('-o', dest='outfile', type=argparse.FileType('wb'),
+                        default=output, help='output file [default: STDOUT]')
+        sp.add_argument('-j', dest='num_threads', type=int, default=1,
+                        help='number of threads [default=%(default)s]')
+        # set arguments for loading processors
+        sp.set_defaults(online=True)      # use online settings/parameters
+        sp.set_defaults(num_frames=1)     # process everything frame-by-frame
+        sp.set_defaults(origin='future')  # fake origin to get whole frame

@@ -246,6 +246,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
 
     def __init__(self, **kwargs):
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
         from ..ml.nn import NeuralNetwork
         from ..models import CHORDS_CNN_FEAT
@@ -253,6 +254,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
         # spectrogram computation
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         frames = FramedSignalProcessor(frame_size=8192, fps=10)
+        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
         spec = LogarithmicFilteredSpectrogramProcessor(
             num_bands=24, fmin=60, fmax=2600, unique_filters=True
         )
@@ -265,7 +267,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
 
         # create processing pipeline
         super(CNNChordFeatureProcessor, self).__init__([
-            sig, frames, spec, pad, nn, superframes, avg
+            sig, frames, stft, spec, pad, nn, superframes, avg
         ])
 
 

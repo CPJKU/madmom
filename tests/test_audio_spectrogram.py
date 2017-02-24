@@ -21,6 +21,7 @@ from madmom.audio.signal import Signal
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22050 = pj(AUDIO_PATH, 'sample_22050.wav')
+sample_spec = Spectrogram(sample_file)
 
 
 # test functions
@@ -131,10 +132,6 @@ class TestSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_bins, int)
         self.assertIsInstance(result.num_frames, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
 
     def test_values(self):
         # from file
@@ -196,9 +193,6 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_bins, int)
         self.assertIsInstance(result.num_frames, int)
-        # other faked attributes
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
         # wrong filterbank type
         with self.assertRaises(TypeError):
             FilteredSpectrogram(sample_file, filterbank='bla')
@@ -303,11 +297,11 @@ class TestFilteredSpectrogramProcessorClass(unittest.TestCase):
         # properties
         self.assertTrue(result.num_bins == 81)
         self.assertTrue(result.num_frames == 281)
-        # changed values
-        self.processor.num_bands = 6
-        self.processor.fmin = 300
-        self.processor.fmax = 10000
-        result = self.processor.process(sample_file)
+
+    def test_other_values(self):
+        processor = FilteredSpectrogramProcessor(num_bands=6, fmin=300,
+                                                 fmax=10000)
+        result = processor.process(sample_file)
         self.assertIsInstance(result, FilteredSpectrogram)
         # attributes
         self.assertTrue(result.shape == (281, 29))
@@ -341,8 +335,6 @@ class TestLogarithmicSpectrogramClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.num_bins, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
 
     def test_values(self):
         result = LogarithmicSpectrogram(sample_file)
@@ -442,8 +434,7 @@ class TestLogarithmicFilteredSpectrogramClass(unittest.TestCase):
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.num_bins == 81)
         # test other values
-        result = LogarithmicFilteredSpectrogram(sample_file,
-                                                mul=2, add=2)
+        result = LogarithmicFilteredSpectrogram(sample_file, mul=2, add=2)
         self.assertTrue(result.mul == 2)
         self.assertTrue(result.add == 2)
 
@@ -518,10 +509,6 @@ class TestSpectrogramDifferenceClass(unittest.TestCase):
         # properties
         self.assertIsInstance(result.num_frames, int)
         self.assertIsInstance(result.num_bins, int)
-        # other faked attributes
-        self.assertTrue(result.filterbank is None)
-        self.assertTrue(result.mul is None)
-        self.assertTrue(result.add is None)
 
     def test_values(self):
         result = SpectrogramDifference(sample_file)
@@ -567,34 +554,75 @@ class TestSpectrogramDifferenceProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.positive_diffs is False)
 
     def test_process(self):
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:1]) == 0)
-        self.assertTrue(np.max(result[:2]) >= 0)
+        self.assertTrue(np.max(result[:2]) > 0)
         self.assertTrue(np.min(result) < 0)
-        # change diff frames
-        self.processor.diff_frames = 2
-        result = self.processor.process(sample_file)
+        self.assertTrue(np.allclose(result[0], 0))
+        self.assertTrue(np.allclose(result[1:], np.diff(sample_spec, axis=0)))
+        # if called a second time, result must be the exact same
+        result_1 = self.processor.process(sample_spec)
+        self.assertTrue(np.allclose(result, result_1))
+        # result must be the same if processed frame-by-frame
+        self.processor.reset()
+        result_2 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
+                              for frame in sample_spec])
+        self.assertTrue(np.allclose(result_2, result))
+        # result must be different without resetting (first frame != 0)
+        result_3 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
+                              for frame in sample_spec])
+        self.assertFalse(np.allclose(result_3, result))
+        self.assertFalse(np.sum(result_3[0]) == 0)
+
+    def test_diff_frames(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
+        self.assertTrue(self.processor.diff_frames == 2)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) < 0)
-        # change positive diffs
+        self.assertTrue(result.diff_frames == 2)
+        # if called a second time, result must be the exact same
+        result_1 = self.processor.process(sample_spec)
+        self.assertTrue(np.allclose(result, result_1))
+        # result must be the same if processed frame-by-frame
+        self.processor.reset()
+        self.assertTrue(self.processor.diff_frames == 2)
+        result_2 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
+                              for frame in sample_spec])
+        self.assertTrue(np.allclose(result_2, result))
+        # result must be different without resetting (first 2 frame != 0)
+        result_3 = np.vstack([self.processor.process(np.atleast_2d(frame),
+                                                     reset=False)
+                              for frame in sample_spec])
+        self.assertFalse(np.allclose(result_3, result))
+        self.assertFalse(np.sum(result_3[0]) == 0)
+        self.assertFalse(np.sum(result_3[1]) == 0)
+
+    def test_positive_diffs(self):
+        # re-initialise the processor, because of the buffer
+        self.processor = SpectrogramDifferenceProcessor(diff_frames=2)
         self.processor.positive_diffs = True
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(np.sum(result[:2]) == 0)
         self.assertTrue(np.min(result) >= 0)
         # change stacking
         self.processor.stack_diffs = np.hstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024 * 2))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.vstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281 * 2, 1024))
         self.assertTrue(np.min(result) >= 0)
         self.processor.stack_diffs = np.dstack
-        result = self.processor.process(sample_file)
+        result = self.processor.process(sample_spec)
         self.assertTrue(result.shape == (281, 1024, 2))
         self.assertTrue(np.min(result) >= 0)
 
@@ -619,12 +647,6 @@ class TestSuperFluxProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_bins == 140)
         self.assertTrue(result.num_frames == 281)
         self.assertTrue(result.shape == (281, 140))
-        # filterbank stuff
-        self.assertIsInstance(result.filterbank, LogarithmicFilterbank)
-        self.assertTrue(result.filterbank.num_bands_per_octave == 24)
-        # log stuff
-        self.assertTrue(result.mul == 1)
-        self.assertTrue(result.add == 1)
         # diff stuff
         self.assertTrue(result.diff_ratio == 0.5)
         self.assertTrue(result.diff_max_bins == 3)

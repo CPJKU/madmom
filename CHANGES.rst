@@ -6,6 +6,7 @@ Version 0.15.dev0
 
 New features:
 
+* Streaming mode allows framewise processing of live audio input (#185)
 * Exponential linear unit (ELU) activation function (#232)
 
 Bug fixes:

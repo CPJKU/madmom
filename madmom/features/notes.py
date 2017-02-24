@@ -234,6 +234,7 @@ class RNNPianoNoteProcessor(SequentialProcessor):
     def __init__(self, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import (
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
@@ -246,13 +247,14 @@ class RNNPianoNoteProcessor(SequentialProcessor):
         multi = ParallelProcessor([])
         for frame_size in [1024, 2048, 4096]:
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+            stft = ShortTimeFourierTransformProcessor()  # caching FFT window
             filt = FilteredSpectrogramProcessor(
                 num_bands=12, fmin=30, fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=5, add=1)
             diff = SpectrogramDifferenceProcessor(
                 diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, filt, spec, diff)))
+            multi.append(SequentialProcessor((frames, stft, filt, spec, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 
