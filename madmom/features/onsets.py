@@ -15,6 +15,7 @@ from scipy.ndimage.filters import maximum_filter
 
 from ..processors import Processor, SequentialProcessor, ParallelProcessor
 from ..audio.signal import smooth as smooth_signal
+from ..utils import combine_events
 
 EPSILON = np.spacing(1)
 
@@ -1138,22 +1139,17 @@ class OnsetPeakPickingProcessor(Processor):
                             self.pre_max, self.post_max]) * self.fps
         timings = np.round(timings).astype(int)
         # detect the peaks (function returns int indices)
-        detections = peak_picking(activations, self.threshold, *timings)
-        # convert detections to a list of timestamps
-        detections = detections.astype(np.float) / self.fps
+        onsets = peak_picking(activations, self.threshold, *timings)
+        # convert to timestamps
+        onsets = onsets.astype(np.float) / self.fps
         # shift if necessary
         if self.delay:
-            detections += self.delay
+            onsets += self.delay
         # combine onsets
-        if self.combine and detections.size > 1:
-            # always use the first onset
-            # filter all onsets which occur within `combine` seconds
-            combined_detections = detections[1:][np.diff(detections) >
-                                                 self.combine]
-            # append them after the first onset
-            detections = np.append(detections[0], combined_detections)
+        if self.combine:
+            onsets = combine_events(onsets, self.combine, 'left')
         # return the detections
-        return detections
+        return onsets
 
     @staticmethod
     def add_arguments(parser, threshold=THRESHOLD, smooth=None, pre_avg=None,

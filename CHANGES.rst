@@ -16,6 +16,7 @@ Bug fixes:
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)
 * Fix smoothing for peak_picking (#247)
+* Fix combining onsets/notes (#255)
 
 API relevant changes:
 
