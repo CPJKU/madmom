@@ -922,8 +922,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
     """
     # smooth activations
-    if smooth not in (None, 0):
-        activations = smooth_signal(activations, smooth)
+    activations = smooth_signal(activations, smooth)
     # compute a moving average
     avg_length = pre_avg + post_avg + 1
     if avg_length > 1:
