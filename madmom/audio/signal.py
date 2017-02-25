@@ -41,7 +41,7 @@ def smooth(signal, kernel):
     if kernel is None:
         return signal
     # size for the smoothing kernel is given
-    elif isinstance(kernel, int):
+    elif isinstance(kernel, (int, np.integer)):
         if kernel == 0:
             return signal
         elif kernel > 1:
@@ -51,7 +51,7 @@ def smooth(signal, kernel):
             raise ValueError("can't create a smoothing kernel of size %d" %
                              kernel)
     # otherwise use the given smoothing kernel directly
-    elif isinstance(kernel, np.ndarray) and len(kernel) > 1:
+    elif isinstance(kernel, np.ndarray):
         kernel = kernel
     else:
         raise ValueError("can't smooth signal with %s" % kernel)

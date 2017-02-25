@@ -15,6 +15,7 @@ Bug fixes:
 * Fix tempo handling of multi-track MIDI files (#219)
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)
+* Fix smoothing for peak_picking (#247)
 
 API relevant changes:
 
