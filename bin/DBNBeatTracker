@@ -69,6 +69,8 @@ def main():
                         'option is needed in online mode to signal other '
                         'processes that no beat is present at this time, '
                         'but processing of this frame has completed.')
+    p.add_argument('--sonify', action='store_true', default=False,
+                   help='also sonify the beat positions')
     # input/output options
     io_arguments(p, output_suffix='.beats.txt', online=True)
     ActivationsProcessor.add_arguments(p)
@@ -113,6 +115,12 @@ def main():
             from madmom.utils import write_events as writer
         # sequentially process everything
         out_processor = [beat_processor, writer]
+
+        # also sonify the beats
+        if args.sonify:
+            from madmom.audio.playback import PlaybackProcessor
+            out_processor.insert(1, PlaybackProcessor())
+            print(out_processor)
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
