@@ -278,29 +278,58 @@ class TestWriteEventsFunction(unittest.TestCase):
 
 class TestCombineEventsFunction(unittest.TestCase):
 
-    def test_combine_000(self):
+    def test_combine_mean(self):
+        # EVENTS =           [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         comb = combine_events(EVENTS, 0.)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
-
-    def test_combine_001(self):
         comb = combine_events(EVENTS, 0.01)
         correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
-
-    def test_combine_003(self):
         comb = combine_events(EVENTS, 0.03)
         correct = np.asarray([1.01, 1.5, 2.015, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
-
-    def test_combine_0035(self):
         comb = combine_events(EVENTS, 0.035)
         correct = np.asarray([1.01, 1.5, 2.0325, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
-
-    def test_combine_short(self):
         comb = combine_events([1], 0.035)
         correct = np.asarray([1])
+        self.assertTrue(np.allclose(comb, correct))
+
+    def test_combine_left(self):
+        # EVENTS =           [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+        comb = combine_events(EVENTS, 0., 'left')
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.01, 'left')
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.03, 'left')
+        correct = np.asarray([1, 1.5, 2, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.035, 'left')
+        correct = np.asarray([1, 1.5, 2, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.05, 'left')
+        correct = np.asarray([1, 1.5, 2, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+
+    def test_combine_right(self):
+        # EVENTS =           [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+        comb = combine_events(EVENTS, 0., 'right')
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.01, 'right')
+        correct = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.03, 'right')
+        correct = np.asarray([1.02, 1.5, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.035, 'right')
+        correct = np.asarray([1.02, 1.5, 2.05, 2.5, 3])
+        self.assertTrue(np.allclose(comb, correct))
+        comb = combine_events(EVENTS, 0.05, 'right')
+        correct = np.asarray([1.02, 1.5, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
 
 

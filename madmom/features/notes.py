@@ -17,7 +17,7 @@ import numpy as np
 
 from .onsets import peak_picking, OnsetPeakPickingProcessor
 from ..processors import SequentialProcessor, ParallelProcessor
-from ..utils import suppress_warnings
+from ..utils import suppress_warnings, combine_events
 
 
 @suppress_warnings
@@ -366,30 +366,26 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
                             self.pre_max, self.post_max]) * self.fps
         timings = np.round(timings).astype(int)
         # detect the peaks (function returns int indices)
-        detections = peak_picking(activations, self.threshold, *timings)
+        notes = peak_picking(activations, self.threshold, *timings)
         # split onsets and pitches
-        onsets = detections[0].astype(np.float) / self.fps
-        pitches = detections[1] + 21
+        onsets = notes[0].astype(np.float) / self.fps
+        pitches = notes[1] + 21
         # shift if necessary
         if self.delay:
             onsets += self.delay
         # combine notes
         if self.combine > 0:
-            detections = []
-            # iterate over each detected note separately
+            notes = []
+            # iterate over each detected note pitch separately
             for pitch in np.unique(pitches):
-                # get all note detections
-                note_onsets = onsets[pitches == pitch]
-                # always use the first note
-                detections.append((note_onsets[0], pitch))
-                # filter all notes which occur within `combine` seconds
-                combined_note_onsets = note_onsets[1:][np.diff(note_onsets) >
-                                                       self.combine]
+                # get all onsets for this pitch
+                onsets_ = onsets[pitches == pitch]
+                # combine onsets
+                onsets_ = combine_events(onsets_, self.combine, 'left')
                 # zip onsets and pitches and add them to list of detections
-                detections.extend(list(zip(combined_note_onsets,
-                                       [pitch] * len(combined_note_onsets))))
+                notes.extend(list(zip(onsets_, [pitch] * len(onsets_))))
         else:
             # just zip all detected notes
-            detections = list(zip(onsets, pitches))
+            notes = list(zip(onsets, pitches))
         # sort the detections and return as numpy array
-        return np.asarray(sorted(detections))
+        return np.asarray(sorted(notes))
