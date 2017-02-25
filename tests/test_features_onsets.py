@@ -245,6 +245,14 @@ class TestPeakPickingFunction(unittest.TestCase):
                               post_max=10, pre_avg=30)
         self.assertTrue(np.allclose(onsets[:6], [2, 17, 55, 89, 122, 159]))
 
+    def test_online(self):
+        onsets = peak_picking(sample_rnn_act, threshold=0.23, post_max=0)
+        self.assertTrue(np.allclose(onsets,
+                                    [1, 3, 10, 12, 29, 46, 62, 63, 77, 79,
+                                     81, 99, 100, 113, 115, 148, 149, 164,
+                                     181, 183, 216, 234, 250, 268]))
+        self.assertTrue(len(onsets) == 24)
+
 
 class TestOnsetPeakPickingProcessorClass(unittest.TestCase):
 
@@ -252,20 +260,29 @@ class TestOnsetPeakPickingProcessorClass(unittest.TestCase):
         self.processor = OnsetPeakPickingProcessor(
             threshold=1.1, pre_max=0.01, post_max=0.05, pre_avg=0.15,
             post_avg=0, combine=0.03, delay=0, fps=sample_superflux_act.fps)
-        self.result = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115,
-                       1.365, 1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+        self.sample_superflux_result = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795,
+                                        0.98, 1.115, 1.365, 1.475, 1.62,
+                                        1.795, 2.14, 2.33, 2.485, 2.665]
+        self.online_processor = OnsetPeakPickingProcessor(
+            threshold=0.23, online=True, fps=sample_rnn_act.fps)
+        self.sample_rnn_result = [0.01, 0.1, 0.29, 0.46, 0.62, 0.77, 0.81,
+                                  0.99, 1.13, 1.48, 1.64, 1.81, 2.16, 2.34,
+                                  2.5, 2.68]
 
-    def test_online(self):
-        proc = OnsetPeakPickingProcessor(online=True)
-        self.assertEqual(proc.smooth, 0)
-        self.assertEqual(proc.post_avg, 0)
-        self.assertEqual(proc.post_max, 0)
+    def test_online_parameters(self):
+        self.assertEqual(self.online_processor.smooth, 0)
+        self.assertEqual(self.online_processor.post_avg, 0)
+        self.assertEqual(self.online_processor.post_max, 0)
 
     def test_process(self):
         onsets = self.processor(sample_superflux_act)
-        self.assertTrue(np.allclose(onsets, self.result))
+        self.assertTrue(np.allclose(onsets, self.sample_superflux_result))
+
+    def test_process_online(self):
+        onsets = self.online_processor(sample_rnn_act)
+        self.assertTrue(np.allclose(onsets, self.sample_rnn_result))
 
     def test_delay(self):
         self.processor.delay = 1
         onsets = self.processor(sample_superflux_act)
-        self.assertTrue(np.allclose(onsets, np.array(self.result) + 1))
+        self.assertTrue(np.allclose(onsets - 1, self.sample_superflux_result))
