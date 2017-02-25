@@ -24,6 +24,7 @@ API relevant changes:
 
 Other changes:
 
+* SPL and RMS can be computed on `Signal` and `FramedSignal` (#208)
 * `num_threads` is passed to `ParallelProcessor` in single mode (#217)
 * Use `install_requires` in `setup.py` to specify dependencies (#226)
 * Use new Cython build system to build extensions (#227)

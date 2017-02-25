@@ -1514,7 +1514,7 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
     def __new__(cls, signal, fps=50., fmin=27.5, fmax=4200.):
         from scipy.signal import filtfilt
         from .filters import SemitoneBandpassFilterbank
-        from .signal import FramedSignal, Signal, total_energy, resample
+        from .signal import FramedSignal, Signal, energy, resample
         # check if we got a mono Signal
         if not isinstance(signal, Signal) or signal.num_channels != 1:
             signal = Signal(signal, num_channels=1)
@@ -1548,7 +1548,7 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
             # compute total energy of the frames
             # Note: the energy of the signal is computed with respect to the
             #       reference sampling rate as in the MATLAB chroma toolbox
-            bands.append(total_energy(frames) / band_sample_rate * 22050.)
+            bands.append(energy(frames) / band_sample_rate * 22050.)
         # cast as SemitoneBandpassSpectrogram
         obj = np.vstack(bands).T.view(cls)
         # save additional attributes
