@@ -13,7 +13,8 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from ..processors import Processor, SequentialProcessor, ParallelProcessor
+from ..processors import (Processor, SequentialProcessor, ParallelProcessor,
+                          BufferProcessor)
 from ..audio.signal import smooth as smooth_signal
 from ..utils import combine_events
 
@@ -755,7 +756,7 @@ class RNNOnsetProcessor(SequentialProcessor):
 
     """
 
-    def __init__(self, online=False, **kwargs):
+    def __init__(self, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
@@ -766,12 +767,10 @@ class RNNOnsetProcessor(SequentialProcessor):
         from ..ml.nn import NeuralNetworkEnsemble
 
         # choose the appropriate models and set frame sizes accordingly
-        if online:
-            origin = 'online'
+        if kwargs.get('online'):
             nn_files = ONSETS_RNN
             frame_sizes = [512, 1024, 2048]
         else:
-            origin = 'offline'
             nn_files = ONSETS_BRNN
             frame_sizes = [1024, 2048, 4096]
 
@@ -780,8 +779,8 @@ class RNNOnsetProcessor(SequentialProcessor):
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
         for frame_size in frame_sizes:
-            frames = FramedSignalProcessor(frame_size=frame_size, fps=100,
-                                           origin=origin)
+            # pass **kwargs in order to be able to process in online mode
+            frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
             stft = ShortTimeFourierTransformProcessor()  # caching FFT window
             filt = FilteredSpectrogramProcessor(
                 num_bands=6, fmin=30, fmax=17000, norm_filters=True)
@@ -1105,9 +1104,15 @@ class OnsetPeakPickingProcessor(Processor):
         #       super(PeakPicking, self).__init__(peak_picking, write_events)
         #       adjust some params for online mode?
         if online:
+            # set some parameters to 0 (i.e. no future information available)
             smooth = 0
             post_avg = 0
             post_max = 0
+            # init buffer
+            self.buffer = None
+            self.counter = 0
+            self.last_onset = None
+        # save parameters
         self.threshold = threshold
         self.smooth = smooth
         self.pre_avg = pre_avg
@@ -1116,9 +1121,36 @@ class OnsetPeakPickingProcessor(Processor):
         self.post_max = post_max
         self.combine = combine
         self.delay = delay
+        self.online = online
         self.fps = fps
 
+    def reset(self):
+        """Reset OnsetPeakPickingProcessor."""
+        self.buffer = None
+        self.counter = 0
+        self.last_onset = None
+
     def process(self, activations, **kwargs):
+        """
+        Detect the onsets in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected onsets [seconds].
+
+        """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_sequence(activations, **kwargs)
+
+    def process_sequence(self, activations, **kwargs):
         """
         Detect the onsets in the given activation function.
 
@@ -1148,7 +1180,69 @@ class OnsetPeakPickingProcessor(Processor):
         # combine onsets
         if self.combine:
             onsets = combine_events(onsets, self.combine, 'left')
-        # return the detections
+        # return the onsets
+        return np.asarray(onsets)
+
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the onsets in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected onsets [seconds].
+
+        """
+        # buffer data
+        if self.buffer is None or reset:
+            # reset the processor
+            self.reset()
+            # put 0s in front (depending on conext given by pre_max
+            init = np.zeros(int(np.round(self.pre_max * self.fps)))
+            buffer = np.insert(activations, 0, init, axis=0)
+            # offset the counter, because we buffer the activations
+            self.counter = -len(init)
+            # use the data for the buffer
+            self.buffer = BufferProcessor(init=buffer)
+        else:
+            buffer = self.buffer(activations)
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        timings = np.array([self.smooth, self.pre_avg, self.post_avg,
+                            self.pre_max, self.post_max]) * self.fps
+        timings = np.round(timings).astype(int)
+        # detect the peaks (function returns int indices)
+        peaks = peak_picking(buffer, self.threshold, *timings)
+        # convert to onset timings
+        onsets = (self.counter + peaks) / float(self.fps)
+        # increase counter
+        self.counter += len(activations)
+        # shift if necessary
+        if self.delay:
+            raise ValueError('delay not supported yet in online mode')
+        # report only if there was no onset within the last combine seconds
+        if self.combine and onsets.any():
+            # prepend the last onset to be able to combine them correctly
+            start = 0
+            if self.last_onset is not None:
+                onsets = np.append(self.last_onset, onsets)
+                start = 1
+            # combine the onsets
+            onsets = combine_events(onsets, self.combine, 'left')
+            # use only if the last onsets differ
+            if onsets[-1] != self.last_onset:
+                self.last_onset = onsets[-1]
+                # remove the first onset if we added it previously
+                onsets = onsets[start:]
+            else:
+                # don't report an onset
+                onsets = np.empty(0)
+        # return the onsets
         return onsets
 
     @staticmethod
