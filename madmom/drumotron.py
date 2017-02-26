@@ -53,7 +53,10 @@ class DrumotronControlProcessor(Processor):
         # variables for storing intermediate data
         self.last_position = None
         self.beat_frame_counter_int = None
-        self.beat_periods = [None] * smooth_win_len
+        if smooth_win_len > 0:
+            self.beat_periods = [None] * smooth_win_len
+        else:
+            self.beat_periods = [None] * 3
         self.current_beat_period = None
         self.beat_count = None
         self.pattern_id = None
@@ -85,11 +88,11 @@ class DrumotronControlProcessor(Processor):
         if is_beat:
             # print('-- new ext beat', beat_count)
             self.pattern_id = pattern_id
+            # shift entries to the left
+            self.beat_periods[:-1] = self.beat_periods[1:]
+            # append new beat period
+            self.beat_periods[-1] = beat_interval
             if self.smooth_win_len > 0:
-                # shift entries to the left
-                self.beat_periods[:-1] = self.beat_periods[1:]
-                # append new beat period
-                self.beat_periods[-1] = beat_interval
                 if None not in self.beat_periods:
                     beat_interval = np.median(self.beat_periods)
             self.current_beat_period = beat_interval
@@ -129,6 +132,7 @@ class DrumotronControlProcessor(Processor):
         self.beat_frame_counter_int += 1
         self.beat_frame_counter_ext += 1
         self.last_position = current_position
-        if self.beat_frame_counter_ext > 2 * self.beat_periods[-1]:
+        if (self.beat_periods[-1] is None) or (
+                    self.beat_frame_counter_ext > 2 * self.beat_periods[-1]):
             # stop tracking if no beat has been observed for 2 beat periods
             self.beat_frame_counter_int = None

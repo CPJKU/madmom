@@ -56,6 +56,8 @@ def main():
     # tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
     GMMBarProcessor.add_arguments(p)
+    p.add_argument('--sonify', action='store_true', default=False,
+                   help='also sonify the beat positions')
 
     # parse arguments
     args = p.parse_args()
@@ -95,9 +97,9 @@ def main():
     gmm_feat_processor = SequentialProcessor((filt, spec, diff, agg))
 
     # drum controller
-    dhp = DrumotronHardwareProcessor(arduino=True)
+    dhp = DrumotronHardwareProcessor(arduino=False)
     control_processor = DrumotronControlProcessor(
-        DRUM_PATTERNS, delay=3, smooth_win_len=3, out=dhp)
+        DRUM_PATTERNS, delay=3, smooth_win_len=1, out=dhp)
 
     # extract beat & gmm feature in parallel
     beat_downbeat_processor = ParallelProcessor((beat_processor,
@@ -122,9 +124,15 @@ def main():
         # borrow the note writer for outputting timestamps + beat numbers
         from madmom.features.notes import write_notes as writer
 
+    # also sonify the beats
+    if args.sonify:
+            from madmom.audio.playback import PlaybackProcessor
+            out_processor = [PlaybackProcessor(), writer]
+    else:
+        out_processor = writer
     # create an IOProcessor
     processor = IOProcessor([sig_proc, beat_downbeat_processor, beat_sync,
-                             gmm_bar_processor], writer)
+                             gmm_bar_processor], out_processor)
 
     # and call the processing function
     args.func(processor, **vars(args))
