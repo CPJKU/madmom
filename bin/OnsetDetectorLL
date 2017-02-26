@@ -45,25 +45,34 @@ def main():
     This program can be run in 'single' file mode to process a single audio
     file and write the detected onsets to STDOUT or the given output file.
 
-    $ OnsetDetectorLL single INFILE [-o OUTFILE]
+      $ OnsetDetectorLL single INFILE [-o OUTFILE]
 
     If multiple audio files should be processed, the program can also be run
     in 'batch' mode to save the detected onsets to files with the given suffix.
 
-    $ OnsetDetectorLL batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+      $ OnsetDetectorLL batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
 
     If no output directory is given, the program writes the files with the
-    detected onsets to same location as the audio files.
+    detected onsets to the same location as the audio files.
+
+    Furthermore, it is able to process live audio input frame by frame when
+    operated in 'online' mode.
+
+      $ OnsetDetectorLL online [INFILE]
+
+    If an input file is given, it is used instead of the system's audio input.
 
     The 'pickle' mode can be used to store the used parameters to be able to
     exactly reproduce experiments.
+
+      $ OnsetDetectorLL pickle
 
     ''')
     # version
     p.add_argument('--version', action='version',
                    version='OnsetDetectorLL.2016')
     # input/output options
-    io_arguments(p, output_suffix='.onsets.txt')
+    io_arguments(p, output_suffix='.onsets.txt', online=True)
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, gain=0)

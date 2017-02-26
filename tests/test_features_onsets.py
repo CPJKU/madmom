@@ -212,12 +212,12 @@ class TestRNNOnsetProcessorClass(unittest.TestCase):
 
     def setUp(self):
         self.processor = RNNOnsetProcessor()
-        self.online_processor = RNNOnsetProcessor(online=True)
+        self.online_processor = RNNOnsetProcessor(online=True, origin='online')
 
     def test_process(self):
         act = self.processor(sample_file)
         self.assertTrue(np.allclose(act, sample_brnn_act))
-        act = self.online_processor(sample_file)
+        act = self.online_processor(sample_file, reset=False)
         self.assertTrue(np.allclose(act, sample_rnn_act))
 
 
@@ -279,8 +279,18 @@ class TestOnsetPeakPickingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(onsets, self.sample_superflux_result))
 
     def test_process_online(self):
+        # process everything at once
         onsets = self.online_processor(sample_rnn_act)
         self.assertTrue(np.allclose(onsets, self.sample_rnn_result))
+        # results must be the same if processed a second time
+        onsets_1 = self.online_processor(sample_rnn_act)
+        self.assertTrue(np.allclose(onsets_1, self.sample_rnn_result))
+        # process frame by frame
+        self.online_processor.reset()
+        onsets_2 = np.hstack(
+            [self.online_processor(np.atleast_1d(f), reset=False)
+             for f in sample_rnn_act])
+        self.assertTrue(np.allclose(onsets_2, self.sample_rnn_result))
 
     def test_delay(self):
         self.processor.delay = 1

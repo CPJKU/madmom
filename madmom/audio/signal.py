@@ -1116,8 +1116,8 @@ class FramedSignal(object):
     - 'center', 'offline': the window is centered on its reference sample,
     - 'left', 'past', 'online': the window is located to the left of its
       reference sample (including the reference sample),
-    - 'right', 'future': the window is located to the right of its reference
-      sample.
+    - 'right', 'future', 'stream': the window is located to the right of its
+      reference sample.
 
     The `end` parameter is used to handle the end of signal behaviour and
     can have these values:
@@ -1136,7 +1136,7 @@ class FramedSignal(object):
     returned in a frame unless the `origin` is either 'right' or 'future'.
 
     If used in online real-time mode the parameters `origin` and `num_frames`
-    should be set to 'future' and 1, respectively.
+    should be set to 'stream' and 1, respectively.
 
     Examples
     --------
@@ -1222,15 +1222,20 @@ class FramedSignal(object):
 
         # translate literal window location values to numeric origin
         if origin in ('center', 'offline'):
-            # the current position is the center of the frame
+            # window centered around the origin
             origin = 0
         elif origin in ('left', 'past', 'online'):
-            # the current position is the right edge of the frame
-            # this is usually used when simulating online mode, where only past
-            # information of the audio signal can be used
+            # origin is the right edge of the frame, i.e. window to the left
+            # Note: used when simulating online mode, where only past
+            #       information of the audio signal can be used
             origin = (frame_size - 1) / 2
-        elif origin in ('right', 'future'):
-            # the current position is the left edge of the frame
+        elif origin in ('right', 'future', 'stream'):
+            # origin is the left edge of the frame, i.e. window to the right
+            # Note: used when operating on live audio streams where we want
+            #       to retrieve a single frame. Instead of using 'online', we
+            #       "fake" the origin in order to retrieve the complete frame
+            #       provided by FramedSignalProcessor. This is a workaround to
+            #       be able to use the same processing chain in different modes
             origin = -(frame_size / 2)
         self.origin = int(origin)
 
@@ -1369,12 +1374,8 @@ class FramedSignalProcessor(Processor):
 
     Notes
     -----
-    The location of the window relative to its reference sample can be set
-    with the `online` parameter:
-
-    - 'False': the window is centered on its reference sample,
-    - 'True': the window is located to the left of its reference sample
-      (including the reference sample), i.e. only past information is used.
+    When operating on live audio signals, `origin` must be set to 'stream' in
+    order to retrieve always the last `frame_size` samples.
 
     Examples
     --------
@@ -1397,7 +1398,7 @@ class FramedSignalProcessor(Processor):
 
     def __init__(self, frame_size=FRAME_SIZE, hop_size=HOP_SIZE, fps=FPS,
                  origin=ORIGIN, end=END_OF_SIGNAL, num_frames=NUM_FRAMES,
-                 online=None, **kwargs):
+                 **kwargs):
         # pylint: disable=unused-argument
         self.frame_size = frame_size
         self.hop_size = hop_size
@@ -1405,15 +1406,6 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
-
-        if online is not None:
-            import warnings
-            warnings.warn('`online` is deprecated as of version 0.14 and will '
-                          'be removed in version 0.15. Use `origin` instead.')
-            if online:
-                self.origin = 'online'
-            else:
-                self.origin = 'offline'
 
     def process(self, data, **kwargs):
         """
@@ -1437,6 +1429,10 @@ class FramedSignalProcessor(Processor):
                     fps=self.fps, origin=self.origin, end=self.end,
                     num_frames=self.num_frames)
         args.update(kwargs)
+        # always use the last `frame_size` samples if we operate on a live
+        # audio stream, otherwise we get the wrong portion of the signal
+        if self.origin == 'stream':
+            data = data[-self.frame_size:]
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, **args)
 

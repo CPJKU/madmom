@@ -164,8 +164,6 @@ class TestCNNChordRecognition(unittest.TestCase):
         ]
 
     def _check_results(self, result, true_result):
-        print(result)
-        print(true_result)
         self.assertTrue(np.allclose(result['start'], true_result['start']))
         self.assertTrue(np.allclose(result['end'], true_result['end']))
         self.assertTrue((result['label'] == true_result['label']).all())
@@ -657,6 +655,11 @@ class TestOnsetDetectorLLProgram(unittest.TestCase):
         run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        # reload from file
+        run_program([self.bin, '--load', 'single', '--online', tmp_act, '-o',
+                     tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
@@ -674,6 +677,18 @@ class TestOnsetDetectorLLProgram(unittest.TestCase):
         run_program([self.bin, 'single', sample_file, '-o', tmp_result])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_online(self):
+        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+        run_program([self.bin, 'single', '--online', sample_file, '-o',
+                     tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+        run_program([self.bin, 'online', sample_file, '-o', tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
 
 
 class TestPianoTranscriptorProgram(unittest.TestCase):

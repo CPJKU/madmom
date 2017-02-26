@@ -740,8 +740,14 @@ def process_online(processor, infile, outfile, **kwargs):
         frame_size = kwargs.get('frame_size', FRAME_SIZE)
         hop_size = kwargs.get('hop_size', HOP_SIZE)
         fps = kwargs.get('fps', FPS)
-        # Note: origin must be 'online' and num_frames 'None' to behave the
-        #       same as live input
+        # FIXME: overwrite the frame size with the maximum value of all used
+        #        processors. This is needed if multiple frame sizes are used
+        import warnings
+        warnings.warn('make sure that the `frame_size` (%d) is equal to the '
+                      'maximum value used by any `FramedSignalProcessor`.' %
+                      frame_size)
+        # Note: origin must be 'online' and num_frames 'None' to behave exactly
+        #       the same as with live input
         stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
                               fps=fps, origin='online', num_frames=None)
     # set arguments for online processing
@@ -858,4 +864,4 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
         # set arguments for loading processors
         sp.set_defaults(online=True)      # use online settings/parameters
         sp.set_defaults(num_frames=1)     # process everything frame-by-frame
-        sp.set_defaults(origin='future')  # fake origin to get whole frame
+        sp.set_defaults(origin='stream')  # set origin to get whole frame
