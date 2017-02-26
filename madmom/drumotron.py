@@ -31,9 +31,13 @@ class DrumotronHardwareProcessor(Processor):
 
 class DrumotronSamplePlayer(Processor):
 
-    def __init__(self, sample_folder, sample_rate=SAMPLE_RATE,
-                 chunk_size=20480):
+    def __init__(self, sample_folder, sample_rate=SAMPLE_RATE):
         self.sample_rate = sample_rate
+        # load samples
+        bd = Signal(join(sample_folder, 'bd.wav'))
+        sn = Signal(join(sample_folder, 'sn.wav'))
+        hh = Signal(join(sample_folder, 'hh.wav'))
+        chunk_size = np.max([len(bd), len(sn), len(hh)])
 
         self.pa = PyAudio()
         self.stream = self.pa.open(format=paInt16,
@@ -41,10 +45,6 @@ class DrumotronSamplePlayer(Processor):
                                    channels=1,
                                    rate=self.sample_rate,
                                    output=True)
-        # load samples
-        bd = Signal(join(sample_folder, 'bd.wav'))
-        sn = Signal(join(sample_folder, 'sn.wav'))
-        hh = Signal(join(sample_folder, 'hh.wav'))
 
         # the sound needs to be longer (otherwise it doesn't play)
         out = np.zeros(chunk_size)
@@ -69,8 +69,8 @@ class DrumotronSamplePlayer(Processor):
             self.stream.write(self.bd)
         elif cmd == '2':
             self.stream.write(self.sn)
-        elif cmd == '3':
-            self.stream.write(self.hh)
+        # elif cmd == '3':
+        #     self.stream.write(self.hh)
 
     def stop(self):
         self.stream.stop_stream()
