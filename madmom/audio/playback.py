@@ -84,30 +84,31 @@ class PlaybackProcessor(Processor):
 
     """
 
-    def __init__(self, sample_rate=SAMPLE_RATE, **kwargs):
+    def __init__(self, sample_rate=SAMPLE_RATE, chunk_size=1024, **kwargs):
         self.sample_rate = sample_rate
 
+        bip_duration = int(round(0.02 * self.sample_rate))
+
         self.pa = PyAudio()
-        bip_duration = int(round(0.01 * self.sample_rate))
         self.stream = self.pa.open(format=paInt16,
                                    frames_per_buffer=bip_duration,
                                    channels=1,
                                    rate=self.sample_rate,
                                    output=True)
 
-        bip_ampl = 2 ** 15
+        bip_ampl = 2 ** 14
         bip = bip_ampl * np.sin(2 * np.pi * 2000 / self.sample_rate *
                                 np.arange(bip_duration))
         # the sound needs to be longer (otherwise it doesn't play)
-        # out = np.zeros(int(0.01*self.sample_rate))
-        # out[:bip_duration] = bip
+        out = np.zeros(chunk_size)
+        out[:bip_duration] = bip
         # converting in int16
-        # self.bip = out.astype(np.int16).tostring()
-        self.bip = bip.astype(np.int16).tostring()
+        self.bip = out.astype(np.int16).tostring()
+        print(len(self.bip))
 
     def process(self, data, **kwargs):
         if data:
-            self.stream.write(self.bip, exception_on_underflow=False)
+            self.stream.write(self.bip)
         return data
 
     def stop(self):

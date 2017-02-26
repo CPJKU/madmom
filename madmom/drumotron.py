@@ -7,7 +7,12 @@ This file contains functions to control drumotron, a drum robot.
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import pickle
+from os.path import join
+from madmom.audio.signal import Signal
 from madmom.processors import Processor
+from pyaudio import PyAudio, paInt16, paContinue
+
+SAMPLE_RATE = 44100
 
 
 class DrumotronHardwareProcessor(Processor):
@@ -22,6 +27,55 @@ class DrumotronHardwareProcessor(Processor):
         if self.arduino:
             self.ser.write(cmd)
         # print('command ', cmd)
+
+
+class DrumotronSamplePlayer(Processor):
+
+    def __init__(self, sample_folder, sample_rate=SAMPLE_RATE,
+                 chunk_size=20480):
+        self.sample_rate = sample_rate
+
+        self.pa = PyAudio()
+        self.stream = self.pa.open(format=paInt16,
+                                   frames_per_buffer=chunk_size,
+                                   channels=1,
+                                   rate=self.sample_rate,
+                                   output=True)
+        # load samples
+        bd = Signal(join(sample_folder, 'bd.wav'))
+        sn = Signal(join(sample_folder, 'sn.wav'))
+        hh = Signal(join(sample_folder, 'hh.wav'))
+
+        # the sound needs to be longer (otherwise it doesn't play)
+        out = np.zeros(chunk_size)
+        out[:len(bd)] = bd
+        # converting in int16
+        self.bd = out.astype(np.int16).tostring()
+
+        # the sound needs to be longer (otherwise it doesn't play)
+        out = np.zeros(chunk_size)
+        out[:len(sn)] = sn
+        # converting in int16
+        self.sn = out.astype(np.int16).tostring()
+
+        # the sound needs to be longer (otherwise it doesn't play)
+        out = np.zeros(chunk_size)
+        out[:len(hh)] = hh
+        # converting in int16
+        self.hh = out.astype(np.int16).tostring()
+
+    def process(self, cmd):
+        if cmd == '1':
+            self.stream.write(self.bd)
+        elif cmd == '2':
+            self.stream.write(self.sn)
+        elif cmd == '3':
+            self.stream.write(self.hh)
+
+    def stop(self):
+        self.stream.stop_stream()
+        self.stream.close()
+        self.pa.terminate()
 
 
 class DrumotronControlProcessor(Processor):
@@ -119,13 +173,12 @@ class DrumotronControlProcessor(Processor):
             self.last_position = current_position
             if current_position != self.last_played_position:
                 if current_position in self.patterns[self.pattern_id]['hh']:
+                    self.out('3')
                     self.last_played_position = current_position
                 if current_position in self.patterns[self.pattern_id]['sn']:
                     self.out('2')
                     self.last_played_position = current_position
-                    self.out('1')
                 if current_position in self.patterns[self.pattern_id]['bd']:
-                    self.out('3')
                     self.last_played_position = current_position
                     self.out('1')
         # update state variables
