@@ -1,0 +1,246 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+ROBOD: a Real-time Online and Offline Drummer
+
+ICASSP 2017 signal processing cup submission which performs beat tracking,
+pattern selection and drum control.
+
+ROBOD uses different algorithms for different parts:
+1. DBNBeatTracker for tracking the beats,
+2. GMMBarTracker for tracking the bar and selecting the pattern,
+3. logic to control the servos to play a drum kit.
+
+The logic of 1. and 2. is incorporated and modified within this file, since it
+should run on a Raspberry Pi which has rather limited processing power. In
+order to be able to run on a Pi, please add '-j 2' to the command line to
+distribute the different parts to multiple CPU cores.
+
+"""
+
+
+from __future__ import absolute_import, division, print_function
+
+import argparse
+import multiprocessing as mp
+from functools import partial
+
+import numpy as np
+
+from madmom.processors import (IOProcessor, io_arguments, SequentialProcessor,
+                               ParallelProcessor)
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
+                                      LogarithmicSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor)
+from madmom.ml.nn import NeuralNetwork
+from madmom.models import BEATS_LSTM, PATTERNS_GUITAR
+from madmom.features.beats import DBNBeatTrackingProcessor
+from madmom.features.downbeats import BeatSyncProcessor, GMMBarProcessor
+
+
+# adapted from madmom.processors.process_online
+def open_input(**kwargs):
+    """
+    Open a file or audio stream.
+
+    Parameters
+    ----------
+    kwargs : dict
+        Dictionary containing options needed to open a Stream or FramedSignal.
+
+    Returns
+    -------
+    stream : Iterable
+        Open Stream or FramedSignal.
+
+    """
+    from madmom.audio.signal import Stream, FramedSignal
+    # if no iput file is given, create a Stream with the given arguments
+    infile = kwargs.get('infile', None)
+    if infile is None:
+        stream = Stream(**kwargs)
+        # start the stream if not running already
+        if not stream.is_running():
+            stream.start()
+    # use the input file
+    else:
+        # set default parameters for opening the file
+        stream = FramedSignal(infile, frame_size=kwargs['frame_size'],
+                              fps=kwargs['fps'], origin='online',
+                              num_frames=None, num_channels=1)
+    # return an iterable stream
+    return iter(stream)
+
+
+class InputProcess(mp.Process):
+    """
+    Class for extracting beats and features and putting them into a pipe.
+
+    Parameters
+    ----------
+    infile : Iterable
+        Iterable to get the frames from, e.g. Stream or iter(FramedSignal).
+    pipe : Pipe
+        Pipe for beats & features.
+
+    """
+
+    def __init__(self, processor, pipe, **kwargs):
+        super(InputProcess, self).__init__()
+        self.processor = processor
+        self.pipe = pipe
+        self.kwargs = kwargs
+
+    def run(self):
+        """Process all frames from the given input."""
+        # Note: we need open the infile in here, since starting a PyAudio
+        #       stream before starting this process does not work
+        infile = open_input(**self.kwargs)
+        while True:
+            # get the next frame
+            try:
+                data = infile.next()
+            except StopIteration:
+                self.pipe.send(None)
+                break
+            # process the Processor with the data
+            process_args = {'reset': False}  # do not reset stateful processors
+            data = self.processor(data, **process_args)
+            # put them into the pipe
+            self.pipe.send(data)
+
+
+class OutputProcess(mp.Process):
+    """
+    Class for retrieving beats and features from a pipe and extracting the
+    pattern and position inside bar.
+
+    Parameters
+    ----------
+    pipe : Pipe
+        Pipe for beats & features.
+    outfile : file or file handle
+        Where to put the results into.
+
+    """
+
+    def __init__(self, processor, pipe, outfile):
+        super(OutputProcess, self).__init__()
+        self.processor = processor
+        self.pipe = pipe
+        self.outfile = outfile
+        self.counter = 0
+
+    def run(self):
+        """Process all tasks from the pipe."""
+        while True:
+            self.counter += 1
+            # get the data to be processed
+            data = self.pipe.recv()
+            if data is None:
+                break
+            # process the Processor with the data and output everything
+            self.processor(data, self.outfile)
+
+
+def main():
+    """ROBOD: a Real-time Online and Offline Drummer"""
+
+    # define parser
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    ROBOD: a Real-time Online and Offline Drummer
+    ''')
+    # version
+    p.add_argument('--version', action='version',
+                   version='ROBOD.2016')
+    # input/output options
+    io_arguments(p, output_suffix=None, online=True)
+    # signal processing arguments
+    SignalProcessor.add_arguments(p, sample_rate=44100, gain=0)
+    # tracking arguments
+    DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
+    GMMBarProcessor.add_arguments(p)
+
+    # parse arguments
+    args = p.parse_args()
+
+    # set immutable arguments
+    args.num_channels = 1
+    args.frame_size = 2048
+    args.fps = 100
+
+    # print arguments
+    if args.verbose:
+        print(args)
+
+    # define signal processing used by all others
+    sig = SignalProcessor(**vars(args))
+    frames = FramedSignalProcessor(**vars(args))
+    stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+    filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
+                                        fmax=17000, norm_filters=True)
+    spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+    diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
+                                          stack_diffs=np.hstack)
+    sig_proc = SequentialProcessor((sig, frames, stft, filt, spec, diff))
+    # here, the processing for the RNN & GMM diverges
+
+    # beat tracking processor
+    # FIXME: add option to use multiple network models
+    nn = NeuralNetwork.load(BEATS_LSTM[1])
+    dbn = DBNBeatTrackingProcessor(**vars(args))
+    beat_processor = SequentialProcessor((nn, dbn))
+
+    # gmm feature
+    # take only the second part of the stacked diff (i.e. the diffs themselve)
+    take = partial(np.take, indices=np.arange(81, 162))
+    # and sum these positive differences
+    agg = partial(np.sum)
+    gmm_feat_processor = SequentialProcessor((take, agg))
+
+    # extract beat & gmm feature in parallel
+    beat_feat_processor = ParallelProcessor((beat_processor,
+                                             gmm_feat_processor))
+
+    # here we have to split into two separate processes
+
+    # sync the features to the beats
+    beat_sync = BeatSyncProcessor(**vars(args))
+    # score them with a GMM
+    gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
+                                        pattern_change_prob=0.001,
+                                        **vars(args))
+
+    # output handler
+    if args.downbeats:
+        # simply write the timestamps of the downbeats
+        from madmom.utils import write_events as writer
+    else:
+        # borrow the note writer for outputting timestamps + beat numbers
+        from madmom.features.notes import write_notes as writer
+
+    # process with a single or multiple threads
+    if args.num_threads > 1:
+        # define processors for the separate processes
+        input_processor = SequentialProcessor([sig_proc, beat_feat_processor])
+        output_processor = IOProcessor([beat_sync, gmm_bar_processor], writer)
+        # create a pipe to pass beats and features to the second process
+        recv, send = mp.Pipe()
+        # create working threads
+        processes = [InputProcess(input_processor, send, **vars(args)),
+                     OutputProcess(output_processor, recv, args.outfile)]
+        for p in processes:
+            p.daemon = False
+            p.start()
+    else:
+        # create an IOProcessor
+        processor = IOProcessor([sig_proc, beat_feat_processor, beat_sync,
+                                 gmm_bar_processor], writer)
+        # and call the processing function
+        args.func(processor, **vars(args))
+
+if __name__ == '__main__':
+    main()
