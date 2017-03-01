@@ -1032,12 +1032,12 @@ class DBNBeatTrackingProcessor(Processor):
         fwd = self.hmm.forward(activations)
         # use simply the most probable state
         state = np.argmax(fwd)
-        # decide if it is a beat
-        beat = self.om.pointers[state] == 1
         # the position inside the beat
         position = self.st.state_positions[state]
+        # decide if it is a beat
+        beat = (position < 0.2)
 
-        # visulalisation stuff
+        # visualisation stuff
         if self.visualize:
             beat_length = 80
             display = [' '] * beat_length
