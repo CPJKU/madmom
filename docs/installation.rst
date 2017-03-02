@@ -19,6 +19,8 @@ To install the ``madmom`` package, you must have either Python 2.7 or Python
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
 - `nose <https://github.com/nose-devs/nose>`_ (to run the tests)
+- `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_ (to process live
+  audio input)
 
 If you need support for audio files other than ``.wav`` with a sample rate of
 44.1kHz and 16 bit depth, you need ``ffmpeg`` (``avconv`` on Ubuntu Linux has
