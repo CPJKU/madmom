@@ -13,8 +13,10 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from madmom.audio.signal import smooth as smooth_signal
+from ..processors import (Processor, SequentialProcessor, ParallelProcessor,
+                          BufferProcessor)
+from ..audio.signal import smooth as smooth_signal
+from ..utils import combine_events
 
 EPSILON = np.spacing(1)
 
@@ -754,7 +756,7 @@ class RNNOnsetProcessor(SequentialProcessor):
 
     """
 
-    def __init__(self, online=False, **kwargs):
+    def __init__(self, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
@@ -765,12 +767,10 @@ class RNNOnsetProcessor(SequentialProcessor):
         from ..ml.nn import NeuralNetworkEnsemble
 
         # choose the appropriate models and set frame sizes accordingly
-        if online:
-            origin = 'online'
+        if kwargs.get('online'):
             nn_files = ONSETS_RNN
             frame_sizes = [512, 1024, 2048]
         else:
-            origin = 'offline'
             nn_files = ONSETS_BRNN
             frame_sizes = [1024, 2048, 4096]
 
@@ -779,8 +779,8 @@ class RNNOnsetProcessor(SequentialProcessor):
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
         for frame_size in frame_sizes:
-            frames = FramedSignalProcessor(frame_size=frame_size, fps=100,
-                                           origin=origin)
+            # pass **kwargs in order to be able to process in online mode
+            frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
             stft = ShortTimeFourierTransformProcessor()  # caching FFT window
             filt = FilteredSpectrogramProcessor(
                 num_bands=6, fmin=30, fmax=17000, norm_filters=True)
@@ -885,7 +885,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         Activation function.
     threshold : float
         Threshold for peak-picking
-    smooth : int or numpy array
+    smooth : int or numpy array, optional
         Smooth the activation function with the kernel (size).
     pre_avg : int, optional
         Use `pre_avg` frames past information for moving average.
@@ -922,8 +922,7 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
     """
     # smooth activations
-    if smooth not in (None, 0):
-        activations = smooth_signal(activations, smooth)
+    activations = smooth_signal(activations, smooth)
     # compute a moving average
     avg_length = pre_avg + post_avg + 1
     if avg_length > 1:
@@ -968,9 +967,61 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
 
 class PeakPickingProcessor(Processor):
     """
-    This class implements the onset peak-picking functionality which can be
-    used universally. It transparently converts the chosen values from seconds
-    to frames.
+    Deprecated as of version 0.15. Will be removed in version 0.16. Use either
+    :class:`OnsetPeakPickingProcessor` or :class:`NotePeakPickingProcessor`
+    instead.
+
+    """
+
+    def __init__(self, **kwargs):
+        # pylint: disable=unused-argument
+        self.kwargs = kwargs
+
+    def process(self, activations, **kwargs):
+        """
+        Detect the peaks in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        peaks : numpy array
+            Detected onsets [seconds[, frequency bin]].
+
+        """
+        import warnings
+        if activations.ndim == 1:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`OnsetPeakPickingProcessor` instead.')
+            ppp = OnsetPeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+        elif activations.ndim == 2:
+            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
+                          '0.15 and will be removed in version 0.16. Use '
+                          '`NotePeakPickingProcessor` instead.')
+            from .notes import NotePeakPickingProcessor
+            ppp = NotePeakPickingProcessor(**self.kwargs)
+            return ppp(activations, **kwargs)
+
+    @staticmethod
+    def add_arguments(parser, **kwargs):
+        """
+        Deprecated as of version 0.15. Will be removed in version 0.16. Use
+        either :class:`OnsetPeakPickingProcessor` or
+        :class:`NotePeakPickingProcessor` instead.
+
+        """
+        return OnsetPeakPickingProcessor.add_arguments(parser, **kwargs)
+
+
+class OnsetPeakPickingProcessor(Processor):
+    """
+    This class implements the onset peak-picking functionality.
+    It transparently converts the chosen values from seconds to frames.
 
     Parameters
     ----------
@@ -1021,12 +1072,12 @@ class PeakPickingProcessor(Processor):
     Create a PeakPickingProcessor. The returned array represents the positions
     of the onsets in seconds, thus the expected sampling rate has to be given.
 
-    >>> proc = PeakPickingProcessor(fps=100)
+    >>> proc = OnsetPeakPickingProcessor(fps=100)
     >>> proc  # doctest: +ELLIPSIS
-    <madmom.features.onsets.PeakPickingProcessor object at 0x...>
+    <madmom.features.onsets.OnsetPeakPickingProcessor object at 0x...>
 
-    Call this PeakPickingProcessor with the onset activation function obtained
-    by RNNOnsetProcessor to obtain the onset positions.
+    Call this OnsetPeakPickingProcessor with the onset activation function from
+    an RNNOnsetProcessor to obtain the onset positions.
 
     >>> act = RNNOnsetProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
@@ -1053,9 +1104,15 @@ class PeakPickingProcessor(Processor):
         #       super(PeakPicking, self).__init__(peak_picking, write_events)
         #       adjust some params for online mode?
         if online:
+            # set some parameters to 0 (i.e. no future information available)
             smooth = 0
             post_avg = 0
             post_max = 0
+            # init buffer
+            self.buffer = None
+            self.counter = 0
+            self.last_onset = None
+        # save parameters
         self.threshold = threshold
         self.smooth = smooth
         self.pre_avg = pre_avg
@@ -1064,7 +1121,14 @@ class PeakPickingProcessor(Processor):
         self.post_max = post_max
         self.combine = combine
         self.delay = delay
+        self.online = online
         self.fps = fps
+
+    def reset(self):
+        """Reset OnsetPeakPickingProcessor."""
+        self.buffer = None
+        self.counter = 0
+        self.last_onset = None
 
     def process(self, activations, **kwargs):
         """
@@ -1081,65 +1145,105 @@ class PeakPickingProcessor(Processor):
             Detected onsets [seconds].
 
         """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_sequence(activations, **kwargs)
+
+    def process_sequence(self, activations, **kwargs):
+        """
+        Detect the onsets in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected onsets [seconds].
+
+        """
         # convert timing information to frames and set default values
         # TODO: use at least 1 frame if any of these values are > 0?
-        smooth = int(round(self.fps * self.smooth))
-        pre_avg = int(round(self.fps * self.pre_avg))
-        post_avg = int(round(self.fps * self.post_avg))
-        pre_max = int(round(self.fps * self.pre_max))
-        post_max = int(round(self.fps * self.post_max))
+        timings = np.array([self.smooth, self.pre_avg, self.post_avg,
+                            self.pre_max, self.post_max]) * self.fps
+        timings = np.round(timings).astype(int)
         # detect the peaks (function returns int indices)
-        detections = peak_picking(activations, self.threshold, smooth,
-                                  pre_avg, post_avg, pre_max, post_max)
+        onsets = peak_picking(activations, self.threshold, *timings)
+        # convert to timestamps
+        onsets = onsets.astype(np.float) / self.fps
+        # shift if necessary
+        if self.delay:
+            onsets += self.delay
+        # combine onsets
+        if self.combine:
+            onsets = combine_events(onsets, self.combine, 'left')
+        # return the onsets
+        return np.asarray(onsets)
 
-        if isinstance(detections, tuple):
-            # 2D detections (i.e. notes)
-            onsets = detections[0].astype(np.float) / self.fps
-            midi_notes = detections[1] + 21
-            # shift if necessary
-            if self.delay != 0:
-                onsets += self.delay
-            # combine multiple notes
-            if self.combine > 0:
-                detections = []
-                # iterate over each detected note separately
-                for note in np.unique(midi_notes):
-                    # get all note detections
-                    note_onsets = onsets[midi_notes == note]
-                    # always use the first note
-                    detections.append((note_onsets[0], note))
-                    # filter all notes which occur within `combine` seconds
-                    combined_note_onsets = note_onsets[1:][
-                        np.diff(note_onsets) > self.combine]
-                    # zip the onsets with the MIDI note number and add them to
-                    # the list of detections
-                    notes = zip(combined_note_onsets,
-                                [note] * len(combined_note_onsets))
-                    detections.extend(list(notes))
-            else:
-                # just zip all detected notes
-                detections = list(zip(onsets, midi_notes))
-            # sort the detections and save as numpy array
-            detections = np.asarray(sorted(detections))
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the onsets in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Onset activation function.
+
+        Returns
+        -------
+        onsets : numpy array
+            Detected onsets [seconds].
+
+        """
+        # buffer data
+        if self.buffer is None or reset:
+            # reset the processor
+            self.reset()
+            # put 0s in front (depending on conext given by pre_max
+            init = np.zeros(int(np.round(self.pre_max * self.fps)))
+            buffer = np.insert(activations, 0, init, axis=0)
+            # offset the counter, because we buffer the activations
+            self.counter = -len(init)
+            # use the data for the buffer
+            self.buffer = BufferProcessor(init=buffer)
         else:
-            # 1D detections (i.e. onsets)
-            # convert detections to a list of timestamps
-            detections = detections.astype(np.float) / self.fps
-            # shift if necessary
-            if self.delay != 0:
-                detections += self.delay
-            # always use the first detection and all others if none was
-            # reported within the last `combine` seconds
-            if detections.size > 1:
-                # filter all detections which occur within `combine` seconds
-                combined_detections = detections[1:][np.diff(detections) >
-                                                     self.combine]
-                # add them after the first detection
-                detections = np.append(detections[0], combined_detections)
+            buffer = self.buffer(activations)
+        # convert timing information to frames and set default values
+        # TODO: use at least 1 frame if any of these values are > 0?
+        timings = np.array([self.smooth, self.pre_avg, self.post_avg,
+                            self.pre_max, self.post_max]) * self.fps
+        timings = np.round(timings).astype(int)
+        # detect the peaks (function returns int indices)
+        peaks = peak_picking(buffer, self.threshold, *timings)
+        # convert to onset timings
+        onsets = (self.counter + peaks) / float(self.fps)
+        # increase counter
+        self.counter += len(activations)
+        # shift if necessary
+        if self.delay:
+            raise ValueError('delay not supported yet in online mode')
+        # report only if there was no onset within the last combine seconds
+        if self.combine and onsets.any():
+            # prepend the last onset to be able to combine them correctly
+            start = 0
+            if self.last_onset is not None:
+                onsets = np.append(self.last_onset, onsets)
+                start = 1
+            # combine the onsets
+            onsets = combine_events(onsets, self.combine, 'left')
+            # use only if the last onsets differ
+            if onsets[-1] != self.last_onset:
+                self.last_onset = onsets[-1]
+                # remove the first onset if we added it previously
+                onsets = onsets[start:]
             else:
-                detections = detections
-        # return the detections
-        return detections
+                # don't report an onset
+                onsets = np.empty(0)
+        # return the onsets
+        return onsets
 
     @staticmethod
     def add_arguments(parser, threshold=THRESHOLD, smooth=None, pre_avg=None,

@@ -8,6 +8,7 @@ New features:
 
 * Streaming mode allows framewise processing of live audio input (#185)
 * Exponential linear unit (ELU) activation function (#232)
+* `OnsetDetectorLL` can operate on live audio signals (#256)
 
 Bug fixes:
 
@@ -15,6 +16,8 @@ Bug fixes:
 * Fix tempo handling of multi-track MIDI files (#219)
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)
+* Fix smoothing for peak_picking (#247)
+* Fix combining onsets/notes (#255)
 
 API relevant changes:
 

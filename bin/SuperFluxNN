@@ -16,7 +16,8 @@ from madmom.audio.filters import FilterbankProcessor, LogarithmicFilterbank
 from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
 from madmom.features import ActivationsProcessor
-from madmom.features.onsets import SpectralOnsetProcessor, PeakPickingProcessor
+from madmom.features.onsets import (SpectralOnsetProcessor,
+                                    OnsetPeakPickingProcessor)
 from madmom.ml.nn import NeuralNetworkEnsemble
 from madmom.models import ONSETS_BRNN_PP
 
@@ -71,8 +72,8 @@ def main():
                                                  diff_max_bins=3,
                                                  positive_diffs=True)
     # peak picking arguments
-    PeakPickingProcessor.add_arguments(p, threshold=0.4, smooth=0.07,
-                                       combine=0.04, delay=0)
+    OnsetPeakPickingProcessor.add_arguments(p, threshold=0.4, smooth=0.07,
+                                            combine=0.04, delay=0)
     # parse arguments
     args = p.parse_args()
 
@@ -101,7 +102,7 @@ def main():
         # process everything with multiple RNNs and average the predictions
         rnn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP, **vars(args))
         # perform peak picking, i.e. select the local maxima
-        pp = PeakPickingProcessor(**vars(args))
+        pp = OnsetPeakPickingProcessor(**vars(args))
         from madmom.utils import write_events as writer
         # sequentially process them
         # Note: we need np.atleast_2d and np.transpose before the RNN, since

@@ -319,7 +319,7 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
     return events
 
 
-def combine_events(events, delta):
+def combine_events(events, delta, combine='mean'):
     """
     Combine all events within a certain range.
 
@@ -328,8 +328,13 @@ def combine_events(events, delta):
     events : list or numpy array
         Events to be combined.
     delta : float
-        Combination delta. All events within this `delta` are combined, i.e.
-        replaced by the mean of the two events.
+        Combination delta. All events within this `delta` are combined.
+    combine : {'mean', 'left', 'right'}
+        How to combine two adjacent events:
+
+            - 'mean': replace by the mean of the two events
+            - 'left': replace by the left of the two events
+            - 'right': replace by the right of the two events
 
     Returns
     -------
@@ -352,7 +357,15 @@ def combine_events(events, delta):
     for right in events[1:]:
         if right - left <= delta:
             # combine the two events
-            left = events[idx] = 0.5 * (right + left)
+            if combine == 'mean':
+                left = events[idx] = 0.5 * (right + left)
+            elif combine == 'left':
+                left = events[idx] = left
+            elif combine == 'right':
+                left = events[idx] = right
+            else:
+                raise ValueError("don't know how to combine two events with "
+                                 "%s" % combine)
         else:
             # move forward
             idx += 1
