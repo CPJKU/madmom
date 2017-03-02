@@ -21,6 +21,10 @@ def main():
     This program runs previously pickled Processors in either 'single' or
     'batch' mode.
 
+      $ PickleProcessor PROCESSOR single INFILE [-o OUTFILE]
+
+      $ PickleProcessor PROCESSOR batch FILES
+
     To obtain a pickled Processor, either run the respective program with the
     'pickle' option or call the 'dump()' method of the Processor.
 

@@ -252,10 +252,25 @@ class GMM(object):
         self.n_components = n_components
         self.covariance_type = covariance_type
         # init variables
-        self.weights_ = np.ones(self.n_components) / self.n_components
-        self.means_ = None
-        self.covars_ = None
-        self.converged_ = False
+        self.weights = np.ones(self.n_components) / self.n_components
+        self.means = None
+        self.covars = None
+
+    def __setstate__(self, state):
+        # TODO: old models have underscores at some variable names, thus rename
+        #       them; remove this unpickling code after updating all models
+        try:
+            import warnings
+            warnings.warn('Please update your GMM models by loading them and '
+                          'saving them again. Loading old models will not '
+                          'work from version 0.16 onwards.')
+            state['weights'] = state.pop('weights_')
+            state['means'] = state.pop('means_')
+            state['covars'] = state.pop('covars_')
+        except KeyError:
+            pass
+        # restore pickled instance attributes
+        self.__dict__.update(state)
 
     def score_samples(self, x):
         """
@@ -286,12 +301,12 @@ class GMM(object):
             x = x[:, np.newaxis]
         if x.size == 0:
             return np.array([]), np.empty((0, self.n_components))
-        if x.shape[1] != self.means_.shape[1]:
+        if x.shape[1] != self.means.shape[1]:
             raise ValueError('The shape of x is not compatible with self')
 
-        lpr = (log_multivariate_normal_density(x, self.means_, self.covars_,
+        lpr = (log_multivariate_normal_density(x, self.means, self.covars,
                                                self.covariance_type) +
-               np.log(self.weights_))
+               np.log(self.weights))
         log_prob = logsumexp(lpr, axis=1)
         responsibilities = np.exp(lpr - log_prob[:, np.newaxis])
         return log_prob, responsibilities
@@ -364,9 +379,8 @@ class GMM(object):
         # fit this GMM
         gmm.fit(x)
         # copy the needed information
-        self.converged_ = gmm.converged_
-        self.covars_ = gmm.covars_
-        self.means_ = gmm.means_
-        self.weights_ = gmm.weights_
+        self.covars = gmm.covars_
+        self.means = gmm.means_
+        self.weights = gmm.weights_
         # and return self
         return self
