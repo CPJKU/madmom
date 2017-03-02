@@ -28,7 +28,7 @@ def main():
     Please note that all available evaluation options have their individual
     help messages, e.g.
 
-    $ evaluate onsets -h
+      $ evaluate onsets -h
 
     ''')
     # add version

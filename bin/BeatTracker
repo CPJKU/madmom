@@ -42,15 +42,15 @@ def main():
     This program can be run in 'single' file mode to process a single audio
     file and write the detected beats to STDOUT or the given output file.
 
-    $ BeatTracker single INFILE [-o OUTFILE]
+      $ BeatTracker single INFILE [-o OUTFILE]
 
     If multiple audio files should be processed, the program can also be run
     in 'batch' mode to save the detected beats to files with the given suffix.
 
-    $ BeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
+      $ BeatTracker batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] FILES
 
     If no output directory is given, the program writes the files with the
-    detected beats to same location as the audio files.
+    detected beats to the same location as the audio files.
 
     The 'pickle' mode can be used to store the used parameters to be able to
     exactly reproduce experiments.
