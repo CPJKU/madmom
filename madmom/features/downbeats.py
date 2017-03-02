@@ -395,7 +395,7 @@ class DownbeatFeatureProcessor(SequentialProcessor):
 
         # percussive feature
         # FIXME: pass kwargs to the processors
-        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        sig = SignalProcessor(**kwargs)
         # Note: we need to pass kwargs to FramedSignalProcessor, otherwise
         #       num_frames is not set correctly in online/offline mode
         frames = FramedSignalProcessor(frame_size=2048, **kwargs)
