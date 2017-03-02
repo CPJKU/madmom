@@ -44,7 +44,7 @@ def main():
     $ CNNOnsetDetector batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] LIST OF FILES
 
     If no output directory is given, the program writes the files with the
-    detected onsets to same location as the audio files.
+    detected onsets to the same location as the audio files.
 
     The 'pickle' mode can be used to store the used parameters to be able to
     exactly reproduce experiments.
