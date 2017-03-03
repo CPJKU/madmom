@@ -106,18 +106,22 @@ class DrumotronControlProcessor(Processor):
         self.num_beats = [int(p['num_beats']) for p in self.patterns]
         # variables for storing intermediate data
         self.last_position = None
-        self.beat_frame_counter_int = None
+        # counts the frames since the last beat
+        self.frame_counter = None
         if smooth_win_len > 0:
             self.beat_periods = [None] * smooth_win_len
         else:
             self.beat_periods = [None] * 3
-        self.current_beat_period = None
+        self.beat_period = None
+        # beat count, e.g., 1, 2, 3, 4 for a 4/4 meter
         self.beat_count = None
         self.pattern_id = None
+        # divide a bar into discrete cells
         self.beat_grid = None
-        self.beat_frame_counter_ext = None
         self.last_played_position = None
         self.out = out
+        self.frame_count = 0
+        self.beats_since_sync = 0
 
     def process(self, data):
         """
@@ -125,7 +129,7 @@ class DrumotronControlProcessor(Processor):
 
         Parameters
         ----------
-        data : tuple (beat_interval, beat_count, pattern_id)
+        data : tuple (beat_period, beat_count, pattern_id)
 
         Returns
         -------
@@ -133,59 +137,60 @@ class DrumotronControlProcessor(Processor):
             Defines if and which drum to hit
 
         """
-        # print('======= %s ======' % str(self.beat_frame_counter_int))
+        self.frame_count += 1
         if data is None:
-            beat_count = None
+            is_beat = False
         else:
-            (beat_interval, beat_count, pattern_id) = data
-        is_beat = beat_count is not None
+            (beat_period, beat_count, pattern_id) = data
+            is_beat = beat_count is not None
         if is_beat:
-            # print('-- new ext beat', beat_count)
+            # store new information about pattern_id, beat_count, beat_period
             self.pattern_id = pattern_id
-            # shift entries to the left
-            self.beat_periods[:-1] = self.beat_periods[1:]
-            # append new beat period
-            self.beat_periods[-1] = beat_interval
-            if self.smooth_win_len > 0:
-                if None not in self.beat_periods:
-                    beat_interval = np.median(self.beat_periods)
-            self.current_beat_period = beat_interval
-            # print('--- beat (period %i) ---' % beat_interval)
+            self.smooth_beat_period(beat_period)
             self.beat_count = beat_count
-            self.beat_frame_counter_int = self.delay
-            self.beat_frame_counter_ext = self.beat_frame_counter_int
+            self.frame_counter = self.delay
             # create bins to relate the frame counter to the beat grid
-            self.beat_grid = np.linspace(0, beat_interval, self.grid + 1)[:-1]
-        if self.beat_frame_counter_int is None:
+            self.beat_grid = np.linspace(
+                0, self.beat_period, self.grid + 1)[:-1]
+            self.beats_since_sync = 0
+        if self.frame_counter is None:
             return None
-        if (is_beat is False) and (self.beat_frame_counter_int >
-                                   self.current_beat_period - 1):
-            # start new bar
-            self.beat_frame_counter_int = 0
+        if (is_beat is False) and (self.frame_counter >
+                                   self.beat_period - 1):
+            # trigger new beat without observing an external one
+            self.beats_since_sync += 1
+            self.frame_counter = 0
             # increase beat counter
             self.beat_count = int(self.beat_count % self.patterns[
                 self.pattern_id]['num_beats'] + 1)
+        # map the beat_frame_counter to the pattern grid
         current_position = int(np.digitize(
-            self.beat_frame_counter_int, self.beat_grid) - 1 + \
-            (self.beat_count - 1) * self.grid)
+            self.frame_counter, self.beat_grid) - 1 + \
+                               (self.beat_count - 1) * self.grid)
 
         if self.last_position != current_position:
-            self.last_position = current_position
-            if current_position != self.last_played_position:
-                if current_position in self.patterns[self.pattern_id]['hh']:
-                    self.out('3')
-                    self.last_played_position = current_position
-                if current_position in self.patterns[self.pattern_id]['sn']:
-                    self.out('2')
-                    self.last_played_position = current_position
-                if current_position in self.patterns[self.pattern_id]['bd']:
-                    self.last_played_position = current_position
-                    self.out('1')
+            if current_position in self.patterns[self.pattern_id]['hh']:
+                self.out('3')
+                # print('hh at %i' % self.frame_count)
+            if current_position in self.patterns[self.pattern_id]['sn']:
+                self.out('2')
+                # print('sn at %i' % self.frame_count)
+            if current_position in self.patterns[self.pattern_id]['bd']:
+                self.out('1')
+                # print('bd at %i' % self.frame_count)
         # update state variables
-        self.beat_frame_counter_int += 1
-        self.beat_frame_counter_ext += 1
+        self.frame_counter += 1
         self.last_position = current_position
-        if (self.beat_periods[-1] is None) or (
-                    self.beat_frame_counter_ext > 2 * self.beat_periods[-1]):
+        if (self.beat_periods[-1] is None) or (self.beats_since_sync > 2):
             # stop tracking if no beat has been observed for 2 beat periods
-            self.beat_frame_counter_int = None
+            self.frame_counter = None
+
+    def smooth_beat_period(self, beat_period):
+        # shift entries to the left
+        self.beat_periods[:-1] = self.beat_periods[1:]
+        # append new beat period
+        self.beat_periods[-1] = beat_period
+        if self.smooth_win_len > 0:
+            if None not in self.beat_periods:
+                beat_period = np.median(self.beat_periods)
+        self.beat_period = beat_period
