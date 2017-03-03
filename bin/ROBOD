@@ -184,10 +184,13 @@ class DrumProcess(mp.Process):
         self.beat = None
         self.beat_number = 0
         self.pattern = None
-        self.interval = None
+        self.kwargs = kwargs
 
     def run(self):
         """Process pipe."""
+        # Note: start the stream to output samples in here
+        #       must be started inside the process
+        self.processor.open_stream(**self.kwargs)
         while True:
             # try to read beats from the beat_pipe
             if self.recv_beats.poll():
@@ -208,15 +211,16 @@ class DrumProcess(mp.Process):
             # send beat to output and play drums
             if beat.any():
                 beat = np.append(beat, self.beat_number)
-                # send as 2D array
+                # send as 2D array to the writer
                 # FIXME: the beat numbers are 1 beat off, maybe move this back
                 #        to the tracking processor?!
                 self.send_output.send(np.array(beat, ndmin=2))
-                # play drums (only if we know which pattern to play)
-                # FIXME: simply play the kick (fake pattern)
-                if self.pattern:
-                    beat = np.append(beat, self.pattern)
-                    self.processor(beat)
+                # play drums
+                beat = np.append(beat, self.pattern)
+                self.processor(beat)
+            else:
+                # just call the processor (to increase counters)
+                self.processor((None, None, None))
 
 
 class OutputProcess(mp.Process):
@@ -305,41 +309,51 @@ class DrumPatternProcessor(Processor):
         """
         # increase counter
         self.counter += 1
-        # get data
-        # FIXME: works only frame by frame
-        data = data.flatten()
-        # FIXME: patterns / beats_per_bar must match to the GMM patterns
-        beat, beat_number, pattern = data.astype(int)
         # default values
         interval = beat_number = None
-        if data.any():
+        # get data
+        # FIXME: works only frame by frame
+        # FIXME: patterns / beats_per_bar must match to the GMM patterns
+        beat, beat_number, pattern = data
+
+        if beat:
+            print('DrumPatternProcessor.process()', data)
             # determine beat interval in frames
-            if self.last_beat and self.beat_counter >= 2:
+            if self.last_beat:
                 interval = self.counter - self.last_beat
+                print('   interval', interval)
             # save last beat index
             self.last_beat = self.counter
-            self.beat_counter += 1
 
-        # shortcut
-        is_beat = self.beat_number and interval
+        # default return value
+        ret = 0
 
         # rely on external beat information
-        if is_beat:
-            self.pattern = pattern
+        if beat and pattern is not None:
             self.interval = interval
-            self.beat_number = beat_number
+            self.pattern = pattern = int(pattern)
+            self.beat_number = beat_number = int(beat_number)
+            print('   pattern', pattern)
+            print('   beat number', self.beat_number)
             self.beat_frame_counter_int = self.delay
             self.beat_frame_counter_ext = self.beat_frame_counter_int
             # create bins to relate the frame counter to the beat grid
-            self.beat_grid = np.linspace(0, interval, self.quantization + 1)[:-1]
+            num = self.quantization + 1
+            self.beat_grid = np.linspace(0, interval, num=num)[:-1]
+            print('   beat grid (1/16th) notes at frames', self.beat_grid)
+            print('   pattern', self.patterns[pattern])
+
         elif self.beat_frame_counter_int is None:
-            return np.empty((0, 2))
+            # print('   beat_frame_counter_int is None')
+            # FIXME: maybe check if a pattern is available
+            return ret
         # start new bar
-        elif self.beat_frame_counter_int >= self.interval:
-            self.beat_frame_counter_int = 0
-            # increase beat counter
-            self.beat_number = int(self.beat_number % self.patterns[
-                self.pattern]['num_beats'] + 1)
+        # elif self.beat_frame_counter_int >= self.interval:
+        #     self.beat_frame_counter_int = 0
+        #     # increase beat counter
+        #     self.beat_number = int(self.beat_number % self.patterns[
+        #         self.pattern]['num_beats'] + 1)
+        #     print('   start new bar', self.beat_number)
 
         # determine current grid position
         pos = np.digitize(self.beat_frame_counter_int, self.beat_grid)
@@ -347,14 +361,19 @@ class DrumPatternProcessor(Processor):
         current_grid_position = int(pos)
 
         # determine return value
-        ret = 0
         if self.last_grid_position != current_grid_position:
+            print('   grid_position %03d %3d' % (
+                current_grid_position, self.counter - self.last_beat), end='')
             if current_grid_position in self.patterns[self.pattern]['bd']:
-                ret = 1
+                print('    Kick', end='')
+                ret += 1
             if current_grid_position in self.patterns[self.pattern]['sn']:
-                ret = 2
+                print('    Snare', end='')
+                ret += 2
             if current_grid_position in self.patterns[self.pattern]['hh']:
-                ret = 3
+                print('    HH', end='')
+                ret += 4
+            print('')
         # update state variables
         self.beat_frame_counter_int += 1
         self.beat_frame_counter_ext += 1
@@ -397,44 +416,52 @@ class DrumotronSamplePlayer(DrumPatternProcessor):
 
     def __init__(self, sample_folder=SAMPLE_FOLDER, **kwargs):
         from os.path import join
-        import pyaudio
         # load samples
         bd = Signal(join(sample_folder, 'bd.wav'))
         sn = Signal(join(sample_folder, 'sn.wav'))
         hh = Signal(join(sample_folder, 'hh.wav'))
-        chunk_size = np.max([len(bd), len(sn), len(hh)])
+        self.chunk_size = np.max([len(bd), len(sn), len(hh)])
+        # Note: the sound needs to be longer (otherwise it doesn't play)
+        out = np.zeros(self.chunk_size)
+        out[:len(bd)] = bd
+        self.bd = out.astype(np.int16)
+        out = np.zeros(self.chunk_size) / 2
+        out[:len(sn)] = sn
+        # converting in int16
+        self.sn = out.astype(np.int16) / 2
+        out = np.zeros(self.chunk_size)
+        out[:len(hh)] = hh
+        self.hh = out.astype(np.int16) / 2
+        # super
+        super(DrumotronSamplePlayer, self).__init__(**kwargs)
+        self.pa = None
+        self.stream = None
+
+    def open_stream(self, **kwargs):
+        import pyaudio
         # create optput stream
         self.pa = pyaudio.PyAudio()
         self.stream = self.pa.open(format=pyaudio.paInt16,
-                                   frames_per_buffer=chunk_size,
+                                   frames_per_buffer=self.chunk_size,
                                    channels=1,
                                    rate=kwargs.get('sample_rate'),
                                    output=True)
 
-        # Note: the sound needs to be longer (otherwise it doesn't play)
-        out = np.zeros(chunk_size)
-        out[:len(bd)] = bd
-        self.bd = out.astype(np.int16).tostring()
-        out = np.zeros(chunk_size)
-        out[:len(sn)] = sn
-        # converting in int16
-        self.sn = out.astype(np.int16).tostring()
-        out = np.zeros(chunk_size)
-        out[:len(hh)] = hh
-        self.hh = out.astype(np.int16).tostring()
-        # super
-        super(DrumotronSamplePlayer, self).__init__(**kwargs)
-
     def process(self, data, **kwargs):
         # determine where we are
         hit = super(DrumotronSamplePlayer, self).process(data, **kwargs)
-        # play a sample
-        # if hit == '1':
-        #     self.stream.write(self.bd)
-        # elif hit == '2':
-        #     self.stream.write(self.sn)
-        # elif hit == '3':
-        #     self.stream.write(self.hh)
+        if hit:
+            # init sound with 0s
+            sound = np.zeros(self.chunk_size)
+            # add whichever drums should play (simultaneously)
+            if hit & 1 == 1:
+                sound += self.bd
+            if hit & 2 == 2:
+                sound += self.sn
+            if hit & 4 == 4:
+                sound += self.hh
+            # play sound(s)
+            self.stream.write(sound.astype(np.int16).tostring())
         # return data
         return data
 
