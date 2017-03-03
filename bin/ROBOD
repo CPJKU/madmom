@@ -457,8 +457,8 @@ def main():
                    version='ROBOD.2016')
     p.add_argument('--sonify', action='store_true', default=False,
                    help='also sonify the beat positions')
-    p.add_argument('--drumotron', action='store_true', default=False,
-                   help='play drums with DRUMOTRON')
+    p.add_argument('--drumotron', action='store', default=None, type=str,
+                   help='play drums with DRUMOTRON via this serial devive')
     # input/output options
     io_arguments(p, output_suffix=None, online=True)
     # signal processing arguments
@@ -517,7 +517,7 @@ def main():
     if args.drumotron:
         args.return_pattern = True
         args.bump_beat_number = True
-        drum_processor = DrumotronHardwareProcessor(
+        drum_processor = DrumotronHardwareProcessor(port=args.drumotron,
             patterns=PATTERNS_DRUMS, delay=3, **vars(args))
     elif args.sonify:
         args.return_pattern = True
