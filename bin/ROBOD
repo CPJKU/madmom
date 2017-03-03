@@ -21,23 +21,29 @@ distribute the different parts to multiple CPU cores.
 
 from __future__ import absolute_import, division, print_function
 
+import os
 import argparse
 import multiprocessing as mp
 from functools import partial
 
 import numpy as np
 
-from madmom.processors import (IOProcessor, io_arguments, SequentialProcessor,
-                               ParallelProcessor)
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.processors import (Processor, SequentialProcessor,
+                               ParallelProcessor, IOProcessor, io_arguments)
+from madmom.audio.signal import (Signal, SignalProcessor,
+                                 FramedSignalProcessor)
 from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
 from madmom.ml.nn import NeuralNetwork
-from madmom.models import BEATS_LSTM, PATTERNS_GUITAR
+from madmom.models import BEATS_LSTM, PATTERNS_GUITAR, PATTERNS_DRUMS
 from madmom.features.beats import DBNBeatTrackingProcessor
 from madmom.features.downbeats import BeatSyncProcessor, GMMBarProcessor
+
+
+SAMPLE_FOLDER = os.path.dirname(__file__)
+SAMPLE_FOLDER = '/Users/sb/src/CPJKU/madmom/tests/data/audio/'
 
 
 # adapted from madmom.processors.process_online
@@ -82,15 +88,15 @@ class InputProcess(mp.Process):
     ----------
     infile : Iterable
         Iterable to get the frames from, e.g. Stream or iter(FramedSignal).
-    pipe : Pipe
-        Pipe for beats & features.
+    send_pipe : Pipe
+        Pipe to send beats & features.
 
     """
 
-    def __init__(self, processor, pipe, **kwargs):
+    def __init__(self, processor, send_pipe, **kwargs):
         super(InputProcess, self).__init__()
         self.processor = processor
-        self.pipe = pipe
+        self.send_pipe = send_pipe
         self.kwargs = kwargs
 
     def run(self):
@@ -103,13 +109,114 @@ class InputProcess(mp.Process):
             try:
                 data = infile.next()
             except StopIteration:
-                self.pipe.send(None)
+                # send break signal
+                self.send_pipe.send((None, None))
                 break
             # process the Processor with the data
             process_args = {'reset': False}  # do not reset stateful processors
             data = self.processor(data, **process_args)
             # put them into the pipe
-            self.pipe.send(data)
+            self.send_pipe.send(data)
+
+
+class TrackingProcess(mp.Process):
+    """
+
+    Parameters
+    ----------
+    processor : Processor
+        Bar/pattern tracking processor.
+    recv_pipe : Pipe
+        Pipe to receive beats & features to be synced.
+    send_pipe : Pipe
+        Pipe to send tracked beats to (beat_time, beat_number, pattern).
+
+    """
+
+    def __init__(self, processor, recv_pipe, send_pipe, **kwargs):
+        super(TrackingProcess, self).__init__()
+        self.processor = processor
+        self.recv_sync = recv_pipe
+        self.send_beat = send_pipe
+
+    def run(self):
+        """Process beats & features and track bar and pattern."""
+        while True:
+            # get the data to be processed
+            data = self.recv_sync.recv()
+            # stop processing
+            if data == (None, None):
+                break
+            # process data, i.e. track beats
+            data = self.processor(data)
+            if data.any():
+                self.send_beat.send(data)
+
+
+class DrumProcess(mp.Process):
+    """
+
+    Parameters
+    ----------
+    processor : Processor
+        Drum control processor.
+    recv_feature : Pipe
+        Pipe to receive beats & features.
+    send_sync : Pipe
+        Pipe to send it to the syncing/tracking processor.
+    recv_beats : Pipe
+        Pipe to receive tracked bar/pattern.
+    send_output : Pipe
+        Pipe to send the final beats to.
+
+    """
+
+    def __init__(self, processor, recv_feature, send_sync, recv_pattern,
+                 send_output, **kwargs):
+        # process related stuff
+        super(DrumProcess, self).__init__()
+        self.processor = processor
+        self.recv_feature = recv_feature
+        self.send_sync = send_sync
+        self.recv_beats = recv_pattern
+        self.send_output = send_output
+        # save information
+        self.beat = None
+        self.beat_number = 0
+        self.pattern = None
+        self.interval = None
+
+    def run(self):
+        """Process pipe."""
+        while True:
+            # try to read beats from the beat_pipe
+            if self.recv_beats.poll():
+                beat_data = self.recv_beats.recv()
+                # FIXME: only take the first rwo, since we get 2D data
+                self.beat, self.beat_number, self.pattern = beat_data[0]
+            # get the features (blocking)
+            data = self.recv_feature.recv()
+            # immediately send the features to the GMM stuff
+            self.send_sync.send(data)
+            # stop processing
+            if data == (None, None):
+                # send break to output
+                self.send_output.send(None)
+                break
+            # see if it is a beat
+            beat, _ = data  # (beat, feature)
+            # send beat to output and play drums
+            if beat.any():
+                beat = np.append(beat, self.beat_number)
+                # send as 2D array
+                # FIXME: the beat numbers are 1 beat off, maybe move this back
+                #        to the tracking processor?!
+                self.send_output.send(np.array(beat, ndmin=2))
+                # play drums (only if we know which pattern to play)
+                # FIXME: simply play the kick (fake pattern)
+                if self.pattern:
+                    beat = np.append(beat, self.pattern)
+                    self.processor(beat)
 
 
 class OutputProcess(mp.Process):
@@ -119,30 +226,222 @@ class OutputProcess(mp.Process):
 
     Parameters
     ----------
-    pipe : Pipe
-        Pipe for beats & features.
+    recv_pipe : Pipe
+        Pipe to receive beats & features.
     outfile : file or file handle
         Where to put the results into.
 
     """
 
-    def __init__(self, processor, pipe, outfile):
+    def __init__(self, processor, recv_pipe, outfile, **kwargs):
         super(OutputProcess, self).__init__()
         self.processor = processor
-        self.pipe = pipe
+        self.recv_pipe = recv_pipe
         self.outfile = outfile
-        self.counter = 0
 
     def run(self):
-        """Process all tasks from the pipe."""
+        """Process beats & features."""
         while True:
-            self.counter += 1
             # get the data to be processed
-            data = self.pipe.recv()
+            data = self.recv_pipe.recv()
             if data is None:
                 break
-            # process the Processor with the data and output everything
+            # write to output
             self.processor(data, self.outfile)
+
+
+class DrumPatternProcessor(Processor):
+    """
+    Play drum pattern.
+
+    """
+
+    def __init__(self, patterns=PATTERNS_DRUMS, delay=0, quantization=4,
+                 **kwargs):
+        # load patterns
+        patterns = [dict(np.load(pf)) for pf in patterns]
+        # apply discretisation
+        for p in range(len(patterns)):
+            patterns[p]['hh'] = [int(np.round(float(hh) * quantization))
+                                 for hh in patterns[p]['hh']]
+            patterns[p]['sn'] = [int(np.round(float(sn) * quantization))
+                                 for sn in patterns[p]['sn']]
+            patterns[p]['bd'] = [int(np.round(float(bd) * quantization))
+                                 for bd in patterns[p]['bd']]
+        # save parameters
+        self.patterns = patterns
+        self.delay = delay
+        self.beats_per_bar = [int(p['num_beats']) for p in patterns]
+        # keep state
+        self.counter = 0
+        self.beat_counter = 0
+        self.last_beat = None
+        self.beat_number = None
+        self.pattern = None
+        # beat grid stuff
+        self.quantization = quantization
+        self.beat_grid = None
+        self.last_grid_position = None
+        self.last_played_position = None
+        # old stuff
+        self.interval = None
+        self.beat_frame_counter_int = None
+        self.beat_frame_counter_ext = None
+        # quantize beats to a grid
+
+    def process(self, data, **kwargs):
+        """
+        Play drums.
+
+        Parameters
+        ----------
+        data : tuple (beat_time, beat_number, pattern_id)
+
+        Returns
+        -------
+        hit : None or numpy array
+            Defines if and which drum to hit
+
+        """
+        # increase counter
+        self.counter += 1
+        # get data
+        # FIXME: works only frame by frame
+        data = data.flatten()
+        # FIXME: patterns / beats_per_bar must match to the GMM patterns
+        beat, beat_number, pattern = data.astype(int)
+        # default values
+        interval = beat_number = None
+        if data.any():
+            # determine beat interval in frames
+            if self.last_beat and self.beat_counter >= 2:
+                interval = self.counter - self.last_beat
+            # save last beat index
+            self.last_beat = self.counter
+            self.beat_counter += 1
+
+        # shortcut
+        is_beat = self.beat_number and interval
+
+        # rely on external beat information
+        if is_beat:
+            self.pattern = pattern
+            self.interval = interval
+            self.beat_number = beat_number
+            self.beat_frame_counter_int = self.delay
+            self.beat_frame_counter_ext = self.beat_frame_counter_int
+            # create bins to relate the frame counter to the beat grid
+            self.beat_grid = np.linspace(0, interval, self.quantization + 1)[:-1]
+        elif self.beat_frame_counter_int is None:
+            return np.empty((0, 2))
+        # start new bar
+        elif self.beat_frame_counter_int >= self.interval:
+            self.beat_frame_counter_int = 0
+            # increase beat counter
+            self.beat_number = int(self.beat_number % self.patterns[
+                self.pattern]['num_beats'] + 1)
+
+        # determine current grid position
+        pos = np.digitize(self.beat_frame_counter_int, self.beat_grid)
+        pos = int(pos - 1 + (self.beat_number - 1) * self.quantization)
+        current_grid_position = int(pos)
+
+        # determine return value
+        ret = 0
+        if self.last_grid_position != current_grid_position:
+            if current_grid_position in self.patterns[self.pattern]['bd']:
+                ret = 1
+            if current_grid_position in self.patterns[self.pattern]['sn']:
+                ret = 2
+            if current_grid_position in self.patterns[self.pattern]['hh']:
+                ret = 3
+        # update state variables
+        self.beat_frame_counter_int += 1
+        self.beat_frame_counter_ext += 1
+        self.last_grid_position = current_grid_position
+        # stop tracking if no beat has been observed for 2 beat periods
+        if self.beat_frame_counter_ext > 2 * self.interval:
+            self.beat_frame_counter_int = None
+        # and finally return it
+        return ret
+
+
+class DrumotronHardwareProcessor(DrumPatternProcessor):
+    """
+    Control the hardware via a serial port.
+
+    Parameters
+    ----------
+    port : str, optional
+        Default port is /dev/ttyACM0'
+    baudrate : int, optional
+        Default baudrate is 9600.
+
+    """
+
+    def __init__(self, port='/dev/ttyACM0', baudrate=9600, **kwargs):
+        import serial
+        self.serial = serial.Serial(port=port, baudrate=baudrate)
+        super(DrumotronHardwareProcessor, self).__init__(**kwargs)
+
+    def process(self, data, **kwargs):
+        # determine where we are
+        hit = super(DrumotronHardwareProcessor, self).process(data, **kwargs)
+        # output to the serial console
+        self.serial.write(str(hit))
+        # return data
+        return data
+
+
+class DrumotronSamplePlayer(DrumPatternProcessor):
+
+    def __init__(self, sample_folder=SAMPLE_FOLDER, **kwargs):
+        from os.path import join
+        import pyaudio
+        # load samples
+        bd = Signal(join(sample_folder, 'bd.wav'))
+        sn = Signal(join(sample_folder, 'sn.wav'))
+        hh = Signal(join(sample_folder, 'hh.wav'))
+        chunk_size = np.max([len(bd), len(sn), len(hh)])
+        # create optput stream
+        self.pa = pyaudio.PyAudio()
+        self.stream = self.pa.open(format=pyaudio.paInt16,
+                                   frames_per_buffer=chunk_size,
+                                   channels=1,
+                                   rate=kwargs.get('sample_rate'),
+                                   output=True)
+
+        # Note: the sound needs to be longer (otherwise it doesn't play)
+        out = np.zeros(chunk_size)
+        out[:len(bd)] = bd
+        self.bd = out.astype(np.int16).tostring()
+        out = np.zeros(chunk_size)
+        out[:len(sn)] = sn
+        # converting in int16
+        self.sn = out.astype(np.int16).tostring()
+        out = np.zeros(chunk_size)
+        out[:len(hh)] = hh
+        self.hh = out.astype(np.int16).tostring()
+        # super
+        super(DrumotronSamplePlayer, self).__init__(**kwargs)
+
+    def process(self, data, **kwargs):
+        # determine where we are
+        hit = super(DrumotronSamplePlayer, self).process(data, **kwargs)
+        # play a sample
+        # if hit == '1':
+        #     self.stream.write(self.bd)
+        # elif hit == '2':
+        #     self.stream.write(self.sn)
+        # elif hit == '3':
+        #     self.stream.write(self.hh)
+        # return data
+        return data
+
+    def stop(self):
+        self.stream.stop_stream()
+        self.stream.close()
+        self.pa.terminate()
 
 
 def main():
@@ -156,6 +455,10 @@ def main():
     # version
     p.add_argument('--version', action='version',
                    version='ROBOD.2016')
+    p.add_argument('--sonify', action='store_true', default=False,
+                   help='also sonify the beat positions')
+    p.add_argument('--drumotron', action='store_true', default=False,
+                   help='play drums with DRUMOTRON')
     # input/output options
     io_arguments(p, output_suffix=None, online=True)
     # signal processing arguments
@@ -209,12 +512,25 @@ def main():
 
     # sync the features to the beats
     beat_sync = BeatSyncProcessor(**vars(args))
-    # score them with a GMM
+
+    # sonify or play the drums
+    if args.drumotron:
+        args.return_pattern = True
+        args.bump_beat_number = True
+        drum_processor = DrumotronHardwareProcessor(
+            patterns=PATTERNS_DRUMS, delay=3, **vars(args))
+    elif args.sonify:
+        args.return_pattern = True
+        args.bump_beat_number = True
+        drum_processor = DrumotronSamplePlayer(**vars(args))
+
+    # infer downbeats and pattern with GMMs
+    # Note: make sure args.return_patterns is set if needed!
     gmm_bar_processor = GMMBarProcessor(pattern_files=PATTERNS_GUITAR,
                                         pattern_change_prob=0.001,
                                         **vars(args))
 
-    # output handler
+    # output writer
     if args.downbeats:
         # simply write the timestamps of the downbeats
         from madmom.utils import write_events as writer
@@ -223,16 +539,27 @@ def main():
         from madmom.features.notes import write_notes as writer
 
     # process with a single or multiple threads
-    if args.num_threads > 1:
+    if args.drumotron or args.sonify:
         # define processors for the separate processes
         input_processor = SequentialProcessor([sig_proc, beat_feat_processor])
-        output_processor = IOProcessor([beat_sync, gmm_bar_processor], writer)
-        # create a pipe to pass beats and features to the second process
-        recv, send = mp.Pipe()
-        # create working threads
-        processes = [InputProcess(input_processor, send, **vars(args)),
-                     OutputProcess(output_processor, recv, args.outfile)]
-        for p in processes:
+        tracking_processor = SequentialProcessor([beat_sync,
+                                                  gmm_bar_processor])
+        output_processor = IOProcessor(None, writer)
+        # create pipes to pass beats and features around
+        feat_recv, feat_send = mp.Pipe()
+        sync_recv, sync_send = mp.Pipe()
+        beat_recv, beat_send = mp.Pipe()
+        out_send, out_recv = mp.Pipe()
+        # create working processes
+        p1 = InputProcess(input_processor, feat_send, **vars(args))
+        # DrumProcess: recv_feature, send_sync, recv_beats, send_output
+        p2 = DrumProcess(drum_processor, feat_recv, sync_send, beat_recv,
+                         out_send, **vars(args))
+        p3 = TrackingProcess(tracking_processor, sync_recv, beat_send,
+                             **vars(args))
+        p4 = OutputProcess(output_processor, out_recv, args.outfile)
+        # start them
+        for p in [p1, p2, p3, p4]:
             p.daemon = False
             p.start()
     else:

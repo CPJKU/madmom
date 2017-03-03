@@ -418,8 +418,8 @@ class DBNBarTrackingProcessor(Processor):
 
     def __init__(self, beats_per_bar=[3, 4], pattern_change_prob=0.,
                  observation_model=RNNBeatTrackingObservationModel,
-                 observation_param=100, downbeats=False,
-                 out_processor=None, online=False, **kwargs):
+                 observation_param=100, downbeats=False, online=False,
+                 return_pattern=False, bump_beat_number=False, **kwargs):
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
@@ -450,10 +450,9 @@ class DBNBarTrackingProcessor(Processor):
             self.counter = -1  # init with -1 since we immedeatly increase it
             self.beat = np.empty((0, 2))  # [beat_time, beat_number]
             self.pattern = None
-            # Note: allow plugging of an output processor, since computing
-            #       the forward path takes too long on weak hardware (e.g.
-            #       Raspberry Pi) to operate in real-time
-            self.out_processor = out_processor
+        # additional options
+        self.return_pattern = return_pattern
+        self.bump_beat_number = bump_beat_number
 
     def process(self, data, **kwargs):
         """
@@ -480,33 +479,30 @@ class DBNBarTrackingProcessor(Processor):
         beat, activation = data
         # increase counter
         self.counter += 1
-        # infer beat numbers only at beat positions
-        if not beat.any():
-            # TODO: use self.beat
-            data = np.empty((0, 2))
-            # call output processor
-            if self.out_processor:
-                self.out_processor(data)
-            return data
-        # extrapolate beat counter TODO: move to out_processor
-        if self.pattern is not None:
-            beat_number = (self.beat[1] % self.beats_per_bar[self.pattern] + 1)
+        # infer beat number and pattern only if synced beat features are
+        # available
+        if activation.any():
+            fwd = self.hmm.forward(activation)
+            # use simply the most probable state
+            state = np.argmax(fwd)
+            # get the position inside the bar
+            position = self.st.state_positions[state]
+            # corresponding beat numbers (add 1 for natural counting)
+            beat_number = position.astype(int) + 1
+            # save the current pattern
+            pattern = self.st.state_patterns[state]
+            # bump beat number if needed
+            if self.bump_beat_number:
+                beat_number = (beat_number % self.beats_per_bar[pattern] + 1)
+            # create a beat [time, number]
+            beat = np.append(beat, beat_number)
+            # append pattern if needed
+            if self.return_pattern:
+                beat = np.append(beat, pattern)
+            # and return it
+            return np.array(beat, ndmin=2)
         else:
-            beat_number = None
-        # call the output processor before computing the forward path
-        if self.out_processor:
-            self.out_processor((self.counter, beat_number, self.pattern))
-        fwd = self.hmm.forward(activation)
-        # use simply the most probable state
-        state = np.argmax(fwd)
-        # get the position inside the bar
-        position = self.st.state_positions[state]
-        # the beat numbers are the counters + 1 at the transition points
-        beat_numbers = position.astype(int) + 1
-        # as we computed the last beat number, add 1 to get the current one
-        num_beats = self.beats_per_bar[self.st.state_patterns[state]]
-        beat_numbers = beat_numbers % num_beats + 1
-        return np.asarray(zip(beat, [beat_numbers]))
+            return np.empty((0, 3))
 
     def process_offline(self, data, **kwargs):
         # split data
@@ -579,8 +575,7 @@ class GMMBarProcessor(Processor):
 
     """
     def __init__(self, pattern_files=None, pattern_change_prob=0.,
-                 downbeats=False, out_processor=None, online=False, fps=100,
-                 **kwargs):
+                 downbeats=False, online=False, fps=100, **kwargs):
         # load the patterns
         patterns = []
         for pattern_file in pattern_files:
@@ -605,8 +600,7 @@ class GMMBarProcessor(Processor):
         self.dbn_processor = DBNBarTrackingProcessor(
             observation_param=gmms, beats_per_bar=self.num_beats,
             observation_model=observation_model, online=online,
-            pattern_change_prob=pattern_change_prob,
-            out_processor=out_processor, **kwargs)
+            pattern_change_prob=pattern_change_prob, **kwargs)
 
     def process(self, data, **kwargs):
         """
