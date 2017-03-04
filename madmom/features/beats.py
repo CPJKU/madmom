@@ -970,6 +970,7 @@ class DBNBeatTrackingProcessor(Processor):
             self.strength = 0
             self.last_beat = 0
             self.tempo = 0
+            self.hack = kwargs.get('hack', None)
 
     def reset(self):
         """Reset the DBNBeatTrackingProcessor."""
@@ -1100,6 +1101,8 @@ class DBNBeatTrackingProcessor(Processor):
         beats = self.om.pointers[states] == 1
         # the positions inside the beats
         positions = self.st.state_positions[states]
+        if self.hack:
+            beats = positions < self.hack
         # visualisation stuff (only when called frame by frame)
         if self.visualize and len(activations) == 1:
             beat_length = 80

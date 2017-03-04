@@ -419,7 +419,7 @@ class DBNBarTrackingProcessor(Processor):
     def __init__(self, beats_per_bar=[3, 4], pattern_change_prob=0.,
                  observation_model=RNNBeatTrackingObservationModel,
                  observation_param=100, downbeats=False, online=False,
-                 return_pattern=False, bump_beat_number=False, **kwargs):
+                 return_pattern=False, **kwargs):
         from madmom.ml.hmm import HiddenMarkovModel as Hmm
         from .beats_hmm import (BarStateSpace, BarTransitionModel,
                                 MultiPatternStateSpace,
@@ -452,7 +452,6 @@ class DBNBarTrackingProcessor(Processor):
             self.pattern = None
         # additional options
         self.return_pattern = return_pattern
-        self.bump_beat_number = bump_beat_number
 
     def process(self, data, **kwargs):
         """
@@ -474,7 +473,7 @@ class DBNBarTrackingProcessor(Processor):
         else:
             return self.process_offline(data, **kwargs)
 
-    def process_online(self, data, **kwargs):
+    def process_online(self, data, reset=True, **kwargs):
         # split data
         beat, activation = data
         # increase counter
@@ -482,7 +481,7 @@ class DBNBarTrackingProcessor(Processor):
         # infer beat number and pattern only if synced beat features are
         # available
         if activation.any():
-            fwd = self.hmm.forward(activation)
+            fwd = self.hmm.forward(activation, reset=reset)
             # use simply the most probable state
             state = np.argmax(fwd)
             # get the position inside the bar
@@ -491,9 +490,9 @@ class DBNBarTrackingProcessor(Processor):
             beat_number = position.astype(int) + 1
             # save the current pattern
             pattern = self.st.state_patterns[state]
-            # bump beat number if needed
-            if self.bump_beat_number:
-                beat_number = (beat_number % self.beats_per_bar[pattern] + 1)
+            # since we analysed the last beat interval and made the beat
+            # number prediction based on this, we have to bump the beat number
+            beat_number = (beat_number % self.beats_per_bar[pattern] + 1)
             # create a beat [time, number]
             beat = np.append(beat, beat_number)
             # append pattern if needed
