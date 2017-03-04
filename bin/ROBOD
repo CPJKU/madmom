@@ -36,7 +36,7 @@ from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor)
-from madmom.ml.nn import NeuralNetwork
+from madmom.ml.nn import NeuralNetworkEnsemble
 from madmom.models import BEATS_LSTM, PATTERNS_GUITAR, PATTERNS_DRUMS
 from madmom.features.beats import DBNBeatTrackingProcessor
 from madmom.features.downbeats import BeatSyncProcessor, GMMBarProcessor
@@ -490,6 +490,8 @@ def main():
     io_arguments(p, output_suffix=None, online=True)
     # signal processing arguments
     SignalProcessor.add_arguments(p, sample_rate=44100, gain=0)
+    # neural network arguments
+    NeuralNetworkEnsemble.add_arguments(p, nn_files=None)
     # tracking arguments
     DBNBeatTrackingProcessor.add_arguments(p, min_bpm=70, max_bpm=150)
     GMMBarProcessor.add_arguments(p)
@@ -520,7 +522,8 @@ def main():
 
     # beat tracking processor
     # FIXME: add option to use multiple network models
-    nn = NeuralNetwork.load(BEATS_LSTM[1])
+    # nn = NeuralNetwork.load(BEATS_LSTM[1])
+    nn = NeuralNetworkEnsemble.load(BEATS_LSTM)
     dbn = DBNBeatTrackingProcessor(**vars(args))
     beat_processor = SequentialProcessor((nn, dbn))
 
