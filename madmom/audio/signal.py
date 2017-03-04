@@ -1496,7 +1496,7 @@ class Stream(object):
         if record_fln is not None:
             self.record = True
             # recording length in seconds
-            duration = 5
+            duration = 20
             self.filename = record_fln
             self.frames = np.zeros((duration * self.sample_rate))
         else:

@@ -84,8 +84,8 @@ def main():
     spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
     diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True,
                                           stack_diffs=np.hstack)
-    # nn = NeuralNetworkEnsemble.load(BEATS_LSTM)
-    nn = NeuralNetwork.load(BEATS_LSTM[3])
+    nn = NeuralNetworkEnsemble.load(BEATS_LSTM)
+    # nn = NeuralNetwork.load(BEATS_LSTM[3])
     dbn = DBNBeatTrackingProcessor(**vars(args))
     beat_processor = SequentialProcessor((filt, spec, diff, nn, dbn))
 
