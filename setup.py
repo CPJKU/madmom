@@ -37,7 +37,7 @@ scripts = glob.glob('bin/*')
 # define the models to be included in the PyPI package
 package_data = ['models/LICENSE',
                 'models/README.rst',
-                'models/beats/2015/*',
+                'models/beats/201[56]/*',
                 'models/chords/*/*',
                 'models/chroma/*/*',
                 'models/downbeats/*/*',
