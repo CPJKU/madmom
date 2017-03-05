@@ -1035,8 +1035,8 @@ class DBNBeatTrackingProcessor(Processor):
         # the position inside the beat
         position = self.st.state_positions[state]
         # decide if it is a beat
-        # beat = (position < 0.2)
-        beat = self.om.pointers[state] == 1
+        beat = (position < 0.2)
+        # beat = self.om.pointers[state] == 1
 
         # visualisation stuff
         if self.visualize:

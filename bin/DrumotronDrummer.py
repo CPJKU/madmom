@@ -90,9 +90,6 @@ def main():
     beat_processor = SequentialProcessor((filt, spec, diff, nn, dbn))
 
     # gmm feature
-    filt = FilteredSpectrogramProcessor(num_bands=12, fmin=60,
-                                        fmax=17000, norm_filters=True)
-    spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
     diff = SpectrogramDifferenceProcessor(diff_ratio=0.5, positive_diffs=True)
     agg = partial(np.sum, axis=1)
     gmm_feat_processor = SequentialProcessor((filt, spec, diff, agg))

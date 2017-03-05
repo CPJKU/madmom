@@ -751,7 +751,7 @@ def process_online(processor, infile, outfile, **kwargs):
         fps = kwargs.get('fps', FPS)
         origin = kwargs.get('origin', 'online')
         stream = FramedSignal(infile, frame_size=frame_size, hop_size=hop_size,
-                              fps=fps, origin=origin, num_frames=None)
+                              fps=fps, origin='online', num_frames=None)
     # process all frames with the given processor
     for frame in stream:
         if isinstance(processor, IOProcessor):
