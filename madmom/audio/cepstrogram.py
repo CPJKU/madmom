@@ -9,6 +9,7 @@ This module contains all cepstrogram related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import warnings
 import numpy as np
 from scipy.fftpack import dct
 
@@ -53,8 +54,6 @@ class Cepstrogram(np.ndarray):
         obj = np.asarray(data).view(cls)
         # save additional attributes
         obj.spectrogram = spectrogram
-        # TODO: what are the frequencies of the bins?
-        # obj.bin_frequencies = ???
         obj.transform = transform
         # return the object
         return obj
@@ -64,7 +63,6 @@ class Cepstrogram(np.ndarray):
             return
         # set default values here, also needed for views
         self.spectrogram = getattr(obj, 'spectrogram', None)
-        self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
         self.transform = getattr(obj, 'transform', None)
 
     @property
@@ -93,7 +91,7 @@ class CepstrogramProcessor(Processor):
         # pylint: disable=unused-argument
         self.transform = transform
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Return a Cepstrogram of the given data.
 
@@ -101,6 +99,8 @@ class CepstrogramProcessor(Processor):
         ----------
         data : numpy array
             Data to be processed (usually a spectrogram).
+        kwargs : dict
+            Keyword arguments passed to :class:`Cepstrogram`.
 
         Returns
         -------
@@ -108,7 +108,11 @@ class CepstrogramProcessor(Processor):
             Cepstrogram.
 
         """
-        return Cepstrogram(data, transform=self.transform)
+        # update arguments passed to Cepstrogram
+        args = dict(transform=self.transform)
+        args.update(kwargs)
+        # instantiate and return Cepstrogram
+        return Cepstrogram(data, **args)
 
 
 MFCC_BANDS = 30
@@ -116,7 +120,7 @@ MFCC_FMIN = 40.
 MFCC_FMAX = 15000.
 MFCC_NORM_FILTERS = True
 MFCC_MUL = 1.
-MFCC_ADD = 0.
+MFCC_ADD = np.spacing(1)
 
 
 class MFCC(Cepstrogram):
@@ -127,8 +131,6 @@ class MFCC(Cepstrogram):
     ----------
     spectrogram : :class:`.audio.spectrogram.Spectrogram` instance
         Spectrogram.
-    transform : numpy ufunc, optional
-        Transformation applied to the `spectrogram`.
     filterbank : :class:`.audio.filters.Filterbank` type or instance, optional
         Filterbank used to filter the `spectrogram`; if a
         :class:`.audio.filters.Filterbank` type (i.e. class) is given
@@ -176,14 +178,14 @@ class MFCC(Cepstrogram):
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
 
-    def __init__(self, spectrogram, transform=dct, filterbank=MelFilterbank,
+    def __init__(self, spectrogram, filterbank=MelFilterbank,
                  num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                  norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
                  **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, spectrogram, transform=dct, filterbank=MelFilterbank,
+    def __new__(cls, spectrogram, filterbank=MelFilterbank,
                 num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                 norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
                 **kwargs):
@@ -193,15 +195,6 @@ class MFCC(Cepstrogram):
         if not isinstance(spectrogram, Spectrogram):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
-
-        # recalculate the spec if it is filtered or scaled already
-        if (spectrogram.filterbank is not None or
-                spectrogram.mul is not None or
-                spectrogram.add is not None):
-            import warnings
-            warnings.warn('Spectrogram was filtered or scaled already, redo '
-                          'calculation!')
-            spectrogram = Spectrogram(spectrogram.stft)
 
         # instantiate a Filterbank if needed
         if issubclass(filterbank, Filterbank):
@@ -217,12 +210,11 @@ class MFCC(Cepstrogram):
         data = np.dot(spectrogram, filterbank)
         # logarithmically scale the magnitudes
         np.log10(mul * data + add, out=data)
-        # apply the transformation
-        data = transform(data)
+        # apply DCT
+        data = dct(data)
         # cast as MFCC
         obj = np.asarray(data).view(cls)
         # save additional attributes
-        obj.transform = transform
         obj.spectrogram = spectrogram
         obj.filterbank = filterbank
         obj.mul = mul
@@ -268,7 +260,7 @@ class MFCCProcessor(Processor):
 
     def __init__(self, num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                  norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
-                 transform=dct, **kwargs):
+                 **kwargs):
         # pylint: disable=unused-argument
         self.num_bands = num_bands
         self.fmin = fmin
@@ -276,16 +268,19 @@ class MFCCProcessor(Processor):
         self.norm_filters = norm_filters
         self.mul = mul
         self.add = add
-        self.transform = transform
+        # TODO: add filterbank argument to the processor?
+        self.filterbank = None  # needed for caching
 
-    def process(self, data):
+    def process(self, data, **kwargs):
         """
         Process the data and return the MFCCs of it.
 
         Parameters
         ----------
         data : numpy array
-            Data to be processed (usually a spectrogram).
+            Data to be processed (a spectrogram).
+        kwargs : dict
+            Keyword arguments passed to :class:`MFCC`.
 
         Returns
         -------
@@ -293,6 +288,15 @@ class MFCCProcessor(Processor):
             MFCCs of the data.
 
         """
-        return MFCC(data, num_bands=self.num_bands, fmin=self.fmin,
-                    fmax=self.fmax, norm_filters=self.norm_filters,
-                    mul=self.mul, add=self.add)
+        # update arguments passed to MFCCs
+        # TODO: if these arguments change, the filterbank needs to be discarded
+        args = dict(num_bands=self.num_bands, fmin=self.fmin, fmax=self.fmax,
+                    norm_filters=self.norm_filters, mul=self.mul, add=self.add,
+                    filterbank=self.filterbank)
+        args.update(kwargs)
+        # instantiate MFCCs
+        data = MFCC(data, **args)
+        # cache the filterbank
+        self.filterbank = data.filterbank
+        # return MFCCs
+        return data
