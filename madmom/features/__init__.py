@@ -22,7 +22,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
+from ..processors import Processor
 
 
 class Activations(np.ndarray):
@@ -275,16 +275,16 @@ class ActivationsProcessor(Processor):
 
 
 # finally import the submodules
-from . import onsets, beats, notes, tempo, chords
+from . import beats, chords, downbeats, notes, onsets, tempo
 
 # import often used classes
 from .beats import (BeatDetectionProcessor, BeatTrackingProcessor,
                     CRFBeatDetectionProcessor, DBNBeatTrackingProcessor,
-                    DBNDownBeatTrackingProcessor, MultiModelSelectionProcessor,
-                    PatternTrackingProcessor, RNNBeatProcessor,
-                    RNNDownBeatProcessor)
+                    MultiModelSelectionProcessor, RNNBeatProcessor)
 from .chords import (CNNChordFeatureProcessor, CRFChordRecognitionProcessor,
                      DeepChromaChordRecognitionProcessor)
+from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
+                        PatternTrackingProcessor)
 from .notes import RNNPianoNoteProcessor
 from .onsets import (CNNOnsetProcessor, PeakPickingProcessor,
                      RNNOnsetProcessor, SpectralOnsetProcessor)

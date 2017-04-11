@@ -17,7 +17,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       SpectrogramDifferenceProcessor,
                                       MultiBandSpectrogramProcessor)
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import PatternTrackingProcessor
+from madmom.features.downbeats import PatternTrackingProcessor
 from madmom.models import PATTERNS_BALLROOM
 
 

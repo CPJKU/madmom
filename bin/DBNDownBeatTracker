@@ -12,8 +12,8 @@ import argparse
 from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
-from madmom.features.beats import (RNNDownBeatProcessor,
-                                   DBNDownBeatTrackingProcessor)
+from madmom.features.downbeats import (RNNDownBeatProcessor,
+                                       DBNDownBeatTrackingProcessor)
 
 
 def main():
