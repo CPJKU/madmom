@@ -149,7 +149,7 @@ class RecurrentLayer(FeedForwardLayer):
 
         """
         # reset previous time step to initial value
-        self._prev = init or self.init
+        self._prev = init if init is not None else self.init
 
     def activate(self, data, reset=True):
         """
@@ -396,8 +396,8 @@ class LSTMLayer(RecurrentLayer):
 
         """
         # reset previous time step and state to initial value
-        self._prev = init or self.init
-        self._state = cell_init or self.cell_init
+        self._prev = init if init is not None else self.init
+        self._state = cell_init if cell_init is not None else self.cell_init
 
     def activate(self, data, reset=True):
         """
