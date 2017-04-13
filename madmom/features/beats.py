@@ -26,6 +26,12 @@ class RNNBeatProcessor(SequentialProcessor):
     ----------
     post_processor : Processor, optional
         Post-processor, default is to average the predictions.
+    online : bool, optional
+        Use signal processing parameters and RNN models suitable for online
+        mode.
+    nn_files : list, optional
+        List with trained RNN model files. Per default ('None'), an ensemble
+        of networks will be used.
 
     References
     ----------
@@ -46,6 +52,18 @@ class RNNBeatProcessor(SequentialProcessor):
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
     array([ 0.00479,  0.00603,  0.00927,  0.01419,  0.02342, ...,
             0.00411,  0.00517,  0.00757,  0.01289,  0.02725], dtype=float32)
+
+    For online processing, `online` must be set to 'True'. If processing power
+    is limited, fewer number of RNN models can be defined via `nn_files`. The
+    audio signal is then processed frame by frame.
+
+    >>> from madmom.models import BEATS_LSTM
+    >>> proc = RNNBeatProcessor(online=True, nn_files=[BEATS_LSTM[0]])
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.RNNBeatProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
+    array([ 0.03887,  0.02619,  0.00747,  0.00218,  0.00178,  ...,
+            0.00254,  0.00463,  0.00947,  0.02192,  0.04825], dtype=float32)
 
     """
 
@@ -889,6 +907,8 @@ class DBNBeatTrackingProcessor(Processor):
         activation function).
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Use the forward algorithm (instead of Viterbi) to decode the beats.
 
     Notes
     -----
