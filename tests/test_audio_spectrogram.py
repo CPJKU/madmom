@@ -70,57 +70,6 @@ class TestSpecFunction(unittest.TestCase):
         self.assertTrue(np.allclose(np.abs(data), spec(data)))
 
 
-class TestAdaptiveWhiteningFunction(unittest.TestCase):
-
-    def test_errors(self):
-        with self.assertRaises(NotImplementedError):
-            adaptive_whitening(np.random.rand(10))
-
-
-class TestStatisticalSpectrumDescriptorsFunction(unittest.TestCase):
-
-    def test_types(self):
-        result = statistical_spectrum_descriptors(np.random.rand(10))
-        self.assertIsInstance(result, dict)
-        self.assertTrue(result['mean'].dtype == np.float)
-        self.assertTrue(result['median'].dtype == np.float)
-        self.assertTrue(result['variance'].dtype == np.float)
-        self.assertTrue(type(result['skewness']) == float)
-        self.assertTrue(type(result['kurtosis']) == float)
-        self.assertTrue(result['min'].dtype == np.float)
-        self.assertTrue(result['max'].dtype == np.float)
-        result = statistical_spectrum_descriptors(np.random.rand(10, 2))
-        self.assertIsInstance(result, dict)
-        self.assertTrue(result['mean'].dtype == np.float)
-        self.assertTrue(result['median'].dtype == np.float)
-        self.assertTrue(result['variance'].dtype == np.float)
-        self.assertTrue(result['skewness'].dtype == np.float)
-        self.assertTrue(result['kurtosis'].dtype == np.float)
-        self.assertTrue(result['min'].dtype == np.float)
-        self.assertTrue(result['max'].dtype == np.float)
-
-    def test_values(self):
-        from scipy.stats import skew, kurtosis
-        data = np.random.rand(10)
-        result = statistical_spectrum_descriptors(data)
-        self.assertTrue(np.allclose(result['mean'], np.mean(data, axis=0)))
-        self.assertTrue(np.allclose(result['median'], np.median(data, axis=0)))
-        self.assertTrue(np.allclose(result['variance'], np.var(data, axis=0)))
-        self.assertTrue(np.allclose(result['skewness'], skew(data)))
-        self.assertTrue(np.allclose(result['kurtosis'], kurtosis(data)))
-        self.assertTrue(np.allclose(result['min'], np.min(data, axis=0)))
-        self.assertTrue(np.allclose(result['max'], np.max(data, axis=0)))
-        data = np.random.rand(10, 2)
-        result = statistical_spectrum_descriptors(data)
-        self.assertTrue(np.allclose(result['mean'], np.mean(data, axis=0)))
-        self.assertTrue(np.allclose(result['median'], np.median(data, axis=0)))
-        self.assertTrue(np.allclose(result['variance'], np.var(data, axis=0)))
-        self.assertTrue(np.allclose(result['skewness'], skew(data)))
-        self.assertTrue(np.allclose(result['kurtosis'], kurtosis(data)))
-        self.assertTrue(np.allclose(result['min'], np.min(data, axis=0)))
-        self.assertTrue(np.allclose(result['max'], np.max(data, axis=0)))
-
-
 class TestSpectrogramClass(unittest.TestCase):
 
     def test_types(self):
@@ -232,14 +181,6 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
                                     [8.42887115, 17.98174477, 19.50165367,
                                      6.48194313, 2.96991181, 4.06280804]))
         self.assertTrue(result.shape == (281, 40))
-        # with Bark filterbank
-        result = FilteredSpectrogram(sample_file,
-                                     filterbank=BarkFilterbank,
-                                     num_bands='normal')
-        self.assertTrue(np.allclose(result[0, :6],
-                                    [16.42251968, 17.36715126, 2.81979132,
-                                     4.27050114, 3.08699131, 1.50553513]))
-        self.assertTrue(result.shape == (281, 23))
 
     def test_from_spec(self):
         spec = Spectrogram(AUDIO_PATH + '/sample.wav')
