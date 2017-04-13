@@ -1,8 +1,8 @@
 Release Notes
 =============
 
-Version 0.15.dev0
------------------
+Version 0.15 (release date: 2017-04-25)
+---------------------------------------
 
 New features:
 
@@ -17,7 +17,7 @@ Bug fixes:
 * Fix tempo handling of multi-track MIDI files (#219)
 * Fix error loading unicode filenames (#223)
 * Fix ffmpeg unicode filename handling (#236)
-* Fix smoothing for peak_picking (#247)
+* Fix smoothing for `peak_picking` (#247)
 * Fix combining onsets/notes (#255)
 
 API relevant changes:
