@@ -474,7 +474,7 @@ class Filter(np.ndarray):
     @classmethod
     def filters(cls, bins, norm, **kwargs):
         """
-        Create a list with filters for the the given bins.
+        Create a list with filters for the given bins.
 
         Parameters
         ----------

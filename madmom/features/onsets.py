@@ -123,7 +123,7 @@ def high_frequency_content(spectrogram):
 
     """
     # HFC emphasizes high frequencies by weighting the magnitude spectrogram
-    # bins by the their respective "number" (starting at low frequencies)
+    # bins by their respective "number" (starting at low frequencies)
     hfc = spectrogram * np.arange(spectrogram.num_bins)
     return np.asarray(np.mean(hfc, axis=1))
 
