@@ -332,6 +332,7 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
             pj(DETECTIONS_PATH, "sample.dbn_beat_tracker.txt"))
+        self.online_results = [0.47, 0.79, 1.48, 2.16, 2.5]
 
     def test_help(self):
         self.assertTrue(run_help(self.bin))
@@ -363,6 +364,15 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
         run_program([self.bin, 'single', sample_file, '-o', tmp_result])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_online(self):
+        run_program([self.bin, 'online', sample_file, '-o', tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.online_results))
+        run_program([self.bin, 'single', '--online', sample_file, '-o',
+                     tmp_result])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.online_results))
 
 
 class TestDBNDownBeatTrackerProgram(unittest.TestCase):

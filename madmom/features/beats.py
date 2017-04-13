@@ -9,6 +9,7 @@ This module contains beat tracking related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import numpy as np
 
 from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
@@ -25,6 +26,12 @@ class RNNBeatProcessor(SequentialProcessor):
     ----------
     post_processor : Processor, optional
         Post-processor, default is to average the predictions.
+    online : bool, optional
+        Use signal processing parameters and RNN models suitable for online
+        mode.
+    nn_files : list, optional
+        List with trained RNN model files. Per default ('None'), an ensemble
+        of networks will be used.
 
     References
     ----------
@@ -46,9 +53,22 @@ class RNNBeatProcessor(SequentialProcessor):
     array([ 0.00479,  0.00603,  0.00927,  0.01419,  0.02342, ...,
             0.00411,  0.00517,  0.00757,  0.01289,  0.02725], dtype=float32)
 
+    For online processing, `online` must be set to 'True'. If processing power
+    is limited, fewer number of RNN models can be defined via `nn_files`. The
+    audio signal is then processed frame by frame.
+
+    >>> from madmom.models import BEATS_LSTM
+    >>> proc = RNNBeatProcessor(online=True, nn_files=[BEATS_LSTM[0]])
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.beats.RNNBeatProcessor object at 0x...>
+    >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
+    array([ 0.03887,  0.02619,  0.00747,  0.00218,  0.00178,  ...,
+            0.00254,  0.00463,  0.00947,  0.02192,  0.04825], dtype=float32)
+
     """
 
-    def __init__(self, post_processor=average_predictions, **kwargs):
+    def __init__(self, post_processor=average_predictions, online=False,
+                 nn_files=None, **kwargs):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
@@ -56,17 +76,27 @@ class RNNBeatProcessor(SequentialProcessor):
             FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
             SpectrogramDifferenceProcessor)
         from ..ml.nn import NeuralNetworkEnsemble
-        from ..models import BEATS_BLSTM
-
+        from ..models import BEATS_LSTM, BEATS_BLSTM
+        # choose the appropriate models and set frame sizes accordingly
+        if online:
+            if nn_files is None:
+                nn_files = BEATS_LSTM
+            frame_sizes = [2048]
+            num_bands = 12
+        else:
+            if nn_files is None:
+                nn_files = BEATS_BLSTM
+            frame_sizes = [1024, 2048, 4096]
+            num_bands = 6
         # define pre-processing chain
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
-        for frame_size in [1024, 2048, 4096]:
-            frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
+        for frame_size in frame_sizes:
+            frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
             stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-            filt = FilteredSpectrogramProcessor(
-                num_bands=6, fmin=30, fmax=17000, norm_filters=True)
+            filt = FilteredSpectrogramProcessor(num_bands=num_bands, fmin=30,
+                                                fmax=17000, norm_filters=True)
             spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
             diff = SpectrogramDifferenceProcessor(
                 diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
@@ -74,12 +104,10 @@ class RNNBeatProcessor(SequentialProcessor):
             multi.append(SequentialProcessor((frames, stft, filt, spec, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
-
         # process the pre-processed signal with a NN ensemble and the given
         # post_processor
-        nn = NeuralNetworkEnsemble.load(BEATS_BLSTM,
+        nn = NeuralNetworkEnsemble.load(nn_files,
                                         ensemble_fn=post_processor, **kwargs)
-
         # instantiate a SequentialProcessor
         super(RNNBeatProcessor, self).__init__((pre_processor, nn))
 
@@ -238,8 +266,6 @@ class MultiModelSelectionProcessor(Processor):
         list of given predictions.
 
         """
-        from ..ml.nn import average_predictions
-
         # TODO: right now we only have 1D predictions, what to do with
         #       multi-dim?
         num_refs = self.num_ref_predictions
@@ -302,7 +328,6 @@ def detect_beats(activations, interval, look_aside=0.2):
 
     """
     # TODO: make this faster!
-    import sys
     sys.setrecursionlimit(len(activations))
     # always look at least 1 frame to each side
     frames_look_aside = max(1, int(interval * look_aside))
@@ -882,6 +907,8 @@ class DBNBeatTrackingProcessor(Processor):
         activation function).
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Use the forward algorithm (instead of Viterbi) to decode the beats.
 
     Notes
     -----
@@ -929,7 +956,7 @@ class DBNBeatTrackingProcessor(Processor):
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, num_tempi=NUM_TEMPI,
                  transition_lambda=TRANSITION_LAMBDA,
                  observation_lambda=OBSERVATION_LAMBDA, correct=CORRECT,
-                 threshold=THRESHOLD, fps=None, **kwargs):
+                 threshold=THRESHOLD, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
         from .beats_hmm import (BeatStateSpace as St,
@@ -951,10 +978,55 @@ class DBNBeatTrackingProcessor(Processor):
         self.correct = correct
         self.threshold = threshold
         self.fps = fps
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        # kepp state in online mode
+        self.online = online
+        # TODO: refactor the visualisation stuff
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
+            self.counter = 0
+            self.beat_counter = 0
+            self.strength = 0
+            self.last_beat = 0
+            self.tempo = 0
+
+    def reset(self):
+        """Reset the DBNBeatTrackingProcessor."""
+        # pylint: disable=attribute-defined-outside-init
+        # reset the HMM
+        self.hmm.reset()
+        # reset other variables
+        self.counter = 0
+        self.beat_counter = 0
+        self.strength = 0
+        self.last_beat = 0
+        self.tempo = 0
 
     def process(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
+
+        """
+        if self.online:
+            return self.process_forward(activations, **kwargs)
+        else:
+            return self.process_viterbi(activations, **kwargs)
+
+    def process_viterbi(self, activations, **kwargs):
+        """
+        Detect the beats in the given activation function with Viterbi
+        decoding.
 
         Parameters
         ----------
@@ -1015,6 +1087,84 @@ class DBNBeatTrackingProcessor(Processor):
             beats = beats[self.om.pointers[path[beats]] == 1]
         # convert the detected beats to seconds and return them
         return (beats + first) / float(self.fps)
+
+    def process_forward(self, activations, reset=True, **kwargs):
+        """
+        Detect the beats in the given activation function with the forward
+        algorithm.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation for a single frame.
+        reset : bool, optional
+            Reset the DBNBeatTrackingProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat position [seconds].
+
+        """
+        # make the activations a 1D array
+        activations = np.atleast_1d(activations)
+        # reset to initial state
+        if reset:
+            self.reset()
+        # use forward path to get best state
+        fwd = self.hmm.forward(activations, reset=reset)
+        # choose the best state for each step
+        states = np.argmax(fwd, axis=1)
+        # decide which time steps are beats
+        beats = self.om.pointers[states] == 1
+        # the positions inside the beats
+        positions = self.st.state_positions[states]
+        # visualisation stuff (only when called frame by frame)
+        if self.visualize and len(activations) == 1:
+            beat_length = 80
+            display = [' '] * beat_length
+            display[int(positions * beat_length)] = '*'
+            # activation strength indicator
+            strength_length = 10
+            self.strength = int(max(self.strength, activations * 10))
+            display.append('| ')
+            display.extend(['*'] * self.strength)
+            display.extend([' '] * (strength_length - self.strength))
+            # reduce the displayed strength every couple of frames
+            if self.counter % 5 == 0:
+                self.strength -= 1
+            # beat indicator
+            if beats:
+                self.beat_counter = 3
+            if self.beat_counter > 0:
+                display.append('| X ')
+            else:
+                display.append('|   ')
+            self.beat_counter -= 1
+            # display tempo
+            display.append('| %5.1f | ' % self.tempo)
+            sys.stderr.write('\r%s' % ''.join(display))
+            sys.stderr.flush()
+        # forward path often reports multiple beats close together, thus report
+        # only beats more than the minumum interval apart
+        beats_ = []
+        for frame in np.nonzero(beats)[0]:
+            cur_beat = (frame + self.counter) / float(self.fps)
+            next_beat = self.last_beat + 60. / self.max_bpm
+            # FIXME: this skips the first beat, but maybe this has a positive
+            #        effect on the overall beat tracking accuracy
+            if cur_beat >= next_beat:
+                # update tempo
+                self.tempo = 60. / (cur_beat - self.last_beat)
+                # update last beat
+                self.last_beat = cur_beat
+                # append to beats
+                beats_.append(cur_beat)
+        # increase counter
+        self.counter += len(activations)
+        # return beat(s)
+        return np.array(beats_)
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,

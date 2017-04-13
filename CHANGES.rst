@@ -8,6 +8,7 @@ New features:
 
 * Streaming mode allows framewise processing of live audio input (#185)
 * Exponential linear unit (ELU) activation function (#232)
+* `DBNBeatTracker` can operate on live audio signals (#238)
 * `OnsetDetectorLL` can operate on live audio signals (#256)
 
 Bug fixes:
