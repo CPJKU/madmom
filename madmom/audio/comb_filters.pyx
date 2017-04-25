@@ -120,16 +120,6 @@ def _feed_backward_comb_filter_1d(np.ndarray[np.float_t, ndim=1] signal,
     return y
 
 
-def feed_backward_comb_filter_1d(signal, tau, alpha):
-    """
-    `feed_backward_comb_filter_1d` is deprecated as of version 0.14 and will
-    be removed in version 0.15. Use `feed_backward_comb_filter` instead.
-
-    """
-    import warnings
-    raise warnings.warn(feed_backward_comb_filter_1d.__doc__)
-
-
 @cython.boundscheck(False)
 def _feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
                                   unsigned int tau, float alpha):
@@ -148,16 +138,6 @@ def _feed_backward_comb_filter_2d(np.ndarray[np.float_t, ndim=2] signal,
             y[n, d] += alpha * y[n - tau, d]
     # return
     return y
-
-
-def feed_backward_comb_filter_2d(signal, tau, alpha):
-    """
-    `feed_backward_comb_filter_2d` is deprecated as of version 0.14 and will
-    be removed in version 0.15. Use `feed_backward_comb_filter` instead.
-
-    """
-    import warnings
-    raise warnings.warn(feed_backward_comb_filter_2d.__doc__)
 
 
 # comb filter

@@ -43,7 +43,7 @@ def smooth_histogram(histogram, smooth):
     a smoothing kernel.
 
     """
-    # smooth only the the histogram bins, not the corresponding delays
+    # smooth only the histogram bins, not the corresponding delays
     return smooth_signal(histogram[0], smooth), histogram[1]
 
 
