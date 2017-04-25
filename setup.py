@@ -15,7 +15,7 @@ import glob
 import numpy as np
 
 # define version
-version = '0.15'
+version = '0.16.dev0'
 
 # define which extensions to compile
 include_dirs = [np.get_include()]
