@@ -10,6 +10,10 @@ This module contains all cepstrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
+
+import math
+from functools import partial
+
 import numpy as np
 from scipy.fftpack import dct
 
@@ -122,6 +126,19 @@ MFCC_NORM_FILTERS = True
 MFCC_MUL = 1.
 MFCC_ADD = np.spacing(1)
 MFCC_DCT_NORM = "ortho"
+MFCC_DELTA_FILTER = np.linspace(4,-4,9) / 60
+MFCC_DELTADELTA_FILTER = np.linspace(1,-1,3) / 2
+
+
+# https://stackoverflow.com/questions/3012421/python-memoising-deferred-lookup-property-decorator#3013910
+def lazyprop(fn):
+    attr_name = '_lazy_' + fn.__name__
+    @property
+    def _lazyprop(self):
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, fn(self))
+        return getattr(self, attr_name)
+    return _lazyprop
 
 
 class MFCC(Cepstrogram):
@@ -224,6 +241,32 @@ class MFCC(Cepstrogram):
         obj.add = add
         # return the object
         return obj
+
+    @staticmethod
+    def calc_deltas(data, delta_filter):
+        """
+        Applies the given filter to the data after automatically padding by replicating the first and last frame.
+        The length of the padding is calculated via ceil(len(delta_filter))
+        :param data: a numpy array with the data
+        :param delta_filter: a numpy array containing the filter
+        :return: a numpy array of the same shape as data, containing the deltas
+        """
+        # prepare vectorized convolve function (requires transposed matrices in our use case)
+        vconv = np.vectorize(partial(np.convolve, mode="same"), signature='(n),(m)->(k)')
+        # pad data by replicating the first and the last frame
+        k = int(math.ceil(len(delta_filter)/2))
+        padded = np.vstack((np.array([data[0],]*k), data, np.array([data[-1],]*k)))
+        # calculate the deltas for each coefficient
+        deltas = vconv(padded.transpose(), delta_filter)
+        return deltas.transpose()[k:-k]
+
+    @lazyprop
+    def deltas(self, delta_filter=MFCC_DELTA_FILTER):
+        return MFCC.calc_deltas(self, delta_filter)
+
+    @lazyprop
+    def deltadeltas(self, deltadelta_filter=MFCC_DELTADELTA_FILTER):
+        return MFCC.calc_deltas(self.deltas, deltadelta_filter)
 
     def __array_finalize__(self, obj):
         if obj is None:
