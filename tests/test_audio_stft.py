@@ -8,6 +8,7 @@ This file contains tests for the madmom.audio.stft module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+import sys
 from os.path import join as pj
 
 from . import AUDIO_PATH
@@ -85,6 +86,13 @@ class TestStftFunction(unittest.TestCase):
         res = [6. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j, 0. + 0.j]
         self.assertTrue(np.allclose(result[2], res))
 
+    def test_nyquist(self):
+        result = stft(sig_2d, window=None, include_nyquist=True)
+        self.assertTrue(result.shape == (3, 7))
+        # test only the last req bin
+        res = [3. + 0.j, 0. + 0.j, 6. + 0.j]
+        self.assertTrue(np.allclose(result[:, -1], res))
+
 
 # noinspection PyArgumentList,PyArgumentList,PyArgumentList
 class TestPhaseFunction(unittest.TestCase):
@@ -156,6 +164,7 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
         self.assertTrue(result.shape == (281, 1024))
         self.assertTrue(result.fft_size == 2048)
         self.assertTrue(result.circular_shift is False)
+        self.assertTrue(result.include_nyquist is False)
         self.assertTrue(np.allclose(result.window, np.hanning(2048)))
         self.assertTrue(np.allclose(result.fft_window,
                                     np.hanning(2048) / 32767))
@@ -190,6 +199,16 @@ class ShortTimeFourierTransformClass(unittest.TestCase):
                                     np.ones(2048, dtype=float) / scaling))
         scaled_result = ShortTimeFourierTransform(scaled_signal, window=None)
         self.assertTrue(scaled_result.fft_window is None)
+
+    def test_nyquist(self):
+        result = ShortTimeFourierTransform(sample_file, include_nyquist=True)
+        self.assertTrue(result.shape == (281, 1025))
+        self.assertTrue(result.fft_size == 2048)
+        self.assertTrue(result.circular_shift is False)
+        self.assertTrue(result.include_nyquist is True)
+        self.assertTrue(np.allclose(result.window, np.hanning(2048)))
+        self.assertTrue(np.allclose(result.bin_frequencies,
+                                    fft_frequencies(1025, 44100)))
 
 
 class ShortTimeFourierTransformProcessorClass(unittest.TestCase):
@@ -250,9 +269,10 @@ class PhaseClass(unittest.TestCase):
         self.assertIsInstance(result.local_group_delay(), LocalGroupDelay)
         self.assertIsInstance(result.lgd(), LocalGroupDelay)
 
+    @unittest.skipIf(sys.version_info < (3, 2), 'assertWarns needs Python 3.2')
     def test_warnings(self):
-        # TODO: write a test which catches the warning about the circular_shift
-        pass
+        with self.assertWarns(RuntimeWarning):
+            Phase(STFT(sample_file))
 
 
 class LocalGroupDelayClass(unittest.TestCase):
