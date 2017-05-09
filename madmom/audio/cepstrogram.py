@@ -9,7 +9,7 @@ This module contains all cepstrogram related functionality.
 
 from __future__ import absolute_import, division, print_function
 
-import warnings
+import inspect
 import numpy as np
 from scipy.fftpack import dct
 
@@ -197,7 +197,7 @@ class MFCC(Cepstrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
 
         # instantiate a Filterbank if needed
-        if issubclass(filterbank, Filterbank):
+        if inspect.isclass(filterbank) and issubclass(filterbank, Filterbank):
             # create a filterbank of the given type
             filterbank = filterbank(spectrogram.bin_frequencies,
                                     num_bands=num_bands, fmin=fmin, fmax=fmax,
