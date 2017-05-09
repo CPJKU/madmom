@@ -16,6 +16,7 @@ If you want to change this module and use it interactively, use pyximport.
 
 from __future__ import absolute_import, division, print_function
 
+import warnings
 import numpy as np
 
 cimport numpy as np
@@ -510,6 +511,14 @@ class HiddenMarkovModel(object):
         state = np.asarray(current_viterbi).argmax()
         # set the path's probability to that of the best state
         log_probability = current_viterbi[state]
+
+        # raise warning if the sequence has -inf probability
+        if np.isinf(log_probability):
+            warnings.warn('-inf log probability during Viterbi decoding '
+                          'cannot find a valid path', RuntimeWarning)
+            # return empty path sequence
+            return np.empty(0, dtype=np.uint32), log_probability
+
         # back tracked path, a.k.a. path sequence
         path = np.empty(num_observations, dtype=np.uint32)
         # track the path backwards, start with the last frame and do not
