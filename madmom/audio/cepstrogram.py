@@ -121,6 +121,7 @@ MFCC_FMAX = 15000.
 MFCC_NORM_FILTERS = True
 MFCC_MUL = 1.
 MFCC_ADD = np.spacing(1)
+MFCC_DCT_NORM = "ortho"
 
 
 class MFCC(Cepstrogram):
@@ -150,6 +151,8 @@ class MFCC(Cepstrogram):
         logarithm.
     add : float, optional
         Add this value before taking the logarithm of the magnitudes.
+    dct_norm : {None, 'ortho'}, optional
+        Normalization mode (see scipy.fftpack.dct). Default is 'ortho'.
     kwargs : dict
         If no :class:`.audio.spectrogram.Spectrogram` instance was given, one
         is instantiated and these keyword arguments are passed.
@@ -181,14 +184,14 @@ class MFCC(Cepstrogram):
     def __init__(self, spectrogram, filterbank=MelFilterbank,
                  num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                  norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
-                 **kwargs):
+                 dct_norm=MFCC_DCT_NORM, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, spectrogram, filterbank=MelFilterbank,
                 num_bands=MFCC_BANDS, fmin=MFCC_FMIN, fmax=MFCC_FMAX,
                 norm_filters=MFCC_NORM_FILTERS, mul=MFCC_MUL, add=MFCC_ADD,
-                **kwargs):
+                dct_norm=MFCC_DCT_NORM, **kwargs):
         # for signature documentation see __init__()
         from .filters import Filterbank
         # instantiate a Spectrogram if needed
@@ -210,8 +213,8 @@ class MFCC(Cepstrogram):
         data = np.dot(spectrogram, filterbank)
         # logarithmically scale the magnitudes
         np.log10(mul * data + add, out=data)
-        # apply DCT
-        data = dct(data)
+        # apply type 2 DCT
+        data = dct(data, norm=dct_norm)
         # cast as MFCC
         obj = np.asarray(data).view(cls)
         # save additional attributes
