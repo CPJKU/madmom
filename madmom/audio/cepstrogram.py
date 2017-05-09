@@ -212,7 +212,7 @@ class MFCC(Cepstrogram):
         # filter the spectrogram
         data = np.dot(spectrogram, filterbank)
         # logarithmically scale the magnitudes
-        np.log10(mul * data + add, out=data)
+        np.log(mul * data + add, out=data)
         # apply type 2 DCT
         data = dct(data, norm=dct_norm)
         # cast as MFCC
