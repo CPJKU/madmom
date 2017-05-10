@@ -10,16 +10,15 @@ This module contains all cepstrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
-
 import math
 from functools import partial
 
 import numpy as np
 from scipy.fftpack import dct
 
-from ..processors import Processor
 from .filters import MelFilterbank
 from .spectrogram import Spectrogram
+from ..processors import Processor
 
 
 class Cepstrogram(np.ndarray):
@@ -38,6 +37,7 @@ class Cepstrogram(np.ndarray):
         one is instantiated with these additional keyword arguments.
 
     """
+
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
@@ -126,18 +126,20 @@ MFCC_NORM_FILTERS = True
 MFCC_MUL = 1.
 MFCC_ADD = np.spacing(1)
 MFCC_DCT_NORM = "ortho"
-MFCC_DELTA_FILTER = np.linspace(4,-4,9) / 60
-MFCC_DELTADELTA_FILTER = np.linspace(1,-1,3) / 2
+MFCC_DELTA_FILTER = np.linspace(4, -4, 9) / 60
+MFCC_DELTADELTA_FILTER = np.linspace(1, -1, 3) / 2
 
 
 # https://stackoverflow.com/questions/3012421/python-memoising-deferred-lookup-property-decorator#3013910
 def lazyprop(fn):
     attr_name = '_lazy_' + fn.__name__
+
     @property
     def _lazyprop(self):
         if not hasattr(self, attr_name):
             setattr(self, attr_name, fn(self))
         return getattr(self, attr_name)
+
     return _lazyprop
 
 
@@ -194,6 +196,7 @@ class MFCC(Cepstrogram):
     5) The MFCCs are the amplitudes of the resulting spectrum
 
     """
+
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
@@ -245,17 +248,22 @@ class MFCC(Cepstrogram):
     @staticmethod
     def calc_deltas(data, delta_filter):
         """
-        Applies the given filter to the data after automatically padding by replicating the first and last frame.
-        The length of the padding is calculated via ceil(len(delta_filter))
+        Applies the given filter to the data after automatically padding by
+        replicating the first and last frame. The length of the padding is
+        calculated via ceil(len(delta_filter))
         :param data: a numpy array with the data
         :param delta_filter: a numpy array containing the filter
         :return: a numpy array of the same shape as data, containing the deltas
         """
-        # prepare vectorized convolve function (requires transposed matrices in our use case)
-        vconv = np.vectorize(partial(np.convolve, mode="same"), signature='(n),(m)->(k)')
+        # prepare vectorized convolve function
+        # (requires transposed matrices in our use case)
+        vconv = np.vectorize(partial(np.convolve, mode="same"),
+                             signature='(n),(m)->(k)')
         # pad data by replicating the first and the last frame
-        k = int(math.ceil(len(delta_filter)/2))
-        padded = np.vstack((np.array([data[0],]*k), data, np.array([data[-1],]*k)))
+        k = int(math.ceil(len(delta_filter) / 2))
+        padded = np.vstack((np.array([data[0], ] * k),
+                            data,
+                            np.array([data[-1], ] * k)))
         # calculate the deltas for each coefficient
         deltas = vconv(padded.transpose(), delta_filter)
         return deltas.transpose()[k:-k]
@@ -267,6 +275,32 @@ class MFCC(Cepstrogram):
     @lazyprop
     def deltadeltas(self, deltadelta_filter=MFCC_DELTADELTA_FILTER):
         return MFCC.calc_deltas(self.deltas, deltadelta_filter)
+
+    def calc_ml_deltas(self, delta_filter=MFCC_DELTA_FILTER,
+                       ddelta_filter=MFCC_DELTADELTA_FILTER):
+        """
+        Method to calculate deltas and deltadeltas the way it is done in the ML
+        voice toolbox.
+        :param delta_filter: filter to calculate deltas from self
+        :param ddelta_filter: filter to calculate deltadeltas from deltas
+        :return: a horizontally stacked np array consisting of
+                 [self, deltas, deltadeltas] --> shape (frames, coefficients*3)
+        """
+        padded_input = np.vstack(
+            (np.array([self[0], ] * 5), self, np.array([self[-1], ] * 5)))
+        deltashape = tuple(reversed(padded_input.shape))
+        flat_input = padded_input.transpose().flatten()
+
+        deltas = np.convolve(flat_input, delta_filter, mode="same") \
+                   .reshape(deltashape).T[4:-4, ]
+        deltadeltashape = tuple(reversed(deltas.shape))
+        flat_deltas = deltas.transpose().flatten()
+        deltas = deltas[1:-1, ]
+
+        deltadeltas = np.convolve(flat_deltas, ddelta_filter, mode="same") \
+                        .reshape(deltadeltashape).T[1:-1, ]
+
+        return np.hstack((self, deltas, deltadeltas))
 
     def __array_finalize__(self, obj):
         if obj is None:
