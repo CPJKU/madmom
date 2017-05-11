@@ -353,6 +353,7 @@ class TempoEstimationProcessor(Processor):
             relative strengths (second column).
 
         """
+        # smooth the activations
         act_smooth = int(round(self.fps * self.act_smooth))
         activations = smooth_signal(activations, act_smooth)
         # generate a histogram of beat intervals
@@ -391,7 +392,7 @@ class TempoEstimationProcessor(Processor):
         act_max = self.combfilter_matrix[-1] == np.max(self.combfilter_matrix[-1], axis=-1)
         # add to bins
         self.bins += self.combfilter_matrix[-1] * act_max
-        # The histogram needs a certain minimum length
+        # the histogram needs a certain minimum length
         if len(self.combfilter_matrix) < 50:
             return False
         histogram = smooth_signal(self.bins, self.hist_smooth), np.array(self.taus)
