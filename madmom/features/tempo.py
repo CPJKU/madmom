@@ -9,6 +9,7 @@ This module contains tempo related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import numpy as np
 
 from madmom.processors import Processor
@@ -288,7 +289,7 @@ class TempoEstimationProcessor(Processor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 fps=None, **kwargs):
+                 fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         # save variables
         self.method = method
@@ -298,6 +299,16 @@ class TempoEstimationProcessor(Processor):
         self.hist_smooth = hist_smooth
         self.alpha = alpha
         self.fps = fps
+        # keep state in online mode (currently only available for comb)
+        self.online = online and method == 'comb'
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
+            self.taus = list(range(self.min_interval, self.max_interval + 1))
+            self.combfilter_matrix = []
+            self.bins = np.zeros(len(self.taus))
+        elif online:
+            raise ValueError('online mode is currently only available for method=comb')
+
 
     @property
     def min_interval(self):
@@ -310,6 +321,23 @@ class TempoEstimationProcessor(Processor):
         return int(np.ceil(60. * self.fps / self.min_bpm))
 
     def process(self, activations, **kwargs):
+        """
+
+        Parameters
+        ----------
+        activations
+        kwargs
+
+        Returns
+        -------
+
+        """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_offline(activations, **kwargs)
+
+    def process_offline(self, activations, **kwargs):
         """
         Detect the tempi from the (beat) activations.
 
@@ -325,7 +353,6 @@ class TempoEstimationProcessor(Processor):
             relative strengths (second column).
 
         """
-        # smooth the activations
         act_smooth = int(round(self.fps * self.act_smooth))
         activations = smooth_signal(activations, act_smooth)
         # generate a histogram of beat intervals
@@ -334,6 +361,45 @@ class TempoEstimationProcessor(Processor):
         histogram = smooth_histogram(histogram, self.hist_smooth)
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
+
+    def process_online(self, activations, **kwargs):
+        """
+        Detect the tempi from the (beat) activations.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        # make the activations a 1D array
+        activations = np.atleast_1d(activations)
+        # copy the activation for every tau and append it to the comb matrix
+        copied_signal = np.full(len(self.taus), activations[0], dtype=np.float)
+        self.combfilter_matrix.append(copied_signal)
+        # online combfilter
+        for t in self.taus:
+            if len(self.combfilter_matrix) > t:
+                self.combfilter_matrix[-1][t - min(self.taus)] += self.alpha * self.combfilter_matrix[-1 - t][t - min(self.taus)]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == np.max(self.combfilter_matrix[-1], axis=-1)
+        # add to bins
+        self.bins += self.combfilter_matrix[-1] * act_max
+        # The histogram needs a certain minimum length
+        if len(self.combfilter_matrix) < 50:
+            return False
+        histogram = smooth_signal(self.bins, self.hist_smooth), np.array(self.taus)
+        tempi = detect_tempo(histogram, self.fps)
+        if self.visualize:
+            sys.stderr.write('\r%s' % ''.join(str(write_tempo(tempi))))
+            sys.stderr.flush()
+        return tempi
 
     def interval_histogram(self, activations):
         """
@@ -465,7 +531,7 @@ class TempoEstimationProcessor(Processor):
 
 
 # helper function for writing the detected tempi to file
-def write_tempo(tempi, filename, mirex=False):
+def write_tempo(tempi, filename=None, mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
@@ -474,8 +540,9 @@ def write_tempo(tempi, filename, mirex=False):
     tempi : numpy array
         Array with the detected tempi (first column) and their strengths
         (second column).
-    filename : str or file handle
+    filename : str or file handle, optional
         Output file.
+
     mirex : bool, optional
         Report the lower tempo first (as required by MIREX).
 
@@ -512,6 +579,7 @@ def write_tempo(tempi, filename, mirex=False):
     # format as a numpy array
     out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
+    if filename is not None:
+        np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
     # also return the tempi & strength
     return t1, t2, strength

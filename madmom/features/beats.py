@@ -980,7 +980,7 @@ class DBNBeatTrackingProcessor(Processor):
         self.fps = fps
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
-        # kepp state in online mode
+        # keep state in online mode
         self.online = online
         # TODO: refactor the visualisation stuff
         if self.online:
