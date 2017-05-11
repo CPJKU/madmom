@@ -303,7 +303,7 @@ class TempoEstimationProcessor(Processor):
         self.online = online and method == 'comb'
         if self.online:
             self.visualize = kwargs.get('verbose', False)
-            self.taus = list(range(self.min_interval, self.max_interval + 1))
+            self.taus = np.arange(self.min_interval, self.max_interval + 1)
             self.combfilter_matrix = []
             self.bins = np.zeros(len(self.taus))
         elif online:
