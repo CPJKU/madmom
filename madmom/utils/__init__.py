@@ -591,6 +591,35 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                                   dtype=signal.dtype)
 
 
+# taken from: https://stackoverflow.com/questions/3012421/
+def lazyprop(fn):
+    """
+    A decorator for a caching, lazily evaluated property. If a function is
+    decorated with @lazyprop, the original function of the resulting property
+    is only called on the first access. Afterwards the result which was
+    produced then is returned again.
+
+    Parameters
+    ----------
+    fn: Function
+        A function without argument which returns the value of the property
+
+    Returns
+    -------
+    property
+        A property which wraps the original one and caches it first result
+    """
+    attr_name = '_lazy_' + fn.__name__
+
+    @property
+    def _lazyprop(self):
+        if not hasattr(self, attr_name):
+            setattr(self, attr_name, fn(self))
+        return getattr(self, attr_name)
+
+    return _lazyprop
+
+
 # keep namespace clean
 del contextlib
 

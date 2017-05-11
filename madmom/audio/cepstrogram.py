@@ -19,6 +19,7 @@ from scipy.fftpack import dct
 from .filters import MelFilterbank
 from .spectrogram import Spectrogram
 from ..processors import Processor
+from ..utils import lazyprop
 
 
 class Cepstrogram(np.ndarray):
@@ -37,7 +38,6 @@ class Cepstrogram(np.ndarray):
         one is instantiated with these additional keyword arguments.
 
     """
-
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
@@ -128,19 +128,6 @@ MFCC_ADD = np.spacing(1)
 MFCC_DCT_NORM = "ortho"
 MFCC_DELTA_FILTER = np.linspace(4, -4, 9) / 60
 MFCC_DELTADELTA_FILTER = np.linspace(1, -1, 3) / 2
-
-
-# https://stackoverflow.com/questions/3012421/python-memoising-deferred-lookup-property-decorator#3013910
-def lazyprop(fn):
-    attr_name = '_lazy_' + fn.__name__
-
-    @property
-    def _lazyprop(self):
-        if not hasattr(self, attr_name):
-            setattr(self, attr_name, fn(self))
-        return getattr(self, attr_name)
-
-    return _lazyprop
 
 
 class MFCC(Cepstrogram):
