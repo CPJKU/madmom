@@ -157,7 +157,7 @@ class MFCC(Cepstrogram):
         logarithm.
     add : float, optional
         Add this value before taking the logarithm of the magnitudes.
-    dct_norm : {None, 'ortho'}, optional
+    dct_norm : {'ortho', None}, optional
         Normalization mode (see scipy.fftpack.dct). Default is 'ortho'.
     kwargs : dict
         If no :class:`.audio.spectrogram.Spectrogram` instance was given, one
@@ -183,7 +183,6 @@ class MFCC(Cepstrogram):
     5) The MFCCs are the amplitudes of the resulting spectrum
 
     """
-
     # pylint: disable=super-on-old-class
     # pylint: disable=super-init-not-called
     # pylint: disable=attribute-defined-outside-init
