@@ -236,10 +236,23 @@ class MFCC(Cepstrogram):
         """
         Applies the given filter to the data after automatically padding by
         replicating the first and last frame. The length of the padding is
-        calculated via ceil(len(delta_filter))
-        :param data: a numpy array with the data
-        :param delta_filter: a numpy array containing the filter
-        :return: a numpy array of the same shape as data, containing the deltas
+        calculated via ceil(len(delta_filter)).
+
+        Applying a filter means passing the matrix column after column to
+        ``np.convolve()``. Aftwerwards the array is truncated to the same
+        shape as the input array.
+
+        Parameters
+        ----------
+        data: numpy array
+            containing the data to process
+        delta_filter: numpy array
+            the filter used for convolution
+
+        Returns
+        -------
+        deltas: numpy array
+             containing the deltas, has the same shape as data
         """
         # prepare vectorized convolve function
         # (requires transposed matrices in our use case)
@@ -256,21 +269,66 @@ class MFCC(Cepstrogram):
 
     @lazyprop
     def deltas(self, delta_filter=MFCC_DELTA_FILTER):
+        """
+        Return the derivative of this MFCC's coefficients by convolving with
+        a filter. Accessing this property corresponds to the function call
+        ``MFCC.calc_deltas(self, delta_filter)``. However, using this property,
+        the result is calculated only once and cached for later access.
+        See ``@lazyprop``for further details.
+
+        Parameters
+        ----------
+        delta_filter: numpy array, optional
+            the filter used for convolution, defaults to MFCC_DELTA_FILTER
+
+        Returns
+        -------
+        deltas: numpy array
+             containing the deltas, has the same shape as self
+        """
         return MFCC.calc_deltas(self, delta_filter)
 
     @lazyprop
     def deltadeltas(self, deltadelta_filter=MFCC_DELTADELTA_FILTER):
+        """
+        Return the second order derivative of this MFCC's coefficients by
+        convolving with a filter. Accessing this property corresponds to the
+        function call ``MFCC.calc_deltas(self, deltadelta_filter)``. However,
+        using this property, the result is calculated only once and cached
+        for later access. See ``@lazyprop``for further details.
+
+        Parameters
+        ----------
+        delta_filter: numpy array, optional
+            the filter used for convolution, defaults to MFCC_DELTA_FILTER
+
+        Returns
+        -------
+        deltas: numpy array
+             containing the deltas, has the same shape as self
+        """
         return MFCC.calc_deltas(self.deltas, deltadelta_filter)
 
-    def calc_ml_deltas(self, delta_filter=MFCC_DELTA_FILTER,
-                       ddelta_filter=MFCC_DELTADELTA_FILTER):
+    def calc_voicebox_deltas(self, delta_filter=MFCC_DELTA_FILTER,
+                             ddelta_filter=MFCC_DELTADELTA_FILTER):
         """
-        Method to calculate deltas and deltadeltas the way it is done in the ML
-        voice toolbox.
-        :param delta_filter: filter to calculate deltas from self
-        :param ddelta_filter: filter to calculate deltadeltas from deltas
-        :return: a horizontally stacked np array consisting of
-                 [self, deltas, deltadeltas] --> shape (frames, coefficients*3)
+        Method to calculate deltas and deltadeltas the way it is done in the
+        voicebox MatLab toolbox.
+
+        see http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
+
+        Parameters
+        ----------
+        delta_filter : numpy array
+            filter to calculate the derivative of this MFCC's data
+        ddelta_filter : numpy array
+            filter to calculate the derivative of the derivative
+
+        Returns
+        -------
+        [self, deltas, deltadeltas] : numpy array, shape (|frames|, |bands|*3)
+            a horizontally stacked np array consisting of the MFCC coefficients
+            its derivative and the derivative of second order
         """
         padded_input = np.vstack(
             (np.array([self[0], ] * 5), self, np.array([self[-1], ] * 5)))
