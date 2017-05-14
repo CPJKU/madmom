@@ -27,6 +27,7 @@ from __future__ import absolute_import, division, print_function
 from . import signal, ffmpeg, filters, comb_filters, stft, spectrogram
 
 # import often used classes
+from .cepstrogram import MFCC, MFCCProcessor
 from .chroma import DeepChromaProcessor
 from .signal import (
     FramedSignal, FramedSignalProcessor, Signal, SignalProcessor)
