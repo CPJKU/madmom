@@ -8,6 +8,7 @@ This file contains tests for the madmom.audio.cepstrogram module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+from functools import partial
 from os.path import join as pj
 
 from madmom.audio.cepstrogram import MFCC, Cepstrogram
@@ -38,12 +39,13 @@ class TestMFCCClass(unittest.TestCase):
     def test_values(self):
         # from file
         result = MFCC(sample_file)
-        self.assertTrue(np.allclose(result[0, :6],
-                                    [-3.61102366, 6.81075716, 2.55457568,
-                                     1.88377929, 1.04133379, 0.6382336]))
-        self.assertTrue(np.allclose(result[0, -6:],
-                                    [-0.20386486, -0.18468723, -0.00233107,
-                                     0.20703268, 0.21419463, 0.00598407]))
+        allclose = partial(np.allclose, rtol=1.e-3, atol=1.e-5)
+        self.assertTrue(allclose(result[0, :6],
+                                 [-3.61102366, 6.81075716, 2.55457568,
+                                  1.88377929, 1.04133379, 0.6382336]))
+        self.assertTrue(allclose(result[0, -6:],
+                                 [-0.20386486, -0.18468723, -0.00233107,
+                                  0.20703268, 0.21419463, 0.00598407]))
         # attributes
         self.assertTrue(result.shape == (281, 30))
 
@@ -54,19 +56,20 @@ class TestMFCCClass(unittest.TestCase):
     def test_deltas(self):
         # from file
         result = MFCC(sample_file)
+        allclose = partial(np.allclose, rtol=1.e-2, atol=1.e-4)
 
-        # don't compare first and last element because it is dependent on the
+        # don't compare first element because it is dependent on the
         # padding used for filtering
-        self.assertTrue(np.allclose(result.deltas[0, 1:7],
-                                    [-0.09853032, 0.05854281, 0.0971242,
-                                     0.03878273, -0.07430606, -0.03955419]))
-        self.assertTrue(np.allclose(result.deltas[0, -7:-1],
-                                    [-0.0310398, -0.0324816, -0.02136466,
-                                     -0.03697226, -0.07731059, -0.05689775]))
+        self.assertTrue(allclose(result.deltas[1, :6],
+                                 [-0.02286286, -0.11329014, 0.05381977,
+                                  0.10438456, 0.04268386, -0.06839912]))
+        self.assertTrue(allclose(result.deltas[1, -6:],
+                                 [-0.03156065, -0.019716, -0.03417692,
+                                  -0.07768068, -0.05539324, -0.02616282]))
 
-        self.assertTrue(np.allclose(result.deltadeltas[0, 1:7],
-                                    [-0.00737991, -0.00236152, 0.00363018,
-                                     0.00195056, 0.00295347, 0.0030891]))
-        self.assertTrue(np.allclose(result.deltadeltas[0, -7:-1],
-                                    [-0.00145328, 0.00046048, 0.00082433,
-                                     0.00139767, -0.00018505, 0.00075226]))
+        self.assertTrue(allclose(result.deltadeltas[1, :6],
+                                 [-0.00804922, -0.009922, -0.00454391,
+                                  0.0038989, 0.00254525, 0.0120557]))
+        self.assertTrue(allclose(result.deltadeltas[1, -6:],
+                                 [0.0072148, 0.00094424, 0.00029913,
+                                  0.00530994, 0.00184207, -0.00276511]))
