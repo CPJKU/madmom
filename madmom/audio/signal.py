@@ -496,10 +496,13 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     file_sample_rate, signal = wavfile.read(filename, mmap=True)
     # if the sample rate is not the desired one, raise exception
     if sample_rate is not None and sample_rate != file_sample_rate:
-        signal = resample(signal, sample_rate=sample_rate)
+        raise ValueError('Requested sample rate of %f Hz, but got %f Hz and '
+                         're-sampling is not implemented.' %
+                         (sample_rate, file_sample_rate))
     # same for the data type
     if dtype is not None and signal.dtype != dtype:
-        signal = rescale(signal, dtype=dtype)
+        raise ValueError('Requested dtype %s, but got %s and re-scaling is '
+                         'not implemented.' % (dtype, signal.dtype))
     # only request the desired part of the signal
     if start is not None:
         start = int(start * file_sample_rate)
