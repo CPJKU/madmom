@@ -300,15 +300,12 @@ class TempoEstimationProcessor(Processor):
         self.alpha = alpha
         self.fps = fps
         # keep state in online mode (currently only available for comb)
-        self.online = online and method == 'comb'
+        self.online = online
         if self.online:
             self.visualize = kwargs.get('verbose', False)
-            self.taus = list(range(self.min_interval, self.max_interval + 1))
+            self.taus = np.arange(self.min_interval, self.max_interval + 1)
             self.combfilter_matrix = []
             self.bins = np.zeros(len(self.taus))
-        elif online:
-            raise ValueError('online mode is currently only available for method=comb')
-
 
     @property
     def min_interval(self):
@@ -353,6 +350,7 @@ class TempoEstimationProcessor(Processor):
             relative strengths (second column).
 
         """
+        # smooth the activations
         act_smooth = int(round(self.fps * self.act_smooth))
         activations = smooth_signal(activations, act_smooth)
         # generate a histogram of beat intervals
@@ -369,7 +367,8 @@ class TempoEstimationProcessor(Processor):
         Parameters
         ----------
         activations : numpy array
-            Beat activation for a single frame.
+            For the online setting there will be only one activation at once but it is
+            also possible to use this online algorithm to process offline data.
 
         Returns
         -------
@@ -380,26 +379,61 @@ class TempoEstimationProcessor(Processor):
         """
         # make the activations a 1D array
         activations = np.atleast_1d(activations)
-        # copy the activation for every tau and append it to the comb matrix
-        copied_signal = np.full(len(self.taus), activations[0], dtype=np.float)
-        self.combfilter_matrix.append(copied_signal)
-        # online combfilter
-        for t in self.taus:
-            if len(self.combfilter_matrix) > t:
-                self.combfilter_matrix[-1][t - min(self.taus)] += self.alpha * self.combfilter_matrix[-1 - t][t - min(self.taus)]
-        # retrieve maxima
-        act_max = self.combfilter_matrix[-1] == np.max(self.combfilter_matrix[-1], axis=-1)
-        # add to bins
-        self.bins += self.combfilter_matrix[-1] * act_max
-        # The histogram needs a certain minimum length
-        if len(self.combfilter_matrix) < 50:
-            return False
-        histogram = smooth_signal(self.bins, self.hist_smooth), np.array(self.taus)
-        tempi = detect_tempo(histogram, self.fps)
-        if self.visualize:
-            sys.stderr.write('\r%s' % ''.join(str(write_tempo(tempi))))
-            sys.stderr.flush()
-        return tempi
+        # multiple activations will result in multiple tempi
+        tempi = []
+        # iterate over all activations
+        for activation in activations:
+            # build the tempo histogram depending on the chosen method
+            histogram = self.online_interval_histogram(activation)
+            # some methods need a certain amount of activations before they yield a tempo
+            if histogram is None: continue
+            # detect the tempo and append it to the found tempi
+            tempo = detect_tempo(histogram, self.fps)
+            tempi.append(tempo)
+            # visualize tempo
+            if self.visualize:
+                sys.stderr.write('\r%s' % ''.join(str(write_tempo(tempo))))
+                sys.stderr.flush()
+        # return last detected tempo
+        return tempi[-1] if tempi else 0
+
+    def online_interval_histogram(self, activation):
+        """
+        Compute the histogram of the beat intervals with the selected method for online mode.
+
+        Parameters
+        ----------
+        activations : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # build the tempo (i.e. inter beat interval) histogram and return it
+        if self.method == 'comb':
+            # copy the activation for every tau and append it to the comb matrix
+            copied_signal = np.full(len(self.taus), activation, dtype=np.float)
+            self.combfilter_matrix.append(copied_signal)
+            # online combfilter
+            for t in self.taus:
+                if len(self.combfilter_matrix) > t:
+                    self.combfilter_matrix[-1][t - min(self.taus)] += self.alpha * self.combfilter_matrix[-1 - t][
+                        t - min(self.taus)]
+            # retrieve maxima
+            act_max = self.combfilter_matrix[-1] == np.max(self.combfilter_matrix[-1], axis=-1)
+            # add to bins
+            self.bins += self.combfilter_matrix[-1] * act_max
+            # the smoothing needs a certain minimum length
+            if len(self.combfilter_matrix) < 50: return
+            # build histogram
+            return smooth_signal(self.bins, self.hist_smooth), np.array(self.taus)
+        else:
+            raise ValueError('online mode is currently only available for method=comb')
 
     def interval_histogram(self, activations):
         """
