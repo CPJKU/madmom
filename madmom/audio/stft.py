@@ -9,6 +9,8 @@ This module contains Short-Time Fourier Transform (STFT) related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import warnings
+
 import numpy as np
 import scipy.fftpack as fftpack
 
@@ -38,7 +40,8 @@ def fft_frequencies(num_fft_bins, sample_rate):
     return np.fft.fftfreq(num_fft_bins * 2, 1. / sample_rate)[:num_fft_bins]
 
 
-def stft(frames, window, fft_size=None, circular_shift=False):
+def stft(frames, window, fft_size=None, circular_shift=False,
+         include_nyquist=False):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
     framed signal.
@@ -56,6 +59,8 @@ def stft(frames, window, fft_size=None, circular_shift=False):
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
         needed for correct phase.
+    include_nyquist : bool, optional
+        Include the Nyquist frequency bin (sample rate / 2) in returned STFT.
 
     Returns
     -------
@@ -75,8 +80,10 @@ def stft(frames, window, fft_size=None, circular_shift=False):
     # FFT size to use
     if fft_size is None:
         fft_size = frame_size
-    # number of FFT bins to store
+    # number of FFT bins to return
     num_fft_bins = fft_size >> 1
+    if include_nyquist:
+        num_fft_bins += 1
 
     # size of the FFT circular shift (needed for correct phase)
     if circular_shift:
@@ -197,6 +204,8 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
         needed for correct phase.
+    include_nyquist : bool, optional
+        Include the Nyquist frequency bin (sample rate / 2).
     kwargs : dict, optional
         If no :class:`.audio.signal.FramedSignal` instance was given, one is
         instantiated with these additional keyword arguments.
@@ -283,12 +292,13 @@ frame_size=2048, fps=100, sample_rate=22050)
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
-                 circular_shift=False, **kwargs):
+                 circular_shift=False, include_nyquist=False, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
-                circular_shift=False, fft_window=None, **kwargs):
+                circular_shift=False, include_nyquist=False, fft_window=None,
+                **kwargs):
         # pylint: disable=unused-argument
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT, use the frames thereof
@@ -322,7 +332,8 @@ frame_size=2048, fps=100, sample_rate=22050)
 
         # calculate the STFT
         data = stft(frames, fft_window, fft_size=fft_size,
-                    circular_shift=circular_shift)
+                    circular_shift=circular_shift,
+                    include_nyquist=include_nyquist)
 
         # cast as ShortTimeFourierTransform
         obj = np.asarray(data).view(cls)
@@ -332,6 +343,7 @@ frame_size=2048, fps=100, sample_rate=22050)
         obj.fft_window = fft_window
         obj.fft_size = fft_size if fft_size else frame_size
         obj.circular_shift = circular_shift
+        obj.include_nyquist = include_nyquist
         # return the object
         return obj
 
@@ -406,6 +418,8 @@ class ShortTimeFourierTransformProcessor(Processor):
     circular_shift : bool, optional
         Circular shift the individual frames before performing the FFT;
         needed for correct phase.
+    include_nyquist : bool, optional
+        Include the Nyquist frequency bin (sample rate / 2).
 
     Examples
     --------
@@ -430,11 +444,12 @@ class ShortTimeFourierTransformProcessor(Processor):
     """
 
     def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
-                 **kwargs):
+                 include_nyquist=False, **kwargs):
         # pylint: disable=unused-argument
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
+        self.include_nyquist = include_nyquist
         self.fft_window = None  # caching only, not intended for general use
 
     def process(self, data, **kwargs):
@@ -458,6 +473,7 @@ class ShortTimeFourierTransformProcessor(Processor):
         data = ShortTimeFourierTransform(data, window=self.window,
                                          fft_size=self.fft_size,
                                          circular_shift=self.circular_shift,
+                                         include_nyquist=self.include_nyquist,
                                          fft_window=self.fft_window, **kwargs)
         # cache the window used for FFT
         # Note: depending on the signal this may be scaled already
@@ -556,9 +572,8 @@ class Phase(_PropertyMixin, np.ndarray):
                                              **kwargs)
         # TODO: just recalculate with circular_shift set?
         if not stft.circular_shift:
-            import warnings
             warnings.warn("`circular_shift` of the STFT must be set to 'True' "
-                          "for correct phase")
+                          "for correct phase", RuntimeWarning)
         # process the STFT and cast the result as Phase
         obj = np.asarray(phase(stft)).view(cls)
         # save additional attributes
@@ -574,6 +589,7 @@ class Phase(_PropertyMixin, np.ndarray):
 
     @property
     def bin_frequencies(self):
+        """Bin frequencies."""
         return self.stft.bin_frequencies
 
     def local_group_delay(self, **kwargs):
@@ -639,7 +655,6 @@ class LocalGroupDelay(_PropertyMixin, np.ndarray):
         if not isinstance(stft, Phase):
             phase = Phase(phase, circular_shift=True, **kwargs)
         if not phase.stft.circular_shift:
-            import warnings
             warnings.warn("`circular_shift` of the STFT must be set to 'True' "
                           "for correct local group delay")
         # process the phase and cast the result as LocalGroupDelay
@@ -659,6 +674,7 @@ class LocalGroupDelay(_PropertyMixin, np.ndarray):
 
     @property
     def bin_frequencies(self):
+        """Bin frequencies."""
         return self.stft.bin_frequencies
 
 LGD = LocalGroupDelay

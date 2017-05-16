@@ -7,6 +7,7 @@ This file contains tests for the madmom.ml.hmm module.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import unittest
 from madmom.ml.hmm import *
 
@@ -150,3 +151,25 @@ class TestHiddenMarkovModelClass(unittest.TestCase):
     def test_forward_generator(self):
         fwd = np.vstack(self.hmm.forward_generator(OBS_SEQ, block_size=5))
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
+
+    def test_invalid_sequence(self):
+        transitions = [(0, 0, 0.1), (0, 1, 0.9), (0, 2, 0),
+                       (1, 0, 0), (1, 1, 1), (1, 2, 0),
+                       (2, 0, 0), (2, 1, 0), (2, 2, 1)]
+        frm, to, prob = list(zip(*transitions))
+        tm = TransitionModel.from_dense(to, frm, prob)
+        obs_prob = np.array([[0.7, 0.3, 0],
+                             [0.3, 0.7, 0],
+                             [0, 0, 1]])
+        om = DiscreteObservationModel(obs_prob)
+        hmm = HiddenMarkovModel(tm, om)
+        state_seq, log_p = hmm.viterbi([0, 1, 0, 2])
+        self.assertTrue(np.allclose(state_seq, []))
+        self.assertAlmostEqual(log_p, -np.inf)
+        # TODO: assertWarns exist only for Python 3.2+, test in all versions
+        if sys.version_info >= (3, 2):
+            with self.assertWarns(RuntimeWarning):
+                hmm.viterbi([0, 1, 0, 2])
+        state_seq, log_p = hmm.viterbi([0, 0, 1, 1])
+        self.assertTrue((state_seq == [1, 1, 1, 1]).all())
+        self.assertAlmostEqual(log_p, -4.219907785197447)
