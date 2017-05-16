@@ -4,6 +4,11 @@ Release Notes
 Version 0.16.dev0
 -----------------
 
+Other changes:
+
+* Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)
+* Add option to include Nyquist frequency in `STFT` (#280)
+
 
 Version 0.15 (release date: 2017-04-25)
 ---------------------------------------
