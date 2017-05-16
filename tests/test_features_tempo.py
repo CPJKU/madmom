@@ -123,6 +123,7 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
                                      [115.38461538, 0.124638],
                                      [230.76923076, 0.091837]]))
 
+
 class TestWriteTempoFunction(unittest.TestCase):
 
     def setUp(self):
