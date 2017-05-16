@@ -4,6 +4,10 @@ Release Notes
 Version 0.16.dev0
 -----------------
 
+Bug fixes:
+
+* Fix `TransitionModel` not returning the correct number of states (#284)
+
 Other changes:
 
 * Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)

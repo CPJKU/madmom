@@ -82,11 +82,12 @@ class TransitionModel(object):
         self.states = states
         self.pointers = pointers
         self.probabilities = probabilities
+        self._num_states = int(states.max() + 1)
 
     @property
     def num_states(self):
         """Number of states."""
-        return len(self.pointers) - 1
+        return self._num_states
 
     @property
     def num_transitions(self):

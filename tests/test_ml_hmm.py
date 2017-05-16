@@ -85,6 +85,12 @@ class TestTransitionModelClass(unittest.TestCase):
         self.assertTrue(self.tm.num_states == 3)
         self.assertTrue(self.tm.num_transitions == 7)
 
+    def test_unreachable_state(self):
+        A = np.array([[1., 0.], [1., 0.]])
+        frm, to = A.nonzero()
+        tm = TransitionModel.from_dense(to, frm, A[frm, to])
+        self.assertTrue(tm.num_states == 2)
+
 
 class TestDiscreteObservationModelClass(unittest.TestCase):
 
