@@ -72,7 +72,7 @@ class PitchClassProfile(FilteredSpectrogram):
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
         # the spectrogram must not be filtered
-        if spectrogram.filterbank is not None:
+        if hasattr(spectrogram, 'filterbank') and spectrogram.filterbank is not None:
             import warnings
             warnings.warn('Spectrogram should not be filtered.')
         # reference frequency for the filterbank
@@ -159,7 +159,7 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
         # the spectrogram must not be filtered
-        if spectrogram.filterbank is not None:
+        if hasattr(spectrogram, 'filterbank') and spectrogram.filterbank is not None:
             import warnings
             warnings.warn('Spectrogram should not be filtered.')
         # reference frequency for the filterbank
