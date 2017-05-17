@@ -85,6 +85,16 @@ class TestTransitionModelClass(unittest.TestCase):
         self.assertTrue(self.tm.num_states == 3)
         self.assertTrue(self.tm.num_transitions == 7)
 
+    def test_num_states_unreachable(self):
+        for r in range(3):
+            trans = np.array([[.5, .5, .0],
+                              [.5, .5, .0],
+                              [.5, .5, .0]])
+            trans = np.roll(trans, shift=r, axis=1)
+            frm, to = trans.nonzero()
+            tm = TransitionModel.from_dense(to, frm, trans[frm, to])
+            self.assertTrue(tm.num_states == 3)
+
 
 class TestDiscreteObservationModelClass(unittest.TestCase):
 
