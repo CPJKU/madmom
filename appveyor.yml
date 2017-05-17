@@ -41,9 +41,9 @@ install:
   - activate test-environment
   - pip install nose
   # Install ffmpeg
-  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-2.7-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
+  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-latest-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
   - 7z x ffmpeg-shared.7z > NULL
-  - "set PATH=%cd%\\ffmpeg-2.7-win%PYTHON_ARCH%-shared\\bin;%PATH%"
+  - "set PATH=%cd%\\ffmpeg-latest-win%PYTHON_ARCH%-shared\\bin;%PATH%"
 
 build: false
 
