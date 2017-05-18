@@ -307,6 +307,11 @@ class TempoEstimationProcessor(Processor):
             self.combfilter_matrix = []
             self.bins = np.zeros(len(self.taus))
 
+    def reset(self):
+        """Reset the TempoEstimationProcessor."""
+        self.combfilter_matrix = []
+        self.bins = np.zeros(len(self.taus))
+
     @property
     def min_interval(self):
         """Minimum beat interval [frames]."""
@@ -364,7 +369,7 @@ class TempoEstimationProcessor(Processor):
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
 
-    def process_online(self, activations, **kwargs):
+    def process_online(self, activations, reset=True, **kwargs):
         """
         Detect the tempi from the (beat) activations.
 
@@ -383,6 +388,9 @@ class TempoEstimationProcessor(Processor):
         """
         # make the activations a 1D array
         activations = np.atleast_1d(activations)
+        # reset to initial state
+        if reset:
+            self.reset()
         # multiple activations will result in multiple tempi
         tempi = []
         # iterate over all activations

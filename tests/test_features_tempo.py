@@ -116,7 +116,7 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
 
     def test_process_online(self):
         processor = TempoEstimationProcessor(fps=fps, online=True)
-        tempi = [processor.process_online(a)
+        tempi = [processor.process_online(a, reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.47058824, 0.289414],
