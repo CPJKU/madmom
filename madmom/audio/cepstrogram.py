@@ -10,8 +10,6 @@ This module contains all cepstrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
-import math
-from functools import partial
 
 import numpy as np
 from scipy.fftpack import dct
@@ -125,9 +123,9 @@ MFCC_FMAX = 15000.
 MFCC_NORM_FILTERS = True
 MFCC_MUL = 1.
 MFCC_ADD = np.spacing(1)
-MFCC_DCT_NORM = "ortho"
+MFCC_DCT_NORM = 'ortho'
 MFCC_DELTA_FILTER = np.linspace(4, -4, 9) / 60
-MFCC_DELTADELTA_FILTER = np.linspace(1, -1, 3) / 2
+MFCC_DELTA_DELTA_FILTER = np.linspace(1, -1, 3) / 2
 
 
 class MFCC(Cepstrogram):
@@ -159,7 +157,7 @@ class MFCC(Cepstrogram):
         Add this value before taking the logarithm of the magnitudes.
     dct_norm : {'ortho', None}, optional
         Normalization mode (see scipy.fftpack.dct). Default is 'ortho'.
-    kwargs : dict
+    kwargs : dict, optional
         If no :class:`.audio.spectrogram.Spectrogram` instance was given, one
         is instantiated and these keyword arguments are passed.
 
@@ -234,117 +232,122 @@ class MFCC(Cepstrogram):
     @staticmethod
     def calc_deltas(data, delta_filter):
         """
-        Applies the given filter to the data after automatically padding by
+        Apply the given filter to the data after automatically padding by
         replicating the first and last frame. The length of the padding is
         calculated via ceil(len(delta_filter)).
 
         Applying a filter means passing the matrix column after column to
-        ``np.convolve()``. Aftwerwards the array is truncated to the same
+        ``np.convolve()``. Afterwards the array is truncated to the same
         shape as the input array.
 
         Parameters
         ----------
         data: numpy array
-            containing the data to process
+            Data to process, i.e. MFCCs or deltas thereof.
         delta_filter: numpy array
-            the filter used for convolution
+            Filter used for convolution.
 
         Returns
         -------
         deltas: numpy array
-             containing the deltas, has the same shape as data
+             Deltas of `data`, same shape as `data`.
+
         """
-        # prepare vectorized convolve function
-        # (requires transposed matrices in our use case)
-        vconv = np.vectorize(partial(np.convolve, mode="same"),
-                             signature='(n),(m)->(k)')
         # pad data by replicating the first and the last frame
-        k = int(math.ceil(len(delta_filter) / 2))
-        padded = np.vstack((np.array([data[0], ] * k),
-                            data,
+        k = int(np.ceil(len(delta_filter) / 2))
+        padded = np.vstack((np.array([data[0], ] * k), data,
                             np.array([data[-1], ] * k)))
         # calculate the deltas for each coefficient
-        deltas = vconv(padded.transpose(), delta_filter)
-        return deltas.transpose()[k:-k]
+        deltas = []
+        for band in padded.T:
+            deltas.append(np.convolve(band, delta_filter, 'same'))
+        # return deltas (first/last k frames truncated)
+        return np.vstack(deltas).T[k:-k]
 
     @lazyprop
     def deltas(self, delta_filter=MFCC_DELTA_FILTER):
         """
-        Return the derivative of this MFCC's coefficients by convolving with
-        a filter. Accessing this property corresponds to the function call
-        ``MFCC.calc_deltas(self, delta_filter)``. However, using this property,
-        the result is calculated only once and cached for later access.
-        See ``@lazyprop``for further details.
+        First order derivative of the MFCCs.
 
         Parameters
         ----------
         delta_filter: numpy array, optional
-            the filter used for convolution, defaults to MFCC_DELTA_FILTER
+            Filter to calculate the derivative of the MFCCs.
 
         Returns
         -------
         deltas: numpy array
-             containing the deltas, has the same shape as self
+             Deltas of the MFCCs, same shape as MFCCs.
+
+        Notes
+        -----
+        Accessing this property corresponds to the function call
+        ``MFCC.calc_deltas(mfccs, delta_filter)``, with results being cached.
+
         """
         return MFCC.calc_deltas(self, delta_filter)
 
     @lazyprop
-    def deltadeltas(self, deltadelta_filter=MFCC_DELTADELTA_FILTER):
+    def delta_deltas(self, delta_delta_filter=MFCC_DELTA_DELTA_FILTER):
         """
-        Return the second order derivative of this MFCC's coefficients by
-        convolving with a filter. Accessing this property corresponds to the
-        function call ``MFCC.calc_deltas(self, deltadelta_filter)``. However,
-        using this property, the result is calculated only once and cached
-        for later access. See ``@lazyprop``for further details.
+        Second order derivatives of the MFCCs.
 
         Parameters
         ----------
-        delta_filter: numpy array, optional
-            the filter used for convolution, defaults to MFCC_DELTA_FILTER
+        delta_delta_filter: numpy array, optional
+            Filter to calculate the derivative of the derivative.
 
         Returns
         -------
         deltas: numpy array
-             containing the deltas, has the same shape as self
+             Delta deltas of the MFCCs, same shape as MFCCs.
+
+        Notes
+        -----
+        Accessing this property corresponds to the function call
+        ``MFCC.calc_deltas(deltas, delta_delta_filter)``, with results being
+        cached.
+
         """
-        return MFCC.calc_deltas(self.deltas, deltadelta_filter)
+        return MFCC.calc_deltas(self.deltas, delta_delta_filter)
 
     def calc_voicebox_deltas(self, delta_filter=MFCC_DELTA_FILTER,
-                             ddelta_filter=MFCC_DELTADELTA_FILTER):
+                             delta_delta_filter=MFCC_DELTA_DELTA_FILTER):
         """
-        Method to calculate deltas and deltadeltas the way it is done in the
-        voicebox MatLab toolbox.
-
-        see http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
+        Calculates deltas and delta deltas the way it is done in the voicebox
+        MatLab toolbox [1]_.
 
         Parameters
         ----------
         delta_filter : numpy array
-            filter to calculate the derivative of this MFCC's data
-        ddelta_filter : numpy array
-            filter to calculate the derivative of the derivative
+            Filter to calculate the derivative of the MFCCs.
+        delta_delta_filter : numpy array
+            Filter to calculate the derivative of the derivative.
 
         Returns
         -------
-        [self, deltas, deltadeltas] : numpy array, shape (|frames|, |bands|*3)
-            a horizontally stacked np array consisting of the MFCC coefficients
-            its derivative and the derivative of second order
+        [mfcc, delta, delta_delta] : numpy array, shape (num_frames, bands * 3)
+            Horizontally stacked array consisting of the MFCC coefficients,
+            their first and second order derivatives.
+
+        References
+        ----------
+        .. [1] http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
+
         """
         padded_input = np.vstack(
             (np.array([self[0], ] * 5), self, np.array([self[-1], ] * 5)))
         deltashape = tuple(reversed(padded_input.shape))
         flat_input = padded_input.transpose().flatten()
-
-        deltas = np.convolve(flat_input, delta_filter, mode="same") \
-                   .reshape(deltashape).T[4:-4, ]
+        deltas = np.convolve(flat_input, delta_filter, mode='same')
+        deltas = deltas.reshape(deltashape).T[4:-4, ]
         deltadeltashape = tuple(reversed(deltas.shape))
         flat_deltas = deltas.transpose().flatten()
         deltas = deltas[1:-1, ]
-
-        deltadeltas = np.convolve(flat_deltas, ddelta_filter, mode="same") \
-                        .reshape(deltadeltashape).T[1:-1, ]
-
-        return np.hstack((self, deltas, deltadeltas))
+        delta_deltas = np.convolve(flat_deltas, delta_delta_filter,
+                                   mode='same')
+        delta_deltas = delta_deltas.reshape(deltadeltashape).T[1:-1, ]
+        return np.hstack((self, deltas, delta_deltas))
 
     def __array_finalize__(self, obj):
         if obj is None:
@@ -358,9 +361,8 @@ class MFCC(Cepstrogram):
 
 class MFCCProcessor(Processor):
     """
-    MFCCProcessor is CepstrogramProcessor which filters the magnitude
-    spectrogram of the spectrogram with a Mel filterbank, takes the logarithm
-    and performs a discrete cosine transform afterwards.
+    MFCCProcessor filters the magnitude spectrogram with a Mel filterbank,
+    takes the logarithm and performs a discrete cosine transform afterwards.
 
     Parameters
     ----------
@@ -377,8 +379,6 @@ class MFCCProcessor(Processor):
         logarithm.
     add : float, optional
         Add this value before taking the logarithm of the magnitudes.
-    transform : numpy ufunc
-        Transformation applied to the Mel filtered spectrogram.
 
     """
 
@@ -403,7 +403,7 @@ class MFCCProcessor(Processor):
         ----------
         data : numpy array
             Data to be processed (a spectrogram).
-        kwargs : dict
+        kwargs : dict, optional
             Keyword arguments passed to :class:`MFCC`.
 
         Returns
