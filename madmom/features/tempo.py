@@ -12,7 +12,8 @@ from __future__ import absolute_import, division, print_function
 import sys
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.features.beats import DBNBeatTrackingProcessor
+from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 NO_TEMPO = np.nan
@@ -305,12 +306,16 @@ class TempoEstimationProcessor(Processor):
             self.visualize = kwargs.get('verbose', False)
             self.taus = np.arange(self.min_interval, self.max_interval + 1)
             self.combfilter_matrix = []
-            self.bins = np.zeros(len(self.taus))
+            self._buffer = None
+            self._dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                                 max_bpm=self.max_bpm,
+                                                 fps=self.fps)
 
     def reset(self):
         """Reset the TempoEstimationProcessor."""
         self.combfilter_matrix = []
-        self.bins = np.zeros(len(self.taus))
+        self._buffer = None
+        self._dbn.hmm.reset()
 
     @property
     def min_interval(self):
@@ -435,7 +440,6 @@ class TempoEstimationProcessor(Processor):
                                            self.min_interval,
                                            self.max_interval)
         elif self.method == 'dbn':
-            from .beats import DBNBeatTrackingProcessor
             # instantiate a DBN for beat tracking
             dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
                                            max_bpm=self.max_bpm,
@@ -459,7 +463,7 @@ class TempoEstimationProcessor(Processor):
 
         Parameters
         ----------
-        activations : numpy float
+        activation : numpy float
             Beat activation for a single frame.
 
         Returns
@@ -471,27 +475,121 @@ class TempoEstimationProcessor(Processor):
 
         """
         # build the tempo (i.e. inter beat interval) histogram and return it
-        if self.method == 'comb':
-            # copy the activation for every tau
-            copied_signal = np.full(len(self.taus), activation, dtype=np.float)
-            # append it to the comb filter matrix
-            self.combfilter_matrix.append(copied_signal)
-            # online combfilter
-            for t in self.taus:
-                if len(self.combfilter_matrix) > t:
-                    self.combfilter_matrix[-1][t - min(self.taus)] += \
-                        self.alpha * \
-                        self.combfilter_matrix[-1 - t][t - min(self.taus)]
-            # retrieve maxima
-            act_max = self.combfilter_matrix[-1] == \
-                np.max(self.combfilter_matrix[-1], axis=-1)
-            # add to bins
-            self.bins += self.combfilter_matrix[-1] * act_max
-            # build a histogram together with the intervals and return it
-            return self.bins, np.array(self.taus)
+        if self.method == 'acf':
+            return self.online_interval_histogram_acf(activation,
+                                                      self.fps * 10)
+        elif self.method == 'comb':
+            return self.online_interval_histogram_comb(activation,
+                                                       self.fps * 10)
+        elif self.method == 'dbn':
+            return self.online_interval_histogram_dbn(activation)
         else:
-            raise ValueError('online mode is currently only available '
-                             'for method=comb')
+            raise ValueError('tempo estimation method unknown')
+
+    def online_interval_histogram_acf(self, activation,
+                                      activation_buffer_size=None):
+        """
+        Compute the histogram of the beat intervals using auto-correlation on
+        buffered activations.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+        activation_buffer_size : int
+            Number of buffered frames on which the auto-correlation should
+            be executed on [frames].
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # use a buffer to keep activations of the last n seconds
+        if self._buffer is None:
+            self._buffer = BufferProcessor(int(activation_buffer_size))
+        # shift buffer and put new activation at end of buffer
+        buffer = self._buffer(activation)
+        # use offline acf function on buffered activations
+        return interval_histogram_acf(buffer, self.min_interval,
+                                      self.max_interval)
+
+    def online_interval_histogram_comb(self, activation, bin_buffer_size=1000):
+        """
+        Compute the histogram of the beat intervals using a resonating
+        comb filter bank.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+        bin_buffer_size : int
+            Number of buffered bins which are summed up [frames].
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # copy the activation for every tau
+        copied_signal = np.full(len(self.taus), activation, dtype=np.float)
+        # append it to the comb filter matrix
+        self.combfilter_matrix.append(copied_signal)
+        # online feed backward comb filter
+        min_tau = min(self.taus)
+        for t in self.taus:
+            if len(self.combfilter_matrix) > t:
+                self.combfilter_matrix[-1][t - min_tau] += self.alpha * \
+                    self.combfilter_matrix[-1 - t][t - min_tau]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == \
+            np.max(self.combfilter_matrix[-1], axis=-1)
+        # compute the max bins
+        bins = self.combfilter_matrix[-1] * act_max
+        # use a buffer to only keep bins of the last seconds
+        if self._buffer is None:
+            self._buffer = BufferProcessor((int(bin_buffer_size),
+                                            len(self.taus)))
+        # shift buffer and put new bins at end of buffer
+        buffer = self._buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(buffer, axis=0), np.array(self.taus)
+
+    def online_interval_histogram_dbn(self, activation):
+        """
+        Compute the histogram of the beat intervals using a DBN and the
+        forward algorithm.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+           Bins of the tempo histogram.
+        histogram_delays : numpy array
+           Corresponding delays [frames].
+        """
+        # make the activation a 1D array
+        activation = np.atleast_1d(activation)
+        # use forward path to get best state
+        fwd = self._dbn.hmm.forward(activation, reset=False)
+        # choose the best state for each step
+        states = np.argmax(fwd, axis=1)
+        intervals = self._dbn.st.state_intervals[states]
+        # get the counts of the bins
+        bins = np.bincount(intervals,
+                           minlength=self._dbn.st.intervals.max() + 1)
+        # truncate everything below the minimum interval of the state space
+        bins = bins[self._dbn.st.intervals.min():]
+        # build a histogram together with the intervals and return it
+        return bins, self._dbn.st.intervals
 
     def dominant_interval(self, histogram):
         """
