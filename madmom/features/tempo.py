@@ -487,7 +487,7 @@ class TempoEstimationProcessor(Processor):
             raise ValueError('tempo estimation method unknown')
 
     def online_interval_histogram_acf(self, activation,
-                                      activation_buffer_size=None):
+                                      activation_buffer_size=1000):
         """
         Compute the histogram of the beat intervals using auto-correlation on
         buffered activations.
