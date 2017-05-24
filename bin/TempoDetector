@@ -12,7 +12,8 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import RNNBeatProcessor
-from madmom.features.tempo import TempoEstimationProcessor, write_tempo
+from madmom.features.tempo import (CombFilterTempoEstimationProcessor,
+                                   write_tempo)
 
 
 def main():
@@ -55,7 +56,7 @@ def main():
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # tempo arguments
-    TempoEstimationProcessor.add_arguments(p)
+    CombFilterTempoEstimationProcessor.add_arguments(p)
     # mirex stuff
     g = p.add_mutually_exclusive_group()
     g.add_argument('--mirex', dest='tempo_format',
@@ -89,7 +90,7 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # perform tempo estimation based on the beat activation function
-        tempo_estimator = TempoEstimationProcessor(**vars(args))
+        tempo_estimator = CombFilterTempoEstimationProcessor(**vars(args))
         # output handler
         if args.tempo_format == 'mirex':
             # output in the MIREX format (i.e. slower tempo first)

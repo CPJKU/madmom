@@ -13,7 +13,7 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import RNNBeatProcessor, BeatTrackingProcessor
-from madmom.features.tempo import TempoEstimationProcessor
+from madmom.features.tempo import CombFilterTempoEstimationProcessor
 
 
 def main():
@@ -64,9 +64,8 @@ def main():
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # beat tracking arguments
-    TempoEstimationProcessor.add_arguments(p, method='comb', min_bpm=40,
-                                           max_bpm=240, act_smooth=0.09,
-                                           hist_smooth=7, alpha=0.79)
+    CombFilterTempoEstimationProcessor.add_arguments(
+        p, min_bpm=40, max_bpm=240, act_smooth=0.09, hist_smooth=7, alpha=0.79)
     BeatTrackingProcessor.add_arguments(p, look_ahead=10)
 
     # parse arguments
