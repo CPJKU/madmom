@@ -404,8 +404,15 @@ class BeatTrackingProcessor(Processor):
     look_ahead : float, optional
         Look `look_ahead` seconds in both directions to determine the local
         tempo and align the beats accordingly.
+    tempo_estimator : :class:`TempoEstimationProcessor`, optional
+        Use this processor to estimate the (local) tempo. If 'None' a default
+        tempo estimator based on comb filters is used.
     fps : float, optional
         Frames per second.
+    kwargs : dict, optional
+        Keyword arguments passed to
+        :class:`madmom.features.tempo.CombFilterTempoEstimationProcessor` if no
+        `tempo_estimator` was given.
 
     Notes
     -----
@@ -418,6 +425,10 @@ class BeatTrackingProcessor(Processor):
     Instead of the auto-correlation based method for tempo estimation proposed
     in [1]_, it uses a comb filter based method [2]_ per default. The behaviour
     can be controlled with the `tempo_method` parameter.
+
+    See Also
+    --------
+    :class:`madmom.features.tempo.CombFilterTempoEstimationProcessor`
 
     References
     ----------
@@ -451,7 +462,6 @@ class BeatTrackingProcessor(Processor):
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 10
     # tempo defaults
-    TEMPO_METHOD = 'comb'
     MIN_BPM = 40
     MAX_BPM = 240
     ACT_SMOOTH = 0.09
@@ -459,15 +469,19 @@ class BeatTrackingProcessor(Processor):
     ALPHA = 0.79
 
     def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=None,
-                 **kwargs):
-        # import the TempoEstimation here otherwise we have a loop
-        from .tempo import TempoEstimationProcessor
+                 tempo_estimator=None, **kwargs):
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
         self.fps = fps
         # tempo estimator
-        self.tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
+        if tempo_estimator is None:
+            # import the TempoEstimation here otherwise we have a loop
+            from .tempo import CombFilterTempoEstimationProcessor
+            # create default trempo estimator
+            tempo_estimator = CombFilterTempoEstimationProcessor(fps=fps,
+                                                                 **kwargs)
+        self.tempo_estimator = tempo_estimator
 
     def process(self, activations, **kwargs):
         """
