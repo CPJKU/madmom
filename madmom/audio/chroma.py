@@ -9,6 +9,7 @@ This module contains chroma related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import warnings
 import numpy as np
 
 from madmom.audio.spectrogram import (Spectrogram, FilteredSpectrogram,
@@ -71,10 +72,10 @@ class PitchClassProfile(FilteredSpectrogram):
         # check spectrogram type
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
-        # the spectrogram must not be filtered
-        if spectrogram.filterbank is not None:
-            import warnings
-            warnings.warn('Spectrogram should not be filtered.')
+        # spectrogram should not be filtered
+        if hasattr(spectrogram, 'filterbank'):
+            warnings.warn('Spectrogram should not be filtered.',
+                          RuntimeWarning)
         # reference frequency for the filterbank
         if fref is None:
             fref = spectrogram.tuning_frequency()
@@ -158,10 +159,10 @@ class HarmonicPitchClassProfile(PitchClassProfile):
         # check spectrogram type
         if not isinstance(spectrogram, Spectrogram):
             spectrogram = Spectrogram(spectrogram, **kwargs)
-        # the spectrogram must not be filtered
-        if spectrogram.filterbank is not None:
-            import warnings
-            warnings.warn('Spectrogram should not be filtered.')
+        # spectrogram should not be filtered
+        if hasattr(spectrogram, 'filterbank'):
+            warnings.warn('Spectrogram should not be filtered.',
+                          RuntimeWarning)
         # reference frequency for the filterbank
         if fref is None:
             fref = spectrogram.tuning_frequency()
