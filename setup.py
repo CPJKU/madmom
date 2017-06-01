@@ -65,8 +65,12 @@ requirements = ['numpy>=1.8.1',
                 ]
 
 # docs to be included
-long_description = open('README.rst').read()
-long_description += '\n' + open('CHANGES.rst').read()
+try:
+    long_description = open('README.rst', encoding='utf-8').read()
+    long_description += '\n' + open('CHANGES.rst', encoding='utf-8').read()
+except TypeError:
+    long_description = open('README.rst').read()
+    long_description += '\n' + open('CHANGES.rst').read()
 
 # the actual setup routine
 setup(name='madmom',
