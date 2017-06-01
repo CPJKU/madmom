@@ -9,6 +9,7 @@ This module contains basic signal processing functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import errno
 import numpy as np
 
 from madmom.processors import Processor, BufferProcessor
@@ -615,15 +616,22 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
         return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                 num_channels=num_channels, start=start,
                                 stop=stop, dtype=dtype)
-    except OSError:
+    except OSError as e:
+        # if it's not a file not found error, raise it!
+        if e.errno != errno.ENOENT:
+            raise
+
         # ffmpeg is not present, try avconv
         try:
             return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                     num_channels=num_channels, start=start,
                                     stop=stop, dtype=dtype,
                                     cmd_decode='avconv', cmd_probe='avprobe')
-        except OSError:
-            error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."
+            else:
+                raise
         except CalledProcessError:
             pass
     except CalledProcessError:
