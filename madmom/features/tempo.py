@@ -215,7 +215,7 @@ def detect_tempo(histogram, fps):
     if len(peaks) == 0:
         # a flat histogram has no peaks, use the center bin
         if len(bins):
-            ret = np.asarray([tempi[len(bins) / 2], 1.])
+            ret = np.asarray([tempi[len(bins) // 2], 1.])
         else:
             # otherwise: no peaks, no tempo
             ret = np.asarray([NO_TEMPO, 0.])
