@@ -114,6 +114,33 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         tempi = self.processor(act)
         self.assertTrue(np.allclose(tempi, COMB_TEMPI, atol=0.01))
 
+    def test_process_online_acf(self):
+        processor = TempoEstimationProcessor(fps=fps, online=True,
+                                             method='acf')
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.4705882, 0.2531160],
+                                     [88.23529412, 0.2312032],
+                                     [58.82352941, 0.1878277]]))
+
+    def test_process_online_comb(self):
+        processor = TempoEstimationProcessor(fps=fps, online=True,
+                                             method='comb')
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.47058824, 0.289414],
+                                     [115.38461538, 0.124638],
+                                     [230.76923076, 0.091837]]))
+
+    def test_process_online_dbn(self):
+        processor = TempoEstimationProcessor(fps=fps, online=True,
+                                             method='dbn')
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1.]))
+
 
 class TestWriteTempoFunction(unittest.TestCase):
 
@@ -126,6 +153,8 @@ class TestWriteTempoFunction(unittest.TestCase):
         write_tempo(COMB_TEMPI[:1], self.out_file)
         # but also with 1d arrays
         write_tempo(COMB_TEMPI[0], self.out_file)
+        # also without out file
+        write_tempo(COMB_TEMPI[0])
 
     def test_values(self):
         # only one tempo given (>68 bpm)

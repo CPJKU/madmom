@@ -9,9 +9,11 @@ This module contains tempo related functionality.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
 import numpy as np
 
-from madmom.processors import Processor
+from madmom.features.beats import DBNBeatTrackingProcessor
+from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 NO_TEMPO = np.nan
@@ -215,7 +217,7 @@ def detect_tempo(histogram, fps):
     if len(peaks) == 0:
         # a flat histogram has no peaks, use the center bin
         if len(bins):
-            ret = np.asarray([tempi[len(bins) / 2], 1.])
+            ret = np.asarray([tempi[int(len(bins) / 2)], 1.])
         else:
             # otherwise: no peaks, no tempo
             ret = np.asarray([NO_TEMPO, 0.])
@@ -288,7 +290,7 @@ class TempoEstimationProcessor(Processor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 fps=None, **kwargs):
+                 fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         # save variables
         self.method = method
@@ -298,6 +300,22 @@ class TempoEstimationProcessor(Processor):
         self.hist_smooth = hist_smooth
         self.alpha = alpha
         self.fps = fps
+        # keep state in online mode (currently only available for comb)
+        self.online = online
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
+            self.taus = np.arange(self.min_interval, self.max_interval + 1)
+            self.combfilter_matrix = []
+            self._buffer = None
+            self._dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                                 max_bpm=self.max_bpm,
+                                                 fps=self.fps)
+
+    def reset(self):
+        """Reset the TempoEstimationProcessor."""
+        self.combfilter_matrix = []
+        self._buffer = None
+        self._dbn.hmm.reset()
 
     @property
     def min_interval(self):
@@ -325,6 +343,27 @@ class TempoEstimationProcessor(Processor):
             relative strengths (second column).
 
         """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_offline(activations, **kwargs)
+
+    def process_offline(self, activations, **kwargs):
+        """
+        Detect the tempi from the (beat) activations.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
         # smooth the activations
         act_smooth = int(round(self.fps * self.act_smooth))
         activations = smooth_signal(activations, act_smooth)
@@ -334,6 +373,46 @@ class TempoEstimationProcessor(Processor):
         histogram = smooth_histogram(histogram, self.hist_smooth)
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
+
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the tempi from the (beat) activations.
+
+        Parameters
+        ----------
+        activations : numpy array
+            For the online setting there will be only one activation at once
+            but it is also possible to use it to process offline data.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        # make the activations a 1D array
+        activations = np.atleast_1d(activations)
+        # reset to initial state
+        if reset:
+            self.reset()
+        # multiple activations will result in multiple tempi
+        tempi = []
+        # iterate over all activations
+        for activation in activations:
+            # build the tempo histogram depending on the chosen method
+            histogram = self.online_interval_histogram(activation)
+            # smooth the histogram
+            histogram = smooth_histogram(histogram, self.hist_smooth)
+            # detect the tempo and append it to the found tempi
+            tempo = detect_tempo(histogram, self.fps)
+            tempi.append(tempo)
+            # visualize tempo
+            if self.visualize:
+                sys.stderr.write('\r%s' % ''.join(str(write_tempo(tempo))))
+                sys.stderr.flush()
+        # return last detected tempo
+        return tempi[-1]
 
     def interval_histogram(self, activations):
         """
@@ -361,7 +440,6 @@ class TempoEstimationProcessor(Processor):
                                            self.min_interval,
                                            self.max_interval)
         elif self.method == 'dbn':
-            from .beats import DBNBeatTrackingProcessor
             # instantiate a DBN for beat tracking
             dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
                                            max_bpm=self.max_bpm,
@@ -377,6 +455,141 @@ class TempoEstimationProcessor(Processor):
             return bins, dbn.st.intervals
         else:
             raise ValueError('tempo estimation method unknown')
+
+    def online_interval_histogram(self, activation):
+        """
+        Compute the histogram of the beat intervals
+        with the selected method for online mode.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # build the tempo (i.e. inter beat interval) histogram and return it
+        if self.method == 'acf':
+            return self.online_interval_histogram_acf(activation,
+                                                      self.fps * 10)
+        elif self.method == 'comb':
+            return self.online_interval_histogram_comb(activation,
+                                                       self.fps * 10)
+        elif self.method == 'dbn':
+            return self.online_interval_histogram_dbn(activation)
+        else:
+            raise ValueError('tempo estimation method unknown')
+
+    def online_interval_histogram_acf(self, activation,
+                                      activation_buffer_size=1000):
+        """
+        Compute the histogram of the beat intervals using auto-correlation on
+        buffered activations.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+        activation_buffer_size : int
+            Number of buffered frames on which the auto-correlation should
+            be executed on [frames].
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # use a buffer to keep activations of the last n seconds
+        if self._buffer is None:
+            self._buffer = BufferProcessor(int(activation_buffer_size))
+        # shift buffer and put new activation at end of buffer
+        buffer = self._buffer(activation)
+        # use offline acf function on buffered activations
+        return interval_histogram_acf(buffer, self.min_interval,
+                                      self.max_interval)
+
+    def online_interval_histogram_comb(self, activation, bin_buffer_size=1000):
+        """
+        Compute the histogram of the beat intervals using a resonating
+        comb filter bank.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+        bin_buffer_size : int
+            Number of buffered bins which are summed up [frames].
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # copy the activation for every tau
+        copied_signal = np.full(len(self.taus), activation, dtype=np.float)
+        # append it to the comb filter matrix
+        self.combfilter_matrix.append(copied_signal)
+        # online feed backward comb filter
+        min_tau = min(self.taus)
+        for t in self.taus:
+            if len(self.combfilter_matrix) > t:
+                self.combfilter_matrix[-1][t - min_tau] += self.alpha * \
+                    self.combfilter_matrix[-1 - t][t - min_tau]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == \
+            np.max(self.combfilter_matrix[-1], axis=-1)
+        # compute the max bins
+        bins = self.combfilter_matrix[-1] * act_max
+        # use a buffer to only keep bins of the last seconds
+        if self._buffer is None:
+            self._buffer = BufferProcessor((int(bin_buffer_size),
+                                            len(self.taus)))
+        # shift buffer and put new bins at end of buffer
+        buffer = self._buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(buffer, axis=0), np.array(self.taus)
+
+    def online_interval_histogram_dbn(self, activation):
+        """
+        Compute the histogram of the beat intervals using a DBN and the
+        forward algorithm.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+           Bins of the tempo histogram.
+        histogram_delays : numpy array
+           Corresponding delays [frames].
+        """
+        # make the activation a 1D array
+        activation = np.atleast_1d(activation)
+        # use forward path to get best state
+        fwd = self._dbn.hmm.forward(activation, reset=False)
+        # choose the best state for each step
+        states = np.argmax(fwd, axis=1)
+        intervals = self._dbn.st.state_intervals[states]
+        # get the counts of the bins
+        bins = np.bincount(intervals,
+                           minlength=self._dbn.st.intervals.max() + 1)
+        # truncate everything below the minimum interval of the state space
+        bins = bins[self._dbn.st.intervals.min():]
+        # build a histogram together with the intervals and return it
+        return bins, self._dbn.st.intervals
 
     def dominant_interval(self, histogram):
         """
@@ -465,7 +678,7 @@ class TempoEstimationProcessor(Processor):
 
 
 # helper function for writing the detected tempi to file
-def write_tempo(tempi, filename, mirex=False):
+def write_tempo(tempi, filename=None, mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
@@ -474,8 +687,9 @@ def write_tempo(tempi, filename, mirex=False):
     tempi : numpy array
         Array with the detected tempi (first column) and their strengths
         (second column).
-    filename : str or file handle
+    filename : str or file handle, optional
         Output file.
+
     mirex : bool, optional
         Report the lower tempo first (as required by MIREX).
 
@@ -512,6 +726,7 @@ def write_tempo(tempi, filename, mirex=False):
     # format as a numpy array
     out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
+    if filename is not None:
+        np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
     # also return the tempi & strength
     return t1, t2, strength
