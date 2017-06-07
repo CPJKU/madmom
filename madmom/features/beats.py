@@ -994,7 +994,7 @@ class DBNBeatTrackingProcessor(Processor):
         self.fps = fps
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
-        # kepp state in online mode
+        # keep state in online mode
         self.online = online
         # TODO: refactor the visualisation stuff
         if self.online:
@@ -1159,7 +1159,7 @@ class DBNBeatTrackingProcessor(Processor):
             sys.stderr.write('\r%s' % ''.join(display))
             sys.stderr.flush()
         # forward path often reports multiple beats close together, thus report
-        # only beats more than the minumum interval apart
+        # only beats more than the minimum interval apart
         beats_ = []
         for frame in np.nonzero(beats)[0]:
             cur_beat = (frame + self.counter) / float(self.fps)
