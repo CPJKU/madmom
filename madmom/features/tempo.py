@@ -10,6 +10,7 @@ This module contains tempo related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import sys
 
 from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
@@ -265,7 +266,7 @@ class BaseTempoEstimationProcessor(Processor):
     """
 
     def __init__(self, min_bpm, max_bpm, act_smooth, hist_smooth, fps=None,
-                 **kwargs):
+                 online=False, **kwargs):
         # pylint: disable=unused-argument
         # save variables
         self.min_bpm = min_bpm
@@ -273,6 +274,9 @@ class BaseTempoEstimationProcessor(Processor):
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
         self.fps = fps
+        self.online = online
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
 
     @property
     def min_interval(self):
@@ -298,6 +302,26 @@ class BaseTempoEstimationProcessor(Processor):
         tempi : numpy array
             Array with the dominant tempi [bpm] (first column) and their
             relative strengths (second column).
+        """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_offline(activations, **kwargs)
+
+    def process_offline(self, activations, **kwargs):
+        """
+        Detect the tempi from the (beat) activations.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
 
         """
         # smooth the activations
@@ -310,6 +334,51 @@ class BaseTempoEstimationProcessor(Processor):
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
 
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the tempi from the (beat) activations in online mode.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the TempoEstimationProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        # multiple activations will result in multiple tempi
+        tempi = []
+        # iterate over all activations
+        for activation in activations:
+            # build the tempo histogram depending on the chosen method
+            histogram = self.online_interval_histogram(activation, reset=reset)
+            # smooth the histogram
+            histogram = smooth_histogram(histogram, self.hist_smooth)
+            # detect the tempo and append it to the found tempi
+            tempo = detect_tempo(histogram, self.fps)
+            tempi.append(tempo)
+            # visualize tempo
+            if self.visualize:
+                sys.stderr.write('\r%s' % ''.join(str(tempo[:2, 0])))
+                sys.stderr.flush()
+        # return last detected tempo
+        return tempi[-1]
+
+    def reset(self):
+        """
+        Reset the TempoEstimationProcessor. Needs to be implemented
+        by subclass.
+
+        """
+        raise NotImplementedError('Must be implemented by subclass.')
+
     def interval_histogram(self, activations):
         """
         Compute the histogram of the beat intervals. Needs to be implemented
@@ -319,6 +388,29 @@ class BaseTempoEstimationProcessor(Processor):
         ----------
         activations : numpy array
             Beat activation function.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        raise NotImplementedError('Must be implemented by subclass.')
+
+    def online_interval_histogram(self, activation, reset=True):
+        """
+        Compute the histogram of the beat intervals for online mode.
+        Needs to be implemented by subclass.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the TempoEstimationProcessor to its initial state before
+            processing.
 
         Returns
         -------
@@ -583,6 +675,9 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         # save additional variables
         self.alpha = alpha
 
+    def reset(self):
+        raise NotImplementedError('Must be implemented.')
+
     def interval_histogram(self, activations):
         """
         Compute the histogram of the beat intervals with the selected method.
@@ -602,6 +697,9 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         """
         return interval_histogram_comb(activations, self.alpha,
                                        self.min_interval, self.max_interval)
+
+    def online_interval_histogram(self, activation):
+        raise NotImplementedError('Must be implemented.')
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
@@ -696,6 +794,9 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
             hist_smooth=hist_smooth, fps=fps, **kwargs)
 
+    def reset(self):
+        raise NotImplementedError('Must be implemented.')
+
     def interval_histogram(self, activations):
         """
         Compute the histogram of the beat intervals with the autocorrelation
@@ -717,6 +818,9 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
         # build the tempo (i.e. inter beat interval) histogram and return it
         return interval_histogram_acf(activations, self.min_interval,
                                       self.max_interval)
+
+    def online_interval_histogram(self, activation):
+        raise NotImplementedError('Must be implemented.')
 
 
 class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
@@ -771,6 +875,9 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
             hist_smooth=hist_smooth, fps=fps, **kwargs)
 
+    def reset(self):
+        raise NotImplementedError('Must be implemented.')
+
     def interval_histogram(self, activations):
         """
         Compute the histogram of the beat intervals with a DBN.
@@ -805,6 +912,9 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
         bins = bins[dbn.st.intervals.min():]
         # build a histogram together with the intervals and return it
         return bins, dbn.st.intervals
+
+    def online_interval_histogram(self, activation):
+        raise NotImplementedError('Must be implemented.')
 
 
 # helper function for writing the detected tempi to file
