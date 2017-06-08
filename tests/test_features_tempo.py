@@ -24,7 +24,13 @@ COMB_TEMPI_ONLINE = [[176.470588, 0.289414003], [115.384615, 0.124638601],
                      [75.0000000, 0.0713704506], [53.5714286, 0.0701783497],
                      [65.9340659, 0.0696296514], [49.1803279, 0.0676349815],
                      [61.2244898, 0.0646209647], [40.8163265, 0.0602941909]]
-
+ACF_TEMPI = np.array([[176.470, 0.246], [86.956, 0.226], [58.823, 0.181],
+                      [43.795, 0.137], [115.384, 0.081], [70.588, 0.067],
+                      [50.847, 0.058]])
+ACF_TEMPI_ONLINE = [[176.470588, 0.253116038], [88.2352941, 0.231203195],
+                    [58.8235294, 0.187827698], [43.7956204, 0.139373027],
+                    [115.384615, 0.0749783568], [69.7674419, 0.0599632291],
+                    [50.4201681, 0.0535384559]]
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
 
@@ -183,6 +189,53 @@ class TestCombFilterTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(tempi[-1][:3], [[176.470588, 0.31322337],
                                                     [85.7142857, 0.11437361],
                                                     [115.384615, 0.10919612]]))
+
+
+class TestACFTempoHistogramProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = ACFTempoHistogramProcessor(fps=fps)
+        self.online_processor = ACFTempoHistogramProcessor(fps=fps,
+                                                           online=True)
+
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsInstance(self.processor.fps, float)
+        # properties
+        self.assertIsInstance(self.processor.min_interval, int)
+        self.assertIsInstance(self.processor.max_interval, int)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 40)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(self.processor.fps == 100)
+        self.assertTrue(self.processor.min_interval == 24)
+        self.assertTrue(self.processor.max_interval == 150)
+
+    def test_tempo(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.processor, fps=fps)
+        tempi = tempo_processor(act)
+        self.assertTrue(np.allclose(tempi, ACF_TEMPI, atol=0.01))
+
+    def test_tempo_online(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.online_processor, fps=fps, online=True)
+        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1], ACF_TEMPI_ONLINE))
+        # with resetting results are the same
+        tempo_processor.reset()
+        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1], ACF_TEMPI_ONLINE))
+        # without resetting results are different
+        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][:3], [[176.4705882, 0.2414368],
+                                                    [86.95652174, 0.2248635],
+                                                    [58.25242718, 0.1878183]]))
 
 
 class TestWriteTempoFunction(unittest.TestCase):
