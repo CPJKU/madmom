@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 NO_TEMPO = np.nan
@@ -627,14 +627,19 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
-    act_smooth : float, optional (default: 0.14)
+    act_smooth : float, optional
         Smooth the activation function over `act_smooth` seconds.
-    hist_smooth : int, optional (default: 7)
+    hist_smooth : int, optional
         Smooth the tempo histogram over `hist_smooth` bins.
     alpha : float, optional
         Scaling factor for the comb filter.
+    buffer_size : float, optional
+        Use a buffer of this size to sum the max. bins in online mode
+        [seconds].
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Extend the combfilter matrix frame by frame.
 
     Examples
     --------
@@ -665,18 +670,27 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
     ALPHA = 0.79
+    BUFFER_SIZE = 10.
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, alpha=ALPHA, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, alpha=ALPHA, buffer_size=BUFFER_SIZE,
+                 fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(CombFilterTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
         # save additional variables
         self.alpha = alpha
+        if self.online:
+            self.taus = np.arange(self.min_interval, self.max_interval + 1)
+            self.combfilter_matrix = []
+            self.buffer = BufferProcessor((int(buffer_size * self.fps),
+                                           len(self.taus)))
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the CombFilterTempoEstimationProcessor."""
+        self.combfilter_matrix = []
+        self.buffer.reset()
 
     def interval_histogram(self, activations):
         """
@@ -699,7 +713,48 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
                                        self.min_interval, self.max_interval)
 
     def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+        """
+        Compute the histogram of the beat intervals using a resonating
+        comb filter bank for online mode.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the CombTempoEstimationProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        # expand the activation for every tau
+        activation = np.full(len(self.taus), activation, dtype=np.float)
+        # append it to the comb filter matrix
+        self.combfilter_matrix.append(activation)
+        # online feed backward comb filter
+        min_tau = min(self.taus)
+        for t in self.taus:
+            if len(self.combfilter_matrix) > t:
+                self.combfilter_matrix[-1][t - min_tau] += self.alpha * \
+                    self.combfilter_matrix[-1 - t][t - min_tau]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == \
+            np.max(self.combfilter_matrix[-1], axis=-1)
+        # compute the max bins
+        bins = self.combfilter_matrix[-1] * act_max
+        # use a buffer to only keep bins of the last seconds
+        # shift buffer and put new bins at end of buffer
+        bins = self.buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(bins, axis=0), np.array(self.taus)
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
