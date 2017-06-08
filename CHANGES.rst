@@ -6,6 +6,7 @@ Version 0.16.dev0
 
 New features:
 
+* `TempoDetector` can operate on live audio signals  (#292)
 * Added chord evaluation (#309)
 * Bar tracking functionality (#316)
 * Added `quantize_notes` function (#327)
