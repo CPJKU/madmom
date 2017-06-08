@@ -712,7 +712,7 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         return interval_histogram_comb(activations, self.alpha,
                                        self.min_interval, self.max_interval)
 
-    def online_interval_histogram(self, activation):
+    def online_interval_histogram(self, activation, reset=True):
         """
         Compute the histogram of the beat intervals using a resonating
         comb filter bank for online mode.
@@ -925,12 +925,14 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
-    act_smooth : float, optional (default: 0.14)
+    act_smooth : float, optional
         Smooth the activation function over `act_smooth` seconds.
-    hist_smooth : int, optional (default: 7)
+    hist_smooth : int, optional
         Smooth the tempo histogram over `hist_smooth` bins.
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Uses the forward algorithm to retrieve the tempo.
 
     Examples
     --------
@@ -958,17 +960,23 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
     MIN_BPM = 40.
     MAX_BPM = 250.
     HIST_SMOOTH = 9
-    ACT_SMOOTH = 0
+    ACT_SMOOTH = 0.
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(DBNTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
+        # save additional variables
+        from .beats import DBNBeatTrackingProcessor
+        self.dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                            max_bpm=self.max_bpm,
+                                            fps=self.fps, **kwargs)
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the DBNTempoEstimationProcessor."""
+        self.dbn.hmm.reset()
 
     def interval_histogram(self, activations):
         """
@@ -987,26 +995,53 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
             Corresponding delays [frames].
 
         """
-        # build the tempo (i.e. inter beat interval) histogram and return it
-        from .beats import DBNBeatTrackingProcessor
-        # instantiate a DBN for beat tracking
-        dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
-                                       max_bpm=self.max_bpm,
-                                       num_tempi=None,
-                                       fps=self.fps)
         # get the best state path by calling the viterbi algorithm
-        path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
-        intervals = dbn.st.state_intervals[path]
+        path, _ = self.dbn.hmm.viterbi(activations.astype(np.float32))
+        intervals = self.dbn.st.state_intervals[path]
         # get the counts of the bins
         bins = np.bincount(intervals,
-                           minlength=dbn.st.intervals.max() + 1)
+                           minlength=self.dbn.st.intervals.max() + 1)
         # truncate everything below the minimum interval of the state space
-        bins = bins[dbn.st.intervals.min():]
+        bins = bins[self.dbn.st.intervals.min():]
         # build a histogram together with the intervals and return it
-        return bins, dbn.st.intervals
+        return bins, self.dbn.st.intervals
 
-    def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+    def online_interval_histogram(self, activation, reset=True):
+        """
+        Compute the histogram of the beat intervals using a DBN and the
+        forward algorithm.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the DBNTempoEstimationProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+           Bins of the tempo histogram.
+        histogram_delays : numpy array
+           Corresponding delays [frames].
+
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        # use forward path to get best state
+        fwd = self.dbn.hmm.forward(activation, reset=reset)
+        # choose the best state for each step
+        states = np.argmax(fwd, axis=1)
+        intervals = self.dbn.st.state_intervals[states]
+        # get the counts of the bins
+        bins = np.bincount(intervals,
+                           minlength=self.dbn.st.intervals.max() + 1)
+        # truncate everything below the minimum interval of the state space
+        bins = bins[self.dbn.st.intervals.min():]
+        # build a histogram together with the intervals and return it
+        return bins, self.dbn.st.intervals
 
 
 # helper function for writing the detected tempi to file
