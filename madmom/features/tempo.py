@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 METHOD = 'comb'
@@ -21,6 +21,7 @@ MIN_BPM = 40.
 MAX_BPM = 250.
 ACT_SMOOTH = 0.14
 HIST_SMOOTH = 9
+HIST_BUFFER = 10.
 NO_TEMPO = np.nan
 
 
@@ -326,17 +327,31 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         Maximum tempo to detect [bpm].
     alpha : float, optional
         Scaling factor for the comb filter.
+    hist_buffer : float, optional
+        Use a buffer of this size to sum the max. bins in online mode
+        [seconds].
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Operate in online (i.e. causal) mode.
 
     """
 
-    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA, fps=None,
-                 **kwargs):
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA,
+                 hist_buffer=HIST_BUFFER, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(CombFilterTempoHistogramProcessor, self).__init__(
-            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
         self.alpha = alpha
+        if self.online:
+            self.combfilter_matrix = []
+            self.buffer = BufferProcessor((int(hist_buffer * self.fps),
+                                           len(self.intervals)))
+
+    def reset(self):
+        """Reset to initial state."""
+        self.combfilter_matrix = []
+        self.buffer.reset()
 
     def process_offline(self, activations, **kwargs):
         """
@@ -358,6 +373,50 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         """
         return interval_histogram_comb(activations, self.alpha,
                                        self.min_interval, self.max_interval)
+
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Compute the histogram of the beat intervals with a bank of resonating
+        comb filters in online mode.
+
+        Parameters
+        ----------
+        activations : numpy float
+            Beat activation function.
+        reset : bool, optional
+            Reset to initial state before processing.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        # expand the activation for every tau
+        activations = np.full(len(self.intervals), activations, dtype=np.float)
+        # append it to the comb filter matrix
+        self.combfilter_matrix.append(activations)
+        # online feed backward comb filter
+        min_tau = self.min_interval
+        for i in self.intervals:
+            if len(self.combfilter_matrix) > i:
+                self.combfilter_matrix[-1][i - min_tau] += self.alpha * \
+                    self.combfilter_matrix[-1 - i][i - min_tau]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == \
+            np.max(self.combfilter_matrix[-1], axis=-1)
+        # compute the max bins
+        bins = self.combfilter_matrix[-1] * act_max
+        # use a buffer to only keep bins of the last seconds
+        # shift buffer and put new bins at end of buffer
+        bins = self.buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(bins, axis=0), self.intervals
 
 
 class ACFTempoHistogramProcessor(TempoHistogramProcessor):
