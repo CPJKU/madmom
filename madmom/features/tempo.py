@@ -429,15 +429,27 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
+    buffer_size : float, optional
+        Use a buffer of this size for the activations to calculate the
+        auto-correlation function [seconds].
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Operate in online (i.e. causal) mode.
 
     """
 
-    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, fps=None, **kwargs):
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 buffer_size=HIST_BUFFER, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(ACFTempoHistogramProcessor, self).__init__(
-            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
+        if self.online:
+            self.buffer = BufferProcessor(int(buffer_size * self.fps))
+
+    def reset(self):
+        """Reset to initial state."""
+        self.buffer.reset()
 
     def process_offline(self, activations, **kwargs):
         """
@@ -458,6 +470,35 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
 
         """
         # build the tempo (i.e. inter beat interval) histogram and return it
+        return interval_histogram_acf(activations, self.min_interval,
+                                      self.max_interval)
+
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Compute the histogram of the beat intervals with the autocorrelation
+        function in online mode.
+
+        Parameters
+        ----------
+        activations : numpy float
+            Beat activation function.
+        reset : bool, optional
+            Reset to initial state before processing.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        # shift buffer and put new activations at end of buffer
+        activations = self.buffer(activations)
+        # use offline acf function on buffered activations
         return interval_histogram_acf(activations, self.min_interval,
                                       self.max_interval)
 
