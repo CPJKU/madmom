@@ -10,6 +10,7 @@ This module contains tempo related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import sys
 
 from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
@@ -265,11 +266,12 @@ class TempoHistogramProcessor(Processor):
 
     """
 
-    def __init__(self, min_bpm, max_bpm, fps=None, **kwargs):
+    def __init__(self, min_bpm, max_bpm, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
         self.fps = fps
+        self.online = online
 
     @property
     def min_interval(self):
@@ -285,6 +287,31 @@ class TempoHistogramProcessor(Processor):
     def intervals(self):
         """Beat intervals [frames]."""
         return np.arange(self.min_interval, self.max_interval + 1)
+
+    def reset(self):
+        """Reset to initial state."""
+        raise NotImplementedError('Must be implemented by subclass.')
+
+    def process(self, activations, **kwargs):
+        """
+        Compute the histogram of the beat intervals.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_offline(activations, **kwargs)
 
 
 class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
@@ -311,7 +338,7 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
         self.alpha = alpha
 
-    def process(self, activations, **kwargs):
+    def process_offline(self, activations, **kwargs):
         """
         Compute the histogram of the beat intervals with a bank of resonating
         comb filters.
@@ -353,7 +380,7 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         super(ACFTempoHistogramProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
 
-    def process(self, activations, **kwargs):
+    def process_offline(self, activations, **kwargs):
         """
         Compute the histogram of the beat intervals with the autocorrelation
         function.
@@ -396,7 +423,7 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
         super(DBNTempoHistogramProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
 
-    def process(self, activations, **kwargs):
+    def process_offline(self, activations, **kwargs):
         """
         Compute the histogram of the beat intervals with a DBN.
 
@@ -484,12 +511,15 @@ class TempoEstimationProcessor(Processor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, fps=None,
-                 histogram_processor=None, **kwargs):
+                 online=False, histogram_processor=None, **kwargs):
         # pylint: disable=unused-argument
         self.method = method
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
         self.fps = fps
+        self.online = online
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
         if histogram_processor is None:
             if method == 'acf':
                 histogram_processor = ACFTempoHistogramProcessor
@@ -501,7 +531,8 @@ class TempoEstimationProcessor(Processor):
                 raise ValueError('tempo histogram method unknown.')
             # instantiate histogram processor
             histogram_processor = histogram_processor(
-                min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+                min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online,
+                **kwargs)
         self.histogram_processor = histogram_processor
 
     @property
@@ -529,7 +560,32 @@ class TempoEstimationProcessor(Processor):
         """Maximum beat interval [frames]."""
         return self.histogram_processor.max_interval
 
+    def reset(self):
+        """Reset to initial state."""
+        self.histogram_processor.reset()
+
     def process(self, activations, **kwargs):
+        """
+        Detect the tempi from the (beat) activations.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        if self.online:
+            return self.process_online(activations, **kwargs)
+        else:
+            return self.process_offline(activations, **kwargs)
+
+    def process_offline(self, activations, **kwargs):
         """
         Detect the tempi from the (beat) activations.
 
@@ -554,6 +610,43 @@ class TempoEstimationProcessor(Processor):
         histogram = smooth_histogram(histogram, self.hist_smooth)
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
+
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the tempi from the (beat) activations in online mode.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the TempoEstimationProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        tempi : numpy array
+            Array with the dominant tempi [bpm] (first column) and their
+            relative strengths (second column).
+
+        """
+        # multiple activations will result in multiple tempi
+        tempi = []
+        # iterate over all activations
+        for activation in activations:
+            # build the tempo histogram depending on the chosen method
+            histogram = self.interval_histogram(activation, reset=reset)
+            # smooth the histogram
+            histogram = smooth_histogram(histogram, self.hist_smooth)
+            # detect the tempo and append it to the found tempi
+            tempo = detect_tempo(histogram, self.fps)
+            tempi.append(tempo)
+            # visualize tempo
+            if self.visualize:
+                sys.stderr.write('\r%s' % ''.join(str(tempo[:2, 0])))
+                sys.stderr.flush()
+        # return last detected tempo
+        return tempi[-1]
 
     def interval_histogram(self, activations, **kwargs):
         """
