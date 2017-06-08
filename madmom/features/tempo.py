@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
-from madmom.processors import Processor
+from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 NO_TEMPO = np.nan
@@ -511,7 +511,7 @@ class TempoEstimationProcessor(BaseTempoEstimationProcessor):
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 fps=None, **kwargs):
+                 fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         # save variables
         self.method = method
@@ -521,6 +521,7 @@ class TempoEstimationProcessor(BaseTempoEstimationProcessor):
         self.hist_smooth = hist_smooth
         self.alpha = alpha
         self.fps = fps
+        self.online = online
 
     def interval_histogram(self, activations):
         """
@@ -663,18 +664,27 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
     ALPHA = 0.79
+    BUFFER_SIZE = 1000
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, alpha=ALPHA, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, alpha=ALPHA, buffer_size=BUFFER_SIZE,
+                 fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(CombFilterTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
         # save additional variables
         self.alpha = alpha
+        if self.online:
+            self.taus = np.arange(self.min_interval, self.max_interval + 1)
+            self.combfilter_matrix = []
+            self._buffer = BufferProcessor((int(buffer_size),
+                                            len(self.taus)))
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the CombFilterTempoEstimationProcessor."""
+        self.combfilter_matrix = []
+        self._buffer.reset()
 
     def interval_histogram(self, activations):
         """
@@ -697,7 +707,42 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
                                        self.min_interval, self.max_interval)
 
     def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+        """
+        Compute the histogram of the beat intervals using a resonating
+        comb filter bank for online mode.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # copy the activation for every tau
+        copied_signal = np.full(len(self.taus), activation, dtype=np.float)
+        # append it to the comb filter matrix
+        self.combfilter_matrix.append(copied_signal)
+        # online feed backward comb filter
+        min_tau = min(self.taus)
+        for t in self.taus:
+            if len(self.combfilter_matrix) > t:
+                self.combfilter_matrix[-1][t - min_tau] += self.alpha * \
+                    self.combfilter_matrix[-1 - t][t - min_tau]
+        # retrieve maxima
+        act_max = self.combfilter_matrix[-1] == \
+            np.max(self.combfilter_matrix[-1], axis=-1)
+        # compute the max bins
+        bins = self.combfilter_matrix[-1] * act_max
+        # use a buffer to only keep bins of the last seconds
+        # shift buffer and put new bins at end of buffer
+        buffer = self._buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(buffer, axis=0), np.array(self.taus)
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,

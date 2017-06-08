@@ -115,6 +115,25 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(tempi, COMB_TEMPI, atol=0.01))
 
 
+class TestCombFilterTempoEstimationProcessor(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = CombFilterTempoEstimationProcessor(fps=fps)
+
+    def test_process(self):
+        tempi = self.processor(act)
+        self.assertTrue(np.allclose(tempi, COMB_TEMPI, atol=0.01))
+
+    def test_process_online(self):
+        processor = CombFilterTempoEstimationProcessor(fps=fps, online=True)
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.47058824, 0.289414],
+                                     [115.38461538, 0.124638],
+                                     [230.76923076, 0.091837]]))
+
+
 class TestWriteTempoFunction(unittest.TestCase):
 
     def setUp(self):
