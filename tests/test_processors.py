@@ -71,6 +71,14 @@ class TestBufferProcessor(unittest.TestCase):
         self.assertTrue(result.shape == (5, 2))
         self.assertTrue(np.allclose(result.ravel(), np.arange(4, 14)))
 
+    def test_reset(self):
+        buffer = BufferProcessor(5, init=np.ones(5))
+        self.assertTrue(np.allclose(buffer.buffer, 1))
+        result = buffer(np.arange(2))
+        self.assertTrue(np.allclose(result, [1, 1, 1, 0, 1]))
+        buffer.reset()
+        self.assertTrue(np.allclose(buffer.buffer, 1))
+
 
 # clean up
 def teardown():

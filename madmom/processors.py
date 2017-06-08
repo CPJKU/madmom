@@ -664,7 +664,12 @@ class BufferProcessor(Processor):
             init = np.ones(buffer_size) * init_value
         # save variables
         self.buffer_size = buffer_size
+        self.init_buffer = init
         self.buffer = init
+
+    def reset(self):
+        """Resets the buffer"""
+        self.buffer = self.init_buffer
 
     def process(self, data, **kwargs):
         """
