@@ -51,7 +51,7 @@ def main():
     # version
     p.add_argument('--version', action='version', version='TempoDetector.2016')
     # input/output options
-    io_arguments(p, output_suffix='.bpm.txt')
+    io_arguments(p, output_suffix='.bpm.txt', online=True)
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
