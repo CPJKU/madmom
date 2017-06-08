@@ -8,7 +8,6 @@ This file contains tests for the madmom.processors module.
 from __future__ import absolute_import, division, print_function
 import tempfile
 import unittest
-import sys
 
 from madmom.processors import *
 from madmom.models import *
@@ -70,6 +69,14 @@ class TestBufferProcessor(unittest.TestCase):
         result = buffer(np.arange(8, 14).reshape((3, -1)))
         self.assertTrue(result.shape == (5, 2))
         self.assertTrue(np.allclose(result.ravel(), np.arange(4, 14)))
+
+    def test_reset(self):
+        buffer = BufferProcessor(5, init=np.ones(5))
+        self.assertTrue(np.allclose(buffer.buffer, 1))
+        result = buffer(np.arange(2))
+        self.assertTrue(np.allclose(result, [1, 1, 1, 0, 1]))
+        buffer.reset()
+        self.assertTrue(np.allclose(buffer.buffer, 1))
 
 
 # clean up
