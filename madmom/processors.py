@@ -639,11 +639,16 @@ class BufferProcessor(Processor):
     ----------
     buffer_size : int or tuple
         Size of the buffer (time steps, [additional dimensions]).
+    init : numpy array, optional
+        Init the buffer with this array.
+    init_value : float, optional
+        If only `buffer_size` is given but no `init`, use this value to
+        initialise the buffer.
 
     Notes
     -----
-    If `buffer_size` (or the first value thereof) is 1, only the un-buffered
-    current value is returned.
+    If `buffer_size` (or the first item thereof in case of tuple) is 1,
+    only the un-buffered current value is returned.
 
     If context is needed, `buffer_size` must be set to >1.
     E.g. SpectrogramDifference needs a context of two frames to be able to
@@ -664,7 +669,20 @@ class BufferProcessor(Processor):
             init = np.ones(buffer_size) * init_value
         # save variables
         self.buffer_size = buffer_size
+        self.init = init
         self.buffer = init
+
+    def reset(self, init=None):
+        """
+        Reset BufferProcessor to its initial state.
+
+        Parameters
+        ----------
+        init : numpy array, shape (num_hiddens,), optional
+            Reset BufferProcessor to this initial state.
+
+        """
+        self.buffer = init if init is not None else self.init
 
     def process(self, data, **kwargs):
         """
