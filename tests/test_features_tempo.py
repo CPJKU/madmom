@@ -31,6 +31,7 @@ ACF_TEMPI_ONLINE = [[176.470588, 0.253116038], [88.2352941, 0.231203195],
                     [58.8235294, 0.187827698], [43.7956204, 0.139373027],
                     [115.384615, 0.0749783568], [69.7674419, 0.0599632291],
                     [50.4201681, 0.0535384559]]
+DBN_TEMPI = np.array([[176.470, 1]])
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
 
@@ -236,6 +237,46 @@ class TestACFTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(tempi[-1][:3], [[176.4705882, 0.2414368],
                                                     [86.95652174, 0.2248635],
                                                     [58.25242718, 0.1878183]]))
+
+
+class TestDBNTempoHistogramProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = DBNTempoHistogramProcessor(fps=fps)
+        self.online_processor = DBNTempoHistogramProcessor(fps=fps,
+                                                           online=True)
+
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsInstance(self.processor.fps, float)
+        # properties
+        self.assertIsInstance(self.processor.min_interval, int)
+        self.assertIsInstance(self.processor.max_interval, int)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 40)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(self.processor.fps == 100)
+        self.assertTrue(self.processor.min_interval == 24)
+        self.assertTrue(self.processor.max_interval == 150)
+
+    def test_tempo(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.processor, fps=fps)
+        tempi = tempo_processor(act)
+        self.assertTrue(np.allclose(tempi, DBN_TEMPI, atol=0.01))
+
+    def test_tempo_online(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.online_processor, fps=fps, online=True)
+        # TODO: fix requirement for atleast_2d
+        tempi = [tempo_processor(np.atleast_2d(a), reset=False) for a in act]
+        self.assertTrue(np.allclose(tempi[-1], DBN_TEMPI))
+        # with resetting results are the same
+        tempo_processor.reset()
+        tempi = [tempo_processor(np.atleast_2d(a), reset=False) for a in act]
+        self.assertTrue(np.allclose(tempi[-1], DBN_TEMPI))
 
 
 class TestWriteTempoFunction(unittest.TestCase):
