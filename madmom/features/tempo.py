@@ -936,7 +936,7 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
     MIN_BPM = 40.
     MAX_BPM = 250.
     HIST_SMOOTH = 9
-    ACT_SMOOTH = 0
+    ACT_SMOOTH = 0.
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
                  hist_smooth=HIST_SMOOTH, fps=None, online=False, **kwargs):

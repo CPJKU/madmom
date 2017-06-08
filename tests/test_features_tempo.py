@@ -24,7 +24,7 @@ ACF_TEMPI = np.array([[176.470, 0.246], [86.956, 0.226], [58.823, 0.181],
                       [43.795, 0.137], [115.384, 0.081], [70.588, 0.067],
                       [50.847, 0.058]])
 
-DBN_TEMPI = np.array([[ 176.470, 1]])
+DBN_TEMPI = np.array([[176.470, 1]])
 
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
@@ -126,6 +126,27 @@ class TestCombFilterTempoEstimationProcessor(unittest.TestCase):
     def setUp(self):
         self.processor = CombFilterTempoEstimationProcessor(fps=fps)
 
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsInstance(self.processor.act_smooth, float)
+        self.assertIsInstance(self.processor.hist_smooth, int)
+        self.assertIsInstance(self.processor.alpha, float)
+        self.assertIsInstance(self.processor.fps, float)
+        # properties
+        self.assertIsInstance(self.processor.min_interval, int)
+        self.assertIsInstance(self.processor.max_interval, int)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 40)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(self.processor.act_smooth == 0.14)
+        self.assertTrue(self.processor.hist_smooth == 9)
+        self.assertTrue(self.processor.alpha == 0.79)
+        self.assertTrue(self.processor.fps == 100)
+        self.assertTrue(self.processor.min_interval == 24)
+        self.assertTrue(self.processor.max_interval == 150)
+
     def test_process(self):
         tempi = self.processor(act)
         self.assertTrue(np.allclose(tempi, COMB_TEMPI, atol=0.01))
@@ -138,6 +159,21 @@ class TestCombFilterTempoEstimationProcessor(unittest.TestCase):
                                     [[176.47058824, 0.289414],
                                      [115.38461538, 0.124638],
                                      [230.76923076, 0.091837]]))
+        # with resetting results are the same
+        processor.reset()
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.47058824, 0.289414],
+                                     [115.38461538, 0.124638],
+                                     [230.76923076, 0.091837]]))
+        # without resetting results are different
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.470588, 0.31322337],
+                                     [85.7142857, 0.11437361],
+                                     [115.384615, 0.10919612]]))
 
 
 class TestACFTempoEstimationProcessor(unittest.TestCase):
@@ -145,9 +181,27 @@ class TestACFTempoEstimationProcessor(unittest.TestCase):
     def setUp(self):
         self.processor = ACFTempoEstimationProcessor(fps=fps)
 
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsInstance(self.processor.act_smooth, float)
+        self.assertIsInstance(self.processor.hist_smooth, int)
+        self.assertIsInstance(self.processor.fps, float)
+        # properties
+        self.assertIsInstance(self.processor.min_interval, int)
+        self.assertIsInstance(self.processor.max_interval, int)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 40)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(self.processor.act_smooth == 0.14)
+        self.assertTrue(self.processor.hist_smooth == 9)
+        self.assertTrue(self.processor.fps == 100)
+        self.assertTrue(self.processor.min_interval == 24)
+        self.assertTrue(self.processor.max_interval == 150)
+
     def test_process(self):
         tempi = self.processor(act)
-        print(tempi)
         self.assertTrue(np.allclose(tempi, ACF_TEMPI, atol=0.01))
 
     def test_process_online(self):
@@ -158,6 +212,21 @@ class TestACFTempoEstimationProcessor(unittest.TestCase):
                                     [[176.4705882, 0.2531160],
                                      [88.23529412, 0.2312032],
                                      [58.82352941, 0.1878277]]))
+        # with resetting results are the same
+        processor.reset()
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.4705882, 0.2531160],
+                                     [88.23529412, 0.2312032],
+                                     [58.82352941, 0.1878277]]))
+        # without resetting results are different
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0:3],
+                                    [[176.4705882, 0.2414368],
+                                     [86.95652174, 0.2248635],
+                                     [58.25242718, 0.1878183]]))
 
 
 class TestDBNTempoEstimationProcessor(unittest.TestCase):
@@ -165,16 +234,39 @@ class TestDBNTempoEstimationProcessor(unittest.TestCase):
     def setUp(self):
         self.processor = DBNTempoEstimationProcessor(fps=fps)
 
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsInstance(self.processor.act_smooth, float)
+        self.assertIsInstance(self.processor.hist_smooth, int)
+        self.assertIsInstance(self.processor.fps, float)
+        # properties
+        self.assertIsInstance(self.processor.min_interval, int)
+        self.assertIsInstance(self.processor.max_interval, int)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 40)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(self.processor.act_smooth == 0)
+        self.assertTrue(self.processor.hist_smooth == 9)
+        self.assertTrue(self.processor.fps == 100)
+        self.assertTrue(self.processor.min_interval == 24)
+        self.assertTrue(self.processor.max_interval == 150)
+
     def test_process(self):
         tempi = self.processor(act)
-        print(tempi)
         self.assertTrue(np.allclose(tempi, DBN_TEMPI, atol=0.01))
 
     def test_process_online(self):
         processor = DBNTempoEstimationProcessor(fps=fps, online=True)
         tempi = [processor.process_online(a, reset=False)
                  for a in act]
-        self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1.]))
+        self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1]))
+        # with resetting results are the same
+        processor.reset()
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1]))
 
 
 class TestWriteTempoFunction(unittest.TestCase):
