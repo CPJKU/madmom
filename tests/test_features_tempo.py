@@ -24,6 +24,8 @@ ACF_TEMPI = np.array([[176.470, 0.246], [86.956, 0.226], [58.823, 0.181],
                       [43.795, 0.137], [115.384, 0.081], [70.588, 0.067],
                       [50.847, 0.058]])
 
+DBN_TEMPI = np.array([[ 176.470, 1]])
+
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
 
@@ -156,6 +158,23 @@ class TestACFTempoEstimationProcessor(unittest.TestCase):
                                     [[176.4705882, 0.2531160],
                                      [88.23529412, 0.2312032],
                                      [58.82352941, 0.1878277]]))
+
+
+class TestDBNTempoEstimationProcessor(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = DBNTempoEstimationProcessor(fps=fps)
+
+    def test_process(self):
+        tempi = self.processor(act)
+        print(tempi)
+        self.assertTrue(np.allclose(tempi, DBN_TEMPI, atol=0.01))
+
+    def test_process_online(self):
+        processor = DBNTempoEstimationProcessor(fps=fps, online=True)
+        tempi = [processor.process_online(a, reset=False)
+                 for a in act]
+        self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1.]))
 
 
 class TestWriteTempoFunction(unittest.TestCase):

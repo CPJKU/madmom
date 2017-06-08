@@ -12,6 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
+from .beats import DBNBeatTrackingProcessor
 from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
@@ -938,14 +939,20 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
     ACT_SMOOTH = 0
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(DBNTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
+        # save additional variables
+        if self.online:
+            self._dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                                 max_bpm=self.max_bpm,
+                                                 fps=self.fps)
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the DBNTempoEstimationProcessor."""
+        self._dbn.hmm.reset()
 
     def interval_histogram(self, activations):
         """
@@ -983,7 +990,36 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
         return bins, dbn.st.intervals
 
     def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+        """
+        Compute the histogram of the beat intervals using a DBN and the
+        forward algorithm.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+           Bins of the tempo histogram.
+        histogram_delays : numpy array
+           Corresponding delays [frames].
+        """
+        # make the activation a 1D array
+        activation = np.atleast_1d(activation)
+        # use forward path to get best state
+        fwd = self._dbn.hmm.forward(activation, reset=False)
+        # choose the best state for each step
+        states = np.argmax(fwd, axis=1)
+        intervals = self._dbn.st.state_intervals[states]
+        # get the counts of the bins
+        bins = np.bincount(intervals,
+                           minlength=self._dbn.st.intervals.max() + 1)
+        # truncate everything below the minimum interval of the state space
+        bins = bins[self._dbn.st.intervals.min():]
+        # build a histogram together with the intervals and return it
+        return bins, self._dbn.st.intervals
 
 
 # helper function for writing the detected tempi to file
