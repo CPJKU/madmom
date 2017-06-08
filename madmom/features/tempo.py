@@ -783,7 +783,17 @@ class TempoEstimationProcessor(Processor):
             tempi.append(tempo)
             # visualize tempo
             if self.visualize:
-                sys.stderr.write('\r%s' % ''.join(str(tempo[:2, 0])))
+                display = ''
+                # display the 3 most likely tempi and their strengths
+                for i, display_tempo in enumerate(tempo[:3], start=1):
+                    # display tempo
+                    display += '| ' + str(round(display_tempo[0], 1)) + ' '
+                    # display strength
+                    display += min(int(display_tempo[1] * 50), 18) * '*'
+                    # fill up the rest with spaces
+                    display = display.ljust(i * 26)
+                # print the tempi
+                sys.stderr.write('\r%s' % ''.join(display) + '|')
                 sys.stderr.flush()
         # return last detected tempo
         return tempi[-1]
