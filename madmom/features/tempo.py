@@ -337,12 +337,12 @@ class BaseTempoEstimationProcessor(Processor):
 
     def process_online(self, activations, reset=True, **kwargs):
         """
-        Detect the tempi from the (beat) activations.
+        Detect the tempi from the (beat) activations in online mode.
 
         Parameters
         ----------
         activations : numpy array
-            For the online setting there will be only one activation at once
+            For the online setting there will be only one activation at a time
             but it is also possible to use it to process offline data.
 
         Returns
@@ -376,7 +376,11 @@ class BaseTempoEstimationProcessor(Processor):
         return tempi[-1]
 
     def reset(self):
-        """Reset the TempoEstimationProcessor."""
+        """
+        Reset the TempoEstimationProcessor. Needs to be implemented
+        by subclass.
+
+        """
         raise NotImplementedError('Must be implemented by subclass.')
 
     def interval_histogram(self, activations):
@@ -633,8 +637,12 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Smooth the tempo histogram over `hist_smooth` bins.
     alpha : float, optional
         Scaling factor for the comb filter.
+    buffer_size : int, optional
+        For online mode a buffer [bins] for the summed up bins is used.
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Extends the combfilter matrix frame by frame.
 
     Examples
     --------
@@ -800,8 +808,12 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Smooth the tempo histogram over `hist_smooth` bins.
     alpha : float, optional
         Scaling factor for the comb filter.
+    buffer_size : int, optional
+        For online mode a buffer [frames] for the activations is used.
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Uses only the buffered activations to perform the auto correlation.
 
     Examples
     --------
@@ -844,7 +856,7 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
             self._buffer = BufferProcessor(int(buffer_size))
 
     def reset(self):
-        """Reset the ACFFilterTempoEstimationProcessor."""
+        """Reset the ACFTempoEstimationProcessor."""
         self._buffer.reset()
 
     def interval_histogram(self, activations):
@@ -909,6 +921,8 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Smooth the tempo histogram over `hist_smooth` bins.
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Uses the forward algorithm to retrieve the tempo.
 
     Examples
     --------
