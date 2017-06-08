@@ -805,14 +805,19 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
-    act_smooth : float, optional (default: 0.14)
+    act_smooth : float, optional
         Smooth the activation function over `act_smooth` seconds.
-    hist_smooth : int, optional (default: 7)
+    hist_smooth : int, optional
         Smooth the tempo histogram over `hist_smooth` bins.
     alpha : float, optional
         Scaling factor for the comb filter.
+    buffer_size : float, optional
+        Use a buffer of this size for the activations to calculate the
+        auto-correlation function [seconds].
     fps : float, optional
         Frames per second.
+    online : bool, optional
+        Use only the buffered activations to perform the auto correlation.
 
     Examples
     --------
@@ -841,16 +846,22 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
     MAX_BPM = 250.
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
+    BUFFER_SIZE = 10.
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, buffer_size=BUFFER_SIZE, fps=None,
+                 online=False, **kwargs):
         # pylint: disable=unused-argument
         super(ACFTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
+        # save additional variables
+        if self.online:
+            self.buffer = BufferProcessor(int(buffer_size * self.fps))
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the ACFTempoEstimationProcessor."""
+        self.buffer.reset()
 
     def interval_histogram(self, activations):
         """
@@ -874,8 +885,34 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
         return interval_histogram_acf(activations, self.min_interval,
                                       self.max_interval)
 
-    def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+    def online_interval_histogram(self, activation, reset=True):
+        """
+        Compute the histogram of the beat intervals using auto-correlation on
+        buffered activations.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation function processed frame by frame.
+        reset : bool, optional
+            Reset the ACFTempoEstimationProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        # shift buffer and put new activation at end of buffer
+        activation = self.buffer(activation)
+        # use offline acf function on buffered activations
+        return interval_histogram_acf(activation, self.min_interval,
+                                      self.max_interval)
 
 
 class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
