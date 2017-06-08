@@ -829,16 +829,22 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
     MAX_BPM = 250.
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
+    BUFFER_SIZE = 1000
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
-                 hist_smooth=HIST_SMOOTH, fps=None, **kwargs):
+                 hist_smooth=HIST_SMOOTH, buffer_size=BUFFER_SIZE, fps=None,
+                 online=False, **kwargs):
         # pylint: disable=unused-argument
         super(ACFTempoEstimationProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
-            hist_smooth=hist_smooth, fps=fps, **kwargs)
+            hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
+        # save additional variables
+        if self.online:
+            self._buffer = BufferProcessor(int(buffer_size))
 
     def reset(self):
-        raise NotImplementedError('Must be implemented.')
+        """Reset the ACFFilterTempoEstimationProcessor."""
+        self._buffer.reset()
 
     def interval_histogram(self, activations):
         """
@@ -863,7 +869,27 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
                                       self.max_interval)
 
     def online_interval_histogram(self, activation):
-        raise NotImplementedError('Must be implemented.')
+        """
+        Compute the histogram of the beat intervals using auto-correlation on
+        buffered activations.
+
+        Parameters
+        ----------
+        activation : numpy float
+            Beat activation for a single frame.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the tempo histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+        """
+        # shift buffer and put new activation at end of buffer
+        buffer = self._buffer(activation)
+        # use offline acf function on buffered activations
+        return interval_histogram_acf(buffer, self.min_interval,
+                                      self.max_interval)
 
 
 class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
