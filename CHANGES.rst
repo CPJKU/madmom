@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.15.1 (release date: 2017-07-07)
+-----------------------------------------
+
+This is a maintenance release.
+
+* NumPy boolean subtract fix (#296)
+
 Version 0.15 (release date: 2017-04-25)
 ---------------------------------------
 
