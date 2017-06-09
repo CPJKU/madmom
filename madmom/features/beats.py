@@ -532,6 +532,8 @@ class BeatTrackingProcessor(Processor):
 
         # convert detected beats to a list of timestamps
         detections = np.array(detections) / float(self.fps)
+        # make detections unique
+        detections = np.unique(detections)
         # remove beats with negative times and return them
         return detections[np.searchsorted(detections, 0):]
         # only return beats with a bigger inter beat interval than that of the
