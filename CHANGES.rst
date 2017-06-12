@@ -7,6 +7,7 @@ Version 0.16.dev0
 Bug fixes:
 
 * Fix `TransitionModel` number of states when last state is unreachable (#287)
+* Fix double beat detections in `BeatTrackingProcessor` (#298)
 
 Other changes:
 
