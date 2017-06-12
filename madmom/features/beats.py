@@ -524,6 +524,10 @@ class BeatTrackingProcessor(Processor):
                 positions = detect_beats(act, interval, self.look_aside)
                 # correct the beat positions
                 positions += start
+                # remove all positions < already detected beats + min_interval
+                next_pos = (detections[-1] + self.tempo_estimator.min_interval
+                            if detections else 0)
+                positions = positions[positions >= next_pos]
                 # search the closest beat to the predicted beat position
                 pos = positions[(np.abs(positions - pos)).argmin()]
                 # append to the beats
@@ -534,10 +538,6 @@ class BeatTrackingProcessor(Processor):
         detections = np.array(detections) / float(self.fps)
         # remove beats with negative times and return them
         return detections[np.searchsorted(detections, 0):]
-        # only return beats with a bigger inter beat interval than that of the
-        # maximum allowed tempo
-        # return np.append(detections[0], detections[1:][np.diff(detections) >
-        #                                                (60. / max_bpm)])
 
     @staticmethod
     def add_arguments(parser, look_aside=LOOK_ASIDE,
