@@ -145,12 +145,12 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(beats, [0.47, 0.79, 1.48, 2.16, 2.5]))
         # compute the forward path framewise
         processor.reset()
-        beats = [processor.process_forward(act, reset=False)
+        beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
         self.assertTrue(np.allclose(np.nonzero(beats),
                                     [47, 79, 148, 216, 250]))
         # without resetting results are different
-        beats = [processor.process_forward(act, reset=False)
+        beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
         self.assertTrue(np.allclose(np.nonzero(beats), [3, 79, 149, 216, 252]))
 
