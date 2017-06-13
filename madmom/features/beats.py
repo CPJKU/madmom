@@ -1107,8 +1107,6 @@ class DBNBeatTrackingProcessor(Processor):
             Detected beat position [seconds].
 
         """
-        # make the activations a 1D array
-        activations = np.atleast_1d(activations)
         # reset to initial state
         if reset:
             self.reset()

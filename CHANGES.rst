@@ -9,6 +9,11 @@ Bug fixes:
 * Fix `TransitionModel` number of states when last state is unreachable (#287)
 * Fix double beat detections in `BeatTrackingProcessor` (#298)
 
+API relevant changes:
+
+* `DBNBeatTrackingProcessor` expects 1D inputs (#299)
+
+
 Other changes:
 
 * Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)
