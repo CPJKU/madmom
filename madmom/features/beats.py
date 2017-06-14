@@ -12,7 +12,8 @@ from __future__ import absolute_import, division, print_function
 import sys
 import numpy as np
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
+from madmom.processors import (Processor, OnlineProcessor, SequentialProcessor,
+                               ParallelProcessor)
 from madmom.audio.signal import smooth as smooth_signal
 from madmom.ml.nn import average_predictions
 
@@ -894,7 +895,7 @@ def _process_dbn(process_tuple):
     return process_tuple[0].viterbi(process_tuple[1])
 
 
-class DBNBeatTrackingProcessor(Processor):
+class DBNBeatTrackingProcessor(OnlineProcessor):
     """
     Beat tracking with RNNs and a dynamic Bayesian network (DBN) approximated
     by a Hidden Markov Model (HMM).
@@ -977,7 +978,8 @@ class DBNBeatTrackingProcessor(Processor):
                                 BeatTransitionModel as Tm,
                                 RNNBeatTrackingObservationModel as Om)
         from ..ml.hmm import HiddenMarkovModel as Hmm
-
+        # instantiate OnlineProcessor
+        super(DBNBeatTrackingProcessor, self).__init__(online=online)
         # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
         max_interval = 60. * fps / min_bpm
@@ -994,8 +996,6 @@ class DBNBeatTrackingProcessor(Processor):
         self.fps = fps
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
-        # keep state in online mode
-        self.online = online
         # TODO: refactor the visualisation stuff
         if self.online:
             self.visualize = kwargs.get('verbose', False)
@@ -1016,26 +1016,6 @@ class DBNBeatTrackingProcessor(Processor):
         self.strength = 0
         self.last_beat = 0
         self.tempo = 0
-
-    def process(self, activations, **kwargs):
-        """
-        Detect the beats in the given activation function.
-
-        Parameters
-        ----------
-        activations : numpy array
-            Beat activation function.
-
-        Returns
-        -------
-        beats : numpy array
-            Detected beat positions [seconds].
-
-        """
-        if self.online:
-            return self.process_forward(activations, **kwargs)
-        else:
-            return self.process_viterbi(activations, **kwargs)
 
     def process_viterbi(self, activations, **kwargs):
         """
@@ -1101,6 +1081,8 @@ class DBNBeatTrackingProcessor(Processor):
             beats = beats[self.om.pointers[path[beats]] == 1]
         # convert the detected beats to seconds and return them
         return (beats + first) / float(self.fps)
+
+    process_offline = process_viterbi
 
     def process_forward(self, activations, reset=True, **kwargs):
         """
@@ -1177,6 +1159,8 @@ class DBNBeatTrackingProcessor(Processor):
         self.counter += len(activations)
         # return beat(s)
         return np.array(beats_)
+
+    process_online = process_forward
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,

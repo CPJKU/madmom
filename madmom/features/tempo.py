@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
-from madmom.processors import Processor, BufferProcessor
+from madmom.processors import Processor, OnlineProcessor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
 NO_TEMPO = np.nan
@@ -236,7 +236,7 @@ def detect_tempo(histogram, fps):
 
 
 # tempo estimation processor classes
-class BaseTempoEstimationProcessor(Processor):
+class BaseTempoEstimationProcessor(OnlineProcessor):
     """
     Tempo Estimation Processor class.
 
@@ -268,13 +268,13 @@ class BaseTempoEstimationProcessor(Processor):
     def __init__(self, min_bpm, max_bpm, act_smooth, hist_smooth, fps=None,
                  online=False, **kwargs):
         # pylint: disable=unused-argument
+        super(BaseTempoEstimationProcessor, self).__init__(online=online)
         # save variables
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
         self.fps = fps
-        self.online = online
         if self.online:
             self.visualize = kwargs.get('verbose', False)
 
@@ -287,26 +287,6 @@ class BaseTempoEstimationProcessor(Processor):
     def max_interval(self):
         """Maximum beat interval [frames]."""
         return int(np.ceil(60. * self.fps / self.min_bpm))
-
-    def process(self, activations, **kwargs):
-        """
-        Detect the tempi from the (beat) activations.
-
-        Parameters
-        ----------
-        activations : numpy array
-            Beat activation function.
-
-        Returns
-        -------
-        tempi : numpy array
-            Array with the dominant tempi [bpm] (first column) and their
-            relative strengths (second column).
-        """
-        if self.online:
-            return self.process_online(activations, **kwargs)
-        else:
-            return self.process_offline(activations, **kwargs)
 
     def process_offline(self, activations, **kwargs):
         """
