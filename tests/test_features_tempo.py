@@ -153,7 +153,7 @@ class TestCombFilterTempoEstimationProcessor(unittest.TestCase):
 
     def test_process_online(self):
         processor = CombFilterTempoEstimationProcessor(fps=fps, online=True)
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.47058824, 0.289414],
@@ -161,14 +161,14 @@ class TestCombFilterTempoEstimationProcessor(unittest.TestCase):
                                      [230.76923076, 0.091837]]))
         # with resetting results are the same
         processor.reset()
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.47058824, 0.289414],
                                      [115.38461538, 0.124638],
                                      [230.76923076, 0.091837]]))
         # without resetting results are different
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.470588, 0.31322337],
@@ -206,7 +206,7 @@ class TestACFTempoEstimationProcessor(unittest.TestCase):
 
     def test_process_online(self):
         processor = ACFTempoEstimationProcessor(fps=fps, online=True)
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.4705882, 0.2531160],
@@ -214,14 +214,14 @@ class TestACFTempoEstimationProcessor(unittest.TestCase):
                                      [58.82352941, 0.1878277]]))
         # with resetting results are the same
         processor.reset()
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.4705882, 0.2531160],
                                      [88.23529412, 0.2312032],
                                      [58.82352941, 0.1878277]]))
         # without resetting results are different
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0:3],
                                     [[176.4705882, 0.2414368],
@@ -259,12 +259,12 @@ class TestDBNTempoEstimationProcessor(unittest.TestCase):
 
     def test_process_online(self):
         processor = DBNTempoEstimationProcessor(fps=fps, online=True)
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1]))
         # with resetting results are the same
         processor.reset()
-        tempi = [processor.process_online(a, reset=False)
+        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][0], [176.47058824, 1]))
 
