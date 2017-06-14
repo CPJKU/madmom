@@ -645,11 +645,12 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
     alpha : float, optional
         Scaling factor for the comb filter.
     buffer_size : int, optional
-        For online mode a buffer [seconds] for the summed up bins is used.
+        Use a buffer with `buffer_size` seconds for online mode
+        to sum up the bins.
     fps : float, optional
         Frames per second.
     online : bool, optional
-        Extends the combfilter matrix frame by frame.
+        Extend the combfilter matrix frame by frame.
 
     Examples
     --------
@@ -816,11 +817,11 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
     alpha : float, optional
         Scaling factor for the comb filter.
     buffer_size : int, optional
-        For online mode a buffer [seconds] for the activations is used.
+        Buffer activations over `buffer_size` seconds for online mode.
     fps : float, optional
         Frames per second.
     online : bool, optional
-        Uses only the buffered activations to perform the auto correlation.
+        Use only the buffered activations to perform the auto correlation.
 
     Examples
     --------
@@ -929,7 +930,7 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
     fps : float, optional
         Frames per second.
     online : bool, optional
-        Uses the forward algorithm to retrieve the tempo.
+        Use the forward algorithm to retrieve the tempo.
 
     Examples
     --------
