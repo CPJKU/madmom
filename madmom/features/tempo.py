@@ -647,7 +647,7 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
     alpha : float, optional
         Scaling factor for the comb filter.
     buffer_size : int, optional
-        For online mode a buffer [bins] for the summed up bins is used.
+        For online mode a buffer [seconds] for the summed up bins is used.
     fps : float, optional
         Frames per second.
     online : bool, optional
@@ -682,7 +682,7 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
     ALPHA = 0.79
-    BUFFER_SIZE = 1000
+    BUFFER_SIZE = 10
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
                  hist_smooth=HIST_SMOOTH, alpha=ALPHA, buffer_size=BUFFER_SIZE,
@@ -696,7 +696,7 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         if self.online:
             self.taus = np.arange(self.min_interval, self.max_interval + 1)
             self.combfilter_matrix = []
-            self._buffer = BufferProcessor((int(buffer_size),
+            self._buffer = BufferProcessor((int(buffer_size * self.fps),
                                             len(self.taus)))
 
     def reset(self):
@@ -818,7 +818,7 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
     alpha : float, optional
         Scaling factor for the comb filter.
     buffer_size : int, optional
-        For online mode a buffer [frames] for the activations is used.
+        For online mode a buffer [seconds] for the activations is used.
     fps : float, optional
         Frames per second.
     online : bool, optional
@@ -851,7 +851,7 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
     MAX_BPM = 250.
     HIST_SMOOTH = 9
     ACT_SMOOTH = 0.14
-    BUFFER_SIZE = 1000
+    BUFFER_SIZE = 10
 
     def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, act_smooth=ACT_SMOOTH,
                  hist_smooth=HIST_SMOOTH, buffer_size=BUFFER_SIZE, fps=None,
@@ -862,7 +862,7 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
             hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
         # save additional variables
         if self.online:
-            self._buffer = BufferProcessor(int(buffer_size))
+            self._buffer = BufferProcessor(int(buffer_size * self.fps))
 
     def reset(self):
         """Reset the ACFTempoEstimationProcessor."""
