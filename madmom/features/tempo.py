@@ -12,7 +12,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import sys
 
-from .beats import DBNBeatTrackingProcessor
 from madmom.processors import Processor, BufferProcessor
 from madmom.audio.signal import smooth as smooth_signal
 
@@ -969,14 +968,14 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
             min_bpm=min_bpm, max_bpm=max_bpm, act_smooth=act_smooth,
             hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
         # save additional variables
-        if self.online:
-            self._dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
-                                                 max_bpm=self.max_bpm,
-                                                 fps=self.fps)
+        from .beats import DBNBeatTrackingProcessor
+        self.dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                            max_bpm=self.max_bpm,
+                                            fps=self.fps, **kwargs)
 
     def reset(self):
         """Reset the DBNTempoEstimationProcessor."""
-        self._dbn.hmm.reset()
+        self.dbn.hmm.reset()
 
     def interval_histogram(self, activations):
         """
@@ -995,23 +994,16 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
             Corresponding delays [frames].
 
         """
-        # build the tempo (i.e. inter beat interval) histogram and return it
-        from .beats import DBNBeatTrackingProcessor
-        # instantiate a DBN for beat tracking
-        dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
-                                       max_bpm=self.max_bpm,
-                                       num_tempi=None,
-                                       fps=self.fps)
         # get the best state path by calling the viterbi algorithm
-        path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
-        intervals = dbn.st.state_intervals[path]
+        path, _ = self.dbn.hmm.viterbi(activations.astype(np.float32))
+        intervals = self.dbn.st.state_intervals[path]
         # get the counts of the bins
         bins = np.bincount(intervals,
-                           minlength=dbn.st.intervals.max() + 1)
+                           minlength=self.dbn.st.intervals.max() + 1)
         # truncate everything below the minimum interval of the state space
-        bins = bins[dbn.st.intervals.min():]
+        bins = bins[self.dbn.st.intervals.min():]
         # build a histogram together with the intervals and return it
-        return bins, dbn.st.intervals
+        return bins, self.dbn.st.intervals
 
     def online_interval_histogram(self, activation):
         """
@@ -1033,17 +1025,17 @@ class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
         # make the activation a 1D array
         activation = np.atleast_1d(activation)
         # use forward path to get best state
-        fwd = self._dbn.hmm.forward(activation, reset=False)
+        fwd = self.dbn.hmm.forward(activation, reset=False)
         # choose the best state for each step
         states = np.argmax(fwd, axis=1)
-        intervals = self._dbn.st.state_intervals[states]
+        intervals = self.dbn.st.state_intervals[states]
         # get the counts of the bins
         bins = np.bincount(intervals,
-                           minlength=self._dbn.st.intervals.max() + 1)
+                           minlength=self.dbn.st.intervals.max() + 1)
         # truncate everything below the minimum interval of the state space
-        bins = bins[self._dbn.st.intervals.min():]
+        bins = bins[self.dbn.st.intervals.min():]
         # build a histogram together with the intervals and return it
-        return bins, self._dbn.st.intervals
+        return bins, self.dbn.st.intervals
 
 
 # helper function for writing the detected tempi to file
