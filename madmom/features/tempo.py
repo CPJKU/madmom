@@ -421,10 +421,12 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         super(ACFTempoHistogramProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
         if self.online:
+            self.bins = np.zeros(len(self.intervals))
             self.buffer = BufferProcessor(int(hist_buffer * self.fps))
 
     def reset(self):
         """Reset to initial state."""
+        self.bins = np.zeros(len(self.intervals))
         self.buffer.reset()
 
     def process_offline(self, activations, **kwargs):
@@ -472,11 +474,19 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         # reset to initial state
         if reset:
             self.reset()
-        # shift buffer and put new activations at end of buffer
-        activations = self.buffer(activations)
-        # use offline acf function on buffered activations
-        return interval_histogram_acf(activations, self.min_interval,
-                                      self.max_interval)
+        # select relevant activations from buffer for subtraction
+        buf = self.buffer.buffer[self.min_interval:self.max_interval + 1]
+        # subtract oldest acf values before activations are removed from buffer
+        # as long as the buffer is not filled this will subtract 0
+        self.bins -= buf * self.buffer.buffer[0]
+        # shift buffer and put new activation at end of buffer
+        buf = self.buffer(activations)
+        # select relevant activations from buffer for addition
+        buf = buf[-self.max_interval - 1:-self.min_interval]
+        # add new acf values to bins
+        self.bins += np.flipud(buf * activations)
+        # return histogram
+        return np.array(self.bins), self.intervals
 
 
 class DBNTempoHistogramProcessor(TempoHistogramProcessor):
