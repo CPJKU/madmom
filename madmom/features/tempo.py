@@ -288,6 +288,11 @@ class BaseTempoEstimationProcessor(OnlineProcessor):
         """Maximum beat interval [frames]."""
         return int(np.ceil(60. * self.fps / self.min_bpm))
 
+    @property
+    def taus(self):
+        """List of all lag times from min to max interval."""
+        return np.arange(self.min_interval, self.max_interval + 1)
+
     def process_offline(self, activations, **kwargs):
         """
         Detect the tempi from the (beat) activations.
@@ -672,7 +677,6 @@ class CombFilterTempoEstimationProcessor(BaseTempoEstimationProcessor):
         # save additional variables
         self.alpha = alpha
         if self.online:
-            self.taus = np.arange(self.min_interval, self.max_interval + 1)
             self.combfilter_matrix = []
             self.buffer = BufferProcessor((int(buffer_size * self.fps),
                                            len(self.taus)))
@@ -847,10 +851,12 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
             hist_smooth=hist_smooth, fps=fps, online=online, **kwargs)
         # save additional variables
         if self.online:
+            self.bins = np.zeros(len(self.taus))
             self.buffer = BufferProcessor(int(buffer_size * self.fps))
 
     def reset(self):
         """Reset the ACFTempoEstimationProcessor."""
+        self.bins = np.zeros(len(self.taus))
         self.buffer.reset()
 
     def interval_histogram(self, activations):
@@ -877,8 +883,8 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
 
     def online_interval_histogram(self, activation, reset=True):
         """
-        Compute the histogram of the beat intervals using auto-correlation on
-        buffered activations.
+        Compute the histogram of the beat intervals using auto-correlation in
+        online mode.
 
         Parameters
         ----------
@@ -898,11 +904,20 @@ class ACFTempoEstimationProcessor(BaseTempoEstimationProcessor):
         # reset to initial state
         if reset:
             self.reset()
+        # select relevant activations from buffer for subtraction
+        activations = self.buffer.buffer[self.min_interval:
+                                         self.max_interval + 1]
+        # subtract oldest acf values before activation gets removed from buffer
+        # as long as the buffer is not filled this will subtract 0
+        self.bins -= activations * self.buffer.buffer[0]
         # shift buffer and put new activation at end of buffer
-        activation = self.buffer(activation)
-        # use offline acf function on buffered activations
-        return interval_histogram_acf(activation, self.min_interval,
-                                      self.max_interval)
+        buffer = self.buffer(activation)
+        # select relevant activations from buffer for addition
+        activations = buffer[-self.max_interval - 1:-self.min_interval]
+        # add new acf values to bins
+        self.bins += np.flipud(activations * activation)
+        # return histogram
+        return np.array(self.bins), np.array(self.taus)
 
 
 class DBNTempoEstimationProcessor(BaseTempoEstimationProcessor):
