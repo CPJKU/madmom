@@ -7,6 +7,10 @@ NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
 UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
 
 
+# TODO: https://github.com/jpauwels/MusOOEvaluator/issues/1
+# TODO: https://github.com/craffel/mir_eval/issues/251
+
+
 def chords(labels):
     """
     Transform a list of chord labels into an array of internal numeric
@@ -206,7 +210,7 @@ _shorthands = {
     'hdim7': interval_list('(1,b3,b5,b7)'),
     'minmaj7': interval_list('(1,b3,5,7)'),
     'maj6': interval_list('(1,3,5,6)'),
-    'min6': interval_list('(1,b3,5,b6)'),
+    'min6': interval_list('(1,b3,5,6)'),
     '9': interval_list('(1,3,5,b7,9)'),
     'maj9': interval_list('(1,3,5,7,9)'),
     'min9': interval_list('(1,b3,5,b7,9)'),
@@ -282,7 +286,6 @@ def map_triads(chords, keep_bass=False):
     dim_fifth = chords['intervals'][:, 6].astype(bool)
     perf_fifth = chords['intervals'][:, 7].astype(bool)
     aug_fifth = chords['intervals'][:, 8].astype(bool)
-
     no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
 
     mapped_chords = chords.copy()
@@ -292,7 +295,7 @@ def map_triads(chords, keep_bass=False):
 
     ivs[~no_chord] = interval_list('(1)')
     ivs[unison & perf_fifth] = interval_list('(1,5)')
-    ivs[~perf_fourth & maj_sec] = _shorthands['sus4']
+    ivs[~perf_fourth & maj_sec] = _shorthands['sus2']
     ivs[perf_fourth & ~maj_sec] = _shorthands['sus4']
 
     ivs[min_third & perf_fifth] = _shorthands['min']
@@ -306,9 +309,85 @@ def map_triads(chords, keep_bass=False):
     return mapped_chords
 
 
+def map_tetrads(chords, keep_bass=False):
+    unison = chords['intervals'][:, 0].astype(bool)
+    maj_sec = chords['intervals'][:, 2].astype(bool)
+    min_third = chords['intervals'][:, 3].astype(bool)
+    maj_third = chords['intervals'][:, 4].astype(bool)
+    perf_fourth = chords['intervals'][:, 5].astype(bool)
+    dim_fifth = chords['intervals'][:, 6].astype(bool)
+    perf_fifth = chords['intervals'][:, 7].astype(bool)
+    aug_fifth = chords['intervals'][:, 8].astype(bool)
+    maj_sixth = chords['intervals'][:, 9].astype(bool)
+    dim_seventh = maj_sixth
+    min_seventh = chords['intervals'][:, 10].astype(bool)
+    maj_seventh = chords['intervals'][:, 11].astype(bool)
+    no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
+
+    mapped_chords = chords.copy()
+    if not keep_bass:
+        mapped_chords['bass'] = 0
+    ivs = mapped_chords['intervals']
+
+    ivs[~no_chord] = interval_list('(1)')
+    ivs[unison & perf_fifth] = interval_list('(1,5)')
+
+    sus2 = ~perf_fourth & maj_sec
+    sus2_ivs = _shorthands['sus2']
+    ivs[sus2] = sus2_ivs
+    ivs[sus2 & maj_sixth] = interval_list('(6)', sus2_ivs)
+    ivs[sus2 & maj_seventh] = interval_list('(7)', sus2_ivs)
+    ivs[sus2 & min_seventh] = interval_list('(b7)', sus2_ivs)
+
+    sus4 = perf_fourth & ~maj_sec
+    sus4_ivs = _shorthands['sus4']
+    ivs[sus4] = sus4_ivs
+    ivs[sus4 & maj_sixth] = interval_list('(6)', sus4_ivs)
+    ivs[sus4 & maj_seventh] = interval_list('(7)', sus4_ivs)
+    ivs[sus4 & min_seventh] = interval_list('(b7)', sus4_ivs)
+
+    ivs[min_third] = _shorthands['min']
+    ivs[min_third & maj_sixth] = _shorthands['min6']
+    ivs[min_third & maj_seventh] = _shorthands['minmaj7']
+    ivs[min_third & min_seventh] = _shorthands['min7']
+    minaugfifth = min_third & ~perf_fifth & aug_fifth
+    ivs[minaugfifth] = interval_list('(1,b3,#5)')
+    ivs[minaugfifth & maj_seventh] = interval_list('(1,b3,#5,7)')
+    ivs[minaugfifth & min_seventh] = interval_list('(1,b3,#5,b7)')
+    mindimfifth = min_third & ~perf_fifth & dim_fifth
+    ivs[mindimfifth] = _shorthands['dim']
+    ivs[mindimfifth & dim_seventh] = _shorthands['dim7']
+    ivs[mindimfifth & min_seventh] = _shorthands['hdim7']
+
+    ivs[maj_third] = _shorthands['maj']
+    ivs[maj_third & maj_sixth] = _shorthands['maj6']
+    ivs[maj_third & maj_seventh] = _shorthands['maj7']
+    ivs[maj_third & min_seventh] = _shorthands['7']
+    majdimfifth = maj_third & ~perf_fifth & dim_fifth
+    ivs[majdimfifth] = interval_list('(1,3,b5)')
+    ivs[majdimfifth & maj_seventh] = interval_list('(1,3,b5,7)')
+    ivs[majdimfifth & min_seventh] = interval_list('(1,3,b5,b7)')
+    majaugfifth = maj_third & ~perf_fifth & aug_fifth
+    aug_ivs = _shorthands['aug']
+    ivs[majaugfifth] = _shorthands['aug']
+    ivs[majaugfifth & maj_seventh] = interval_list('(7)', aug_ivs)
+    ivs[majaugfifth & min_seventh] = interval_list('(b7)', aug_ivs)
+
+    return mapped_chords
+
+
 def select_majmin(chords):
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
+            (chords['intervals'] == NO_CHORD[-1]).all(axis=1))
+
+
+def select_sevenths(chords):
+    return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
+            (chords['intervals'] == _shorthands['min']).all(axis=1) |
+            (chords['intervals'] == _shorthands['7']).all(axis=1) |
+            (chords['intervals'] == _shorthands['min7']).all(axis=1) |
+            (chords['intervals'] == _shorthands['maj7']).all(axis=1) |
             (chords['intervals'] == NO_CHORD[-1]).all(axis=1))
 
 
@@ -395,6 +474,28 @@ class ChordEvaluation(object):
         return np.average(score_exact(mapped_pairs),
                           weights=mapped_pairs['duration'] * majmin_sel)
 
+    @property
+    def sevenths(self):
+        mapped_pairs = self.eval_pairs.copy()
+        mapped_pairs['ref_chord'] = map_tetrads(self.eval_pairs['ref_chord'],
+                                                keep_bass=False)
+        mapped_pairs['est_chord'] = map_tetrads(self.eval_pairs['est_chord'],
+                                                keep_bass=False)
+        sevenths_sel = select_sevenths(mapped_pairs['ref_chord'])
+        return np.average(score_exact(mapped_pairs),
+                          weights=mapped_pairs['duration'] * sevenths_sel)
+
+    @property
+    def seventhsbass(self):
+        mapped_pairs = self.eval_pairs.copy()
+        mapped_pairs['ref_chord'] = map_tetrads(self.eval_pairs['ref_chord'],
+                                                keep_bass=True)
+        mapped_pairs['est_chord'] = map_tetrads(self.eval_pairs['est_chord'],
+                                                keep_bass=True)
+        sevenths_sel = select_sevenths(mapped_pairs['ref_chord'])
+        return np.average(score_exact(mapped_pairs),
+                          weights=mapped_pairs['duration'] * sevenths_sel)
+
     def tostring(self, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
@@ -408,8 +509,12 @@ class ChordEvaluation(object):
         ret = ''
         if self.name is not None:
             ret += '%s\n  ' % self.name
-        ret += 'Root: %.6f MajMin: %.6f MajMinBass: %.6f' % (
-            self.root, self.majmin, self.majminbass)
+        ret += (
+            'Root: %.6f MajMin: %.6f MajMinBass: %.6f '
+            'Sevenths: %.6f SeventhsBass: %.6f' % (
+                self.root, self.majmin, self.majminbass, self.sevenths,
+                self.seventhsbass)
+        )
         return ret
 
 
@@ -465,6 +570,14 @@ class ChordMeanEvaluation(ChordEvaluation):
     @property
     def majminbass(self):
         return np.mean([e.majminbass for e in self.eval_objects])
+
+    @property
+    def sevenths(self):
+        return np.mean([e.sevenths for e in self.eval_objects])
+
+    @property
+    def seventhsbass(self):
+        return np.mean([e.seventhsbass for e in self.eval_objects])
 
 
 def add_parser(parser):
