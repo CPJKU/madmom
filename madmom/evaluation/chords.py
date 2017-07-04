@@ -433,20 +433,40 @@ def adjust(det_chords, ann_chords):
     return det_chords, ann_chords
 
 
+def segmentation(ann_starts, ann_ends, est_starts, est_ends):
+    est_ts = np.unique(np.hstack([est_starts, est_ends]))
+    seg = 0.
+    for start, end in zip(ann_starts, ann_ends):
+        dur = end - start
+        seg_ts = np.hstack([
+            start, est_ts[(est_ts > start) & (est_ts < end)], end])
+        seg += dur - np.diff(seg_ts).max()
+
+    return seg / (ann_ends[-1] - ann_starts[0])
+
+
 class ChordEvaluation(object):
 
     METRIC_NAMES = [
         ('root', 'Root'),
         ('majmin', 'MajMin'),
-        ('majminbass', 'MajMinBass')
+        ('majminbass', 'MajMinBass'),
+        ('sevenths', 'Sevenths'),
+        ('seventhsbass', 'SeventhsBass'),
+        ('segmentation', 'Segmentation'),
+        ('oversegmentation', 'OverSegmentation'),
+        ('undersegmentation', 'UnderSegmentation'),
     ]
 
     def __init__(self, detections, annotations, name, **kwargs):
         det_chords = load_chords(detections)
         ann_chords = load_chords(annotations)
-        det_chords, ann_chords = adjust(det_chords, ann_chords)
+        self.det_chords, self.ann_chords = adjust(det_chords, ann_chords)
         self.eval_pairs = evaluation_pairs(det_chords, ann_chords)
         self.name = name
+
+        self._underseg = None
+        self._overseg = None
 
     @property
     def root(self):
@@ -459,7 +479,6 @@ class ChordEvaluation(object):
         mapped_pairs['ref_chord'] = map_triads(self.eval_pairs['ref_chord'])
         mapped_pairs['est_chord'] = map_triads(self.eval_pairs['est_chord'])
         majmin_sel = select_majmin(mapped_pairs['ref_chord'])
-        print (mapped_pairs['duration'] * majmin_sel).sum()
         return np.average(score_exact(mapped_pairs),
                           weights=mapped_pairs['duration'] * majmin_sel)
 
@@ -496,6 +515,28 @@ class ChordEvaluation(object):
         return np.average(score_exact(mapped_pairs),
                           weights=mapped_pairs['duration'] * sevenths_sel)
 
+    @property
+    def undersegmentation(self):
+        if self._underseg is None:
+            self._underseg = 1 - segmentation(
+                self.det_chords['start'], self.det_chords['end'],
+                self.ann_chords['start'], self.ann_chords['end'],
+            )
+        return self._underseg
+
+    @property
+    def oversegmentation(self):
+        if self._overseg is None:
+            self._overseg = 1 - segmentation(
+                self.ann_chords['start'], self.ann_chords['end'],
+                self.det_chords['start'], self.det_chords['end'],
+            )
+        return self._overseg
+
+    @property
+    def segmentation(self):
+        return min(self.undersegmentation, self.oversegmentation)
+
     def tostring(self, **kwargs):
         """
         Format the evaluation metrics as a human readable string.
@@ -506,15 +547,17 @@ class ChordEvaluation(object):
             Evaluation metrics formatted as a human readable string
 
         """
-        ret = ''
-        if self.name is not None:
-            ret += '%s\n  ' % self.name
-        ret += (
-            'Root: %.6f MajMin: %.6f MajMinBass: %.6f '
-            'Sevenths: %.6f SeventhsBass: %.6f' % (
-                self.root, self.majmin, self.majminbass, self.sevenths,
-                self.seventhsbass)
-        )
+        ret = (
+            '{}\n'
+            '  Root: {:5.2f} MajMin: {:5.2f} MajMinBass: {:5.2f} '
+            'Sevenths: {:5.2f} SeventhsBass: {:5.2f}\n'
+            '  Seg: {:5.2f} UnderSeg: {:5.2f} OverSeg: {:5.2f}'.format(
+                self.name,
+                self.root * 100, self.majmin * 100, self.majminbass * 100,
+                self.sevenths * 100, self.seventhsbass * 100,
+                self.segmentation * 100, self.undersegmentation * 100,
+                self.oversegmentation * 100
+        ))
         return ret
 
 
@@ -538,6 +581,12 @@ class ChordSumEvaluation(ChordEvaluation):
         self.eval_pairs = np.hstack([
             e.eval_pairs for e in eval_objects
         ])
+        # TODO: fixme
+        self.det_chords = eval_objects[0].det_chords
+        self.ann_chords = eval_objects[0].ann_chords
+
+        self._underseg = None
+        self._overseg = None
 
 
 class ChordMeanEvaluation(ChordEvaluation):
@@ -578,6 +627,14 @@ class ChordMeanEvaluation(ChordEvaluation):
     @property
     def seventhsbass(self):
         return np.mean([e.seventhsbass for e in self.eval_objects])
+
+    @property
+    def undersegmentation(self):
+        return np.mean([e.undersegmentation for e in self.eval_objects])
+
+    @property
+    def oversegmentation(self):
+        return np.mean([e.oversegmentation for e in self.eval_objects])
 
 
 def add_parser(parser):
