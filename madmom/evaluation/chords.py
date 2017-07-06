@@ -1,7 +1,13 @@
 import numpy as np
-from madmom.evaluation import evaluation_io
+from madmom.evaluation import evaluation_io, EvaluationMixin
 
-CHORD_DTYPE = [('root', np.int), ('bass', np.int), ('intervals', np.int, (12,))]
+CHORD_DTYPE = [('root', np.int),
+               ('bass', np.int),
+               ('intervals', np.int, (12,))]
+
+CHORD_ANN_DTYPE = [('start', np.float),
+                   ('end', np.float),
+                   ('chord', CHORD_DTYPE)]
 
 NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
 UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
@@ -232,17 +238,15 @@ def intervals(s):
 
 
 def load_chords(filename):
-    start, end, chord_labels = np.loadtxt(
-        filename,
-        dtype=[('start', np.float),
-               ('end', np.float),
-               ('chord', 'U32')],
-        unpack=True,
-        comments=''
-    )
-    crds = np.zeros(len(start), dtype=[('start', np.float),
-                                       ('end', np.float),
-                                       ('chord', CHORD_DTYPE)])
+    start, end, chord_labels = [], [], []
+    with open(filename, 'r') as f:
+        for line in f:
+            s, e, l = line.split()
+            start.append(float(s))
+            end.append(float(e))
+            chord_labels.append(l)
+
+    crds = np.zeros(len(start), dtype=CHORD_ANN_DTYPE)
     crds['start'] = start
     crds['end'] = end
     crds['chord'] = chords(chord_labels)
@@ -392,44 +396,26 @@ def select_sevenths(chords):
 
 
 def adjust(det_chords, ann_chords):
-    # from numpy.lib.recfunctions import stack_arrays
-    # TODO: fill at beginning!
-    if det_chords[-1]['end'] < ann_chords[-1]['end']:
-        filler = np.array(
-            (det_chords[-1]['end'], ann_chords[-1]['end'], chord('N')),
-            dtype=[('start', np.float), ('end', np.float),
-                   ('chord', CHORD_DTYPE)])
-        # filler['start'] = det_chords[-1]['end']
-        # filler['end'] = ann_chords[-1]['end']
-        # filler['chord'] = chord('N')
+    det_start = det_chords[0]['start']
+    ann_start = ann_chords[0]['start']
+    if det_start > ann_start:
+        filler = np.array((ann_start, det_start, chord('N')),
+                          dtype=CHORD_ANN_DTYPE)
+        det_chords = np.hstack([filler, det_chords])
+    elif det_start < ann_start:
+        det_chords = det_chords[det_chords['end'] > ann_start]
+        det_chords[0]['start'] = ann_start
+
+    det_end = det_chords[-1]['end']
+    ann_end = ann_chords[-1]['end']
+    if det_end < ann_end:
+        filler = np.array((det_end, ann_end, chord('N')),
+                          dtype=CHORD_ANN_DTYPE)
         det_chords = np.hstack([det_chords, filler])
-    if det_chords[-1]['end'] > ann_chords[-1]['end']:
-        # TODO: remove all detected chords that are outside the annotations
-        # shorten last detected chord
+    elif det_end > ann_end:
+        det_chords = det_chords[det_chords['start'] < ann_end]
         det_chords[-1]['end'] = ann_chords[-1]['end']
 
-    # start = min(det_chords[0].start, ann_chords[0].start)
-    # end = max(det_chords[-1].end, ann_chords[-1].end)
-    #
-    # filler.chord = chord('N')
-    #
-    # if det_chords[0].start > start:
-    #     det_chords = np.vstack([
-    #         [start, det_chords[0].start, chord('N')], det_chords
-    #     ])
-    # if ann_chords[0].start > start:
-    #     ann_chords = np.vstack([
-    #         [start, ann_chords[0].start, chord('N')], ann_chords
-    #     ])
-    # if det_chords[-1].end < end:
-    #     filler.start = det_chords[-1].end
-    #     filler.end = end
-    #     det_chords = stack_arrays([det_chords, filler], usemask=False, asrecarray=True)
-    # if ann_chords[-1].end < end:
-    #     filler.start = ann_chords[-1].end
-    #     filler.end = end
-    #     ann_chords = stack_arrays([ann_chords, filler], usemask=False, asrecarray=True)
-    #
     return det_chords, ann_chords
 
 
@@ -467,6 +453,10 @@ class ChordEvaluation(object):
 
         self._underseg = None
         self._overseg = None
+
+    @property
+    def length(self):
+        return self.ann_chords['end'][-1] - self.ann_chords['start'][0]
 
     @property
     def root(self):
@@ -585,8 +575,18 @@ class ChordSumEvaluation(ChordEvaluation):
         self.det_chords = eval_objects[0].det_chords
         self.ann_chords = eval_objects[0].ann_chords
 
-        self._underseg = None
-        self._overseg = None
+        us = [e.undersegmentation for e in eval_objects]
+        os = [e.oversegmentation for e in eval_objects]
+        s = [e.segmentation for e in eval_objects]
+        dur = [e.length for e in eval_objects]
+
+        self._underseg = np.average(us, weights=dur)
+        self._overseg = np.average(os, weights=dur)
+        self._seg = np.average(s, weights=dur)
+
+    @property
+    def segmentation(self):
+        return self._seg
 
 
 class ChordMeanEvaluation(ChordEvaluation):
@@ -652,7 +652,7 @@ def add_parser(parser):
         Chord evaluation sub-parser.
     """
     import argparse
-    # add beat evaluation sub-parser to the existing parser
+    # add chord evaluation sub-parser to the existing parser
     p = parser.add_parser(
         'chords', help='chord evaluation',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -660,7 +660,7 @@ def add_parser(parser):
     This program evaluates pairs of files containing the chord annotations and
     predictions. Suffixes can be given to filter them from the list of files.
 
-    Each line represents a beat and must have the following format with values
+    Each line represents a chord and must have the following format with values
     being separated by whitespace:
     `start_time end_time chord_label`
 
