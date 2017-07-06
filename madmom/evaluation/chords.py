@@ -1,5 +1,5 @@
 import numpy as np
-from madmom.evaluation import evaluation_io, EvaluationMixin
+from madmom.evaluation import evaluation_io
 
 CHORD_DTYPE = [('root', np.int),
                ('bass', np.int),
@@ -14,7 +14,6 @@ UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
 
 
 # TODO: https://github.com/jpauwels/MusOOEvaluator/issues/1
-# TODO: https://github.com/craffel/mir_eval/issues/251
 
 
 def chords(labels):
@@ -253,32 +252,28 @@ def load_chords(filename):
     return crds
 
 
-def evaluation_pairs(est_chords, ref_chords):
-    times = np.unique(np.hstack([ref_chords['start'], ref_chords['end'],
-                                 est_chords['start'], est_chords['end']]))
+def evaluation_pairs(det_chords, ann_chords):
+    times = np.unique(np.hstack([ann_chords['start'], ann_chords['end'],
+                                 det_chords['start'], det_chords['end']]))
 
-    pairs = np.zeros(len(times) - 1, dtype=[('duration', np.float),
-                                            ('ref_chord', CHORD_DTYPE),
-                                            ('est_chord', CHORD_DTYPE)])
+    durations = times[1:] - times[:-1]
+    annotations = ann_chords['chord'][
+        np.searchsorted(ann_chords['start'], times[:-1], side='right') - 1]
+    detections = det_chords['chord'][
+        np.searchsorted(det_chords['start'], times[:-1], side='right') - 1]
 
-    pairs['duration'] = times[1:] - times[:-1]
-    pairs['ref_chord'] = ref_chords['chord'][
-        np.searchsorted(ref_chords['start'], times[:-1], side='right') - 1]
-    pairs['est_chord'] = est_chords['chord'][
-        np.searchsorted(est_chords['start'], times[:-1], side='right') - 1]
-
-    return pairs
+    return annotations, detections, durations
 
 
-def score_root(pairs):
-    return (pairs['ref_chord']['root'] == pairs['est_chord']['root']).astype(np.float)
+def score_root(det_chords, ann_chords):
+    return (ann_chords['root'] == det_chords['root']).astype(np.float)
 
 
-def score_exact(pairs):
-    return ((pairs['ref_chord']['root'] == pairs['est_chord']['root']) &
-            (pairs['ref_chord']['bass'] == pairs['est_chord']['bass']) &
-            ((pairs['ref_chord']['intervals'] ==
-              pairs['est_chord']['intervals']).all(axis=1))).astype(np.float)
+def score_exact(det_chords, ann_chords):
+    return ((ann_chords['root'] == det_chords['root']) &
+            (ann_chords['bass'] == det_chords['bass']) &
+            ((ann_chords['intervals'] == det_chords['intervals']).all(axis=1))
+            ).astype(np.float)
 
 
 def map_triads(chords, keep_bass=False):
@@ -302,11 +297,11 @@ def map_triads(chords, keep_bass=False):
     ivs[~perf_fourth & maj_sec] = _shorthands['sus2']
     ivs[perf_fourth & ~maj_sec] = _shorthands['sus4']
 
-    ivs[min_third & perf_fifth] = _shorthands['min']
+    ivs[min_third] = _shorthands['min']
     ivs[min_third & aug_fifth & ~perf_fifth] = interval_list('(1,b3,#5)')
     ivs[min_third & dim_fifth & ~perf_fifth] = _shorthands['dim']
 
-    ivs[maj_third & perf_fifth] = _shorthands['maj']
+    ivs[maj_third] = _shorthands['maj']
     ivs[maj_third & dim_fifth & ~perf_fifth] = interval_list('(1,3,b5)')
     ivs[maj_third & aug_fifth & ~perf_fifth] = _shorthands['aug']
 
@@ -445,11 +440,13 @@ class ChordEvaluation(object):
     ]
 
     def __init__(self, detections, annotations, name, **kwargs):
+        self.name = name
+
         det_chords = load_chords(detections)
         ann_chords = load_chords(annotations)
         self.det_chords, self.ann_chords = adjust(det_chords, ann_chords)
-        self.eval_pairs = evaluation_pairs(det_chords, ann_chords)
-        self.name = name
+        self.annotations, self.detections, self.durations = evaluation_pairs(
+            self.det_chords, self.ann_chords)
 
         self._underseg = None
         self._overseg = None
@@ -460,50 +457,40 @@ class ChordEvaluation(object):
 
     @property
     def root(self):
-        return np.average(score_root(self.eval_pairs),
-                          weights=self.eval_pairs['duration'])
+        return np.average(score_root(self.detections, self.annotations),
+                          weights=self.durations)
 
     @property
     def majmin(self):
-        mapped_pairs = self.eval_pairs.copy()
-        mapped_pairs['ref_chord'] = map_triads(self.eval_pairs['ref_chord'])
-        mapped_pairs['est_chord'] = map_triads(self.eval_pairs['est_chord'])
-        majmin_sel = select_majmin(mapped_pairs['ref_chord'])
-        return np.average(score_exact(mapped_pairs),
-                          weights=mapped_pairs['duration'] * majmin_sel)
+        det_triads = map_triads(self.detections)
+        ann_triads = map_triads(self.annotations)
+        majmin_sel = select_majmin(ann_triads)
+        return np.average(score_exact(det_triads, ann_triads),
+                          weights=self.durations * majmin_sel)
 
     @property
     def majminbass(self):
-        mapped_pairs = self.eval_pairs.copy()
-        mapped_pairs['ref_chord'] = map_triads(self.eval_pairs['ref_chord'],
-                                               keep_bass=True)
-        mapped_pairs['est_chord'] = map_triads(self.eval_pairs['est_chord'],
-                                               keep_bass=True)
-        majmin_sel = select_majmin(mapped_pairs['ref_chord'])
-        return np.average(score_exact(mapped_pairs),
-                          weights=mapped_pairs['duration'] * majmin_sel)
+        det_triads = map_triads(self.detections, keep_bass=True)
+        ann_triads = map_triads(self.annotations, keep_bass=True)
+        majmin_sel = select_majmin(ann_triads)
+        return np.average(score_exact(det_triads, ann_triads),
+                          weights=self.durations * majmin_sel)
 
     @property
     def sevenths(self):
-        mapped_pairs = self.eval_pairs.copy()
-        mapped_pairs['ref_chord'] = map_tetrads(self.eval_pairs['ref_chord'],
-                                                keep_bass=False)
-        mapped_pairs['est_chord'] = map_tetrads(self.eval_pairs['est_chord'],
-                                                keep_bass=False)
-        sevenths_sel = select_sevenths(mapped_pairs['ref_chord'])
-        return np.average(score_exact(mapped_pairs),
-                          weights=mapped_pairs['duration'] * sevenths_sel)
+        det_tetrads = map_tetrads(self.detections)
+        ann_tetrads = map_tetrads(self.annotations)
+        sevenths_sel = select_sevenths(ann_tetrads)
+        return np.average(score_exact(det_tetrads, ann_tetrads),
+                          weights=self.durations * sevenths_sel)
 
     @property
     def seventhsbass(self):
-        mapped_pairs = self.eval_pairs.copy()
-        mapped_pairs['ref_chord'] = map_tetrads(self.eval_pairs['ref_chord'],
-                                                keep_bass=True)
-        mapped_pairs['est_chord'] = map_tetrads(self.eval_pairs['est_chord'],
-                                                keep_bass=True)
-        sevenths_sel = select_sevenths(mapped_pairs['ref_chord'])
-        return np.average(score_exact(mapped_pairs),
-                          weights=mapped_pairs['duration'] * sevenths_sel)
+        det_tetrads = map_tetrads(self.detections, keep_bass=True)
+        ann_tetrads = map_tetrads(self.annotations, keep_bass=True)
+        sevenths_sel = select_sevenths(ann_tetrads)
+        return np.average(score_exact(det_tetrads, ann_tetrads),
+                          weights=self.durations * sevenths_sel)
 
     @property
     def undersegmentation(self):
@@ -567,22 +554,20 @@ class ChordSumEvaluation(ChordEvaluation):
     # pylint: disable=super-init-not-called
 
     def __init__(self, eval_objects, name=None):
-        self.name = name or 'mean for %d files' % len(eval_objects)
-        self.eval_pairs = np.hstack([
-            e.eval_pairs for e in eval_objects
-        ])
-        # TODO: fixme
-        self.det_chords = eval_objects[0].det_chords
-        self.ann_chords = eval_objects[0].ann_chords
+        self.name = name or 'weighted mean for %d files' % len(eval_objects)
 
-        us = [e.undersegmentation for e in eval_objects]
-        os = [e.oversegmentation for e in eval_objects]
-        s = [e.segmentation for e in eval_objects]
-        dur = [e.length for e in eval_objects]
+        self.annotations = np.hstack([e.annotations for e in eval_objects])
+        self.detections = np.hstack([e.detections for e in eval_objects])
+        self.durations = np.hstack([e.durations for e in eval_objects])
 
-        self._underseg = np.average(us, weights=dur)
-        self._overseg = np.average(os, weights=dur)
-        self._seg = np.average(s, weights=dur)
+        un_segs = [e.undersegmentation for e in eval_objects]
+        over_segs = [e.oversegmentation for e in eval_objects]
+        segs = [e.segmentation for e in eval_objects]
+        lens = [e.length for e in eval_objects]
+
+        self._underseg = np.average(un_segs, weights=lens)
+        self._overseg = np.average(over_segs, weights=lens)
+        self._seg = np.average(segs, weights=lens)
 
     @property
     def segmentation(self):
@@ -636,6 +621,10 @@ class ChordMeanEvaluation(ChordEvaluation):
     def oversegmentation(self):
         return np.mean([e.oversegmentation for e in self.eval_objects])
 
+    @property
+    def segmentation(self):
+        return np.mean([e.segmentation for e in self.eval_objects])
+
 
 def add_parser(parser):
     """
@@ -661,10 +650,9 @@ def add_parser(parser):
     predictions. Suffixes can be given to filter them from the list of files.
 
     Each line represents a chord and must have the following format with values
-    being separated by whitespace:
+    being separated by whitespace (chord_label follows the syntax as defined
+    by Harte 2010):
     `start_time end_time chord_label`
-
-    Lines starting with # are treated as comments and are ignored.
     ''')
     # set defaults
     p.set_defaults(eval=ChordEvaluation, sum_eval=ChordSumEvaluation,
