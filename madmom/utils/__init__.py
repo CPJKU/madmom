@@ -654,6 +654,3 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
 
 # keep namespace clean
 del contextlib
-
-# finally import the submodules
-from . import midi, stats
