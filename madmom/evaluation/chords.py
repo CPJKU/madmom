@@ -72,35 +72,35 @@ def chord(label):
     s_idx = label.find('/')
 
     if c_idx == -1:
-        int_str = 'maj'
+        quality_str = 'maj'
         if s_idx == -1:
-            rt_str = label
-            bs_str = ''
+            root_str = label
+            bass_str = ''
         else:
-            rt_str = label[:s_idx]
-            bs_str = label[s_idx + 1:]
+            root_str = label[:s_idx]
+            bass_str = label[s_idx + 1:]
     else:
-        rt_str = label[:c_idx]
+        root_str = label[:c_idx]
         if s_idx == -1:
-            int_str = label[c_idx + 1:]
-            bs_str = ''
+            quality_str = label[c_idx + 1:]
+            bass_str = ''
         else:
-            int_str = label[c_idx + 1:s_idx]
-            bs_str = label[s_idx + 1:]
+            quality_str = label[c_idx + 1:s_idx]
+            bass_str = label[s_idx + 1:]
 
-    root = pitch(rt_str)
-    bass = interval(bs_str) if bs_str else 0
-    ints = intervals(int_str)
-    ints[bass] = 1
+    root = pitch(root_str)
+    bass = interval(bass_str) if bass_str else 0
+    ivs = chord_intervals(quality_str)
+    ivs[bass] = 1
 
-    return root, bass, ints
+    return root, bass, ivs
 
 
 _l = [0, 1, 1, 0, 1, 1, 1]
 _chroma_id = (np.arange(len(_l) * 2) + 1) + np.array(_l + _l).cumsum() - 1
 
 
-def modify(base, modstr):
+def modify(base, modifier):
     """
     Modify a pitch class in integer representation by a given modifier string.
     A modifier string can be any sequence of 'b' (one semitone down)
@@ -110,7 +110,7 @@ def modify(base, modstr):
     ----------
     base : int
         Pitch class as integer
-    modstr : str
+    modifier : str
         String of modifiers ('b' or '#')
 
     Returns
@@ -119,7 +119,7 @@ def modify(base, modstr):
         Modified root note
 
     """
-    for m in modstr:
+    for m in modifier:
         if m == 'b':
             base -= 1
         elif m == '#':
@@ -129,23 +129,23 @@ def modify(base, modstr):
     return base
 
 
-def pitch(s):
+def pitch(pitch_str):
     """
     Converts a string representation of a pitch class (consisting of root
     note and modifiers) to an integer representation.
 
     Parameters
     ----------
-    s : str
+    pitch_str : str
         String representation of a pitch class
 
     Returns
     -------
     int
         Integer representation of a pitch class
-
     """
-    return modify(_chroma_id[(ord(s[0]) - ord('C')) % 7], s[1:]) % 12
+    return modify(_chroma_id[(ord(pitch_str[0]) - ord('C')) % 7],
+                  pitch_str[1:]) % 12
 
 
 def interval(s):
@@ -170,7 +170,7 @@ def interval(s):
             return modify(_chroma_id[int(s[i:]) - 1], s[:i]) % 12
 
 
-def interval_list(s, intervals=None):
+def interval_list(s, given_intervals=None):
     """
     Convert a list of intervals given as string to a binary semitone array
     representation. For example, 'b3, 5' would become
@@ -181,7 +181,7 @@ def interval_list(s, intervals=None):
     s : str
         List of intervals as comma-separated string (e.g. 'b3, 5')
 
-    intervals : None or numpy array
+    given_intervals : None or numpy array
         If None, start with empty interval array, if numpy array of length
         12, this array will be modified.
 
@@ -191,14 +191,15 @@ def interval_list(s, intervals=None):
         Binary semitone representation of intervals
 
     """
-    intervals = intervals if intervals is not None else np.zeros(12, dtype=np.int)
+    if given_intervals is None:
+        given_intervals = np.zeros(12, dtype=np.int)
     for int_def in s[1:-1].split(','):
         int_def = int_def.strip()
         if int_def[0] == '*':
-            intervals[interval(int_def[1:])] = 0
+            given_intervals[interval(int_def[1:])] = 0
         else:
-            intervals[interval(int_def)] = 1
-    return intervals
+            given_intervals[interval(int_def)] = 1
+    return given_intervals
 
 # mapping of shorthand interval notations to the actual interval representation
 _shorthands = {
@@ -221,19 +222,38 @@ _shorthands = {
     'min9': interval_list('(1,b3,5,b7,9)'),
     'sus2': interval_list('(1,2,5)'),
     'sus4': interval_list('(1,4,5)'),
+    '11': interval_list('(1,3,5,b7,9,11)'),
+    'min11': interval_list('(1,b3,5,b7,9,11)'),
+    '13': interval_list('(1,3,5,b7,13)'),
+    'maj13': interval_list('(1,3,5,7,13)'),
+    'min13': interval_list('(1,b3,5,b7,13)')
 }
 
 
-def intervals(s):
-    list_idx = s.find('(')
+def chord_intervals(quality_str):
+    """
+    Convert a chord quality string to a pitch class representation. For
+    example, 'maj' becomes [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0].
+
+    Parameters
+    ----------
+    quality_str : str
+        String defining the chord quality.
+
+    Returns
+    -------
+    numpy array
+        Binary semitone representation of chord quality
+    """
+    list_idx = quality_str.find('(')
     if list_idx == -1:
-        return _shorthands[s].copy()
+        return _shorthands[quality_str].copy()
     if list_idx != 0:
-        ivs = _shorthands[s[:list_idx]].copy()
+        ivs = _shorthands[quality_str[:list_idx]].copy()
     else:
         ivs = np.zeros(12, dtype=np.int)
 
-    return interval_list(s[list_idx:], ivs)
+    return interval_list(quality_str[list_idx:], ivs)
 
 
 def load_chords(filename):
@@ -253,6 +273,27 @@ def load_chords(filename):
 
 
 def evaluation_pairs(det_chords, ann_chords):
+    """
+    Matches detected with annotated chords and creates paired label segments
+    for evaluation.
+
+    Parameters
+    ----------
+    det_chords : numpy structured array
+        Chord detections with 'start' and 'end' fields
+
+    ann_chords : numpy structured array
+        Chord annotations with 'start' and 'end' fields
+
+    Returns
+    -------
+    annotations: numpy structured array
+        Annotated chords of evaluation segments
+    detections: numpy structured array
+        Detected chords of evaluation segments
+    durations: numpy array
+        Durations of evaluation segments
+    """
     times = np.unique(np.hstack([ann_chords['start'], ann_chords['end'],
                                  det_chords['start'], det_chords['end']]))
 
@@ -266,17 +307,67 @@ def evaluation_pairs(det_chords, ann_chords):
 
 
 def score_root(det_chords, ann_chords):
+    """
+    Score similarity of chords based on only the root, i.e. returns a score of
+    1 if roots match, 0 otherwise.
+
+    Parameters
+    ----------
+    det_chords : numpy structured array
+        Detected chords.
+    ann_chords : numpy structured array
+        Annotated chords.
+
+    Returns
+    -------
+    scores : numpy array
+        Similarity score for each chord.
+    """
     return (ann_chords['root'] == det_chords['root']).astype(np.float)
 
 
 def score_exact(det_chords, ann_chords):
+    """
+    Score similarity of chords. Returns 1 if all chord information (root,
+    bass, and intervals) match exactly.
+
+    Parameters
+    ----------
+    det_chords : numpy structured array
+        Detected chords.
+    ann_chords : numpy structured array
+        Annotated chords.
+
+    Returns
+    -------
+    scores : numpy array
+        Similarity score for each chord.
+    """
     return ((ann_chords['root'] == det_chords['root']) &
             (ann_chords['bass'] == det_chords['bass']) &
             ((ann_chords['intervals'] == det_chords['intervals']).all(axis=1))
             ).astype(np.float)
 
 
-def map_triads(chords, keep_bass=False):
+def reduce_to_triads(chords, keep_bass=False):
+    """
+    Reduce chords to triads. If a chord does not contain a third, major
+    second or fourth, it is reduced to a power chord. If it does not
+    contain neither a third nor a fifth, it is reduced to a single
+    note "chord".
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chords to be reduced.
+    keep_bass : bool
+        Indicates whether to keep the bass note or set it to 0.
+
+    Returns
+    -------
+    reduced_chords : numpy structured array
+        Chords reduced to triads
+    """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
     min_third = chords['intervals'][:, 3].astype(bool)
@@ -287,10 +378,10 @@ def map_triads(chords, keep_bass=False):
     aug_fifth = chords['intervals'][:, 8].astype(bool)
     no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
 
-    mapped_chords = chords.copy()
+    reduced_chords = chords.copy()
     if not keep_bass:
-        mapped_chords['bass'] = 0
-    ivs = mapped_chords['intervals']
+        reduced_chords['bass'] = 0
+    ivs = reduced_chords['intervals']
 
     ivs[~no_chord] = interval_list('(1)')
     ivs[unison & perf_fifth] = interval_list('(1,5)')
@@ -305,10 +396,28 @@ def map_triads(chords, keep_bass=False):
     ivs[maj_third & dim_fifth & ~perf_fifth] = interval_list('(1,3,b5)')
     ivs[maj_third & aug_fifth & ~perf_fifth] = _shorthands['aug']
 
-    return mapped_chords
+    return reduced_chords
 
 
-def map_tetrads(chords, keep_bass=False):
+def reduce_tetrads(chords, keep_bass=False):
+    """
+    Reduce chords to tetrads. If a chord does not contain a third, major
+    second or fourth, it is reduced to a power chord. If it does not
+    contain neither a third nor a fifth, it is reduced to a single
+    note "chord".
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chords to be reduced.
+    keep_bass : bool
+        Indicates whether to keep the bass note or set it to 0.
+
+    Returns
+    -------
+    reduced_chords : numpy structured array
+        Chords reduced to tetrads
+    """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
     min_third = chords['intervals'][:, 3].astype(bool)
@@ -323,10 +432,10 @@ def map_tetrads(chords, keep_bass=False):
     maj_seventh = chords['intervals'][:, 11].astype(bool)
     no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
 
-    mapped_chords = chords.copy()
+    reduced_chords = chords.copy()
     if not keep_bass:
-        mapped_chords['bass'] = 0
-    ivs = mapped_chords['intervals']
+        reduced_chords['bass'] = 0
+    ivs = reduced_chords['intervals']
 
     ivs[~no_chord] = interval_list('(1)')
     ivs[unison & perf_fifth] = interval_list('(1,5)')
@@ -372,16 +481,44 @@ def map_tetrads(chords, keep_bass=False):
     ivs[majaugfifth & maj_seventh] = interval_list('(7)', aug_ivs)
     ivs[majaugfifth & min_seventh] = interval_list('(b7)', aug_ivs)
 
-    return mapped_chords
+    return reduced_chords
 
 
 def select_majmin(chords):
+    """
+    Compute a mask that selects all major, minor, and
+    "no chords" with a 1, and all other chords with a 0.
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chords to compute the mask for.
+
+    Returns
+    -------
+    mask : numpy array (boolean)
+        Selection mask for major, minor, and "no chords"
+    """
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
             (chords['intervals'] == NO_CHORD[-1]).all(axis=1))
 
 
 def select_sevenths(chords):
+    """
+    Compute a mask that selects all major, minor, seventh, and
+    "no chords" with a 1, and all other chords with a 0.
+
+    Parameters
+    ----------
+    chords : numpy structured array
+        Chords to compute the mask for.
+
+    Returns
+    -------
+    mask : numpy array (boolean)
+        Selection mask for major, minor, seventh, and "no chords"
+    """
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
             (chords['intervals'] == _shorthands['7']).all(axis=1) |
@@ -391,6 +528,25 @@ def select_sevenths(chords):
 
 
 def adjust(det_chords, ann_chords):
+    """
+    Adjust the length of detected chord segments to the annotation
+    length. Discard detected chords that start after the annotation
+    ended, and shortens the last detection to fit the last annotation;
+    discared detected chords that end before the annotation begins,
+    and shorten the first detection to match the first annotation.
+
+    Parameters
+    ----------
+    det_chords : numpy structured array
+        Detected chord segments.
+    ann_chords : numpy structured array
+        Annotated chord segments.
+
+    Returns
+    -------
+    det_chords : numpy structured array
+        Adjusted detected chord segments
+    """
     det_start = det_chords[0]['start']
     ann_start = ann_chords[0]['start']
     if det_start > ann_start:
@@ -411,7 +567,7 @@ def adjust(det_chords, ann_chords):
         det_chords = det_chords[det_chords['start'] < ann_end]
         det_chords[-1]['end'] = ann_chords[-1]['end']
 
-    return det_chords, ann_chords
+    return det_chords
 
 
 def segmentation(ann_starts, ann_ends, est_starts, est_ends):
@@ -441,10 +597,8 @@ class ChordEvaluation(object):
 
     def __init__(self, detections, annotations, name, **kwargs):
         self.name = name
-
-        det_chords = load_chords(detections)
-        ann_chords = load_chords(annotations)
-        self.det_chords, self.ann_chords = adjust(det_chords, ann_chords)
+        self.ann_chords = load_chords(annotations)
+        self.det_chords = adjust(load_chords(detections), self.ann_chords)
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)
 
@@ -462,32 +616,32 @@ class ChordEvaluation(object):
 
     @property
     def majmin(self):
-        det_triads = map_triads(self.detections)
-        ann_triads = map_triads(self.annotations)
+        det_triads = reduce_to_triads(self.detections)
+        ann_triads = reduce_to_triads(self.annotations)
         majmin_sel = select_majmin(ann_triads)
         return np.average(score_exact(det_triads, ann_triads),
                           weights=self.durations * majmin_sel)
 
     @property
     def majminbass(self):
-        det_triads = map_triads(self.detections, keep_bass=True)
-        ann_triads = map_triads(self.annotations, keep_bass=True)
+        det_triads = reduce_to_triads(self.detections, keep_bass=True)
+        ann_triads = reduce_to_triads(self.annotations, keep_bass=True)
         majmin_sel = select_majmin(ann_triads)
         return np.average(score_exact(det_triads, ann_triads),
                           weights=self.durations * majmin_sel)
 
     @property
     def sevenths(self):
-        det_tetrads = map_tetrads(self.detections)
-        ann_tetrads = map_tetrads(self.annotations)
+        det_tetrads = reduce_tetrads(self.detections)
+        ann_tetrads = reduce_tetrads(self.annotations)
         sevenths_sel = select_sevenths(ann_tetrads)
         return np.average(score_exact(det_tetrads, ann_tetrads),
                           weights=self.durations * sevenths_sel)
 
     @property
     def seventhsbass(self):
-        det_tetrads = map_tetrads(self.detections, keep_bass=True)
-        ann_tetrads = map_tetrads(self.annotations, keep_bass=True)
+        det_tetrads = reduce_tetrads(self.detections, keep_bass=True)
+        ann_tetrads = reduce_tetrads(self.annotations, keep_bass=True)
         sevenths_sel = select_sevenths(ann_tetrads)
         return np.average(score_exact(det_tetrads, ann_tetrads),
                           weights=self.durations * sevenths_sel)
