@@ -1,3 +1,33 @@
+# encoding: utf-8
+"""
+This module contains chord evaluation functionality.
+
+It provides the evaluation measures used for the MIREX ACE task, and
+tries to follow [1]_ and [2]_ as closely as possible.
+
+Notes
+-----
+This implementation tries to follow the references and their implementation
+(e.g., https://github.com/jpauwels/MusOOEvaluator for [2]_). However, there
+are some known (and possibly some unknown) differences. If you find one not
+listed in the following, please file an issue:
+
+ - Detected chord segments are adjusted to fit the length of the annotations.
+   In particular, this means that, if necessary, filler segments of 'no chord'
+   are added at beginnings and ends. This can result in lower
+   under-segmentation scores compared to the original implementation.
+
+References
+----------
+.. [1] Christopher Harte, "Towards Automatic Extraction of Harmony Information
+       from Music Signals." Dissertation,
+       Department for Electronic Engineering, Queen Mary University of London,
+       2010.
+.. [2] Johan Pauwels and Geoffroy Peeters.
+       "Evaluating Automatically Estimated Chord Sequences."
+       In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
+"""
+
 import numpy as np
 from madmom.evaluation import evaluation_io
 
@@ -11,9 +41,6 @@ CHORD_ANN_DTYPE = [('start', np.float),
 
 NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
 UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
-
-
-# TODO: https://github.com/jpauwels/MusOOEvaluator/issues/1
 
 
 def chords(labels):
@@ -570,8 +597,29 @@ def adjust(det_chords, ann_chords):
     return det_chords
 
 
-def segmentation(ann_starts, ann_ends, est_starts, est_ends):
-    est_ts = np.unique(np.hstack([est_starts, est_ends]))
+def segmentation(ann_starts, ann_ends, det_starts, det_ends):
+    """
+    Compute the normalized Hamming divergence between chord
+    segmentations as defined in [1]_ (Eqs. 8.37 and 8.38).
+
+    Parameters
+    ----------
+    ann_starts : list or numpy array
+        Start times of annotated chord segments.
+    ann_ends : list or numpy array
+        End times of annotated chord segments.
+    det_starts : list or numpy array
+        Start times of detected chord segments.
+    det_ends : list or numpy array
+        End times of detected chord segments.
+
+    Returns
+    -------
+    float
+        Normalised Hamming divergence between annotated and
+        detected chord segments
+    """
+    est_ts = np.unique(np.hstack([det_starts, det_ends]))
     seg = 0.
     for start, end in zip(ann_starts, ann_ends):
         dur = end - start
@@ -583,6 +631,37 @@ def segmentation(ann_starts, ann_ends, est_starts, est_ends):
 
 
 class ChordEvaluation(object):
+    """
+    Provide various chord evaluation scores:
+
+     - `root`: fraction of correctly detected chord roots
+     - `majmin`: fraction of correctly detected chords that
+           can be reduced to major or minor triads (plus no-chord).
+           Ignores the bass pitch class.
+     - `majminbass`: same as `majmin`, but considers the bass pitch
+           class.
+     - `sevenths`: fraction of correctly detected chords that
+           can be reduced to a seventh tetrad (plus no-chord).
+           Ignores the bass pitch class.
+     - `seventhsbass`: same as `sevenths`, but considers the bass
+           pitch class.
+     - `oversegmentation`: Normalized Hamming divergence (directional)
+           between detections and annotations. Captures how fragmented
+           the detected chord segments are.
+     - `undersegmentation`: Normalized Hamming divergence (directional)
+           between annotations and detections. Captures missed chord
+           segments.
+     - `segmentation`: Minimum of `oversegmentation` and `undersegmentation`.
+
+    Parameters
+    ----------
+    detections : str
+        File containing chords detections
+    annotations : str
+        File containing chord annotations
+    name : str
+        Name of the evaluation object (e.g., the name of the song)
+    """
 
     METRIC_NAMES = [
         ('root', 'Root'),
@@ -607,6 +686,7 @@ class ChordEvaluation(object):
 
     @property
     def length(self):
+        """Length of annotations."""
         return self.ann_chords['end'][-1] - self.ann_chords['start'][0]
 
     @property
