@@ -3,19 +3,21 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This module contains audio handling via ffmpeg functionality.
+This module contains audio input/output functionality.
 
 """
 
 from __future__ import absolute_import, division, print_function
 
-import tempfile
-import subprocess
+import errno
 import os
+import subprocess
 import sys
+import tempfile
+
 import numpy as np
 
-from .signal import Signal
+from ..audio.signal import Signal
 
 # Python 2/3 string compatibility (like six does it)
 try:
@@ -24,6 +26,24 @@ except NameError:
     string_types = str
 
 
+# error classes
+class LoadAudioFileError(Exception):
+    """
+    Exception to be raised whenever an audio file could not be loaded.
+
+    """
+    # pylint: disable=super-init-not-called
+
+    def __init__(self, value=None):
+        if value is None:
+            value = 'Could not load audio file.'
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
+
+# functions for loading audio files with ffmpeg
 def _ffmpeg_fmt(dtype):
     """
     Convert numpy dtypes to format strings understood by ffmpeg.
@@ -427,3 +447,192 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     if num_channels > 1:
         signal = signal.reshape((-1, num_channels))
     return signal, sample_rate
+
+
+# functions for loading/saving wave files
+def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
+                   stop=None, dtype=None):
+    """
+    Load the audio data from the given file and return it as a numpy array.
+
+    Only supports wave files, does not support re-sampling or arbitrary
+    channel number conversions. Reads the data as a memory-mapped file with
+    copy-on-write semantics to defer I/O costs until needed.
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file.
+    sample_rate : int, optional
+        Desired sample rate of the signal [Hz], or 'None' to return the
+        signal in its original rate.
+    num_channels : int, optional
+        Reduce or expand the signal to `num_channels` channels, or 'None'
+        to return the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
+
+
+    Returns
+    -------
+    signal : numpy array
+        Audio signal.
+    sample_rate : int
+        Sample rate of the signal [Hz].
+
+    Notes
+    -----
+    The `start` and `stop` positions are rounded to the closest sample; the
+    sample corresponding to the `stop` value is not returned, thus consecutive
+    segment starting with the previous `stop` can be concatenated to obtain
+    the original signal without gaps or overlaps.
+
+    """
+    from scipy.io import wavfile
+    file_sample_rate, signal = wavfile.read(filename, mmap=True)
+    # if the sample rate is not the desired one, raise exception
+    if sample_rate is not None and sample_rate != file_sample_rate:
+        raise ValueError('Requested sample rate of %f Hz, but got %f Hz and '
+                         're-sampling is not implemented.' %
+                         (sample_rate, file_sample_rate))
+    # same for the data type
+    if dtype is not None and signal.dtype != dtype:
+        raise ValueError('Requested dtype %s, but got %s and re-scaling is '
+                         'not implemented.' % (dtype, signal.dtype))
+    # only request the desired part of the signal
+    if start is not None:
+        start = int(start * file_sample_rate)
+    if stop is not None:
+        stop = min(len(signal), int(stop * file_sample_rate))
+    if start is not None or stop is not None:
+        signal = signal[start: stop]
+    # up-/down-mix if needed
+    if num_channels is not None:
+        from ..audio.signal import remix
+        signal = remix(signal, num_channels)
+    # return the signal
+    return signal, file_sample_rate
+
+
+def write_wave_file(signal, filename, sample_rate=None):
+    """
+    Write the signal to disk as a .wav file.
+
+    Parameters
+    ----------
+    signal : numpy array or Signal
+        The signal to be written to file.
+    filename : str
+        Name of the file.
+    sample_rate : int, optional
+        Sample rate of the signal [Hz].
+
+    Returns
+    -------
+    filename : str
+        Name of the file.
+
+    Notes
+    -----
+    `sample_rate` can be 'None' if `signal` is a :class:`Signal` instance. If
+    set, the given `sample_rate` is used instead of the signal's sample rate.
+    Must be given if `signal` is a ndarray.
+
+    """
+    from scipy.io import wavfile
+    if isinstance(signal, Signal) and sample_rate is None:
+        sample_rate = int(signal.sample_rate)
+    wavfile.write(filename, rate=sample_rate, data=signal)
+    return filename
+
+
+# function for automatically determining how to open audio files
+def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
+                    stop=None, dtype=None):
+    """
+    Load the audio data from the given file and return it as a numpy array.
+    This tries load_wave_file() load_ffmpeg_file() (for ffmpeg and avconv).
+
+    Parameters
+    ----------
+    filename : str or file handle
+        Name of the file or file handle.
+    sample_rate : int, optional
+        Desired sample rate of the signal [Hz], or 'None' to return the
+        signal in its original rate.
+    num_channels: int, optional
+        Reduce or expand the signal to `num_channels` channels, or 'None'
+        to return the signal with its original channels.
+    start : float, optional
+        Start position [seconds].
+    stop : float, optional
+        Stop position [seconds].
+    dtype : numpy data type, optional
+        The data is returned with the given dtype. If 'None', it is returned
+        with its original dtype, otherwise the signal gets rescaled. Integer
+        dtypes use the complete value range, float dtypes the range [-1, +1].
+
+    Returns
+    -------
+    signal : numpy array
+        Audio signal.
+    sample_rate : int
+        Sample rate of the signal [Hz].
+
+    Notes
+    -----
+    For wave files, the `start` and `stop` positions are rounded to the closest
+    sample; the sample corresponding to the `stop` value is not returned, thus
+    consecutive segment starting with the previous `stop` can be concatenated
+    to obtain the original signal without gaps or overlaps.
+    For all other audio files, this can not be guaranteed.
+
+    """
+    # determine the name of the file if it is a file handle
+    try:
+        # close the file handle if it is open
+        filename.close()
+        # use the file name
+        filename = filename.name
+    except AttributeError:
+        pass
+    # try reading as a wave file
+    error = "All attempts to load audio file %r failed." % filename
+    try:
+        return load_wave_file(filename, sample_rate=sample_rate,
+                              num_channels=num_channels, start=start,
+                              stop=stop, dtype=dtype)
+    except ValueError:
+        pass
+    # not a wave file (or other sample rate requested), try ffmpeg
+    try:
+        return load_ffmpeg_file(filename, sample_rate=sample_rate,
+                                num_channels=num_channels, start=start,
+                                stop=stop, dtype=dtype)
+    except OSError as e:
+        # if it's not a file not found error, raise it!
+        if e.errno != errno.ENOENT:
+            raise
+
+        # ffmpeg is not present, try avconv
+        try:
+            return load_ffmpeg_file(filename, sample_rate=sample_rate,
+                                    num_channels=num_channels, start=start,
+                                    stop=stop, dtype=dtype,
+                                    cmd_decode='avconv', cmd_probe='avprobe')
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."
+            else:
+                raise
+        except subprocess.CalledProcessError:
+            pass
+    except subprocess.CalledProcessError:
+        pass
+    raise LoadAudioFileError(error)
