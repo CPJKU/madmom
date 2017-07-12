@@ -1097,9 +1097,6 @@ class MIDITrack(object):
     Notes
     -----
     All events are stored with timing information in absolute ticks.
-
-    Notes
-    -----
     The events must be sorted. Consider using `from_notes()` method.
 
     Examples
