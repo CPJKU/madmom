@@ -26,6 +26,7 @@ References
 .. [2] Johan Pauwels and Geoffroy Peeters.
        "Evaluating Automatically Estimated Chord Sequences."
        In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
+
 """
 
 import numpy as np
@@ -51,11 +52,11 @@ def chords(labels):
     Parameters
     ----------
     labels : list
-        List of chord labels (str)
+        List of chord labels (str).
 
     Returns
     -------
-    numpy.array
+    chords : numpy.array
         Structured array with columns 'root', 'bass', and 'intervals',
         containing a numeric representation of chords.
 
@@ -82,12 +83,12 @@ def chord(label):
     Parameters
     ----------
     label : str
-        Chord label
+        Chord label.
 
     Returns
     -------
-    tuple
-        Numeric representation of the chord: (root, bass, intervals array)
+    chord : tuple
+        Numeric representation of the chord: (root, bass, intervals array).
 
     """
     if label == 'N':
@@ -127,106 +128,109 @@ _l = [0, 1, 1, 0, 1, 1, 1]
 _chroma_id = (np.arange(len(_l) * 2) + 1) + np.array(_l + _l).cumsum() - 1
 
 
-def modify(base, modifier):
+def modify(base_pitch, modifier):
     """
     Modify a pitch class in integer representation by a given modifier string.
+
     A modifier string can be any sequence of 'b' (one semitone down)
     and '#' (one semitone up).
 
     Parameters
     ----------
-    base : int
-        Pitch class as integer
+    base_pitch : int
+        Pitch class as integer.
     modifier : str
-        String of modifiers ('b' or '#')
+        String of modifiers ('b' or '#').
 
     Returns
     -------
-    int
-        Modified root note
+    modified_pitch : int
+        Modified root note.
 
     """
     for m in modifier:
         if m == 'b':
-            base -= 1
+            base_pitch -= 1
         elif m == '#':
-            base += 1
+            base_pitch += 1
         else:
             raise ValueError('Unknown modifier: {}'.format(m))
-    return base
+    return base_pitch
 
 
 def pitch(pitch_str):
     """
-    Converts a string representation of a pitch class (consisting of root
+    Convert a string representation of a pitch class (consisting of root
     note and modifiers) to an integer representation.
 
     Parameters
     ----------
     pitch_str : str
-        String representation of a pitch class
+        String representation of a pitch class.
 
     Returns
     -------
-    int
-        Integer representation of a pitch class
+    pitch : int
+        Integer representation of a pitch class.
+
     """
     return modify(_chroma_id[(ord(pitch_str[0]) - ord('C')) % 7],
                   pitch_str[1:]) % 12
 
 
-def interval(s):
+def interval(interval_str):
     """
-    Converts a string representation of a musical interval into a semitone
-    integer (e.g. a minor seventh 'b7' into 10, because it is 10 semitones
-    above its base note).
+    Convert a string representation of a musical interval into a pitch class
+    (e.g. a minor seventh 'b7' into 10, because it is 10 semitones above its
+    base note).
 
     Parameters
     ----------
-    s : str
-        Musical interval
+    interval_str : str
+        Musical interval.
 
     Returns
     -------
-    int
-        Number of semitones to base note of interval
+    pitch_class : int
+        Number of semitones to base note of interval.
 
     """
-    for i, c in enumerate(s):
+    for i, c in enumerate(interval_str):
         if c.isdigit():
-            return modify(_chroma_id[int(s[i:]) - 1], s[:i]) % 12
+            return modify(_chroma_id[int(interval_str[i:]) - 1],
+                          interval_str[:i]) % 12
 
 
-def interval_list(s, given_intervals=None):
+def interval_list(intervals_str, given_pitch_classes=None):
     """
-    Convert a list of intervals given as string to a binary semitone array
+    Convert a list of intervals given as string to a binary pitch class
     representation. For example, 'b3, 5' would become
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0].
 
     Parameters
     ----------
-    s : str
-        List of intervals as comma-separated string (e.g. 'b3, 5')
+    intervals_str : str
+        List of intervals as comma-separated string (e.g. 'b3, 5').
 
-    given_intervals : None or numpy array
-        If None, start with empty interval array, if numpy array of length
+    given_pitch_classes : None or numpy array
+        If None, start with empty pitch class array, if numpy array of length
         12, this array will be modified.
 
     Returns
     -------
-    numpy array
-        Binary semitone representation of intervals
+    pitch_classes : numpy array
+        Binary pitch class representation of intervals.
 
     """
-    if given_intervals is None:
-        given_intervals = np.zeros(12, dtype=np.int)
-    for int_def in s[1:-1].split(','):
+    if given_pitch_classes is None:
+        given_pitch_classes = np.zeros(12, dtype=np.int)
+    for int_def in intervals_str[1:-1].split(','):
         int_def = int_def.strip()
         if int_def[0] == '*':
-            given_intervals[interval(int_def[1:])] = 0
+            given_pitch_classes[interval(int_def[1:])] = 0
         else:
-            given_intervals[interval(int_def)] = 1
-    return given_intervals
+            given_pitch_classes[interval(int_def)] = 1
+    return given_pitch_classes
 
 # mapping of shorthand interval notations to the actual interval representation
 _shorthands = {
@@ -269,8 +273,9 @@ def chord_intervals(quality_str):
 
     Returns
     -------
-    numpy array
-        Binary semitone representation of chord quality
+    pitch_classes : numpy array
+        Binary pitch class representation of chord quality.
+
     """
     list_idx = quality_str.find('(')
     if list_idx == -1:
@@ -284,6 +289,31 @@ def chord_intervals(quality_str):
 
 
 def load_chords(filename):
+    """
+    Load chords from a text file.
+
+    The chord must follow the syntax defined in [1]_.
+
+    Parameters
+    ----------
+    filename : str
+        File containing chord segments.
+
+    Returns
+    -------
+    crds : numpy structured array
+        Structured array with columns "start", "end", and "chord",
+        containing the beginning, end, and chord definition of chord
+        segments.
+
+    References
+    ----------
+    .. [1] Christopher Harte, "Towards Automatic Extraction of Harmony
+           Information from Music Signals." Dissertation,
+           Department for Electronic Engineering, Queen Mary University of
+           London, 2010.
+
+    """
     start, end, chord_labels = [], [], []
     with open(filename, 'r') as f:
         for line in f:
@@ -301,25 +331,25 @@ def load_chords(filename):
 
 def evaluation_pairs(det_chords, ann_chords):
     """
-    Matches detected with annotated chords and creates paired label segments
+    Match detected with annotated chords and create paired label segments
     for evaluation.
 
     Parameters
     ----------
     det_chords : numpy structured array
-        Chord detections with 'start' and 'end' fields
+        Chord detections with 'start' and 'end' fields.
 
     ann_chords : numpy structured array
-        Chord annotations with 'start' and 'end' fields
+        Chord annotations with 'start' and 'end' fields.
 
     Returns
     -------
-    annotations: numpy structured array
-        Annotated chords of evaluation segments
-    detections: numpy structured array
-        Detected chords of evaluation segments
-    durations: numpy array
-        Durations of evaluation segments
+    annotations : numpy structured array
+        Annotated chords of evaluation segments.
+    detections : numpy structured array
+        Detected chords of evaluation segments.
+    durations : numpy array
+        Durations of evaluation segments.
     """
     times = np.unique(np.hstack([ann_chords['start'], ann_chords['end'],
                                  det_chords['start'], det_chords['end']]))
@@ -378,10 +408,12 @@ def score_exact(det_chords, ann_chords):
 
 def reduce_to_triads(chords, keep_bass=False):
     """
-    Reduce chords to triads. If a chord does not contain a third, major
-    second or fourth, it is reduced to a power chord. If it does not
-    contain neither a third nor a fifth, it is reduced to a single
-    note "chord".
+    Reduce chords to triads.
+
+    The function follows the reduction rules implemented in [1]_. If a chord
+    chord does not contain a third, major second or fourth, it is reduced to
+    a power chord. If it does not contain neither a third nor a fifth, it is
+    reduced to a single note "chord".
 
     Parameters
     ----------
@@ -393,7 +425,13 @@ def reduce_to_triads(chords, keep_bass=False):
     Returns
     -------
     reduced_chords : numpy structured array
-        Chords reduced to triads
+        Chords reduced to triads.
+
+    References
+    ----------
+    .. [1] Johan Pauwels and Geoffroy Peeters.
+           "Evaluating Automatically Estimated Chord Sequences."
+           In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
     """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
@@ -428,10 +466,12 @@ def reduce_to_triads(chords, keep_bass=False):
 
 def reduce_tetrads(chords, keep_bass=False):
     """
-    Reduce chords to tetrads. If a chord does not contain a third, major
-    second or fourth, it is reduced to a power chord. If it does not
-    contain neither a third nor a fifth, it is reduced to a single
-    note "chord".
+    Reduce chords to tetrads.
+
+    The function follows the reduction rules implemented in [1]_. If a chord
+    does not contain a third, major second or fourth, it is reduced to a power
+    chord. If it does not contain neither a third nor a fifth, it is reduced
+    to a single note "chord".
 
     Parameters
     ----------
@@ -443,7 +483,13 @@ def reduce_tetrads(chords, keep_bass=False):
     Returns
     -------
     reduced_chords : numpy structured array
-        Chords reduced to tetrads
+        Chords reduced to tetrads.
+
+    References
+    ----------
+    .. [1] Johan Pauwels and Geoffroy Peeters.
+           "Evaluating Automatically Estimated Chord Sequences."
+           In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
     """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
@@ -524,7 +570,7 @@ def select_majmin(chords):
     Returns
     -------
     mask : numpy array (boolean)
-        Selection mask for major, minor, and "no chords"
+        Selection mask for major, minor, and "no chords".
     """
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
@@ -544,7 +590,7 @@ def select_sevenths(chords):
     Returns
     -------
     mask : numpy array (boolean)
-        Selection mask for major, minor, seventh, and "no chords"
+        Selection mask for major, minor, seventh, and "no chords".
     """
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
@@ -557,8 +603,10 @@ def select_sevenths(chords):
 def adjust(det_chords, ann_chords):
     """
     Adjust the length of detected chord segments to the annotation
-    length. Discard detected chords that start after the annotation
-    ended, and shortens the last detection to fit the last annotation;
+    length.
+
+    Discard detected chords that start after the annotation ended,
+    and shorten the last detection to fit the last annotation;
     discared detected chords that end before the annotation begins,
     and shorten the first detection to match the first annotation.
 
@@ -572,7 +620,7 @@ def adjust(det_chords, ann_chords):
     Returns
     -------
     det_chords : numpy structured array
-        Adjusted detected chord segments
+        Adjusted detected chord segments.
     """
     det_start = det_chords[0]['start']
     ann_start = ann_chords[0]['start']
@@ -615,9 +663,16 @@ def segmentation(ann_starts, ann_ends, det_starts, det_ends):
 
     Returns
     -------
-    float
+    distance : float
         Normalised Hamming divergence between annotated and
-        detected chord segments
+        detected chord segments.
+
+    References
+    ----------
+    .. [1] Christopher Harte, "Towards Automatic Extraction of Harmony
+           Information from Music Signals." Dissertation,
+           Department for Electronic Engineering, Queen Mary University of
+           London, 2010.
     """
     est_ts = np.unique(np.hstack([det_starts, det_ends]))
     seg = 0.
@@ -632,35 +687,16 @@ def segmentation(ann_starts, ann_ends, det_starts, det_ends):
 
 class ChordEvaluation(object):
     """
-    Provide various chord evaluation scores:
-
-     - `root`: fraction of correctly detected chord roots
-     - `majmin`: fraction of correctly detected chords that
-           can be reduced to major or minor triads (plus no-chord).
-           Ignores the bass pitch class.
-     - `majminbass`: same as `majmin`, but considers the bass pitch
-           class.
-     - `sevenths`: fraction of correctly detected chords that
-           can be reduced to a seventh tetrad (plus no-chord).
-           Ignores the bass pitch class.
-     - `seventhsbass`: same as `sevenths`, but considers the bass
-           pitch class.
-     - `oversegmentation`: Normalized Hamming divergence (directional)
-           between detections and annotations. Captures how fragmented
-           the detected chord segments are.
-     - `undersegmentation`: Normalized Hamming divergence (directional)
-           between annotations and detections. Captures missed chord
-           segments.
-     - `segmentation`: Minimum of `oversegmentation` and `undersegmentation`.
+    Provide various chord evaluation scores.
 
     Parameters
     ----------
     detections : str
-        File containing chords detections
+        File containing chords detections.
     annotations : str
-        File containing chord annotations
+        File containing chord annotations.
     name : str
-        Name of the evaluation object (e.g., the name of the song)
+        Name of the evaluation object (e.g., the name of the song).
     """
 
     METRIC_NAMES = [
@@ -691,11 +727,16 @@ class ChordEvaluation(object):
 
     @property
     def root(self):
+        """Fraction of correctly detected chord roots."""
         return np.average(score_root(self.detections, self.annotations),
                           weights=self.durations)
 
     @property
     def majmin(self):
+        """
+        Fraction of correctly detected chords that can be reduced to major
+        or minor triads (plus no-chord). Ignores the bass pitch class.
+        """
         det_triads = reduce_to_triads(self.detections)
         ann_triads = reduce_to_triads(self.annotations)
         majmin_sel = select_majmin(ann_triads)
@@ -704,6 +745,10 @@ class ChordEvaluation(object):
 
     @property
     def majminbass(self):
+        """
+        Fraction of correctly detected chords that can be reduced to major
+        or minor triads (plus no-chord). Considers the bass pitch class.
+        """
         det_triads = reduce_to_triads(self.detections, keep_bass=True)
         ann_triads = reduce_to_triads(self.annotations, keep_bass=True)
         majmin_sel = select_majmin(ann_triads)
@@ -712,6 +757,10 @@ class ChordEvaluation(object):
 
     @property
     def sevenths(self):
+        """
+        Fraction of correctly detected chords that can be reduced to a seventh
+        tetrad (plus no-chord). Ignores the bass pitch class.
+        """
         det_tetrads = reduce_tetrads(self.detections)
         ann_tetrads = reduce_tetrads(self.annotations)
         sevenths_sel = select_sevenths(ann_tetrads)
@@ -720,6 +769,10 @@ class ChordEvaluation(object):
 
     @property
     def seventhsbass(self):
+        """
+        Fraction of correctly detected chords that can be reduced to a seventh
+        tetrad (plus no-chord). Considers the bass pitch class.
+        """
         det_tetrads = reduce_tetrads(self.detections, keep_bass=True)
         ann_tetrads = reduce_tetrads(self.annotations, keep_bass=True)
         sevenths_sel = select_sevenths(ann_tetrads)
@@ -728,6 +781,10 @@ class ChordEvaluation(object):
 
     @property
     def undersegmentation(self):
+        """
+        Normalized Hamming divergence (directional) between annotations and
+        detections. Captures missed chord segments.
+        """
         if self._underseg is None:
             self._underseg = 1 - segmentation(
                 self.det_chords['start'], self.det_chords['end'],
@@ -737,6 +794,10 @@ class ChordEvaluation(object):
 
     @property
     def oversegmentation(self):
+        """
+        Normalized Hamming divergence (directional) between detections and
+        annotations. Captures how fragmented the detected chord segments are.
+        """
         if self._overseg is None:
             self._overseg = 1 - segmentation(
                 self.ann_chords['start'], self.ann_chords['end'],
@@ -746,6 +807,7 @@ class ChordEvaluation(object):
 
     @property
     def segmentation(self):
+        """Minimum of `oversegmentation` and `undersegmentation`."""
         return min(self.undersegmentation, self.oversegmentation)
 
     def tostring(self, **kwargs):
@@ -754,8 +816,8 @@ class ChordEvaluation(object):
 
         Returns
         -------
-        str
-            Evaluation metrics formatted as a human readable string
+        eval_string : str
+            Evaluation metrics formatted as a human readable string.
 
         """
         ret = (
