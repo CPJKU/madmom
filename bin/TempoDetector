@@ -12,7 +12,8 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import RNNBeatProcessor
-from madmom.features.tempo import TempoEstimationProcessor, write_tempo
+from madmom.features.tempo import TempoEstimationProcessor
+from madmom.io import write_events, write_tempo
 
 
 def main():
@@ -94,15 +95,15 @@ def main():
         if args.tempo_format == 'mirex':
             # output in the MIREX format (i.e. slower tempo first)
             from functools import partial
-            writer = partial(write_tempo, mirex=True)
+            output = partial(write_tempo, mirex=True)
         elif args.tempo_format in ('raw', 'all'):
             # borrow the event writer for outputting multiple values
-            from madmom.utils import write_events as writer
+            output = write_events
         else:
             # normal output
-            writer = write_tempo
+            output = write_tempo
         # sequentially process them
-        out_processor = [tempo_estimator, writer]
+        out_processor = [tempo_estimator, output]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

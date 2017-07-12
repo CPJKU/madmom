@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from . import EvaluationMixin
-
+from madmom.io import load_alignment
 
 # constants for the data format
 _TIME = 0
@@ -24,52 +24,6 @@ _MISSED_NOTE_VAL = np.NaN
 # default settings
 WINDOW = 0.25
 HISTOGRAM_BINS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 1.]
-
-
-class AlignmentFormatError(Exception):
-    """
-    Exception to be raised whenever an incorrect alignment format is given.
-
-    """
-    # pylint: disable=super-init-not-called
-
-    def __init__(self, value=None):
-        if value is None:
-            value = 'Alignment has to be at least one row of two columns ' \
-                    'representing time and score position.'
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
-
-
-def load_alignment(values):
-    """
-    Load the alignment from given values or file.
-
-    Parameters
-    ----------
-    values : str, file handle, list or numpy array
-        Alignment values.
-
-    Returns
-    -------
-    numpy array
-        Time and score position columns.
-
-    """
-    if values is None:
-        # return 'empty' alignment
-        return np.array([[0, -1]])
-    elif isinstance(values, (list, np.ndarray)):
-        values = np.atleast_2d(values)
-    else:
-        values = np.loadtxt(values, ndmin=2)
-
-    if values.shape[0] < 1 or values.shape[1] < 2 or len(values.shape) > 2:
-        raise AlignmentFormatError()
-
-    return values[:, :2]
 
 
 def compute_event_alignment(alignment, ground_truth):

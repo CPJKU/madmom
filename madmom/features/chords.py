@@ -5,71 +5,14 @@ This module contains chord recognition related functionality.
 """
 from __future__ import absolute_import, division, print_function
 
+from functools import partial
+
 import numpy as np
 
-from functools import partial
 from madmom.processors import SequentialProcessor
-
 
 # dtype for numpy structured arrays that contain chord segments
 CHORD_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]
-
-
-def load_chords(filename):
-    """
-    Load labelled chord segments from a file. Chord segments must follow
-    the following format, one chord label per line:
-
-    <start_time> <end_time> <chord_label>
-
-    All times should be given in seconds.
-
-    Parameters
-    ----------
-    filename : str or file handle
-        File containing the segments
-
-    Returns
-    -------
-    numpy structured array
-        Structured array with columns 'start', 'end', and 'label', containing
-        the start time, end time, and segment label respectively
-
-    Notes
-    -----
-    Segment files cannot contain comments, because e.g. chord annotations
-    can contain the '#' character! The maximum label length is 32 characters.
-
-    """
-    return np.loadtxt(filename, comments=None, ndmin=1, dtype=CHORD_DTYPE,
-                      converters={2: lambda x: x.decode()})
-
-
-def write_chords(chords, filename):
-    """
-    Write chord segments to a file.
-
-    Parameters
-    ----------
-    chords : numpy structured array
-        Chord segments, one per row (column definition see notes).
-    filename : str or file handle
-        Output filename or handle
-
-    Returns
-    -------
-    numpy structured array
-        Chord segments.
-
-    Notes
-    -----
-    Chords are represented as numpy structured array with three named columns:
-    'start' contains the start time in seconds, 'end' the end time in seconds,
-    and 'label' the chord label.
-
-    """
-    np.savetxt(filename, chords, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
-    return chords
 
 
 def majmin_targets_to_chord_labels(targets, fps):

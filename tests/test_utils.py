@@ -10,9 +10,10 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.io import write_events, load_events
 from madmom.utils import *
-from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
-               DETECTIONS_PATH)
+from . import (ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DATA_PATH,
+               DETECTIONS_PATH, )
 
 FILE_LIST = [pj(DATA_PATH, 'README'),
              pj(DATA_PATH, 'commented_txt'),

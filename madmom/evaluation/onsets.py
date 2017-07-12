@@ -18,48 +18,9 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from . import evaluation_io, Evaluation, SumEvaluation, MeanEvaluation
-from ..utils import suppress_warnings, combine_events
-
-
-@suppress_warnings
-def load_onsets(values):
-    """
-    Load the onsets from the given values or file.
-
-    Parameters
-    ----------
-    values: str, file handle, list of tuples or numpy array
-        Onsets values.
-
-    Returns
-    -------
-    numpy array, shape (num_onsets,)
-        Onsets.
-
-    Notes
-    -----
-    Expected file/tuple/row format:
-
-    'onset_time' [additional information will be ignored]
-
-    """
-    # load the onsets from the given representation
-    if values is None:
-        # return an empty array
-        values = np.zeros(0)
-    elif isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
-    # 1st column is the onset time, the rest is ignored
-    if values.ndim > 1:
-        return values[:, 0]
-    return values
-
+from . import Evaluation, MeanEvaluation, SumEvaluation, evaluation_io
+from madmom.io import load_onsets
+from ..utils import combine_events
 
 # default onset evaluation values
 WINDOW = 0.025

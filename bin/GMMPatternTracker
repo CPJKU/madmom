@@ -19,6 +19,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import PatternTrackingProcessor
 from madmom.models import PATTERNS_BALLROOM
+from madmom.io import write_beats
 
 
 def main():
@@ -112,16 +113,9 @@ def main():
         # save the multiband features to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # downbeat processor
+        # track the (down-)beats (i.e. patterns) and output them
         downbeat_processor = PatternTrackingProcessor(**vars(args))
-        if args.downbeats:
-            # simply write the timestamps
-            from madmom.utils import write_events as writer
-        else:
-            # borrow the note writer for outputting timestamps + beat numbers
-            from madmom.features.notes import write_notes as writer
-        # sequentially process the features
-        out_processor = [downbeat_processor, writer]
+        out_processor = [downbeat_processor, write_beats]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

@@ -12,7 +12,8 @@ from os.path import join as pj
 
 from madmom.features import Activations
 from madmom.features.chords import *
-from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
+from madmom.io import load_chords
+from . import ACTIVATIONS_PATH, AUDIO_PATH, DETECTIONS_PATH
 
 sample_files = [pj(AUDIO_PATH, sf) for sf in ['sample.wav', 'sample2.wav']]
 

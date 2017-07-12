@@ -11,8 +11,8 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
+from madmom.processors import Processor
 
 NO_TEMPO = np.nan
 
@@ -462,56 +462,3 @@ class TempoEstimationProcessor(Processor):
                                 '[default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g
-
-
-# helper function for writing the detected tempi to file
-def write_tempo(tempi, filename, mirex=False):
-    """
-    Write the most dominant tempi and the relative strength to a file.
-
-    Parameters
-    ----------
-    tempi : numpy array
-        Array with the detected tempi (first column) and their strengths
-        (second column).
-    filename : str or file handle
-        Output file.
-    mirex : bool, optional
-        Report the lower tempo first (as required by MIREX).
-
-    Returns
-    -------
-    tempo_1 : float
-        The most dominant tempo.
-    tempo_2 : float
-        The second most dominant tempo.
-    strength : float
-        Their relative strength.
-
-    """
-    # make the given tempi a 2d array
-    tempi = np.array(tempi, ndmin=2)
-    # default values
-    t1, t2, strength = 0., 0., 1.
-    # only one tempo was detected
-    if len(tempi) == 1:
-        t1 = tempi[0][0]
-        # generate a fake second tempo
-        # the boundary of 68 bpm is taken from Tzanetakis 2013 ICASSP paper
-        if t1 < 68:
-            t2 = t1 * 2.
-        else:
-            t2 = t1 / 2.
-    # consider only the two strongest tempi and strengths
-    elif len(tempi) > 1:
-        t1, t2 = tempi[:2, 0]
-        strength = tempi[0, 1] / sum(tempi[:2, 1])
-    # for MIREX, the lower tempo must be given first
-    if mirex and t1 > t2:
-        t1, t2, strength = t2, t1, 1. - strength
-    # format as a numpy array
-    out = np.array([t1, t2, strength], ndmin=2)
-    # write to output
-    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
-    # also return the tempi & strength
-    return t1, t2, strength

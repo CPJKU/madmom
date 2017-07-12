@@ -10,8 +10,9 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import ACTIVATIONS_PATH
 from madmom.features.tempo import *
+from madmom.io import write_tempo
+from . import ACTIVATIONS_PATH
 
 act_file = np.load(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
 act = act_file['activations'].astype(np.float)
