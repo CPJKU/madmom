@@ -1502,11 +1502,8 @@ class MIDIFile(object):
         # convert to desired format (tick, microseconds per tick)
         tempi = [(e.tick, e.microseconds_per_quarter_note /
                   (1e6 * self.resolution)) for e in tempo_events]
-        # make sure a tempo is set
-        if tempi is None:
-            tempi = [(0, SECONDS_PER_TICK)]
-        # and the first tempo occurs at tick 0
-        if tempi[0][0] > 0:
+        # make sure a tempo is set and the first tempo occurs at tick 0
+        if not tempi or tempi[0][0] > 0:
             tempi.insert(0, (0, SECONDS_PER_TICK))
         # sort (just to be sure)
         tempi.sort()
