@@ -762,7 +762,7 @@ class LoadBeatsProcessor(Processor):
 
         """
         # pylint: disable=unused-argument
-        from ..utils import load_events
+        from ..io import load_events
         return load_events(self.beats)
 
     def process_batch(self, filename):

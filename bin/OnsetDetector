@@ -13,6 +13,7 @@ from madmom.processors import IOProcessor, io_arguments
 from madmom.audio.signal import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import RNNOnsetProcessor, OnsetPeakPickingProcessor
+from madmom.io import write_onsets
 
 
 def main():
@@ -85,12 +86,9 @@ def main():
         # save the RNN onset activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # perform peak picking on the onset activations
+        # detect the onsets and output them
         peak_picking = OnsetPeakPickingProcessor(**vars(args))
-        # output handler
-        from madmom.utils import write_events as writer
-        # sequentially process them
-        out_processor = [peak_picking, writer]
+        out_processor = [peak_picking, write_onsets]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

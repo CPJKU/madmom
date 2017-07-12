@@ -7,15 +7,16 @@ This file contains tests for the madmom.evaluation.beats module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
 from os.path import join as pj
 
-from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from madmom.evaluation.beats import *
 # noinspection PyProtectedMember
-from madmom.evaluation.beats import (_histogram_bins, _error_histogram,
-                                     _information_gain, _entropy)
+from madmom.evaluation.beats import (_entropy, _error_histogram,
+                                     _histogram_bins, _information_gain, )
+from madmom.io import load_beats
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([1., 2, 3, 4, 5, 6, 7, 8, 9, 10])
 OFFBEAT_ANNOTATIONS = np.asarray([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5])
