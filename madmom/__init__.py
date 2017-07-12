@@ -20,7 +20,7 @@ import numpy as np
 import pkg_resources
 
 # import all packages
-from . import audio, evaluation, features, ml, models, processors, utils
+from . import audio, evaluation, features, io, ml, models, processors, utils
 
 # define a version variable
 __version__ = pkg_resources.get_distribution("madmom").version
