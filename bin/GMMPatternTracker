@@ -116,10 +116,10 @@ def main():
         downbeat_processor = PatternTrackingProcessor(**vars(args))
         if args.downbeats:
             # simply write the timestamps
-            from madmom.utils import write_events as writer
+            from madmom.io import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
-            from madmom.features.notes import write_notes as writer
+            from madmom.io import write_notes as writer
         # sequentially process the features
         out_processor = [downbeat_processor, writer]
 

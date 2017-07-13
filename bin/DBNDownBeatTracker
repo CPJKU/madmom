@@ -88,7 +88,7 @@ def main():
             from madmom.utils import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
-            from madmom.features.notes import write_notes as writer
+            from madmom.io import write_notes as writer
         # sequentially process them
         out_processor = [downbeat_processor, writer]
 
