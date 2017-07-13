@@ -88,7 +88,7 @@ def main():
         # perform peak picking on the onset activations
         peak_picking = OnsetPeakPickingProcessor(**vars(args))
         # output handler
-        from madmom.utils import write_events as writer
+        from madmom.io import write_events as writer
         # sequentially process them
         out_processor = [peak_picking, writer]
 

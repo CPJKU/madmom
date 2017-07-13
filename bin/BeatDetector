@@ -96,7 +96,7 @@ def main():
         # detect the beats in the activation function
         beat_processor = BeatDetectionProcessor(**vars(args))
         # output handler
-        from madmom.utils import write_events as writer
+        from madmom.io import write_events as writer
         # sequentially process them
         out_processor = [beat_processor, writer]
 

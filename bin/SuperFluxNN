@@ -103,7 +103,7 @@ def main():
         rnn = NeuralNetworkEnsemble.load(ONSETS_BRNN_PP, **vars(args))
         # perform peak picking, i.e. select the local maxima
         pp = OnsetPeakPickingProcessor(**vars(args))
-        from madmom.utils import write_events as writer
+        from madmom.io import write_events as writer
         # sequentially process them
         # Note: we need np.atleast_2d and np.transpose before the RNN, since
         #       it expects the data in 2D (1D means framewise processing)
