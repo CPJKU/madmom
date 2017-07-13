@@ -285,7 +285,8 @@ from .beats import (BeatDetectionProcessor, BeatTrackingProcessor,
                     RNNDownBeatProcessor)
 from .chords import (CNNChordFeatureProcessor, CRFChordRecognitionProcessor,
                      DeepChromaChordRecognitionProcessor)
-from .notes import RNNPianoNoteProcessor
-from .onsets import (CNNOnsetProcessor, PeakPickingProcessor,
+from .notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
+from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
+                     PeakPickingProcessor,
                      RNNOnsetProcessor, SpectralOnsetProcessor)
 from .tempo import TempoEstimationProcessor

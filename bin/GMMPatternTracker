@@ -9,17 +9,15 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.stft import ShortTimeFourierTransformProcessor
-from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
-                                      LogarithmicSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      MultiBandSpectrogramProcessor)
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import PatternTrackingProcessor
-from madmom.models import PATTERNS_BALLROOM
+from madmom.audio import (FilteredSpectrogramProcessor, FramedSignalProcessor,
+                          LogarithmicSpectrogramProcessor,
+                          MultiBandSpectrogramProcessor,
+                          ShortTimeFourierTransformProcessor, SignalProcessor,
+                          SpectrogramDifferenceProcessor, )
+from madmom.features import (ActivationsProcessor, PatternTrackingProcessor)
 from madmom.io import write_beats
+from madmom.models import PATTERNS_BALLROOM
+from madmom.processors import IOProcessor, io_arguments
 
 
 def main():

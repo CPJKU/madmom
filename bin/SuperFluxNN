@@ -8,19 +8,19 @@ SuperFlux with neural network based peak picking onset detection algorithm.
 from __future__ import absolute_import, division, print_function
 
 import argparse
+
 import numpy as np
 
-from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
+from madmom.audio import (FramedSignalProcessor,
+                          LogarithmicSpectrogramProcessor, SignalProcessor,
+                          SpectrogramDifferenceProcessor, )
 from madmom.audio.filters import FilterbankProcessor, LogarithmicFilterbank
-from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor)
-from madmom.features import ActivationsProcessor
-from madmom.features.onsets import (SpectralOnsetProcessor,
-                                    OnsetPeakPickingProcessor)
+from madmom.features import (ActivationsProcessor, OnsetPeakPickingProcessor,
+                             SpectralOnsetProcessor, )
 from madmom.io import write_onsets
 from madmom.ml.nn import NeuralNetworkEnsemble
 from madmom.models import ONSETS_BRNN_PP
+from madmom.processors import IOProcessor, io_arguments
 
 
 def main():

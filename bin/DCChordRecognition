@@ -9,14 +9,16 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-from madmom.audio.chroma import DeepChromaProcessor
-from madmom.features.chords import (DeepChromaChordRecognitionProcessor)
+from madmom.audio import DeepChromaProcessor
+from madmom.features import (ActivationsProcessor,
+                             DeepChromaChordRecognitionProcessor, )
 from madmom.io import write_chords
-from madmom.features import ActivationsProcessor
-from madmom.processors import io_arguments, IOProcessor
+from madmom.processors import IOProcessor, io_arguments
 
 
 def main():
+    """DCChordRecognition"""
+
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     The DCChordRecognition program recognises major and minor chords in an
