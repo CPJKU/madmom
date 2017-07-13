@@ -12,7 +12,7 @@ import argparse
 from madmom.audio import SignalProcessor
 from madmom.features import (ActivationsProcessor, NotePeakPickingProcessor,
                              RNNPianoNoteProcessor, )
-from madmom.io import write_midi, write_mirex_format, write_notes
+from madmom.io import write_notes, write_notes_mirex, write_notes_midi
 from madmom.processors import IOProcessor, io_arguments
 
 
@@ -104,9 +104,9 @@ def main():
         if args.output_format is None:
             output = write_notes
         elif args.output_format == 'midi':
-            output = write_midi
+            output = write_notes_midi
         elif args.output_format == 'mirex':
-            output = write_mirex_format
+            output = write_notes_mirex
         else:
             raise ValueError('unknown output format: %s' % args.output_format)
         out_processor = [peak_picking, output]

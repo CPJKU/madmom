@@ -356,6 +356,50 @@ def quantize_events(events, fps, length=None, shift=None):
     return quantized
 
 
+def expand_notes(notes, duration=0.6, velocity=100):
+    """
+    Expand notes to include duration and velocity.
+
+    The given duration and velocity is only used if they are not set already.
+
+    Parameters
+    ----------
+    notes : numpy array, shape (num_notes, 2)
+        Notes, one per row (column definition see notes).
+    duration : float, optional
+        Note duration if not defined by `notes`.
+    velocity : int, optional
+        Note velocity if not defined by `notes`.
+
+    Returns
+    -------
+    numpy array
+        Notes (including note duration and velocity).
+
+    Notes
+    -----
+    The note columns format must be (duration and velocity being optional):
+
+    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
+
+    """
+    if not notes.ndim == 2:
+        raise ValueError('unknown format for `notes`')
+    rows, columns = notes.shape
+    if columns == 4:
+        return notes
+    elif columns == 3:
+        new_columns = np.ones((rows, 1)) * velocity
+    elif columns == 2:
+        new_columns = np.ones((rows, 2)) * velocity
+        new_columns[:, 0] = duration
+    else:
+        raise ValueError('unable to handle `notes` with %d columns' % columns)
+    # return the notes
+    notes = np.hstack((notes, new_columns))
+    return notes
+
+
 # argparse action to set and overwrite default lists
 class OverrideDefaultListAction(argparse.Action):
     """

@@ -212,48 +212,6 @@ def load_notes(values):
         return np.loadtxt(values, ndmin=2)
 
 
-def expand_notes(notes, duration=0.6, velocity=100):
-    """
-    Expand the notes to include all columns.
-
-    Parameters
-    ----------
-    notes : numpy array, shape (num_notes, 2)
-        Notes, one per row (column definition see notes).
-    duration : float, optional
-        Note duration if not defined by `notes`.
-    velocity : int, optional
-        Note velocity if not defined by `notes`.
-
-    Returns
-    -------
-    numpy array
-        Notes (including note duration and velocity).
-
-    Notes
-    -----
-    The note columns format must be (duration and velocity being optional):
-
-    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
-
-    """
-    if not notes.ndim == 2:
-        raise ValueError('unknown format for `notes`')
-    rows, columns = notes.shape
-    if columns == 4:
-        return notes
-    elif columns == 3:
-        new_columns = np.ones((rows, 1)) * velocity
-    elif columns == 2:
-        new_columns = np.ones((rows, 2)) * velocity
-        new_columns[:, 0] = duration
-    else:
-        raise ValueError('unable to handle `notes` with %d columns' % columns)
-    # return the notes
-    notes = np.hstack((notes, new_columns))
-    return notes
-
-
 def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     """
     Write the notes to a file.
@@ -285,7 +243,6 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     As many columns as items per row are given are written to file.
 
     """
-    from madmom.io import write_events
     # set default format
     if fmt is None:
         fmt = list(('%.3f', '%d', '%.3f', '%d'))
@@ -299,7 +256,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     return notes
 
 
-def write_midi(notes, filename, duration=0.6, velocity=100):
+def write_notes_midi(notes, filename, duration=0.6, velocity=100):
     """
     Write the notes to a MIDI file.
 
@@ -326,14 +283,16 @@ def write_midi(notes, filename, duration=0.6, velocity=100):
     'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
-    from ..utils.midi import process_notes
+    from ..utils.midi import MIDIFile
+    from ..utils import expand_notes
     # expand the array to have a default duration and velocity
     notes = expand_notes(notes, duration, velocity)
     # write the notes to the file and return them
-    return process_notes(notes, filename)
+    MIDIFile.from_notes(notes).write(filename)
+    return notes
 
 
-def write_mirex_format(notes, filename, duration=0.6):
+def write_notes_mirex(notes, filename, duration=0.6):
     """
     Write the frequencies of the notes to file (in MIREX format).
 
@@ -363,6 +322,7 @@ def write_mirex_format(notes, filename, duration=0.6):
 
     """
     from ..audio.filters import midi2hz
+    from ..utils import expand_notes
     # expand the notes if needed
     notes = expand_notes(notes, duration)
     # report offset time instead of duration
