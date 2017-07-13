@@ -12,7 +12,7 @@ from os.path import join as pj
 
 from madmom.io import write_events, load_events
 from madmom.utils import *
-from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
+from . import (ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DATA_PATH,
                DETECTIONS_PATH)
 from .test_features_notes import NOTES
 
