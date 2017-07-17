@@ -66,6 +66,25 @@ class TestBeatTrackingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(beats, [0.11, 0.45, 0.79, 1.13, 1.47,
                                             1.81, 2.15, 2.49]))
 
+    def test_process_online(self):
+        processor = BeatTrackingProcessor(fps=sample_lstm_act.fps,
+                                          online=True)
+        # compute the beats at once
+        beats = processor.process_online(sample_lstm_act, reset=False)
+        self.assertTrue(np.allclose(beats, [0.68, 1.14, 1.48, 1.84, 2.18,
+                                            2.51]))
+        # compute the beats framewise
+        processor.reset()
+        beats = [processor.process_online(np.atleast_2d(act), reset=False)
+                 for act in sample_lstm_act]
+        self.assertTrue(np.allclose(np.nonzero(beats),
+                                    [68, 114, 148, 184, 218, 251]))
+        # without resetting results are different
+        beats = [processor.process_online(np.atleast_2d(act), reset=False)
+                 for act in sample_lstm_act]
+        self.assertTrue(np.allclose(np.nonzero(beats), [5, 148, 184, 217,
+                                                        251]))
+
 
 class TestBeatDetectionProcessorClass(unittest.TestCase):
 
