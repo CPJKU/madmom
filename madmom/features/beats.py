@@ -323,6 +323,51 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions)
 
 
+def detect_beats_with_ccf(activations, interval, look_aside=0.2):
+    """
+    Detects the beats in the given activation function using a
+    Cross-Correlated Pulse Train signal.
+
+    Parameters
+    ----------
+    activations : numpy array
+       Beat activations.
+    interval : int
+       Look for the next beat each `interval` frames.
+    look_aside : float
+        Look this fraction of the `interval` to each side to detect the beats.
+        Determines the width of each pulse.
+
+    Returns
+    -------
+    numpy array
+       Beat positions [frames].
+
+    """
+    # always look at least 1 frame to each side
+    pulse_width = max(1, int(interval * look_aside)) * 2
+    # build pulse train with length of activations
+    sig = (np.arange(len(activations)) % interval < pulse_width)
+    # compute possible taus
+    taus = range(interval) + interval
+    # cross correlate pulse train with activations
+    bins = []
+    for tau in taus:
+        bins.append(np.sum(np.abs(activations[tau:] * sig[0:-tau])))
+    # select best fitting offset for the pulse train
+    offset = np.array(taus)[np.array(bins).argmax(axis=0)]
+    # correct starting position
+    offset -= interval
+    # predict beats over all activations by selecting the highest
+    # activation within each pulse
+    positions = []
+    for beat in range(offset, len(activations), interval):
+        act_max = activations[beat:beat + pulse_width].argmax(axis=0)
+        positions.append(beat + act_max)
+    # return beat positions
+    return np.array(positions)
+
+
 # classes for detecting/tracking of beat inside a beat activation function
 class BeatTrackingProcessor(OnlineProcessor):
     """
