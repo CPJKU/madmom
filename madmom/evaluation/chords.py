@@ -68,10 +68,7 @@ def chords(labels):
         if cv is None:
             cv = chord(lbl)
             cache[lbl] = cv
-            crds[i] = cv
-        else:
-            crds[i] = cv
-
+        crds[i] = cv
     return crds
 
 
@@ -314,6 +311,7 @@ def load_chords(filename):
            London, 2010.
 
     """
+    # TODO: Join consecutive labels of identical chords
     start, end, chord_labels = [], [], []
     with open(filename, 'r') as f:
         for line in f:
@@ -592,12 +590,10 @@ def select_sevenths(chords):
     mask : numpy array (boolean)
         Selection mask for major, minor, seventh, and "no chords".
     """
-    return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
-            (chords['intervals'] == _shorthands['min']).all(axis=1) |
+    return (select_majmin(chords) |
             (chords['intervals'] == _shorthands['7']).all(axis=1) |
             (chords['intervals'] == _shorthands['min7']).all(axis=1) |
-            (chords['intervals'] == _shorthands['maj7']).all(axis=1) |
-            (chords['intervals'] == NO_CHORD[-1]).all(axis=1))
+            (chords['intervals'] == _shorthands['maj7']).all(axis=1))
 
 
 def adjust(det_chords, ann_chords):
