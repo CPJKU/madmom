@@ -373,6 +373,8 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         # reset to initial state
         if reset:
             self.reset()
+        if activations.size != 1:
+            raise NotImplementedError('can only be called frame by frame')
         # expand the activation for every tau
         activations = np.full(len(self.intervals), activations, dtype=np.float)
         # append it to the comb filter matrix
@@ -474,6 +476,8 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         # reset to initial state
         if reset:
             self.reset()
+        if activations.size != 1:
+            raise NotImplementedError('can only be called frame by frame')
         # select relevant activations from buffer for subtraction
         buf = self.buffer.buffer[self.min_interval:self.max_interval + 1]
         # subtract oldest acf values before activations are removed from buffer
