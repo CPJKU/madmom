@@ -252,3 +252,15 @@ class TestChordEvaluation(unittest.TestCase):
         sel = select_majmin(ev_det)
         self.assertTrue((sel == np.array([True, True, False, True, True, True,
                                           True, False, False, True])).all())
+
+    def test_segmentation(self):
+        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
+        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
+        det = adjust(det, ann)
+
+        self.assertAlmostEqual(
+            segmentation(ann['start'], ann['end'], det['start'], det['end']),
+            0.41025641025641025641)
+        self.assertAlmostEqual(
+            segmentation(det['start'], det['end'], ann['start'], ann['end']),
+            0.07692307692307692308)
