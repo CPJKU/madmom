@@ -30,7 +30,8 @@ References
 """
 
 import numpy as np
-from madmom.evaluation import evaluation_io
+
+from . import evaluation_io
 
 CHORD_DTYPE = [('root', np.int),
                ('bass', np.int),
@@ -208,7 +209,6 @@ def interval_list(intervals_str, given_pitch_classes=None):
     ----------
     intervals_str : str
         List of intervals as comma-separated string (e.g. 'b3, 5').
-
     given_pitch_classes : None or numpy array
         If None, start with empty pitch class array, if numpy array of length
         12, this array will be modified.
@@ -336,7 +336,6 @@ def evaluation_pairs(det_chords, ann_chords):
     ----------
     det_chords : numpy structured array
         Chord detections with 'start' and 'end' fields.
-
     ann_chords : numpy structured array
         Chord annotations with 'start' and 'end' fields.
 
@@ -348,6 +347,7 @@ def evaluation_pairs(det_chords, ann_chords):
         Detected chords of evaluation segments.
     durations : numpy array
         Durations of evaluation segments.
+
     """
     times = np.unique(np.hstack([ann_chords['start'], ann_chords['end'],
                                  det_chords['start'], det_chords['end']]))
@@ -377,6 +377,7 @@ def score_root(det_chords, ann_chords):
     -------
     scores : numpy array
         Similarity score for each chord.
+
     """
     return (ann_chords['root'] == det_chords['root']).astype(np.float)
 
@@ -397,6 +398,7 @@ def score_exact(det_chords, ann_chords):
     -------
     scores : numpy array
         Similarity score for each chord.
+
     """
     return ((ann_chords['root'] == det_chords['root']) &
             (ann_chords['bass'] == det_chords['bass']) &
@@ -430,6 +432,7 @@ def reduce_to_triads(chords, keep_bass=False):
     .. [1] Johan Pauwels and Geoffroy Peeters.
            "Evaluating Automatically Estimated Chord Sequences."
            In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
+
     """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
@@ -495,6 +498,7 @@ def reduce_to_tetrads(chords, keep_bass=False):
     .. [1] Johan Pauwels and Geoffroy Peeters.
            "Evaluating Automatically Estimated Chord Sequences."
            In Proceedings of ICASSP 2013, Vancouver, Canada, 2013.
+
     """
     unison = chords['intervals'][:, 0].astype(bool)
     maj_sec = chords['intervals'][:, 2].astype(bool)
@@ -583,6 +587,7 @@ def select_majmin(chords):
     -------
     mask : numpy array (boolean)
         Selection mask for major, minor, and "no chords".
+
     """
     return ((chords['intervals'] == _shorthands['maj']).all(axis=1) |
             (chords['intervals'] == _shorthands['min']).all(axis=1) |
@@ -603,6 +608,7 @@ def select_sevenths(chords):
     -------
     mask : numpy array (boolean)
         Selection mask for major, minor, seventh, and "no chords".
+
     """
     return (select_majmin(chords) |
             (chords['intervals'] == _shorthands['7']).all(axis=1) |
@@ -631,6 +637,7 @@ def adjust(det_chords, ann_chords):
     -------
     det_chords : numpy structured array
         Adjusted detected chord segments.
+
     """
     det_start = det_chords[0]['start']
     ann_start = ann_chords[0]['start']
@@ -683,6 +690,7 @@ def segmentation(ann_starts, ann_ends, det_starts, det_ends):
            Information from Music Signals." Dissertation,
            Department for Electronic Engineering, Queen Mary University of
            London, 2010.
+
     """
     est_ts = np.unique(np.hstack([det_starts, det_ends]))
     seg = 0.
@@ -705,8 +713,9 @@ class ChordEvaluation(object):
         File containing chords detections.
     annotations : str
         File containing chord annotations.
-    name : str
+    name : str, optional
         Name of the evaluation object (e.g., the name of the song).
+
     """
 
     METRIC_NAMES = [
@@ -720,7 +729,7 @@ class ChordEvaluation(object):
         ('undersegmentation', 'UnderSegmentation'),
     ]
 
-    def __init__(self, detections, annotations, name, **kwargs):
+    def __init__(self, detections, annotations, name='', **kwargs):
         self.name = name
         self.ann_chords = load_chords(annotations)
         self.det_chords = adjust(load_chords(detections), self.ann_chords)
@@ -856,6 +865,7 @@ class ChordSumEvaluation(ChordEvaluation):
         Evaluation objects.
     name : str
         Name to be displayed.
+
     """
     # pylint: disable=super-init-not-called
 
@@ -892,6 +902,7 @@ class ChordMeanEvaluation(ChordEvaluation):
         Evaluation objects.
     name : str
         Name to be displayed.
+
     """
     # pylint: disable=super-init-not-called
 
@@ -945,6 +956,7 @@ def add_parser(parser):
     -------
     sub_parser : argparse sub-parser instance
         Chord evaluation sub-parser.
+
     """
     import argparse
     # add chord evaluation sub-parser to the existing parser

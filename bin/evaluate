@@ -13,7 +13,7 @@ import argparse
 import warnings
 
 from madmom.utils import search_files, match_file
-from madmom.evaluation import onsets, beats, notes, tempo, alignment, chords
+from madmom.evaluation import alignment, chords, beats, notes, onsets, tempo
 
 
 def main():
