@@ -320,14 +320,15 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
         self.alpha = alpha
         if self.online:
-            self.combfilter_matrix = []
-            self.buffer = BufferProcessor((int(hist_buffer * self.fps),
-                                           len(self.intervals)))
+            self._comb_buffer = BufferProcessor((self.max_interval + 1,
+                                                 len(self.intervals)))
+            self._hist_buffer = BufferProcessor((int(hist_buffer * self.fps),
+                                                 len(self.intervals)))
 
     def reset(self):
         """Reset to initial state."""
-        self.combfilter_matrix = []
-        self.buffer.reset()
+        self._comb_buffer.reset()
+        self._hist_buffer.reset()
 
     def process_offline(self, activations, **kwargs):
         """
@@ -375,24 +376,19 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
             self.reset()
         if activations.size != 1:
             raise NotImplementedError('can only be called frame by frame')
-        # expand the activation for every tau
-        activations = np.full(len(self.intervals), activations, dtype=np.float)
-        # append it to the comb filter matrix
-        self.combfilter_matrix.append(activations)
-        # online feed backward comb filter
-        min_tau = self.min_interval
-        for i in self.intervals:
-            if len(self.combfilter_matrix) > i:
-                self.combfilter_matrix[-1][i - min_tau] += self.alpha * \
-                    self.combfilter_matrix[-1 - i][i - min_tau]
-        # retrieve maxima
-        act_max = self.combfilter_matrix[-1] == \
-            np.max(self.combfilter_matrix[-1], axis=-1)
+        # indices at which to retrieve y[n - τ]
+        idx = [-self.intervals, np.arange(len(self.intervals))]
+        # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
+        y_n = activations + self.alpha * self._comb_buffer.buffer[idx]
+        # shift output buffer with new value
+        self._comb_buffer(y_n)
+        # determine the tau with the highest value
+        act_max = y_n == np.max(y_n, axis=-1)[..., np.newaxis]
         # compute the max bins
-        bins = self.combfilter_matrix[-1] * act_max
-        # use a buffer to only keep bins of the last seconds
+        bins = y_n * act_max
+        # use a buffer to only keep a certain number of bins
         # shift buffer and put new bins at end of buffer
-        bins = self.buffer(bins)
+        bins = self._hist_buffer(bins)
         # build a histogram together with the intervals and return it
         return np.sum(bins, axis=0), self.intervals
 
