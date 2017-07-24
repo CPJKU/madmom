@@ -13,7 +13,7 @@ import argparse
 import warnings
 
 from madmom.utils import search_files, match_file
-from madmom.evaluation import onsets, beats, notes, tempo, alignment
+from madmom.evaluation import onsets, beats, notes, tempo, alignment, chords
 
 
 def main():
@@ -46,6 +46,8 @@ def main():
     notes.add_parser(sub_parsers)
     # alignment evaluation
     alignment.add_parser(sub_parsers)
+    # chord evaluation
+    chords.add_parser(sub_parsers)
 
     # parse the args
     args = p.parse_args()
