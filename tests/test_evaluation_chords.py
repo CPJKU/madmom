@@ -67,26 +67,26 @@ class TestChordParsing(unittest.TestCase):
     def test_interval_list(self):
         # test interval creation
         self.assertIntervalsEqual(
-                interval_list('(1,3,5)'),
-                np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]))
+            interval_list('(1,3,5)'),
+            np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]))
         self.assertIntervalsEqual(
-                interval_list('(1,b3,5)'),
-                np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]))
+            interval_list('(1,b3,5)'),
+            np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0]))
         self.assertIntervalsEqual(
-                interval_list('(1,b3,5,b7)'),
-                np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0]))
+            interval_list('(1,b3,5,b7)'),
+            np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0]))
 
         # test interval subtraction
         self.assertIntervalsEqual(
-                interval_list('(*3)',
-                              np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
-                np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]))
+            interval_list('(*3)',
+                          np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
+            np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]))
 
         # test interval addition
         self.assertIntervalsEqual(
-                interval_list('(3, b7)',
-                              np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])),
-                np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]))
+            interval_list('(3, b7)',
+                          np.array([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])),
+            np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]))
 
     def test_intervals(self):
         # test some common interval annotations
@@ -203,7 +203,7 @@ class TestChordEvaluation(unittest.TestCase):
             (chord('F:maj'), chord('F:dim'), 0.5),
             (chord('F:maj'), chord('F:maj'), 0.5),
             (chord('C:maj'), chord('F:maj'), 0.2),
-            (chord('C:maj'), chord('C:maj'), 0.7),
+            (chord('C:maj'), chord('C:maj/3'), 0.7),
             (chord('C:maj'), chord('G:maj7/7'), 0.1),
             (chord('G:maj'), chord('G:maj7/7'), 0.5),
             (chord('G:maj'), chord('G:aug'), 0.5),
@@ -225,7 +225,7 @@ class TestChordEvaluation(unittest.TestCase):
     def test_score_exact(self):
         score = score_exact(self.ev_det, self.ev_ann)
         self.assertTrue(np.allclose(score, np.array([
-            0., 1., 0., 0., 1., 0., 1., 0., 0., 0.
+            0., 1., 0., 0., 1., 0., 0., 0., 0., 0.
         ])))
 
     def test_select_majmin(self):
@@ -250,3 +250,135 @@ class TestChordEvaluation(unittest.TestCase):
             segmentation(self.det['start'], self.det['end'],
                          self.ann['start'], self.ann['end']),
             0.07692307692307692308)
+
+    def test_reduce_to_triads(self):
+        true_red_wo_bass = chords(['N', 'A:min', 'A:min', 'F:dim', 'F:maj',
+                                   'C:maj', 'G:maj', 'G:aug'])
+        reduced_wo_bass = reduce_to_triads(self.det['chord'], keep_bass=False)
+        self.assertTrue((reduced_wo_bass == true_red_wo_bass).all())
+
+        true_red_w_bass = chords(['N', 'A:min', 'A:min', 'F:dim', 'F:maj',
+                                  'C:maj/3', 'G:maj', 'G:aug'])
+        reduced_w_bass = reduce_to_triads(self.det['chord'], keep_bass=True)
+        self.assertTrue((reduced_w_bass == true_red_w_bass).all())
+
+        # test some further mappings
+        src = chords(['A:hdim7', 'B:min6/5', 'C:sus4/4', 'G:(1,5,b7)'])
+        trg = chords(['A:dim', 'B:min/5', 'C:sus4/4', 'G:(1,5)'])
+        self.assertTrue((reduce_to_triads(src, keep_bass=True) == trg).all())
+
+    def test_reduce_to_tetrads(self):
+        true_red_wo_bass = chords(['N', 'A:min', 'A:min7', 'F:dim', 'F:maj',
+                                   'C:maj', 'G:maj7', 'G:aug'])
+        reduced_wo_bass = reduce_to_tetrads(self.det['chord'], keep_bass=False)
+        self.assertTrue((reduced_wo_bass == true_red_wo_bass).all())
+
+        reduced_w_bass = reduce_to_tetrads(self.det['chord'], keep_bass=True)
+        self.assertTrue((reduced_w_bass == self.det['chord']).all())
+
+        # test some further mappings
+        src = chords(['A:maj9', 'Cb:9', 'E:min9/9', 'E:min9/b7'])
+        trg = chords(['A:maj7', 'Cb:7', 'E:min7', 'E:min7/b7'])
+        self.assertTrue((reduce_to_tetrads(src, keep_bass=True) == trg).all())
+
+
+class TestChordEvaluationClass(unittest.TestCase):
+
+    def test_init(self):
+        eval = ChordEvaluation(
+            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            name='TestEval'
+        )
+        self.assertTrue(eval.name == 'TestEval')
+
+        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
+        det = adjust(load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
+                     ann)
+        self.assertTrue((eval.ann_chords == ann).all())
+        self.assertTrue((eval.det_chords == det).all())
+
+        ann, det, dur = evaluation_pairs(eval.det_chords, eval.ann_chords)
+        self.assertTrue((ann == eval.annotations).all())
+        self.assertTrue((det == eval.detections).all())
+        self.assertTrue((dur == eval.durations).all())
+
+    def test_results(self):
+        eval = ChordEvaluation(
+            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            name='TestEval'
+        )
+        self.assertAlmostEqual(eval.length, 3.9)
+        self.assertAlmostEqual(eval.root, 0.8974358974358975)
+        self.assertAlmostEqual(eval.majmin, 0.6410256410256411)
+        self.assertAlmostEqual(eval.majminbass, 0.46153846153846156)
+        self.assertAlmostEqual(eval.sevenths, 0.46153846153846156)
+        self.assertAlmostEqual(eval.seventhsbass, 0.2820512820512821)
+        self.assertAlmostEqual(eval.undersegmentation,
+                               1. - 0.07692307692307692308)
+        self.assertAlmostEqual(eval.oversegmentation,
+                               1. - 0.41025641025641025641)
+        self.assertAlmostEqual(eval.segmentation,
+                               1. - 0.41025641025641025641)
+
+
+class TestAggregateChordEvaluation(unittest.TestCase):
+
+    def setUp(self):
+        # this one should have a score of 1 everywhere and length 4.3
+        self.eval1 = ChordEvaluation(
+            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            name='TestEval'
+        )
+        self.eval2 = ChordEvaluation(
+            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            name='TestEval'
+        )
+
+    def test_mean_results(self):
+        mean_eval = ChordMeanEvaluation([self.eval1, self.eval2])
+        self.assertAlmostEqual(mean_eval.root, 0.9487179487179487)
+        self.assertAlmostEqual(mean_eval.majmin, 0.8205128205128205)
+        self.assertAlmostEqual(mean_eval.majminbass, 0.7307692307692308)
+        self.assertAlmostEqual(mean_eval.sevenths, 0.7307692307692308)
+        self.assertAlmostEqual(mean_eval.seventhsbass, 0.6410256410256411)
+        self.assertAlmostEqual(mean_eval.undersegmentation, 0.9615384615384616)
+        self.assertAlmostEqual(mean_eval.oversegmentation, 0.7948717948717949)
+        self.assertAlmostEqual(mean_eval.segmentation, 0.7948717948717949)
+
+    def test_sum_results(self):
+        sum_eval = ChordSumEvaluation([self.eval1, self.eval2])
+        self.assertAlmostEqual(sum_eval.root, 0.951219512195122)
+        self.assertAlmostEqual(sum_eval.majmin, 0.8028169014084507)
+        self.assertAlmostEqual(sum_eval.majminbass, 0.7042253521126761)
+        self.assertAlmostEqual(sum_eval.sevenths, 0.7042253521126761)
+        self.assertAlmostEqual(sum_eval.seventhsbass, 0.6056338028169015)
+        self.assertAlmostEqual(sum_eval.undersegmentation, 0.9634146341463415)
+        self.assertAlmostEqual(sum_eval.oversegmentation, 0.8048780487804879)
+        self.assertAlmostEqual(sum_eval.segmentation, 0.8048780487804879)
+
+
+class TestAddParserFunction(unittest.TestCase):
+
+    def setUp(self):
+        import argparse
+        self.parser = argparse.ArgumentParser()
+        sub_parser = self.parser.add_subparsers()
+        self.sub_parser = add_parser(sub_parser)
+
+    def test_args(self):
+        args = self.parser.parse_args(['chords', ANNOTATIONS_PATH,
+                                       DETECTIONS_PATH])
+        self.assertTrue(args.ann_dir is None)
+        self.assertTrue(args.ann_suffix == '.chords')
+        self.assertTrue(args.det_dir is None)
+        self.assertTrue(args.det_suffix == '.chords.txt')
+        self.assertTrue(args.eval == ChordEvaluation)
+        self.assertTrue(args.files == [ANNOTATIONS_PATH, DETECTIONS_PATH])
+        self.assertTrue(args.mean_eval == ChordMeanEvaluation)
+        self.assertTrue(args.sum_eval == ChordSumEvaluation)
+        from madmom.evaluation import tostring
+        self.assertTrue(args.output_formatter == tostring)

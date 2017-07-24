@@ -442,8 +442,6 @@ def reduce_to_triads(chords, keep_bass=False):
     no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
 
     reduced_chords = chords.copy()
-    if not keep_bass:
-        reduced_chords['bass'] = 0
     ivs = reduced_chords['intervals']
 
     ivs[~no_chord] = interval_list('(1)')
@@ -459,10 +457,19 @@ def reduce_to_triads(chords, keep_bass=False):
     ivs[maj_third & dim_fifth & ~perf_fifth] = interval_list('(1,3,b5)')
     ivs[maj_third & aug_fifth & ~perf_fifth] = _shorthands['aug']
 
+    if not keep_bass:
+        reduced_chords['bass'] = 0
+    else:
+        # remove bass notes if they are not part of the intervals anymore
+        reduced_chords['bass'] *= ivs[range(len(reduced_chords)),
+                                      reduced_chords['bass']]
+    # keep -1 in bass for no chords
+    reduced_chords['bass'][no_chord] = -1
+
     return reduced_chords
 
 
-def reduce_tetrads(chords, keep_bass=False):
+def reduce_to_tetrads(chords, keep_bass=False):
     """
     Reduce chords to tetrads.
 
@@ -504,8 +511,6 @@ def reduce_tetrads(chords, keep_bass=False):
     no_chord = (chords['intervals'] == NO_CHORD[-1]).all(axis=1)
 
     reduced_chords = chords.copy()
-    if not keep_bass:
-        reduced_chords['bass'] = 0
     ivs = reduced_chords['intervals']
 
     ivs[~no_chord] = interval_list('(1)')
@@ -514,16 +519,16 @@ def reduce_tetrads(chords, keep_bass=False):
     sus2 = ~perf_fourth & maj_sec
     sus2_ivs = _shorthands['sus2']
     ivs[sus2] = sus2_ivs
-    ivs[sus2 & maj_sixth] = interval_list('(6)', sus2_ivs)
-    ivs[sus2 & maj_seventh] = interval_list('(7)', sus2_ivs)
-    ivs[sus2 & min_seventh] = interval_list('(b7)', sus2_ivs)
+    ivs[sus2 & maj_sixth] = interval_list('(6)', sus2_ivs.copy())
+    ivs[sus2 & maj_seventh] = interval_list('(7)', sus2_ivs.copy())
+    ivs[sus2 & min_seventh] = interval_list('(b7)', sus2_ivs.copy())
 
     sus4 = perf_fourth & ~maj_sec
     sus4_ivs = _shorthands['sus4']
     ivs[sus4] = sus4_ivs
-    ivs[sus4 & maj_sixth] = interval_list('(6)', sus4_ivs)
-    ivs[sus4 & maj_seventh] = interval_list('(7)', sus4_ivs)
-    ivs[sus4 & min_seventh] = interval_list('(b7)', sus4_ivs)
+    ivs[sus4 & maj_sixth] = interval_list('(6)', sus4_ivs.copy())
+    ivs[sus4 & maj_seventh] = interval_list('(7)', sus4_ivs.copy())
+    ivs[sus4 & min_seventh] = interval_list('(b7)', sus4_ivs.copy())
 
     ivs[min_third] = _shorthands['min']
     ivs[min_third & maj_sixth] = _shorthands['min6']
@@ -549,8 +554,17 @@ def reduce_tetrads(chords, keep_bass=False):
     majaugfifth = maj_third & ~perf_fifth & aug_fifth
     aug_ivs = _shorthands['aug']
     ivs[majaugfifth] = _shorthands['aug']
-    ivs[majaugfifth & maj_seventh] = interval_list('(7)', aug_ivs)
-    ivs[majaugfifth & min_seventh] = interval_list('(b7)', aug_ivs)
+    ivs[majaugfifth & maj_seventh] = interval_list('(7)', aug_ivs.copy())
+    ivs[majaugfifth & min_seventh] = interval_list('(b7)', aug_ivs.copy())
+
+    if not keep_bass:
+        reduced_chords['bass'] = 0
+    else:
+        # remove bass notes if they are not part of the intervals anymore
+        reduced_chords['bass'] *= ivs[range(len(reduced_chords)),
+                                      reduced_chords['bass']]
+    # keep -1 in bass for no chords
+    reduced_chords['bass'][no_chord] = -1
 
     return reduced_chords
 
@@ -757,8 +771,8 @@ class ChordEvaluation(object):
         Fraction of correctly detected chords that can be reduced to a seventh
         tetrad (plus no-chord). Ignores the bass pitch class.
         """
-        det_tetrads = reduce_tetrads(self.detections)
-        ann_tetrads = reduce_tetrads(self.annotations)
+        det_tetrads = reduce_to_tetrads(self.detections)
+        ann_tetrads = reduce_to_tetrads(self.annotations)
         sevenths_sel = select_sevenths(ann_tetrads)
         return np.average(score_exact(det_tetrads, ann_tetrads),
                           weights=self.durations * sevenths_sel)
@@ -769,8 +783,8 @@ class ChordEvaluation(object):
         Fraction of correctly detected chords that can be reduced to a seventh
         tetrad (plus no-chord). Considers the bass pitch class.
         """
-        det_tetrads = reduce_tetrads(self.detections, keep_bass=True)
-        ann_tetrads = reduce_tetrads(self.annotations, keep_bass=True)
+        det_tetrads = reduce_to_tetrads(self.detections, keep_bass=True)
+        ann_tetrads = reduce_to_tetrads(self.annotations, keep_bass=True)
         sevenths_sel = select_sevenths(ann_tetrads)
         return np.average(score_exact(det_tetrads, ann_tetrads),
                           weights=self.durations * sevenths_sel)
@@ -825,8 +839,8 @@ class ChordEvaluation(object):
                 self.root * 100, self.majmin * 100, self.majminbass * 100,
                 self.sevenths * 100, self.seventhsbass * 100,
                 self.segmentation * 100, self.undersegmentation * 100,
-                self.oversegmentation * 100
-        ))
+                self.oversegmentation * 100)
+        )
         return ret
 
 
