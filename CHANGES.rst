@@ -4,6 +4,10 @@ Release Notes
 Version 0.16.dev0
 -----------------
 
+New features:
+
+* Added chord evaluation (#309)
+
 Bug fixes:
 
 * Fix `TransitionModel` number of states when last state is unreachable (#287)
