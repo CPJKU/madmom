@@ -379,7 +379,7 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         # indices at which to retrieve y[n - τ]
         idx = [-self.intervals, np.arange(len(self.intervals))]
         # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
-        y_n = activations + self.alpha * self._comb_buffer.buffer[idx]
+        y_n = activations + self.alpha * self._comb_buffer[idx]
         # shift output buffer with new value
         self._comb_buffer(y_n)
         # determine the tau with the highest value
@@ -475,10 +475,10 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         if activations.size != 1:
             raise NotImplementedError('can only be called frame by frame')
         # select relevant activations from buffer for subtraction
-        buf = self.buffer.buffer[self.min_interval:self.max_interval + 1]
+        buf = self.buffer[self.min_interval:self.max_interval + 1]
         # subtract oldest acf values before activations are removed from buffer
         # as long as the buffer is not filled this will subtract 0
-        self.bins -= buf * self.buffer.buffer[0]
+        self.bins -= buf * self.buffer[0]
         # shift buffer and put new activation at end of buffer
         buf = self.buffer(activations)
         # select relevant activations from buffer for addition

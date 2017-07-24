@@ -765,7 +765,7 @@ class BufferProcessor(Processor):
         # save variables
         self.buffer_size = buffer_size
         self.init = init
-        self.buffer = init
+        self.data = init
 
     def reset(self, init=None):
         """
@@ -777,7 +777,7 @@ class BufferProcessor(Processor):
             Reset BufferProcessor to this initial state.
 
         """
-        self.buffer = init if init is not None else self.init
+        self.data = init if init is not None else self.init
 
     def process(self, data, **kwargs):
         """
@@ -802,13 +802,30 @@ class BufferProcessor(Processor):
         # length of the data
         data_length = len(data)
         # remove `data_length` from buffer at the beginning and append new data
-        self.buffer = np.roll(self.buffer, -data_length, axis=0)
-        self.buffer[-data_length:] = data
+        self.data = np.roll(self.data, -data_length, axis=0)
+        self.data[-data_length:] = data
         # return the complete buffer
-        return self.buffer
+        return self.data
 
     # alias for easier / more intuitive calling
     buffer = process
+
+    def __getitem__(self, index):
+        """
+        Direct access to the buffer data.
+
+        Parameters
+        ----------
+        index : int, slice, ndarray,
+            Any NumPy indexing method to access the buffer data directly.
+
+        Returns
+        -------
+        numpy array or subclass thereof
+            Requested view of the buffered data.
+
+        """
+        return self.data[index]
 
 
 # function to process live input
