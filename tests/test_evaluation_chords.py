@@ -162,6 +162,14 @@ class TestChordLoading(unittest.TestCase):
 
 class TestChordEvaluation(unittest.TestCase):
 
+    def setUp(self):
+        self.ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
+        self.unadjusted_det = load_chords(join(DETECTIONS_PATH,
+                                               'dummy.chords.txt'))
+        self.det = adjust(self.unadjusted_det, self.ann)
+        self.ev_ann, self.ev_det, self.ev_dur = evaluation_pairs(self.det,
+                                                                 self.ann)
+
     def assertIntervalsEqual(self, i1, i2):
         self.assertTrue((i1 == i2).all())
 
@@ -171,96 +179,74 @@ class TestChordEvaluation(unittest.TestCase):
         self.assertIntervalsEqual(c1[2], c2[2])
 
     def test_adjust(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-
-        self.assertAlmostEqual(det[0]['start'], ann[0]['start'])
-        self.assertAlmostEqual(det[-1]['end'], ann[-1]['end'])
+        self.assertAlmostEqual(self.det[0]['start'], self.ann[0]['start'])
+        self.assertAlmostEqual(self.det[-1]['end'], self.ann[-1]['end'])
         # the last 'N' chord should have been removed
-        self.assertChordEqual(det[-1]['chord'], chord('G:min'))
+        self.assertChordEqual(self.det[-1]['chord'], chord('G:aug'))
 
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
+        det = self.unadjusted_det.copy()
         # make detections shorter than annotations
         det = det[:-2]
         det[0]['start'] = 0.5
-        det = adjust(det, ann)
+        det = adjust(det, self.ann)
 
-        self.assertAlmostEqual(det[0]['start'], ann[0]['start'])
-        self.assertAlmostEqual(det[-1]['end'], ann[-1]['end'])
+        self.assertAlmostEqual(det[0]['start'], self.ann[0]['start'])
+        self.assertAlmostEqual(det[-1]['end'], self.ann[-1]['end'])
         # should have filled up the chord sequence with a no-chord
         self.assertChordEqual(det[-1]['chord'], chord('N'))
 
     def test_evaluation_pairs(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-
-        ev_ann, ev_det, ev_dur = evaluation_pairs(det, ann)
         true_ev_ann, true_ev_det, true_ev_dur = zip(*[
             (chord('A:min'), chord('N'), 0.1),
             (chord('A:min'), chord('A:min'), 0.6),
             (chord('A:min'), chord('A:min7'), 0.2),
-            (chord('F:maj'), chord('F:min'), 0.5),
+            (chord('F:maj'), chord('F:dim'), 0.5),
             (chord('F:maj'), chord('F:maj'), 0.5),
             (chord('C:maj'), chord('F:maj'), 0.2),
             (chord('C:maj'), chord('C:maj'), 0.7),
             (chord('C:maj'), chord('G:maj7/7'), 0.1),
             (chord('G:maj'), chord('G:maj7/7'), 0.5),
-            (chord('G:maj'), chord('G:min'), 0.5),
+            (chord('G:maj'), chord('G:aug'), 0.5),
         ])
         true_ev_ann = np.array(list(true_ev_ann), dtype=CHORD_DTYPE)
         true_ev_det = np.array(list(true_ev_det), dtype=CHORD_DTYPE)
         true_ev_dur = np.array(list(true_ev_dur))
 
-        self.assertTrue((ev_ann == true_ev_ann).all())
-        self.assertTrue((ev_det == true_ev_det).all())
-        self.assertTrue(np.allclose(ev_dur, true_ev_dur))
+        self.assertTrue((self.ev_ann == true_ev_ann).all())
+        self.assertTrue((self.ev_det == true_ev_det).all())
+        self.assertTrue(np.allclose(self.ev_dur, true_ev_dur))
 
     def test_score_root(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-        ev_ann, ev_det, ev_dur = evaluation_pairs(det, ann)
-
-        score = score_root(ev_det, ev_ann)
+        score = score_root(self.ev_det, self.ev_ann)
         self.assertTrue(np.allclose(score, np.array([
             0., 1., 1., 1., 1., 0., 1., 0., 1., 1.
         ])))
 
     def test_score_exact(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-        ev_ann, ev_det, ev_dur = evaluation_pairs(det, ann)
-
-        score = score_exact(ev_det, ev_ann)
+        score = score_exact(self.ev_det, self.ev_ann)
         self.assertTrue(np.allclose(score, np.array([
             0., 1., 0., 0., 1., 0., 1., 0., 0., 0.
         ])))
 
     def test_select_majmin(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-        ev_ann, ev_det, ev_dur = evaluation_pairs(det, ann)
-
         # normally, you would not apply this function to the detected
         # evaluation  pairs - see evaluation.chords for correct usage.
         # However, ev_det contains a good variety of chords, so let's use it
-        sel = select_majmin(ev_det)
-        self.assertTrue((sel == np.array([True, True, False, True, True, True,
-                                          True, False, False, True])).all())
+        sel = select_majmin(self.ev_det)
+        self.assertTrue((sel == np.array([True, True, False, False, True, True,
+                                          True, False, False, False])).all())
+
+    def test_select_sevenths(self):
+        sel = select_sevenths(self.ev_det)
+        self.assertTrue((sel == np.array([True, True, True, False, True, True,
+                                          True, True, True, False])).all())
 
     def test_segmentation(self):
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt'))
-        det = adjust(det, ann)
-
         self.assertAlmostEqual(
-            segmentation(ann['start'], ann['end'], det['start'], det['end']),
+            segmentation(self.ann['start'], self.ann['end'],
+                         self.det['start'], self.det['end']),
             0.41025641025641025641)
         self.assertAlmostEqual(
-            segmentation(det['start'], det['end'], ann['start'], ann['end']),
+            segmentation(self.det['start'], self.det['end'],
+                         self.ann['start'], self.ann['end']),
             0.07692307692307692308)
