@@ -31,7 +31,8 @@ References
 
 import numpy as np
 
-from . import evaluation_io
+from . import evaluation_io, EvaluationMixin
+
 
 CHORD_DTYPE = [('root', np.int),
                ('bass', np.int),
@@ -703,7 +704,7 @@ def segmentation(ann_starts, ann_ends, det_starts, det_ends):
     return seg / (ann_ends[-1] - ann_starts[0])
 
 
-class ChordEvaluation(object):
+class ChordEvaluation(EvaluationMixin):
     """
     Provide various chord evaluation scores.
 
@@ -729,8 +730,8 @@ class ChordEvaluation(object):
         ('undersegmentation', 'UnderSegmentation'),
     ]
 
-    def __init__(self, detections, annotations, name='', **kwargs):
-        self.name = name
+    def __init__(self, detections, annotations, name=None, **kwargs):
+        self.name = name or ''
         self.ann_chords = load_chords(annotations)
         self.det_chords = adjust(load_chords(detections), self.ann_chords)
         self.annotations, self.detections, self.durations = evaluation_pairs(
@@ -863,7 +864,7 @@ class ChordSumEvaluation(ChordEvaluation):
     ----------
     eval_objects : list
         Evaluation objects.
-    name : str
+    name : str, optional
         Name to be displayed.
 
     """
@@ -884,6 +885,11 @@ class ChordSumEvaluation(ChordEvaluation):
         self._underseg = np.average(un_segs, weights=lens)
         self._overseg = np.average(over_segs, weights=lens)
         self._seg = np.average(segs, weights=lens)
+        self._length = sum(lens)
+
+    def length(self):
+        """Length of all evaluation objects."""
+        return self._length
 
     @property
     def segmentation(self):
@@ -900,7 +906,7 @@ class ChordMeanEvaluation(ChordEvaluation):
     ----------
     eval_objects : list
         Evaluation objects.
-    name : str
+    name : str, optional
         Name to be displayed.
 
     """
@@ -909,6 +915,10 @@ class ChordMeanEvaluation(ChordEvaluation):
     def __init__(self, eval_objects, name=None):
         self.name = name or 'piecewise mean for %d files' % len(eval_objects)
         self.eval_objects = eval_objects
+
+    def length(self):
+        """Number of evaluation objects."""
+        return len(self.eval_objects)
 
     @property
     def root(self):
