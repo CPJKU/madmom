@@ -12,15 +12,21 @@ from os.path import join as pj
 
 from madmom.ml.hmm import HiddenMarkovModel
 
+from madmom.audio.chroma import CLPChroma
 from madmom.features import Activations
-from madmom.features.beats_hmm import *
 from madmom.features.downbeats import *
 from madmom.models import PATTERNS_BALLROOM
-from . import AUDIO_PATH, ACTIVATIONS_PATH
+from . import ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DETECTIONS_PATH
+from .test_utils import DETECTION_FILES
 
 sample_file = pj(AUDIO_PATH, "sample.wav")
+sample_beats = np.loadtxt(pj(ANNOTATIONS_PATH, "sample.beats"))
+sample_det_file = pj(DETECTIONS_PATH, 'sample.dbn_beat_tracker.txt')
+sample_beat_det = np.loadtxt(sample_det_file)
 sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
                                      "sample.downbeats_blstm.npz"))
+sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
+                                         "sample.gmm_pattern_tracker.npz"))
 
 
 class TestRNNDownBeatProcessorClass(unittest.TestCase):
@@ -88,10 +94,6 @@ class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(downbeats, np.empty((0, 2))))
 
 
-sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
-                                         "sample.gmm_pattern_tracker.npz"))
-
-
 class TestPatternTrackingProcessorClass(unittest.TestCase):
 
     def setUp(self):
@@ -134,3 +136,73 @@ class TestPatternTrackingProcessorClass(unittest.TestCase):
         self.processor.downbeats = True
         beats = self.processor(sample_pattern_features)
         self.assertTrue(np.allclose(beats, [0.76, 2.12]))
+
+
+class TestLoadBeatsProcessorClass(unittest.TestCase):
+
+    def test_single(self):
+        proc = LoadBeatsProcessor(sample_det_file)
+        self.assertTrue(proc.mode == 'single')
+        result = proc()
+        self.assertTrue(np.allclose(result, sample_beat_det))
+
+    def test_batch(self):
+        proc = LoadBeatsProcessor(None, files=DETECTION_FILES,
+                                  beats_suffix='.dbn_beat_tracker.txt')
+        self.assertTrue(proc.mode == 'batch')
+        result = proc(sample_file)
+        self.assertTrue(np.allclose(result, sample_beat_det))
+
+
+class TestSyncronizeFeaturesProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = SyncronizeFeaturesProcessor(beat_subdivisions=2,
+                                                     fps=100)
+
+    def test_process(self):
+        data = [CLPChroma(sample_file, fps=100), sample_beats]
+        feat_sync = self.processor(data)
+        target = [[0.28231065, 0.14807641, 0.22790557, 0.41458403, 0.15966462,
+                   0.22294236, 0.1429988, 0.16661506, 0.5978227, 0.24039252,
+                   0.23444982, 0.21910049],
+                  [0.25676728, 0.13382165, 0.19957431, 0.47225753, 0.18936998,
+                   0.17014103, 0.14079712, 0.18317944, 0.60692955, 0.20016842,
+                   0.17619181, 0.24408179]]
+        self.assertTrue(np.allclose(feat_sync[0, :], target, rtol=1e-3))
+
+    def test_corner_cases(self):
+        feat_sync = self.processor([np.arange(100), np.array([])])
+        self.assertTrue(np.allclose(feat_sync, [[], []]))
+        feat_sync = self.processor([np.arange(100), np.array([0, 0.5, 1.5])])
+        self.assertTrue(np.allclose(feat_sync, [[[11.], [33.5]]]))
+
+
+class TestRNNBarProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = RNNBarProcessor(fps=100)
+
+    def test_process(self):
+        beats, act = self.processor((sample_file, sample_beats))
+        self.assertTrue(np.allclose(act, [0.48194462, 0.12625194, 0.1980453],
+                                    rtol=1e-3))
+
+
+class TestDBNBarProcessorRNNClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = DBNBarTrackingProcessor()
+        self.rnn_outout = np.array([0.4819403, 0.1262536, 0.1980488])
+        self.dbn_outout = np.array([[0.0913, 1.], [0.7997, 2.], [1.4806, 3.],
+                                    [2.1478, 1.]])
+
+    def test_dbn(self):
+        # check DBN output
+        path, log = self.processor.hmm.viterbi(self.rnn_outout)
+        self.assertTrue(np.allclose(path, [0, 1, 2]))
+        self.assertTrue(np.allclose(log, -12.2217575073))
+
+    def test_process(self):
+        beats = self.processor([sample_beats[:, 0], self.rnn_outout])
+        self.assertTrue(np.allclose(beats, self.dbn_outout))

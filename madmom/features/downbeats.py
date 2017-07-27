@@ -3,17 +3,28 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-arguments
 """
-This module contains downbeat tracking related functionality.
+This module contains downbeat and bar tracking related functionality.
 
 """
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+import warnings
+
 import numpy as np
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
+from .beats_hmm import (BarStateSpace, BarTransitionModel,
+                        GMMPatternTrackingObservationModel,
+                        MultiPatternStateSpace,
+                        MultiPatternTransitionModel,
+                        RNNBeatTrackingObservationModel,
+                        RNNDownBeatTrackingObservationModel, )
+from ..ml.hmm import HiddenMarkovModel
+from ..processors import ParallelProcessor, Processor, SequentialProcessor
 
 
+# downbeat tracking, i.e. track beats and downbeats directly from signal
 class RNNDownBeatProcessor(SequentialProcessor):
     """
     Processor to get a joint beat and downbeat activation function from
@@ -193,11 +204,6 @@ class DBNDownBeatTrackingProcessor(Processor):
                  correct=CORRECT, downbeats=False, fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
-
-        from madmom.ml.hmm import HiddenMarkovModel as Hmm
-        from .beats_hmm import (BarStateSpace, BarTransitionModel,
-                                RNNDownBeatTrackingObservationModel)
-
         # expand arguments to arrays
         beats_per_bar = np.array(beats_per_bar, ndmin=1)
         min_bpm = np.array(min_bpm, ndmin=1)
@@ -237,7 +243,7 @@ class DBNDownBeatTrackingProcessor(Processor):
                                num_tempi[b])
             tm = BarTransitionModel(st, transition_lambda[b])
             om = RNNDownBeatTrackingObservationModel(st, observation_lambda)
-            self.hmms.append(Hmm(tm, om))
+            self.hmms.append(HiddenMarkovModel(tm, om))
         # save variables
         self.beats_per_bar = beats_per_bar
         self.threshold = threshold
@@ -261,6 +267,7 @@ class DBNDownBeatTrackingProcessor(Processor):
             Detected (down-)beat positions [seconds] and beat numbers.
 
         """
+        # pylint: disable=arguments-differ
         import itertools as it
         # use only the activations > threshold (init offset to be added later)
         first = 0
@@ -381,7 +388,7 @@ class DBNDownBeatTrackingProcessor(Processor):
 
         """
         # pylint: disable=arguments-differ
-        from madmom.utils import OverrideDefaultListAction
+        from ..utils import OverrideDefaultListAction
 
         # add DBN parser group
         g = parser.add_argument_group('dynamic Bayesian Network arguments')
@@ -527,33 +534,33 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
            [ 3.7 ,  3.  ],
            [ 4.66,  4.  ]])
     """
-    # TODO: this should not be lists (lists are mutable!)
-    MIN_BPM = [55, 60]
-    MAX_BPM = [205, 225]
-    NUM_TEMPI = [None, None]
-    # TODO: make this parametric
-    # Note: if lambda is given as a list, the individual values represent the
+    MIN_BPM = (55, 60)
+    MAX_BPM = (205, 225)
+    NUM_TEMPI = None
+    # Note: if multiple values are given, the individual values represent the
     #       lambdas for each transition into the beat at this index position
-    TRANSITION_LAMBDA = [100, 100]
+    TRANSITION_LAMBDA = 100
 
     def __init__(self, pattern_files, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
                  num_tempi=NUM_TEMPI, transition_lambda=TRANSITION_LAMBDA,
                  downbeats=False, fps=None, **kwargs):
         # pylint: disable=unused-argument
         # pylint: disable=no-name-in-module
-
         import pickle
-        from .beats_hmm import (BarTransitionModel, BarStateSpace,
-                                MultiPatternStateSpace,
-                                MultiPatternTransitionModel,
-                                GMMPatternTrackingObservationModel)
-        from ..ml.hmm import HiddenMarkovModel
-
-        # expand num_tempi and transition_lambda to lists if needed
-        if not isinstance(num_tempi, list):
-            num_tempi = [num_tempi] * len(pattern_files)
-        if not isinstance(transition_lambda, list):
-            transition_lambda = [transition_lambda] * len(pattern_files)
+        min_bpm = np.array(min_bpm, ndmin=1)
+        max_bpm = np.array(max_bpm, ndmin=1)
+        num_tempi = np.array(num_tempi, ndmin=1)
+        transition_lambda = np.array(transition_lambda, ndmin=1)
+        # make sure arguments are given for each pattern (expand if needed)
+        if len(min_bpm) != len(pattern_files):
+            min_bpm = np.repeat(min_bpm, len(pattern_files))
+        if len(max_bpm) != len(pattern_files):
+            max_bpm = np.repeat(max_bpm, len(pattern_files))
+        if len(num_tempi) != len(pattern_files):
+            num_tempi = np.repeat(num_tempi, len(pattern_files))
+        if len(transition_lambda) != len(pattern_files):
+            transition_lambda = np.repeat(transition_lambda,
+                                          len(pattern_files))
         # check if all lists have the same length
         if not (len(min_bpm) == len(max_bpm) == len(num_tempi) ==
                 len(transition_lambda) == len(pattern_files)):
@@ -578,7 +585,6 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
         for p, pattern_file in enumerate(pattern_files):
             with open(pattern_file, 'rb') as f:
                 # Python 2 and 3 behave differently
-                # TODO: use some other format to save the GMMs (.npz, .hdf5)
                 try:
                     # Python 3
                     pattern = pickle.load(f, encoding='latin1')
@@ -618,6 +624,7 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
             Detected (down-)beat positions [seconds] and beat numbers.
 
         """
+        # pylint: disable=arguments-differ
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(features)
         # the positions inside the pattern (0..num_beats)
@@ -711,3 +718,522 @@ SpectrogramDifferenceProcessor, MultiBandSpectrogramProcessor
                        help='output only the downbeats')
         # return the argument group so it can be modified if needed
         return g
+
+
+# bar tracking, i.e. track downbeats from signal given beat positions
+class LoadBeatsProcessor(Processor):
+    """
+    Load beat times from file or handle.
+
+    """
+    def __init__(self, beats, files=None, beats_suffix=None, **kwargs):
+        # pylint: disable=unused-argument
+        from ..utils import search_files
+        if isinstance(files, list) and beats_suffix is not None:
+            # overwrite beats with the files matching the suffix
+            beats = search_files(files, suffix=beats_suffix)
+            self.mode = 'batch'
+        else:
+            self.mode = 'single'
+        self.beats = beats
+        self.beats_suffix = beats_suffix
+
+    def process(self, data=None, **kwargs):
+        """
+        Load the beats from file (handle) or read them from STDIN.
+
+        """
+        # pylint: disable=unused-argument
+        if self.mode == 'single':
+            return self.process_single()
+        elif self.mode == 'batch':
+            return self.process_batch(data)
+        else:
+            raise ValueError("don't know how to obtain the beats")
+
+    def process_single(self):
+        """
+        Load the beats in bulk-mode (i.e. all at once) from the input stream
+        or file.
+
+        Returns
+        -------
+        beats : numpy array
+            Beat positions [seconds].
+
+        """
+        # pylint: disable=unused-argument
+        from ..utils import load_events
+        return load_events(self.beats)
+
+    def process_batch(self, filename):
+        """
+        Load beat times from file.
+
+        First match the given input filename to the beat filenames, then load
+        the beats.
+
+        Parameters
+        ----------
+        filename : str
+            Input file name.
+
+        Returns
+        -------
+        beats : numpy array
+            Beat positions [seconds].
+
+        Notes
+        -----
+        Both the file names to search for the beats as well as the suffix to
+        determine the beat files must be given at instantiation time.
+
+        """
+        import os
+        from ..utils import match_file
+
+        if not isinstance(filename, str):
+            raise SystemExit('Please supply a filename, not %s.' % filename)
+        # select the matching beat file to a given input file from all files
+        basename, ext = os.path.splitext(os.path.basename(filename))
+        matches = match_file(basename, self.beats, suffix=ext,
+                             match_suffix=self.beats_suffix)
+        if not matches:
+            raise SystemExit("can't find a beat file for %s" % filename)
+        # load the beats and return them
+        # TODO: Use load_beats function
+        beats = np.loadtxt(matches[0])
+        if beats.ndim == 2:
+            # only use beat times, omit the beat positions inside the bar
+            beats = beats[:, 0]
+        return beats
+
+    @staticmethod
+    def add_arguments(parser, beats=sys.stdin, beats_suffix='.beats.txt'):
+        """
+        Add beat loading related arguments to an existing parser.
+
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        beats : FileType, optional
+            Where to read the beats from ('single' mode).
+        beats_suffix : str, optional
+            Suffix of beat files ('batch' mode)
+
+        Returns
+        -------
+        argparse argument group
+            Beat loading argument parser group.
+
+        """
+        import argparse
+        # add beat loading options to the existing parser
+        g = parser.add_argument_group('beat loading arguments')
+        g.add_argument('--beats', type=argparse.FileType('rb'), default=beats,
+                       help='where/how to read the beat positions from '
+                            '[default: single: STDIN]')
+        g.add_argument('--beats_suffix', type=str, default=beats_suffix,
+                       help='file suffix of the beat files [default: '
+                            '%(default)s]')
+        # return the argument group so it can be modified if needed
+        return g
+
+
+class SyncronizeFeaturesProcessor(Processor):
+    """
+    Synchronize features to beats.
+
+    First, divide a beat interval into `beat_subdivision` divisions. Then
+    summarise all features that fall into one subdivision. If no feature value
+    for a subdivision is found, it is set to 0.
+
+    Parameters
+    ----------
+    beat_subdivisions : int
+        Number of subdivisions a beat is divided into.
+    fps : float
+        Frames per second.
+
+    """
+    def __init__(self, beat_subdivisions, fps, **kwargs):
+        # pylint: disable=unused-argument
+        self.beat_subdivisions = beat_subdivisions
+        self.fps = fps
+
+    def process(self, data, **kwargs):
+        """
+        Synchronize features to beats.
+
+        Average all feature values that fall into a window of beat duration /
+        beat subdivisions, centered on the beat positions or interpolated
+        subdivisions, starting with the first beat.
+
+        Parameters
+        ----------
+        data : tuple (features, beats)
+            Tuple of two numpy arrays, the first containing features to be
+            synchronized and second the beat times.
+
+        Returns
+        -------
+        numpy array (num beats - 1, beat subdivisions, features dim.)
+            Beat synchronous features.
+
+        """
+        features, beats = data
+        # no beats, return immediately
+        if beats.size == 0:
+            return np.array([]), np.array([])
+        # beats can be 1D (only beat times) or 2D (times, position inside bar)
+        if beats.ndim > 1:
+            beats = beats[:, 0]
+        # trim beat sequence
+        while (float(len(features)) / self.fps) < beats[-1]:
+            beats = beats[:-1]
+            warnings.warn('Beat sequence too long compared to features.')
+        # number of beats
+        num_beats = len(beats)
+        # feature dimension (make sure features are 2D)
+        features = np.array(features.T, copy=False, ndmin=2).T
+        feat_dim = features.shape[-1]
+        # init a 3D feature aggregation array
+        beat_features = np.zeros(
+            (num_beats - 1, self.beat_subdivisions, feat_dim))
+        # start first beat 20ms before actual annotation
+        beat_start = int(max(0, np.floor((beats[0] - 0.02) * self.fps)))
+        # TODO: speed this up, could propably be done without a loop
+        for i in range(num_beats - 1):
+            # aggregate all feature values that fall into a window of
+            # length = beat_duration / beat_subdivisions, centered on the beat
+            # annotations or interpolated subdivisions
+            beat_duration = beats[i + 1] - beats[i]
+            offset = 0.5 * beat_duration / self.beat_subdivisions
+            # offset should be < 50 ms
+            offset = np.min([offset, 0.05])
+            # last frame of beat
+            beat_end = int(np.floor((beats[i + 1] - offset) * self.fps))
+            # we need to put each feature frame into its corresponding
+            # beat subdivison; linearly align the subdivisions up to the
+            # length of the beat
+            subdiv = np.floor(np.linspace(0, self.beat_subdivisions,
+                                          beat_end - beat_start,
+                                          endpoint=False))
+            beat = features[beat_start:beat_end]
+            # group features belonging according to beat subdivisions
+            subdiv_features = [beat[subdiv == div] for div in
+                               range(self.beat_subdivisions)]
+            # interpolate missing feature values which can occur at fast tempi
+            subdiv_features = self.interpolate_missing(
+                subdiv_features, self.beat_subdivisions, feat_dim)
+            # aggregate all subdivision features
+            beat_features[i, :, :] = np.array([np.mean(x, axis=0) for x in
+                                               subdiv_features])
+            # progress to next beat
+            beat_start = beat_end
+        # return beats and beat-synchronous features
+        return beat_features
+
+    @staticmethod
+    def interpolate_missing(features, beat_subdivisions, feat_dim):
+        """
+        Interpolate missing beat features.
+
+        Parameters
+        ----------
+        features : list
+            Features, grouped by bar position.
+        beat_subdivisions : int
+            Number of subdivisions a beat is divided into.
+        feat_dim : int
+            Number of feature dimensions.
+
+        Returns
+        -------
+        numpy array
+            Features with missing features interpolated.
+
+        """
+        nan_fill = np.empty(feat_dim) * np.nan
+        means = np.array([np.mean(x, axis=0) if x.any() else nan_fill
+                          for x in features])
+        good_rows = np.unique(np.where(np.logical_not(np.isnan(means)))[0])
+        if len(good_rows) < beat_subdivisions:
+            bad_rows = np.unique(np.where(np.isnan(means))[0])
+            # initialise missing values with empty array
+            for r in bad_rows:
+                features[r] = np.empty((1, feat_dim))
+            for d in range(feat_dim):
+                means_p = np.interp(np.arange(0, beat_subdivisions), good_rows,
+                                    means[good_rows, d])
+                for r in bad_rows:
+                    features[r][0, d] = means_p[r]
+        return features
+
+
+class RNNBarProcessor(Processor):
+    """
+    Retrieve a downbeat activation function from a signal and pre-determined
+    beat positions by obtaining beat-synchronous harmonic and percussive
+    features which are processed with a GRU-RNN.
+
+    Parameters
+    ----------
+    beat_subdivisions : tuple, optional
+        Number of beat subdivisions for the percussive and harmonic feature.
+
+    References
+    ----------
+    .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
+           "Downbeat Tracking Using Beat-Synchronous Features and Recurrent
+            Networks",
+           Proceedings of the 17th International Society for Music Information
+           Retrieval Conference (ISMIR), 2016.
+
+    Examples
+    --------
+    Create an RNNBarProcessor and pass an audio file and pre-determined (or
+    given) beat positions through the processor. The returned tuple contains
+    the beats positions and the probability to be a downbeat.
+
+    >>> proc = RNNBarProcessor()
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.downbeats.RNNBarProcessor object at 0x...>
+    >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
+    >>> proc(('tests/data/audio/sample.wav', beats))
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    (array([ 0.1 , 0.45, 0.8 , 1.12, 1.48, 1.8 , 2.15, 2.49]),\
+     array([ 0.37781, 0.18954, 0.11194, 0.32767,
+             0.27009, 0.18147, 0.16247], dtype=float32))
+
+    """
+
+    def __init__(self, beat_subdivisions=(4, 2), fps=100, **kwargs):
+        # pylint: disable=unused-argument
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
+            SpectrogramDifferenceProcessor)
+        from ..audio.chroma import CLPChromaProcessor
+        from ..ml.nn import NeuralNetworkEnsemble
+        from ..models import DOWNBEATS_BGRU
+        # define percussive feature
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        frames = FramedSignalProcessor(frame_size=2048, fps=fps)
+        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+        spec = FilteredSpectrogramProcessor(
+            num_bands=6, fmin=30., fmax=17000., norm_filters=True)
+        log_spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
+        diff = SpectrogramDifferenceProcessor(
+            diff_ratio=0.5, positive_diffs=True)
+        self.perc_feat = SequentialProcessor(
+            (sig, frames, stft, spec, log_spec, diff))
+        # define harmonic feature
+        self.harm_feat = CLPChromaProcessor(
+            fps=fps, fmin=27.5, fmax=4200., compression_factor=100,
+            norm=True, threshold=0.001)
+        # sync features to the beats
+        # TODO: can beat_subdivisions extracted from somewhere?
+        self.perc_beat_sync = SyncronizeFeaturesProcessor(
+            beat_subdivisions[0], fps=fps, **kwargs)
+        self.harm_beat_sync = SyncronizeFeaturesProcessor(
+            beat_subdivisions[1], fps=fps, **kwargs)
+        # NN ensembles to process beat-synchronous features
+        self.perc_nn = NeuralNetworkEnsemble.load(DOWNBEATS_BGRU[0], **kwargs)
+        self.harm_nn = NeuralNetworkEnsemble.load(DOWNBEATS_BGRU[1], **kwargs)
+
+    def process(self, data, **kwargs):
+        """
+        Retrieve a downbeat activation function from a signal and beat
+        positions.
+
+        Parameters
+        ----------
+        data : tuple
+            Tuple containg a signal or file (handle) and corresponding beat
+            times [seconds].
+
+        Returns
+        -------
+        beat_times : numpy array
+            Beat times [seconds] (length N).
+        downbeat_activation_function : numpy array
+            Downbeat activation function (length N - 1) containing the
+            probabilities that a beat at the given position is a downbeat.
+
+        """
+        # pylint: disable=unused-argument
+        # split the input data
+        signal, beats = data
+        # process the signal
+        perc = self.perc_feat(signal)
+        harm = self.harm_feat(signal)
+        # sync to the beats
+        perc_synced = self.perc_beat_sync((perc, beats))
+        harm_synced = self.harm_beat_sync((harm, beats))
+        # process with NNs and average the predictions
+        # Note: reshape the NN input to length of synced features
+        perc = self.perc_nn(perc_synced.reshape((len(perc_synced), -1)))
+        harm = self.harm_nn(harm_synced.reshape((len(harm_synced), -1)))
+        return beats, np.mean([perc, harm], axis=0)
+
+
+class DBNBarTrackingProcessor(Processor):
+    """
+    Bar tracking with a dynamic Bayesian network (DBN) approximated by a
+    Hidden Markov Model (HMM).
+
+    Parameters
+    ----------
+    beats_per_bar : int or list
+        Number of beats per bar to be modeled. Can be either a single number
+        or a list or array with bar lengths (in beats).
+    observation_weight : int, optional
+        Weight for the downbeat activations.
+    meter_change_prob : float, optional
+        Probability to change meter at bar boundaries.
+
+    Examples
+    --------
+    Create a DBNBarTrackingProcessor. The returned array represents the
+    positions of the beats and their position inside the bar. The position
+    inside the bar follows the natural counting and starts at 1.
+
+    The number of beats per bar which should be modelled must be given, all
+    other parameters (e.g. probability to change the meter at bar boundaries)
+    are optional but must have the same length as `beats_per_bar`.
+
+    >>> proc = DBNBarTrackingProcessor(beats_per_bar=[3, 4])
+    >>> proc  # doctest: +ELLIPSIS
+    <madmom.features.downbeats.DBNBarTrackingProcessor object at 0x...>
+
+    Call this DBNDownBeatTrackingProcessor with beat positions and downbeat
+    activation function returned by RNNBarProcessor to obtain the positions.
+
+    >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
+    >>> act = RNNBarProcessor()(('tests/data/audio/sample.wav', beats))
+    >>> proc(act)  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    array([[ 0.1 , 1. ],
+           [ 0.45, 2. ],
+           [ 0.8 , 3. ],
+           [ 1.12, 1. ],
+           [ 1.48, 2. ],
+           [ 1.8 , 3. ],
+           [ 2.15, 1. ],
+           [ 2.49, 2. ]])
+
+    """
+
+    OBSERVATION_WEIGHT = 100
+    METER_CHANGE_PROB = 1e-7
+
+    def __init__(self, beats_per_bar=(3, 4),
+                 observation_weight=OBSERVATION_WEIGHT,
+                 meter_change_prob=METER_CHANGE_PROB, downbeats=False,
+                 **kwargs):
+        # pylint: disable=unused-argument
+        # save variables
+        self.beats_per_bar = beats_per_bar
+        self.downbeats = downbeats
+        # state space & transition model for each bar length
+        state_spaces = []
+        transition_models = []
+        for beats in self.beats_per_bar:
+            # Note: tempo and transition_lambda is not relevant
+            st = BarStateSpace(beats, min_interval=1, max_interval=1)
+            tm = BarTransitionModel(st, transition_lambda=1)
+            state_spaces.append(st)
+            transition_models.append(tm)
+        # Note: treat diffrent bar lengths as different patterns and use the
+        #       existing MultiPatternStateSpace and MultiPatternTransitionModel
+        self.st = MultiPatternStateSpace(state_spaces)
+        self.tm = MultiPatternTransitionModel(
+            transition_models, transition_prob=meter_change_prob)
+        # observation model
+        self.om = RNNBeatTrackingObservationModel(self.st, observation_weight)
+        # instantiate a HMM
+        self.hmm = HiddenMarkovModel(self.tm, self.om, None)
+
+    def process(self, data, **kwargs):
+        """
+        Detect downbeats from the given beats and activation function with
+        Viterbi decoding.
+
+        Parameters
+        ----------
+        data : tuple
+            Tuple containing beat times and downbeat activations.
+
+        Returns
+        -------
+        numpy array
+            Decoded (down-)beat positions [seconds] and beat numbers.
+
+        """
+        # pylint: disable=unused-argument
+        # split data
+        beats, activations = data
+        if not beats.any():
+            return np.empty((0, 2))
+        # Viterbi decoding
+        path, _ = self.hmm.viterbi(activations)
+        # get the position inside the bar
+        position = self.st.state_positions[path]
+        # the beat numbers are the counters + 1 at the transition points
+        beat_numbers = position.astype(int) + 1
+        # add the last beat (which has no activation function value)
+        meter = self.beats_per_bar[self.st.state_patterns[path[-1]]]
+        last_beat_number = np.mod(beat_numbers[-1], meter) + 1
+        beat_numbers = np.append(beat_numbers, last_beat_number)
+        # return beats and their beat numbers
+        return np.vstack(zip(beats, beat_numbers))
+
+    @classmethod
+    def add_arguments(cls, parser, beats_per_bar,
+                      observation_weight=OBSERVATION_WEIGHT,
+                      meter_change_prob=METER_CHANGE_PROB):
+        """
+        Add DBN related arguments to an existing parser.
+
+        Parameters
+        ----------
+        parser : argparse parser instance
+            Existing argparse parser object.
+        beats_per_bar : int or list, optional
+            Number of beats per bar to be modeled. Can be either a single
+            number or a list with bar lengths (in beats).
+        observation_weight : float, optional
+            Weight for the activations at downbeat times.
+        meter_change_prob : float, optional
+            Probability to change meter at bar boundaries.
+
+        Returns
+        -------
+        parser_group : argparse argument group
+            DBN bar tracking argument parser group
+
+        """
+        # pylint: disable=arguments-differ
+        from ..utils import OverrideDefaultListAction
+        # add DBN parser group
+        g = parser.add_argument_group('dynamic Bayesian Network arguments')
+        g.add_argument('--beats_per_bar', action=OverrideDefaultListAction,
+                       default=beats_per_bar, type=int, sep=',',
+                       help='number of beats per bar to be modeled (comma '
+                            'separated list of bar length in beats) '
+                            '[default=%(default)s]')
+        g.add_argument('--observation_weight', action='store', type=float,
+                       default=observation_weight,
+                       help='weight for the downbeat activations '
+                            '[default=%(default)i]')
+        g.add_argument('--meter_change_prob', action='store', type=float,
+                       default=meter_change_prob,
+                       help='meter change probability [default=%(default).g]')
+        # add output format stuff
+        parser = parser.add_argument_group('output arguments')
+        parser.add_argument('--downbeats', action='store_true', default=False,
+                            help='output only the downbeats')
+        # return the argument group so it can be modified if needed
+        return parser
