@@ -93,6 +93,16 @@ class TestStftFunction(unittest.TestCase):
         res = [3. + 0.j, 0. + 0.j, 6. + 0.j]
         self.assertTrue(np.allclose(result[:, -1], res))
 
+    def test_fft_size(self):
+        result = stft(sig_2d, window=None, fft_size=25)
+        self.assertTrue(result.shape == (3, 12))
+        result = stft(sig_2d, window=None, fft_size=25, include_nyquist=True)
+        print(result[:, 0])
+        self.assertTrue(result.shape == (3, 13))
+        # test only the first req bin
+        res = [3. + 0.j, 4. + 0.j, 6. + 0.j]
+        self.assertTrue(np.allclose(result[:, 0], res))
+
 
 # noinspection PyArgumentList,PyArgumentList,PyArgumentList
 class TestPhaseFunction(unittest.TestCase):
