@@ -207,7 +207,6 @@ class TestBarkDoubleFrequenciesFunction(unittest.TestCase):
 # logarithmic frequency scale stuff
 class TestLogFrequenciesFunction(unittest.TestCase):
 
-    # noinspection PyArgumentList
     def test_num_arguments(self):
         # number of arguments arguments
         with self.assertRaises(TypeError):

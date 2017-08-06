@@ -22,7 +22,6 @@ sig_2d = np.array([[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])
 
 
-# noinspection PyArgumentList
 class TestBinFrequenciesFunction(unittest.TestCase):
 
     def test_num_arguments(self):
@@ -104,7 +103,6 @@ class TestStftFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result[:, 0], res))
 
 
-# noinspection PyArgumentList,PyArgumentList,PyArgumentList
 class TestPhaseFunction(unittest.TestCase):
 
     def test_types(self):

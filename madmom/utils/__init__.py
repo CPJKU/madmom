@@ -660,7 +660,6 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
                    signal.strides[axis + 1:])
 
     try:
-        # noinspection PyArgumentList
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
                                   shape=new_shape, buffer=signal,
                                   dtype=signal.dtype)
@@ -672,7 +671,6 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
         # shape doesn't change but strides does
         new_strides = (signal.strides[:axis] + (hop_size * s, s) +
                        signal.strides[axis + 1:])
-        # noinspection PyArgumentList
         return np.ndarray.__new__(np.ndarray, strides=new_strides,
                                   shape=new_shape, buffer=signal,
                                   dtype=signal.dtype)
