@@ -12,12 +12,12 @@ Bug fixes:
 
 * Fix `TransitionModel` number of states when last state is unreachable (#287)
 * Fix double beat detections in `BeatTrackingProcessor` (#298)
+* Fix ffmpeg unicode filename handling (#305)
 * Fix STFT zero padding (#319)
 
 API relevant changes:
 
 * `DBNBeatTrackingProcessor` expects 1D inputs (#299)
-
 
 Other changes:
 

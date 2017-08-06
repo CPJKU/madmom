@@ -17,6 +17,12 @@ import numpy as np
 
 from .signal import Signal
 
+# Python 2/3 string compatibility (like six does it)
+try:
+    string_types = basestring
+except NameError:
+    string_types = str
+
 
 def _ffmpeg_fmt(dtype):
     """
@@ -167,7 +173,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, str):
+    if not isinstance(infile, string_types):
         raise ValueError("only file names are supported as `infile`, not %s."
                          % infile)
     # create temp file if no outfile is given
@@ -181,7 +187,7 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     else:
         delete_on_fail = False
     # check output file type
-    if not isinstance(outfile, str):
+    if not isinstance(outfile, string_types):
         raise ValueError("only file names are supported as `outfile`, not %s."
                          % outfile)
     # call ffmpeg (throws exception on error)
@@ -240,7 +246,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (str, Signal)):
+    if not isinstance(infile, (string_types, Signal)):
         raise ValueError("only file names or Signal instances are supported "
                          "as `infile`, not %s." % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
@@ -289,7 +295,7 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (str, Signal)):
+    if not isinstance(infile, (string_types, Signal)):
         raise ValueError("only file names or Signal instances are supported "
                          "as `infile`, not %s." % infile)
     # prepare decoding to pipe
