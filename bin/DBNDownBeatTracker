@@ -82,15 +82,18 @@ def main():
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
         # track the beats with a DBN
-        downbeat_processor = DBNDownBeatTrackingProcessor(**vars(args))
+        out_processor = [DBNDownBeatTrackingProcessor(**vars(args))]
         if args.downbeats:
+            # filter the beats to contain only downbeats
+            from madmom.features.downbeats import filter_downbeats
+            out_processor.append(filter_downbeats)
             # simply write the timestamps
             from madmom.utils import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
             from madmom.features.notes import write_notes as writer
         # sequentially process them
-        out_processor = [downbeat_processor, writer]
+        out_processor.append(writer)
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

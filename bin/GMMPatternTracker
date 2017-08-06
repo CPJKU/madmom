@@ -112,16 +112,19 @@ def main():
         # save the multiband features to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # downbeat processor
-        downbeat_processor = PatternTrackingProcessor(**vars(args))
+        # track the patterns
+        out_processor = [PatternTrackingProcessor(**vars(args))]
         if args.downbeats:
+            # filter the beats to contain only downbeats
+            from madmom.features.downbeats import filter_downbeats
+            out_processor.append(filter_downbeats)
             # simply write the timestamps
             from madmom.utils import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
             from madmom.features.notes import write_notes as writer
-        # sequentially process the features
-        out_processor = [downbeat_processor, writer]
+        # sequentially process them
+        out_processor.append(writer)
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
