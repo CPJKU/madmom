@@ -80,16 +80,23 @@ class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
                                                 [0.79, 3], [1.12, 4],
                                                 [1.47, 1], [1.8, 2],
                                                 [2.14, 3], [2.49, 4]]))
-        # set the threshold
-        self.processor.threshold = 1
+        # test with beats at the first and last frame
+        act = np.zeros((200, 2)) + 1e-4
+        act[[0, 199], 1] = 1  # downbeats
+        act[[49, 99, 149], 0] = 1  # beats
+        downbeats = self.processor(act)
+        self.assertTrue(np.allclose(downbeats, [[0, 1], [0.49, 2], [0.99, 3],
+                                                [1.49, 4], [1.99, 1]]))
+        # without correcting the beat positions
+        self.processor.correct = False
         downbeats = self.processor(sample_downbeat_act)
-        self.assertTrue(np.allclose(downbeats, np.empty((0, 2))))
-
-    def test_process_downbeats(self):
-        self.processor.downbeats = True
+        correct = np.array([[0.08, 1], [0.43, 2], [0.77, 3], [1.11, 4],
+                            [1.45, 1], [1.79, 2], [2.13, 3], [2.47, 4]])
+        self.assertTrue(np.allclose(downbeats, correct))
+        # test threshold
+        self.processor.threshold = 0.5
         downbeats = self.processor(sample_downbeat_act)
-        self.assertTrue(np.allclose(downbeats, [0.09, 1.47]))
-        # set the threshold
+        self.assertTrue(np.allclose(downbeats, correct[1:-1]))
         self.processor.threshold = 1
         downbeats = self.processor(sample_downbeat_act)
         self.assertTrue(np.allclose(downbeats, np.empty((0, 2))))
