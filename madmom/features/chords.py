@@ -9,10 +9,8 @@ from functools import partial
 
 import numpy as np
 
-from madmom.processors import SequentialProcessor
-
-# dtype for numpy structured arrays that contain chord segments
-CHORD_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]
+from ..io import CHORD_LABEL_DTYPE
+from ..processors import SequentialProcessor
 
 
 def majmin_targets_to_chord_labels(targets, fps):
@@ -70,7 +68,7 @@ def majmin_targets_to_chord_labels(targets, fps):
     end_times = start_times[1:] + (labels[-1][0] + spf,)
 
     return np.array(list(zip(start_times, end_times, chord_labels)),
-                    dtype=CHORD_DTYPE)
+                    dtype=CHORD_LABEL_DTYPE)
 
 
 class DeepChromaChordRecognitionProcessor(SequentialProcessor):

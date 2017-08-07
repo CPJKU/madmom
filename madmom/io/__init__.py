@@ -12,6 +12,10 @@ from .audio import load_audio_file
 from ..utils import suppress_warnings
 
 
+# dtype for numpy structured arrays that contain chord segments
+CHORD_LABEL_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]
+
+
 @suppress_warnings
 def load_events(filename):
     """
@@ -335,33 +339,48 @@ def write_notes_mirex(notes, filename, duration=0.6):
 
 def load_chords(filename):
     """
-    Load labelled chord segments from a file. Chord segments must follow
-    the following format, one chord label per line:
+    Load labelled chord segments from a text file.
 
-    <start_time> <end_time> <chord_label>
-
-    All times should be given in seconds.
+    The chord must follow the syntax defined in [1]_.
 
     Parameters
     ----------
     filename : str or file handle
-        File containing the segments
+        File containing chord segments.
 
     Returns
     -------
-    numpy structured array
-        Structured array with columns 'start', 'end', and 'label', containing
-        the start time, end time, and segment label respectively
+    crds : numpy structured array
+        Structured array with columns "start", "end", and "chord",
+        containing the beginning, end, and chord definition of chord
+        segments.
 
-    Notes
-    -----
-    Segment files cannot contain comments, because e.g. chord annotations
-    can contain the '#' character! The maximum label length is 32 characters.
+    References
+    ----------
+    .. [1] Christopher Harte, "Towards Automatic Extraction of Harmony
+           Information from Music Signals." Dissertation,
+           Department for Electronic Engineering, Queen Mary University of
+           London, 2010.
 
     """
-    from ..features.chords import CHORD_DTYPE
-    return np.loadtxt(filename, comments=None, ndmin=1, dtype=CHORD_DTYPE,
-                      converters={2: lambda x: x.decode()})
+    # TODO: Join consecutive labels of identical chords
+    start, end, chord_labels = [], [], []
+
+    def open_file(fn):
+        return fn if isinstance(fn, file) else open(fn, 'r')
+
+    with open_file(filename) as f:
+        for line in f:
+            s, e, l = line.split()
+            start.append(float(s))
+            end.append(float(e))
+            chord_labels.append(l)
+
+    crds = np.zeros(len(start), dtype=CHORD_LABEL_DTYPE)
+    crds['start'] = start
+    crds['end'] = end
+    crds['label'] = chord_labels
+    return crds
 
 
 def write_chords(chords, filename):
@@ -371,7 +390,7 @@ def write_chords(chords, filename):
     Parameters
     ----------
     chords : numpy structured array
-        Chord segments, one per row (column definition see notes).
+        Chord segments, one per row (column definition see CHORD_LABEL_DTYPE).
     filename : str or file handle
         Output filename or handle
 

@@ -32,6 +32,7 @@ References
 import numpy as np
 
 from . import evaluation_io, EvaluationMixin
+from ..io import load_chords
 
 
 CHORD_DTYPE = [('root', np.int),
@@ -44,6 +45,28 @@ CHORD_ANN_DTYPE = [('start', np.float),
 
 NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
 UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
+
+
+def encode_chords(chord_labels):
+    """
+    Encodes chord labels to numeric interval representations.
+
+    Parameters
+    ----------
+    chord_labels : numpy structured array
+        Chord segments in `madmom.io.CHORD_LABEL_DTYPE` format
+
+    Returns
+    -------
+    encoded_chords : numpy structured array
+        Chords in `CHORD_ANN_DTYPE` format
+
+    """
+    encoded_chords = np.zeros(len(chord_labels), dtype=CHORD_ANN_DTYPE)
+    encoded_chords['start'] = chord_labels['start']
+    encoded_chords['end'] = chord_labels['end']
+    encoded_chords['chord'] = chords(chord_labels['label'])
+    return encoded_chords
 
 
 def chords(labels):
@@ -284,48 +307,6 @@ def chord_intervals(quality_str):
         ivs = np.zeros(12, dtype=np.int)
 
     return interval_list(quality_str[list_idx:], ivs)
-
-
-def load_chords(filename):
-    """
-    Load chords from a text file.
-
-    The chord must follow the syntax defined in [1]_.
-
-    Parameters
-    ----------
-    filename : str
-        File containing chord segments.
-
-    Returns
-    -------
-    crds : numpy structured array
-        Structured array with columns "start", "end", and "chord",
-        containing the beginning, end, and chord definition of chord
-        segments.
-
-    References
-    ----------
-    .. [1] Christopher Harte, "Towards Automatic Extraction of Harmony
-           Information from Music Signals." Dissertation,
-           Department for Electronic Engineering, Queen Mary University of
-           London, 2010.
-
-    """
-    # TODO: Join consecutive labels of identical chords
-    start, end, chord_labels = [], [], []
-    with open(filename, 'r') as f:
-        for line in f:
-            s, e, l = line.split()
-            start.append(float(s))
-            end.append(float(e))
-            chord_labels.append(l)
-
-    crds = np.zeros(len(start), dtype=CHORD_ANN_DTYPE)
-    crds['start'] = start
-    crds['end'] = end
-    crds['chord'] = chords(chord_labels)
-    return crds
 
 
 def evaluation_pairs(det_chords, ann_chords):
@@ -732,8 +713,9 @@ class ChordEvaluation(EvaluationMixin):
 
     def __init__(self, detections, annotations, name=None, **kwargs):
         self.name = name or ''
-        self.ann_chords = load_chords(annotations)
-        self.det_chords = adjust(load_chords(detections), self.ann_chords)
+        self.ann_chords = encode_chords(load_chords(annotations))
+        self.det_chords = adjust(encode_chords(load_chords(detections)),
+                                 self.ann_chords)
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)
 
