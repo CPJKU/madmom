@@ -6,10 +6,21 @@ Input/output package.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+
 import numpy as np
 
 from .audio import load_audio_file
 from ..utils import suppress_warnings
+
+if sys.version_info[0] < 3:
+    _file_handle = file
+else:
+    from io import TextIOBase as _file_handle
+
+# dtype for numpy structured arrays that contain labelled segments
+# 'label' needs to be castable to str
+SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
 
 
 @suppress_warnings
@@ -333,62 +344,71 @@ def write_notes_mirex(notes, filename, duration=0.6):
     return notes
 
 
-def load_chords(filename):
+def load_segments(filename):
     """
-    Load labelled chord segments from a file. Chord segments must follow
-    the following format, one chord label per line:
-
-    <start_time> <end_time> <chord_label>
-
-    All times should be given in seconds.
+    Load labelled segments from a text file. Each line in the file represents
+    a segment and is of the form <start> <end> <label>, where <start> and
+    <end> are floating point numbers, and <label> is a string.
 
     Parameters
     ----------
     filename : str or file handle
-        File containing the segments
+        File containing labelled segments.
 
     Returns
     -------
-    numpy structured array
-        Structured array with columns 'start', 'end', and 'label', containing
-        the start time, end time, and segment label respectively
-
-    Notes
-    -----
-    Segment files cannot contain comments, because e.g. chord annotations
-    can contain the '#' character! The maximum label length is 32 characters.
-
+    segments : numpy structured array
+        Structured array with columns "start", "end", and "label",
+        containing the beginning, end, and label of segments.
     """
-    from ..features.chords import CHORD_DTYPE
-    return np.loadtxt(filename, comments=None, ndmin=1, dtype=CHORD_DTYPE,
-                      converters={2: lambda x: x.decode()})
+    start, end, label = [], [], []
+
+    def open_file(fn):
+        return fn if isinstance(fn, _file_handle) else open(fn, 'r')
+
+    with open_file(filename) as f:
+        for line in f:
+            s, e, l = line.split()
+            start.append(float(s))
+            end.append(float(e))
+            label.append(l)
+
+    segments = np.zeros(len(start), dtype=SEGMENT_DTYPE)
+    segments['start'] = start
+    segments['end'] = end
+    segments['label'] = label
+    return segments
 
 
-def write_chords(chords, filename):
+def write_segments(segments, filename):
     """
-    Write chord segments to a file.
+    Write labelled segments to a file.
 
     Parameters
     ----------
-    chords : numpy structured array
-        Chord segments, one per row (column definition see notes).
+    segments : numpy structured array
+        Labelled segments, one per row (column definition see SEGMENT_DTYPE).
     filename : str or file handle
         Output filename or handle
 
     Returns
     -------
     numpy structured array
-        Chord segments.
+        Labelled segments
 
     Notes
     -----
-    Chords are represented as numpy structured array with three named columns:
-    'start' contains the start time in seconds, 'end' the end time in seconds,
-    and 'label' the chord label.
+    Labelled segments are represented as numpy structured array with three
+    named columns: 'start' contains the start position (e.g. seconds),
+    'end' the end position, and 'label' the segment label.
 
     """
-    np.savetxt(filename, chords, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
-    return chords
+    np.savetxt(filename, segments, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
+    return segments
+
+
+load_chords = load_segments
+write_chords = write_segments
 
 
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
