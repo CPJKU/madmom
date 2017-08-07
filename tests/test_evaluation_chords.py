@@ -167,11 +167,9 @@ class TestChordParsing(unittest.TestCase):
         for lbl, crd in zip(labels, chords(labels)):
             self.assertChordEqual(chord(lbl), crd)
 
-
-class TestChordLoading(unittest.TestCase):
-
-    def test_load_func(self):
-        crds = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
+    def test_encode_func(self):
+        crds = encode(
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
         self.assertTrue((crds == DUMMY_ANNOTATIONS).all())
 
     def test_merge_func(self):
@@ -182,9 +180,10 @@ class TestChordLoading(unittest.TestCase):
 class TestChordEvaluation(unittest.TestCase):
 
     def setUp(self):
-        self.ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        self.unadjusted_det = load_chords(join(DETECTIONS_PATH,
-                                               'dummy.chords.txt'))
+        self.ann = encode(
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
+        self.unadjusted_det = encode(
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')))
         self.det = adjust(self.unadjusted_det, self.ann)
         self.ev_ann, self.ev_det, self.ev_dur = evaluation_pairs(self.det,
                                                                  self.ann)
@@ -311,9 +310,11 @@ class TestChordEvaluationClass(unittest.TestCase):
         )
         self.assertTrue(eval.name == 'TestEval')
 
-        ann = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
-        det = adjust(load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
-                     ann)
+        ann = encode(
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
+        det = encode(
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')))
+        det = adjust(det, ann)
         self.assertTrue((eval.ann_chords == ann).all())
         self.assertTrue((eval.det_chords == det).all())
 
