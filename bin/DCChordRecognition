@@ -12,7 +12,7 @@ import argparse
 from madmom.audio import DeepChromaProcessor
 from madmom.features import (ActivationsProcessor,
                              DeepChromaChordRecognitionProcessor, )
-from madmom.io import write_chords
+from madmom.io import write_segments
 from madmom.processors import IOProcessor, io_arguments
 
 
@@ -79,7 +79,7 @@ def main():
     else:
         # regocgnise chords with a conditional random field and output them
         chord_processor = DeepChromaChordRecognitionProcessor(**vars(args))
-        out_processor = [chord_processor, write_chords]
+        out_processor = [chord_processor, write_segments]
 
     processor = IOProcessor(in_processor, out_processor)
     args.func(processor, **vars(args))

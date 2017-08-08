@@ -9,7 +9,7 @@ from functools import partial
 
 import numpy as np
 
-from ..io import CHORD_LABEL_DTYPE
+from ..io import SEGMENT_DTYPE
 from ..processors import SequentialProcessor
 
 
@@ -68,7 +68,7 @@ def majmin_targets_to_chord_labels(targets, fps):
     end_times = start_times[1:] + (labels[-1][0] + spf,)
 
     return np.array(list(zip(start_times, end_times, chord_labels)),
-                    dtype=CHORD_LABEL_DTYPE)
+                    dtype=SEGMENT_DTYPE)
 
 
 class DeepChromaChordRecognitionProcessor(SequentialProcessor):

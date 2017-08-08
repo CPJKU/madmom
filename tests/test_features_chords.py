@@ -12,7 +12,7 @@ from os.path import join as pj
 
 from madmom.features import Activations
 from madmom.features.chords import *
-from madmom.io import load_chords
+from madmom.io import load_segments
 from . import ACTIVATIONS_PATH, AUDIO_PATH, DETECTIONS_PATH
 
 sample_files = [pj(AUDIO_PATH, sf) for sf in ['sample.wav', 'sample2.wav']]
@@ -21,7 +21,7 @@ sample_cnn_acts = [Activations(pj(ACTIVATIONS_PATH, af))
                    for af in ['sample.cnn_chord_features.npz',
                               'sample2.cnn_chord_features.npz']]
 
-sample_cnn_labels = [load_chords(pj(DETECTIONS_PATH, df))
+sample_cnn_labels = [load_segments(pj(DETECTIONS_PATH, df))
                      for df in ['sample.cnn_chord_recognition.txt',
                                 'sample2.cnn_chord_recognition.txt']]
 
@@ -29,7 +29,7 @@ sample_deep_chroma_acts = [Activations(pj(ACTIVATIONS_PATH, af))
                            for af in ['sample.deep_chroma.npz',
                                       'sample2.deep_chroma.npz']]
 
-sample_deep_chroma_labels = [load_chords(pj(DETECTIONS_PATH, df))
+sample_deep_chroma_labels = [load_segments(pj(DETECTIONS_PATH, df))
                              for df in ['sample.dc_chord_recognition.txt',
                                         'sample2.dc_chord_recognition.txt']]
 
@@ -43,30 +43,30 @@ def _compare_labels(test_case, labels, reference_labels):
 
 class TestLoadChordsFunction(unittest.TestCase):
     def test_read_segments_from_file(self):
-        chords = load_chords(pj(DETECTIONS_PATH,
-                                'sample2.dc_chord_recognition.txt'))
+        chords = load_segments(pj(DETECTIONS_PATH,
+                               'sample2.dc_chord_recognition.txt'))
         self.assertIsInstance(chords, np.ndarray)
 
     def test_read_segments_from_file_handle(self):
         with open(pj(DETECTIONS_PATH,
                      'sample2.dc_chord_recognition.txt')) as file_handle:
-            chords = load_chords(file_handle)
+            chords = load_segments(file_handle)
             self.assertIsInstance(chords, np.ndarray)
 
     def test_read_segment_annotations(self):
-        chords = load_chords(pj(DETECTIONS_PATH,
-                                'sample2.dc_chord_recognition.txt'))
+        chords = load_segments(pj(DETECTIONS_PATH,
+                               'sample2.dc_chord_recognition.txt'))
         _compare_labels(self, chords,
                         np.array([(0.0, 1.6, 'F:maj'),
                                   (1.6, 2.5, 'A:maj'),
                                   (2.5, 4.1, 'D:maj')],
-                                 dtype=CHORD_LABEL_DTYPE))
+                                 dtype=SEGMENT_DTYPE))
 
-        chords = load_chords(pj(DETECTIONS_PATH,
-                                'sample.dc_chord_recognition.txt'))
+        chords = load_segments(pj(DETECTIONS_PATH,
+                               'sample.dc_chord_recognition.txt'))
         _compare_labels(self, chords,
                         np.array([(0.0, 2.9, 'G#:maj')],
-                                 dtype=CHORD_LABEL_DTYPE))
+                                 dtype=SEGMENT_DTYPE))
 
 
 class TestMajMinTargetsToChordLabelsFunction(unittest.TestCase):
@@ -98,7 +98,7 @@ class TestMajMinTargetsToChordLabelsFunction(unittest.TestCase):
                                   (2.2, 2.3, 'G:min'),
                                   (2.3, 2.4, 'G#:min'),
                                   (2.4, 2.5, 'N')],
-                                 dtype=CHORD_LABEL_DTYPE)
+                                 dtype=SEGMENT_DTYPE)
 
         labels = majmin_targets_to_chord_labels(targets, fps)
         _compare_labels(self, labels, target_labels)
@@ -110,7 +110,7 @@ class TestMajMinTargetsToChordLabelsFunction(unittest.TestCase):
                                   (0.2, 0.6, 'C#:maj'),
                                   (0.6, 0.7, 'N'),
                                   (0.7, 0.9, 'F:maj')],
-                                 dtype=CHORD_LABEL_DTYPE)
+                                 dtype=SEGMENT_DTYPE)
         labels = majmin_targets_to_chord_labels(targets, fps)
         _compare_labels(self, labels, target_labels)
 

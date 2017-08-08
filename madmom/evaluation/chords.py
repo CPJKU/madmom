@@ -32,7 +32,7 @@ References
 import numpy as np
 
 from . import evaluation_io, EvaluationMixin
-from ..io import load_chords
+from ..io import load_segments
 
 
 CHORD_DTYPE = [('root', np.int),
@@ -47,7 +47,7 @@ NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
 UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
 
 
-def encode_chords(chord_labels):
+def encode(chord_labels):
     """
     Encodes chord labels to numeric interval representations.
 
@@ -62,6 +62,7 @@ def encode_chords(chord_labels):
         Chords in `CHORD_ANN_DTYPE` format
 
     """
+    # TODO: Join consecutive labels of identical chords
     encoded_chords = np.zeros(len(chord_labels), dtype=CHORD_ANN_DTYPE)
     encoded_chords['start'] = chord_labels['start']
     encoded_chords['end'] = chord_labels['end']
@@ -713,8 +714,8 @@ class ChordEvaluation(EvaluationMixin):
 
     def __init__(self, detections, annotations, name=None, **kwargs):
         self.name = name or ''
-        self.ann_chords = encode_chords(load_chords(annotations))
-        self.det_chords = adjust(encode_chords(load_chords(detections)),
+        self.ann_chords = encode(load_segments(annotations))
+        self.det_chords = adjust(encode(load_segments(detections)),
                                  self.ann_chords)
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)

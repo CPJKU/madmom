@@ -22,7 +22,7 @@ except ImportError:
 import numpy as np
 
 from madmom.features import Activations
-from madmom.io import load_chords
+from madmom.io import load_segments
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
 
@@ -158,7 +158,7 @@ class TestCNNChordRecognition(unittest.TestCase):
                        'sample2.cnn_chord_features.npz']
         ]
         self.results = [
-            load_chords(pj(DETECTIONS_PATH, df))
+            load_segments(pj(DETECTIONS_PATH, df))
             for df in ['sample.cnn_chord_recognition.txt',
                        'sample2.cnn_chord_recognition.txt']
         ]
@@ -183,7 +183,7 @@ class TestCNNChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_txt(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
@@ -197,12 +197,12 @@ class TestCNNChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_run(self):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_program([self.bin, 'single', sf, '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
 
 class TestComplexFluxProgram(unittest.TestCase):
@@ -430,7 +430,7 @@ class TestDCChordRecognition(unittest.TestCase):
             for af in ['sample.deep_chroma.npz', 'sample2.deep_chroma.npz']
         ]
         self.results = [
-            load_chords(pj(DETECTIONS_PATH, df))
+            load_segments(pj(DETECTIONS_PATH, df))
             for df in ['sample.dc_chord_recognition.txt',
                        'sample2.dc_chord_recognition.txt']
         ]
@@ -455,7 +455,7 @@ class TestDCChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_txt(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
@@ -469,12 +469,12 @@ class TestDCChordRecognition(unittest.TestCase):
             # reload from file
             run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
                          '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
     def test_run(self):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_program([self.bin, 'single', sf, '-o', tmp_result])
-            self._check_results(load_chords(tmp_result), true_res)
+            self._check_results(load_segments(tmp_result), true_res)
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
