@@ -14,6 +14,7 @@ Bug fixes:
 * Fix double beat detections in `BeatTrackingProcessor` (#298)
 * Fix ffmpeg unicode filename handling (#305)
 * Fix STFT zero padding (#319)
+* Fix memory leak when accessing signal frames (#322)
 
 API relevant changes:
 
