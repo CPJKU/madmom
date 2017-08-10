@@ -1044,6 +1044,10 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     #       (i.e. zeros of frame_size length and the same type/class as the
     #       signal and not just the dtype), but since we have no guarantee that
     #       the signal is that long, we have to use the np.repeat workaround
+    # Note: use NumPy's advanced indexing (i.e. trailing comma) in order to
+    #       avoid a memory leak (issue #321). This returns a copy of the data,
+    #       however, returning a simple copy of the relevant portion of the
+    #       signal also leaks memory
     if (stop < 0) or (start > num_samples):
         # window falls completely outside the actual signal, return just zeros
         frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
@@ -1056,16 +1060,16 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
     elif start < 0:
         # window crosses left edge of actual signal, pad zeros from left
         frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
-        frame[-start:] = signal[:stop]
+        frame[-start:] = signal[:stop, ]
         return frame
     elif stop > num_samples:
         # window crosses right edge of actual signal, pad zeros from right
         frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
-        frame[:num_samples - start] = signal[start:]
+        frame[:num_samples - start] = signal[start:, ]
         return frame
     else:
         # normal read operation
-        return signal[start:stop]
+        return signal[start:stop, ]
 
 
 FRAME_SIZE = 2048
