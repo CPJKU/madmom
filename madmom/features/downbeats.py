@@ -920,55 +920,15 @@ class SyncronizeFeaturesProcessor(Processor):
                                           beat_end - beat_start,
                                           endpoint=False))
             beat = features[beat_start:beat_end]
-            # group features belonging according to beat subdivisions
+            # group features by beat subdivisions and aggregate them
             subdiv_features = [beat[subdiv == div] for div in
                                range(self.beat_subdivisions)]
-            # interpolate missing feature values which can occur at fast tempi
-            subdiv_features = self.interpolate_missing(
-                subdiv_features, self.beat_subdivisions, feat_dim)
-            # aggregate all subdivision features
             beat_features[i, :, :] = np.array([np.mean(x, axis=0) for x in
                                                subdiv_features])
             # progress to next beat
             beat_start = beat_end
         # return beats and beat-synchronous features
         return beat_features
-
-    @staticmethod
-    def interpolate_missing(features, beat_subdivisions, feat_dim):
-        """
-        Interpolate missing beat features.
-
-        Parameters
-        ----------
-        features : list
-            Features, grouped by bar position.
-        beat_subdivisions : int
-            Number of subdivisions a beat is divided into.
-        feat_dim : int
-            Number of feature dimensions.
-
-        Returns
-        -------
-        numpy array
-            Features with missing features interpolated.
-
-        """
-        nan_fill = np.empty(feat_dim) * np.nan
-        means = np.array([np.mean(x, axis=0) if x.any() else nan_fill
-                          for x in features])
-        good_rows = np.unique(np.where(np.logical_not(np.isnan(means)))[0])
-        if len(good_rows) < beat_subdivisions:
-            bad_rows = np.unique(np.where(np.isnan(means))[0])
-            # initialise missing values with empty array
-            for r in bad_rows:
-                features[r] = np.empty((1, feat_dim))
-            for d in range(feat_dim):
-                means_p = np.interp(np.arange(0, beat_subdivisions), good_rows,
-                                    means[good_rows, d])
-                for r in bad_rows:
-                    features[r][0, d] = means_p[r]
-        return features
 
 
 class RNNBarProcessor(Processor):
