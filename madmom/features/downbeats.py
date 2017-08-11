@@ -962,9 +962,14 @@ class RNNBarProcessor(Processor):
     >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
     >>> proc(('tests/data/audio/sample.wav', beats))
     ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    (array([ 0.1 , 0.45, 0.8 , 1.12, 1.48, 1.8 , 2.15, 2.49]),\
-     array([ 0.37781, 0.18954, 0.11194, 0.32767,
-             0.27009, 0.18147, 0.16247], dtype=float32))
+    array([[ 0.1  , 0.37781],
+           [ 0.45 , 0.18954],
+           [ 0.8  , 0.11194],
+           [ 1.12 , 0.32767],
+           [ 1.48 , 0.27009],
+           [ 1.8  , 0.18147],
+           [ 2.15 , 0.16247],
+           [ 2.49 ,     nan]])
 
     """
 
@@ -1016,11 +1021,16 @@ class RNNBarProcessor(Processor):
 
         Returns
         -------
-        beat_times : numpy array
-            Beat times [seconds] (length N).
-        downbeat_activation_function : numpy array
-            Downbeat activation function (length N - 1) containing the
-            probabilities that a beat at the given position is a downbeat.
+        numpy array, shape (num_beats, 2)
+            Array containing the beat positions (first column) and the
+            corresponding downbeat activations, i.e. the probability that a
+            beat is a downbeat (second column).
+
+        Notes
+        -----
+        Since features are synchronized to the beats, and the probability of
+        being a downbeat depends on a whole beat duration, only num_beats-1
+        activations can be computed and the last value is filled with 'NaN'.
 
         """
         # pylint: disable=unused-argument
@@ -1036,7 +1046,11 @@ class RNNBarProcessor(Processor):
         # Note: reshape the NN input to length of synced features
         perc = self.perc_nn(perc_synced.reshape((len(perc_synced), -1)))
         harm = self.harm_nn(harm_synced.reshape((len(harm_synced), -1)))
-        return beats, np.mean([perc, harm], axis=0)
+        # since the synchronized features contain 1 value less than the number
+        # of beats, append an artificial value
+        act = np.mean([perc, harm], axis=0)
+        act = np.append(act, np.ones(1) * np.nan)
+        return np.vstack((beats, act)).T
 
 
 class DBNBarTrackingProcessor(Processor):
@@ -1120,20 +1134,28 @@ class DBNBarTrackingProcessor(Processor):
 
         Parameters
         ----------
-        data : tuple
-            Tuple containing beat times and downbeat activations.
+        data : numpy array, shape (num_beats, 2)
+            Array containing beat positions (first column) and corresponding
+            downbeat activations (second column).
 
         Returns
         -------
-        numpy array
-            Decoded (down-)beat positions [seconds] and beat numbers.
+        numpy array, shape (num_beats, 2)
+            Decoded (down-)beat positions and beat numbers.
+
+        Notes
+        -----
+        The position of the last beat is not decoded, but rather extrapolated
+        based on the position and meter of the second to last beat.
 
         """
         # pylint: disable=unused-argument
-        # split data
-        beats, activations = data
-        if not beats.any():
-            return np.empty((0, 2))
+        beats = data[:, 0]
+        activations = data[:, 1]
+        # remove unsynchronised (usually the last) values
+        activations = activations[:-1]
+        # TODO: expand to generic extrapolation of values? e.g.:
+        #       activations = activations[~np.isnan(activations)]
         # Viterbi decoding
         path, _ = self.hmm.viterbi(activations)
         # get the position inside the bar

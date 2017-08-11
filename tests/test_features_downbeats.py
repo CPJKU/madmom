@@ -23,6 +23,7 @@ sample_file = pj(AUDIO_PATH, "sample.wav")
 sample_beats = np.loadtxt(pj(ANNOTATIONS_PATH, "sample.beats"))
 sample_det_file = pj(DETECTIONS_PATH, 'sample.dbn_beat_tracker.txt')
 sample_beat_det = np.loadtxt(sample_det_file)
+sample_bar_act = Activations(pj(ACTIVATIONS_PATH, "sample.bar_tracker.npz"))
 sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
                                      "sample.downbeats_blstm.npz"))
 sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
@@ -177,25 +178,23 @@ class TestRNNBarProcessorClass(unittest.TestCase):
         self.processor = RNNBarProcessor(fps=100)
 
     def test_process(self):
-        beats, act = self.processor((sample_file, sample_beats))
-        self.assertTrue(np.allclose(act, [0.48194462, 0.12625194, 0.1980453],
-                                    rtol=1e-3))
+        act = self.processor((sample_file, sample_beats[:, 0]))
+        self.assertTrue(np.allclose(act, sample_bar_act, rtol=1e-3,
+                                    equal_nan=True))
 
 
-class TestDBNBarProcessorRNNClass(unittest.TestCase):
+class TestDBNBarTrackingProcessorClass(unittest.TestCase):
 
     def setUp(self):
         self.processor = DBNBarTrackingProcessor()
-        self.rnn_outout = np.array([0.4819403, 0.1262536, 0.1980488])
-        self.dbn_outout = np.array([[0.0913, 1.], [0.7997, 2.], [1.4806, 3.],
-                                    [2.1478, 1.]])
 
     def test_dbn(self):
         # check DBN output
-        path, log = self.processor.hmm.viterbi(self.rnn_outout)
+        path, log = self.processor.hmm.viterbi(sample_bar_act[:-1, 1])
         self.assertTrue(np.allclose(path, [0, 1, 2]))
         self.assertTrue(np.allclose(log, -12.2217575073))
 
     def test_process(self):
-        beats = self.processor([sample_beats[:, 0], self.rnn_outout])
-        self.assertTrue(np.allclose(beats, self.dbn_outout))
+        beats = self.processor(sample_bar_act)
+        self.assertTrue(np.allclose(beats, [[0.0913, 1.], [0.7997, 2.],
+                                            [1.4806, 3.], [2.1478, 1.]]))
