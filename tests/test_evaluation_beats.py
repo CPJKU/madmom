@@ -285,8 +285,6 @@ class TestPscoreFunction(unittest.TestCase):
         # detections / annotations must be correct type
         score = pscore([], [], 0.2)
         self.assertIsInstance(score, float)
-        score = pscore({}, {}, 0.2)
-        self.assertIsInstance(score, float)
         # tolerance must be convertible to float
         score = pscore(DETECTIONS, ANNOTATIONS, int(1.2))
         self.assertIsInstance(score, float)
@@ -333,8 +331,6 @@ class TestCemgilFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         # detections / annotations must be correct type
         score = cemgil([], [], 0.04)
-        self.assertIsInstance(score, float)
-        score = cemgil({}, {}, 0.04)
         self.assertIsInstance(score, float)
         # sigma must be correct type
         score = cemgil(DETECTIONS, ANNOTATIONS, int(1))
@@ -383,8 +379,6 @@ class TestGotoFunction(unittest.TestCase):
         self.assertIsInstance(score, float)
         # detections / annotations must be correct type
         score = goto([], [], 0.175, 0.2, 0.2)
-        self.assertIsInstance(score, float)
-        score = goto({}, {}, 0.175, 0.2, 0.2)
         self.assertIsInstance(score, float)
         # parameters must be correct type
         score = goto(DETECTIONS, ANNOTATIONS, int(1.175), 0.2, 0.2)
@@ -451,9 +445,6 @@ class TestCmlFunction(unittest.TestCase):
         cmlc, cmlt = cml([], [], 0.175, 0.175)
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
-        cmlc, cmlt = cml({}, {}, 0.175, 0.175)
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
         # tolerances must be correct type
         cmlc, cmlt = cml(DETECTIONS, ANNOTATIONS, int(1), int(1))
         self.assertIsInstance(cmlc, float)
@@ -511,11 +502,6 @@ class TestContinuityFunction(unittest.TestCase):
         self.assertIsInstance(amlt, float)
         # detections / annotations must be correct type
         cmlc, cmlt, amlc, amlt = continuity([], [], 0.175, 0.175)
-        self.assertIsInstance(cmlc, float)
-        self.assertIsInstance(cmlt, float)
-        self.assertIsInstance(amlc, float)
-        self.assertIsInstance(amlt, float)
-        cmlc, cmlt, amlc, amlt = continuity({}, {}, 0.175, 0.175)
         self.assertIsInstance(cmlc, float)
         self.assertIsInstance(cmlt, float)
         self.assertIsInstance(amlc, float)
@@ -793,9 +779,6 @@ class TestInformationGainFunction(unittest.TestCase):
         self.assertIsInstance(histogram, np.ndarray)
         # detections / annotations must be correct type
         ig, histogram = information_gain([], [], 40)
-        self.assertIsInstance(ig, float)
-        self.assertIsInstance(histogram, np.ndarray)
-        ig, histogram = information_gain({}, {}, 40)
         self.assertIsInstance(ig, float)
         self.assertIsInstance(histogram, np.ndarray)
         # tolerances must be correct type

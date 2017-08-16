@@ -28,6 +28,7 @@ References
 
 from __future__ import absolute_import, division, print_function
 
+from functools import wraps
 import warnings
 import numpy as np
 
@@ -37,6 +38,7 @@ from .onsets import OnsetEvaluation
 from ..utils import suppress_warnings
 
 
+# exceptions
 class BeatIntervalError(Exception):
     """
     Exception to be raised whenever an interval cannot be computed.
@@ -52,6 +54,69 @@ class BeatIntervalError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
+
+# decorators
+def array(metric):
+    """
+    Decorate metric to convert annotations and detections to numpy arrays.
+
+    """
+
+    @wraps(metric)
+    def float_array(detections, annotations, *args, **kwargs):
+        """Warp detections and annotations as numpy arrays."""
+        # make sure the annotations and detections have a float dtype
+        detections = np.asarray(detections, dtype=np.float)
+        annotations = np.asarray(annotations, dtype=np.float)
+        return metric(detections, annotations, *args, **kwargs)
+
+    return float_array
+
+
+def _score_decorator(perfect_score, zero_score):
+    """
+    Decorate metric with evaluation results for perfect and zero score.
+
+    Parameters
+    ----------
+    perfect_score : float or tuple
+    zero_score : float or tuple
+
+    Returns
+    -------
+    metric
+        Decorated metric.
+
+    """
+
+    def wrap(metric):
+        """Metric to decorate"""
+
+        @wraps(metric)
+        def score(detections, annotations, *args, **kwargs):
+            """
+            Return perfect/zero score if neither/either detections and
+            annotations are given, repsectively.
+
+            """
+            # neither detections nor annotations are given, perfect score
+            if len(detections) == 0 and len(annotations) == 0:
+                return perfect_score
+            # either beat detections or annotations are empty, score 0
+            elif (len(detections) == 0) != (len(annotations) == 0):
+                return zero_score
+            # normal scoring
+            else:
+                return metric(detections, annotations, *args, **kwargs)
+
+        return score
+
+    return wrap
+
+
+score_10 = _score_decorator(1., 0.)
+score_1100 = _score_decorator((1., 1.), (0., 0.))
 
 
 @suppress_warnings
@@ -250,9 +315,6 @@ def find_closest_intervals(detections, annotations, matches=None):
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
     # init array
     closest_interval = np.ones_like(detections)
     # intervals
@@ -312,6 +374,7 @@ def find_longest_continuous_segment(sequence_indices):
     return length, start_pos
 
 
+@array
 def calc_relative_errors(detections, annotations, matches=None):
     """
     Errors of the detections relative to the closest annotated interval.
@@ -342,9 +405,6 @@ def calc_relative_errors(detections, annotations, matches=None):
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
     # determine the closest annotations
     if matches is None:
         matches = find_closest_matches(detections, annotations)
@@ -369,6 +429,8 @@ INFORMATION_GAIN_BINS = 40
 
 
 # evaluation functions for beat detection
+@array
+@score_10
 def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     """
     Calculate the P-score accuracy for the given detections and annotations.
@@ -405,25 +467,13 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
            Journal of New Music Research, vol. 36, no. 1, 2007.
 
     """
-    # neither detections nor annotations are given, perfect score
-    if len(detections) == 0 and len(annotations) == 0:
-        return 1.
-    # either beat detections or annotations are empty, score 0
-    if (len(detections) == 0) != (len(annotations) == 0):
-        return 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
         raise BeatIntervalError("At least 2 annotations are needed for"
                                 "P-Score.")
-
     # tolerance must be greater than 0
     if float(tolerance) <= 0:
         raise ValueError("`tolerance` must be greater than 0.")
-
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
-
     # the error window is the given fraction of the median beat interval
     window = tolerance * np.median(np.diff(annotations))
     # errors
@@ -436,6 +486,8 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     return p
 
 
+@array
+@score_10
 def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     """
     Calculate the Cemgil accuracy for the given detections and annotations.
@@ -461,21 +513,9 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
            Journal Of New Music Research, vol. 28, no. 4, 2001.
 
     """
-    # neither detections nor annotations are given, perfect score
-    if len(detections) == 0 and len(annotations) == 0:
-        return 1.
-    # either beat detections or annotations are empty, score 0
-    if (len(detections) == 0) != (len(annotations) == 0):
-        return 0.
-
     # sigma must be greater than 0
     if float(sigma) <= 0:
         raise ValueError("`sigma` must be greater than 0.")
-
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
-
     # determine the abs. errors of the detections to the closest annotations
     # Note: the original implementation searches for the closest matches of
     #       detections given the annotations. Since absolute errors > a usual
@@ -492,6 +532,8 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     return acc
 
 
+@array
+@score_10
 def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
          mu=GOTO_MU):
     """
@@ -535,25 +577,13 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
            Centre for Digital Music, Queen Mary University of London, 2009.
 
     """
-    # neither detections nor annotations are given, perfect score
-    if len(detections) == 0 and len(annotations) == 0:
-        return 1.
-    # either beat detections or annotations are empty, score 0
-    if (len(detections) == 0) != (len(annotations) == 0):
-        return 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
         raise BeatIntervalError("At least 2 annotations are needed for Goto's "
                                 "score.")
-
     # threshold, sigma and mu must be greater than 0
     if float(threshold) <= 0 or float(sigma) <= 0 or float(mu) <= 0:
         raise ValueError("Threshold, sigma and mu must be positive.")
-
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
-
     # get the indices of the closest detections to the annotations to determine
     # the longest continuous segment
     closest = find_closest_matches(annotations, detections)
@@ -590,6 +620,8 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
     return 1.
 
 
+@array
+@score_1100
 def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
         tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE):
     """
@@ -627,12 +659,6 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
            no. 1, 2006.
 
     """
-    # neither detections nor annotations are given
-    if len(detections) == 0 and len(annotations) == 0:
-        return 1., 1.
-    # either beat detections or annotations are empty, score 0
-    if (len(detections) == 0) != (len(annotations) == 0):
-        return 0., 0.
     # at least 2 annotations must be given to calculate an interval
     if len(annotations) < 2:
         raise BeatIntervalError("At least 2 annotations are needed for "
@@ -641,15 +667,9 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
     if len(detections) < 2:
         raise BeatIntervalError("At least 2 detections are needed for "
                                 "continuity scores, %s given." % detections)
-
     # tolerances must be greater than 0
     if float(tempo_tolerance) <= 0 or float(phase_tolerance) <= 0:
         raise ValueError("Tempo and phase tolerances must be greater than 0")
-
-    # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
-
     # determine closest annotations to detections
     closest = find_closest_matches(detections, annotations)
     # errors of the detections wrt. to the annotations
@@ -688,6 +708,7 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
     return cmlc, cmlt
 
 
+@array
 def continuity(detections, annotations,
                phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
@@ -735,7 +756,6 @@ def continuity(detections, annotations,
     # either a single beat detections or annotations given, score 0
     if len(detections) <= 1 or len(annotations) <= 1:
         return 0., 0., 0., 0.
-
     # evaluate the correct tempo
     cmlc, cmlt = cml(detections, annotations, tempo_tolerance, phase_tolerance)
     amlc = cmlc
@@ -745,7 +765,6 @@ def continuity(detections, annotations,
     # already, otherwise the cmlc score would be lower.
     if cmlc > 0.5:
         return cmlc, cmlt, amlc, amlt
-
     # create different variants of the annotations:
     # Note: double also includes half as does triple third, respectively
     sequences = variations(annotations, offbeat=offbeat, double=double,
@@ -762,7 +781,6 @@ def continuity(detections, annotations,
             c, t = np.nan, np.nan
         amlc = max(amlc, c)
         amlt = max(amlt, t)
-
     # return a tuple
     return cmlc, cmlt, amlc, amlt
 
@@ -893,6 +911,7 @@ def _information_gain(error_histogram):
     return np.log2(len(error_histogram)) - entropy
 
 
+@array
 def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     """
     Calculate information gain for the given detections and annotations.
@@ -936,20 +955,16 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
         #       annotations as in the Matlab implementation).
         max_length = max(len(detections), len(annotations))
         return 0., np.ones(num_bins) * max_length / float(num_bins)
-
     # at least 2 annotations must be given to calculate an interval
     if len(detections) < 2 or len(annotations) < 2:
         raise BeatIntervalError("At least 2 annotations and 2 detections are"
                                 "needed for Information gain.")
-
     # check if there are enough beat annotations for the number of bins
     if num_bins > len(annotations):
         warnings.warn("Not enough beat annotations (%d) for %d histogram bins."
                       % (len(annotations), num_bins))
-
     # create bins edges for the error histogram
     histogram_bins = _histogram_bins(num_bins)
-
     # evaluate detections against annotations
     fwd_histogram = _error_histogram(detections, annotations, histogram_bins)
     fwd_ig = _information_gain(fwd_histogram)
@@ -958,7 +973,6 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     # a lot of false positive detections
     bwd_histogram = _error_histogram(annotations, detections, histogram_bins)
     bwd_ig = _information_gain(bwd_histogram)
-
     # only use the lower information gain
     if fwd_ig < bwd_ig:
         return fwd_ig, fwd_histogram
