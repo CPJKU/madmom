@@ -281,9 +281,7 @@ def rescale(signal, dtype=np.float32):
     elif np.issubdtype(signal.dtype, np.int):
         return signal.astype(dtype) / np.iinfo(signal.dtype).max
     else:
-        # TODO: not sure if this can happen or not. Either add the
-        #       functionality if it is supposed to work or add a test
-        raise ValueError('unsupported signal dtypes: %s.' % signal.dtype)
+        raise ValueError('unsupported signal dtype: %s.' % signal.dtype)
 
 
 def trim(signal, where='fb'):
