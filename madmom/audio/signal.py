@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import errno
 import numpy as np
 
-from madmom.processors import Processor, BufferProcessor
+from ..processors import Processor, BufferProcessor
 
 
 # signal functions
@@ -444,9 +444,6 @@ class LoadAudioFileError(Exception):
         if value is None:
             value = 'Could not load audio file.'
         self.value = value
-
-    def __str__(self):
-        return repr(self.value)
 
 
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
@@ -955,13 +952,11 @@ class SignalProcessor(Processor):
         g = parser.add_argument_group('signal processing arguments')
         if sample_rate is not None:
             g.add_argument('--sample_rate', action='store', type=int,
-                           default=sample_rate,
-                           help='re-sample the signal to this sample rate '
-                                '[Hz]')
+                           default=sample_rate, help='re-sample the signal to '
+                                                     'this sample rate [Hz]')
         if mono is not None:
             g.add_argument('--mono', dest='num_channels', action='store_const',
-                           const=1,
-                           help='down-mix the signal to mono')
+                           const=1, help='down-mix the signal to mono')
         if start is not None:
             g.add_argument('--start', action='store', type=float,
                            help='start position of the signal [seconds]')
@@ -1484,9 +1479,9 @@ class FramedSignalProcessor(Processor):
                            default=frame_size,
                            help='frame size [samples, default=%(default)i]')
         elif isinstance(frame_size, list):
-            # Note: this option is used for e.g. stacking multiple spectrograms
+            # Note: this option can be used to stack multiple spectrograms
             #       with different frame sizes
-            from madmom.utils import OverrideDefaultListAction
+            from ..utils import OverrideDefaultListAction
             g.add_argument('--frame_size', type=int, default=frame_size,
                            action=OverrideDefaultListAction, sep=',',
                            help='(comma separated list of) frame size(s) to '
