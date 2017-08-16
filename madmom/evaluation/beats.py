@@ -980,6 +980,28 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
         return bwd_ig, bwd_histogram
 
 
+# human readable output
+def tostring(obj):
+    """
+    Format the evaluation metrics as a human readable string.
+
+    Returns
+    -------
+    str
+        Evaluation metrics formatted as a human readable string.
+
+    """
+    ret = ''
+    if obj.name is not None:
+        ret += '%s\n  ' % obj.name
+    ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f CMLc: ' \
+           '%.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f Dg: %.3f' % \
+           (obj.fmeasure, obj.pscore, obj.cemgil, obj.goto, obj.cmlc,
+            obj.cmlt, obj.amlc, obj.amlt, obj.information_gain,
+            obj.global_information_gain)
+    return ret
+
+
 # beat evaluation class
 class BeatEvaluation(OnsetEvaluation):
     # this class inherits from OnsetEvaluation the Precision, Recall, and
@@ -1096,25 +1118,7 @@ class BeatEvaluation(OnsetEvaluation):
         return self.information_gain
 
     def tostring(self, **kwargs):
-        """
-        Format the evaluation metrics as a human readable string.
-
-        Returns
-        -------
-        str
-            Evaluation metrics formatted as a human readable string.
-
-        """
-        ret = ''
-        if self.name is not None:
-            ret += '%s\n  ' % self.name
-        ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
-               'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
-               'Dg: %.3f' % \
-               (self.fmeasure, self.pscore, self.cemgil, self.goto, self.cmlc,
-                self.cmlt, self.amlc, self.amlt, self.information_gain,
-                self.global_information_gain)
-        return ret
+        return tostring(self)
 
 
 class BeatMeanEvaluation(MeanEvaluation):
@@ -1188,25 +1192,7 @@ class BeatMeanEvaluation(MeanEvaluation):
         return _information_gain(self.error_histogram)
 
     def tostring(self, **kwargs):
-        """
-        Format the evaluation metrics as a human readable string.
-
-        Returns
-        -------
-        str
-            Evaluation metrics formatted as a human readable string.
-
-        """
-        ret = ''
-        if self.name is not None:
-            ret += '%s\n  ' % self.name
-        ret += 'F-measure: %.3f P-score: %.3f Cemgil: %.3f Goto: %.3f '\
-               'CMLc: %.3f CMLt: %.3f AMLc: %.3f AMLt: %.3f D: %.3f '\
-               'Dg: %.3f' % \
-               (self.fmeasure, self.pscore, self.cemgil, self.goto, self.cmlc,
-                self.cmlt, self.amlc, self.amlt, self.information_gain,
-                self.global_information_gain)
-        return ret
+        return tostring(self)
 
 
 def add_parser(parser):
