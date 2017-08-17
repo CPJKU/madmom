@@ -406,3 +406,15 @@ class TestBatchNormLayerClass(unittest.TestCase):
         y = bnl.activate(x)
 
         self.assertTrue(np.allclose(y, y_true))
+
+
+class TestMaxPoolLayerClass(unittest.TestCase):
+
+    def test_max_pooling(self):
+        layer = MaxPoolLayer((3, 3))
+        y = layer(np.arange(20).reshape((5, 4, 1)))
+        self.assertTrue(np.allclose(y, [[[10]]]))
+        y = layer(np.arange(60).reshape((5, 4, 3)))
+        self.assertTrue(np.allclose(y, [[[30, 31, 32]]]))
+        y = layer(np.arange(80).reshape((5, 4, 4)))
+        self.assertTrue(np.allclose(y, [[[40, 41, 42, 43]]]))
