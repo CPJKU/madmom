@@ -274,17 +274,15 @@ class TestACFTempoHistogramProcessorClass(unittest.TestCase):
     def test_tempo_online(self):
         tempo_processor = TempoEstimationProcessor(
             histogram_processor=self.online_processor, fps=fps, online=True)
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
-        self.assertTrue(np.allclose(tempi[-1], ACF_TEMPI_ONLINE))
-        # with resetting results are the same
+        # process all activations at once
+        tempi = tempo_processor(act, reset=False)
+        self.assertTrue(np.allclose(tempi, ACF_TEMPI_ONLINE))
+        # process frame by frame; with resetting results are the same
         tempo_processor.reset()
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
         self.assertTrue(np.allclose(tempi[-1], ACF_TEMPI_ONLINE))
         # without resetting results are different
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
         self.assertTrue(np.allclose(tempi[-1][:3], [[176.4705882, 0.2414368],
                                                     [86.95652174, 0.2248635],
                                                     [58.25242718, 0.1878183]]))
@@ -301,8 +299,15 @@ class TestACFTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(np.median(hist), 0.147368463433))
 
     def test_process_online(self):
-        with self.assertRaises(NotImplementedError):
-            self.online_processor(act)
+        # offline results
+        hist_offline, delays_offline = self.processor(act)
+        # calling with all activations at once
+        hist, delays = self.online_processor(act)
+        # result must be the same as for offline processing
+        self.assertTrue(np.allclose(hist, hist_offline))
+        self.assertTrue(np.allclose(delays, delays_offline))
+        # calling frame by frame after resetting
+        self.online_processor.reset()
         result = [self.online_processor(np.atleast_1d(a), reset=False)
                   for a in act]
         # the final result must be the same as for offline processing
@@ -319,6 +324,10 @@ class TestACFTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(np.sum(hist), 3.58546628975))
         self.assertTrue(np.allclose(np.mean(hist), 0.0282320180295))
         self.assertTrue(np.allclose(np.median(hist), 0.00471735456373))
+        # the final result must be the same as for offline processing
+        hist, delays = result[-1]
+        self.assertTrue(np.allclose(hist, hist_offline))
+        self.assertTrue(np.allclose(delays, delays_offline))
 
 
 class TestDBNTempoHistogramProcessorClass(unittest.TestCase):
