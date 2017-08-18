@@ -98,6 +98,7 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
 
     def setUp(self):
         self.processor = TempoEstimationProcessor(fps=fps)
+        self.online_processor = TempoEstimationProcessor(fps=fps, online=True)
 
     def test_types(self):
         self.assertIsInstance(self.processor.method, str)
@@ -126,17 +127,16 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(tempi, COMB_TEMPI, atol=0.01))
 
     def test_process_online(self):
-        processor = TempoEstimationProcessor(fps=fps, online=True)
-        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
-        self.assertTrue(np.allclose(tempi[-1], COMB_TEMPI_ONLINE))
-        # with resetting results are the same
-        processor.reset()
-        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
+        # process all activations at once
+        tempi = self.online_processor(act, reset=False)
+        self.assertTrue(np.allclose(tempi, COMB_TEMPI_ONLINE))
+        # process frame by frame; with resetting results are the same
+        self.online_processor.reset()
+        tempi = [self.online_processor(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1], COMB_TEMPI_ONLINE))
         # without resetting results are different
-        tempi = [processor.process_online(np.atleast_1d(a), reset=False)
+        tempi = [self.online_processor(np.atleast_1d(a), reset=False)
                  for a in act]
         self.assertTrue(np.allclose(tempi[-1][:3], [[176.470588, 0.31322337],
                                                     [85.7142857, 0.11437361],
@@ -176,17 +176,15 @@ class TestCombFilterTempoHistogramProcessorClass(unittest.TestCase):
     def test_tempo_online(self):
         tempo_processor = TempoEstimationProcessor(
             histogram_processor=self.online_processor, fps=fps, online=True)
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
-        self.assertTrue(np.allclose(tempi[-1], COMB_TEMPI_ONLINE))
-        # with resetting results are the same
+        # process all activations at once
+        tempi = tempo_processor(act, reset=False)
+        self.assertTrue(np.allclose(tempi, COMB_TEMPI_ONLINE))
+        # process frame by frame; with resetting results are the same
         tempo_processor.reset()
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
         self.assertTrue(np.allclose(tempi[-1], COMB_TEMPI_ONLINE))
         # without resetting results are different
-        tempi = [tempo_processor.process_online(np.atleast_1d(a), reset=False)
-                 for a in act]
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
         self.assertTrue(np.allclose(tempi[-1][:3], [[176.470588, 0.31322337],
                                                     [85.7142857, 0.11437361],
                                                     [115.384615, 0.10919612]]))
@@ -203,8 +201,15 @@ class TestCombFilterTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(np.median(hist), 1.48112542203))
 
     def test_process_online(self):
-        with self.assertRaises(NotImplementedError):
-            self.online_processor(act)
+        # offline results
+        hist_offline, delays_offline = self.processor(act)
+        # calling with all activations at once
+        hist, delays = self.online_processor(act)
+        # result must be the same as for offline processing
+        self.assertTrue(np.allclose(hist, hist_offline))
+        self.assertTrue(np.allclose(delays, delays_offline))
+        # calling frame by frame after resetting
+        self.online_processor.reset()
         result = [self.online_processor(np.atleast_1d(a), reset=False)
                   for a in act]
         # the final result must be the same as for offline processing
@@ -214,15 +219,28 @@ class TestCombFilterTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(delays, delays_))
         # result after 100 frames
         hist, delays = result[99]
-        print(hist.max(), hist.min(), hist.argmax(), hist.argmin())
         self.assertTrue(np.allclose(hist.max(), 2.03108930086))
         self.assertTrue(np.allclose(hist.min(), 1.23250838113))
         self.assertTrue(np.allclose(hist.argmax(), 12))
         self.assertTrue(np.allclose(hist.argmin(), 44))
-        print(np.sum(hist), np.mean(hist), np.median(hist))
         self.assertTrue(np.allclose(np.sum(hist), 175.034206851))
         self.assertTrue(np.allclose(np.mean(hist), 1.37822210119))
         self.assertTrue(np.allclose(np.median(hist), 1.23250838113))
+        # the final result must be the same as for offline processing
+        hist, delays = result[-1]
+        self.assertTrue(np.allclose(hist, hist_offline))
+        self.assertTrue(np.allclose(delays, delays_offline))
+        # results must be different without resetting
+        result = [self.online_processor(np.atleast_1d(a), reset=False)
+                  for a in act]
+        hist, delays = result[-1]
+        self.assertTrue(np.allclose(hist.max(), 18.1385269354))
+        self.assertTrue(np.allclose(hist.min(), 1.23250838113))
+        self.assertTrue(np.allclose(hist.argmax(), 11))
+        self.assertTrue(np.allclose(hist.argmin(), 72))
+        self.assertTrue(np.allclose(np.sum(hist), 332.668525522))
+        self.assertTrue(np.allclose(np.mean(hist), 2.61943720884))
+        self.assertTrue(np.allclose(np.median(hist), 1.96220625848))
 
 
 class TestACFTempoHistogramProcessorClass(unittest.TestCase):
@@ -294,16 +312,13 @@ class TestACFTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(delays, delays_))
         # result after 100 frames
         hist, delays = result[99]
-        print(hist.max(), hist.min(), hist.argmax(), hist.argmin())
         self.assertTrue(np.allclose(hist.max(), 0.19544739526))
         self.assertTrue(np.allclose(hist.min(), 0))
         self.assertTrue(np.allclose(hist.argmax(), 46))
         self.assertTrue(np.allclose(hist.argmin(), 76))
-        print(np.sum(hist), np.mean(hist), np.median(hist))
         self.assertTrue(np.allclose(np.sum(hist), 3.58546628975))
         self.assertTrue(np.allclose(np.mean(hist), 0.0282320180295))
         self.assertTrue(np.allclose(np.median(hist), 0.00471735456373))
-
 
 
 class TestDBNTempoHistogramProcessorClass(unittest.TestCase):
