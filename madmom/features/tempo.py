@@ -374,21 +374,21 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         # reset to initial state
         if reset:
             self.reset()
-        if activations.size != 1:
-            raise NotImplementedError('can only be called frame by frame')
         # indices at which to retrieve y[n - τ]
         idx = [-self.intervals, np.arange(len(self.intervals))]
-        # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
-        y_n = activations + self.alpha * self._comb_buffer[idx]
-        # shift output buffer with new value
-        self._comb_buffer(y_n)
-        # determine the tau with the highest value
-        act_max = y_n == np.max(y_n, axis=-1)[..., np.newaxis]
-        # compute the max bins
-        bins = y_n * act_max
-        # use a buffer to only keep a certain number of bins
-        # shift buffer and put new bins at end of buffer
-        bins = self._hist_buffer(bins)
+        # iterate over all activations
+        for act in activations:
+            # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
+            y_n = act + self.alpha * self._comb_buffer[idx]
+            # shift output buffer with new value
+            self._comb_buffer(y_n)
+            # determine the tau with the highest value
+            act_max = y_n == np.max(y_n, axis=-1)[..., np.newaxis]
+            # compute the max bins
+            bins = y_n * act_max
+            # use a buffer to only keep a certain number of bins
+            # shift buffer and put new bins at end of buffer
+            bins = self._hist_buffer(bins)
         # build a histogram together with the intervals and return it
         return np.sum(bins, axis=0), self.intervals
 
@@ -735,33 +735,28 @@ class TempoEstimationProcessor(OnlineProcessor):
             relative strengths (second column).
 
         """
-        # multiple activations will result in multiple tempi
-        tempi = []
-        # iterate over all activations
-        for activation in activations:
-            # build the tempo histogram depending on the chosen method
-            histogram = self.interval_histogram(activation, reset=reset)
-            # smooth the histogram
-            histogram = smooth_histogram(histogram, self.hist_smooth)
-            # detect the tempo and append it to the found tempi
-            tempo = detect_tempo(histogram, self.fps)
-            tempi.append(tempo)
-            # visualize tempo
-            if self.visualize:
-                display = ''
-                # display the 3 most likely tempi and their strengths
-                for i, display_tempo in enumerate(tempo[:3], start=1):
-                    # display tempo
-                    display += '| ' + str(round(display_tempo[0], 1)) + ' '
-                    # display strength
-                    display += min(int(display_tempo[1] * 50), 18) * '*'
-                    # fill up the rest with spaces
-                    display = display.ljust(i * 26)
-                # print the tempi
-                sys.stderr.write('\r%s' % ''.join(display) + '|')
-                sys.stderr.flush()
-        # return last detected tempo
-        return tempi[-1]
+        # build the tempo histogram depending on the chosen method
+        histogram = self.interval_histogram(activations, reset=reset)
+        # smooth the histogram
+        histogram = smooth_histogram(histogram, self.hist_smooth)
+        # detect the tempo and append it to the found tempi
+        tempo = detect_tempo(histogram, self.fps)
+        # visualize tempo
+        if self.visualize:
+            display = ''
+            # display the 3 most likely tempi and their strengths
+            for i, display_tempo in enumerate(tempo[:3], start=1):
+                # display tempo
+                display += '| ' + str(round(display_tempo[0], 1)) + ' '
+                # display strength
+                display += min(int(display_tempo[1] * 50), 18) * '*'
+                # fill up the rest with spaces
+                display = display.ljust(i * 26)
+            # print the tempi
+            sys.stderr.write('\r%s' % ''.join(display) + '|')
+            sys.stderr.flush()
+        # return tempo
+        return tempo
 
     def interval_histogram(self, activations, **kwargs):
         """
