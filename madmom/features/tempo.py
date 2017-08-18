@@ -419,13 +419,14 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         super(ACFTempoHistogramProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
         if self.online:
-            self.bins = np.zeros(len(self.intervals))
-            self.buffer = BufferProcessor(int(hist_buffer * self.fps))
+            self._act_buffer = BufferProcessor((self.max_interval + 1, 1))
+            self._hist_buffer = BufferProcessor((int(hist_buffer * self.fps),
+                                                 len(self.intervals)))
 
     def reset(self):
         """Reset to initial state."""
-        self.bins = np.zeros(len(self.intervals))
-        self.buffer.reset()
+        self._act_buffer.reset()
+        self._hist_buffer.reset()
 
     def process_offline(self, activations, **kwargs):
         """
@@ -472,21 +473,18 @@ class ACFTempoHistogramProcessor(TempoHistogramProcessor):
         # reset to initial state
         if reset:
             self.reset()
-        if activations.size != 1:
-            raise NotImplementedError('can only be called frame by frame')
-        # select relevant activations from buffer for subtraction
-        buf = self.buffer[self.min_interval:self.max_interval + 1]
-        # subtract oldest acf values before activations are removed from buffer
-        # as long as the buffer is not filled this will subtract 0
-        self.bins -= buf * self.buffer[0]
-        # shift buffer and put new activation at end of buffer
-        buf = self.buffer(activations)
-        # select relevant activations from buffer for addition
-        buf = buf[-self.max_interval - 1:-self.min_interval]
-        # add new acf values to bins
-        self.bins += np.flipud(buf * activations)
-        # return histogram
-        return np.array(self.bins), self.intervals
+        # iterate over all activations
+        # TODO: speed this up!
+        for act in activations:
+            # online ACF (y[n] = x[n] * x[n - τ])
+            bins = act * self._act_buffer[-self.intervals].T
+            # shift activation buffer with new value
+            self._act_buffer(act)
+            # use a buffer to only keep a certain number of bins
+            # shift buffer and put new bins at end of buffer
+            bins = self._hist_buffer(bins)
+        # build a histogram together with the intervals and return it
+        return np.sum(bins, axis=0), self.intervals
 
 
 class DBNTempoHistogramProcessor(TempoHistogramProcessor):
