@@ -497,6 +497,8 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
+    hist_buffer : float
+        Aggregate the tempo histogram over `hist_buffer` seconds.
     fps : float, optional
         Frames per second.
     online : bool, optional
@@ -504,8 +506,8 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
 
     """
 
-    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, fps=None,
-                 online=False, **kwargs):
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
+                 hist_buffer=HIST_BUFFER, fps=None, online=False, **kwargs):
         # pylint: disable=unused-argument
         super(DBNTempoHistogramProcessor, self).__init__(
             min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, online=online, **kwargs)
@@ -513,10 +515,14 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
         self.dbn = DBNBeatTrackingProcessor(
             min_bpm=self.min_bpm, max_bpm=self.max_bpm, fps=self.fps,
             online=online, **kwargs)
+        if self.online:
+            self._hist_buffer = BufferProcessor((int(hist_buffer * self.fps),
+                                                 len(self.intervals)))
 
     def reset(self):
         """Reset DBN to initial state."""
         self.dbn.hmm.reset()
+        self._hist_buffer.reset()
 
     def process_offline(self, activations, **kwargs):
         """
@@ -574,13 +580,13 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
         # choose the best state for each step
         states = np.argmax(fwd, axis=1)
         intervals = self.dbn.st.state_intervals[states]
-        # get the counts of the bins
-        bins = np.bincount(intervals,
-                           minlength=self.dbn.st.intervals.max() + 1)
-        # truncate everything below the minimum interval of the state space
-        bins = bins[self.dbn.st.intervals.min():]
+        # convert intervals to bins
+        bins = np.zeros((len(activations), len(self.intervals)))
+        bins[np.arange(len(activations)), intervals - self.min_interval] = 1
+        # shift buffer and put new bins at end of buffer
+        bins = self._hist_buffer(bins)
         # build a histogram together with the intervals and return it
-        return bins, self.dbn.st.intervals
+        return np.sum(bins, axis=0), self.intervals
 
 
 class TempoEstimationProcessor(OnlineProcessor):

@@ -32,6 +32,9 @@ ACF_TEMPI_ONLINE = [[176.470588, 0.253116038], [88.2352941, 0.231203195],
                     [115.384615, 0.0749783568], [69.7674419, 0.0599632291],
                     [50.4201681, 0.0535384559]]
 DBN_TEMPI = np.array([[176.470, 1]])
+DBN_TEMPI_ONLINE = [[176.470588, 0.580877380], [86.9565217, 0.244729904],
+                    [74.0740741, 0.127887992], [40.8163265, 0.0232523621],
+                    [250.000000, 0.0232523621]]
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
 
@@ -361,13 +364,20 @@ class TestDBNTempoHistogramProcessorClass(unittest.TestCase):
     def test_tempo_online(self):
         tempo_processor = TempoEstimationProcessor(
             histogram_processor=self.online_processor, fps=fps, online=True)
-        # TODO: fix requirement for atleast_2d
-        tempi = [tempo_processor(np.atleast_2d(a), reset=False) for a in act]
-        self.assertTrue(np.allclose(tempi[-1], DBN_TEMPI))
-        # with resetting results are the same
+        # process all activations at once
+        tempi = tempo_processor(act, reset=False)
+        self.assertTrue(np.allclose(tempi, DBN_TEMPI_ONLINE))
+        # process frame by frame; with resetting results are the same
         tempo_processor.reset()
-        tempi = [tempo_processor(np.atleast_2d(a), reset=False) for a in act]
-        self.assertTrue(np.allclose(tempi[-1], DBN_TEMPI))
+        tempo_processor.reset()
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
+        self.assertTrue(np.allclose(tempi[-1], DBN_TEMPI_ONLINE))
+        # without resetting results are different
+        tempi = [tempo_processor(np.atleast_1d(a), reset=False) for a in act]
+        self.assertTrue(np.allclose(tempi[-1][:3],
+                                    [[176.4705882, 0.472499032],
+                                     [84.5070423, 0.432130320],
+                                     [74.0740741, 0.0699384753]]))
 
     def test_process(self):
         hist, delays = self.processor(act)
