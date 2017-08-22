@@ -15,6 +15,7 @@ Bug fixes:
 * Fix ffmpeg unicode filename handling (#305)
 * Fix STFT zero padding (#319)
 * Fix memory leak when accessing signal frames (#322)
+* Quantization of events does not alter them (#327)
 
 API relevant changes:
 

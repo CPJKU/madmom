@@ -380,14 +380,14 @@ def quantize_events(events, fps, length=None, shift=None):
 
     Parameters
     ----------
-    events : numpy array
+    events : list or numpy array
         Events to be quantized.
     fps : float
         Quantize with `fps` frames per second.
     length : int, optional
         Length of the returned array.
     shift : float, optional
-        Shift the events by this value before quantisation
+        Shift the events by this value before quantization.
 
     Returns
     -------
@@ -395,8 +395,8 @@ def quantize_events(events, fps, length=None, shift=None):
         Quantized events.
 
     """
-    # convert to numpy array if needed
-    events = np.asarray(events, dtype=np.float)
+    # convert to numpy array or create a copy if needed
+    events = np.array(events, dtype=np.float)
     # shift all events if needed
     if shift:
         events += shift

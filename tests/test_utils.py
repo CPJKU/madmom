@@ -344,12 +344,15 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         self.assertTrue(np.allclose(idx, [10, 15, 20, 25, 30]))
-        # 100 FPS
-        quantized = quantize_events(EVENTS, 100, length=None)
+        # 100 FPS with numpy arrays (array must not be changed)
+        events = np.array(EVENTS)
+        events_ = np.copy(events)
+        quantized = quantize_events(events, 100, length=None)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
         self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(events, events_))
 
     def test_length(self):
         # length = 280
