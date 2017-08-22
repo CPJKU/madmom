@@ -347,8 +347,11 @@ def combine_events(events, delta, combine='mean'):
     # return immediately if possible
     if len(events) <= 1:
         return events
-    # create working copy
-    events = np.array(events, copy=True)
+    # convert to numpy array or create a copy if needed
+    events = np.array(events, dtype=np.float)
+    # can handle only 1D events
+    if events.ndim > 1:
+        raise ValueError('only 1-dimensional events supported.')
     # set start position
     idx = 0
     # get first event
@@ -397,6 +400,9 @@ def quantize_events(events, fps, length=None, shift=None):
     """
     # convert to numpy array or create a copy if needed
     events = np.array(events, dtype=np.float)
+    # can handle only 1D events
+    if events.ndim != 1:
+        raise ValueError('only 1-dimensional events supported.')
     # shift all events if needed
     if shift:
         events += shift

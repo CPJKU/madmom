@@ -335,6 +335,10 @@ class TestCombineEventsFunction(unittest.TestCase):
         correct = np.asarray([1.02, 1.5, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
 
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            combine_events(np.arange(6).reshape((2, 3)), 0.5)
+
 
 class TestQuantizeEventsFunction(unittest.TestCase):
 
@@ -385,6 +389,14 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         correct = [20, 25, 30]
         self.assertTrue(np.allclose(idx, correct))
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            quantize_events(1, fps=100)
+        with self.assertRaises(ValueError):
+            quantize_events([[0], [1], [2]], fps=100)
+        with self.assertRaises(ValueError):
+            quantize_events(np.arange(9).reshape((3, 3, 3)), fps=100)
 
 
 class TestSegmentAxisFunction(unittest.TestCase):
