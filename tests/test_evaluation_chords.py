@@ -1,5 +1,6 @@
 import unittest
 from madmom.evaluation.chords import *
+from madmom.io import load_chords
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from os.path import join
 
@@ -154,7 +155,7 @@ class TestChordParsing(unittest.TestCase):
 
     def test_encode_func(self):
         crds = encode(
-            load_segments(join(ANNOTATIONS_PATH, 'dummy.chords')))
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
         self.assertTrue((crds == DUMMY_ANNOTATIONS).all())
 
 
@@ -162,9 +163,9 @@ class TestChordEvaluation(unittest.TestCase):
 
     def setUp(self):
         self.ann = encode(
-            load_segments(join(ANNOTATIONS_PATH, 'dummy.chords')))
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
         self.unadjusted_det = encode(
-            load_segments(join(DETECTIONS_PATH, 'dummy.chords.txt')))
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')))
         self.det = adjust(self.unadjusted_det, self.ann)
         self.ev_ann, self.ev_det, self.ev_dur = evaluation_pairs(self.det,
                                                                  self.ann)
@@ -292,9 +293,9 @@ class TestChordEvaluationClass(unittest.TestCase):
         self.assertTrue(eval.name == 'TestEval')
 
         ann = encode(
-            load_segments(join(ANNOTATIONS_PATH, 'dummy.chords')))
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
         det = encode(
-            load_segments(join(DETECTIONS_PATH, 'dummy.chords.txt')))
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')))
         det = adjust(det, ann)
         self.assertTrue((eval.ann_chords == ann).all())
         self.assertTrue((eval.det_chords == det).all())

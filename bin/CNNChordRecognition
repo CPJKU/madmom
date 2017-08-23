@@ -11,7 +11,7 @@ import argparse
 
 from madmom.features import (ActivationsProcessor, CNNChordFeatureProcessor,
                              CRFChordRecognitionProcessor, )
-from madmom.io import write_segments
+from madmom.io import write_chords
 from madmom.processors import IOProcessor, io_arguments
 
 
@@ -79,7 +79,7 @@ def main():
     else:
         # load conditional random field
         chord_processor = CRFChordRecognitionProcessor(**vars(args))
-        out_processor = [chord_processor, write_segments]
+        out_processor = [chord_processor, write_chords]
 
     processor = IOProcessor(in_processor, out_processor)
     args.func(processor, **vars(args))

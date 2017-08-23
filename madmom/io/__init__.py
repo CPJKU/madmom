@@ -14,10 +14,9 @@ from .audio import load_audio_file
 from ..utils import suppress_warnings
 
 if sys.version_info[0] < 3:
-    from io import TextIOBase as _file_handle
-else:
     _file_handle = file
-
+else:
+    from io import TextIOBase as _file_handle
 
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
@@ -406,6 +405,10 @@ def write_segments(segments, filename):
     """
     np.savetxt(filename, segments, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
     return segments
+
+
+load_chords = load_segments
+write_chords = write_segments
 
 
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,

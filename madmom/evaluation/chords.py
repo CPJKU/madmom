@@ -32,7 +32,7 @@ References
 import numpy as np
 
 from . import evaluation_io, EvaluationMixin
-from ..io import load_segments
+from ..io import load_chords
 
 
 CHORD_DTYPE = [('root', np.int),
@@ -54,7 +54,7 @@ def encode(chord_labels):
     Parameters
     ----------
     chord_labels : numpy structured array
-        Chord segments in `madmom.io.CHORD_LABEL_DTYPE` format
+        Chord segments in `madmom.io.SEGMENT_DTYPE` format
 
     Returns
     -------
@@ -101,7 +101,7 @@ def chords(labels):
 def chord(label):
     """
     Transform a chord label into the internal numeric represenation of
-    (root, bass, intervals array).
+    (root, bass, intervals array) as defined by CHORD_ANN_DTYPE.
 
     Parameters
     ----------
@@ -714,8 +714,8 @@ class ChordEvaluation(EvaluationMixin):
 
     def __init__(self, detections, annotations, name=None, **kwargs):
         self.name = name or ''
-        self.ann_chords = encode(load_segments(annotations))
-        self.det_chords = adjust(encode(load_segments(detections)),
+        self.ann_chords = encode(load_chords(annotations))
+        self.det_chords = adjust(encode(load_chords(detections)),
                                  self.ann_chords)
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)

@@ -117,8 +117,8 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
     >>> chroma = dcp('tests/data/audio/sample2.wav')
     >>> decode(chroma)
     ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS +IGNORE_UNICODE
-    array([(0. , 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
-          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+    array([(0. , 1.6, 'F:maj'), (1.6, 2.5, 'A:maj'), (2.5, 4.1, 'D:maj')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
 
     or create a `SequentialProcessor` that connects them:
 
@@ -126,8 +126,8 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
     >>> chordrec = SequentialProcessor([dcp, decode])
     >>> chordrec('tests/data/audio/sample2.wav')
     ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS +IGNORE_UNICODE
-    array([(0. , 1.6, u'F:maj'), (1.6, 2.5, u'A:maj'), (2.5, 4.1, u'D:maj')],
-          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+    array([(0. , 1.6, 'F:maj'), (1.6, 2.5, 'A:maj'), (2.5, 4.1, 'D:maj')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
     """
 
     def __init__(self, model=None, fps=10, **kwargs):
@@ -257,9 +257,9 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
     >>> decode(feats)
     ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
     ... # doctest: +NORMALIZE_ARRAYS
-    array([(0. , 0.2, u'N'), (0.2, 1.6, u'F:maj'),
-           (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
-          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+    array([(0. , 0.2, 'N'), (0.2, 1.6, 'F:maj'),
+           (1.6, 2.4..., 'A:maj'), (2.4..., 4.1, 'D:min')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
 
     or create a `madmom.processors.SequentialProcessor` that connects them:
 
@@ -268,9 +268,9 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
     >>> chordrec('tests/data/audio/sample2.wav')
     ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
     ... # doctest: +NORMALIZE_ARRAYS
-    array([(0. , 0.2, u'N'), (0.2, 1.6, u'F:maj'),
-           (1.6, 2.4..., u'A:maj'), (2.4..., 4.1, u'D:min')],
-          dtype=[('start', '<f8'), ('end', '<f8'), ('label', '<U32')])
+    array([(0. , 0.2, 'N'), (0.2, 1.6, 'F:maj'),
+           (1.6, 2.4..., 'A:maj'), (2.4..., 4.1, 'D:min')],
+          dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
     """
     def __init__(self, model=None, fps=10, **kwargs):
         from ..ml.crf import ConditionalRandomField
