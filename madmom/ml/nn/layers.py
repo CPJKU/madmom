@@ -709,7 +709,7 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     Parameters
     ----------
-    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
+    weights : numpy array, shape (num_channels, num_feature_maps, <kernel>)
         Weights.
     bias : scalar or numpy array, shape (num_filters,)
         Bias.
