@@ -1450,7 +1450,7 @@ class FramedSignalProcessor(Processor):
         # always use the last `frame_size` samples if we operate on a live
         # audio stream, otherwise we get the wrong portion of the signal
         if self.origin == 'stream':
-            data = data[-self.frame_size:]
+            data = data[-self.frame_size:, ]
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, **args)
 
