@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import errno
 import numpy as np
+import objgraph
 
 from madmom.processors import Processor, BufferProcessor
 
@@ -1418,6 +1419,7 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
+        self.num_slices = 0
 
     def process(self, data, **kwargs):
         """
@@ -1436,6 +1438,10 @@ class FramedSignalProcessor(Processor):
             FramedSignal instance
 
         """
+        num_slices = len(objgraph.by_type('slice'))
+        print('DEBUG: leaking %d references (%d total)' %
+              (num_slices - self.num_slices, num_slices))
+        self.num_slices = num_slices
         # update arguments passed to FramedSignal
         args = dict(frame_size=self.frame_size, hop_size=self.hop_size,
                     fps=self.fps, origin=self.origin, end=self.end,
