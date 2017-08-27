@@ -27,7 +27,7 @@ sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_drum_gru = Activations(pj(ACTIVATIONS_PATH, 'sample.drums_crnn.npz'))
 
 
-class TestSpectralOnsetProcessorClass(unittest.TestCase):
+class TestDrumProcessorClass(unittest.TestCase):
     def setUp(self):
         self.processor = CRNNDrumProcessor()
 

@@ -52,8 +52,8 @@ class CRNNDrumProcessor(SequentialProcessor):
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..ml.nn import NeuralNetwork
-        # TODO: parse models, add to folder, relative import
-        from ..workspace.LSTM import DRUM_CRNN
+        # TODO: add models to models folder
+        from ..models import DRUMS_CRNN
 
         # choose the appropriate models
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
@@ -73,7 +73,7 @@ class CRNNDrumProcessor(SequentialProcessor):
         pre_processor = SequentialProcessor(
             (sig, frames, stft, spec, diff, pad))
 
-        nn = NeuralNetwork.load(DRUM_CRNN[0])
+        nn = NeuralNetwork.load(DRUMS_CRNN[0])
 
         # instantiate a SequentialProcessor
         super(CRNNDrumProcessor, self).__init__((pre_processor, nn))
