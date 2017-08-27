@@ -24,7 +24,7 @@ from madmom.features.drums import *
 from madmom.features.drums import _crnn_drum_processor_pad
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
-sample_drum_gru = Activations(pj(ACTIVATIONS_PATH, 'sample.drums_rnn_gru.npz'))
+sample_drum_gru = Activations(pj(ACTIVATIONS_PATH, 'sample.drums_crnn.npz'))
 
 
 class TestSpectralOnsetProcessorClass(unittest.TestCase):

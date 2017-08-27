@@ -53,7 +53,7 @@ class CRNNDrumProcessor(SequentialProcessor):
         from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..ml.nn import NeuralNetwork
         # TODO: parse models, add to folder, relative import
-        from madmom.workspace.LSTM import DRUM_CRNN
+        from ..workspace.LSTM import DRUM_CRNN
 
         # choose the appropriate models
         sig = SignalProcessor(num_channels=1, sample_rate=44100)
