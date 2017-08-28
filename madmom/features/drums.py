@@ -81,7 +81,7 @@ class CRNNDrumProcessor(SequentialProcessor):
 
 class DrumPeakPickingProcessor(NotePeakPickingProcessor):
     """
-    This class implements the note peak-picking functionality.
+    This class implements the drum peak-picking functionality.
 
     Parameters
     ----------
@@ -108,8 +108,8 @@ class DrumPeakPickingProcessor(NotePeakPickingProcessor):
 
     Returns
     -------
-    notes : numpy array
-        Detected notes [seconds, pitch].
+    drums : numpy array
+        Detected drums [seconds, pitch].
 
     Notes
     -----
@@ -122,25 +122,35 @@ class DrumPeakPickingProcessor(NotePeakPickingProcessor):
 
     Examples
     --------
-    Create a NotePeakPickingProcessor. The returned array represents the note
+    Create a DrumPeakPickingProcessor. The returned array represents the note
     positions in seconds, thus the expected sampling rate has to be given.
 
     >>> proc = DrumPeakPickingProcessor(fps=100)
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.drums.DrumPeakPickingProcessor object at 0x...>
 
-    Call this NotePeakPickingProcessor with the note activations from an
-    RNNPianoNoteProcessor.
+    Call this DrumPeakPickingProcessor with the note activations from an
+    DrumPeakPickingProcessor.
 
-    >>> act = RNNPianoNoteProcessor()('tests/data/audio/stereo_sample.wav')
+    >>> act = CRNNDrumProcessor()('tests/data/audio/stereo_sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    array([[  0.14,  51.  ],
-           [  1.56,  20.  ],
-           [  3.37,  54.  ]])
+    array([[0.13, 0.],
+          [0.13, 2.],
+          [0.48, 2.],
+          [0.65, 0.],
+          [0.8, 0.],
+          [1.16, 0.],
+          [1.16, 2.],
+          [1.52, 0.],
+          [1.66, 1.],
+          [1.84, 0.],
+          [1.84, 2.],
+          [2.18, 1.],
+          [2.7, 0.]])
 
     """
 
-    # TODO: Change docstring
+    # TODO: Correct docstring
     FPS = 100
     THRESHOLD = 0.15  # binary threshold
     SMOOTH = 0.
@@ -151,4 +161,5 @@ class DrumPeakPickingProcessor(NotePeakPickingProcessor):
     COMBINE = 0.02
     DELAY = 0.
     ONLINE = False
+    # pitch offset to be applied to the reported notes
     pitch_offset = 0
