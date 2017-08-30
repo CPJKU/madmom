@@ -93,11 +93,9 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         self.assertIsInstance(self.processor.max_bpm, float)
         self.assertIsInstance(self.processor.act_smooth, float)
         self.assertIsInstance(self.processor.hist_smooth, int)
-        self.assertIsInstance(self.processor.alpha, float)
         self.assertIsInstance(self.processor.fps, float)
-        # properties
-        self.assertIsInstance(self.processor.min_interval, int)
-        self.assertIsInstance(self.processor.max_interval, int)
+        self.assertIsInstance(self.processor.histogram_processor,
+                              TempoHistogramProcessor)
 
     def test_values(self):
         self.assertTrue(self.processor.method == 'comb')
@@ -105,10 +103,11 @@ class TestTempoEstimationProcessorClass(unittest.TestCase):
         self.assertTrue(self.processor.max_bpm == 250)
         self.assertTrue(self.processor.act_smooth == 0.14)
         self.assertTrue(self.processor.hist_smooth == 9)
-        self.assertTrue(self.processor.alpha == 0.79)
         self.assertTrue(self.processor.fps == 100)
-        self.assertTrue(self.processor.min_interval == 24)
-        self.assertTrue(self.processor.max_interval == 150)
+        # test default values of the histogram processor
+        self.assertTrue(self.processor.histogram_processor.alpha == 0.79)
+        self.assertTrue(self.processor.histogram_processor.min_interval == 24)
+        self.assertTrue(self.processor.histogram_processor.max_interval == 150)
 
     def test_process(self):
         tempi = self.processor(act)

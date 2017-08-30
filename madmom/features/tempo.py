@@ -14,6 +14,12 @@ import numpy as np
 from madmom.processors import Processor
 from madmom.audio.signal import smooth as smooth_signal
 
+METHOD = 'comb'
+ALPHA = 0.79
+MIN_BPM = 40.
+MAX_BPM = 250.
+ACT_SMOOTH = 0.14
+HIST_SMOOTH = 9
 NO_TEMPO = np.nan
 
 
@@ -234,7 +240,198 @@ def detect_tempo(histogram, fps):
     return np.atleast_2d(ret)
 
 
-# tempo estimation processor class
+# tempo histogram processor classes
+class TempoHistogramProcessor(Processor):
+    """
+    Tempo Histogram Processor class.
+
+    Parameters
+    ----------
+    min_bpm : float
+        Minimum tempo to detect [bpm].
+    max_bpm : float
+        Maximum tempo to detect [bpm].
+    fps : float, optional
+        Frames per second.
+
+    Notes
+    -----
+    This abstract class provides the basic tempo histogram functionality.
+    Please use one of the following implementations:
+
+    - :class:`CombFilterTempoHistogramProcessor`,
+    - :class:`ACFTempoHistogramProcessor` or
+    - :class:`DBNTempoHistogramProcessor`.
+
+    """
+
+    def __init__(self, min_bpm, max_bpm, fps=None, **kwargs):
+        # pylint: disable=unused-argument
+        self.min_bpm = min_bpm
+        self.max_bpm = max_bpm
+        self.fps = fps
+
+    @property
+    def min_interval(self):
+        """Minimum beat interval [frames]."""
+        return int(np.floor(60. * self.fps / self.max_bpm))
+
+    @property
+    def max_interval(self):
+        """Maximum beat interval [frames]."""
+        return int(np.ceil(60. * self.fps / self.min_bpm))
+
+    @property
+    def intervals(self):
+        """Beat intervals [frames]."""
+        return np.arange(self.min_interval, self.max_interval + 1)
+
+
+class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
+    """
+    Create a tempo histogram with a bank of resonating comb filters.
+
+    Parameters
+    ----------
+    min_bpm : float, optional
+        Minimum tempo to detect [bpm].
+    max_bpm : float, optional
+        Maximum tempo to detect [bpm].
+    alpha : float, optional
+        Scaling factor for the comb filter.
+    fps : float, optional
+        Frames per second.
+
+    """
+
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, alpha=ALPHA, fps=None,
+                 **kwargs):
+        # pylint: disable=unused-argument
+        super(CombFilterTempoHistogramProcessor, self).__init__(
+            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+        self.alpha = alpha
+
+    def process(self, activations, **kwargs):
+        """
+        Compute the histogram of the beat intervals with a bank of resonating
+        comb filters.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        return interval_histogram_comb(activations, self.alpha,
+                                       self.min_interval, self.max_interval)
+
+
+class ACFTempoHistogramProcessor(TempoHistogramProcessor):
+    """
+    Create a tempo histogram with autocorrelation.
+
+    Parameters
+    ----------
+    min_bpm : float, optional
+        Minimum tempo to detect [bpm].
+    max_bpm : float, optional
+        Maximum tempo to detect [bpm].
+    fps : float, optional
+        Frames per second.
+
+    """
+
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, fps=None, **kwargs):
+        # pylint: disable=unused-argument
+        super(ACFTempoHistogramProcessor, self).__init__(
+            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+
+    def process(self, activations, **kwargs):
+        """
+        Compute the histogram of the beat intervals with the autocorrelation
+        function.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # build the tempo (i.e. inter beat interval) histogram and return it
+        return interval_histogram_acf(activations, self.min_interval,
+                                      self.max_interval)
+
+
+class DBNTempoHistogramProcessor(TempoHistogramProcessor):
+    """
+    Create a tempo histogram with a dynamic Bayesian network (DBN).
+
+    Parameters
+    ----------
+    min_bpm : float, optional
+        Minimum tempo to detect [bpm].
+    max_bpm : float, optional
+        Maximum tempo to detect [bpm].
+    fps : float, optional
+        Frames per second.
+
+    """
+
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, fps=None, **kwargs):
+        # pylint: disable=unused-argument
+        super(DBNTempoHistogramProcessor, self).__init__(
+            min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+
+    def process(self, activations, **kwargs):
+        """
+        Compute the histogram of the beat intervals with a DBN.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of the beat interval histogram.
+        histogram_delays : numpy array
+            Corresponding delays [frames].
+
+        """
+        # build the tempo (i.e. inter beat interval) histogram and return it
+        from .beats import DBNBeatTrackingProcessor
+        # instantiate a DBN for beat tracking
+        dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
+                                       max_bpm=self.max_bpm,
+                                       num_tempi=None,
+                                       fps=self.fps)
+        # get the best state path by calling the viterbi algorithm
+        path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
+        intervals = dbn.st.state_intervals[path]
+        # get the counts of the bins
+        bins = np.bincount(intervals,
+                           minlength=dbn.st.intervals.max() + 1)
+        # truncate everything below the minimum interval of the state space
+        bins = bins[dbn.st.intervals.min():]
+        # build a histogram together with the intervals and return it
+        return bins, dbn.st.intervals
+
+
 class TempoEstimationProcessor(Processor):
     """
     Tempo Estimation Processor class.
@@ -255,6 +452,12 @@ class TempoEstimationProcessor(Processor):
         Scaling factor for the comb filter.
     fps : float, optional
         Frames per second.
+    histogram_processor : :class:`TempoHistogramProcessor`, optional
+        Processor used to create a tempo histogram. If 'None', a default
+        combfilter histogram processor will be created and used.
+    kwargs : dict, optional
+        Keyword arguments passed to :class:`CombFilterTempoHistogramProcessor`
+        if no `histogram_processor` was given.
 
     Examples
     --------
@@ -278,36 +481,53 @@ class TempoEstimationProcessor(Processor):
            [  82.19178,  0.09629]])
 
     """
-    # default values for tempo estimation
-    METHOD = 'comb'
-    MIN_BPM = 40.
-    MAX_BPM = 250.
-    HIST_SMOOTH = 9
-    ACT_SMOOTH = 0.14
-    ALPHA = 0.79
 
     def __init__(self, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                 act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, alpha=ALPHA,
-                 fps=None, **kwargs):
+                 act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH, fps=None,
+                 histogram_processor=None, **kwargs):
         # pylint: disable=unused-argument
-        # save variables
         self.method = method
-        self.min_bpm = min_bpm
-        self.max_bpm = max_bpm
         self.act_smooth = act_smooth
         self.hist_smooth = hist_smooth
-        self.alpha = alpha
         self.fps = fps
+        if histogram_processor is None:
+            if method == 'acf':
+                histogram_processor = ACFTempoHistogramProcessor
+            elif method == 'comb':
+                histogram_processor = CombFilterTempoHistogramProcessor
+            elif method == 'dbn':
+                histogram_processor = DBNTempoHistogramProcessor
+            else:
+                raise ValueError('tempo histogram method unknown.')
+            # instantiate histogram processor
+            histogram_processor = histogram_processor(
+                min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, **kwargs)
+        self.histogram_processor = histogram_processor
+
+    @property
+    def min_bpm(self):
+        """Minimum tempo [bpm]."""
+        return self.histogram_processor.min_bpm
+
+    @property
+    def max_bpm(self):
+        """Maximum  tempo [bpm]."""
+        return self.histogram_processor.max_bpm
+
+    @property
+    def intervals(self):
+        """Beat intervals [frames]."""
+        return self.histogram_processor.intervals
 
     @property
     def min_interval(self):
         """Minimum beat interval [frames]."""
-        return int(np.floor(60. * self.fps / self.max_bpm))
+        return self.histogram_processor.min_interval
 
     @property
     def max_interval(self):
         """Maximum beat interval [frames]."""
-        return int(np.ceil(60. * self.fps / self.min_bpm))
+        return self.histogram_processor.max_interval
 
     def process(self, activations, **kwargs):
         """
@@ -335,9 +555,9 @@ class TempoEstimationProcessor(Processor):
         # detect the tempi and return them
         return detect_tempo(histogram, self.fps)
 
-    def interval_histogram(self, activations):
+    def interval_histogram(self, activations, **kwargs):
         """
-        Compute the histogram of the beat intervals with the selected method.
+        Compute the histogram of the beat intervals.
 
         Parameters
         ----------
@@ -352,31 +572,7 @@ class TempoEstimationProcessor(Processor):
             Corresponding delays [frames].
 
         """
-        # build the tempo (i.e. inter beat interval) histogram and return it
-        if self.method == 'acf':
-            return interval_histogram_acf(activations, self.min_interval,
-                                          self.max_interval)
-        elif self.method == 'comb':
-            return interval_histogram_comb(activations, self.alpha,
-                                           self.min_interval,
-                                           self.max_interval)
-        elif self.method == 'dbn':
-            from .beats import DBNBeatTrackingProcessor
-            # instantiate a DBN for beat tracking
-            dbn = DBNBeatTrackingProcessor(min_bpm=self.min_bpm,
-                                           max_bpm=self.max_bpm,
-                                           num_tempi=None, fps=self.fps)
-            # get the best state path by calling the viterbi algorithm
-            path, _ = dbn.hmm.viterbi(activations.astype(np.float32))
-            intervals = dbn.st.state_intervals[path]
-            # get the counts of the bins
-            bins = np.bincount(intervals, minlength=dbn.st.intervals.max() + 1)
-            # truncate everything below the minimum interval of the state space
-            bins = bins[dbn.st.intervals.min():]
-            # build a histogram together with the intervals and return it
-            return bins, dbn.st.intervals
-        else:
-            raise ValueError('tempo estimation method unknown')
+        return self.histogram_processor(activations, **kwargs)
 
     def dominant_interval(self, histogram):
         """
@@ -398,9 +594,9 @@ class TempoEstimationProcessor(Processor):
         return dominant_interval(histogram, self.hist_smooth)
 
     @staticmethod
-    def add_arguments(parser, method=METHOD, min_bpm=MIN_BPM, max_bpm=MAX_BPM,
-                      act_smooth=ACT_SMOOTH, hist_smooth=HIST_SMOOTH,
-                      alpha=ALPHA):
+    def add_arguments(parser, method=None, min_bpm=None, max_bpm=None,
+                      act_smooth=None, hist_smooth=None, hist_buffer=None,
+                      alpha=None):
         """
         Add tempo estimation related arguments to an existing parser.
 
@@ -418,6 +614,8 @@ class TempoEstimationProcessor(Processor):
             Smooth the activation function over `act_smooth` seconds.
         hist_smooth : int, optional
             Smooth the tempo histogram over `hist_smooth` bins.
+        hist_buffer : float, optional
+            Aggregate the tempo histogram over `hist_buffer` seconds.
         alpha : float, optional
             Scaling factor for the comb filter.
 
@@ -455,6 +653,11 @@ class TempoEstimationProcessor(Processor):
                            default=hist_smooth,
                            help='smooth the tempo histogram over N bins '
                                 '[default=%(default)d]')
+        if hist_buffer is not None:
+            g.add_argument('--hist_buffer', action='store', type=float,
+                           default=hist_buffer,
+                           help='aggregate the tempo histogram over N seconds '
+                                '[default=%(default).2f]')
         if alpha is not None:
             g.add_argument('--alpha', action='store', type=float,
                            default=alpha,
