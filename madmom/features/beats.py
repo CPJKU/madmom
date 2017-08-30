@@ -10,11 +10,13 @@ This module contains beat tracking related functionality.
 from __future__ import absolute_import, division, print_function
 
 import sys
+
 import numpy as np
 
-from madmom.processors import Processor, SequentialProcessor, ParallelProcessor
-from madmom.audio.signal import smooth as smooth_signal
-from madmom.ml.nn import average_predictions
+from ..audio.signal import smooth as smooth_signal
+from ..ml.nn import average_predictions
+from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
+                          SequentialProcessor, )
 
 
 # classes for tracking (down-)beats with RNNs
@@ -883,7 +885,7 @@ def _process_dbn(process_tuple):
     return process_tuple[0].viterbi(process_tuple[1])
 
 
-class DBNBeatTrackingProcessor(Processor):
+class DBNBeatTrackingProcessor(OnlineProcessor):
     """
     Beat tracking with RNNs and a dynamic Bayesian network (DBN) approximated
     by a Hidden Markov Model (HMM).
@@ -1006,27 +1008,7 @@ class DBNBeatTrackingProcessor(Processor):
         self.last_beat = 0
         self.tempo = 0
 
-    def process(self, activations, **kwargs):
-        """
-        Detect the beats in the given activation function.
-
-        Parameters
-        ----------
-        activations : numpy array
-            Beat activation function.
-
-        Returns
-        -------
-        beats : numpy array
-            Detected beat positions [seconds].
-
-        """
-        if self.online:
-            return self.process_forward(activations, **kwargs)
-        else:
-            return self.process_viterbi(activations, **kwargs)
-
-    def process_viterbi(self, activations, **kwargs):
+    def process_offline(self, activations, **kwargs):
         """
         Detect the beats in the given activation function with Viterbi
         decoding.
@@ -1091,7 +1073,7 @@ class DBNBeatTrackingProcessor(Processor):
         # convert the detected beats to seconds and return them
         return (beats + first) / float(self.fps)
 
-    def process_forward(self, activations, reset=True, **kwargs):
+    def process_online(self, activations, reset=True, **kwargs):
         """
         Detect the beats in the given activation function with the forward
         algorithm.
@@ -1148,7 +1130,7 @@ class DBNBeatTrackingProcessor(Processor):
             sys.stderr.write('\r%s' % ''.join(display))
             sys.stderr.flush()
         # forward path often reports multiple beats close together, thus report
-        # only beats more than the minumum interval apart
+        # only beats more than the minimum interval apart
         beats_ = []
         for frame in np.nonzero(beats)[0]:
             cur_beat = (frame + self.counter) / float(self.fps)
@@ -1166,6 +1148,10 @@ class DBNBeatTrackingProcessor(Processor):
         self.counter += len(activations)
         # return beat(s)
         return np.array(beats_)
+
+    process_forward = process_online
+
+    process_viterbi = process_offline
 
     @staticmethod
     def add_arguments(parser, min_bpm=MIN_BPM, max_bpm=MAX_BPM,

@@ -13,9 +13,9 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 from scipy.ndimage.filters import maximum_filter
 
-from ..processors import (Processor, SequentialProcessor, ParallelProcessor,
-                          BufferProcessor)
 from ..audio.signal import smooth as smooth_signal
+from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
+                          Processor, SequentialProcessor, )
 from ..utils import combine_events
 
 EPSILON = np.spacing(1)
@@ -1018,7 +1018,7 @@ class PeakPickingProcessor(Processor):
         return OnsetPeakPickingProcessor.add_arguments(parser, **kwargs)
 
 
-class OnsetPeakPickingProcessor(Processor):
+class OnsetPeakPickingProcessor(OnlineProcessor):
     """
     This class implements the onset peak-picking functionality.
     It transparently converts the chosen values from seconds to frames.
@@ -1100,10 +1100,9 @@ class OnsetPeakPickingProcessor(Processor):
                  combine=COMBINE, delay=DELAY, online=ONLINE, fps=FPS,
                  **kwargs):
         # pylint: disable=unused-argument
-        # TODO: make this an IOProcessor by defining input/output processings
-        #       super(PeakPicking, self).__init__(peak_picking, write_events)
-        #       adjust some params for online mode?
-        if online:
+        # instantiate OnlineProcessor
+        super(OnsetPeakPickingProcessor, self).__init__(online=online)
+        if self.online:
             # set some parameters to 0 (i.e. no future information available)
             smooth = 0
             post_avg = 0
@@ -1121,7 +1120,6 @@ class OnsetPeakPickingProcessor(Processor):
         self.post_max = post_max
         self.combine = combine
         self.delay = delay
-        self.online = online
         self.fps = fps
 
     def reset(self):
@@ -1130,27 +1128,7 @@ class OnsetPeakPickingProcessor(Processor):
         self.counter = 0
         self.last_onset = None
 
-    def process(self, activations, **kwargs):
-        """
-        Detect the onsets in the given activation function.
-
-        Parameters
-        ----------
-        activations : numpy array
-            Onset activation function.
-
-        Returns
-        -------
-        onsets : numpy array
-            Detected onsets [seconds].
-
-        """
-        if self.online:
-            return self.process_online(activations, **kwargs)
-        else:
-            return self.process_sequence(activations, **kwargs)
-
-    def process_sequence(self, activations, **kwargs):
+    def process_offline(self, activations, **kwargs):
         """
         Detect the onsets in the given activation function.
 
@@ -1245,6 +1223,8 @@ class OnsetPeakPickingProcessor(Processor):
         # return the onsets
         return onsets
 
+    process_sequence = process_offline
+
     @staticmethod
     def add_arguments(parser, threshold=THRESHOLD, smooth=None, pre_avg=None,
                       post_avg=None, pre_max=None, post_max=None,
@@ -1300,8 +1280,9 @@ class OnsetPeakPickingProcessor(Processor):
                                 '[default=%(default).2f]')
         if post_avg is not None:
             g.add_argument('--post_avg', action='store', type=float,
-                           default=post_avg, help='build average over N '
-                           'following seconds [default=%(default).2f]')
+                           default=post_avg,
+                           help='build average over N following seconds '
+                                '[default=%(default).2f]')
         if pre_max is not None:
             g.add_argument('--pre_max', action='store', type=float,
                            default=pre_max,
