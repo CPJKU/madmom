@@ -337,8 +337,15 @@ class BeatTrackingProcessor(Processor):
     look_ahead : float, optional
         Look `look_ahead` seconds in both directions to determine the local
         tempo and align the beats accordingly.
+    tempo_estimator : :class:`TempoEstimationProcessor`, optional
+        Use this processor to estimate the (local) tempo. If 'None' a default
+        tempo estimator will be created and used.
     fps : float, optional
         Frames per second.
+    kwargs : dict, optional
+        Keyword arguments passed to
+        :class:`madmom.features.tempo.TempoEstimationProcessor` if no
+        `tempo_estimator` was given.
 
     Notes
     -----
@@ -382,25 +389,21 @@ class BeatTrackingProcessor(Processor):
 
     """
     LOOK_ASIDE = 0.2
-    LOOK_AHEAD = 10
-    # tempo defaults
-    TEMPO_METHOD = 'comb'
-    MIN_BPM = 40
-    MAX_BPM = 240
-    ACT_SMOOTH = 0.09
-    HIST_SMOOTH = 7
-    ALPHA = 0.79
+    LOOK_AHEAD = 10.
 
     def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=None,
-                 **kwargs):
-        # import the TempoEstimation here otherwise we have a loop
-        from .tempo import TempoEstimationProcessor
+                 tempo_estimator=None, **kwargs):
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
         self.fps = fps
         # tempo estimator
-        self.tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
+        if tempo_estimator is None:
+            # import the TempoEstimation here otherwise we have a loop
+            from .tempo import TempoEstimationProcessor
+            # create default tempo estimator
+            tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
+        self.tempo_estimator = tempo_estimator
 
     def process(self, activations, **kwargs):
         """
