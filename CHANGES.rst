@@ -7,6 +7,7 @@ Version 0.16.dev0
 New features:
 
 * Added chord evaluation (#309)
+* Added `quantize_notes` function (#327)
 
 Bug fixes:
 
