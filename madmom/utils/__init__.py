@@ -405,7 +405,11 @@ def quantize_events(events, fps, length=None, shift=None):
     if events.ndim != 1:
         raise ValueError('only 1-dimensional events supported.')
     # shift all events if needed
-    if shift:
+    if shift is not None:
+        import warnings
+        warnings.warn('`shift` parameter is deprecated as of version 0.16 and '
+                      'will be removed in version 0.18. Please shift the '
+                      'events manually before calling this function.')
         events += shift
     # determine the length for the quantized array
     if length is None:
