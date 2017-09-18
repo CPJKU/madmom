@@ -7,11 +7,11 @@ This file contains tests for the programs in the /bin directory.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
-import os
 import imp
+import os
 import sys
 import tempfile
+import unittest
 from os.path import join as pj
 
 try:
@@ -25,7 +25,6 @@ from madmom.features import Activations
 from madmom.features.chords import load_chords
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, DETECTIONS_PATH
-
 
 tmp_act = tempfile.NamedTemporaryFile(delete=False).name
 tmp_result = tempfile.NamedTemporaryFile(delete=False).name
@@ -51,6 +50,41 @@ def run_program(program):
     sys.stdout.close()
     sys.stdout = backup
     return data
+
+
+def run_single(program, infile, outfile, online=False, args=None):
+    argv = [program]
+    if args:
+        argv.extend(args)
+    argv.extend(['single', '-j', '1'])
+    if online:
+        argv.append('--online')
+    argv.extend([infile, '-o', outfile])
+    run_program(argv)
+
+
+def run_online(program, infile, outfile):
+    argv = [program, 'online', '-j', '1', infile, '-o', outfile]
+    run_program(argv)
+
+
+def run_save(program, infile, outfile, sep=None):
+    argv = [program, '--save']
+    if sep:
+        argv.extend(['--sep', sep])
+    argv.extend(['single', '-j', '1', infile, '-o', outfile])
+    run_program(argv)
+
+
+def run_load(program, infile, outfile, sep=None, online=False):
+    argv = [program, '--load']
+    if sep:
+        argv.extend(['--sep', sep])
+    argv.extend(['single', '-j', '1'])
+    if online:
+        argv.append('--online')
+    argv.extend([infile, '-o', outfile])
+    run_program(argv)
 
 
 def run_help(program):
@@ -82,29 +116,27 @@ class TestBeatDetectorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -122,29 +154,27 @@ class TestBeatTrackerProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act, '-o',
-                     tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -173,35 +203,30 @@ class TestCNNChordRecognition(unittest.TestCase):
 
     def test_binary(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
-                                          self.activations,
-                                          self.results):
+                                          self.activations, self.results):
             # save activations as binary file
-            run_program([self.bin, '--save', 'single', sf, '-o', tmp_act])
+            run_save(self.bin, sf, tmp_act)
             act = Activations(tmp_act)
             self.assertTrue(np.allclose(act, true_act, atol=1e-5))
             self.assertEqual(act.fps, true_act.fps)
             # reload from file
-            run_program([self.bin, '--load', 'single', tmp_act,
-                         '-o', tmp_result])
+            run_load(self.bin, tmp_act, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
 
     def test_txt(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
-                                          self.activations,
-                                          self.results):
+                                          self.activations, self.results):
             # save activations as txt file
-            run_program([self.bin, '--save', '--sep', ' ', 'single', sf,
-                         '-o', tmp_act])
+            run_save(self.bin, sf, tmp_act, sep=' ')
             act = Activations(tmp_act, sep=' ', fps=100)
             self.assertTrue(np.allclose(act, true_act, atol=1e-5))
             # reload from file
-            run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                         '-o', tmp_result])
+            run_load(self.bin, tmp_act, tmp_result, sep=' ')
             self._check_results(load_chords(tmp_result), true_res)
 
     def test_run(self):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
-            run_program([self.bin, 'single', sf, '-o', tmp_result])
+            run_single(self.bin, sf, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
 
 
@@ -218,29 +243,27 @@ class TestComplexFluxProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -258,29 +281,27 @@ class TestCNNOnsetDetectorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
 
@@ -298,29 +319,27 @@ class TestCRFBeatDetectorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -339,38 +358,35 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_online(self):
-        run_program([self.bin, 'online', sample_file, '-o', tmp_result])
+        run_online(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.online_results))
-        run_program([self.bin, 'single', '--online', sample_file, '-o',
-                     tmp_result])
+        run_single(self.bin, sample_file, tmp_result, online=True)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.online_results))
 
@@ -389,35 +405,32 @@ class TestDBNDownBeatTrackerProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run_downbeats(self):
-        run_program([self.bin, '--downbeats', 'single', sample_file,
-                     '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result, args=['--downbeats'])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.downbeat_result, atol=1e-5))
 
@@ -445,35 +458,30 @@ class TestDCChordRecognition(unittest.TestCase):
 
     def test_binary(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
-                                          self.activations,
-                                          self.results):
+                                          self.activations, self.results):
             # save activations as binary file
-            run_program([self.bin, '--save', 'single', sf, '-o', tmp_act])
+            run_save(self.bin, sf, tmp_act)
             act = Activations(tmp_act)
             self.assertTrue(np.allclose(act, true_act, atol=1e-5))
             self.assertEqual(act.fps, true_act.fps)
             # reload from file
-            run_program([self.bin, '--load', 'single', tmp_act,
-                         '-o', tmp_result])
+            run_load(self.bin, tmp_act, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
 
     def test_txt(self):
         for sf, true_act, true_res in zip([sample_file, sample2_file],
-                                          self.activations,
-                                          self.results):
+                                          self.activations, self.results):
             # save activations as txt file
-            run_program([self.bin, '--save', '--sep', ' ', 'single', sf,
-                         '-o', tmp_act])
+            run_save(self.bin, sf, tmp_act, sep=' ')
             act = Activations(tmp_act, sep=' ', fps=100)
             self.assertTrue(np.allclose(act, true_act, atol=1e-5))
             # reload from file
-            run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                         '-o', tmp_result])
+            run_load(self.bin, tmp_act, tmp_result, sep=' ')
             self._check_results(load_chords(tmp_result), true_res)
 
     def test_run(self):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
-            run_program([self.bin, 'single', sf, '-o', tmp_result])
+            run_single(self.bin, sf, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
 
 
@@ -491,35 +499,32 @@ class TestGMMPatternTrackerProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=50)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run_downbeats(self):
-        run_program([self.bin, '--downbeats', 'single', sample_file,
-                     '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result, args=['--downbeats'])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.downbeat_result, atol=1e-5))
 
@@ -537,29 +542,27 @@ class TestLogFiltSpecFluxProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -577,29 +580,27 @@ class TestMMBeatTrackerProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -617,29 +618,27 @@ class TestOnsetDetectorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -657,46 +656,42 @@ class TestOnsetDetectorLLProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', 'single', '--online', tmp_act, '-o',
-                     tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, online=True)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_online(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
-        run_program([self.bin, 'single', '--online', sample_file, '-o',
-                     tmp_result])
+        run_single(self.bin, sample_file, tmp_result, online=True)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
-        run_program([self.bin, 'online', sample_file, '-o', tmp_result])
+        run_online(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result))
 
@@ -714,30 +709,27 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', stereo_sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, stereo_sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single',
-                     stereo_sample_file, '-o', tmp_act])
+        run_save(self.bin, stereo_sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', stereo_sample_file, '-o', tmp_result])
+        run_single(self.bin, stereo_sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -755,29 +747,27 @@ class TestSpectralOnsetDetectionProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -794,29 +784,27 @@ class TestSuperFluxProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=200)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -834,29 +822,27 @@ class TestSuperFluxNNProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program([self.bin, '--save', '--sep', ' ', 'single', sample_file,
-                     '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
@@ -874,30 +860,27 @@ class TestTempoDetectorProgram(unittest.TestCase):
 
     def test_binary(self):
         # save activations as binary file
-        run_program([self.bin, '--save', 'single', sample_file, '-o', tmp_act])
+        run_save(self.bin, sample_file, tmp_act)
         act = Activations(tmp_act)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         self.assertEqual(act.fps, self.activations.fps)
         # reload from file
-        run_program([self.bin, '--load', 'single', tmp_act, '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_txt(self):
         # save activations as txt file
-        run_program(
-            [self.bin, '--save', '--sep', ' ', 'single', sample_file, '-o',
-             tmp_act])
+        run_save(self.bin, sample_file, tmp_act, sep=' ')
         act = Activations(tmp_act, sep=' ', fps=100)
         self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
         # reload from file
-        run_program([self.bin, '--load', '--sep', ' ', 'single', tmp_act,
-                     '-o', tmp_result])
+        run_load(self.bin, tmp_act, tmp_result, sep=' ')
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
     def test_run(self):
-        run_program([self.bin, 'single', sample_file, '-o', tmp_result])
+        run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 

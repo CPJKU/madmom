@@ -118,7 +118,7 @@ class TestCNNChordFeatureProcessorClass(unittest.TestCase):
     def test_process(self):
         for audio_file, true_activation in zip(sample_files, sample_cnn_acts):
             act = self.processor(audio_file)
-            self.assertTrue(np.allclose(act, true_activation))
+            self.assertTrue(np.allclose(act, true_activation, rtol=1e-4))
 
 
 class TestCRFChordRecognitionProcessorClass(unittest.TestCase):
