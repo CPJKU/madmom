@@ -130,9 +130,11 @@ class TestSearchPathFunction(unittest.TestCase):
         result = search_path(DATA_PATH, 1)
         all_files = (FILE_LIST + AUDIO_FILES + ANNOTATION_FILES +
                      DETECTION_FILES + ACTIVATION_FILES)
-        print(len(result))
-        print(len(sorted(all_files)))
         self.assertEqual(result, sorted(all_files))
+
+    def test_errors(self):
+        with self.assertRaises(IOError):
+            search_path(pj(DATA_PATH, 'README'))
 
 
 class TestSearchFilesFunction(unittest.TestCase):
@@ -154,8 +156,6 @@ class TestSearchFilesFunction(unittest.TestCase):
     def test_path(self):
         # no suffix
         result = search_files(DATA_PATH)
-        print("result", result)
-        print("FILELIST", sorted(FILE_LIST))
         self.assertEqual(result, sorted(FILE_LIST))
         # single suffix
         result = search_files(DATA_PATH, suffix='txt')
@@ -342,20 +342,22 @@ class TestCombineEventsFunction(unittest.TestCase):
     def test_errors(self):
         with self.assertRaises(ValueError):
             combine_events(np.arange(6).reshape((2, 3)), 0.5)
+        with self.assertRaises(ValueError):
+            combine_events(EVENTS, 0.5, 'foo')
 
 
 class TestQuantizeEventsFunction(unittest.TestCase):
 
     def test_fps(self):
         # 10 FPS
-        quantized = quantize_events(EVENTS, 10, length=None)
+        quantized = quantize_events(EVENTS, 10)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         self.assertTrue(np.allclose(idx, [10, 15, 20, 25, 30]))
         # 100 FPS with numpy arrays (array must not be changed)
         events = np.array(EVENTS)
         events_ = np.copy(events)
-        quantized = quantize_events(events, 100, length=None)
+        quantized = quantize_events(events, 100)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
@@ -371,7 +373,7 @@ class TestQuantizeEventsFunction(unittest.TestCase):
 
     def test_rounding(self):
         # without length
-        quantized = quantize_events([3.95], 10, length=None)
+        quantized = quantize_events([3.95], 10)
         idx = np.nonzero(quantized)[0]
         self.assertTrue(np.allclose(idx, [40]))
         # with length
@@ -514,6 +516,9 @@ class TestSegmentAxisFunction(unittest.TestCase):
         # testing 0 hop_size
         with self.assertRaises(ValueError):
             segment_axis(np.arange(10), 4, 0)
+        with self.assertRaises(ValueError):
+            # not enough data points for frame length
+            segment_axis(np.arange(3), 4, 2)
 
     def test_values(self):
         result = segment_axis(np.arange(10), 4, 2)
@@ -537,3 +542,7 @@ class TestSegmentAxisFunction(unittest.TestCase):
         result = segment_axis(np.arange(11), 4, 3, axis=0)
         self.assertTrue(np.allclose(result, [[0, 1, 2, 3], [3, 4, 5, 6],
                                              [6, 7, 8, 9]]))
+        result = segment_axis(np.arange(3), 4, 2, end='wrap')
+        self.assertTrue(np.allclose(result, [[0, 1, 2, 0]]))
+        result = segment_axis(np.arange(3), 4, 2, end='pad', end_value=9)
+        self.assertTrue(np.allclose(result, [[0, 1, 2, 9]]))
