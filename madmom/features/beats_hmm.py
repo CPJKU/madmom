@@ -4,7 +4,7 @@
 # pylint: disable=too-many-arguments
 """
 This module contains HMM state spaces, transition and observation models used
-for beat and downbeat tracking.
+for beat, downbeat and pattern tracking.
 
 Notes
 -----
@@ -17,7 +17,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from madmom.ml.hmm import TransitionModel, ObservationModel
+from madmom.ml.hmm import ObservationModel, TransitionModel
 
 
 # state spaces
@@ -44,13 +44,13 @@ class BeatStateSpace(object):
     num_intervals : int
         Number of intervals.
     state_positions : numpy array
-        Positions of the states.
+        Positions of the states (i.e. 0...1).
     state_intervals : numpy array
-        Intervals of the states.
+        Intervals of the states (i.e. 1 / tempo).
     first_states : numpy array
-        First states for each interval.
+        First state of each interval.
     last_states : numpy array
-        Last states for each interval.
+        Last state of each interval.
 
     References
     ----------
@@ -104,10 +104,13 @@ class BarStateSpace(object):
     """
     State space for bar tracking with a HMM.
 
+    Model `num_beat` identical beats with the given arguments in a single state
+    space.
+
     Parameters
     ----------
     num_beats : int
-        Number of beats per bar.
+        Number of beats to form a bar.
     min_interval : float
         Minimum beat interval to model.
     max_interval : float
@@ -129,9 +132,9 @@ class BarStateSpace(object):
     state_intervals : numpy array
         Intervals of the states.
     first_states : list
-        First interval states for each beat.
+        First states of each beat.
     last_states : list
-        Last interval states for each beat.
+        Last states of each beat.
 
     References
     ----------
@@ -154,10 +157,10 @@ class BarStateSpace(object):
         self.last_states = []
         # create a BeatStateSpace and stack it `num_beats` times
         bss = BeatStateSpace(min_interval, max_interval, num_intervals)
-        for n in range(self.num_beats):
-            # define position and interval states
+        for b in range(self.num_beats):
+            # define position (add beat counter) and interval states
             self.state_positions = np.hstack((self.state_positions,
-                                              bss.state_positions + n))
+                                              bss.state_positions + b))
             self.state_intervals = np.hstack((self.state_intervals,
                                               bss.state_intervals))
             # add the current number of states as offset
@@ -170,6 +173,9 @@ class BarStateSpace(object):
 class MultiPatternStateSpace(object):
     """
     State space for rhythmic pattern tracking with a HMM.
+
+    Model a joint state space with the given `state_spaces` by stacking the
+    individual state spaces.
 
     Parameters
     ----------
@@ -186,30 +192,30 @@ class MultiPatternStateSpace(object):
     """
 
     def __init__(self, state_spaces):
+        # combine the given state spaces in a single state space
+        self.num_patterns = len(state_spaces)
         self.state_spaces = state_spaces
-        # model the patterns as a whole
-        self.num_patterns = len(self.state_spaces)
         self.state_positions = np.empty(0)
         self.state_intervals = np.empty(0, dtype=np.uint32)
         self.state_patterns = np.empty(0, dtype=np.uint32)
         self.num_states = 0
         # save the first and last states of the individual patterns in a list
-        # self.first_states = []
-        # self.last_states = []
-        for p in range(self.num_patterns):
-            pattern = self.state_spaces[p]
+        self.first_states = []
+        self.last_states = []
+        # stack the individual state spaces
+        for p, pss in enumerate(state_spaces):
             # define position, interval and pattern states
             self.state_positions = np.hstack((self.state_positions,
-                                              pattern.state_positions))
+                                              pss.state_positions))
             self.state_intervals = np.hstack((self.state_intervals,
-                                              pattern.state_intervals))
+                                              pss.state_intervals))
             self.state_patterns = np.hstack((self.state_patterns,
-                                             np.repeat(p, pattern.num_states)))
-            # TODO: first and last states should both be lists to work easily
-            # self.first_states.append()
-            # self.last_states.append()
+                                             np.repeat(p, pss.num_states)))
+            # append the first and last states of each pattern
+            self.first_states.append(pss.first_states[0] + self.num_states)
+            self.last_states.append(pss.last_states[-1] + self.num_states)
             # finally increase the number of states
-            self.num_states += pattern.num_states
+            self.num_states += pss.num_states
 
 
 # transition distributions
@@ -252,7 +258,8 @@ def exponential_transition(from_intervals, to_intervals, transition_lambda,
         return np.diag(np.diag(np.ones((len(from_intervals),
                                         len(to_intervals)))))
     # compute the transition probabilities
-    ratio = to_intervals / from_intervals[:, np.newaxis]
+    ratio = (to_intervals.astype(np.float) /
+             from_intervals.astype(np.float)[:, np.newaxis])
     prob = np.exp(-transition_lambda * abs(ratio - 1.))
     # set values below threshold to 0
     prob[prob <= threshold] = 0
@@ -268,8 +275,8 @@ class BeatTransitionModel(TransitionModel):
     Transition model for beat tracking with a HMM.
 
     Within the beat the tempo stays the same; at beat boundaries transitions
-    from one tempo (i.e. interval) to another following an exponential
-    distribution are allowed.
+    from one tempo (i.e. interval) to another are allowed, following an
+    exponential distribution.
 
     Parameters
     ----------
@@ -305,8 +312,8 @@ class BeatTransitionModel(TransitionModel):
         #       transition (with the tempi given as intervals)
         to_states = state_space.first_states
         from_states = state_space.last_states
-        from_int = state_space.state_intervals[from_states].astype(np.float)
-        to_int = state_space.state_intervals[to_states].astype(np.float)
+        from_int = state_space.state_intervals[from_states]
+        to_int = state_space.state_intervals[to_states]
         prob = exponential_transition(from_int, to_int, self.transition_lambda)
         # use only the states with transitions to/from != 0
         from_prob, to_prob = np.nonzero(prob)
@@ -381,8 +388,7 @@ class BarTransitionModel(TransitionModel):
             # transition follow an exponential tempo distribution
             from_int = state_space.state_intervals[from_states]
             to_int = state_space.state_intervals[to_states]
-            prob = exponential_transition(from_int.astype(np.float),
-                                          to_int.astype(np.float),
+            prob = exponential_transition(from_int, to_int,
                                           transition_lambda[beat])
             # use only the states with transitions to/from != 0
             from_prob, to_prob = np.nonzero(prob)
@@ -399,36 +405,36 @@ class MultiPatternTransitionModel(TransitionModel):
     """
     Transition model for pattern tracking with a HMM.
 
+    Add transitions with the given probability between the individual
+    transition models. These transition models must correspond to the state
+    spaces forming a :class:`MultiPatternStateSpace`.
+
     Parameters
     ----------
     transition_models : list
         List with :class:`TransitionModel` instances.
-    transition_prob : numpy array, optional
-        Matrix with transition probabilities from one pattern to another.
-    transition_lambda : float, optional
-        Lambda for the exponential tempo change distribution (higher values
-        prefer a constant tempo from one pattern to the next one).
-
-    Notes
-    -----
-    Right now, no transitions from one pattern to another are allowed.
+    transition_prob : numpy array or float, optional
+        Probabilities to change the pattern at pattern boundaries. If an array
+        is given, the first dimension corresponds to the origin pattern, the
+        second to the destination pattern. If a single value is given, a
+        uniform transition distribution to all other patterns is assumed. Set
+        to None to stay within the same pattern.
 
     """
 
-    def __init__(self, transition_models, transition_prob=None,
-                 transition_lambda=None):
-        # TODO: implement pattern transitions
-        if transition_prob is not None or transition_lambda is not None:
-            raise NotImplementedError("please implement pattern transitions")
+    def __init__(self, transition_models, transition_prob=None):
         # save attributes
         self.transition_models = transition_models
         self.transition_prob = transition_prob
-        self.transition_lambda = transition_lambda
-        # stack the pattern transitions
-        for i, tm in enumerate(self.transition_models):
+        num_patterns = len(transition_models)
+        # first stack all transition models
+        first_states = []
+        last_states = []
+        for p, tm in enumerate(self.transition_models):
             # set/update the probabilities, states and pointers
-            if i == 0:
-                # for the first pattern, just set the TM arrays
+            offset = 0
+            if p == 0:
+                # for the first pattern, just use the TM arrays
                 states = tm.states
                 pointers = tm.pointers
                 probabilities = tm.probabilities
@@ -437,6 +443,7 @@ class MultiPatternTransitionModel(TransitionModel):
                 # applying an offset
                 # Note: len(pointers) = len(states) + 1, because of the CSR
                 #       format of the TM (please see ml.hmm.TransitionModel)
+                offset = len(pointers) - 1
                 # states: offset = length of the pointers - 1
                 states = np.hstack((states, tm.states + len(pointers) - 1))
                 # pointers: offset = current maximum of the pointers
@@ -445,9 +452,60 @@ class MultiPatternTransitionModel(TransitionModel):
                                       max(pointers)))
                 # probabilities: just stack them
                 probabilities = np.hstack((probabilities, tm.probabilities))
+            # save the first/last states
+            first_states.append(tm.state_space.first_states[0] + offset)
+            last_states.append(tm.state_space.last_states[-1] + offset)
+        # retrieve a dense representation in order to add transitions
+        # TODO: operate directly on the sparse representation?
+        states, prev_states, probabilities = self.make_dense(states, pointers,
+                                                             probabilities)
+        # translate float transition_prob value to transition_prob matrix
+        if isinstance(transition_prob, float) and transition_prob:
+            # create a pattern transition probability matrix
+            self.transition_prob = np.ones((num_patterns, num_patterns))
+            # transition to other patterns
+            self.transition_prob *= transition_prob / (num_patterns - 1)
+            # transition to same pattern
+            diag = np.diag_indices_from(self.transition_prob)
+            self.transition_prob[diag] = 1. - transition_prob
+        else:
+            self.transition_prob = transition_prob
+        # update/add transitions between patterns
+        if self.transition_prob is not None and num_patterns > 1:
+            new_states = []
+            new_prev_states = []
+            new_probabilities = []
+            for p in range(num_patterns):
+                # indices of states/prev_states/probabilities
+                idx = np.logical_and(np.in1d(prev_states, last_states[p]),
+                                     np.in1d(states, first_states[p]))
+                # transition probability
+                prob = probabilities[idx]
+                # update transitions to same pattern with new probability
+                probabilities[idx] *= self.transition_prob[p, p]
+                # distribute that part among all other patterns
+                for p_ in np.setdiff1d(range(num_patterns), p):
+                    idx_ = np.logical_and(
+                        np.in1d(prev_states, last_states[p_]),
+                        np.in1d(states, first_states[p_]))
+                    # make sure idx and idx_ have same length
+                    if len(np.nonzero(idx)[0]) != len(np.nonzero(idx_)[0]):
+                        raise ValueError('Cannot add transition between '
+                                         'patterns with different number of '
+                                         'entering/exiting states.')
+                    # use idx for the states and idx_ for prev_states
+                    new_states.extend(states[idx])
+                    new_prev_states.extend(prev_states[idx_])
+                    new_probabilities.extend(prob *
+                                             self.transition_prob[p, p_])
+            # extend the arrays by these new transitions
+            states = np.append(states, new_states)
+            prev_states = np.append(prev_states, new_prev_states)
+            probabilities = np.append(probabilities, new_probabilities)
+        # make the transitions sparse
+        transitions = self.make_sparse(states, prev_states, probabilities)
         # instantiate a TransitionModel
-        super(MultiPatternTransitionModel, self).__init__(states, pointers,
-                                                          probabilities)
+        super(MultiPatternTransitionModel, self).__init__(*transitions)
 
 
 # observation models
@@ -486,17 +544,18 @@ class RNNBeatTrackingObservationModel(ObservationModel):
 
     def log_densities(self, observations):
         """
-        Computes the log densities of the observations.
+        Compute the log densities of the observations.
 
         Parameters
         ----------
         observations : numpy array, shape (N, )
-            Observations (i.e. 1d activations of the RNN).
+            Observations (i.e. 1D beat activations of the RNN).
 
         Returns
         -------
-        numpy array
-            Log densities of the observations.
+        numpy array, shape (N, 2)
+            Log densities of the observations, the columns represent the
+            observation log probability densities for no-beats and beats.
 
         """
         # init densities
@@ -547,18 +606,20 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
 
     def log_densities(self, observations):
         """
-        Computes the log densities of the observations.
+        Compute the log densities of the observations.
 
         Parameters
         ----------
         observations : numpy array, shape (N, 2)
-            Observations (i.e. 2d activations of a RNN, the columns represent
+            Observations (i.e. 2D activations of a RNN, the columns represent
             'beat' and 'downbeat' probabilities)
 
         Returns
         -------
-        numpy array
-            Log densities of the observations.
+        numpy array, shape (N, 3)
+            Log densities of the observations, the columns represent the
+            observation log probability densities for no-beats, beats and
+            downbeats.
 
         """
         # init densities
@@ -610,6 +671,8 @@ class GMMPatternTrackingObservationModel(ObservationModel):
             # number of fitted GMMs for this pattern
             num_gmms = len(gmms)
             # number of beats in this pattern
+            # TODO: save the number of beats in the pattern files so we don't
+            #       need to save references to all state spaces
             num_beats = self.state_space.state_spaces[p].num_beats
             # distribute the observation densities defined by the GMMs
             # uniformly across the entire state space (for this pattern)
@@ -625,7 +688,7 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
     def log_densities(self, observations):
         """
-        Computes the log densities of the observations using (a) GMM(s).
+        Compute the log densities of the observations using (a) GMM(s).
 
         Parameters
         ----------
@@ -634,8 +697,9 @@ class GMMPatternTrackingObservationModel(ObservationModel):
 
         Returns
         -------
-        numpy array
-            Log densities of the observations.
+        numpy array, shape (N, num_gmms)
+            Log densities of the observations, the columns represent the
+            observation log probability densities for the individual GMMs.
 
         """
         # number of GMMs of all patterns

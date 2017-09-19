@@ -270,6 +270,15 @@ class DeepChromaProcessor(SequentialProcessor):
         ])
 
 
+# Compressed Log Pitch (CLP) chroma stuff
+CLP_FPS = 50
+CLP_FMIN = 27.5
+CLP_FMAX = 4200.
+CLP_COMPRESSION_FACTOR = 100
+CLP_NORM = True
+CLP_THRESHOLD = 0.001
+
+
 class CLPChroma(np.ndarray):
     """
     Compressed Log Pitch (CLP) chroma as proposed in [1]_ and [2]_.
@@ -279,11 +288,11 @@ class CLPChroma(np.ndarray):
     data : str, Signal, or SemitoneBandpassSpectrogram
         Input data.
     fps : int, optional
-        Desired sample rate of the signal [Hz].
+        Desired frame rate of the signal [Hz].
     fmin : float, optional
-        Lowest frequency [Hz] of the spectrogram.
+        Lowest frequency of the spectrogram [Hz].
     fmax : float, optional
-        Highest frequency [Hz] of the spectrogram.
+        Highest frequency of the spectrogram [Hz].
     compression_factor : float, optional
         Factor for compression of the energy.
     norm : bool, optional
@@ -311,13 +320,15 @@ class CLPChroma(np.ndarray):
 
     """
 
-    def __init__(self, data, fps=50, fmin=27.5, fmax=4186.,
-                 compression_factor=100, norm=True, threshold=0.001):
+    def __init__(self, data, fps=CLP_FPS, fmin=CLP_FMIN, fmax=CLP_FMAX,
+                 compression_factor=CLP_COMPRESSION_FACTOR, norm=CLP_NORM,
+                 threshold=CLP_THRESHOLD, **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, data, fps=50, fmin=27.5, fmax=4200.,
-                compression_factor=100, norm=True, threshold=0.001):
+    def __new__(cls, data, fps=CLP_FPS, fmin=CLP_FMIN, fmax=CLP_FMAX,
+                compression_factor=CLP_COMPRESSION_FACTOR, norm=CLP_NORM,
+                threshold=CLP_THRESHOLD, **kwargs):
         from madmom.audio.filters import hz2midi
         # check input type
         if not isinstance(data, SemitoneBandpassSpectrogram):
@@ -352,3 +363,60 @@ class CLPChroma(np.ndarray):
         # set default values here
         self.fps = getattr(obj, 'fps', None)
         self.bin_labels = getattr(obj, 'bin_labels', None)
+
+
+class CLPChromaProcessor(SequentialProcessor):
+    """
+    Compressed Log Pitch (CLP) Chroma Processor.
+
+    Parameters
+    ----------
+    fps : int, optional
+        Desired frame rate of the signal [Hz].
+    fmin : float, optional
+        Lowest frequency of the spectrogram [Hz].
+    fmax : float, optional
+        Highest frequency of the spectrogram [Hz].
+    compression_factor : float, optional
+        Factor for compression of the energy.
+    norm : bool, optional
+        Normalize the energy of each frame to one (divide by the L2 norm).
+    threshold : float, optional
+        If the energy of a frame is below a threshold, the energy is equally
+        distributed among all chroma bins.
+
+    """
+
+    def __init__(self, fps=CLP_FPS, fmin=CLP_FMIN, fmax=CLP_FMAX,
+                 compression_factor=CLP_COMPRESSION_FACTOR, norm=CLP_NORM,
+                 threshold=CLP_THRESHOLD, **kwargs):
+        # pylint: disable=unused-argument
+        self.fps = fps
+        self.fmin = fmin
+        self.fmax = fmax
+        self.compression_factor = compression_factor
+        self.norm = norm
+        self.threshold = threshold
+
+    def process(self, data, **kwargs):
+        """
+        Create a CLPChroma from the given data.
+
+        Parameters
+        ----------
+        data : Signal instance or filename
+            Data to be processed.
+
+        Returns
+        -------
+        clp : :class:`CLPChroma` instance
+            CLPChroma.
+
+        """
+        # update arguments passed to CLPChroma
+        args = dict(fps=self.fps, fmin=self.fmin, fmax=self.fmax,
+                    compression_factor=self.compression_factor,
+                    norm=self.norm, threshold=self.threshold)
+        args.update(kwargs)
+        # instantiate a CLPChroma
+        return CLPChroma(data, **args)

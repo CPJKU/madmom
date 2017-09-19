@@ -26,7 +26,8 @@ AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]
 
-ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
+ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_blstm_mm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_lstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.cnn_chord_features.npz'),

@@ -568,6 +568,16 @@ class GRULayer(RecurrentLayer):
         return state
 
     def __setstate__(self, state):
+        # TODO: old models have a 'hid_init' instead of an 'init' attribute
+        #       remove this unpickling code after updating all models
+        try:
+            import warnings
+            warnings.warn('Please update your GRU models by loading them and '
+                          'saving them again. Loading old models will not work'
+                          ' from version 0.18 onwards.', RuntimeWarning)
+            state['init'] = state.pop('hid_init')
+        except KeyError:
+            pass
         # restore pickled instance attributes
         self.__dict__.update(state)
         # TODO: old models do not have the init attributes, thus create them
@@ -576,6 +586,19 @@ class GRULayer(RecurrentLayer):
             self.init = np.zeros(self.cell.bias.size, dtype=NN_DTYPE)
         # add non-pickled attributes needed for stateful processing
         self._prev = self.init
+
+    def reset(self, init=None):
+        """
+        Reset the layer to its initial state.
+
+        Parameters
+        ----------
+        init : numpy array, shape (num_hiddens,), optional
+            Reset the hidden units to this initial state.
+
+        """
+        # reset previous time step and state to initial value
+        self._prev = init or self.init
 
     def activate(self, data, reset=True):
         """

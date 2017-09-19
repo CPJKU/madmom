@@ -1541,14 +1541,19 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
                 filtered_signal /= np.iinfo(signal.dtype).max
             except ValueError:
                 pass
+            # compute the energy of the filtered signal
+            # Note: 1) the energy of the signal is computed with respect to the
+            #          reference sampling rate as in the MATLAB chroma toolbox
+            #       2) we do not sum here, but rather after splitting the
+            #          signal into overlapping frames to avoid doubled
+            #          computation due to the overlapping frames
+            filtered_signal = filtered_signal ** 2 / band_sample_rate * 22050.
             # split into overlapping frames
             frames = FramedSignal(filtered_signal, frame_size=frame_size,
                                   fps=fps, sample_rate=band_sample_rate,
                                   num_frames=num_frames)
-            # compute total energy of the frames
-            # Note: the energy of the signal is computed with respect to the
-            #       reference sampling rate as in the MATLAB chroma toolbox
-            bands.append(energy(frames) / band_sample_rate * 22050.)
+            # finally sum the energy of all frames
+            bands.append(np.sum(frames, axis=1))
         # cast as SemitoneBandpassSpectrogram
         obj = np.vstack(bands).T.view(cls)
         # save additional attributes
