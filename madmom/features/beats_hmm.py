@@ -80,17 +80,17 @@ class BeatStateSpace(object):
                 intervals = np.unique(np.round(intervals))
                 num_log_intervals += 1
         # save the intervals
-        self.intervals = np.ascontiguousarray(intervals, dtype=np.uint32)
+        self.intervals = np.ascontiguousarray(intervals, dtype=np.int)
         # number of states and intervals
         self.num_states = int(np.sum(intervals))
         self.num_intervals = len(intervals)
         # define first and last states
         first_states = np.cumsum(np.r_[0, self.intervals[:-1]])
-        self.first_states = first_states.astype(np.uint32)
-        self.last_states = np.cumsum(self.intervals).astype(np.uint32) - 1
+        self.first_states = first_states.astype(np.int)
+        self.last_states = np.cumsum(self.intervals) - 1
         # define the positions and intervals of the states
         self.state_positions = np.empty(self.num_states)
-        self.state_intervals = np.empty(self.num_states, dtype=np.uint32)
+        self.state_intervals = np.empty(self.num_states, dtype=np.int)
         # Note: having an index counter is faster than ndenumerate
         idx = 0
         for i in self.intervals:
@@ -150,7 +150,7 @@ class BarStateSpace(object):
         # model N beats as a bar
         self.num_beats = int(num_beats)
         self.state_positions = np.empty(0)
-        self.state_intervals = np.empty(0, dtype=np.uint32)
+        self.state_intervals = np.empty(0, dtype=np.int)
         self.num_states = 0
         # save the first and last states of the individual beats in a list
         self.first_states = []
@@ -196,8 +196,8 @@ class MultiPatternStateSpace(object):
         self.num_patterns = len(state_spaces)
         self.state_spaces = state_spaces
         self.state_positions = np.empty(0)
-        self.state_intervals = np.empty(0, dtype=np.uint32)
-        self.state_patterns = np.empty(0, dtype=np.uint32)
+        self.state_intervals = np.empty(0, dtype=np.int)
+        self.state_patterns = np.empty(0, dtype=np.int)
         self.num_states = 0
         # save the first and last states of the individual patterns in a list
         self.first_states = []
