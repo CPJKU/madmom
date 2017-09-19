@@ -709,7 +709,7 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     Parameters
     ----------
-    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
+    weights : numpy array, shape (num_channels, num_feature_maps, <kernel>)
         Weights.
     bias : scalar or numpy array, shape (num_filters,)
         Bias.
@@ -857,8 +857,10 @@ class MaxPoolLayer(Layer):
         """
         from scipy.ndimage.filters import maximum_filter
         # define which part of the maximum filtered data to return
-        slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
-        slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
+        slice_dim_1 = slice(self.size[0] // 2, data.shape[0] -
+                            (self.size[0] - 1) // 2, self.stride[0])
+        slice_dim_2 = slice(self.size[1] // 2, data.shape[1] -
+                            (self.size[1] - 1) // 2, self.stride[1])
         # TODO: is constant mode the most appropriate?
         data = [maximum_filter(data[:, :, c], self.size, mode='constant')
                 [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]

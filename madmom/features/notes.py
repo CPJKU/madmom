@@ -309,8 +309,8 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
 
     Examples
     --------
-    Create a PeakPickingProcessor. The returned array represents the positions
-    of the onsets in seconds, thus the expected sampling rate has to be given.
+    Create a NotePeakPickingProcessor. The returned array represents the note
+    positions in seconds, thus the expected sampling rate has to be given.
 
     >>> proc = NotePeakPickingProcessor(fps=100)
     >>> proc  # doctest: +ELLIPSIS
@@ -320,30 +320,15 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
     RNNPianoNoteProcessor.
 
     >>> act = RNNPianoNoteProcessor()('tests/data/audio/stereo_sample.wav')
-    >>> proc(act)  # doctest: +ELLIPSIS
-    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
+    >>> proc(act)  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    array([[ 0.14, 72. ],
+           [ 1.56, 41. ],
+           [ 3.37, 75. ]])
 
     """
-    FPS = 100
-    THRESHOLD = 0.5  # binary threshold
-    SMOOTH = 0.
-    PRE_AVG = 0.
-    POST_AVG = 0.
-    PRE_MAX = 0.
-    POST_MAX = 0.
-    COMBINE = 0.03
-    DELAY = 0.
-    ONLINE = False
 
-    def __init__(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
-                 post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
-                 combine=COMBINE, delay=DELAY, online=ONLINE, fps=FPS,
-                 **kwargs):
-        # pylint: disable=unused-argument
-        super(NotePeakPickingProcessor, self).__init__(
-            threshold=threshold, smooth=smooth, pre_avg=pre_avg,
-            post_avg=post_avg, pre_max=pre_max, post_max=post_max,
-            combine=combine, delay=delay, online=online, fps=fps)
+    # pitch offset to be applied to the reported notes
+    pitch_offset = 21
 
     def process(self, activations, **kwargs):
         """
@@ -369,7 +354,7 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
         notes = peak_picking(activations, self.threshold, *timings)
         # split onsets and pitches
         onsets = notes[0].astype(np.float) / self.fps
-        pitches = notes[1] + 21
+        pitches = notes[1] + self.pitch_offset
         # shift if necessary
         if self.delay:
             onsets += self.delay
