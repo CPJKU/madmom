@@ -7,6 +7,7 @@ Version 0.16.dev0
 New features:
 
 * Added chord evaluation (#309)
+* Added `quantize_notes` function (#327)
 
 Bug fixes:
 
@@ -15,6 +16,7 @@ Bug fixes:
 * Fix ffmpeg unicode filename handling (#305)
 * Fix STFT zero padding (#319)
 * Fix memory leak when accessing signal frames (#322)
+* Quantization of events does not alter them (#327)
 
 API relevant changes:
 

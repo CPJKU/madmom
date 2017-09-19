@@ -347,8 +347,11 @@ def combine_events(events, delta, combine='mean'):
     # return immediately if possible
     if len(events) <= 1:
         return events
-    # create working copy
-    events = np.array(events, copy=True)
+    # convert to numpy array or create a copy if needed
+    events = np.array(events, dtype=np.float)
+    # can handle only 1D events
+    if events.ndim > 1:
+        raise ValueError('only 1-dimensional events supported.')
     # set start position
     idx = 0
     # get first event
@@ -380,14 +383,15 @@ def quantize_events(events, fps, length=None, shift=None):
 
     Parameters
     ----------
-    events : numpy array
+    events : list or numpy array
         Events to be quantized.
     fps : float
         Quantize with `fps` frames per second.
     length : int, optional
-        Length of the returned array.
+        Length of the returned array. If 'None', the length will be set
+        according to the latest event.
     shift : float, optional
-        Shift the events by this value before quantisation
+        Shift the events by `shift` seconds before quantization.
 
     Returns
     -------
@@ -395,10 +399,17 @@ def quantize_events(events, fps, length=None, shift=None):
         Quantized events.
 
     """
-    # convert to numpy array if needed
-    events = np.asarray(events, dtype=np.float)
+    # convert to numpy array or create a copy if needed
+    events = np.array(events, dtype=np.float)
+    # can handle only 1D events
+    if events.ndim != 1:
+        raise ValueError('only 1-dimensional events supported.')
     # shift all events if needed
-    if shift:
+    if shift is not None:
+        import warnings
+        warnings.warn('`shift` parameter is deprecated as of version 0.16 and '
+                      'will be removed in version 0.18. Please shift the '
+                      'events manually before calling this function.')
         events += shift
     # determine the length for the quantized array
     if length is None:
@@ -416,6 +427,82 @@ def quantize_events(events, fps, length=None, shift=None):
     idx = np.unique(np.round(events).astype(np.int))
     quantized[idx] = 1
     # return the quantized array
+    return quantized
+
+
+def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
+    """
+    Quantize the notes with the given resolution.
+
+    Create a sparse 2D array with rows corresponding to points in time
+    (according to `fps` and `length`), and columns to note pitches (according
+    to `num_pitches`). The values of the array correspond to the velocity of a
+    sounding note at a given point in time (based on the note pitch, onset,
+    duration and velocity). If no values for `length` and `num_pitches` are
+    given, they are inferred from `notes`.
+
+    Parameters
+    ----------
+    notes : 2D numpy array
+        Notes to be quantized. Expected columns:
+        'note_time' 'note_number' ['duration' ['velocity']]
+        If `notes` contains no 'duration' column, only the frame of the
+        onset will be set. If `notes` has no velocity column, a velocity
+        of 1 is assumed.
+    fps : float
+        Quantize with `fps` frames per second.
+    length : int, optional
+        Length of the returned array. If 'None', the length will be set
+        according to the latest sounding note.
+    num_pitches : int, optional
+        Number of pitches of the returned array. If 'None', the number of
+        pitches will be based on the highest pitch in the `notes` array.
+    velocity : float, optional
+        Use this velocity for all quantized notes. If set, the last column of
+        `notes` (if present) will be ignored.
+
+    Returns
+    -------
+    numpy array
+        Quantized notes.
+
+    """
+    # convert to numpy array or create a copy if needed
+    notes = np.array(np.array(notes).T, dtype=np.float, ndmin=2).T
+    # check supported dims and shapes
+    if notes.ndim != 2:
+        raise ValueError('only 2-dimensional notes supported.')
+    if notes.shape[1] < 2:
+        raise ValueError('notes must have at least 2 columns.')
+    # split the notes into columns
+    note_onsets = notes[:, 0]
+    note_numbers = notes[:, 1].astype(np.int)
+    note_offsets = np.copy(note_onsets)
+    if notes.shape[1] > 2:
+        note_offsets += notes[:, 2]
+    if notes.shape[1] > 3 and velocity is None:
+        note_velocities = notes[:, 3]
+    else:
+        velocity = velocity or 1
+        note_velocities = np.ones(len(notes)) * velocity
+    # determine length and width of quantized array
+    if length is None:
+        # set the length to be long enough to cover all notes
+        length = int(round(np.max(note_offsets) * float(fps))) + 1
+    if num_pitches is None:
+        num_pitches = int(np.max(note_numbers)) + 1
+    # init array
+    quantized = np.zeros((length, num_pitches))
+    # quantize onsets and offsets
+    note_onsets = np.round((note_onsets * fps)).astype(np.int)
+    note_offsets = np.round((note_offsets * fps)).astype(np.int) + 1
+    # iterate over all notes
+    for n, note in enumerate(notes):
+        # use only the notes which fit in the array and note number >= 0
+        if num_pitches > note_numbers[n] >= 0:
+            quantized[note_onsets[n]:note_offsets[n], note_numbers[n]] = \
+                note_velocities[n]
+    # return quantized array
     return quantized
 
 

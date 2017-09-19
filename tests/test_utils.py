@@ -13,6 +13,7 @@ from os.path import join as pj
 from madmom.utils import *
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
                DETECTIONS_PATH)
+from .test_features_notes import NOTES
 
 FILE_LIST = [pj(DATA_PATH, 'README'),
              pj(DATA_PATH, 'commented_txt'),
@@ -335,6 +336,10 @@ class TestCombineEventsFunction(unittest.TestCase):
         correct = np.asarray([1.02, 1.5, 2.05, 2.5, 3])
         self.assertTrue(np.allclose(comb, correct))
 
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            combine_events(np.arange(6).reshape((2, 3)), 0.5)
+
 
 class TestQuantizeEventsFunction(unittest.TestCase):
 
@@ -344,12 +349,15 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         self.assertTrue(np.allclose(idx, [10, 15, 20, 25, 30]))
-        # 100 FPS
-        quantized = quantize_events(EVENTS, 100, length=None)
+        # 100 FPS with numpy arrays (array must not be changed)
+        events = np.array(EVENTS)
+        events_ = np.copy(events)
+        quantized = quantize_events(events, 100, length=None)
         idx = np.nonzero(quantized)[0]
         # tar: [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
         correct = [100, 102, 150, 200, 203, 205, 250, 300]
         self.assertTrue(np.allclose(idx, correct))
+        self.assertTrue(np.allclose(events, events_))
 
     def test_length(self):
         # length = 280
@@ -382,6 +390,99 @@ class TestQuantizeEventsFunction(unittest.TestCase):
         idx = np.nonzero(quantized)[0]
         correct = [20, 25, 30]
         self.assertTrue(np.allclose(idx, correct))
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            quantize_events(1, fps=100)
+        with self.assertRaises(ValueError):
+            quantize_events([[0], [1], [2]], fps=100)
+        with self.assertRaises(ValueError):
+            quantize_events(np.arange(9).reshape((3, 3, 3)), fps=100)
+
+
+class TestQuantizeNotesFunction(unittest.TestCase):
+
+    def test_fps(self):
+        # 10 FPS
+        fps = 10
+        quantized = quantize_notes(NOTES, fps=fps)
+        self.assertTrue(quantized.shape == (42, 78))
+        idx = np.nonzero(quantized)
+        correct = np.arange(np.round(NOTES[0, 0] * fps),
+                            np.round((NOTES[0, 0] + NOTES[0, 2]) * fps) + 1)
+        self.assertTrue(np.allclose(idx[0][idx[1] == 72], correct))
+        # 100 FPS with numpy arrays (array must not be changed)
+        fps = 100
+        notes = np.array(NOTES)
+        notes_ = np.copy(notes)
+        quantized = quantize_notes(notes, fps=fps)
+        self.assertTrue(quantized.shape == (416, 78))
+        idx = np.nonzero(quantized)
+        correct = np.arange(np.round(NOTES[1, 0] * fps),
+                            np.round((NOTES[1, 0] + NOTES[1, 2]) * fps) + 1)
+        self.assertTrue(np.allclose(idx[0][idx[1] == 41], correct))
+        self.assertTrue(np.allclose(notes, notes_))
+
+    def test_length(self):
+        fps = 100
+        length = 280
+        quantized = quantize_notes(NOTES, fps=fps, length=length)
+        self.assertTrue(quantized.shape == (280, 78))
+        idx = np.nonzero(quantized)
+        correct = np.arange(np.round(NOTES[0, 0] * fps), length)
+        self.assertTrue(np.allclose(idx[0][idx[1] == 72], correct))
+
+    def test_rounding(self):
+        # rounding towards next even number
+        quantized = quantize_notes([[0.95, 0], [1.95, 1]], fps=10)
+        self.assertTrue(np.allclose(np.nonzero(quantized), [[10, 20], [0, 1]]))
+        quantized = quantize_notes([[0.85, 0], [1.85, 1]], fps=10)
+        self.assertTrue(np.allclose(np.nonzero(quantized), [[8, 18], [0, 1]]))
+        # round down
+        quantized = quantize_notes([[0.9499999, 0]], fps=10)
+        self.assertTrue(np.allclose(np.nonzero(quantized), [[9], [0]]))
+        # with length
+        quantized = quantize_notes([[0.95, 0], [1.95, 1]], fps=10, length=15)
+        self.assertTrue(np.allclose(np.nonzero(quantized), [[10], [0]]))
+
+    def test_num_notes(self):
+        fps = 10
+        num_pitches = 73
+        quantized = quantize_notes(NOTES, fps=fps, num_pitches=num_pitches)
+        self.assertTrue(quantized.shape == (42, 73))
+        idx = np.nonzero(quantized)
+        correct = np.arange(np.round(NOTES[0, 0] * fps),
+                            np.round((NOTES[0, 0] + NOTES[0, 2]) * fps) + 1)
+        self.assertTrue(np.allclose(idx[0][idx[1] == 72], correct))
+        num_pitches = 72
+        quantized = quantize_notes(NOTES, fps=fps, num_pitches=num_pitches),
+        idx = np.nonzero(quantized)
+        self.assertTrue(np.allclose(idx[0][idx[1] == 72], []))
+
+    def test_velocity(self):
+        fps = 10
+        quantized = quantize_notes(NOTES, fps=fps)
+        self.assertTrue(quantized.shape == (42, 78))
+        self.assertTrue(np.max(quantized) == 72)
+        self.assertTrue(np.allclose(quantized[:, 72][0], 0))
+        self.assertTrue(np.allclose(quantized[:, 72][1: 36], 63))
+        self.assertTrue(np.allclose(quantized[:, 72][36:], 0))
+        # set velocity
+        quantized = quantize_notes(NOTES, fps=fps, velocity=1.5)
+        self.assertTrue(np.max(quantized) == 1.5)
+        # default velocity if not given by the notes
+        quantized = quantize_notes([[0.95, 0], [1.95, 1]], fps=10)
+        self.assertTrue(np.allclose(quantized[np.nonzero(quantized)], 1))
+        quantized = quantize_notes([[0.95, 0], [1.95, 1]], fps=10, velocity=5)
+        self.assertTrue(np.allclose(quantized[np.nonzero(quantized)], 5))
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            quantize_notes([0, 1, 2], fps=100)
+        with self.assertRaises(ValueError):
+            quantize_notes([[0], [1], [2]], fps=100)
+        with self.assertRaises(ValueError):
+            quantize_notes(np.arange(8).reshape((2, 2, 2)), fps=100)
 
 
 class TestSegmentAxisFunction(unittest.TestCase):
