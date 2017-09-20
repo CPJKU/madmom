@@ -84,7 +84,7 @@ def chords(labels):
     -------
     chords : numpy.array
         Structured array with columns 'root', 'bass', and 'intervals',
-        containing a numeric representation of chords.
+        containing a numeric representation of chords (`CHORD_DTYPE`).
 
     """
     crds = np.zeros(len(labels), dtype=CHORD_DTYPE)
@@ -101,7 +101,7 @@ def chords(labels):
 def chord(label):
     """
     Transform a chord label into the internal numeric represenation of
-    (root, bass, intervals array) as defined by CHORD_ANN_DTYPE.
+    (root, bass, intervals array) as defined by `CHORD_DTYPE`.
 
     Parameters
     ----------
