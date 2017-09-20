@@ -2,7 +2,6 @@ from collections import Counter
 
 from . import EvaluationMixin, evaluation_io
 
-
 _KEY_TO_SEMITONE = {'c': 0, 'c#': 1, 'db': 1, 'd': 2, 'd#': 3, 'eb': 3, 'e': 4,
                     'f': 5, 'f#': 6, 'gb': 6, 'g': 7, 'g#': 8, 'ab': 8, 'a': 9,
                     'a#': 10, 'bb': 10, 'b': 11, 'cb': 11}
@@ -91,10 +90,10 @@ def error_type(ann_key, det_key, strict_fifth=False):
                              ((det_root - ann_root) % 12 == 5)):
         return 'fifth', 0.5
     if (ann_mode == major and det_mode != ann_mode and (
-                (det_root - ann_root) % 12 == 9)):
+            (det_root - ann_root) % 12 == 9)):
         return 'relative', 0.3
     if (ann_mode == minor and det_mode != ann_mode and (
-                (det_root - ann_root) % 12 == 3)):
+            (det_root - ann_root) % 12 == 3)):
         return 'relative', 0.3
     if det_mode != ann_mode and det_root == ann_root:
         return 'parallel', 0.2
@@ -223,16 +222,16 @@ def add_parser(parser):
         'key', help='key evaluation',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='''
-    This program evaluates pairs of files containing global key annotations 
-    and predictions. Suffixes can be given to filter them from the list of 
+    This program evaluates pairs of files containing global key annotations
+    and predictions. Suffixes can be given to filter them from the list of
     files.
-    
+
     Each file must contain only the global key and follow the syntax outlined
     in http://music-ir.org/mirex/wiki/2017:Audio_Key_Detection:
     `tonic mode`, where tonic is in {C, C#, Db, ... Cb} and mode in {'major',
     'maj', 'minor', 'min'}.
-    
-    To maintain compatibility with MIREX evaluation scores, use the 
+
+    To maintain compatibility with MIREX evaluation scores, use the
     --strict_fifth flag.
     ''')
     # set defaults
