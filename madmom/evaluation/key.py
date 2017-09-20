@@ -74,7 +74,7 @@ def error_type(ann_key, det_key, strict_fifth=False):
     Returns
     -------
     category, score : str, float
-        Error category and evaluation score
+        Error category and evaluation score.
 
     """
     ann_root = ann_key % 12
@@ -115,7 +115,7 @@ class KeyEvaluation(EvaluationMixin):
     strict_fifth : bool
         Use strict interpretation of the 'fifth' category, as in MIREX.
     name : str, optional
-        Name of the evaluation object (e.g., the name of the song)
+        Name of the evaluation object (e.g., the name of the song).
 
     """
 
@@ -167,7 +167,7 @@ class KeyMeanEvaluation(EvaluationMixin):
     eval_objects : list
         Key evaluation objects.
     name : str, optional
-        Name to be displayed
+        Name to be displayed.
 
     """
 
@@ -214,7 +214,7 @@ def add_parser(parser):
     Returns
     -------
     sub_parser : argparse sub-parser instance
-        Key evaluation sub-parser
+        Key evaluation sub-parser.
 
     """
     import argparse
