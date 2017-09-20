@@ -46,6 +46,7 @@ def key_label_to_class(key_label):
         key_class += 0
     else:
         raise ValueError('Unknown mode: {}'.format(mode))
+    return key_class
 
 
 def error_type(ann_key, det_key, strict_fifth=False):

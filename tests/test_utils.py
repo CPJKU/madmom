@@ -48,6 +48,7 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
 
 ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'sample.beats'),
+                    pj(ANNOTATIONS_PATH, 'dummy.key'),
                     pj(ANNOTATIONS_PATH, 'sample.onsets'),
                     pj(ANNOTATIONS_PATH, 'sample.sv'),
                     pj(ANNOTATIONS_PATH, 'sample.tempo'),
@@ -60,6 +61,7 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]
 
 DETECTION_FILES = [pj(DETECTIONS_PATH, 'dummy.chords.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.key.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.cnn_chord_recognition.txt'),
