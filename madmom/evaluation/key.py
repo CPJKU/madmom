@@ -149,8 +149,10 @@ class KeyEvaluation(EvaluationMixin):
     def __init__(self, detection, annotation, strict_fifth=False, name=None,
                  **kwargs):
         self.name = name or ''
+        self.detection = load_key(detection)
+        self.annotation = load_key(annotation)
         self.score, self.error_category = error_type(
-            load_key(detection), load_key(annotation), strict_fifth
+            self.detection, self.annotation, strict_fifth
         )
 
     def tostring(self, **kwargs):

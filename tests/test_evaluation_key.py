@@ -47,13 +47,33 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
                          key_label_to_class('F# major'))
 
 
+class TestLoadKeyFunction(unittest.TestCase):
+
+    def test_load_key_from_file(self):
+        key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
+        self.assertEquals(key, 18)
+        key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
+        self.assertEquals(key, 9)
+
+    def test_load_key_from_id(self):
+        key = load_key(18)
+        self.assertEquals(key, 18)
+        key = load_key(9)
+        self.assertEquals(key, 9)
+
+        with self.assertRaises(ValueError):
+            load_key(-1)
+        with self.assertRaises(ValueError):
+            load_key(25)
+
+
 class TestErrorTypeFunction(unittest.TestCase):
 
     def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,
                         parallel):
         for det_key in range(24):
-            cat, score = error_type(correct, det_key)
-            cat_st, score_st = error_type(correct, det_key, strict_fifth=True)
+            score, cat = error_type(det_key, correct)
+            score_st, cat_st = error_type(det_key, correct, strict_fifth=True)
             if det_key == correct:
                 self.assertEquals(cat, 'correct')
                 self.assertEquals(score, 1.0)
