@@ -9,6 +9,7 @@ New features:
 * Added chord evaluation (#309)
 * Bar tracking functionality (#316)
 * Added `quantize_notes` function (#327)
+* Added global key evaluation (#336)
 
 Bug fixes:
 

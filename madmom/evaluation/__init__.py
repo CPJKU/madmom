@@ -893,6 +893,7 @@ from .alignment import (AlignmentEvaluation, AlignmentMeanEvaluation,
                         AlignmentSumEvaluation)
 from .beats import BeatEvaluation, BeatMeanEvaluation
 from .chords import ChordEvaluation, ChordMeanEvaluation, ChordSumEvaluation
+from .key import KeyEvaluation, KeyMeanEvaluation
 from .notes import NoteEvaluation, NoteMeanEvaluation, NoteSumEvaluation
 from .onsets import OnsetEvaluation, OnsetMeanEvaluation, OnsetSumEvaluation
 from .tempo import TempoEvaluation, TempoMeanEvaluation

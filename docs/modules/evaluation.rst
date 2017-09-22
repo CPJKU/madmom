@@ -12,6 +12,7 @@ Submodules
    evaluation/alignment
    evaluation/beats
    evaluation/chords
+   evaluation/key
    evaluation/notes
    evaluation/onsets
    evaluation/tempo
