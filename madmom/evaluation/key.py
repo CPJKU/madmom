@@ -49,7 +49,29 @@ def key_label_to_class(key_label):
     return key_class
 
 
-def error_type(ann_key, det_key, strict_fifth=False):
+def load_key(value):
+    """
+    Load the key from the given value or file.
+
+    Parameters
+    ----------
+    value : str or int
+        File name / value to be loaded
+
+    Returns
+    -------
+    int
+        Key.
+    """
+    if isinstance(value, int):
+        if not 0 <= value <= 23:
+            raise ValueError('Illegal key class: {}'.format(value))
+        return value
+
+    return key_label_to_class(open(value).read().strip())
+
+
+def error_type(det_key, ann_key, strict_fifth=False):
     """
     Compute the evaluation score and error category for a predicted key
     compared to the annotated key.
@@ -64,17 +86,17 @@ def error_type(ann_key, det_key, strict_fifth=False):
 
     Parameters
     ----------
-    ann_key : int
-        Annotated key class.
     det_key : int
         Detected key class.
+    ann_key : int
+        Annotated key class.
     strict_fifth: bool
         Use strict interpretation of the 'fifth' category, as in MIREX.
 
     Returns
     -------
-    category, score : str, float
-        Error category and evaluation score.
+    score, category : float, str
+        Evaluation score and error category.
 
     """
     ann_root = ann_key % 12
@@ -84,22 +106,22 @@ def error_type(ann_key, det_key, strict_fifth=False):
     major, minor = 0, 1
 
     if det_root == ann_root and det_mode == ann_mode:
-        return 'correct', 1.0
+        return 1.0, 'correct'
     if det_mode == ann_mode and ((det_root - ann_root) % 12 == 7):
-        return 'fifth', 0.5
+        return 0.5, 'fifth'
     if not strict_fifth and (det_mode == ann_mode and
                              ((det_root - ann_root) % 12 == 5)):
-        return 'fifth', 0.5
+        return 0.5, 'fifth'
     if (ann_mode == major and det_mode != ann_mode and (
             (det_root - ann_root) % 12 == 9)):
-        return 'relative', 0.3
+        return 0.3, 'relative'
     if (ann_mode == minor and det_mode != ann_mode and (
             (det_root - ann_root) % 12 == 3)):
-        return 'relative', 0.3
+        return 0.3, 'relative'
     if det_mode != ann_mode and det_root == ann_root:
-        return 'parallel', 0.2
+        return 0.2, 'parallel'
     else:
-        return 'other', 0.0
+        return 0.0, 'other'
 
 
 class KeyEvaluation(EvaluationMixin):
@@ -112,7 +134,7 @@ class KeyEvaluation(EvaluationMixin):
         File containing detected key
     annotation : str
         File containing annotated key
-    strict_fifth : bool
+    strict_fifth : bool, optional
         Use strict interpretation of the 'fifth' category, as in MIREX.
     name : str, optional
         Name of the evaluation object (e.g., the name of the song).
@@ -124,25 +146,12 @@ class KeyEvaluation(EvaluationMixin):
         ('error_category', 'Error Category')
     ]
 
-    def __init__(self, detection, annotation,
-                 strict_fifth=False, name=None, **kwargs):
+    def __init__(self, detection, annotation, strict_fifth=False, name=None,
+                 **kwargs):
         self.name = name or ''
-        self.detection = key_label_to_class(open(detection).read().strip())
-        self.annotation = key_label_to_class(open(annotation).read().strip())
-        err_cat, score = error_type(self.annotation, self.detection,
-                                    strict_fifth)
-        self._category = err_cat
-        self._score = score
-
-    @property
-    def score(self):
-        """Evaluation score."""
-        return self._score
-
-    @property
-    def error_category(self):
-        """Error category."""
-        return self._category
+        self.score, self.error_category = error_type(
+            load_key(detection), load_key(annotation), strict_fifth
+        )
 
     def tostring(self, **kwargs):
         """
@@ -154,8 +163,9 @@ class KeyEvaluation(EvaluationMixin):
             Evaluation score and category as a human readable string.
 
         """
-        return '{}: {:3.1f}, {}'.format(
-            self.name, self.score, self.error_category)
+        ret = '{}: '.format(self.name) if self.name else ''
+        ret += '{:3.1f}, {}'.format(self.score, self.error_category)
+        return ret
 
 
 class KeyMeanEvaluation(EvaluationMixin):
@@ -194,11 +204,10 @@ class KeyMeanEvaluation(EvaluationMixin):
         self.weighted = sum(e.score for e in eval_objects) / n
 
     def tostring(self, **kwargs):
-        return ('{}\n  w: {:5.2f}  c: {:5.2f}  f: {:5.2f}, '
-                'r: {:5.2f}  p: {:5.2f}  o: {:5.2f}'.format(
-                    self.name,
-                    self.weighted * 100, self.correct * 100, self.fifth * 100,
-                    self.relative * 100, self.parallel * 100, self.other * 100)
+        return ('{}\n  Weighted: {:.3f}  Correct: {:.3f}  Fifth: {:.3f}  '
+                'Relative: {:.3f}  Parallel: {:.3f}  Other: {:.3f}'.format(
+                    self.name, self.weighted, self.correct, self.fifth, 
+                    self.relative, self.parallel, self.other)
                 )
 
 
