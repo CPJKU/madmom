@@ -1373,9 +1373,6 @@ class FramedSignalProcessor(Processor):
         End of signal handling (see :class:`FramedSignal`).
     num_frames : int, optional
         Number of frames to return.
-    kwargs : dict, optional
-        If no :class:`Signal` instance was given, one is instantiated with
-        these additional keyword arguments.
 
     Notes
     -----
