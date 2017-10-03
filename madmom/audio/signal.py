@@ -876,7 +876,8 @@ class SignalProcessor(Processor):
     """
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=START, stop=STOP, norm=NORM, gain=GAIN, **kwargs):
+                 start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
+                 **kwargs):
         # pylint: disable=unused-argument
         self.sample_rate = sample_rate
         self.num_channels = num_channels
@@ -884,6 +885,7 @@ class SignalProcessor(Processor):
         self.stop = stop
         self.norm = norm
         self.gain = gain
+        self.dtype = dtype
 
     def process(self, data, **kwargs):
         """
@@ -906,7 +908,8 @@ class SignalProcessor(Processor):
         # update arguments passed to FramedSignal
         args = dict(sample_rate=self.sample_rate,
                     num_channels=self.num_channels, start=self.start,
-                    stop=self.stop, norm=self.norm, gain=self.gain)
+                    stop=self.stop, norm=self.norm, gain=self.gain,
+                    dtype=self.dtype)
         args.update(kwargs)
         # instantiate a Signal and return it
         return Signal(data, **args)
