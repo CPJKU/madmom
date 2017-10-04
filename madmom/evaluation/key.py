@@ -1,6 +1,8 @@
 from collections import Counter
 
 from . import EvaluationMixin, evaluation_io
+from ..io import load_key
+
 
 _KEY_TO_SEMITONE = {'c': 0, 'c#': 1, 'db': 1, 'd': 2, 'd#': 3, 'eb': 3, 'e': 4,
                     'f': 5, 'f#': 6, 'gb': 6, 'g': 7, 'g#': 8, 'ab': 8, 'a': 9,
@@ -39,6 +41,8 @@ def key_label_to_class(key_label):
 
     """
     tonic, mode = key_label.split()
+    if tonic.lower() not in _KEY_TO_SEMITONE.keys():
+        raise ValueError('Unknown tonic: {}'.format(tonic))
     key_class = _KEY_TO_SEMITONE[tonic.lower()]
     if mode in ['minor', 'min']:
         key_class += 12
@@ -47,28 +51,6 @@ def key_label_to_class(key_label):
     else:
         raise ValueError('Unknown mode: {}'.format(mode))
     return key_class
-
-
-def load_key(value):
-    """
-    Load the key from the given value or file.
-
-    Parameters
-    ----------
-    value : str or int
-        File name / value to be loaded
-
-    Returns
-    -------
-    int
-        Key.
-    """
-    if isinstance(value, int):
-        if not 0 <= value <= 23:
-            raise ValueError('Illegal key class: {}'.format(value))
-        return value
-
-    return key_label_to_class(open(value).read().strip())
 
 
 def error_type(det_key, ann_key, strict_fifth=False):
@@ -149,8 +131,8 @@ class KeyEvaluation(EvaluationMixin):
     def __init__(self, detection, annotation, strict_fifth=False, name=None,
                  **kwargs):
         self.name = name or ''
-        self.detection = load_key(detection)
-        self.annotation = load_key(annotation)
+        self.detection = key_label_to_class(load_key(detection))
+        self.annotation = key_label_to_class(load_key(annotation))
         self.score, self.error_category = error_type(
             self.detection, self.annotation, strict_fifth
         )
