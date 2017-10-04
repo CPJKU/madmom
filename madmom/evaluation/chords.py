@@ -14,8 +14,8 @@ listed in the following, please file an issue:
 
  - Detected chord segments are adjusted to fit the length of the annotations.
    In particular, this means that, if necessary, filler segments of 'no chord'
-   are added at beginnings and ends. This can result in lower
-   under-segmentation scores compared to the original implementation.
+   are added at beginnings and ends. This can result in different segmentation
+   scores compared to the original implementation.
 
 References
 ----------
@@ -312,7 +312,6 @@ def load_chords(filename):
            London, 2010.
 
     """
-    # TODO: Join consecutive labels of identical chords
     start, end, chord_labels = [], [], []
     with open(filename, 'r') as f:
         for line in f:
@@ -325,6 +324,42 @@ def load_chords(filename):
     crds['start'] = start
     crds['end'] = end
     crds['chord'] = chords(chord_labels)
+    return crds
+
+
+def merge_chords(chords):
+    """
+    Merge consecutive chord annotations if they represent the same chord.
+
+    Parameters
+    ----------
+    chords : numpy structured arrray
+        Chord annotations to be merged, in `CHORD_ANN_DTYPE` format.
+
+    Returns
+    -------
+    merged_chords : numpy structured array
+        Merged chord annotations, in `CHORD_ANN_DTYPE` format.
+
+    """
+    merged_starts = []
+    merged_ends = []
+    merged_chords = []
+    prev_chord = None
+    for start, end, chord in chords:
+        if chord != prev_chord:
+            prev_chord = chord
+            merged_starts.append(start)
+            merged_ends.append(end)
+            merged_chords.append(chord)
+        else:
+            # prolong the previous chord
+            merged_ends[-1] = end
+
+    crds = np.zeros(len(merged_chords), dtype=CHORD_ANN_DTYPE)
+    crds['start'] = merged_starts
+    crds['end'] = merged_ends
+    crds['chord'] = merged_chords
     return crds
 
 
@@ -732,8 +767,9 @@ class ChordEvaluation(EvaluationMixin):
 
     def __init__(self, detections, annotations, name=None, **kwargs):
         self.name = name or ''
-        self.ann_chords = load_chords(annotations)
-        self.det_chords = adjust(load_chords(detections), self.ann_chords)
+        self.ann_chords = merge_chords(load_chords(annotations))
+        self.det_chords = merge_chords(
+            adjust(load_chords(detections), self.ann_chords))
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)
 
