@@ -18,6 +18,10 @@ if sys.version_info[0] < 3:
 else:
     from io import TextIOBase as _file_handle
 
+
+def _open_file(fn):
+    return fn if isinstance(fn, _file_handle) else open(fn, 'r')
+
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
 SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
@@ -363,10 +367,7 @@ def load_segments(filename):
     """
     start, end, label = [], [], []
 
-    def open_file(fn):
-        return fn if isinstance(fn, _file_handle) else open(fn, 'r')
-
-    with open_file(filename) as f:
+    with _open_file(filename) as f:
         for line in f:
             s, e, l = line.split()
             start.append(float(s))
@@ -588,3 +589,21 @@ def load_alignment(values):
         raise AlignmentFormatError()
 
     return values[:, :2]
+
+
+def load_key(value):
+    """
+    Load the key from the given file.
+
+    Parameters
+    ----------
+    value : str or file handle
+        File name or file to be loaded
+
+    Returns
+    -------
+    str
+        Key annotation.
+
+    """
+    return _open_file(value).read().strip()

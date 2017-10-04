@@ -1,5 +1,7 @@
 import unittest
 from madmom.evaluation.key import *
+from madmom.io import load_key
+from madmom.evaluation.key import key_label_to_class
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from os.path import join
 
@@ -7,6 +9,8 @@ from os.path import join
 class TestKeyLabelToClassFunction(unittest.TestCase):
 
     def test_illegal_label(self):
+        with self.assertRaises(ValueError):
+            key_label_to_class('Z major')
         with self.assertRaises(ValueError):
             key_label_to_class('D mixolydian')
         with self.assertRaises(ValueError):
@@ -51,20 +55,13 @@ class TestLoadKeyFunction(unittest.TestCase):
 
     def test_load_key_from_file(self):
         key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
-        self.assertEquals(key, 18)
+        self.assertEquals(key, 'F# minor')
         key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
-        self.assertEquals(key, 9)
-
-    def test_load_key_from_id(self):
-        key = load_key(18)
-        self.assertEquals(key, 18)
-        key = load_key(9)
-        self.assertEquals(key, 9)
-
-        with self.assertRaises(ValueError):
-            load_key(-1)
-        with self.assertRaises(ValueError):
-            load_key(25)
+        self.assertEquals(key, 'a maj')
+        key = load_key(open(join(ANNOTATIONS_PATH, 'dummy.key')))
+        self.assertEquals(key, 'F# minor')
+        key = load_key(open(join(DETECTIONS_PATH, 'dummy.key.txt')))
+        self.assertEquals(key, 'a maj')
 
 
 class TestErrorTypeFunction(unittest.TestCase):
