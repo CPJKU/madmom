@@ -12,6 +12,21 @@ DUMMY_ANNOTATIONS = np.array(
     dtype=CHORD_ANN_DTYPE
 )
 
+DUMMY_DUPL_ANNOTATIONS = np.array(
+    [(0.1, 1.0, (9, 0, [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0])),
+     (1.0, 2.0, (5, 0, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
+     (2.0, 3.0, (5, 0, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
+     (3.0, 4.0, (5, 1, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]))],
+    dtype=CHORD_ANN_DTYPE
+)
+
+DUMMY_MERGED_DUPL_ANNOTATIONS = np.array(
+    [(0.1, 1.0, (9, 0, [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0])),
+     (1.0, 3.0, (5, 0, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])),
+     (3.0, 4.0, (5, 1, [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]))],
+    dtype=CHORD_ANN_DTYPE
+)
+
 
 class TestChordParsing(unittest.TestCase):
 
@@ -158,6 +173,10 @@ class TestChordLoading(unittest.TestCase):
     def test_load_func(self):
         crds = load_chords(join(ANNOTATIONS_PATH, 'dummy.chords'))
         self.assertTrue((crds == DUMMY_ANNOTATIONS).all())
+
+    def test_merge_func(self):
+        merged_chords = merge_chords(DUMMY_DUPL_ANNOTATIONS)
+        self.assertTrue((merged_chords == DUMMY_MERGED_DUPL_ANNOTATIONS).all())
 
 
 class TestChordEvaluation(unittest.TestCase):
