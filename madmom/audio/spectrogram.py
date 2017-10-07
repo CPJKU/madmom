@@ -724,12 +724,12 @@ class LogarithmicSpectrogramProcessor(Processor):
         if mul is not None:
             g.add_argument('--mul', action='store', type=float,
                            default=mul, help='multiplier (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # add
         if add is not None:
             g.add_argument('--add', action='store', type=float,
                            default=add, help='value added (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # return the group
         return g
 
