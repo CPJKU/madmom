@@ -27,12 +27,14 @@ eval_script = os.path.dirname(os.path.realpath(__file__)) + '/../bin/evaluate'
 sys.dont_write_bytecode = True
 
 
-def run_script(task, det_suffix=None):
+def run_script(task, det_suffix=None, args=None):
     # import module, capture stdout
     test = imp.load_source('test', eval_script)
     sys.argv = [eval_script, task, '--csv', DETECTIONS_PATH, ANNOTATIONS_PATH]
     if det_suffix:
         sys.argv.extend(['-d', det_suffix])
+    if args:
+        sys.argv.extend(args)
     backup = sys.stdout
     sys.stdout = StringIO()
     # run evaluation script
@@ -55,3 +57,18 @@ class TestEvaluateScript(unittest.TestCase):
         # third line contains the mean results
         mean_res = np.fromiter(res[2].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(mean_res, sum_res))
+
+    def test_beats(self):
+        res = run_script('beats', det_suffix='.beat_detector.txt')
+        # second line contains the results
+        res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
+        self.assertTrue(np.allclose(res, [0.667, 0.5, 0.639, 1, 0, 0,
+                                          0.875, 0.875, 3.322, 3.322]))
+
+    def test_downbeats(self):
+        res = run_script('beats', det_suffix='.dbn_downbeat_tracker.txt',
+                         args=['--down'])
+        # second line contains the results
+        res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
+        self.assertTrue(np.allclose(res, [0.667, 0.5, 0.653, 1, 0, 0,
+                                          0.875, 0.875, 3.072, 3.072]))
