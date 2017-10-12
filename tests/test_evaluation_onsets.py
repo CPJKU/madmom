@@ -130,18 +130,13 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         self.assertIsInstance(e.errors, np.ndarray)
-        # conversion from None should work
-        e = OnsetEvaluation(None, None)
+        # conversion from single values should work
+        e = OnsetEvaluation(0, 0)
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         self.assertIsInstance(e.errors, np.ndarray)
-        # others should fail
-        self.assertRaises(ValueError, OnsetEvaluation, float(0), float(0))
-        self.assertRaises(ValueError, OnsetEvaluation, int(0), int(0))
-        # TODO: why does dict work?
-        # self.assertRaises(ValueError, OnsetEvaluation, {}, {})
 
     def test_results(self):
         # empty detections / annotations
