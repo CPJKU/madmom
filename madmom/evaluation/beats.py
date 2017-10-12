@@ -993,8 +993,6 @@ class BeatEvaluation(OnsetEvaluation):
         Include triple and third tempo variations (and offbeats thereof).
     skip : float, optional
         Skip the first `skip` seconds for evaluation.
-    downbeats : bool, optional
-        Evaluate downbeats instead of beats.
 
     Notes
     -----
@@ -1024,11 +1022,16 @@ class BeatEvaluation(OnsetEvaluation):
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
                  information_gain_bins=INFORMATION_GAIN_BINS,
                  offbeat=True, double=True, triple=True, skip=0,
-                 downbeats=False, **kwargs):
-        # load the beat detections and annotations
-        detections = load_beats(detections, downbeats)
-        annotations = load_beats(annotations, downbeats)
+                 downbeats=None, **kwargs):
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
         # if these are 2D, use only the first column (i.e. the time stamp)
+        if downbeats is not None:
+            import warnings
+            warnings.warn('`downbeats` argument is deprecated as of version '
+                          '0.16 and will be removed in version 0.18. Please '
+                          'filter the annotations/detections beforehand.')
         if detections.ndim > 1:
             detections = detections[:, 0]
         if annotations.ndim > 1:
@@ -1186,7 +1189,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=BeatEvaluation, sum_eval=None,
-                   mean_eval=BeatMeanEvaluation)
+                   mean_eval=BeatMeanEvaluation, load_fn=load_beats)
     # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants
