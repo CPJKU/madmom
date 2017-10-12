@@ -144,35 +144,23 @@ def write_beats(beats, filename, **kwargs):
 
 
 @suppress_warnings
-def load_notes(values):
+def load_notes(filename):
     """
-    Load the notes from the given values or file.
+    Load the notes from the given file, one note per line of format
+    'onset_time' 'note_number' ['duration' ['velocity']].
 
     Parameters
     ----------
-    values: str, file handle, list of tuples or numpy array
-        Notes values.
+    filename: str or file handle
+        File to load the notes from.
 
     Returns
     -------
     numpy array
         Notes.
 
-    Notes
-    -----
-    Expected file/tuple/row format:
-
-    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
-
     """
-    # load the notes from the given representation
-    if isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        return np.array(values, dtype=np.float, ndmin=2, copy=False)
-    else:
-        # try to load the data from file
-        return np.loadtxt(values, ndmin=2)
+    return np.loadtxt(filename, ndmin=2)
 
 
 def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
@@ -182,7 +170,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     Parameters
     ----------
     notes : numpy array, shape (num_notes, 2)
-        Notes, one per row (column definition see notes).
+        Notes, row format 'onset_time' 'note_number' ['duration' ['velocity']].
     filename : str or file handle
         Output filename or handle.
     fmt : list, optional
@@ -196,14 +184,6 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     -------
     numpy array
         Notes.
-
-    Notes
-    -----
-    The note columns format must be (duration and velocity being optional):
-
-    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
-
-    As many columns as items per row are given are written to file.
 
     """
     # set default format
