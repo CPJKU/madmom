@@ -143,8 +143,8 @@ class TestKeyEvaluationClass(unittest.TestCase):
 
     def setUp(self):
         self.eval = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='TestEval'
         )
 
@@ -163,14 +163,14 @@ class TestKeyMeanEvaluation(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1
         self.eval1 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
             name='eval1'
         )
         # this one should have a score of 0.3
         self.eval2 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval2'
         )
 

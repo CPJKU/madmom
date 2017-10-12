@@ -82,3 +82,9 @@ class TestEvaluateScript(unittest.TestCase):
         # third line contains the piecewise mean results
         piecewise = np.fromiter(res[2].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(weighted, piecewise))
+
+    def test_key(self):
+        res = run_script('key')
+        # second line contains the results
+        res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
+        self.assertTrue(np.allclose(res, [0, 0, 1, 0, 0, 0.3]))
