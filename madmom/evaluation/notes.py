@@ -180,9 +180,9 @@ class NoteEvaluation(MultiClassEvaluation):
 
     def __init__(self, detections, annotations, window=WINDOW, delay=0,
                  **kwargs):
-        # load the note detections and annotations
-        detections = load_notes(detections)
-        annotations = load_notes(annotations)
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=2)
+        annotations = np.array(annotations, dtype=np.float, ndmin=2)
         # shift the detections if needed
         if delay != 0:
             detections[:, 0] += delay
@@ -351,9 +351,8 @@ def add_parser(parser):
 
     ''')
     # set defaults
-    p.set_defaults(eval=NoteEvaluation,
-                   sum_eval=NoteSumEvaluation,
-                   mean_eval=NoteMeanEvaluation)
+    p.set_defaults(eval=NoteEvaluation, sum_eval=NoteSumEvaluation,
+                   mean_eval=NoteMeanEvaluation, load_fn=load_notes)
     # file I/O
     evaluation_io(p, ann_suffix='.notes', det_suffix='.notes.txt')
     # evaluation parameters
