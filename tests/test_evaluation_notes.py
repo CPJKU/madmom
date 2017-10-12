@@ -12,7 +12,6 @@ import unittest
 from os.path import join as pj
 
 from madmom.evaluation.notes import *
-from madmom.io import load_notes
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 DETECTIONS = np.asarray([[0.147, 72],  # TP

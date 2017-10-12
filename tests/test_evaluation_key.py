@@ -1,9 +1,17 @@
+# encoding: utf-8
+# pylint: skip-file
+"""
+This file contains tests for the madmom.evaluation.key module.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
 import unittest
-from madmom.evaluation.key import *
-from madmom.io import load_key
-from madmom.evaluation.key import key_label_to_class
-from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from os.path import join
+
+from madmom.evaluation.key import *
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 
 class TestKeyLabelToClassFunction(unittest.TestCase):
