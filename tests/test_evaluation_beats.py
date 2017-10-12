@@ -41,10 +41,6 @@ class TestLoadBeatsFunction(unittest.TestCase):
                                downbeats=True)
         self.assertTrue(np.allclose(downbeats, 0.0913))
 
-    def test_load_None(self):
-        beats = load_beats(None)
-        self.assertTrue(beats.size == 0)
-
 
 class TestVariationsFunction(unittest.TestCase):
 
@@ -900,11 +896,11 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
-        # others should fail
-        self.assertRaises(ValueError, BeatEvaluation, float(0), float(0))
-        self.assertRaises(ValueError, BeatEvaluation, int(0), int(0))
-        # TODO: why does dict work?
-        # self.assertRaises(ValueError, BeatEvaluation, {}, {})
+
+    def test_errors(self):
+        # conversion from list of lists
+        with self.assertRaises(BeatIntervalError):
+            e = BeatEvaluation(0, 1.)
 
     def test_results_empty(self):
         e = BeatEvaluation([], [])

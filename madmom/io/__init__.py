@@ -117,17 +117,8 @@ def load_beats(values, downbeats=False):
     'beat_time' ['beat_number']
 
     """
-    # load the beats from the given representation
-    if values is None:
-        # return an empty array
-        values = np.zeros(0)
-    elif isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
+    # try to load the data from file
+    values = np.loadtxt(values, ndmin=1)
     if values.ndim > 1:
         if downbeats:
             # rows with a "1" in the 2nd column are the downbeats.
