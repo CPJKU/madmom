@@ -95,43 +95,28 @@ write_onsets = write_events
 
 
 @suppress_warnings
-def load_beats(values, downbeats=False):
+def load_beats(filename, downbeats=False):
     """
-    Load the beats from the given values or file.
+    Load the beats from the given file, one beat per line of format
+    'beat_time' ['beat_number'].
 
     Parameters
     ----------
-    values : str, file handle, list or numpy array
-        Name / values to be loaded.
+    filename : str or file handle
+        File to load the beats from.
     downbeats : bool, optional
-        Load downbeats instead of beats.
+        Load only downbeats instead of beats.
 
     Returns
     -------
     numpy array
         Beats.
 
-    Notes
-    -----
-    Expected format:
-
-    'beat_time' ['beat_number']
-
     """
-    # load the beats from the given representation
-    if values is None:
-        # return an empty array
-        values = np.zeros(0)
-    elif isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
+    values = np.loadtxt(filename, ndmin=1)
     if values.ndim > 1:
         if downbeats:
-            # rows with a "1" in the 2nd column are the downbeats.
+            # rows with a "1" in the 2nd column are downbeats
             return values[values[:, 1] == 1][:, 0]
         else:
             # 1st column is the beat time, the rest is ignored
