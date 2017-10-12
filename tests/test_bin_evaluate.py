@@ -72,3 +72,13 @@ class TestEvaluateScript(unittest.TestCase):
         res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(res, [0.667, 0.5, 0.653, 1, 0, 0,
                                           0.875, 0.875, 3.072, 3.072]))
+
+    def test_chords(self):
+        res = run_script('chords')
+        # second line contains the weighted mean results
+        weighted = np.fromiter(res[1].split(',')[1:], dtype=np.float)
+        self.assertTrue(np.allclose(weighted, [0.897, 0.641, 0.462, 0.462,
+                                               0.282, 0.590, 0.590, 0.923]))
+        # third line contains the piecewise mean results
+        piecewise = np.fromiter(res[2].split(',')[1:], dtype=np.float)
+        self.assertTrue(np.allclose(weighted, piecewise))

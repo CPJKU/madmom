@@ -750,12 +750,11 @@ class ChordEvaluation(EvaluationMixin):
 
     def __init__(self, detections, annotations, name=None, **kwargs):
         self.name = name or ''
-        self.ann_chords = merge_chords(encode(load_chords(annotations)))
-        self.det_chords = merge_chords(
-            adjust(encode(load_chords(detections)), self.ann_chords))
+        self.ann_chords = merge_chords(encode(annotations))
+        self.det_chords = merge_chords(adjust(encode(detections),
+                                              self.ann_chords))
         self.annotations, self.detections, self.durations = evaluation_pairs(
             self.det_chords, self.ann_chords)
-
         self._underseg = None
         self._overseg = None
 
@@ -1003,7 +1002,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=ChordEvaluation, sum_eval=ChordSumEvaluation,
-                   mean_eval=ChordMeanEvaluation)
+                   mean_eval=ChordMeanEvaluation, load_fn=load_chords)
     # file I/O
     evaluation_io(p, ann_suffix='.chords', det_suffix='.chords.txt')
     # return the sub-parser and evaluation argument group
