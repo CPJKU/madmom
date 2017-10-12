@@ -167,9 +167,9 @@ class OnsetEvaluation(Evaluation):
 
     def __init__(self, detections, annotations, window=WINDOW, combine=0,
                  delay=0, **kwargs):
-        # load the onset detections and annotations
-        detections = load_onsets(detections)
-        annotations = load_onsets(annotations)
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
         # combine the annotations if needed
         if combine > 0:
             annotations = combine_events(annotations, combine)
@@ -309,9 +309,8 @@ def add_parser(parser):
 
     ''')
     # set defaults
-    p.set_defaults(eval=OnsetEvaluation,
-                   sum_eval=OnsetSumEvaluation,
-                   mean_eval=OnsetMeanEvaluation)
+    p.set_defaults(eval=OnsetEvaluation, sum_eval=OnsetSumEvaluation,
+                   mean_eval=OnsetMeanEvaluation, load_fn=load_onsets)
     # file I/O
     evaluation_io(p, ann_suffix='.onsets', det_suffix='.onsets.txt')
     # evaluation parameters
