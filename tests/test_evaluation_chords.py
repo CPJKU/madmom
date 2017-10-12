@@ -313,12 +313,11 @@ class TestChordEvaluationClass(unittest.TestCase):
 
     def test_init(self):
         eval = ChordEvaluation(
-            join(DETECTIONS_PATH, 'dummy.chords.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')),
             name='TestEval'
         )
         self.assertTrue(eval.name == 'TestEval')
-
         ann = encode(
             load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')))
         det = encode(
@@ -326,7 +325,6 @@ class TestChordEvaluationClass(unittest.TestCase):
         det = adjust(det, ann)
         self.assertTrue((eval.ann_chords == ann).all())
         self.assertTrue((eval.det_chords == det).all())
-
         ann, det, dur = evaluation_pairs(eval.det_chords, eval.ann_chords)
         self.assertTrue((ann == eval.annotations).all())
         self.assertTrue((det == eval.detections).all())
@@ -334,8 +332,8 @@ class TestChordEvaluationClass(unittest.TestCase):
 
     def test_results(self):
         eval = ChordEvaluation(
-            join(DETECTIONS_PATH, 'dummy.chords.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')),
             name='TestEval'
         )
         self.assertAlmostEqual(eval.length, 3.9)
@@ -357,13 +355,13 @@ class TestAggregateChordEvaluation(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1 everywhere and length 4.3
         self.eval1 = ChordEvaluation(
-            join(DETECTIONS_PATH, 'dummy.chords.txt'),
-            join(DETECTIONS_PATH, 'dummy.chords.txt'),
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
             name='TestEval'
         )
         self.eval2 = ChordEvaluation(
-            join(DETECTIONS_PATH, 'dummy.chords.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.chords'),
+            load_chords(join(DETECTIONS_PATH, 'dummy.chords.txt')),
+            load_chords(join(ANNOTATIONS_PATH, 'dummy.chords')),
             name='TestEval'
         )
 
