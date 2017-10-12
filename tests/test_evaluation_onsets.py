@@ -7,15 +7,43 @@ This file contains tests for the madmom.evaluation.onsets module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
+from os.path import join as pj
 
 from madmom.evaluation.onsets import *
-from . import ANNOTATIONS_PATH, DETECTIONS_PATH
+from . import ANNOTATIONS_PATH, DATA_PATH, DETECTIONS_PATH
 
-DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
-                         3.025000001])
-ANNOTATIONS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+# dummy detections/annotations
+DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.025000001]
+ANNOTATIONS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+# real detections/annotations
+SAMPLE_DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115,
+                     1.365, 1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+SAMPLE_ANNOTATIONS = [0.0943, 0.2844, 0.4528, 0.6160, 0.7630, 0.8025, 0.9847,
+                      1.1233, 1.4820, 1.6276, 1.8032, 2.1486, 2.3351, 2.4918,
+                      2.6710]
+
+
+# loading function
+class TestLoadOnsetsFunction(unittest.TestCase):
+
+    def test_load_onsets(self):
+        events = load_onsets(pj(ANNOTATIONS_PATH, 'sample.onsets'))
+        self.assertTrue(np.allclose(events, SAMPLE_ANNOTATIONS))
+
+    def test_load_onsets_without_comments(self):
+        events = load_onsets(pj(DETECTIONS_PATH, 'sample.super_flux.txt'))
+        self.assertTrue(np.allclose(events, SAMPLE_DETECTIONS))
+
+    def test_onsets_with_comments_and_empty_lines(self):
+        events = load_onsets(pj(DATA_PATH, 'commented_txt'))
+        self.assertTrue(np.allclose(events, [1.1, 2.1]))
+
+    def test_load_timestamps_only(self):
+        events = load_onsets(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
+        self.assertTrue(np.allclose(events, [0.147, 1.567, 2.526, 2.549, 2.563,
+                                             2.577, 3.369, 3.449]))
 
 
 class TestOnsetConstantsClass(unittest.TestCase):

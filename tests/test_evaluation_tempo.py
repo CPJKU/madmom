@@ -12,7 +12,6 @@ import unittest
 from os.path import join as pj
 
 from madmom.evaluation.tempo import *
-from madmom.io import load_tempo
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([[87.5, 0.7], [175, 0.3]])
