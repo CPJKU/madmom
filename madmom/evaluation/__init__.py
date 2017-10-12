@@ -411,21 +411,6 @@ class Evaluation(SimpleEvaluation):
         Name to be displayed.
 
     """
-    METRIC_NAMES = [
-        ('tp', 'True positives'),
-        ('fp', 'False positives'),
-        ('tn', 'True negatives'),
-        ('fn', 'False negatives'),
-        ('num_tp', 'No. of true positives'),
-        ('num_fp', 'No. of false positives'),
-        ('num_tn', 'No. of true negatives'),
-        ('num_fn', 'No. of false negatives'),
-        ('num_annotations', 'No. Annotations'),
-        ('precision', 'Precision'),
-        ('recall', 'Recall'),
-        ('fmeasure', 'F-measure'),
-        ('accuracy', 'Accuracy'),
-    ]
 
     def __init__(self, tp=None, fp=None, tn=None, fn=None, **kwargs):
         # set default values
