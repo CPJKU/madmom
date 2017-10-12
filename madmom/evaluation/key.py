@@ -131,8 +131,8 @@ class KeyEvaluation(EvaluationMixin):
     def __init__(self, detection, annotation, strict_fifth=False, name=None,
                  **kwargs):
         self.name = name or ''
-        self.detection = key_label_to_class(load_key(detection))
-        self.annotation = key_label_to_class(load_key(annotation))
+        self.detection = key_label_to_class(detection)
+        self.annotation = key_label_to_class(annotation)
         self.score, self.error_category = error_type(
             self.detection, self.annotation, strict_fifth
         )
@@ -229,7 +229,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=KeyEvaluation, mean_eval=KeyMeanEvaluation,
-                   sum_eval=None)
+                   sum_eval=None, load_fn=load_key)
     # file I/O
     evaluation_io(p, ann_suffix='.key', det_suffix='.key.txt')
     p.add_argument('--strict_fifth', dest='strict_fifth', action='store_true',

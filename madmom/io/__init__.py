@@ -360,22 +360,22 @@ load_chords = load_segments
 write_chords = write_segments
 
 
-def load_key(value):
+def load_key(filename):
     """
     Load the key from the given file.
 
     Parameters
     ----------
-    value : str or file handle
-        File name or file to be loaded
+    filename : str or file handle
+        File name or file to read key information from.
 
     Returns
     -------
     str
-        Key annotation.
+        Key.
 
     """
-    return _open_file(value).read().strip()
+    return _open_file(filename).read().strip()
 
 
 def write_key(key, filename):
