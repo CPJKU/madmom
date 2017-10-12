@@ -14,7 +14,6 @@ from os.path import join as pj
 from madmom.evaluation.beats import *
 from madmom.evaluation.beats import (_entropy, _error_histogram,
                                      _histogram_bins, _information_gain, )
-from madmom.io import load_beats
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([1., 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -170,10 +169,8 @@ class TestFindClosestIntervalFunction(unittest.TestCase):
         self.assertTrue(np.allclose(intervals, []))
         # test detections w.r.t. annotations
         intervals = find_closest_intervals(DETECTIONS, ANNOTATIONS)
-        correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
+        correct = [1., 1, 1, 1, 1, 1, 1, 1, 1, 1]
         self.assertTrue(np.allclose(intervals, correct))
-        # intervals = find_closest_intervals(DETECTIONS, EVENTS)
-        # correct = np.asarray([1., 1, 1, 1, 1, 1, 1, 1, 1, 1])
         # test annotations w.r.t. detections
         intervals = find_closest_intervals(ANNOTATIONS, DETECTIONS)
         correct = [0.99, 0.99, 1.05, 1.05, 2, 2, 1, 1, 1.1, 0.9]

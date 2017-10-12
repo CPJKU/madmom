@@ -1,8 +1,17 @@
+# encoding: utf-8
+# pylint: skip-file
+"""
+This file contains tests for the madmom.evaluation.chords module.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
 import unittest
-from madmom.evaluation.chords import *
-from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 from os.path import join
 
+from madmom.evaluation.chords import *
+from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 DUMMY_ANNOTATIONS = np.array(
     [(0.1, 1.0, (9, 0, [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0])),
