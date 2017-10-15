@@ -12,8 +12,7 @@ import os
 import sys
 import warnings
 
-from madmom.evaluation import (alignment, beats, chords, key, notes, onsets,
-                               tempo)
+from madmom.evaluation import beats, chords, key, notes, onsets, tempo
 from madmom.utils import match_file, search_files
 
 
@@ -47,8 +46,6 @@ def main():
     key.add_parser(sub_parsers)
     # note evaluation
     notes.add_parser(sub_parsers)
-    # alignment evaluation
-    alignment.add_parser(sub_parsers)
     # chord evaluation
     chords.add_parser(sub_parsers)
 

@@ -347,7 +347,7 @@ def load_key(filename):
     Parameters
     ----------
     filename : str or file handle
-        File name or file to read key information from.
+        File to read key information from.
 
     Returns
     -------
@@ -384,6 +384,9 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
     """
     Load tempo information from the given file.
 
+    Tempo information must have the following format:
+    'main tempo' ['secondary tempo' ['relative_strength']]
+
     Parameters
     ----------
     filename : str or file handle
@@ -401,11 +404,6 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
         with tempi (first column) and their relative strengths (second column)
         is returned.
 
-    Notes
-    -----
-    The tempo must have the following format:
-
-    'tempo_one' ['tempo_two' ['relative_strength']]
 
     """
     # try to load the data from file
