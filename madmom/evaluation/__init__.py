@@ -871,11 +871,9 @@ def evaluation_io(parser, ann_suffix, det_suffix, ann_dir=None, det_dir=None):
 
 
 # finally import the submodules
-from . import alignment, chords, beats, notes, onsets, tempo
+from . import chords, beats, notes, onsets, tempo
 
 # import often used classes
-from .alignment import (AlignmentEvaluation, AlignmentMeanEvaluation,
-                        AlignmentSumEvaluation)
 from .beats import BeatEvaluation, BeatMeanEvaluation
 from .chords import ChordEvaluation, ChordMeanEvaluation, ChordSumEvaluation
 from .key import KeyEvaluation, KeyMeanEvaluation

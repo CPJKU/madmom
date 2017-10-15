@@ -22,6 +22,7 @@ else:
 def _open_file(fn):
     return fn if isinstance(fn, _file_handle) else open(fn, 'r')
 
+
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
 SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
@@ -492,52 +493,6 @@ def write_tempo(tempi, filename, mirex=False):
     np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
     # also return the tempi & strength
     return t1, t2, strength
-
-
-class AlignmentFormatError(Exception):
-    """
-    Exception to be raised whenever an incorrect alignment format is given.
-
-    """
-    # pylint: disable=super-init-not-called
-
-    def __init__(self, value=None):
-        if value is None:
-            value = 'Alignment has to be at least one row of two columns ' \
-                    'representing time and score position.'
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)
-
-
-def load_alignment(values):
-    """
-    Load the alignment from given values or file.
-
-    Parameters
-    ----------
-    values : str, file handle, list or numpy array
-        Alignment values.
-
-    Returns
-    -------
-    numpy array
-        Time and score position columns.
-
-    """
-    if values is None:
-        # return 'empty' alignment
-        return np.array([[0, -1]])
-    elif isinstance(values, (list, np.ndarray)):
-        values = np.atleast_2d(values)
-    else:
-        values = np.loadtxt(values, ndmin=2)
-
-    if values.shape[0] < 1 or values.shape[1] < 2 or len(values.shape) > 2:
-        raise AlignmentFormatError()
-
-    return values[:, :2]
 
 
 def load_key(value):
