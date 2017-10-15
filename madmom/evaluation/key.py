@@ -209,8 +209,7 @@ class KeyMeanEvaluation(EvaluationMixin):
         return ('{}\n  Weighted: {:.3f}  Correct: {:.3f}  Fifth: {:.3f}  '
                 'Relative: {:.3f}  Parallel: {:.3f}  Other: {:.3f}'.format(
                     self.name, self.weighted, self.correct, self.fifth,
-                    self.relative, self.parallel, self.other)
-                )
+                    self.relative, self.parallel, self.other))
 
 
 def add_parser(parser):
