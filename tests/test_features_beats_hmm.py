@@ -441,7 +441,6 @@ class TestMultiPatternTransitionModelClass(unittest.TestCase):
         btm1 = BarTransitionModel(bss1, 100)
         btm2 = BarTransitionModel(bss2, 100)
         tm = MultiPatternTransitionModel([btm1, btm2])
-        print(tm.num_states, tm.num_transitions)
         self.assertTrue(tm.num_states == 55)
         self.assertTrue(tm.num_transitions == 74)
         with self.assertRaises(ValueError):

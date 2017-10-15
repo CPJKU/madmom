@@ -44,7 +44,6 @@ class TestBufferProcessor(unittest.TestCase):
 
     def test_2d(self):
         buffer = BufferProcessor((5, 2), init=np.zeros((5, 2)))
-        print(buffer.data)
         self.assertTrue(buffer.data.shape == (5, 2))
         self.assertTrue(np.allclose(buffer.data, 0))
         # shift in new values
