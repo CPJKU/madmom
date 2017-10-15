@@ -1906,6 +1906,5 @@ def process_notes(data, output=None):
     if output is None:
         # load the notes
         return MIDIFile.from_file(data).notes()
-    else:
-        MIDIFile.from_notes(data).write(output)
-        return data
+    MIDIFile.from_notes(data).write(output)
+    return data

@@ -1215,11 +1215,9 @@ class SpectrogramDifferenceProcessor(Processor):
         # stack the diff and the data if needed
         if self.stack_diffs is None:
             return diff
-        else:
-            # Note: don't use `data` directly, because it could be a str
-            #       we ave to access diff.spectrogram (i.e. converted data)
-            return self.stack_diffs((diff.spectrogram[self.diff_frames:],
-                                     diff))
+        # Note: don't use `data` directly, because it could be a str
+        #       we ave to access diff.spectrogram (i.e. converted data)
+        return self.stack_diffs((diff.spectrogram[self.diff_frames:], diff))
 
     def reset(self):
         """Reset the SpectrogramDifferenceProcessor."""

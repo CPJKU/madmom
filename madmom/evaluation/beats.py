@@ -107,8 +107,7 @@ def _score_decorator(perfect_score, zero_score):
             elif (len(detections) == 0) != (len(annotations) == 0):
                 return zero_score
             # normal scoring
-            else:
-                return metric(detections, annotations, *args, **kwargs)
+            return metric(detections, annotations, *args, **kwargs)
 
         return score
 
@@ -976,8 +975,7 @@ def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     # only use the lower information gain
     if fwd_ig < bwd_ig:
         return fwd_ig, fwd_histogram
-    else:
-        return bwd_ig, bwd_histogram
+    return bwd_ig, bwd_histogram
 
 
 # human readable output

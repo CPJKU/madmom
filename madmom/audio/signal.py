@@ -781,12 +781,11 @@ class Signal(np.ndarray):
     @property
     def num_channels(self):
         """Number of channels."""
+        # mono file
         if self.ndim == 1:
-            # mono file
             return 1
-        else:
-            # multi channel file
-            return np.shape(self)[1]
+        # multi channel file
+        return np.shape(self)[1]
 
     @property
     def length(self):
@@ -1063,9 +1062,8 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[:num_samples - start] = signal[start:, ]
         return frame
-    else:
-        # normal read operation
-        return signal[start:stop, ]
+    # normal read operation
+    return signal[start:stop, ]
 
 
 FRAME_SIZE = 2048
