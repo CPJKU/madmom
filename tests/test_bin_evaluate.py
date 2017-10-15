@@ -98,3 +98,11 @@ class TestEvaluateScript(unittest.TestCase):
         # third line contains the mean results
         mean_res = np.fromiter(res[2].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(mean_res, sum_res))
+
+    def test_tempo(self):
+        res = run_script('tempo', det_suffix='.tempo_detector.txt',
+                         args=['-a', '.tempo'])
+        # second line contains the results
+        res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
+        self.assertTrue(
+            np.allclose(res, [0.3, 1, 0, 0, 1]))
