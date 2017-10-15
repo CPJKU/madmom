@@ -365,55 +365,38 @@ load_chords = load_segments
 write_chords = write_segments
 
 
-def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
+def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
                max_len=None):
     """
     Load tempo information from the given values or file.
 
     Parameters
     ----------
-    values : str, file handle, list of tuples or numpy array
-        Tempo values or file name/handle.
+    filename : str or file handle
+        File to load the tempo from.
     split_value : float, optional
         Value to distinguish between tempi and strengths.
         `values` > `split_value` are interpreted as tempi [bpm],
         `values` <= `split_value` are interpreted as strengths.
-    sort : bool, optional
-        Sort the tempi by their strength.
-    norm_strengths : bool, optional
-        Normalize the strengths to sum 1.
-    max_len : int, optional
-        Return at most `max_len` tempi.
 
     Returns
     -------
-    tempi : numpy array, shape (num_tempi, 2)
-        Array with tempi (rows, first column) and their relative strengths
-        (second column).
+    tempi : numpy array, shape (num_tempi[, 2])
+        Array with tempi. If no strength is parsed, a 1-dimensional array of
+        length 'num_tempi' is returned. If strengths are given, a 2D array
+        with tempi (first column) and their relative strengths (second column)
+        is returned.
 
     Notes
     -----
-    The tempo must have the one of the following formats (separated by
-    whitespace if loaded from file):
+    The tempo must have the following format:
 
-    'tempo_one' 'tempo_two' 'relative_strength' (of the first tempo)
-    'tempo_one' 'tempo_two' 'strength_one' 'strength_two'
-
-    If no strengths are given, uniformly distributed strengths are returned.
+    'tempo_one' ['tempo_two' ['relative_strength']]
 
     """
-    # check max_len
-    if max_len is not None and max_len < 1:
-        raise ValueError('`max_len` must be greater or equal to 1')
-    # load the tempo from the given representation
-    if isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
-    # split the values according to their values into tempi and strengths
+    # try to load the data from file
+    values = np.loadtxt(filename, ndmin=1)
+    # split the filename according to their filename into tempi and strengths
     # TODO: this is kind of hack-ish, find a better solution
     tempi = values[values > split_value]
     strengths = values[values <= split_value]
@@ -428,21 +411,34 @@ def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
     if strength_sum == 0:
         strengths = np.ones_like(tempi) / float(len(tempi))
     # normalize the strengths
-    if norm_strengths:
+    if norm_strengths is not None:
+        import warnings
+        warnings.warn('`norm_strengths` is deprecated as of version 0.16 and '
+                      'will be removed in 0.18. Please normalize strengths '
+                      'separately.')
         strengths /= float(strength_sum)
     # tempi and strengths must have same length
     if len(tempi) != len(strengths):
         raise AssertionError('tempi and strengths must have same length')
     # order the tempi according to their strengths
     if sort:
+        import warnings
+        warnings.warn('`sort` is deprecated as of version 0.16 and will be '
+                      'removed in 0.18. Please sort the returned array '
+                      'separately.')
         # Note: use 'mergesort', because we want a stable sorting algorithm
         #       which keeps the order of the keys in case of duplicate keys
-        #       but we need to apply this (-strengths) trick because we want
+        #       but we need to apply this '(-strengths)' trick because we want
         #       tempi with uniformly distributed strengths to keep their order
         sort_idx = (-strengths).argsort(kind='mergesort')
         tempi = tempi[sort_idx]
         strengths = strengths[sort_idx]
     # return at most 'max_len' tempi and their relative strength
+    if max_len is not None:
+        import warnings
+        warnings.warn('`max_len` is deprecated as of version 0.16 and will be '
+                      'removed in 0.18. Please truncate the returned array '
+                      'separately.')
     return np.vstack((tempi[:max_len], strengths[:max_len])).T
 
 

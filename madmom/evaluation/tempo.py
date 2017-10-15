@@ -21,10 +21,42 @@ DOUBLE = True
 TRIPLE = True
 
 
+# function to sort tempi
+def sort_tempo(tempo):
+    """
+    Sort tempi according to their strengths.
+
+    Parameters
+    ----------
+    tempo : numpy array, shape (num_tempi, 2)
+        Tempi (first column) and their relative strength (second column).
+
+    Returns
+    -------
+    tempi : numpy array, shape (num_tempi, 2)
+        Tempi sorted according to their strength.
+
+    """
+    tempo = np.array(tempo, copy=False, ndmin=1)
+    if tempo.ndim != 2:
+        raise ValueError('`tempo` has no strength information, cannot sort '
+                         'them.')
+    tempi = tempo[:, 0]
+    strengths = tempo[:, 1]
+    # Note: use 'mergesort', because we want a stable sorting algorithm
+    #       which keeps the order of the keys in case of duplicate keys
+    #       but we need to apply this (-strengths) trick because we want
+    #       tempi with uniformly distributed strengths to keep their order
+    sort_idx = (-strengths).argsort(kind='mergesort')
+    tempi = tempi[sort_idx]
+    strengths = strengths[sort_idx]
+    return np.vstack((tempi, strengths)).T
+
+
 # this evaluation function can evaluate multiple tempi simultaneously
 def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     """
-    Calculate the tempo P-Score, at least one or both tempi correct.
+    Calculate the tempo P-Score, at least one and all tempi correct.
 
     Parameters
     ----------
@@ -73,14 +105,15 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     if float(tolerance) <= 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.array(detections, dtype=np.float, ndmin=1)
+    annotations = np.array(annotations, dtype=np.float, ndmin=1)
     # extract the detected tempi, ignore the strengths
     if detections.ndim == 2:
         detections = detections[:, 0]
     # extract the annotated tempi and strengths
     strengths = []
     if annotations.ndim == 2:
+        # Note: extract the strength before using only the tempo annotations
         strengths = annotations[:, 1]
         annotations = annotations[:, 0]
     # strengths must sum up to 1
@@ -151,32 +184,37 @@ class TempoEvaluation(EvaluationMixin):
                  double=DOUBLE, triple=TRIPLE, sort=True, max_len=None,
                  name=None, **kwargs):
         # pylint: disable=unused-argument
-        # load the tempo detections and annotations
-        detections = load_tempo(detections, sort=sort, max_len=max_len)
-        annotations = load_tempo(annotations, sort=sort, max_len=max_len)
-        # TODO: truncate the detections to the length of the annotations?
-        # evaluate P-score with all tempo annotations, but truncate the
-        # detections to the same length
-        ann = load_tempo(annotations, sort=sort)
-        det = load_tempo(detections, sort=sort, max_len=(len(ann) or None))
-        self.pscore, self.any, self.all = tempo_evaluation(det, ann, tolerance)
-        # evaluate acc1 only with the strongest/first tempo
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
+        if sort and detections.ndim == 2:
+            detections = sort_tempo(detections)
+        if sort and annotations.ndim == 2:
+            annotations = sort_tempo(annotations)
+        # truncate detections and detections to the same length
+        if max_len:
+            detections = detections[:max_len]
+            annotations = annotations[:max_len]
+        # evaluate P-score with all tempo annotations
+        self.pscore, self.any, self.all = tempo_evaluation(
+            detections, annotations, tolerance)
+        # evaluate accuracies only with the strongest/first tempo
         # Note: the strengths are irrelevant or acc1 & acc2 calculation
         #       the accuracies correspond to either any or all tempi
-        # TODO: allow a different max_len here?
-        det = load_tempo(detections, sort=sort, max_len=1)
-        ann = load_tempo(annotations, sort=sort, max_len=1)
-        self.acc1 = tempo_evaluation(det, ann, tolerance)[1]
+        # evaluate acc1 (i.e. any of the annotated tempi)
+        self.acc1 = tempo_evaluation(
+            detections[:1], annotations[:1], tolerance)[1]
         # evaluate acc2 like acc1 but include double/half & triple/third tempi
-        tempi = ann[:, 0].copy()
-        ann = tempi.copy()
+        try:
+            tempi = annotations[:1, 0].copy()
+        except IndexError:
+            tempi = annotations[:1].copy()
+        tempi_ = tempi.copy()
         if double:
-            ann = np.hstack((ann, tempi * 2., tempi / 2.))
+            tempi_ = np.hstack((tempi_, tempi * 2., tempi / 2.))
         if triple:
-            ann = np.hstack((ann, tempi * 3., tempi / 3.))
-        # accuracy doesn't need strengths, so we just add fake strengths
-        ann = np.vstack((ann, np.ones_like(ann) / len(ann))).T
-        self.acc2 = tempo_evaluation(det, ann, tolerance)[1]
+            tempi_ = np.hstack((tempi_, tempi * 3., tempi / 3.))
+        self.acc2 = tempo_evaluation(detections[:1], tempi_, tolerance)[1]
         # save the name
         self.name = name
 
@@ -302,7 +340,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=TempoEvaluation, mean_eval=TempoMeanEvaluation,
-                   sum_eval=None)
+                   sum_eval=None, load_fn=load_tempo)
     # file I/O
     evaluation_io(p, ann_suffix='.bpm', det_suffix='.bpm.txt')
     # evaluation parameters
