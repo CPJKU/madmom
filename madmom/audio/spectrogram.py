@@ -1512,7 +1512,7 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
     def __new__(cls, signal, fps=50., fmin=27.5, fmax=4200.):
         from scipy.signal import filtfilt
         from .filters import SemitoneBandpassFilterbank
-        from .signal import FramedSignal, Signal, energy, resample
+        from .signal import FramedSignal, Signal, resample
         # check if we got a mono Signal
         if not isinstance(signal, Signal) or signal.num_channels != 1:
             signal = Signal(signal, num_channels=1)

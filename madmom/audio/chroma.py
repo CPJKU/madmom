@@ -17,7 +17,7 @@ from madmom.audio.spectrogram import (Spectrogram, FilteredSpectrogram,
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
-from madmom.processors import SequentialProcessor
+from madmom.processors import SequentialProcessor, Processor
 
 
 # inherit from FilteredSpectrogram, since this class is closest related
@@ -365,7 +365,7 @@ class CLPChroma(np.ndarray):
         self.bin_labels = getattr(obj, 'bin_labels', None)
 
 
-class CLPChromaProcessor(SequentialProcessor):
+class CLPChromaProcessor(Processor):
     """
     Compressed Log Pitch (CLP) Chroma Processor.
 
