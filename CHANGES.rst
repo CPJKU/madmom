@@ -6,6 +6,7 @@ Version 0.16.dev0
 
 New features:
 
+* `TempoDetector` can operate on live audio signals  (#292)
 * Added chord evaluation (#309)
 * Bar tracking functionality (#316)
 * Added `quantize_notes` function (#327)
@@ -22,6 +23,7 @@ Bug fixes:
 
 API relevant changes:
 
+* `BufferProcessor` uses `data` instead of `buffer` for data storage (#292)
 * `DBNBeatTrackingProcessor` expects 1D inputs (#299)
 * Moved downbeat and pattern tracking to `features.downbeats` (#316)
 

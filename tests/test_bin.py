@@ -917,6 +917,7 @@ class TestTempoDetectorProgram(unittest.TestCase):
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
             pj(DETECTIONS_PATH, "sample.tempo_detector.txt"))
+        self.online_results = np.array([176.47, 88.24, 0.58])
 
     def test_help(self):
         self.assertTrue(run_help(self.bin))
@@ -946,6 +947,14 @@ class TestTempoDetectorProgram(unittest.TestCase):
         run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_online(self):
+        run_online(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result[-1], self.online_results))
+        run_single(self.bin, sample_file, tmp_result, online=True)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.online_results))
 
 
 # clean up

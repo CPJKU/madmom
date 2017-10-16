@@ -25,11 +25,11 @@ class TestBeatStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(bss.num_states, int)
         self.assertIsInstance(bss.num_intervals, int)
         # dtypes
-        self.assertTrue(bss.intervals.dtype == np.uint32)
+        self.assertTrue(bss.intervals.dtype == np.int)
         self.assertTrue(bss.state_positions.dtype == np.float)
-        self.assertTrue(bss.state_intervals.dtype == np.uint32)
-        self.assertTrue(bss.first_states.dtype == np.uint32)
-        self.assertTrue(bss.last_states.dtype == np.uint32)
+        self.assertTrue(bss.state_intervals.dtype == np.int)
+        self.assertTrue(bss.first_states.dtype == np.int)
+        self.assertTrue(bss.last_states.dtype == np.int)
 
     def test_values(self):
         bss = BeatStateSpace(1, 4)
@@ -73,9 +73,8 @@ class TestBarStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(bss.first_states, list)
         self.assertIsInstance(bss.last_states, list)
         # dtypes
-        # self.assertTrue(bss.intervals.dtype == np.uint32)
         self.assertTrue(bss.state_positions.dtype == np.float)
-        self.assertTrue(bss.state_intervals.dtype == np.uint32)
+        self.assertTrue(bss.state_intervals.dtype == np.int)
 
     def test_values(self):
         # 2 beats, intervals 1 to 4
@@ -128,11 +127,8 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
         # self.assertIsInstance(mpss.num_intervals, int)
         self.assertIsInstance(mpss.num_patterns, int)
         # dtypes
-        # self.assertTrue(mpss.intervals.dtype == np.uint32)
         self.assertTrue(mpss.state_positions.dtype == np.float)
-        self.assertTrue(mpss.state_intervals.dtype == np.uint32)
-        # self.assertTrue(mpss.first_states.dtype == np.uint32)
-        # self.assertTrue(mpss.last_states.dtype == np.uint32)
+        self.assertTrue(mpss.state_intervals.dtype == np.int)
 
     def test_values_beat(self):
         # test with 2 BeatStateSpaces as before
