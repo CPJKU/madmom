@@ -920,7 +920,7 @@ class FilterbankProcessor(Processor, Filterbank):
             Existing argparse parser object.
         filterbank : :class:`.audio.filters.Filterbank`, optional
             Use a filterbank of that type.
-        num_bands : int, optional
+        num_bands : int or list, optional
             Number of bands (per octave).
         crossover_frequencies : list or numpy array, optional
             List of crossover frequencies at which the `spectrogram` is split
@@ -948,6 +948,7 @@ class FilterbankProcessor(Processor, Filterbank):
         `crossover_frequencies` should be used.
 
         """
+        from madmom.utils import OverrideDefaultListAction
         # add filterbank related options to the existing parser
         g = parser.add_argument_group('filterbank arguments')
         # filterbank
@@ -955,8 +956,7 @@ class FilterbankProcessor(Processor, Filterbank):
         if filterbank is not None:
             if issubclass(filterbank, Filterbank):
                 g.add_argument('--no_filter', dest='filterbank',
-                               action='store_false',
-                               default=filterbank,
+                               action='store_false', default=filterbank,
                                help='do not filter the spectrogram with a '
                                     'filterbank [default=%(default)s]')
             else:
@@ -967,14 +967,22 @@ class FilterbankProcessor(Processor, Filterbank):
         # number of bands
         # TODO: add a second argument with num_bands_per_octave and rename the
         #       option at the relevant filterbanks accordingly?
-        if num_bands is not None:
+        # depending on the type of num_bands, use different options
+        if isinstance(num_bands, int):
             g.add_argument('--num_bands', action='store', type=int,
                            default=num_bands,
                            help='number of filter bands (per octave) '
                                 '[default=%(default)i]')
+        elif isinstance(num_bands, list):
+            # Note: this option can be used in conjunction with stacked
+            #       spectrograms with different frame sizes to have different
+            #       number of bands per frame size
+            g.add_argument('--num_bands', type=int, default=num_bands,
+                           action=OverrideDefaultListAction, sep=',',
+                           help='(comma separated list of) number of filter '
+                                'bands (per octave) [default=%(default)s]')
         # crossover frequencies
         if crossover_frequencies is not None:
-            from madmom.utils import OverrideDefaultListAction
             g.add_argument('--crossover_frequencies', type=float, sep=',',
                            action=OverrideDefaultListAction,
                            default=crossover_frequencies,
