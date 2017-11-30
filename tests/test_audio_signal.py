@@ -1120,6 +1120,19 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_channels == 1)
         self.assertTrue(np.allclose(result.length, 2.8))
 
+    def test_pickle(self):
+        self.processor.dump(tmp_file)
+        processor = SignalProcessor.load(tmp_file)
+        self.assertEqual(type(self.processor), type(processor))
+        self.assertEqual(self.processor.sample_rate,
+                         processor.sample_rate)
+        self.assertEqual(self.processor.num_channels,
+                         processor.num_channels)
+        self.assertEqual(self.processor.start, processor.start)
+        self.assertEqual(self.processor.stop, processor.stop)
+        self.assertEqual(self.processor.norm, processor.norm)
+        self.assertEqual(self.processor.gain, processor.gain)
+
 
 # framing functions
 class TestSignalFrameFunction(unittest.TestCase):
@@ -1595,6 +1608,15 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         # reset end
         self.processor.end = 'normal'
         self.assertTrue(self.processor.end == 'normal')
+
+    def test_pickle(self):
+        self.processor.dump(tmp_file)
+        processor = FramedSignalProcessor.load(tmp_file)
+        self.assertEqual(type(self.processor), type(processor))
+        self.assertEqual(self.processor.frame_size, processor.frame_size)
+        self.assertEqual(self.processor.hop_size, processor.hop_size)
+        self.assertEqual(self.processor.fps, processor.fps)
+        self.assertEqual(self.processor.end, processor.end)
 
 
 # clean up
