@@ -724,12 +724,12 @@ class LogarithmicSpectrogramProcessor(Processor):
         if mul is not None:
             g.add_argument('--mul', action='store', type=float,
                            default=mul, help='multiplier (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # add
         if add is not None:
             g.add_argument('--add', action='store', type=float,
                            default=add, help='value added (before taking '
-                           'the log) [default=%(default)i]')
+                           'the log) [default=%(default).1f]')
         # return the group
         return g
 
@@ -1215,11 +1215,9 @@ class SpectrogramDifferenceProcessor(Processor):
         # stack the diff and the data if needed
         if self.stack_diffs is None:
             return diff
-        else:
-            # Note: don't use `data` directly, because it could be a str
-            #       we ave to access diff.spectrogram (i.e. converted data)
-            return self.stack_diffs((diff.spectrogram[self.diff_frames:],
-                                     diff))
+        # Note: don't use `data` directly, because it could be a str
+        #       we ave to access diff.spectrogram (i.e. converted data)
+        return self.stack_diffs((diff.spectrogram[self.diff_frames:], diff))
 
     def reset(self):
         """Reset the SpectrogramDifferenceProcessor."""
@@ -1514,7 +1512,7 @@ class SemitoneBandpassSpectrogram(FilteredSpectrogram):
     def __new__(cls, signal, fps=50., fmin=27.5, fmax=4200.):
         from scipy.signal import filtfilt
         from .filters import SemitoneBandpassFilterbank
-        from .signal import FramedSignal, Signal, energy, resample
+        from .signal import FramedSignal, Signal, resample
         # check if we got a mono Signal
         if not isinstance(signal, Signal) or signal.num_channels != 1:
             signal = Signal(signal, num_channels=1)

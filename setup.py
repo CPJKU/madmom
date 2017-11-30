@@ -49,9 +49,9 @@ package_data = ['models/LICENSE',
 # some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
                'Programming Language :: Python :: 2.7',
-               'Programming Language :: Python :: 3.3',
                'Programming Language :: Python :: 3.4',
                'Programming Language :: Python :: 3.5',
+               'Programming Language :: Python :: 3.6',
                'Environment :: Console',
                'License :: OSI Approved :: BSD License',
                'License :: Free for non-commercial use',
@@ -60,8 +60,8 @@ classifiers = ['Development Status :: 3 - Alpha',
 
 # requirements
 requirements = ['numpy>=1.8.1',
-                'scipy>=0.14',
-                'cython>=0.22.1',
+                'scipy>=0.16',
+                'cython>=0.25',
                 ]
 
 # docs to be included

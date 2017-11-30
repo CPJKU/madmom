@@ -288,11 +288,11 @@ def _process(process_tuple):
     This must be a top-level function to be pickle-able.
 
     """
+    # do not process the data, if the first item (i.e. Processor) is None
     if process_tuple[0] is None:
-        # do not process the data, if the first item (i.e. Processor) is None
         return process_tuple[1]
+    # call the Processor with data and kwargs
     elif isinstance(process_tuple[0], Processor):
-        # call the Processor with data and kwargs
         return process_tuple[0](*process_tuple[1:-1], **process_tuple[-1])
     # just call whatever we got here (e.g. a function) without kwargs
     return process_tuple[0](*process_tuple[1:-1])

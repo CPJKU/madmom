@@ -22,7 +22,6 @@ sig_2d = np.array([[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
                    [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]])
 
 
-# noinspection PyArgumentList
 class TestBinFrequenciesFunction(unittest.TestCase):
 
     def test_num_arguments(self):
@@ -97,14 +96,12 @@ class TestStftFunction(unittest.TestCase):
         result = stft(sig_2d, window=None, fft_size=25)
         self.assertTrue(result.shape == (3, 12))
         result = stft(sig_2d, window=None, fft_size=25, include_nyquist=True)
-        print(result[:, 0])
         self.assertTrue(result.shape == (3, 13))
         # test only the first req bin
         res = [3. + 0.j, 4. + 0.j, 6. + 0.j]
         self.assertTrue(np.allclose(result[:, 0], res))
 
 
-# noinspection PyArgumentList,PyArgumentList,PyArgumentList
 class TestPhaseFunction(unittest.TestCase):
 
     def test_types(self):

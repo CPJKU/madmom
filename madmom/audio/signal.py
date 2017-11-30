@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import errno
 import numpy as np
 
-from madmom.processors import Processor, BufferProcessor
+from ..processors import Processor, BufferProcessor
 
 
 # signal functions
@@ -281,9 +281,7 @@ def rescale(signal, dtype=np.float32):
     elif np.issubdtype(signal.dtype, np.int):
         return signal.astype(dtype) / np.iinfo(signal.dtype).max
     else:
-        # TODO: not sure if this can happen or not. Either add the
-        #       functionality if it is supposed to work or add a test
-        raise ValueError('unsupported signal dtypes: %s.' % signal.dtype)
+        raise ValueError('unsupported signal dtype: %s.' % signal.dtype)
 
 
 def trim(signal, where='fb'):
@@ -444,9 +442,6 @@ class LoadAudioFileError(Exception):
         if value is None:
             value = 'Could not load audio file.'
         self.value = value
-
-    def __str__(self):
-        return repr(self.value)
 
 
 def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
@@ -786,12 +781,11 @@ class Signal(np.ndarray):
     @property
     def num_channels(self):
         """Number of channels."""
+        # mono file
         if self.ndim == 1:
-            # mono file
             return 1
-        else:
-            # multi channel file
-            return np.shape(self)[1]
+        # multi channel file
+        return np.shape(self)[1]
 
     @property
     def length(self):
@@ -881,7 +875,8 @@ class SignalProcessor(Processor):
     """
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                 start=START, stop=STOP, norm=NORM, gain=GAIN, **kwargs):
+                 start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
+                 **kwargs):
         # pylint: disable=unused-argument
         self.sample_rate = sample_rate
         self.num_channels = num_channels
@@ -889,6 +884,7 @@ class SignalProcessor(Processor):
         self.stop = stop
         self.norm = norm
         self.gain = gain
+        self.dtype = dtype
 
     def process(self, data, **kwargs):
         """
@@ -911,7 +907,8 @@ class SignalProcessor(Processor):
         # update arguments passed to FramedSignal
         args = dict(sample_rate=self.sample_rate,
                     num_channels=self.num_channels, start=self.start,
-                    stop=self.stop, norm=self.norm, gain=self.gain)
+                    stop=self.stop, norm=self.norm, gain=self.gain,
+                    dtype=self.dtype)
         args.update(kwargs)
         # instantiate a Signal and return it
         return Signal(data, **args)
@@ -955,13 +952,11 @@ class SignalProcessor(Processor):
         g = parser.add_argument_group('signal processing arguments')
         if sample_rate is not None:
             g.add_argument('--sample_rate', action='store', type=int,
-                           default=sample_rate,
-                           help='re-sample the signal to this sample rate '
-                                '[Hz]')
+                           default=sample_rate, help='re-sample the signal to '
+                                                     'this sample rate [Hz]')
         if mono is not None:
             g.add_argument('--mono', dest='num_channels', action='store_const',
-                           const=1,
-                           help='down-mix the signal to mono')
+                           const=1, help='down-mix the signal to mono')
         if start is not None:
             g.add_argument('--start', action='store', type=float,
                            help='start position of the signal [seconds]')
@@ -1067,9 +1062,8 @@ def signal_frame(signal, index, frame_size, hop_size, origin=0):
         frame = np.repeat(signal[:1] * 0, frame_size, axis=0)
         frame[:num_samples - start] = signal[start:, ]
         return frame
-    else:
-        # normal read operation
-        return signal[start:stop, ]
+    # normal read operation
+    return signal[start:stop, ]
 
 
 FRAME_SIZE = 2048
@@ -1380,9 +1374,6 @@ class FramedSignalProcessor(Processor):
         End of signal handling (see :class:`FramedSignal`).
     num_frames : int, optional
         Number of frames to return.
-    kwargs : dict, optional
-        If no :class:`Signal` instance was given, one is instantiated with
-        these additional keyword arguments.
 
     Notes
     -----
@@ -1484,9 +1475,9 @@ class FramedSignalProcessor(Processor):
                            default=frame_size,
                            help='frame size [samples, default=%(default)i]')
         elif isinstance(frame_size, list):
-            # Note: this option is used for e.g. stacking multiple spectrograms
+            # Note: this option can be used to stack multiple spectrograms
             #       with different frame sizes
-            from madmom.utils import OverrideDefaultListAction
+            from ..utils import OverrideDefaultListAction
             g.add_argument('--frame_size', type=int, default=frame_size,
                            action=OverrideDefaultListAction, sep=',',
                            help='(comma separated list of) frame size(s) to '

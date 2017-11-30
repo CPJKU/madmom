@@ -5,11 +5,11 @@ This module contains chord recognition related functionality.
 """
 from __future__ import absolute_import, division, print_function
 
+from functools import partial
+
 import numpy as np
 
-from functools import partial
 from madmom.processors import SequentialProcessor
-
 
 # dtype for numpy structured arrays that contain chord segments
 CHORD_DTYPE = [('start', np.float), ('end', np.float), ('label', 'U32')]

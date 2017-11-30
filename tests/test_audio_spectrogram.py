@@ -43,7 +43,6 @@ class TestStftFunction(unittest.TestCase):
         self.assertTrue(True)
 
 
-# noinspection PyArgumentList
 class TestSpecFunction(unittest.TestCase):
 
     def test_types(self):

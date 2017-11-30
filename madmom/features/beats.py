@@ -13,7 +13,7 @@ import sys
 
 import numpy as np
 
-from ..audio.signal import smooth as smooth_signal
+from ..audio.signal import signal_frame, smooth as smooth_signal
 from ..ml.nn import average_predictions
 from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
                           SequentialProcessor)
@@ -281,23 +281,13 @@ def detect_beats(activations, interval, look_aside=0.2):
 
         """
         # detect the nearest beat around the actual position
-        start = position - frames_look_aside
-        end = position + frames_look_aside
-        if start < 0:
-            # pad with zeros
-            act = np.append(np.zeros(-start), activations[0:end])
-        elif end > len(activations):
-            # append zeros accordingly
-            zeros = np.zeros(end - len(activations))
-            act = np.append(activations[start:], zeros)
-        else:
-            act = activations[start:end]
+        act = signal_frame(activations, position, frames_look_aside * 2, 1)
         # apply a filtering window to prefer beats closer to the centre
-        act_ = np.multiply(act, win)
+        act = np.multiply(act, win)
         # search max
-        if np.argmax(act_) > 0:
+        if np.argmax(act) > 0:
             # maximum found, take that position
-            position = np.argmax(act_) + start
+            position = np.argmax(act) + position - frames_look_aside
         # add the found position
         positions.append(position)
         # go to the next beat, until end is reached
@@ -442,17 +432,7 @@ class BeatTrackingProcessor(Processor):
             # TODO: make this _much_ faster!
             while pos < len(activations):
                 # look N frames around the actual position
-                start = pos - look_ahead_frames
-                end = pos + look_ahead_frames
-                if start < 0:
-                    # pad with zeros
-                    act = np.append(np.zeros(-start), activations[0:end])
-                elif end > len(activations):
-                    # append zeros accordingly
-                    zeros = np.zeros(end - len(activations))
-                    act = np.append(activations[start:], zeros)
-                else:
-                    act = activations[start:end]
+                act = signal_frame(activations, pos, look_ahead_frames * 2, 1)
                 # create a interval histogram
                 histogram = self.tempo_estimator.interval_histogram(act)
                 # get the dominant interval
@@ -460,7 +440,7 @@ class BeatTrackingProcessor(Processor):
                 # add the offset (i.e. the new detected start position)
                 positions = detect_beats(act, interval, self.look_aside)
                 # correct the beat positions
-                positions += start
+                positions += pos - look_ahead_frames
                 # remove all positions < already detected beats + min_interval
                 next_pos = (detections[-1] + self.tempo_estimator.min_interval
                             if detections else 0)

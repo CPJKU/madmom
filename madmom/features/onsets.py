@@ -11,7 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy.ndimage import uniform_filter
-from scipy.ndimage.filters import maximum_filter
+from scipy.ndimage.filters import maximum_filter, minimum_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
@@ -279,7 +279,6 @@ def complex_flux(spectrogram, diff_frames=None, diff_max_bins=3,
 
     """
     # create a mask based on the local group delay information
-    from scipy.ndimage import maximum_filter, minimum_filter
     # take only absolute values of the local group delay and normalize them
     lgd = np.abs(spectrogram.stft.phase().lgd()) / np.pi
     # maximum filter along the temporal axis

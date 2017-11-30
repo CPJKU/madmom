@@ -469,6 +469,8 @@ class TestRescaleFunction(unittest.TestCase):
             rescale(sig_2d, np.complex)
         with self.assertRaises(ValueError):
             rescale(sig_2d, np.int)
+        with self.assertRaises(ValueError):
+            rescale(np.ones(10, dtype=np.complex))
 
     def test_values(self):
         # mono signals
@@ -540,6 +542,9 @@ class TestTrimFunction(unittest.TestCase):
         self.assertTrue(result.shape == (4, 2))
         self.assertTrue(np.allclose(result[:, 0], np.arange(1, 5)))
         self.assertTrue(np.allclose(result[:, 1], np.arange(1, 5)))
+        # zeros at the end
+        result = trim(np.arange(5, 0, -1))
+        self.assertTrue(np.allclose(result, [5, 4, 3, 2, 1]))
 
 
 class TestEnergyFunction(unittest.TestCase):
@@ -551,6 +556,10 @@ class TestEnergyFunction(unittest.TestCase):
         # multi-channel signals
         result = energy(sig_2d)
         self.assertIsInstance(result, float)
+
+    def test_errors(self):
+        with self.assertRaises(TypeError):
+            energy(None)
 
     def test_values(self):
         # mono signals
@@ -797,6 +806,8 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         if sys.version_info[0] == 2:
             # test unicode string type (Python 2 only)
             signal, sample_rate = load_audio_file(unicode(sample_file))
+            self.assertTrue(signal.dtype == np.int16)
+            self.assertTrue(type(sample_rate) == int)
 
     def test_file_handle(self):
         # test wave loader
@@ -1108,6 +1119,19 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertTrue(result.num_samples == 123481)
         self.assertTrue(result.num_channels == 1)
         self.assertTrue(np.allclose(result.length, 2.8))
+
+    def test_pickle(self):
+        self.processor.dump(tmp_file)
+        processor = SignalProcessor.load(tmp_file)
+        self.assertEqual(type(self.processor), type(processor))
+        self.assertEqual(self.processor.sample_rate,
+                         processor.sample_rate)
+        self.assertEqual(self.processor.num_channels,
+                         processor.num_channels)
+        self.assertEqual(self.processor.start, processor.start)
+        self.assertEqual(self.processor.stop, processor.stop)
+        self.assertEqual(self.processor.norm, processor.norm)
+        self.assertEqual(self.processor.gain, processor.gain)
 
 
 # framing functions
@@ -1584,6 +1608,15 @@ class TestFramedSignalProcessorClass(unittest.TestCase):
         # reset end
         self.processor.end = 'normal'
         self.assertTrue(self.processor.end == 'normal')
+
+    def test_pickle(self):
+        self.processor.dump(tmp_file)
+        processor = FramedSignalProcessor.load(tmp_file)
+        self.assertEqual(type(self.processor), type(processor))
+        self.assertEqual(self.processor.frame_size, processor.frame_size)
+        self.assertEqual(self.processor.hop_size, processor.hop_size)
+        self.assertEqual(self.processor.fps, processor.fps)
+        self.assertEqual(self.processor.end, processor.end)
 
 
 # clean up
