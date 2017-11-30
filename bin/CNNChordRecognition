@@ -9,14 +9,15 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-from madmom.features.chords import (CNNChordFeatureProcessor,
-                                    CRFChordRecognitionProcessor,
-                                    write_chords)
-from madmom.features import ActivationsProcessor
-from madmom.processors import io_arguments, IOProcessor
+from madmom.features import (ActivationsProcessor, CNNChordFeatureProcessor,
+                             CRFChordRecognitionProcessor)
+from madmom.io import write_chords
+from madmom.processors import IOProcessor, io_arguments
 
 
 def main():
+    """CNNChordRecognition"""
+
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter, description='''
     The CNNChordRecognition program recognises major and minor chords in an

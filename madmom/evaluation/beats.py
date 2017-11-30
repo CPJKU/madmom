@@ -30,12 +30,13 @@ from __future__ import absolute_import, division, print_function
 
 from functools import wraps
 import warnings
+
 import numpy as np
 
-from . import (find_closest_matches, calc_errors, calc_absolute_errors,
-               evaluation_io, MeanEvaluation)
+from . import (MeanEvaluation, calc_absolute_errors, calc_errors,
+               evaluation_io, find_closest_matches)
 from .onsets import OnsetEvaluation
-from ..utils import suppress_warnings
+from ..io import load_beats
 
 
 # exceptions
@@ -57,7 +58,7 @@ class BeatIntervalError(Exception):
 
 
 # decorators
-def array(metric):
+def _array(metric):
     """
     Decorate metric to convert annotations and detections to numpy arrays.
 
@@ -116,53 +117,6 @@ def _score_decorator(perfect_score, zero_score):
 
 score_10 = _score_decorator(1., 0.)
 score_1100 = _score_decorator((1., 1.), (0., 0.))
-
-
-@suppress_warnings
-def load_beats(values, downbeats=False):
-    """
-    Load the beats from the given values or file.
-
-    To make this function more universal, it also accepts lists or arrays.
-
-    Parameters
-    ----------
-    values : str, file handle, list or numpy array
-        Name / values to be loaded.
-    downbeats : bool, optional
-        Load downbeats instead of beats.
-
-    Returns
-    -------
-    numpy array
-        Beats.
-
-    Notes
-    -----
-    Expected format:
-
-    'beat_time' [additional information will be ignored]
-
-    """
-    # load the beats from the given representation
-    if values is None:
-        # return an empty array
-        values = np.zeros(0)
-    elif isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
-    if values.ndim > 1:
-        if downbeats:
-            # rows with a "1" in the 2nd column are the downbeats.
-            return values[values[:, 1] == 1][:, 0]
-        else:
-            # 1st column is the beat time, the rest is ignored
-            return values[:, 0]
-    return values
 
 
 # function for sequence variations generation
@@ -373,7 +327,7 @@ def find_longest_continuous_segment(sequence_indices):
     return length, start_pos
 
 
-@array
+@_array
 def calc_relative_errors(detections, annotations, matches=None):
     """
     Errors of the detections relative to the closest annotated interval.
@@ -428,7 +382,7 @@ INFORMATION_GAIN_BINS = 40
 
 
 # evaluation functions for beat detection
-@array
+@_array
 @score_10
 def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     """
@@ -485,7 +439,7 @@ def pscore(detections, annotations, tolerance=PSCORE_TOLERANCE):
     return p
 
 
-@array
+@_array
 @score_10
 def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     """
@@ -531,7 +485,7 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     return acc
 
 
-@array
+@_array
 @score_10
 def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
          mu=GOTO_MU):
@@ -619,7 +573,7 @@ def goto(detections, annotations, threshold=GOTO_THRESHOLD, sigma=GOTO_SIGMA,
     return 1.
 
 
-@array
+@_array
 @score_1100
 def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
         tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE):
@@ -707,7 +661,7 @@ def cml(detections, annotations, phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
     return cmlc, cmlt
 
 
-@array
+@_array
 def continuity(detections, annotations,
                phase_tolerance=CONTINUITY_PHASE_TOLERANCE,
                tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
@@ -910,7 +864,7 @@ def _information_gain(error_histogram):
     return np.log2(len(error_histogram)) - entropy
 
 
-@array
+@_array
 def information_gain(detections, annotations, num_bins=INFORMATION_GAIN_BINS):
     """
     Calculate information gain for the given detections and annotations.
@@ -1039,8 +993,6 @@ class BeatEvaluation(OnsetEvaluation):
         Include triple and third tempo variations (and offbeats thereof).
     skip : float, optional
         Skip the first `skip` seconds for evaluation.
-    downbeats : bool, optional
-        Evaluate downbeats instead of beats.
 
     Notes
     -----
@@ -1070,11 +1022,16 @@ class BeatEvaluation(OnsetEvaluation):
                  continuity_tempo_tolerance=CONTINUITY_TEMPO_TOLERANCE,
                  information_gain_bins=INFORMATION_GAIN_BINS,
                  offbeat=True, double=True, triple=True, skip=0,
-                 downbeats=False, **kwargs):
-        # load the beat detections and annotations
-        detections = load_beats(detections, downbeats)
-        annotations = load_beats(annotations, downbeats)
+                 downbeats=None, **kwargs):
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
         # if these are 2D, use only the first column (i.e. the time stamp)
+        if downbeats is not None:
+            import warnings
+            warnings.warn('`downbeats` argument is deprecated as of version '
+                          '0.16 and will be removed in version 0.18. Please '
+                          'filter the annotations/detections beforehand.')
         if detections.ndim > 1:
             detections = detections[:, 0]
         if annotations.ndim > 1:
@@ -1232,7 +1189,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=BeatEvaluation, sum_eval=None,
-                   mean_eval=BeatMeanEvaluation)
+                   mean_eval=BeatMeanEvaluation, load_fn=load_beats)
     # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants

@@ -9,11 +9,11 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
+from madmom.audio import SignalProcessor
+from madmom.features import (ActivationsProcessor, BeatDetectionProcessor,
+                             RNNBeatProcessor, TempoEstimationProcessor)
+from madmom.io import write_beats
 from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor
-from madmom.features import ActivationsProcessor
-from madmom.features.beats import RNNBeatProcessor, BeatDetectionProcessor
-from madmom.features.tempo import TempoEstimationProcessor
 
 
 def main():
@@ -93,12 +93,9 @@ def main():
         # save the RNN beat activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # detect the beats in the activation function
+        # detect the beats in the activation function and output them
         beat_processor = BeatDetectionProcessor(**vars(args))
-        # output handler
-        from madmom.utils import write_events as writer
-        # sequentially process them
-        out_processor = [beat_processor, writer]
+        out_processor = [beat_processor, write_beats]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

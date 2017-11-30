@@ -10,9 +10,11 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH
 from madmom.features import Activations
 from madmom.features.notes import *
+from madmom.io import load_notes, write_notes, write_notes_mirex
+from madmom.utils import expand_notes
+from . import ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH
 
 sample_file = pj(AUDIO_PATH, "stereo_sample.wav")
 sample_act = Activations(pj(ACTIVATIONS_PATH, "stereo_sample.notes_brnn.npz"))
@@ -59,7 +61,7 @@ class TestWriteNotesFunction(unittest.TestCase):
 class TestWriteMirexFormatFunction(unittest.TestCase):
 
     def test_values(self):
-        result = write_mirex_format(
+        result = write_notes_mirex(
             NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'))
         self.assertTrue(np.allclose(result[:, 0], NOTES[:, 0]))
         self.assertTrue(np.allclose(result[:, 1], NOTES[:, 0] + NOTES[:, 2]))
