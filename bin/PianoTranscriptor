@@ -61,8 +61,6 @@ def main():
     NotePeakPickingProcessor.add_arguments(p, threshold=0.35, smooth=0.09,
                                            combine=0.05)
     # midi arguments
-    # import madmom.utils.midi as midi
-    # midi.MIDIFile.add_arguments(p, length=0.6, velocity=100)
     p.add_argument('--midi', dest='output_format', action='store_const',
                    const='midi', help='save as MIDI')
     # mirex stuff
