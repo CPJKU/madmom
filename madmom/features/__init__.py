@@ -275,7 +275,7 @@ class ActivationsProcessor(Processor):
 
 
 # finally import the submodules
-from . import beats, chords, downbeats, notes, onsets, tempo
+from . import beats, chords, downbeats, key, notes, onsets, tempo
 
 # import often used classes
 from .beats import (BeatDetectionProcessor, BeatTrackingProcessor,
@@ -285,6 +285,7 @@ from .chords import (CNNChordFeatureProcessor, CRFChordRecognitionProcessor,
                      DeepChromaChordRecognitionProcessor)
 from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
                         PatternTrackingProcessor)
+from .key import CNNKeyRecognitionProcessor
 from .notes import RNNPianoNoteProcessor
 from .onsets import (CNNOnsetProcessor, PeakPickingProcessor,
                      RNNOnsetProcessor, SpectralOnsetProcessor)

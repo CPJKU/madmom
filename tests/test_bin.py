@@ -546,6 +546,12 @@ class TestDCChordRecognition(unittest.TestCase):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_single(self.bin, sf, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
+            
+            
+class TestKeyRecognitionProgram(unittest.TestCase):
+    
+    def test_dummy(self):
+        self.assertFalse(True, 'Implement this test!')
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
