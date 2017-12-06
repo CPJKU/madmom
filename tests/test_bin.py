@@ -23,6 +23,7 @@ import numpy as np
 
 from madmom.features import Activations
 from madmom.features.chords import load_chords
+from madmom.evaluation.key import load_key
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 
@@ -546,12 +547,51 @@ class TestDCChordRecognition(unittest.TestCase):
         for sf, true_res in zip([sample_file, sample2_file], self.results):
             run_single(self.bin, sf, tmp_result)
             self._check_results(load_chords(tmp_result), true_res)
-            
-            
+
+
 class TestKeyRecognitionProgram(unittest.TestCase):
-    
-    def test_dummy(self):
-        self.assertFalse(True, 'Implement this test!')
+    def setUp(self):
+        self.bin = pj(program_path, 'KeyRecognition')
+        self.activations = [
+            Activations(pj(ACTIVATIONS_PATH, af))
+            for af in ['sample.key_cnn.npz', 'sample2.key_cnn.npz']
+        ]
+        self.results = [
+            load_key(pj(DETECTIONS_PATH, df))
+            for df in ['sample.key_recognition.txt',
+                       'sample2.key_recognition.txt']
+        ]
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations, self.results):
+            # save activations as binary file
+            run_save(self.bin, sf, tmp_act)
+            act = Activations(tmp_act)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            self.assertEqual(act.fps, true_act.fps)
+            # reload from file
+            run_load(self.bin, tmp_act, tmp_result)
+            self.assertEqual(load_key(tmp_result), true_res)
+
+    def test_txt(self):
+        for sf, true_act, true_res in zip([sample_file, sample2_file],
+                                          self.activations, self.results):
+            # save activations as txt file
+            run_save(self.bin, sf, tmp_act, args=['--sep', ' '])
+            act = Activations(tmp_act, sep=' ', fps=0)
+            self.assertTrue(np.allclose(act, true_act, atol=1e-5))
+            # reload from file
+            run_load(self.bin, tmp_act, tmp_result, args=['--sep', ' '])
+            self.assertEqual(load_key(tmp_result), true_res)
+
+    def test_run(self):
+        for sf, true_res in zip([sample_file, sample2_file], self.results):
+            run_single(self.bin, sf, tmp_result)
+            self.assertEqual(load_key(tmp_result), true_res)
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
