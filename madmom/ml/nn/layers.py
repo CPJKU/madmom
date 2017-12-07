@@ -875,7 +875,7 @@ class MaxPoolLayer(Layer):
         Returns
         -------
         numpy array
-            Activations for this data.
+            Max pooled data.
 
         """
         from scipy.ndimage.filters import maximum_filter
@@ -918,6 +918,7 @@ class BatchNormLayer(Layer):
            Internal Covariate Shift"
            Sergey Ioffe and Christian Szegedy.
            http://arxiv.org/abs/1502.03167, 2015.
+
     """
 
     def __init__(self, beta, gamma, mean, inv_std, activation_fn):
@@ -939,9 +940,169 @@ class BatchNormLayer(Layer):
         Returns
         -------
         numpy array
-            Activations for this data.
+            Normalized data.
 
         """
         return self.activation_fn(
             (data - self.mean) * (self.gamma * self.inv_std) + self.beta
         )
+
+
+class TransposeLayer(Layer):
+    """
+    Transpose layer.
+
+    Parameters
+    ----------
+    axes : list of ints, optional
+        By default, reverse the dimensions of the input, otherwise permute the
+        axes of the input according to the values given.
+
+    """
+
+    def __init__(self, axes=None):
+        self.axes = axes
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Transposed data.
+
+        """
+        return np.transpose(data, self.axes)
+
+
+class ReshapeLayer(Layer):
+    """
+    Reshape Layer.
+
+    Parameters
+    ----------
+    newshape : int or tuple of ints
+        The new shape should be compatible with the original shape. If
+        an integer, then the result will be a 1-D array of that length.
+        One shape dimension can be -1. In this case, the value is
+        inferred from the length of the array and remaining dimensions.
+    order : {'C', 'F', 'A'}, optional
+        Index order or the input. See np.reshape for a detailed description.
+
+    """
+
+    def __init__(self, newshape, order='C'):
+        self.newshape = newshape
+        self.order = order
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Reshaped data.
+
+        """
+        return np.reshape(data, self.newshape, self.order)
+
+
+class AverageLayer(Layer):
+    """
+    Average layer.
+
+    Parameters
+    ----------
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which the means are computed. The default is to
+        compute the mean of the flattened array.
+    dtype : data-type, optional
+        Type to use in computing the mean.  For integer inputs, the default
+        is `float64`; for floating point inputs, it is the same as the
+        input dtype.
+    keepdims : bool, optional
+        If this is set to True, the axes which are reduced are left
+        in the result as dimensions with size one.
+
+    """
+
+    def __init__(self, axis=None, dtype=None, keepdims=False):
+        self.axis = axis
+        self.dtype = dtype
+        self.keepdims = keepdims
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Averaged data.
+
+        """
+        return np.mean(data, axis=self.axis, dtype=self.dtype,
+                       keepdims=self.keepdims)
+
+
+class PadLayer(Layer):
+    """
+    Padding layer that pads the input with a constant value.
+
+    Parameters
+    ----------
+    width : int
+        Width of the padding (only one value for all dimensions)
+    axes : iterable
+        Indices of axes to be padded
+    value : float
+        Value to be used for padding.
+
+    """
+
+    def __init__(self, width, axes, value=0.):
+        self.width = width
+        self.axes = axes
+        self.value = value
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the layer.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array
+            Padded data.
+
+        """
+        shape = list(data.shape)
+        data_idxs = [slice(None) for _ in range(len(shape))]
+        for a in self.axes:
+            shape[a] += self.width * 2
+            data_idxs[a] = slice(self.width, -self.width)
+        data_padded = np.empty(tuple(shape))
+        data_padded[:] = self.value
+        data_padded[data_idxs] = data
+        return data_padded

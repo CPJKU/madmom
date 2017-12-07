@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+Global Key Recognition using a Convolutional Neural Network.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
+import argparse
+
+from madmom.features import ActivationsProcessor
+from madmom.features.key import (CNNKeyRecognitionProcessor,
+                                 key_prediction_to_label, write_key)
+from madmom.processors import io_arguments, IOProcessor
+
+
+def main():
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+    The KeyRecognition program recognises the global key of a musical piece
+    using a Convolutional Neural Network, as described in
+
+    Filip Korzeniowski and Gerhard Widmer,
+    "End-to-End Musical Key Estimation Using a Convolutional Neural Network",
+    In Proceedings of the 25th European Signal Processing Conference (EUSIPCO),
+    Kos, Greece, 2017.
+
+    The model used here differs slightly from the one in the paper: it was
+    trained on snippets of audio instead of full songs, and using a dataset
+    that includes (mostly piano) classical music.
+
+    This program can be run in 'single' file mode to process a single audio
+    file and write the recognised chords to STDOUT or the given output file.
+
+      $ KeyRecognition single INFILE [-o OUTFILE]
+
+    The program can also be run in 'batch' mode to process multiple audio
+    files and save the chords to files with the given suffix.
+
+      $ KeyRecognition batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] FILES
+
+    If no output directory is given, the program writes the files with the
+    extracted chords to the same location as the audio files.
+
+    The 'pickle' mode can be used to store the used parameters to be able to
+    exactly reproduce experiments.
+
+    '''
+    )
+    # version
+    p.add_argument('--version', action='version',
+                   version='KeyRecognition.2017')
+    io_arguments(p, output_suffix='.key.txt')
+    ActivationsProcessor.add_arguments(p)
+
+    args = p.parse_args()
+
+    if args.verbose:
+        print(args)
+
+    if args.load:
+        # load activations from a file
+        in_processor = ActivationsProcessor(mode='r', fps=0, **vars(args))
+    else:
+        in_processor = CNNKeyRecognitionProcessor(**vars(args))
+
+    if args.save:
+        # save activations to a file
+        out_processor = ActivationsProcessor(mode='w', fps=0, **vars(args))
+    else:
+        out_processor = [key_prediction_to_label, write_key]
+
+    processor = IOProcessor(in_processor, out_processor)
+    args.func(processor, **vars(args))
+
+
+if __name__ == '__main__':
+    main()
