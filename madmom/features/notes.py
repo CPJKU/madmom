@@ -118,7 +118,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
 
     """
-    from ..utils import write_events
+    from ..io import write_events
     # set default format
     if fmt is None:
         fmt = list(('%.3f', '%d', '%.3f', '%d'))

@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.io import write_events, load_events
 from madmom.utils import *
 from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
                DETECTIONS_PATH)

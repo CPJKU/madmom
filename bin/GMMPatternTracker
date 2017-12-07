@@ -119,7 +119,7 @@ def main():
             from madmom.features.downbeats import filter_downbeats
             out_processor.append(filter_downbeats)
             # simply write the timestamps
-            from madmom.utils import write_events as writer
+            from madmom.io import write_events as writer
         else:
             # borrow the note writer for outputting timestamps + beat numbers
             from madmom.features.notes import write_notes as writer

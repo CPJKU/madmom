@@ -17,6 +17,7 @@ from madmom.audio.spectrogram import (LogarithmicSpectrogramProcessor,
 from madmom.features import ActivationsProcessor
 from madmom.features.onsets import (SpectralOnsetProcessor,
                                     OnsetPeakPickingProcessor)
+from madmom.io import write_onsets
 
 
 def main():
@@ -103,11 +104,9 @@ def main():
         # save the onset activations to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # perform peak picking of the onset function
+        # detect the onsets and output them
         peak_picking = OnsetPeakPickingProcessor(**vars(args))
-        from madmom.utils import write_events as writer
-        # sequentially process them
-        out_processor = [peak_picking, writer]
+        out_processor = [peak_picking, write_onsets]
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

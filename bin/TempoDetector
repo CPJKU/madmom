@@ -100,7 +100,7 @@ def main():
             writer = partial(write_tempo, mirex=True)
         elif args.tempo_format in ('raw', 'all'):
             # borrow the event writer for outputting multiple values
-            from madmom.utils import write_events as writer
+            from madmom.io import write_events as writer
         else:
             # normal output
             writer = write_tempo
