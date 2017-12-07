@@ -22,8 +22,8 @@ except ImportError:
 import numpy as np
 
 from madmom.features import Activations
-from madmom.features.chords import load_chords
 from madmom.evaluation.key import load_key
+from madmom.io import load_chords
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 

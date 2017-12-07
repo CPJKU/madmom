@@ -10,8 +10,8 @@ from __future__ import absolute_import, division, print_function
 import argparse
 
 from madmom.audio.chroma import DeepChromaProcessor
-from madmom.features.chords import (DeepChromaChordRecognitionProcessor,
-                                    write_chords)
+from madmom.features.chords import (DeepChromaChordRecognitionProcessor)
+from madmom.io import write_chords
 from madmom.features import ActivationsProcessor
 from madmom.processors import io_arguments, IOProcessor
 
@@ -75,7 +75,7 @@ def main():
         # save the deep chroma vectors to a file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # load conditional random field
+        # regocgnise chords with a conditional random field and output them
         chord_processor = DeepChromaChordRecognitionProcessor(**vars(args))
         out_processor = [chord_processor, write_chords]
 

@@ -10,8 +10,8 @@ from __future__ import absolute_import, division, print_function
 import argparse
 
 from madmom.features.chords import (CNNChordFeatureProcessor,
-                                    CRFChordRecognitionProcessor,
-                                    write_chords)
+                                    CRFChordRecognitionProcessor)
+from madmom.io import write_chords
 from madmom.features import ActivationsProcessor
 from madmom.processors import io_arguments, IOProcessor
 
