@@ -6,10 +6,21 @@ Input/output package.
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+
 import numpy as np
 
 from .audio import load_audio_file
 from ..utils import suppress_warnings
+
+if sys.version_info[0] < 3:
+    _file_handle = file
+else:
+    from io import TextIOBase as _file_handle
+
+
+def _open_file(fn):
+    return fn if isinstance(fn, _file_handle) else open(fn, 'r')
 
 
 @suppress_warnings
@@ -429,6 +440,45 @@ def write_mirex_format(notes, filename, duration=0.6):
     # MIREX format: onset \t offset \t frequency
     write_notes(notes, filename, fmt=list(('%.3f', '%.3f', '%.1f', )))
     return notes
+
+
+def load_key(value):
+    """
+    Load the key from the given file.
+
+    Parameters
+    ----------
+    value : str or file handle
+        File name or file to be loaded
+
+    Returns
+    -------
+    str
+        Key annotation.
+
+    """
+    return _open_file(value).read().strip()
+
+
+def write_key(key, filename):
+    """
+    Write key string to a file.
+
+    Parameters
+    ----------
+    key : str
+        Key name.
+    filename : str or file handle
+        Output file.
+
+    Returns
+    -------
+    key : str
+        Key name.
+
+    """
+    np.savetxt(filename, [key], fmt='%s')
+    return key
 
 
 def load_tempo(values, split_value=1., sort=False, norm_strengths=False,
