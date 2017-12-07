@@ -38,27 +38,6 @@ def key_prediction_to_label(prediction):
     return KEY_LABELS[prediction[0].argmax()]
 
 
-def write_key(key, filename):
-    """
-    Write key string to a file.
-
-    Parameters
-    ----------
-    key : str
-        Key name.
-    filename : str or file handle
-        Output file.
-
-    Returns
-    -------
-    key : str
-        Key name.
-
-    """
-    np.savetxt(filename, [key], fmt='%s')
-    return key
-
-
 class CNNKeyRecognitionProcessor(SequentialProcessor):
     """
     Recognise the global key of a musical piece using a Convolutional Neural

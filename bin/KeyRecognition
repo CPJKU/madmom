@@ -11,7 +11,8 @@ import argparse
 
 from madmom.features import ActivationsProcessor
 from madmom.features.key import (CNNKeyRecognitionProcessor,
-                                 key_prediction_to_label, write_key)
+                                 key_prediction_to_label)
+from madmom.io import write_key
 from madmom.processors import io_arguments, IOProcessor
 
 
