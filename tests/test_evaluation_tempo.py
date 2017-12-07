@@ -7,11 +7,12 @@ This file contains tests for the madmom.evaluation.tempo module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
 from os.path import join as pj
 
 from madmom.evaluation.tempo import *
+from madmom.io import load_tempo
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 ANNOTATIONS = np.asarray([[87.5, 0.7], [175, 0.3]])
