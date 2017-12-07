@@ -7,12 +7,12 @@ This file contains tests for the madmom.evaluation.notes module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
 from os.path import join as pj
 
-
 from madmom.evaluation.notes import *
+from madmom.io import load_notes
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
 DETECTIONS = np.asarray([[0.147, 72],  # TP
