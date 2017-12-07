@@ -10,9 +10,10 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH
 from madmom.features import Activations
 from madmom.features.notes import *
+from madmom.io import expand_notes, load_notes, write_notes, write_mirex_format
+from . import ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH
 
 sample_file = pj(AUDIO_PATH, "stereo_sample.wav")
 sample_act = Activations(pj(ACTIVATIONS_PATH, "stereo_sample.notes_brnn.npz"))
