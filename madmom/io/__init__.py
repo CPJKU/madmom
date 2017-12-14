@@ -227,11 +227,11 @@ def write_notes_midi(notes, filename, duration=0.6, velocity=100):
 
     """
     from ..utils import expand_notes
-    from ..utils.midi import MIDIFile
+    from ..io.midi import MIDIFile
     # expand the array to have a default duration and velocity
     notes = expand_notes(notes, duration, velocity)
     # write the notes to the file and return them
-    MIDIFile.from_notes(notes).write(filename)
+    MIDIFile.from_notes(notes).save(filename)
     return notes
 
 

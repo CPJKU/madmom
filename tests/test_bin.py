@@ -23,7 +23,7 @@ import numpy as np
 
 from madmom.features import Activations
 from madmom.evaluation.key import load_key
-from madmom.io import load_chords
+from madmom.io import load_chords, midi
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 
@@ -841,6 +841,11 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         run_single(self.bin, stereo_sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_midi(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--midi'])
+        result = midi.MIDIFile(tmp_result).notes
+        self.assertTrue(np.allclose(result[:, :2], self.result, atol=1e-3))
 
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
