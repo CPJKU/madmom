@@ -47,7 +47,7 @@ install:
   - conda info -a
   - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy"
   - activate test-environment
-  - pip install nose
+  - pip install nose mido
   # Install ffmpeg
   - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-latest-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
   - 7z x ffmpeg-shared.7z > NULL

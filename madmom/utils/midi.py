@@ -54,6 +54,7 @@ import sys
 import math
 import struct
 import numpy as np
+import warnings
 
 
 # constants
@@ -111,6 +112,8 @@ TIME_SIGNATURE = (TIME_SIGNATURE_NUMERATOR, TIME_SIGNATURE_DENOMINATOR)
 SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
 SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
+warnings.warn('Deprecated as of version 0.16. Please use madmom.io.midi '
+              'instead. This module will be removed in version 0.18.')
 
 # Ensure Python2/3 compatibility when reading bytes from MIDI files
 if sys.version_info[0] == 2:
