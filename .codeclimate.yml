@@ -1,21 +1,68 @@
-engines:
-  duplication:
+version: "2"
+checks:
+  argument-count:
     enabled: true
     config:
-      languages:
-      - python
-    checks:
-      Similar code:
-        enabled: false
+      threshold: 6
+  complex-logic:
+    enabled: true
+    config:
+      threshold: 4
+  file-lines:
+    enabled: true
+    config:
+      threshold: 1000
+  method-complexity:
+    enabled: true
+    config:
+      threshold: 5
+  method-count:
+    enabled: true
+    config:
+      threshold: 20
+  method-lines:
+    enabled: true
+    config:
+      threshold: 50
+  nested-control-flow:
+    enabled: true
+    config:
+      threshold: 4
+  return-statements:
+    enabled: true
+    config:
+      threshold: 4
+  similar-code:
+    enabled: false
+  identical-code:
+    enabled: true
+plugins:
   fixme:
     enabled: false
   radon:
     enabled: true
     config:
-      threshold: "D"
+      threshold: "C"
+  sonar-python:
+    enabled: true
+    config:
+      tests_patterns:
+        - tests/**
+    checks:
+      python:S107:  # number of parameters
+        enabled: false
+      python:S125:  # interprets comment descriptions as commented out code
+        enabled: false
+      python:S1134:  # FIXMEs
+        enabled: false
+      python:S1845:  # rename variables because of CONSTANTS with same name
+        enabled: false
+  git-legal:
+    enabled: true
 ratings:
   paths:
   - "**.py"
   - "**.pyx"
 exclude_paths:
+- docs/
 - tests/
