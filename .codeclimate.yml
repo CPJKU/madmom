@@ -44,7 +44,19 @@ plugins:
     config:
       threshold: "D"
   sonar-python:
-    enabled: false
+    enabled: true
+    config:
+      tests_patterns:
+        - tests/**
+    checks:
+      python:S107:  # number of parameters
+        enabled: false
+      python:S125:  # interprets comment descriptions as commented out code
+        enabled: false
+      python:S1134:  # FIXMEs
+        enabled: false
+      python:S1845:  # rename variables because of CONSTANTS with same name
+        enabled: false
   git-legal:
     enabled: true
 ratings:
