@@ -66,12 +66,13 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
         Events to be written to file.
     filename : str or file handle
         File to write the events to.
-    fmt : str, optional
-        How to format the events.
+    fmt : str or sequence of strs, optional
+        A single format (e.g. '%.3f'), a sequence of formats, or a multi-format
+        string (e.g. '%.3f %.3f'), in which case `delimiter` is ignored.
     delimiter : str, optional
-        String or character separating multiple columns.
+        String or character separating columns.
     header : str, optional
-        Header to be written (as a comment).
+        String that will be written at the beginning of the file as comment.
 
     Returns
     -------
@@ -85,8 +86,8 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
 
     """
     # write the events to the output
-    np.savetxt(filename, np.asarray(events),
-               fmt=fmt, delimiter=delimiter, header=header)
+    np.savetxt(filename, np.asarray(events), fmt=fmt, delimiter=delimiter,
+               header=header)
     # also return them
     return events
 
@@ -125,7 +126,7 @@ def load_beats(filename, downbeats=False):
     return values
 
 
-def write_beats(beats, filename, **kwargs):
+def write_beats(beats, filename, fmt=None, delimiter='\t', header=''):
     """
     Write the beats to a file.
 
@@ -134,14 +135,22 @@ def write_beats(beats, filename, **kwargs):
     beats : numpy array
         Beats to be written to file.
     filename : str or file handle
-        File to write the events to.
+        File to write the beats to.
+    fmt : str or sequence of strs, optional
+        A single format (e.g. '%.3f'), a sequence of formats (e.g.
+        ['%.3f', '%d']), or a multi-format string (e.g. '%.3f %d'), in which
+        case `delimiter` is ignored.
+    delimiter : str, optional
+        String or character separating columns.
+    header : str, optional
+        String that will be written at the beginning of the file as comment.
 
     """
-    if beats.ndim == 2:
-        fmt = list(('%.3f', '%d'))
-    else:
+    if fmt is None and beats.ndim == 2:
+        fmt = ['%.3f', '%d']
+    elif fmt is None:
         fmt = '%.3f'
-    write_events(beats, filename, fmt=fmt, **kwargs)
+    write_events(beats, filename, fmt=fmt, delimiter=delimiter, header=header)
 
 
 @suppress_warnings
@@ -173,13 +182,15 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     notes : numpy array, shape (num_notes, 2)
         Notes, row format 'onset_time' 'note_number' ['duration' ['velocity']].
     filename : str or file handle
-        Output filename or handle.
-    fmt : list, optional
-        Format of the fields (i.e. columns, see notes)
+        File to write the notes to.
+    fmt : str or sequence of strs, optional
+        A sequence of formats (e.g. ['%.3f', '%d', '%.3f', '%d']), or a
+        multi-format string, e.g. '%.3f %d %.3f %d', in which case `delimiter`
+        is ignored.
     delimiter : str, optional
-        String or character separating the columns.
+        String or character separating columns.
     header : str, optional
-        Header to be written (as a comment).
+        String that will be written at the beginning of the file as comment.
 
     Returns
     -------
@@ -189,7 +200,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     """
     # set default format
     if fmt is None:
-        fmt = list(('%.3f', '%d', '%.3f', '%d'))
+        fmt = ['%.3f', '%d', '%.3f', '%d']
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
     # truncate format to the number of colums given
@@ -216,6 +227,7 @@ def load_segments(filename):
     segments : numpy structured array
         Structured array with columns 'start', 'end', and 'label',
         containing the beginning, end, and label of segments.
+
     """
     start, end, label = [], [], []
 
@@ -233,7 +245,7 @@ def load_segments(filename):
     return segments
 
 
-def write_segments(segments, filename):
+def write_segments(segments, filename, fmt=None, delimiter='\t', header=''):
     """
     Write labelled segments to a file.
 
@@ -242,7 +254,14 @@ def write_segments(segments, filename):
     segments : numpy structured array
         Labelled segments, one per row (column definition see SEGMENT_DTYPE).
     filename : str or file handle
-        Output filename or handle
+        Output filename or handle.
+    fmt : str or sequence of strs, optional
+        A sequence of formats (e.g. ['%.3f', '%.3f', '%s']), or a multi-format
+        string (e.g. '%.3f %.3f %s'), in which case `delimiter` is ignored.
+    delimiter : str, optional
+        String or character separating columns.
+    header : str, optional
+        String that will be written at the beginning of the file as comment.
 
     Returns
     -------
@@ -256,7 +275,9 @@ def write_segments(segments, filename):
     'end' the end position, and 'label' the segment label.
 
     """
-    np.savetxt(filename, segments, fmt=['%.3f', '%.3f', '%s'], delimiter='\t')
+    if fmt is None:
+        fmt = ['%.3f', '%.3f', '%s']
+    np.savetxt(filename, segments, fmt=fmt, delimiter=delimiter, header=header)
     return segments
 
 
@@ -378,7 +399,7 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
     return np.vstack((tempi[:max_len], strengths[:max_len])).T
 
 
-def write_tempo(tempi, filename, mirex=False):
+def write_tempo(tempi, filename, delimiter='\t', mirex=False):
     """
     Write the most dominant tempi and the relative strength to a file.
 
@@ -425,6 +446,7 @@ def write_tempo(tempi, filename, mirex=False):
     # format as a numpy array
     out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    np.savetxt(filename, out, fmt='%.2f\t%.2f\t%.2f')
+    np.savetxt(filename, out, fmt=['%.2f', '%.2f', '%.2f'],
+               delimiter=delimiter)
     # also return the tempi & strength
     return t1, t2, strength
