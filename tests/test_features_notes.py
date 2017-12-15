@@ -12,7 +12,7 @@ from os.path import join as pj
 
 from madmom.features import Activations
 from madmom.features.notes import *
-from madmom.io import load_notes, write_notes, write_notes_mirex
+from madmom.io import load_notes, write_notes
 from madmom.utils import expand_notes
 from . import ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH
 
@@ -56,18 +56,6 @@ class TestWriteNotesFunction(unittest.TestCase):
         result = write_notes(
             NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes'), header=header)
         self.assertTrue(np.allclose(result, NOTES))
-
-
-class TestWriteMirexFormatFunction(unittest.TestCase):
-
-    def test_values(self):
-        result = write_notes_mirex(
-            NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'))
-        self.assertTrue(np.allclose(result[:, 0], NOTES[:, 0]))
-        self.assertTrue(np.allclose(result[:, 1], NOTES[:, 0] + NOTES[:, 2]))
-        self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 261.6,
-                                                   349.2, 207.7, 622.3, 98.0],
-                                    atol=0.1))
 
 
 class TestRNNOnsetProcessorClass(unittest.TestCase):

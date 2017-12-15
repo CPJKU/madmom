@@ -847,6 +847,12 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         result = midi.MIDIFile(tmp_result).notes
         self.assertTrue(np.allclose(result[:, :2], self.result, atol=1e-3))
 
+    def test_mirex(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result[:, 0], self.result[:, 0]))
+        self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 622.3]))
+
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
     def setUp(self):
