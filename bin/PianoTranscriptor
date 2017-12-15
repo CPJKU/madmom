@@ -9,11 +9,53 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
+import numpy as np
+
 from madmom.audio import SignalProcessor
+from madmom.audio.filters import midi2hz
 from madmom.features import (ActivationsProcessor, NotePeakPickingProcessor,
                              RNNPianoNoteProcessor)
-from madmom.io import write_notes, write_notes_mirex, write_notes_midi
+from madmom.io import write_midi, write_notes
 from madmom.processors import IOProcessor, io_arguments
+from madmom.utils import expand_notes
+
+
+def write_mirex(notes, filename, duration=0.6):
+    """
+    Write the frequencies of the notes to file (in MIREX format).
+
+    Parameters
+    ----------
+    notes : numpy array, shape (num_notes, 2)
+        Notes, one per row (column definition see notes).
+    filename : str or file handle
+        Output filename or handle.
+    duration : float, optional
+        Note duration if not defined by `notes`.
+
+    Returns
+    -------
+    numpy array
+        Notes in MIREX format.
+
+    Notes
+    -----
+    The note columns format must be (duration and velocity being optional):
+
+    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
+
+    The output format required by MIREX is:
+
+    'onset_time' 'offset_time' 'note_frequency'
+
+    """
+    # expand the notes if needed
+    notes = expand_notes(notes, duration)
+    # report offset time instead of duration
+    notes = np.vstack((notes[:, 0], notes[:, 0] + notes[:, 2],
+                       midi2hz(notes[:, 1]))).T
+    # MIREX format: onset \t offset \t frequency
+    write_notes(notes, filename, fmt=list(('%.3f', '%.3f', '%.1f', )))
 
 
 def main():
@@ -102,9 +144,9 @@ def main():
         if args.output_format is None:
             output = write_notes
         elif args.output_format == 'midi':
-            output = write_notes_midi
+            output = write_midi
         elif args.output_format == 'mirex':
-            output = write_notes_mirex
+            output = write_mirex
         else:
             raise ValueError('unknown output format: %s' % args.output_format)
         out_processor = [peak_picking, output]
