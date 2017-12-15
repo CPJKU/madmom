@@ -42,7 +42,7 @@ plugins:
   radon:
     enabled: true
     config:
-      threshold: "D"
+      threshold: "C"
   sonar-python:
     enabled: true
     config:
