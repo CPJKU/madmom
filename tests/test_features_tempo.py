@@ -418,10 +418,12 @@ class TestWriteTempoFunction(unittest.TestCase):
     def test_values(self):
         # only one tempo given (>68 bpm)
         result = write_tempo(COMB_TEMPI[0], self.out_file)
-        self.assertTrue(np.allclose(result, [176.47, 88.235, 1], atol=0.001))
+        self.assertTrue(np.allclose(result, [176.47, np.nan, 1],
+                                    atol=1e-4, equal_nan=True))
         # only one tempo given (<68 bpm)
         result = write_tempo(COMB_TEMPI[3] / 2, self.out_file)
-        self.assertTrue(np.allclose(result, [34.483, 68.966, 1], atol=0.01))
+        self.assertTrue(np.allclose(result, [34.483, np.nan, 1],
+                                    atol=1e-4, equal_nan=True))
         # multiple tempi given
         result = write_tempo(COMB_TEMPI, self.out_file)
         self.assertTrue(np.allclose(result, [176.47, 117.647, 0.728],

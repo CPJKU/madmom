@@ -399,7 +399,7 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
     return np.vstack((tempi[:max_len], strengths[:max_len])).T
 
 
-def write_tempo(tempi, filename, delimiter='\t', mirex=False):
+def write_tempo(tempi, filename, delimiter='\t', mirex=None):
     """
     Write the most dominant tempi and the relative strength to a file.
 
@@ -426,23 +426,23 @@ def write_tempo(tempi, filename, delimiter='\t', mirex=False):
     # make the given tempi a 2d array
     tempi = np.array(tempi, ndmin=2)
     # default values
-    t1, t2, strength = 0., 0., 1.
+    t1 = t2 = strength = np.nan
     # only one tempo was detected
     if len(tempi) == 1:
         t1 = tempi[0][0]
-        # generate a fake second tempo
-        # the boundary of 68 bpm is taken from Tzanetakis 2013 ICASSP paper
-        if t1 < 68:
-            t2 = t1 * 2.
-        else:
-            t2 = t1 / 2.
+        strength = 1.
     # consider only the two strongest tempi and strengths
     elif len(tempi) > 1:
         t1, t2 = tempi[:2, 0]
         strength = tempi[0, 1] / sum(tempi[:2, 1])
     # for MIREX, the lower tempo must be given first
-    if mirex and t1 > t2:
-        t1, t2, strength = t2, t1, 1. - strength
+    if mirex is not None:
+        import warnings
+        warnings.warn('`mirex` argument is deprecated as of version 0.16 '
+                      'and will be removed in version 0.17. Please sort the '
+                      'tempi manually')
+        if t1 > t2:
+            t1, t2, strength = t2, t1, 1. - strength
     # format as a numpy array
     out = np.array([t1, t2, strength], ndmin=2)
     # write to output
