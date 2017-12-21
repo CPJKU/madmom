@@ -1013,6 +1013,18 @@ class TestTempoDetectorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.online_results))
 
+    def test_mirex(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, [117.65, 176.47, 0.27]))
+
+    def test_all_tempi(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--all'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(
+            result, [[176.471, 0.475], [117.647, 0.177], [240.000, 0.154],
+                     [68.966, 0.099], [82.192, 0.096]]))
+
 
 # clean up
 def teardown():

@@ -9,11 +9,54 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
+import numpy as np
+
 from madmom.audio import SignalProcessor
 from madmom.features import (ActivationsProcessor, RNNBeatProcessor,
                              TempoEstimationProcessor)
 from madmom.io import write_events, write_tempo
 from madmom.processors import IOProcessor, io_arguments
+
+
+def write_mirex(tempi, filename):
+    """
+    Write the most dominant tempi and the relative strength to a file (in
+    MIREX format).
+
+    Parameters
+    ----------
+    tempi : numpy array
+        Array with the detected tempi (first column) and their strengths
+        (second column).
+    filename : str or file handle
+        Output file.
+
+    """
+    # make the given tempi a 2d array
+    tempi = np.array(tempi, ndmin=2)
+    # default values
+    t1 = t2 = strength = np.nan
+    # only one tempo was detected
+    if len(tempi) == 1:
+        t1 = tempi[0][0]
+        strength = 1.
+        # generate a fake second tempo (safer to output a real value than NaN)
+        # the boundary of 68 bpm is taken from Tzanetakis 2013 ICASSP paper
+        if t1 < 68:
+            t2 = t1 * 2.
+        else:
+            t2 = t1 / 2.
+    # consider only the two strongest tempi and strengths
+    elif len(tempi) > 1:
+        t1, t2 = tempi[:2, 0]
+        strength = tempi[0, 1] / sum(tempi[:2, 1])
+    # for MIREX, the lower tempo must be given first
+    if t1 > t2:
+        t1, t2, strength = t2, t1, 1. - strength
+    # format as a numpy array
+    out = np.array([t1, t2, strength], ndmin=2)
+    # write to output
+    np.savetxt(filename, out, fmt=['%.2f', '%.2f', '%.2f'], delimiter='\t')
 
 
 def main():
@@ -97,8 +140,7 @@ def main():
         # output handler
         if args.tempo_format == 'mirex':
             # output in the MIREX format (i.e. slower tempo first)
-            from functools import partial
-            output = partial(write_tempo, mirex=True)
+            output = write_mirex
         elif args.tempo_format in ('raw', 'all'):
             # borrow the event writer for outputting multiple values
             output = write_events
