@@ -1207,7 +1207,7 @@ class MIDITrack(object):
         return data
 
     @classmethod
-    def from_stream(cls, midi_stream):
+    def from_stream(cls, midi_stream, suppress_warnings=False):
         """
         Create a MIDI track by reading the data from a stream.
 
@@ -1243,9 +1243,10 @@ class MIDITrack(object):
                 if MetaEvent.status_msg == status_msg:
                     meta_cmd = byte2int(next(track_data))
                     if meta_cmd not in EventRegistry.meta_events:
-                        import warnings
-                        warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
-                        event_cls = UnknownMetaEvent
+                        if not suppress_warnings:
+                            import warnings
+                            warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
+                            event_cls = UnknownMetaEvent
                     else:
                         event_cls = EventRegistry.meta_events[meta_cmd]
                     data_len = read_variable_length(track_data)
@@ -1551,7 +1552,7 @@ class MIDIFile(object):
         # return time signatures
         return np.asarray(signatures, dtype=np.float)
 
-    def notes(self, unit='s'):
+    def notes(self, unit='s', suppress_warnings=False):
         """
         Notes of the MIDI file.
 
@@ -1594,7 +1595,7 @@ class MIDIFile(object):
                     sounding_notes[n] = (e.tick, e.velocity)
                 # if it's a note off event or a note on with a velocity of 0,
                 elif is_note_off or (is_note_on and e.velocity == 0):
-                    if n not in sounding_notes:
+                    if n not in sounding_notes and not suppress_warnings:
                         import warnings
                         warnings.warn("ignoring %s" % e)
                         continue
@@ -1739,7 +1740,7 @@ class MIDIFile(object):
         midi_file.close()
 
     @classmethod
-    def from_file(cls, midi_file):
+    def from_file(cls, midi_file, suppress_warnings=False):
         """
         Create a MIDI file instance from a .mid file.
 
@@ -1800,7 +1801,7 @@ class MIDIFile(object):
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MIDITrack.from_stream(midi_file)
+                track = MIDITrack.from_stream(midi_file, suppress_warnings)
                 tracks.append(track)
         if resolution is None or midi_format is None:
             raise IOError('unable to read MIDI file %s.' % midi_file)
