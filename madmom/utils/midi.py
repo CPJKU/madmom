@@ -1552,7 +1552,7 @@ class MIDIFile(object):
         # return time signatures
         return np.asarray(signatures, dtype=np.float)
 
-    def notes(self, unit='s'):
+    def notes(self, unit='s', suppress_warnings=False):
         """
         Notes of the MIDI file.
 
@@ -1595,7 +1595,7 @@ class MIDIFile(object):
                     sounding_notes[n] = (e.tick, e.velocity)
                 # if it's a note off event or a note on with a velocity of 0,
                 elif is_note_off or (is_note_on and e.velocity == 0):
-                    if n not in sounding_notes:
+                    if n not in sounding_notes and not suppress_warnings:
                         import warnings
                         warnings.warn("ignoring %s" % e)
                         continue
