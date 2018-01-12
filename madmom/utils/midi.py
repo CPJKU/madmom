@@ -1740,7 +1740,7 @@ class MIDIFile(object):
         midi_file.close()
 
     @classmethod
-    def from_file(cls, midi_file):
+    def from_file(cls, midi_file, suppress_warnings=False):
         """
         Create a MIDI file instance from a .mid file.
 
@@ -1801,7 +1801,7 @@ class MIDIFile(object):
             # read in all tracks
             for _ in range(num_tracks):
                 # read in one track and append it to the tracks list
-                track = MIDITrack.from_stream(midi_file)
+                track = MIDITrack.from_stream(midi_file, suppress_warnings)
                 tracks.append(track)
         if resolution is None or midi_format is None:
             raise IOError('unable to read MIDI file %s.' % midi_file)
