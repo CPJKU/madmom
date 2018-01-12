@@ -1207,7 +1207,7 @@ class MIDITrack(object):
         return data
 
     @classmethod
-    def from_stream(cls, midi_stream):
+    def from_stream(cls, midi_stream, suppress_warnings=False):
         """
         Create a MIDI track by reading the data from a stream.
 
@@ -1243,9 +1243,10 @@ class MIDITrack(object):
                 if MetaEvent.status_msg == status_msg:
                     meta_cmd = byte2int(next(track_data))
                     if meta_cmd not in EventRegistry.meta_events:
-                        import warnings
-                        warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
-                        event_cls = UnknownMetaEvent
+                        if not suppress_warnings:
+                            import warnings
+                            warnings.warn("Unknown Meta MIDI Event: %s" % meta_cmd)
+                            event_cls = UnknownMetaEvent
                     else:
                         event_cls = EventRegistry.meta_events[meta_cmd]
                     data_len = read_variable_length(track_data)
