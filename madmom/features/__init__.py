@@ -182,6 +182,7 @@ class Activations(np.ndarray):
             header = "FPS:%f" % self.fps
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
+        outfile.close()
 
 
 class ActivationsProcessor(Processor):

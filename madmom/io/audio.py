@@ -17,13 +17,8 @@ import tempfile
 
 import numpy as np
 
+from ..utils import string_types
 from ..audio.signal import Signal
-
-# Python 2/3 string compatibility (like six does it)
-try:
-    string_types = basestring
-except NameError:
-    string_types = str
 
 
 # error classes

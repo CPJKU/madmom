@@ -53,9 +53,8 @@ class TestWriteNotesFunction(unittest.TestCase):
 
     def test_values(self):
         header = "MIDI notes for the stereo_sample.[flac|wav] file"
-        result = write_notes(
-            NOTES, pj(ANNOTATIONS_PATH, 'stereo_sample.notes'), header=header)
-        self.assertTrue(np.allclose(result, NOTES))
+        write_notes(NOTES,
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.notes'), header=header)
 
 
 class TestRNNOnsetProcessorClass(unittest.TestCase):
