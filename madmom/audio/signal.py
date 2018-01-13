@@ -94,7 +94,7 @@ def adjust_gain(signal, gain):
     # convert the gain in dB to a scaling factor
     gain = np.power(np.sqrt(10.), 0.1 * gain)
     # prevent overflow and clipping
-    if gain > 1 and np.issubdtype(signal.dtype, np.int):
+    if gain > 1 and np.issubdtype(signal.dtype, np.integer):
         raise ValueError('positive gain adjustments are only supported for '
                          'float dtypes.')
     # Note: np.asanyarray returns the signal's ndarray subclass
@@ -155,7 +155,7 @@ def normalize(signal):
     """
     # scaling factor to be applied
     scaling = float(np.max(np.abs(signal)))
-    if np.issubdtype(signal.dtype, np.int):
+    if np.issubdtype(signal.dtype, np.integer):
         if signal.dtype in (np.int16, np.int32):
             scaling /= np.iinfo(signal.dtype).max
         else:
@@ -273,12 +273,12 @@ def rescale(signal, dtype=np.float32):
 
     """
     # allow only float dtypes
-    if not np.issubdtype(dtype, np.float):
+    if not np.issubdtype(dtype, np.floating):
         raise ValueError('only float dtypes are supported, not %s.' % dtype)
     # float signals don't need rescaling
-    if np.issubdtype(signal.dtype, np.float):
+    if np.issubdtype(signal.dtype, np.floating):
         return signal.astype(dtype)
-    elif np.issubdtype(signal.dtype, np.int):
+    elif np.issubdtype(signal.dtype, np.integer):
         return signal.astype(dtype) / np.iinfo(signal.dtype).max
     else:
         raise ValueError('unsupported signal dtype: %s.' % signal.dtype)
