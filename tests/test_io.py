@@ -32,18 +32,24 @@ class TestLoadEventsFunction(unittest.TestCase):
         self.assertIsInstance(events, np.ndarray)
         file_handle.close()
 
+    def test_load_file_with_comments_and_empty_lines(self):
+        events = load_events(pj(DATA_PATH, 'commented_txt'))
+        self.assertTrue(np.allclose(events, [1.1, 2.1]))
+
 
 class TestWriteEventsFunction(unittest.TestCase):
 
     def test_write_events_to_file(self):
-        result = write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
-        self.assertEqual(EVENTS, result)
+        write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
+        annotations = load_events(pj(DATA_PATH, 'events.txt'))
+        self.assertTrue(np.allclose(annotations, EVENTS))
 
     def test_write_events_to_file_handle(self):
         file_handle = open(pj(DATA_PATH, 'events.txt'), 'wb')
-        result = write_events(EVENTS, file_handle)
-        self.assertEqual(EVENTS, result)
+        write_events(EVENTS, file_handle)
         file_handle.close()
+        annotations = load_events(pj(DATA_PATH, 'events.txt'))
+        self.assertTrue(np.allclose(annotations, EVENTS))
 
     def test_write_and_read_events(self):
         write_events(EVENTS, pj(DATA_PATH, 'events.txt'))

@@ -11,7 +11,7 @@ import unittest
 from os.path import join as pj
 
 from madmom.features.tempo import *
-from madmom.io import write_tempo
+from madmom.io import write_tempo, load_tempo
 from . import ACTIVATIONS_PATH
 
 act_file = np.load(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
@@ -407,7 +407,7 @@ class TestWriteTempoFunction(unittest.TestCase):
 
     def setUp(self):
         import tempfile
-        self.out_file = tempfile.SpooledTemporaryFile()
+        self.out_file = tempfile.NamedTemporaryFile(delete=False).name
 
     def test_types(self):
         # must work with 2d arrays
@@ -417,20 +417,28 @@ class TestWriteTempoFunction(unittest.TestCase):
 
     def test_values(self):
         # only one tempo given (>68 bpm)
-        result = write_tempo(COMB_TEMPI[0], self.out_file)
-        self.assertTrue(np.allclose(result, [176.47, np.nan, 1],
+        write_tempo(COMB_TEMPI[0], self.out_file)
+        result = load_tempo(self.out_file)
+        self.assertTrue(np.allclose(result, [[176.47, 1]],
                                     atol=1e-4, equal_nan=True))
         # only one tempo given (<68 bpm)
-        result = write_tempo(COMB_TEMPI[3] / 2, self.out_file)
-        self.assertTrue(np.allclose(result, [34.483, np.nan, 1],
+        write_tempo(COMB_TEMPI[3] / 2, self.out_file)
+        result = load_tempo(self.out_file)
+        self.assertTrue(np.allclose(result, [[34.48, 1]],
                                     atol=1e-4, equal_nan=True))
         # multiple tempi given
-        result = write_tempo(COMB_TEMPI, self.out_file)
-        self.assertTrue(np.allclose(result, [176.47, 117.647, 0.728],
-                                    atol=0.001))
+        write_tempo(COMB_TEMPI, self.out_file)
+        result = load_tempo(self.out_file)
+        self.assertTrue(np.allclose(result, [[176.47, 0.73],
+                                             [117.65, 0.27]], atol=1e-4))
 
     def test_values_mirex(self):
         # multiple tempi given
-        result = write_tempo(COMB_TEMPI, self.out_file, mirex=True)
-        self.assertTrue(np.allclose(result, [117.647, 176.47, 0.271],
-                                    atol=0.001))
+        write_tempo(COMB_TEMPI, self.out_file, mirex=True)
+        result = load_tempo(self.out_file)
+        self.assertTrue(np.allclose(result, [[117.65, 0.27],
+                                             [176.47, 0.73]], atol=1e-4))
+
+    def tearDown(self):
+        import os
+        os.unlink(self.out_file)

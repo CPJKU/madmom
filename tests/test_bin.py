@@ -1022,8 +1022,8 @@ class TestTempoDetectorProgram(unittest.TestCase):
         run_single(self.bin, sample_file, tmp_result, args=['--all'])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(
-            result, [[176.471, 0.475], [117.647, 0.177], [240.000, 0.154],
-                     [68.966, 0.099], [82.192, 0.096]]))
+            result, [[176.47, 0.475], [117.65, 0.177], [240.00, 0.154],
+                     [68.97, 0.099], [82.19, 0.096]]))
 
 
 # clean up

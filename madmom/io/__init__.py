@@ -6,19 +6,23 @@ Input/output package.
 
 from __future__ import absolute_import, division, print_function
 
+import io as _io
 import sys
+import contextlib
 
 import numpy as np
 
 from .audio import load_audio_file
 from .midi import load_midi, write_midi
-from ..utils import suppress_warnings
+from ..utils import suppress_warnings, string_types
 
 if sys.version_info[0] < 3:
     _file_handle = file
 else:
     from io import TextIOBase as _file_handle
 
+
+ENCODING = 'utf8'
 
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
@@ -27,6 +31,38 @@ SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
 
 def _open_file(fn):
     return fn if isinstance(fn, _file_handle) else open(fn, 'r')
+
+
+# overwrite the built-in open() to transparently apply some magic file handling
+@contextlib.contextmanager
+def open_file(filename, mode='r'):
+    """
+    Context manager which yields an open file or handle with the given mode
+    and closes it if needed afterwards.
+
+    Parameters
+    ----------
+    filename : str or file handle
+        File (handle) to open.
+    mode: {'r', 'w'}
+        Specifies the mode in which the file is opened.
+
+    Yields
+    ------
+        Open file (handle).
+
+    """
+    # check if we need to open the file
+    if isinstance(filename, string_types):
+        f = fid = _io.open(filename, mode)
+    else:
+        f = filename
+        fid = None
+    # yield an open file handle
+    yield f
+    # close the file if needed
+    if fid:
+        fid.close()
 
 
 @suppress_warnings
@@ -56,7 +92,7 @@ def load_events(filename):
     return events[:, 0]
 
 
-def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
+def write_events(events, filename, fmt='%.3f', delimiter='\t', header=None):
     """
     Write the events to a file, one event per line.
 
@@ -74,20 +110,25 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
     header : str, optional
         String that will be written at the beginning of the file as comment.
 
-    Returns
-    -------
-    numpy array
-        Events.
-
-    Notes
-    -----
-    This function is just a wrapper to ``np.savetxt``, but reorders the
-    arguments to used as an :class:`.processors.OutputProcessor`.
-
     """
-    # write the events to the output
-    np.savetxt(filename, np.asarray(events), fmt=fmt, delimiter=delimiter,
-               header=header)
+    events = np.array(events)
+    # reformat fmt to be a single string if needed
+    if isinstance(fmt, (list, tuple)):
+        fmt = delimiter.join(fmt)
+    # write output
+    with open_file(filename, 'wb') as f:
+        # write header
+        if header is not None:
+            f.write(bytes(('# ' + header + '\n').encode(ENCODING)))
+        # write events
+        for e in events:
+            try:
+                string = fmt % tuple(e.tolist())
+            except AttributeError:
+                string = e
+            except TypeError:
+                string = fmt % e
+            f.write(bytes((string + '\n').encode(ENCODING)))
 
 
 load_onsets = load_events
@@ -124,7 +165,7 @@ def load_beats(filename, downbeats=False):
     return values
 
 
-def write_beats(beats, filename, fmt=None, delimiter='\t', header=''):
+def write_beats(beats, filename, fmt=None, delimiter='\t', header=None):
     """
     Write the beats to a file.
 
@@ -148,7 +189,7 @@ def write_beats(beats, filename, fmt=None, delimiter='\t', header=''):
         fmt = ['%.3f', '%d']
     elif fmt is None:
         fmt = '%.3f'
-    write_events(beats, filename, fmt=fmt, delimiter=delimiter, header=header)
+    write_events(beats, filename, fmt, delimiter, header)
 
 
 @suppress_warnings
@@ -171,7 +212,7 @@ def load_notes(filename):
     return np.loadtxt(filename, ndmin=2)
 
 
-def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
+def write_notes(notes, filename, fmt=None, delimiter='\t', header=None):
     """
     Write the notes to a file.
 
@@ -241,7 +282,7 @@ def load_segments(filename):
     return segments
 
 
-def write_segments(segments, filename, fmt=None, delimiter='\t', header=''):
+def write_segments(segments, filename, fmt=None, delimiter='\t', header=None):
     """
     Write labelled segments to a file.
 
@@ -273,7 +314,8 @@ def write_segments(segments, filename, fmt=None, delimiter='\t', header=''):
     """
     if fmt is None:
         fmt = ['%.3f', '%.3f', '%s']
-    np.savetxt(filename, segments, fmt=fmt, delimiter=delimiter, header=header)
+    write_events(segments, filename, fmt=fmt, delimiter=delimiter,
+                 header=header)
 
 
 load_chords = load_segments
@@ -298,7 +340,7 @@ def load_key(filename):
     return _open_file(filename).read().strip()
 
 
-def write_key(key, filename):
+def write_key(key, filename, header=None):
     """
     Write key string to a file.
 
@@ -308,6 +350,8 @@ def write_key(key, filename):
         Key name.
     filename : str or file handle
         Output file.
+    header : str, optional
+        String that will be written at the beginning of the file as comment.
 
     Returns
     -------
@@ -315,7 +359,7 @@ def write_key(key, filename):
         Key name.
 
     """
-    np.savetxt(filename, [key], fmt='%s')
+    write_events([key], filename, fmt='%s', header=header)
 
 
 def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
@@ -334,6 +378,12 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
         Value to distinguish between tempi and strengths.
         `values` > `split_value` are interpreted as tempi [bpm],
         `values` <= `split_value` are interpreted as strengths.
+    sort : bool, deprecated
+        Sort the tempi by their strength.
+    norm_strengths : bool, deprecated
+        Normalize the strengths to sum 1.
+    max_len : int, deprecated
+        Return at most `max_len` tempi.
 
     Returns
     -------
@@ -393,7 +443,7 @@ def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
     return np.vstack((tempi[:max_len], strengths[:max_len])).T
 
 
-def write_tempo(tempi, filename, delimiter='\t', mirex=None):
+def write_tempo(tempi, filename, delimiter='\t', header=None, mirex=None):
     """
     Write the most dominant tempi and the relative strength to a file.
 
@@ -404,7 +454,11 @@ def write_tempo(tempi, filename, delimiter='\t', mirex=None):
         (second column).
     filename : str or file handle
         Output file.
-    mirex : bool, optional
+    delimiter : str, optional
+        String or character separating columns.
+    header : str, optional
+        String that will be written at the beginning of the file as comment.
+    mirex : bool, deprecated
         Report the lower tempo first (as required by MIREX).
 
     Returns
@@ -437,8 +491,7 @@ def write_tempo(tempi, filename, delimiter='\t', mirex=None):
                       'tempi manually')
         if t1 > t2:
             t1, t2, strength = t2, t1, 1. - strength
-    # format as a numpy array
+    # format as a numpy array and write to output
     out = np.array([t1, t2, strength], ndmin=2)
-    # write to output
-    np.savetxt(filename, out, fmt=['%.2f', '%.2f', '%.2f'],
-               delimiter=delimiter)
+    write_events(out, filename, fmt=['%.2f', '%.2f', '%.2f'],
+                 delimiter=delimiter, header=header)

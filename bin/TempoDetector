@@ -8,6 +8,7 @@ TempoDetector tempo estimation algorithm.
 from __future__ import absolute_import, division, print_function
 
 import argparse
+from functools import partial
 
 import numpy as np
 
@@ -56,7 +57,7 @@ def write_mirex(tempi, filename):
     # format as a numpy array
     out = np.array([t1, t2, strength], ndmin=2)
     # write to output
-    np.savetxt(filename, out, fmt=['%.2f', '%.2f', '%.2f'], delimiter='\t')
+    write_events(out, filename, fmt=['%.2f', '%.2f', '%.2f'])
 
 
 def main():
@@ -142,8 +143,8 @@ def main():
             # output in the MIREX format (i.e. slower tempo first)
             output = write_mirex
         elif args.tempo_format in ('raw', 'all'):
-            # borrow the event writer for outputting multiple values
-            output = write_events
+            # borrow event writer for outputting multiple values
+            output = partial(write_events, fmt='%.2f\t%.3f')
         else:
             # normal output
             output = write_tempo

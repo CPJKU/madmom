@@ -16,6 +16,13 @@ import contextlib
 import numpy as np
 
 
+# Python 2/3 string compatibility (like six does it)
+try:
+    string_types = basestring
+except NameError:
+    string_types = str
+
+
 # decorator to suppress warnings
 def suppress_warnings(function):
     """
