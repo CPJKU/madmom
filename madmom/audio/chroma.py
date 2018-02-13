@@ -236,11 +236,11 @@ class DeepChromaProcessor(SequentialProcessor):
     >>> dcp = DeepChromaProcessor()
     >>> chroma = dcp('tests/data/audio/sample2.wav')
     >>> chroma  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([[ 0.01317,  0.00721,  ...,  0.00546,  0.00943],
-           [ 0.36809,  0.01314,  ...,  0.02213,  0.01838],
+    array([[0.01317, 0.00721, ..., 0.00546, 0.00943],
+           [0.36809, 0.01314, ..., 0.02213, 0.01838],
            ...,
-           [ 0.1534 ,  0.06475,  ...,  0.00896,  0.05789],
-           [ 0.17513,  0.0729 ,  ...,  0.00945,  0.06913]], dtype=float32)
+           [0.1534 , 0.06475, ..., 0.00896, 0.05789],
+           [0.17513, 0.0729 , ..., 0.00945, 0.06913]], dtype=float32)
     >>> chroma.shape
     (41, 12)
 

@@ -135,7 +135,9 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
 
     >>> act = RNNPianoNoteProcessor()('tests/data/audio/stereo_sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
-    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
+    array([[ 0.14, 72.  ],
+           [ 1.56, 41.  ],
+           [ 3.37, 75.  ]])
 
     """
     FPS = 100

@@ -636,11 +636,11 @@ class TempoEstimationProcessor(OnlineProcessor):
     >>> from madmom.features.beats import RNNBeatProcessor
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +NORMALIZE_WHITESPACE
-    array([[ 176.47059,  0.47469],
-           [ 117.64706,  0.17667],
-           [ 240.     ,  0.15371],
-           [  68.96552,  0.09864],
-           [  82.19178,  0.09629]])
+    array([[176.47059,  0.47469],
+           [117.64706,  0.17667],
+           [240.     ,  0.15371],
+           [ 68.96552,  0.09864],
+           [ 82.19178,  0.09629]])
 
     """
 
