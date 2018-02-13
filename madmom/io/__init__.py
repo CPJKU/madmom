@@ -88,8 +88,6 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
     # write the events to the output
     np.savetxt(filename, np.asarray(events), fmt=fmt, delimiter=delimiter,
                header=header)
-    # also return them
-    return events
 
 
 load_onsets = load_events
@@ -207,8 +205,6 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=''):
     fmt = delimiter.join(fmt[:notes.shape[1]])
     # write the notes
     write_events(notes, filename, fmt=fmt, delimiter=delimiter, header=header)
-    # also return them
-    return notes
 
 
 def load_segments(filename):
@@ -278,7 +274,6 @@ def write_segments(segments, filename, fmt=None, delimiter='\t', header=''):
     if fmt is None:
         fmt = ['%.3f', '%.3f', '%s']
     np.savetxt(filename, segments, fmt=fmt, delimiter=delimiter, header=header)
-    return segments
 
 
 load_chords = load_segments
@@ -321,7 +316,6 @@ def write_key(key, filename):
 
     """
     np.savetxt(filename, [key], fmt='%s')
-    return key
 
 
 def load_tempo(filename, split_value=1., sort=None, norm_strengths=None,
@@ -448,5 +442,3 @@ def write_tempo(tempi, filename, delimiter='\t', mirex=None):
     # write to output
     np.savetxt(filename, out, fmt=['%.2f', '%.2f', '%.2f'],
                delimiter=delimiter)
-    # also return the tempi & strength
-    return t1, t2, strength
