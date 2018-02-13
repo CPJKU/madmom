@@ -28,6 +28,7 @@ API relevant changes:
 * `DBNBeatTrackingProcessor` expects 1D inputs (#299)
 * Moved downbeat and pattern tracking to `features.downbeats` (#316)
 * Write/load functions moved to `io` module (#346)
+* Write functions do not return any data (#346)
 * Evaluation classes expect annotations/detections, cannot handle files (#346)
 
 Other changes:
