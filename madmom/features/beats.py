@@ -52,8 +52,7 @@ class RNNBeatProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.beats.RNNBeatProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.00479,  0.00603,  0.00927,  0.01419,  0.02342, ...,
-            0.00411,  0.00517,  0.00757,  0.01289,  0.02725], dtype=float32)
+    array([0.00479, 0.00603, 0.00927, 0.01419, ... 0.02725], dtype=float32)
 
     For online processing, `online` must be set to 'True'. If processing power
     is limited, fewer number of RNN models can be defined via `nn_files`. The
@@ -64,8 +63,7 @@ class RNNBeatProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.beats.RNNBeatProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.03887,  0.02619,  0.00747,  0.00218,  0.00178,  ...,
-            0.00254,  0.00463,  0.00947,  0.02192,  0.04825], dtype=float32)
+    array([0.03887, 0.02619, 0.00747, 0.00218, ... 0.04825], dtype=float32)
 
     """
 
@@ -157,11 +155,11 @@ class MultiModelSelectionProcessor(Processor):
 
     >>> predictions = proc('tests/data/audio/sample.wav')
     >>> predictions  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    [array([ 0.00535,  0.00774,  ...,  0.02343,  0.04931], dtype=float32),
-     array([ 0.0022 ,  0.00282,  ...,  0.00825,  0.0152 ], dtype=float32),
+    [array([0.00535, 0.00774, ..., 0.02343, 0.04931], dtype=float32),
+     array([0.0022 , 0.00282, ..., 0.00825, 0.0152 ], dtype=float32),
      ...,
-     array([ 0.005  ,  0.0052 ,  ...,  0.00472,  0.01524], dtype=float32),
-     array([ 0.00319,  0.0044 ,  ...,  0.0081 ,  0.01498], dtype=float32)]
+     array([0.005  , 0.0052 , ..., 0.00472, 0.01524], dtype=float32),
+     array([0.00319, 0.0044 , ..., 0.0081 , 0.01498], dtype=float32)]
 
     We can feed these predictions to the MultiModelSelectionProcessor.
     Since we do not have a dedicated reference prediction (which had to be the
@@ -171,7 +169,7 @@ class MultiModelSelectionProcessor(Processor):
 
     >>> mm_proc = MultiModelSelectionProcessor(num_ref_predictions=None)
     >>> mm_proc(predictions)  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([ 0.00759,  0.00901,  ...,  0.00843,  0.01834], dtype=float32)
+    array([0.00759, 0.00901, ..., 0.00843, 0.01834], dtype=float32)
 
     """
 
@@ -376,7 +374,7 @@ class BeatTrackingProcessor(Processor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+    array([0.11, 0.45, 0.79, 1.13, 1.47, 1.81, 2.15, 2.49])
 
     """
     LOOK_ASIDE = 0.2
@@ -557,7 +555,7 @@ class BeatDetectionProcessor(BeatTrackingProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.11,  0.45,  0.79,  1.13,  1.47,  1.81,  2.15,  2.49])
+    array([0.11, 0.45, 0.79, 1.13, 1.47, 1.81, 2.15, 2.49])
 
     """
     LOOK_ASIDE = 0.2
@@ -637,7 +635,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.09,  0.79,  1.49])
+    array([0.09, 0.79, 1.49])
 
     """
     INTERVAL_SIGMA = 0.18
@@ -835,7 +833,7 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
 
     >>> act = RNNBeatProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)
-    array([ 0.1 ,  0.45,  0.8 ,  1.12,  1.48,  1.8 ,  2.15,  2.49])
+    array([0.1 , 0.45, 0.8 , 1.12, 1.48, 1.8 , 2.15, 2.49])
 
     """
     MIN_BPM = 55.

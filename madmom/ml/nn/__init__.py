@@ -68,7 +68,7 @@ class NeuralNetwork(Processor):
     <madmom.ml.nn.NeuralNetwork object at 0x...>
     >>> nn(np.array([[0], [0.5], [1], [0], [1], [2], [0]]))
     ... # doctest: +NORMALIZE_WHITESPACE
-    array([ 0.53305, 0.36903, 0.265 , 0.53305, 0.265 , 0.18612, 0.53305])
+    array([0.53305, 0.36903, 0.265 , 0.53305, 0.265 , 0.18612, 0.53305])
 
     """
 
@@ -143,7 +143,7 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     <madmom.ml.nn.NeuralNetworkEnsemble object at 0x...>
     >>> nn(np.array([[0], [0.5], [1], [0], [1], [2], [0]]))
     ... # doctest: +NORMALIZE_WHITESPACE
-    array([ 0.00116, 0.00213, 0.01428, 0.00729, 0.0088 , 0.21965, 0.00532])
+    array([0.00116, 0.00213, 0.01428, 0.00729, 0.0088 , 0.21965, 0.00532])
 
     """
 

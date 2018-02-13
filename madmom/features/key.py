@@ -68,10 +68,10 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.key.CNNKeyRecognitionProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +NORMALIZE_WHITESPACE
-    array([[ 0.     ,  0.     ,  0.00001,  0.00012,  0.     ,  0.     ,
-             0.00151,  0.     ,  0.     ,  0.     ,  0.00003,  0.81958,
-             0.     ,  0.     ,  0.     ,  0.01747,  0.     ,  0.     ,
-             0.00001,  0.     ,  0.00006,  0.     ,  0.00001,  0.16119]],
+    array([[0.     , 0.     , 0.00001, 0.00012, 0.     , 0.     ,
+            0.00151, 0.     , 0.     , 0.     , 0.00003, 0.81958,
+            0.     , 0.     , 0.     , 0.01747, 0.     , 0.     ,
+            0.00001, 0.     , 0.00006, 0.     , 0.00001, 0.16119]],
           dtype=float32)
 
     """

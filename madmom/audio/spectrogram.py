@@ -381,11 +381,11 @@ class FilteredSpectrogram(Spectrogram):
 
     >>> spec = FilteredSpectrogram('tests/data/audio/sample.wav')
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    FilteredSpectrogram([[  5.66156, 6.30141, ..., 0.05426, 0.06461],
-                         [  8.44266, 8.69582, ..., 0.07703, 0.0902 ],
+    FilteredSpectrogram([[ 5.66156, 6.30141, ..., 0.05426, 0.06461],
+                         [ 8.44266, 8.69582, ..., 0.07703, 0.0902 ],
                          ...,
-                         [ 10.04626, 1.12018, ..., 0.0487 , 0.04282],
-                         [  8.60186, 6.81195, ..., 0.03721, 0.03371]],
+                         [10.04626, 1.12018, ..., 0.0487 , 0.04282],
+                         [ 8.60186, 6.81195, ..., 0.03721, 0.03371]],
                         dtype=float32)
 
     The resulting spectrogram has fewer frequency bins, with the centers of
@@ -405,11 +405,11 @@ class FilteredSpectrogram(Spectrogram):
     The filterbank used to filter the spectrogram is saved as an attribute:
 
     >>> spec.filterbank  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilterbank([[ 0., 0., ..., 0., 0.],
-                           [ 0., 0., ..., 0., 0.],
+    LogarithmicFilterbank([[0., 0., ..., 0., 0.],
+                           [0., 0., ..., 0., 0.],
                            ...,
-                           [ 0., 0., ..., 0., 0.],
-                           [ 0., 0., ..., 0., 0.]], dtype=float32)
+                           [0., 0., ..., 0., 0.],
+                           [0., 0., ..., 0., 0.]], dtype=float32)
     >>> spec.filterbank.num_bands
     81
 
@@ -579,7 +579,7 @@ class LogarithmicSpectrogram(Spectrogram):
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     LogarithmicSpectrogram([[...]], dtype=float32)
     >>> spec.min()
-    LogarithmicSpectrogram(1.604927092557773e-06, dtype=float32)
+    LogarithmicSpectrogram(0., dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -769,21 +769,18 @@ class LogarithmicFilteredSpectrogram(LogarithmicSpectrogram,
 
     >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav')
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
-                                      0.02295, 0.02719],
-                                    [ 0.97509, 0.98658, ...,
-                                      0.03223, 0.0375 ],
+    LogarithmicFilteredSpectrogram([[0.82358, 0.86341, ..., 0.02295, 0.02719],
+                                    [0.97509, 0.98658, ..., 0.03223, 0.0375 ],
                                     ...,
-                                    [ 1.04322, 0.32637, ...,
-                                      0.02065, 0.01821],
-                                    [ 0.98236, 0.89276, ...,
-                                      0.01587, 0.0144 ]], dtype=float32)
+                                    [1.04322, 0.32637, ..., 0.02065, 0.01821],
+                                    [0.98236, 0.89276, ..., 0.01587, 0.0144 ]],
+                                    dtype=float32)
     >>> spec.shape
     (281, 81)
     >>> spec.filterbank  # doctest: +ELLIPSIS
     LogarithmicFilterbank([[...]], dtype=float32)
     >>> spec.min()  # doctest: +ELLIPSIS
-    LogarithmicFilteredSpectrogram(0.00830..., dtype=float32)
+    LogarithmicFilteredSpectrogram(0.00831, dtype=float32)
 
     """
     # pylint: disable=super-on-old-class
@@ -1002,15 +999,12 @@ class SpectrogramDifference(Spectrogram):
     >>> spec = LogarithmicFilteredSpectrogram('tests/data/audio/sample.wav', \
                                               num_bands=24, fps=200)
     >>> spec  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    LogarithmicFilteredSpectrogram([[ 0.82358, 0.86341, ...,
-                                      0.02809, 0.02672],
-                                    [ 0.92514, 0.93211, ...,
-                                      0.03607, 0.0317 ],
+    LogarithmicFilteredSpectrogram([[0.82358, 0.86341, ..., 0.02809, 0.02672],
+                                    [0.92514, 0.93211, ..., 0.03607, 0.0317 ],
                                     ...,
-                                    [ 1.03826, 0.767  , ...,
-                                      0.01814, 0.01138],
-                                    [ 0.98236, 0.89276, ...,
-                                      0.01669, 0.00919]], dtype=float32)
+                                    [1.03826, 0.767  , ..., 0.01814, 0.01138],
+                                    [0.98236, 0.89276, ..., 0.01669, 0.00919]],
+                                    dtype=float32)
     >>> spec.shape
     (561, 140)
 
@@ -1020,11 +1014,11 @@ class SpectrogramDifference(Spectrogram):
     >>> superflux = SpectrogramDifference(spec, diff_max_bins=3, \
                                           positive_diffs=True)
     >>> superflux  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    SpectrogramDifference([[ 0.     , 0. , ...,  0. ,  0. ],
-                           [ 0.     , 0. , ...,  0. ,  0. ],
+    SpectrogramDifference([[0.     , 0. , ...,  0. ,  0. ],
+                           [0.     , 0. , ...,  0. ,  0. ],
                            ...,
-                           [ 0.01941, 0. , ...,  0. ,  0. ],
-                           [ 0.     , 0. , ...,  0. ,  0. ]], dtype=float32)
+                           [0.01941, 0. , ...,  0. ,  0. ],
+                           [0.     , 0. , ...,  0. ,  0. ]], dtype=float32)
 
     """
     # pylint: disable=super-on-old-class

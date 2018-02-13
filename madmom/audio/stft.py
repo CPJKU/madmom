@@ -233,14 +233,14 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     <madmom.audio.signal.FramedSignal object at 0x...>
     >>> stft = ShortTimeFourierTransform(frames)
     >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
-                                -0.03634-0.00005j,  0.03670+0.00029j],
-                               [-4.28429+0.j     ,  2.02009+2.01264j, ...,
+    ShortTimeFourierTransform([[-3.15249+0.     j,  2.62216-3.02425j, ...,
+                                -0.03634-0.00005j,  0.0367 +0.00029j],
+                               [-4.28429+0.     j,  2.02009+2.01264j, ...,
                                 -0.01981-0.00933j, -0.00536+0.02162j],
                                ...,
-                               [-4.92274+0.j     ,  4.09839-9.42525j, ...,
-                                 0.00550-0.00257j,  0.00137+0.00577j],
-                               [-9.22709+0.j     ,  8.76929+4.0005j , ...,
+                               [-4.92274+0.     j,  4.09839-9.42525j, ...,
+                                 0.0055 -0.00257j,  0.00137+0.00577j],
+                               [-9.22709+0.     j,  8.76929+4.0005 j, ...,
                                  0.00981-0.00014j, -0.00984+0.00006j]],
                               dtype=complex64)
 
@@ -261,14 +261,14 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     <madmom.audio.signal.FramedSignal object at 0x...>
     >>> stft = ShortTimeFourierTransform(frames)
     >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    ShortTimeFourierTransform([[-3.15240+0.j     ,  2.62208-3.02415j, ...,
-                                -0.03633-0.00005j,  0.03670+0.00029j],
-                               [-4.28416+0.j     ,  2.02003+2.01257j, ...,
+    ShortTimeFourierTransform([[-3.1524 +0.     j,  2.62208-3.02415j, ...,
+                                -0.03633-0.00005j,  0.0367 +0.00029j],
+                               [-4.28416+0.     j,  2.02003+2.01257j, ...,
                                 -0.01981-0.00933j, -0.00536+0.02162j],
                                ...,
-                               [-4.92259+0.j     ,  4.09827-9.42496j, ...,
-                                 0.00550-0.00257j,  0.00137+0.00577j],
-                               [-9.22681+0.j     ,  8.76902+4.00038j, ...,
+                               [-4.92259+0.     j,  4.09827-9.42496j, ...,
+                                 0.0055 -0.00257j,  0.00137+0.00577j],
+                               [-9.22681+0.     j,  8.76902+4.00038j, ...,
                                  0.00981-0.00014j, -0.00984+0.00006j]],
                               dtype=complex64)
 
@@ -430,14 +430,14 @@ class ShortTimeFourierTransformProcessor(Processor):
     >>> proc = ShortTimeFourierTransformProcessor()
     >>> stft = proc('tests/data/audio/sample.wav')
     >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
-                                -0.03634-0.00005j,  0.03670+0.00029j],
-                               [-4.28429+0.j     ,  2.02009+2.01264j, ...,
+    ShortTimeFourierTransform([[-3.15249+0.     j,  2.62216-3.02425j, ...,
+                                -0.03634-0.00005j,  0.0367 +0.00029j],
+                               [-4.28429+0.     j,  2.02009+2.01264j, ...,
                                 -0.01981-0.00933j, -0.00536+0.02162j],
                                ...,
-                               [-4.92274+0.j     ,  4.09839-9.42525j, ...,
-                                 0.00550-0.00257j,  0.00137+0.00577j],
-                               [-9.22709+0.j     ,  8.76929+4.0005j , ...,
+                               [-4.92274+0.     j,  4.09839-9.42525j, ...,
+                                 0.0055 -0.00257j,  0.00137+0.00577j],
+                               [-9.22709+0.     j,  8.76929+4.0005 j, ...,
                                  0.00981-0.00014j, -0.00984+0.00006j]],
                               dtype=complex64)
 
