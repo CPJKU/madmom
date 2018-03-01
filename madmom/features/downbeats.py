@@ -24,25 +24,6 @@ from ..ml.hmm import HiddenMarkovModel
 from ..processors import ParallelProcessor, Processor, SequentialProcessor
 
 
-def filter_downbeats(beats):
-    """
-
-    Parameters
-    ----------
-    beats : numpy array, shape (num_beats, 2)
-        Array with beats and their position inside the bar as the second
-        column.
-
-    Returns
-    -------
-    downbeats : numpy array
-        Array with downbeat times.
-
-    """
-    # return only downbeats (timestamps)
-    return beats[beats[:, 1] == 1][:, 0]
-
-
 # downbeat tracking, i.e. track beats and downbeats directly from signal
 class RNNDownBeatProcessor(SequentialProcessor):
     """

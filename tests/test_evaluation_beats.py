@@ -884,14 +884,14 @@ class TestBeatEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         # conversion from 2D arrays
-        e = BeatEvaluation(np.array([[1, 1.1], [2, 1.2]]),
-                           np.array([[1, 1.1], [2, 1.2]]))
+        e = BeatEvaluation(np.array([[1, 1], [2, 2]]),
+                           np.array([[1, 1], [2, 2]]))
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         # conversion from list of lists
-        e = BeatEvaluation([[1, 1.1], [2, 1.2]], [[1, 1.1], [2, 1.2]])
+        e = BeatEvaluation([[1, 1], [2, 2]], [[1, 1], [2, 2]])
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
@@ -956,6 +956,16 @@ class TestBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
+
+    def test_downbeat_results(self):
+        det = [[0.9, 1], [2, 2], [3, 3], [4, 4], [5, 1]]
+        ann = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 1]]
+        e = BeatEvaluation(det, ann)
+        self.assertTrue(np.allclose(e.tp, [2, 3, 4, 5]))
+        e = BeatEvaluation(det, ann, downbeats=True)
+        self.assertTrue(np.allclose(e.tp, [5]))
+        e = BeatEvaluation(det, ann, downbeats=True, fmeasure_window=0.1)
+        self.assertTrue(np.allclose(e.tp, [0.9, 5]))
 
     def test_tostring(self):
         print(BeatEvaluation([], []))

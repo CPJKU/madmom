@@ -17,7 +17,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
 from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.downbeats import PatternTrackingProcessor
-from madmom.io import write_beats
+from madmom.io import write_beats, write_downbeats
 from madmom.models import PATTERNS_BALLROOM
 from madmom.processors import IOProcessor, io_arguments
 
@@ -116,10 +116,9 @@ def main():
         # track the (down-)beats (i.e. patterns) and output them
         out_processor = [PatternTrackingProcessor(**vars(args))]
         if args.downbeats:
-            # filter the beats to contain only downbeats
-            from madmom.features.downbeats import filter_downbeats
-            out_processor.append(filter_downbeats)
-        out_processor.append(write_beats)
+            out_processor.append(write_downbeats)
+        else:
+            out_processor.append(write_beats)
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)
