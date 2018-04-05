@@ -41,8 +41,8 @@ install:
   - activate test-environment
   - pip install nose mido
   # Install ffmpeg
-  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-latest-win' + $env:PYTHON_ARCH + '-shared.7z' ) ffmpeg-shared.7z
-  - 7z x ffmpeg-shared.7z > NULL
+  - ps: Start-FileDownload ('http://ffmpeg.zeranoe.com/builds/win' + $env:PYTHON_ARCH + '/shared/ffmpeg-latest-win' + $env:PYTHON_ARCH + '-shared.zip' ) ffmpeg-shared.zip
+  - 7z x ffmpeg-shared.zip > NULL
   - "set PATH=%cd%\\ffmpeg-latest-win%PYTHON_ARCH%-shared\\bin;%PATH%"
 
 build: false
