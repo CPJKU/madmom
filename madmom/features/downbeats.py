@@ -927,7 +927,7 @@ class RNNBarProcessor(Processor):
     ----------
     .. [1] Florian Krebs, Sebastian Böck and Gerhard Widmer,
            "Downbeat Tracking Using Beat-Synchronous Features and Recurrent
-            Networks",
+           Networks",
            Proceedings of the 17th International Society for Music Information
            Retrieval Conference (ISMIR), 2016.
 
