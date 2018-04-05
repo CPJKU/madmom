@@ -1,12 +1,24 @@
+# encoding: utf-8
+# pylint: skip-file
+"""
+This file contains tests for the madmom.evaluation.key module.
+
+"""
+
+from __future__ import absolute_import, division, print_function
+
 import unittest
+from os.path import join
+
 from madmom.evaluation.key import *
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
-from os.path import join
 
 
 class TestKeyLabelToClassFunction(unittest.TestCase):
 
     def test_illegal_label(self):
+        with self.assertRaises(ValueError):
+            key_label_to_class('Z major')
         with self.assertRaises(ValueError):
             key_label_to_class('D mixolydian')
         with self.assertRaises(ValueError):
@@ -45,26 +57,6 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
                          key_label_to_class('F min'))
         self.assertEqual(key_label_to_class('gb maj'),
                          key_label_to_class('F# major'))
-
-
-class TestLoadKeyFunction(unittest.TestCase):
-
-    def test_load_key_from_file(self):
-        key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
-        self.assertEquals(key, 18)
-        key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
-        self.assertEquals(key, 9)
-
-    def test_load_key_from_id(self):
-        key = load_key(18)
-        self.assertEquals(key, 18)
-        key = load_key(9)
-        self.assertEquals(key, 9)
-
-        with self.assertRaises(ValueError):
-            load_key(-1)
-        with self.assertRaises(ValueError):
-            load_key(25)
 
 
 class TestErrorTypeFunction(unittest.TestCase):
@@ -138,8 +130,8 @@ class TestKeyEvaluationClass(unittest.TestCase):
 
     def setUp(self):
         self.eval = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='TestEval'
         )
 
@@ -158,14 +150,14 @@ class TestKeyMeanEvaluation(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1
         self.eval1 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
             name='eval1'
         )
         # this one should have a score of 0.3
         self.eval2 = KeyEvaluation(
-            join(DETECTIONS_PATH, 'dummy.key.txt'),
-            join(ANNOTATIONS_PATH, 'dummy.key'),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval2'
         )
 

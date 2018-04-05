@@ -15,39 +15,11 @@ import numpy as np
 from . import (evaluation_io, MultiClassEvaluation, SumEvaluation,
                MeanEvaluation)
 from .onsets import onset_evaluation, OnsetEvaluation
-from ..utils import suppress_warnings
+from ..io import load_notes
 
 
-@suppress_warnings
-def load_notes(values):
-    """
-    Load the notes from the given values or file.
-
-    Parameters
-    ----------
-    values: str, file handle, list of tuples or numpy array
-        Notes values.
-
-    Returns
-    -------
-    numpy array
-        Notes.
-
-    Notes
-    -----
-    Expected file/tuple/row format:
-
-    'note_time' 'MIDI_note' ['duration' ['MIDI_velocity']]
-
-    """
-    # load the notes from the given representation
-    if isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        return np.array(values, dtype=np.float, ndmin=2, copy=False)
-    else:
-        # try to load the data from file
-        return np.loadtxt(values, ndmin=2)
+# default note evaluation values
+WINDOW = 0.025
 
 
 def remove_duplicate_notes(data):
@@ -80,9 +52,6 @@ def remove_duplicate_notes(data):
     data = data[unique]
     # sort them by the first column and return them
     return data[data[:, 0].argsort()]
-
-# default note evaluation values
-WINDOW = 0.025
 
 
 # note onset evaluation function
@@ -211,9 +180,9 @@ class NoteEvaluation(MultiClassEvaluation):
 
     def __init__(self, detections, annotations, window=WINDOW, delay=0,
                  **kwargs):
-        # load the note detections and annotations
-        detections = load_notes(detections)
-        annotations = load_notes(annotations)
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=2)
+        annotations = np.array(annotations, dtype=np.float, ndmin=2)
         # shift the detections if needed
         if delay != 0:
             detections[:, 0] += delay
@@ -382,9 +351,8 @@ def add_parser(parser):
 
     ''')
     # set defaults
-    p.set_defaults(eval=NoteEvaluation,
-                   sum_eval=NoteSumEvaluation,
-                   mean_eval=NoteMeanEvaluation)
+    p.set_defaults(eval=NoteEvaluation, sum_eval=NoteSumEvaluation,
+                   mean_eval=NoteMeanEvaluation, load_fn=load_notes)
     # file I/O
     evaluation_io(p, ann_suffix='.notes', det_suffix='.notes.txt')
     # evaluation parameters

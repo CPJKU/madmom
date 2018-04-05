@@ -182,6 +182,7 @@ class Activations(np.ndarray):
             header = "FPS:%f" % self.fps
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
+        outfile.close()
 
 
 class ActivationsProcessor(Processor):
@@ -286,7 +287,8 @@ from .chords import (CNNChordFeatureProcessor, CRFChordRecognitionProcessor,
 from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
                         PatternTrackingProcessor)
 from .key import CNNKeyRecognitionProcessor
-from .notes import RNNPianoNoteProcessor
-from .onsets import (CNNOnsetProcessor, PeakPickingProcessor,
-                     RNNOnsetProcessor, SpectralOnsetProcessor)
+from .notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
+from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
+                     PeakPickingProcessor, RNNOnsetProcessor,
+                     SpectralOnsetProcessor)
 from .tempo import TempoEstimationProcessor

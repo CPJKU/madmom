@@ -9,16 +9,17 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-from madmom.processors import IOProcessor, io_arguments
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
-from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.signal import FramedSignalProcessor, SignalProcessor
 from madmom.audio.spectrogram import (FilteredSpectrogramProcessor,
                                       LogarithmicSpectrogramProcessor,
-                                      SpectrogramDifferenceProcessor,
-                                      MultiBandSpectrogramProcessor)
+                                      MultiBandSpectrogramProcessor,
+                                      SpectrogramDifferenceProcessor)
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.downbeats import PatternTrackingProcessor
+from madmom.io import write_beats, write_downbeats
 from madmom.models import PATTERNS_BALLROOM
+from madmom.processors import IOProcessor, io_arguments
 
 
 def main():
@@ -112,19 +113,12 @@ def main():
         # save the multiband features to file
         out_processor = ActivationsProcessor(mode='w', **vars(args))
     else:
-        # track the patterns
+        # track the (down-)beats (i.e. patterns) and output them
         out_processor = [PatternTrackingProcessor(**vars(args))]
         if args.downbeats:
-            # filter the beats to contain only downbeats
-            from madmom.features.downbeats import filter_downbeats
-            out_processor.append(filter_downbeats)
-            # simply write the timestamps
-            from madmom.utils import write_events as writer
+            out_processor.append(write_downbeats)
         else:
-            # borrow the note writer for outputting timestamps + beat numbers
-            from madmom.features.notes import write_notes as writer
-        # sequentially process them
-        out_processor.append(writer)
+            out_processor.append(write_beats)
 
     # create an IOProcessor
     processor = IOProcessor(in_processor, out_processor)

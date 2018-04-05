@@ -7,8 +7,8 @@ PickleProcessor.
 
 from __future__ import absolute_import, division, print_function
 
-import pickle
 import argparse
+import pickle
 
 from madmom.processors import io_arguments
 

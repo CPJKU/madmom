@@ -7,14 +7,13 @@ Evaluation script.
 
 from __future__ import absolute_import, division, print_function
 
+import argparse
 import os
 import sys
-import argparse
 import warnings
 
-from madmom.utils import search_files, match_file
-from madmom.evaluation import (alignment, beats, chords, key, notes, onsets,
-                               tempo)
+from madmom.evaluation import beats, chords, key, notes, onsets, tempo
+from madmom.utils import match_file, search_files
 
 
 def main():
@@ -47,8 +46,6 @@ def main():
     key.add_parser(sub_parsers)
     # note evaluation
     notes.add_parser(sub_parsers)
-    # alignment evaluation
-    alignment.add_parser(sub_parsers)
     # chord evaluation
     chords.add_parser(sub_parsers)
 
@@ -91,7 +88,7 @@ def main():
         sys.stderr.write('\r%s' % progress.ljust(progress_len))
         sys.stderr.flush()
 
-        #  get the matching detection files
+        # get the matching detection files
         matches = match_file(ann_file, det_files,
                              args.ann_suffix, args.det_suffix)
         if len(matches) > 1:
@@ -109,8 +106,12 @@ def main():
             # use the first (and only) matched detection file
             det_file = matches[0]
 
-        # evaluate
-        e = args.eval(det_file, ann_file, name=os.path.basename(ann_file),
+        # load detections and annotations
+        detections = args.load_fn(det_file)
+        annotations = args.load_fn(ann_file)
+
+        # evaluate them
+        e = args.eval(detections, annotations, name=os.path.basename(ann_file),
                       **vars(args))
 
         # add this file's evaluation to the global evaluation list

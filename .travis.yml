@@ -3,7 +3,6 @@ sudo: required
 dist: trusty
 python:
   - "2.7"
-  - "3.4"
   - "3.5"
   - "3.6"
 before_install:
@@ -27,7 +26,7 @@ before_install:
   - deps='pip libgfortran cython numpy scipy nose pep8'
   - conda create -q -n test-environment "python=$TRAVIS_PYTHON_VERSION" $deps
   - source activate test-environment
-  - pip install codecov
+  - pip install codecov mido
 install:
   - pip install -e .
   - pip install coveralls

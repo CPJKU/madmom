@@ -751,7 +751,7 @@ class RNNOnsetProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.onsets.RNNOnsetProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav') # doctest: +ELLIPSIS
-    array([ 0.08313,  0.0024 ,  ...,  0.00205,  0.00527], dtype=float32)
+    array([0.08313, 0.0024 , ... 0.00527], dtype=float32)
 
     """
 
@@ -832,7 +832,7 @@ class CNNOnsetProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.onsets.CNNOnsetProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +ELLIPSIS
-    array([ 0.05369,  0.04205,  ...,  0.00024,  0.00014], dtype=float32)
+    array([0.05369, 0.04205, ... 0.00014], dtype=float32)
 
     """
 
@@ -1080,7 +1080,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
 
     >>> act = RNNOnsetProcessor()('tests/data/audio/sample.wav')
     >>> proc(act)  # doctest: +ELLIPSIS
-    array([ 0.09,  0.29,  0.45,  ...,  2.34,  2.49,  2.67])
+    array([0.09, 0.29, 0.45, ..., 2.34, 2.49, 2.67])
 
     """
     FPS = 100

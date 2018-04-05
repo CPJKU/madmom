@@ -16,6 +16,13 @@ import contextlib
 import numpy as np
 
 
+# Python 2/3 string compatibility (like six does it)
+try:
+    string_types = basestring
+except NameError:
+    string_types = str
+
+
 # decorator to suppress warnings
 def suppress_warnings(function):
     """
@@ -256,69 +263,6 @@ def match_file(filename, match_list, suffix=None, match_suffix=None,
     return matches
 
 
-@suppress_warnings
-def load_events(filename):
-    """
-    Load a events from a text file, one floating point number per line.
-
-    Parameters
-    ----------
-    filename : str or file handle
-        File to load the events from.
-
-    Returns
-    -------
-    numpy array
-        Events.
-
-    Notes
-    -----
-    Comments (lines starting with '#') and additional columns are ignored,
-    i.e. only the first column is returned.
-
-    """
-    # read in the events, one per line
-    events = np.loadtxt(filename, ndmin=2)
-    # 1st column is the event's time, the rest is ignored
-    return events[:, 0]
-
-
-def write_events(events, filename, fmt='%.3f', delimiter='\t', header=''):
-    """
-    Write events to a text file, one event per line.
-
-    Parameters
-    ----------
-    events : numpy array
-        Events to be written to file.
-    filename : str or file handle
-        File to write the events to.
-    fmt : str, optional
-        How to format the events.
-    delimiter : str, optional
-        String or character separating multiple columns.
-    header : str, optional
-        Header to be written (as a comment).
-
-    Returns
-    -------
-    numpy array
-        Events.
-
-    Notes
-    -----
-    This function is just a wrapper to ``np.savetxt``, but reorders the
-    arguments in a way it can be used as an
-    :class:`.processors.OutputProcessor`.
-
-    """
-    # write the events to the output
-    np.savetxt(filename, np.asarray(events),
-               fmt=fmt, delimiter=delimiter, header=header)
-    # also return them
-    return events
-
-
 def combine_events(events, delta, combine='mean'):
     """
     Combine all events within a certain range.
@@ -506,6 +450,45 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
     return quantized
 
 
+def expand_notes(notes, duration=0.6, velocity=100):
+    """
+    Expand notes to include duration and velocity.
+
+    The given duration and velocity is only used if they are not set already.
+
+    Parameters
+    ----------
+    notes : numpy array, shape (num_notes, 2)
+        Notes, one per row. Expected columns:
+        'note_time' 'note_number' ['duration' ['velocity']]
+    duration : float, optional
+        Note duration if not defined by `notes`.
+    velocity : int, optional
+        Note velocity if not defined by `notes`.
+
+    Returns
+    -------
+    notes : numpy array, shape (num_notes, 2)
+        Notes (including note duration and velocity).
+
+    """
+    if not notes.ndim == 2:
+        raise ValueError('unknown format for `notes`')
+    rows, columns = notes.shape
+    if columns == 4:
+        return notes
+    elif columns == 3:
+        new_columns = np.ones((rows, 1)) * velocity
+    elif columns == 2:
+        new_columns = np.ones((rows, 2)) * velocity
+        new_columns[:, 0] = duration
+    else:
+        raise ValueError('unable to handle `notes` with %d columns' % columns)
+    # return the notes
+    notes = np.hstack((notes, new_columns))
+    return notes
+
+
 # argparse action to set and overwrite default lists
 class OverrideDefaultListAction(argparse.Action):
     """
@@ -678,6 +661,3 @@ def segment_axis(signal, frame_size, hop_size, axis=None, end='cut',
 
 # keep namespace clean
 del contextlib
-
-# finally import the submodules
-from . import midi, stats

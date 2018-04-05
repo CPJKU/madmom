@@ -54,6 +54,7 @@ import sys
 import math
 import struct
 import numpy as np
+import warnings
 
 
 # constants
@@ -111,6 +112,8 @@ TIME_SIGNATURE = (TIME_SIGNATURE_NUMERATOR, TIME_SIGNATURE_DENOMINATOR)
 SECONDS_PER_QUARTER_NOTE = 60. / TEMPO
 SECONDS_PER_TICK = SECONDS_PER_QUARTER_NOTE / RESOLUTION
 
+warnings.warn('Deprecated as of version 0.16. Please use madmom.io.midi '
+              'instead. This module will be removed in version 0.18.')
 
 # Ensure Python2/3 compatibility when reading bytes from MIDI files
 if sys.version_info[0] == 2:
@@ -1407,38 +1410,38 @@ class MIDIFile(object):
     seconds):
 
     >>> m.notes()
-    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
-           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+    array([[ 0. , 50. ,  1. , 60. ,  0. ],
+           [ 0.5, 62. ,  0.5, 90. ,  0. ]])
     >>> m.notes(unit='ticks')
-    array([[   0.,   50.,  960.,   60.,    0.],
-           [ 480.,   62.,  480.,   90.,    0.]])
+    array([[  0.,  50., 960.,  60.,   0.],
+           [480.,  62., 480.,  90.,   0.]])
     >>> m.notes(unit='beats')
-    array([[  0.,  50.,   2.,  60.,   0.],
-           [  1.,  62.,   1.,  90.,   0.]])
+    array([[ 0., 50.,  2., 60.,  0.],
+           [ 1., 62.,  1., 90.,  0.]])
 
     >>> m = MIDIFile.from_notes(notes, tempo=60)
     >>> m.notes(unit='ticks')
-    array([[   0.,   50.,  480.,   60.,    0.],
-           [ 240.,   62.,  240.,   90.,    0.]])
+    array([[  0.,  50., 480.,  60.,   0.],
+           [240.,  62., 240.,  90.,   0.]])
     >>> m.notes(unit='beats')
-    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
-           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+    array([[ 0. , 50. ,  1. , 60. ,  0. ],
+           [ 0.5, 62. ,  0.5, 90. ,  0. ]])
 
     >>> m = MIDIFile.from_notes(notes, tempo=60, time_signature=(2, 2))
     >>> m.notes(unit='ticks')
-    array([[   0.,   50.,  960.,   60.,    0.],
-           [ 480.,   62.,  480.,   90.,    0.]])
+    array([[  0.,  50., 960.,  60.,   0.],
+           [480.,  62., 480.,  90.,   0.]])
     >>> m.notes(unit='beats')
-    array([[  0. ,  50. ,   1. ,  60. ,   0. ],
-           [  0.5,  62. ,   0.5,  90. ,   0. ]])
+    array([[ 0. , 50. ,  1. , 60. ,  0. ],
+           [ 0.5, 62. ,  0.5, 90. ,  0. ]])
 
     >>> m = MIDIFile.from_notes(notes, tempo=240, time_signature=(3, 8))
     >>> m.notes(unit='ticks')
-    array([[   0.,   50.,  960.,   60.,    0.],
-           [ 480.,   62.,  480.,   90.,    0.]])
+    array([[  0.,  50., 960.,  60.,   0.],
+           [480.,  62., 480.,  90.,   0.]])
     >>> m.notes(unit='beats')
-    array([[  0.,  50.,   4.,  60.,   0.],
-           [  2.,  62.,   2.,  90.,   0.]])
+    array([[ 0., 50.,  4., 60.,  0.],
+           [ 2., 62.,  2., 90.,  0.]])
 
     """
 

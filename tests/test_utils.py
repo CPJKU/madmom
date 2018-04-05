@@ -10,8 +10,9 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.io import load_events
 from madmom.utils import *
-from . import (DATA_PATH, AUDIO_PATH, ANNOTATIONS_PATH, ACTIVATIONS_PATH,
+from . import (ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DATA_PATH,
                DETECTIONS_PATH)
 from .test_features_notes import NOTES
 
@@ -234,57 +235,6 @@ class TestMatchFileFunction(unittest.TestCase):
         result = match_file('file.txt', match_list, match_suffix='*',
                             match_exactly=False)
         self.assertEqual(result, match_list)
-
-
-class TestLoadEventsFunction(unittest.TestCase):
-
-    def test_read_events_from_file(self):
-        events = load_events(pj(DATA_PATH, 'events.txt'))
-        self.assertIsInstance(events, np.ndarray)
-
-    def test_read_events_from_file_handle(self):
-        file_handle = open(pj(DATA_PATH, 'events.txt'))
-        events = load_events(file_handle)
-        self.assertIsInstance(events, np.ndarray)
-        file_handle.close()
-
-    def test_read_onset_annotations(self):
-        events = load_events(pj(ANNOTATIONS_PATH, 'sample.onsets'))
-        self.assertTrue(np.allclose(events, ONSET_ANNOTATIONS))
-
-    def test_read_file_without_comments(self):
-        events = load_events(pj(DETECTIONS_PATH, 'sample.super_flux.txt'))
-        self.assertTrue(np.allclose(events, [0.01, 0.085, 0.275, 0.445, 0.61,
-                                             0.795, 0.98, 1.115, 1.365, 1.475,
-                                             1.62, 1.795, 2.14, 2.33, 2.485,
-                                             2.665]))
-
-    def test_load_file_with_comments_and_empty_lines(self):
-        events = load_events(pj(DATA_PATH, 'commented_txt'))
-        self.assertTrue(np.allclose(events, [1.1, 2.1]))
-
-    def test_load_only_timestamps(self):
-        events = load_events(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
-        self.assertTrue(np.allclose(events, [0.147, 1.567, 2.526, 2.549, 2.563,
-                                             2.577, 3.369, 3.449]))
-
-
-class TestWriteEventsFunction(unittest.TestCase):
-
-    def test_write_events_to_file(self):
-        result = write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
-        self.assertEqual(EVENTS, result)
-
-    def test_write_events_to_file_handle(self):
-        file_handle = open(pj(DATA_PATH, 'events.txt'), 'wb')
-        result = write_events(EVENTS, file_handle)
-        self.assertEqual(EVENTS, result)
-        file_handle.close()
-
-    def test_write_and_read_events(self):
-        write_events(EVENTS, pj(DATA_PATH, 'events.txt'))
-        annotations = load_events(pj(DATA_PATH, 'events.txt'))
-        self.assertTrue(np.allclose(annotations, EVENTS))
 
 
 class TestCombineEventsFunction(unittest.TestCase):

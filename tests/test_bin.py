@@ -22,8 +22,8 @@ except ImportError:
 import numpy as np
 
 from madmom.features import Activations
-from madmom.features.chords import load_chords
 from madmom.evaluation.key import load_key
+from madmom.io import load_chords, midi
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 
@@ -842,6 +842,17 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
+    def test_midi(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--midi'])
+        result = midi.MIDIFile(tmp_result).notes
+        self.assertTrue(np.allclose(result[:, :2], self.result, atol=1e-3))
+
+    def test_mirex(self):
+        run_single(self.bin, stereo_sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result[:, 0], self.result[:, 0]))
+        self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 622.3]))
+
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
     def setUp(self):
@@ -1001,6 +1012,18 @@ class TestTempoDetectorProgram(unittest.TestCase):
         run_single(self.bin, sample_file, tmp_result, online=True)
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.online_results))
+
+    def test_mirex(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--mirex'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, [117.65, 176.47, 0.27]))
+
+    def test_all_tempi(self):
+        run_single(self.bin, sample_file, tmp_result, args=['--all'])
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(
+            result, [[176.47, 0.475], [117.65, 0.177], [240.00, 0.154],
+                     [68.97, 0.099], [82.19, 0.096]]))
 
 
 # clean up

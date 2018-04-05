@@ -7,9 +7,8 @@ This file contains tests for the madmom.evaluation.tempo module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
-from os.path import join as pj
+import unittest
 
 from madmom.evaluation.tempo import *
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
@@ -23,118 +22,21 @@ DET_STRENGTHS = np.asarray([0.6, 0.4])
 
 
 # test functions
-class TestLoadTempoFunction(unittest.TestCase):
-
-    def test_load_tempo_from_file(self):
-        annotations = load_tempo(pj(ANNOTATIONS_PATH, 'sample.tempo'))
-        self.assertIsInstance(annotations, np.ndarray)
-
-    def test_load_tempo_from_file_handle(self):
-        file_handle = open(pj(ANNOTATIONS_PATH, 'sample.tempo'))
-        annotations = load_tempo(file_handle)
-        self.assertIsInstance(annotations, np.ndarray)
-        file_handle.close()
-
-    def test_load_tempo_annotations(self):
-        annotations = load_tempo(pj(ANNOTATIONS_PATH, 'sample.tempo'))
-        self.assertIsInstance(annotations, np.ndarray)
-        self.assertEqual(annotations.shape, (2, 2))
-        self.assertTrue(np.allclose(annotations, ANNOTATIONS))
-        self.assertTrue(np.allclose(annotations[:, 0], ANN_TEMPI))
-        self.assertTrue(np.allclose(annotations[:, 1], ANN_STRENGTHS))
-
-    def test_lists(self):
-        # simple lists
-        result = load_tempo([100, 1])
-        self.assertTrue(np.allclose(result, [[100, 1]]))
-        result = load_tempo([100, 50])
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        # lists of lists
-        result = load_tempo([[100], [50]])
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        result = load_tempo([[100, 0.6], [50, 0.6]])
-        self.assertTrue(np.allclose(result, [[100, 0.6], [50, 0.6]]))
-        # lists of tuples
-        result = load_tempo([(100), (50)])
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        result = load_tempo([(100, 0.6), (50, 0.6)])
-        self.assertTrue(np.allclose(result, [[100, 0.6], [50, 0.6]]))
-
-    def test_arrays(self):
-        result = load_tempo(np.asarray(100))
-        self.assertTrue(np.allclose(result, [[100, 1]]))
-        result = load_tempo(np.asarray((100, 50)))
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        result = load_tempo(np.asarray([100, 50]))
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        result = load_tempo(ANNOTATIONS)
-        self.assertTrue(np.allclose(result, ANNOTATIONS))
-        result = load_tempo(DETECTIONS)
-        self.assertTrue(np.allclose(result, DETECTIONS))
-
-    def test_missing_strength(self):
-        # a strength of 1 should be added
-        result = load_tempo([100])
-        self.assertTrue(np.allclose(result, [[100, 1]]))
-        # a strength of 0.5 should be added to both and order should be kept
-        result = load_tempo([100, 50])
-        self.assertTrue(np.allclose(result, [[100, 0.5], [50, 0.5]]))
-        # a strength of 1/3 should be added to both and order should be kept
-        result = load_tempo([50, 100, 75])
-        self.assertTrue(np.allclose(result, [[50, 1. / 3],
-                                             [100, 1. / 3],
-                                             [75, 1. / 3]]))
-
-    def test_relative_strengths(self):
-        # the second strength should be added
-        result = load_tempo([100, 50, 0.7])
-        self.assertTrue(np.allclose(result, [[100, 0.7], [50, 0.3]]))
-        # the strength could be somewhere
-        result = load_tempo([100, 0.7, 50])
-        self.assertTrue(np.allclose(result, [[100, 0.7], [50, 0.3]]))
-        # the strength could be somewhere
-        result = load_tempo([100, 0.5, 50, 0.3, 75])
-        self.assertTrue(np.allclose(result, [[100, 0.5],
-                                             [50, 0.3],
-                                             [75, 0.2]]))
-
-    def test_norm_strengths(self):
-        result = load_tempo([100, 50, 0.4, 0.1], norm_strengths=True)
-        self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        # the strength could be somewhere
-        result = load_tempo([100, 0.4, 0.1, 50], norm_strengths=True)
-        self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        # the strength could be somewhere
-        result = load_tempo([100, 0.2, 50, 0.2, 0.1, 75], norm_strengths=True)
-        self.assertTrue(np.allclose(result, [[100, 0.4],
-                                             [50, 0.4],
-                                             [75, 0.2]]))
+class TestSortTempoFunction(unittest.TestCase):
 
     def test_sort(self):
-        result = load_tempo([100, 50, 0.8, 0.2], sort=True)
+        result = sort_tempo([[100, 0.8], [50, 0.2]])
         self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        result = load_tempo([50, 0.2, 100, 0.8], sort=True)
+        result = sort_tempo([[50, 0.2], [100, 0.8]])
         self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        # third strength should be 0.6, tempo order of 50 and 100 must be kept
-        result = load_tempo([100, 0.2, 50, 0.2, 75], sort=True)
-        self.assertTrue(np.allclose(result, [[75, 0.6],
-                                             [100, 0.2],
-                                             [50, 0.2]]))
+        # tempo order of 50 and 100 bpm must be kept
+        result = sort_tempo([[100, 0.2], [50, 0.2], [75, 0.6]])
+        self.assertTrue(np.allclose(result,
+                                    [[75, 0.6], [100, 0.2], [50, 0.2]]))
 
-    def test_max_len(self):
-        # positive values
-        result = load_tempo([100, 50, 0.8, 0.2], max_len=1)
-        self.assertTrue(np.allclose(result, [[100, 0.8]]))
-        result = load_tempo([100, 50, 0.8, 0.2], max_len=2)
-        self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        result = load_tempo([100, 50, 0.8, 0.2], max_len=3)
-        self.assertTrue(np.allclose(result, [[100, 0.8], [50, 0.2]]))
-        # third strength should be 0.6, tempo order of 50 and 100 must be kept
-        result = load_tempo([100, 0.2, 50, 0.2, 75], sort=True, max_len=2)
-        self.assertTrue(np.allclose(result, [[75, 0.6], [100, 0.2]]))
-        # negative values are not supported
+    def test_error(self):
         with self.assertRaises(ValueError):
-            load_tempo([100, 50, 0.8, 0.2], max_len=-1)
+            sort_tempo([120, 60])
 
 
 class TestConstantsClass(unittest.TestCase):
@@ -234,6 +136,11 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.pscore, 0.7)
         self.assertEqual(e.any, True)
         self.assertEqual(e.all, False)
+        # consider only first detection / annotation
+        e = TempoEvaluation([120, 60], [[60, 0.7], [30, 0.3]], max_len=1)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
         # only det=120 and ann=60 should be evaluated for acc
         self.assertEqual(e.acc1, False)
         self.assertEqual(e.acc2, True)
@@ -246,6 +153,11 @@ class TestTempoEvaluationClass(unittest.TestCase):
         # only det=120 and ann=180 should be evaluated for acc
         self.assertEqual(e.acc1, False)
         self.assertEqual(e.acc2, False)
+        # consider only first detection / annotation
+        e = TempoEvaluation([120, 60], [[180, 0.7], [60, 0.3]], max_len=1)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
 
         # two detections / annotations
         e = TempoEvaluation([120, 60], [[180, 0.7], [60, 0.3]])
@@ -262,6 +174,21 @@ class TestTempoEvaluationClass(unittest.TestCase):
         self.assertEqual(e.any, True)
         self.assertEqual(e.all, False)
         # only det=120 and ann=60 should be evaluated for acc
+        self.assertEqual(e.acc1, False)
+        self.assertEqual(e.acc2, True)
+        # consider only strongest detection / annotation (sort them)
+        e = TempoEvaluation([60, 120], [[180, 0.3], [60, 0.7]], max_len=1)
+        self.assertEqual(e.pscore, 1)
+        self.assertEqual(e.any, True)
+        self.assertEqual(e.all, True)
+        self.assertEqual(e.acc1, True)
+        self.assertEqual(e.acc2, True)
+        # same, but do not sort them
+        e = TempoEvaluation([60, 120], [[180, 0.3], [60, 0.7]], max_len=1,
+                            sort=False)
+        self.assertEqual(e.pscore, 0)
+        self.assertEqual(e.any, False)
+        self.assertEqual(e.all, False)
         self.assertEqual(e.acc1, False)
         self.assertEqual(e.acc2, True)
 
@@ -339,7 +266,7 @@ class TestMeanTempoEvaluationClass(unittest.TestCase):
         self.assertTrue(math.isnan(e.acc2))
         self.assertEqual(len(e), 0)
         # mean evaluation with empty evaluation
-        e1 = TempoEvaluation([[]], [[]])
+        e1 = TempoEvaluation([], [])
         e = TempoMeanEvaluation([e1])
         self.assertEqual(e.pscore, 1)
         self.assertEqual(e.any, 1)

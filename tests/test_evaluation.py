@@ -265,8 +265,8 @@ class TestEvaluationClass(unittest.TestCase):
         self.assertEqual(e.accuracy, 1)
         # test metric dictionary keys
         self.assertEqual(list(e.metrics.keys()),
-                         ['tp', 'fp', 'tn', 'fn', 'num_tp', 'num_fp', 'num_tn',
-                          'num_fn', 'num_annotations', 'precision', 'recall',
+                         ['num_tp', 'num_fp', 'num_tn', 'num_fn',
+                          'num_annotations', 'precision', 'recall',
                           'fmeasure', 'accuracy'])
         # test with other values
         e = Evaluation(tp=[1, 2, 3.0], fp=[1.5], fn=[0, 3.1])

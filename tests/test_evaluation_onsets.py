@@ -7,17 +7,24 @@ This file contains tests for the madmom.evaluation.onsets module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
 
 from madmom.evaluation.onsets import *
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
 
-DETECTIONS = np.asarray([0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5,
-                         3.025000001])
-ANNOTATIONS = np.asarray([1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3])
+# dummy detections/annotations
+DETECTIONS = [0.99999999, 1.02999999, 1.45, 2.01, 2.02, 2.5, 3.025000001]
+ANNOTATIONS = [1, 1.02, 1.5, 2.0, 2.03, 2.05, 2.5, 3]
+# real detections/annotations
+SAMPLE_DETECTIONS = [0.01, 0.085, 0.275, 0.445, 0.61, 0.795, 0.98, 1.115,
+                     1.365, 1.475, 1.62, 1.795, 2.14, 2.33, 2.485, 2.665]
+SAMPLE_ANNOTATIONS = [0.0943, 0.2844, 0.4528, 0.6160, 0.7630, 0.8025, 0.9847,
+                      1.1233, 1.4820, 1.6276, 1.8032, 2.1486, 2.3351, 2.4918,
+                      2.6710]
 
 
+# loading function
 class TestOnsetConstantsClass(unittest.TestCase):
 
     def test_types(self):
@@ -102,18 +109,13 @@ class TestOnsetEvaluationClass(unittest.TestCase):
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         self.assertIsInstance(e.errors, np.ndarray)
-        # conversion from None should work
-        e = OnsetEvaluation(None, None)
+        # conversion from single values should work
+        e = OnsetEvaluation(0, 0)
         self.assertIsInstance(e.tp, np.ndarray)
         self.assertIsInstance(e.fp, np.ndarray)
         self.assertIsInstance(e.tn, np.ndarray)
         self.assertIsInstance(e.fn, np.ndarray)
         self.assertIsInstance(e.errors, np.ndarray)
-        # others should fail
-        self.assertRaises(ValueError, OnsetEvaluation, float(0), float(0))
-        self.assertRaises(ValueError, OnsetEvaluation, int(0), int(0))
-        # TODO: why does dict work?
-        # self.assertRaises(ValueError, OnsetEvaluation, {}, {})
 
     def test_results(self):
         # empty detections / annotations

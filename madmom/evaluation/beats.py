@@ -30,12 +30,13 @@ from __future__ import absolute_import, division, print_function
 
 from functools import wraps
 import warnings
+
 import numpy as np
 
-from . import (find_closest_matches, calc_errors, calc_absolute_errors,
-               evaluation_io, MeanEvaluation)
+from . import (MeanEvaluation, calc_absolute_errors, calc_errors,
+               evaluation_io, find_closest_matches)
 from .onsets import OnsetEvaluation
-from ..utils import suppress_warnings
+from ..io import load_beats
 
 
 # exceptions
@@ -116,53 +117,6 @@ def _score_decorator(perfect_score, zero_score):
 
 score_10 = _score_decorator(1., 0.)
 score_1100 = _score_decorator((1., 1.), (0., 0.))
-
-
-@suppress_warnings
-def load_beats(values, downbeats=False):
-    """
-    Load the beats from the given values or file.
-
-    To make this function more universal, it also accepts lists or arrays.
-
-    Parameters
-    ----------
-    values : str, file handle, list or numpy array
-        Name / values to be loaded.
-    downbeats : bool, optional
-        Load downbeats instead of beats.
-
-    Returns
-    -------
-    numpy array
-        Beats.
-
-    Notes
-    -----
-    Expected format:
-
-    'beat_time' [additional information will be ignored]
-
-    """
-    # load the beats from the given representation
-    if values is None:
-        # return an empty array
-        values = np.zeros(0)
-    elif isinstance(values, (list, np.ndarray)):
-        # convert to numpy array if possible
-        # Note: use array instead of asarray because of ndmin
-        values = np.array(values, dtype=np.float, ndmin=1, copy=False)
-    else:
-        # try to load the data from file
-        values = np.loadtxt(values, ndmin=1)
-    if values.ndim > 1:
-        if downbeats:
-            # rows with a "1" in the 2nd column are the downbeats.
-            return values[values[:, 1] == 1][:, 0]
-        else:
-            # 1st column is the beat time, the rest is ignored
-            return values[:, 0]
-    return values
 
 
 # function for sequence variations generation
@@ -1071,14 +1025,21 @@ class BeatEvaluation(OnsetEvaluation):
                  information_gain_bins=INFORMATION_GAIN_BINS,
                  offbeat=True, double=True, triple=True, skip=0,
                  downbeats=False, **kwargs):
-        # load the beat detections and annotations
-        detections = load_beats(detections, downbeats)
-        annotations = load_beats(annotations, downbeats)
-        # if these are 2D, use only the first column (i.e. the time stamp)
+        # convert to numpy array
+        detections = np.array(detections, dtype=np.float, ndmin=1)
+        annotations = np.array(annotations, dtype=np.float, ndmin=1)
+        # use only the first column (i.e. the time stamp) or extract the
+        # downbeats if these are 2D
         if detections.ndim > 1:
-            detections = detections[:, 0]
+            if downbeats:
+                detections = detections[detections[:, 1] == 1][:, 0]
+            else:
+                detections = detections[:, 0]
         if annotations.ndim > 1:
-            annotations = annotations[:, 0]
+            if downbeats:
+                annotations = annotations[annotations[:, 1] == 1][:, 0]
+            else:
+                annotations = annotations[:, 0]
         # sort them
         detections = np.sort(detections)
         annotations = np.sort(annotations)
@@ -1232,7 +1193,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=BeatEvaluation, sum_eval=None,
-                   mean_eval=BeatMeanEvaluation)
+                   mean_eval=BeatMeanEvaluation, load_fn=load_beats)
     # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants
