@@ -59,19 +59,6 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
                          key_label_to_class('F# major'))
 
 
-class TestLoadKeyFunction(unittest.TestCase):
-
-    def test_load_key_from_file(self):
-        key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
-        self.assertEquals(key, 'F# minor')
-        key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
-        self.assertEquals(key, 'a maj')
-        key = load_key(open(join(ANNOTATIONS_PATH, 'dummy.key')))
-        self.assertEquals(key, 'F# minor')
-        key = load_key(open(join(DETECTIONS_PATH, 'dummy.key.txt')))
-        self.assertEquals(key, 'a maj')
-
-
 class TestErrorTypeFunction(unittest.TestCase):
 
     def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,

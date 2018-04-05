@@ -41,17 +41,7 @@ def _compare_labels(test_case, labels, reference_labels):
     test_case.assertTrue((labels['label'] == reference_labels['label']).all())
 
 
-class TestLoadChordsFunction(unittest.TestCase):
-    def test_read_chords_from_file(self):
-        chords = load_chords(pj(DETECTIONS_PATH,
-                             'sample2.dc_chord_recognition.txt'))
-        self.assertIsInstance(chords, np.ndarray)
-
-    def test_read_chords_from_file_handle(self):
-        with open(pj(DETECTIONS_PATH,
-                     'sample2.dc_chord_recognition.txt')) as file_handle:
-            chords = load_chords(file_handle)
-            self.assertIsInstance(chords, np.ndarray)
+class TestParseChords(unittest.TestCase):
 
     def test_read_chord_annotations(self):
         chords = load_chords(pj(DETECTIONS_PATH,

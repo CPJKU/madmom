@@ -9,7 +9,6 @@ from __future__ import absolute_import, division, print_function
 
 import math
 import unittest
-from os.path import join as pj
 
 from madmom.evaluation.beats import *
 from madmom.evaluation.beats import (_entropy, _error_histogram,
@@ -30,18 +29,6 @@ SAMPLE_BEAT_ANNOTATIONS = np.asarray([0.0913, 0.7997, 1.4806, 2.1478])
 
 
 # test functions
-class TestLoadBeatsFunction(unittest.TestCase):
-
-    def test_load_beats_from_file(self):
-        beats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'))
-        self.assertTrue(np.allclose(beats, SAMPLE_BEAT_ANNOTATIONS))
-
-    def test_load_downbeats_from_file(self):
-        downbeats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'),
-                               downbeats=True)
-        self.assertTrue(np.allclose(downbeats, 0.0913))
-
-
 class TestVariationsFunction(unittest.TestCase):
 
     def test_types(self):
