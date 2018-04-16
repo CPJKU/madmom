@@ -35,6 +35,7 @@ Other changes:
 
 * Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)
 * Add option to include Nyquist frequency in `STFT` (#280)
+* Use `pyfftw` to compute FFT (#363)
 
 
 Version 0.15.1 (release date: 2017-07-07)

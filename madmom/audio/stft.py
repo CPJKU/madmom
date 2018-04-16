@@ -14,6 +14,12 @@ import warnings
 import numpy as np
 import scipy.fftpack as fftpack
 
+try:
+    from pyfftw.builders import rfft as rfft_builder
+except ImportError:
+    def rfft_builder(*args, **kwargs):
+        return None
+
 from ..processors import Processor
 from .signal import Signal, FramedSignal
 
@@ -41,7 +47,7 @@ def fft_frequencies(num_fft_bins, sample_rate):
 
 
 def stft(frames, window, fft_size=None, circular_shift=False,
-         include_nyquist=False):
+         include_nyquist=False, fftw=None):
     """
     Calculates the complex Short-Time Fourier Transform (STFT) of the given
     framed signal.
@@ -61,6 +67,9 @@ def stft(frames, window, fft_size=None, circular_shift=False,
         needed for correct phase.
     include_nyquist : bool, optional
         Include the Nyquist frequency bin (sample rate / 2) in returned STFT.
+    fftw : :class:`pyfftw.FFTW` instance, optional
+        If a :class:`pyfftw.FFTW` object is given it is used to compute the
+        STFT with the FFTW library. Requires 'pyfftw'.
 
     Returns
     -------
@@ -116,7 +125,10 @@ def stft(frames, window, fft_size=None, circular_shift=False,
             else:
                 fft_signal = frame
         # perform DFT
-        data[f] = fftpack.fft(fft_signal, fft_size, axis=0)[:num_fft_bins]
+        if fftw:
+            data[f] = fftw(fft_signal)[:num_fft_bins]
+        else:
+            data[f] = fftpack.fft(fft_signal, fft_size, axis=0)[:num_fft_bins]
     # return STFT
     return data
 
@@ -206,6 +218,10 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         needed for correct phase.
     include_nyquist : bool, optional
         Include the Nyquist frequency bin (sample rate / 2).
+    fftw : :class:`pyfftw.FFTW` instance, optional
+        If a :class:`pyfftw.FFTW` object is given it is used to compute the
+        STFT with the FFTW library. If 'None', a new :class:`pyfftw.FFTW`
+        object is built. Requires 'pyfftw'.
     kwargs : dict, optional
         If no :class:`.audio.signal.FramedSignal` instance was given, one is
         instantiated with these additional keyword arguments.
@@ -292,13 +308,14 @@ frame_size=2048, fps=100, sample_rate=22050)
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
-                 circular_shift=False, include_nyquist=False, **kwargs):
+                 circular_shift=False, include_nyquist=False, fft_window=None,
+                 fftw=None, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
                 circular_shift=False, include_nyquist=False, fft_window=None,
-                **kwargs):
+                fftw=None, **kwargs):
         # pylint: disable=unused-argument
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT, use the frames thereof
@@ -330,10 +347,17 @@ frame_size=2048, fps=100, sample_rate=22050)
                 # no scaling needed, use the window as is (can also be None)
                 fft_window = window
 
+        # use FFTW to speed up STFT
+        try:
+            # Note: use fft_window instead of a frame because it has already
+            #       the correct dtype (frames are multiplied with this window)
+            fftw = rfft_builder(fft_window, fft_size, axis=0)
+        except AttributeError:
+            pass
         # calculate the STFT
         data = stft(frames, fft_window, fft_size=fft_size,
                     circular_shift=circular_shift,
-                    include_nyquist=include_nyquist)
+                    include_nyquist=include_nyquist, fftw=fftw)
 
         # cast as ShortTimeFourierTransform
         obj = np.asarray(data).view(cls)
@@ -354,6 +378,7 @@ frame_size=2048, fps=100, sample_rate=22050)
         self.frames = getattr(obj, 'frames', None)
         self.window = getattr(obj, 'window', np.hanning)
         self.fft_window = getattr(obj, 'fft_window', None)
+        self.fftw = getattr(obj, 'fftw', None)
         self.fft_size = getattr(obj, 'fft_size', None)
         self.circular_shift = getattr(obj, 'circular_shift', False)
 
@@ -450,7 +475,9 @@ class ShortTimeFourierTransformProcessor(Processor):
         self.fft_size = fft_size
         self.circular_shift = circular_shift
         self.include_nyquist = include_nyquist
-        self.fft_window = None  # caching only, not intended for general use
+        # caching only, not intended for general use
+        self.fft_window = None
+        self.fftw = None
 
     def process(self, data, **kwargs):
         """
@@ -474,10 +501,12 @@ class ShortTimeFourierTransformProcessor(Processor):
                                          fft_size=self.fft_size,
                                          circular_shift=self.circular_shift,
                                          include_nyquist=self.include_nyquist,
-                                         fft_window=self.fft_window, **kwargs)
+                                         fft_window=self.fft_window,
+                                         fftw=self.fftw, **kwargs)
         # cache the window used for FFT
         # Note: depending on the signal this may be scaled already
         self.fft_window = data.fft_window
+        self.fftw = data.fftw
         return data
 
     @staticmethod
