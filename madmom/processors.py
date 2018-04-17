@@ -530,7 +530,7 @@ class IOProcessor(OutputProcessor):
         else:
             self.in_processor = in_processor
         # wrap the output processor in an IOProcessor if needed
-        if isinstance(out_processor, list):
+        if isinstance(out_processor, (list, tuple)):
             if len(out_processor) >= 2:
                 # use the last processor as output and all others as input
                 self.out_processor = IOProcessor(out_processor[:-1],
