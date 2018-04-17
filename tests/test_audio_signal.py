@@ -1262,6 +1262,15 @@ class TestFramedSignalClass(unittest.TestCase):
                                     [-9.03089987, -4.25968732, -3.01029996,
                                      -4.25968732, -4.25968732]))
 
+    def test_iterating(self):
+        frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
+        res = frames[range(frames.num_frames)[0]]
+        res = frames[np.arange(frames.num_frames)[0]]
+        res = frames[np.arange(frames.num_frames, dtype=np.long)[0]]
+        if sys.version_info[0] == 2:
+            res = frames[xrange(frames.num_frames)[0]]
+            res = frames[long(range(frames.num_frames)[0])]
+
 
 class TestFramedSignalProcessorClass(unittest.TestCase):
 

@@ -19,8 +19,10 @@ import numpy as np
 # Python 2/3 string compatibility (like six does it)
 try:
     string_types = basestring
+    integer_types = (int, long, np.integer)
 except NameError:
     string_types = str
+    integer_types = (int, np.integer)
 
 
 # decorator to suppress warnings
