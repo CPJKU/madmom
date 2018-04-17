@@ -22,6 +22,7 @@ from .beats_hmm import (BarStateSpace, BarTransitionModel,
                         RNNDownBeatTrackingObservationModel, )
 from ..ml.hmm import HiddenMarkovModel
 from ..processors import ParallelProcessor, Processor, SequentialProcessor
+from ..utils import string_types
 
 
 # downbeat tracking, i.e. track beats and downbeats directly from signal
@@ -772,7 +773,7 @@ class LoadBeatsProcessor(Processor):
         import os
         from ..utils import match_file
 
-        if not isinstance(filename, str):
+        if not isinstance(filename, string_types):
             raise SystemExit('Please supply a filename, not %s.' % filename)
         # select the matching beat file to a given input file from all files
         basename, ext = os.path.splitext(os.path.basename(filename))
