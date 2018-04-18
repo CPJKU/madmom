@@ -13,6 +13,7 @@ import warnings
 import numpy as np
 
 from ..processors import BufferProcessor, Processor
+from ..utils import integer_types
 
 
 # signal functions
@@ -42,7 +43,7 @@ def smooth(signal, kernel):
     if kernel is None:
         return signal
     # size for the smoothing kernel is given
-    elif isinstance(kernel, (int, np.integer)):
+    elif isinstance(kernel, integer_types):
         if kernel == 0:
             return signal
         elif kernel > 1:
@@ -1121,7 +1122,7 @@ class FramedSignal(object):
 
         """
         # a single index is given
-        if isinstance(index, int):
+        if isinstance(index, integer_types):
             # negative indices
             if index < 0:
                 index += self.num_frames
@@ -1321,7 +1322,7 @@ class FramedSignalProcessor(Processor):
         # add signal framing options to the existing parser
         g = parser.add_argument_group('signal framing arguments')
         # depending on the type of frame_size, use different options
-        if isinstance(frame_size, int):
+        if isinstance(frame_size, integer_types):
             g.add_argument('--frame_size', action='store', type=int,
                            default=frame_size,
                            help='frame size [samples, default=%(default)i]')

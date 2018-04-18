@@ -24,6 +24,8 @@ from collections import MutableSequence
 
 import numpy as np
 
+from .utils import integer_types
+
 
 class Processor(object):
     """
@@ -528,7 +530,7 @@ class IOProcessor(OutputProcessor):
         else:
             self.in_processor = in_processor
         # wrap the output processor in an IOProcessor if needed
-        if isinstance(out_processor, list):
+        if isinstance(out_processor, (list, tuple)):
             if len(out_processor) >= 2:
                 # use the last processor as output and all others as input
                 self.out_processor = IOProcessor(out_processor[:-1],
@@ -756,7 +758,7 @@ class BufferProcessor(Processor):
         if buffer_size is None and init is not None:
             buffer_size = init.shape
         # if buffer_size is int, make a tuple
-        elif isinstance(buffer_size, (int, np.integer)):
+        elif isinstance(buffer_size, integer_types):
             buffer_size = (buffer_size, )
         # TODO: use np.pad for fancy initialisation (can be done in process())
         # init buffer if needed
