@@ -80,9 +80,9 @@ class RNNPianoNoteProcessor(SequentialProcessor):
         super(RNNPianoNoteProcessor, self).__init__((pre_processor, nn))
 
 
-class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
+class NoteOnsetPeakPickingProcessor(OnsetPeakPickingProcessor):
     """
-    This class implements the note peak-picking functionality.
+    This class implements the note onset peak-picking functionality.
 
     Parameters
     ----------
@@ -123,14 +123,15 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
 
     Examples
     --------
-    Create a PeakPickingProcessor. The returned array represents the positions
-    of the onsets in seconds, thus the expected sampling rate has to be given.
+    Create a NoteOnsetPeakPickingProcessor. The returned array represents the
+    positions of the onsets in seconds, thus the frame rate has to be given.
+    To obtain piano MIDI note numbers, the pitch offset must be set to 21.
 
-    >>> proc = NotePeakPickingProcessor(fps=100)
+    >>> proc = NoteOnsetPeakPickingProcessor(fps=100, pitch_offset=21)
     >>> proc  # doctest: +ELLIPSIS
-    <madmom.features.notes.NotePeakPickingProcessor object at 0x...>
+    <madmom.features.notes.NoteOnsetPeakPickingProcessor object at 0x...>
 
-    Call this NotePeakPickingProcessor with the note activations from an
+    Call this NoteOnsetPeakPickingProcessor with the note activations from an
     RNNPianoNoteProcessor.
 
     >>> act = RNNPianoNoteProcessor()('tests/data/audio/stereo_sample.wav')
@@ -140,7 +141,6 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
            [ 3.37, 75.  ]])
 
     """
-    FPS = 100
     THRESHOLD = 0.5  # binary threshold
     SMOOTH = 0.
     PRE_AVG = 0.
@@ -149,17 +149,17 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
     POST_MAX = 0.
     COMBINE = 0.03
     DELAY = 0.
-    ONLINE = False
 
     def __init__(self, threshold=THRESHOLD, smooth=SMOOTH, pre_avg=PRE_AVG,
                  post_avg=POST_AVG, pre_max=PRE_MAX, post_max=POST_MAX,
-                 combine=COMBINE, delay=DELAY, online=ONLINE, fps=FPS,
+                 combine=COMBINE, delay=DELAY, fps=None, pitch_offset=0,
                  **kwargs):
         # pylint: disable=unused-argument
-        super(NotePeakPickingProcessor, self).__init__(
+        super(NoteOnsetPeakPickingProcessor, self).__init__(
             threshold=threshold, smooth=smooth, pre_avg=pre_avg,
             post_avg=post_avg, pre_max=pre_max, post_max=post_max,
-            combine=combine, delay=delay, online=online, fps=fps)
+            combine=combine, delay=delay, fps=fps)
+        self.pitch_offset = pitch_offset
 
     def process(self, activations, **kwargs):
         """
@@ -182,10 +182,13 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
                             self.pre_max, self.post_max]) * self.fps
         timings = np.round(timings).astype(int)
         # detect the peaks (function returns int indices)
-        notes = peak_picking(activations, self.threshold, *timings)
-        # split onsets and pitches
-        onsets = notes[0].astype(np.float) / self.fps
-        pitches = notes[1] + 21
+        onsets, pitches = peak_picking(activations, self.threshold, *timings)
+        # if no note onsets are detected, return empty array
+        if not onsets.any():
+            return np.empty((0, 2))
+        # convert onset timing and apply pitch offset
+        onsets = onsets.astype(np.float) / self.fps
+        pitches += self.pitch_offset
         # shift if necessary
         if self.delay:
             onsets += self.delay
@@ -204,4 +207,18 @@ class NotePeakPickingProcessor(OnsetPeakPickingProcessor):
             # just zip all detected notes
             notes = list(zip(onsets, pitches))
         # sort the detections and return as numpy array
-        return np.asarray(sorted(notes))
+        return np.array(sorted(notes))
+
+
+class NotePeakPickingProcessor(NoteOnsetPeakPickingProcessor):
+    """
+    Deprecated as of version 0.17. Will be removed in version 0.19. Use
+    :class:`NoteOnsetPeakPickingProcessor` instead and set `fps` and
+    `pitch_offset` accordingly.
+
+    """
+
+    def __init__(self, fps=100, pitch_offset=21, **kwargs):
+        # pylint: disable=unused-argument
+        super(NotePeakPickingProcessor, self).__init__(
+            fps=fps, pitch_offset=pitch_offset, **kwargs)

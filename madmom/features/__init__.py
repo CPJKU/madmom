@@ -294,7 +294,8 @@ from .downbeats import (RNNDownBeatProcessor, DBNDownBeatTrackingProcessor,
                         PatternTrackingProcessor, RNNBarProcessor,
                         DBNBarTrackingProcessor)
 from .key import CNNKeyRecognitionProcessor
-from .notes import RNNPianoNoteProcessor, NotePeakPickingProcessor
+from .notes import (RNNPianoNoteProcessor, NoteOnsetPeakPickingProcessor,
+                    NotePeakPickingProcessor)
 from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
                      PeakPickingProcessor, RNNOnsetProcessor,
                      SpectralOnsetProcessor)
