@@ -749,6 +749,12 @@ class TestSignalClass(unittest.TestCase):
         self.assertTrue(result.length == 9 / 12.3)
         self.assertTrue(result.ndim == 2)
 
+    def test_num_channels(self):
+        result = Signal(sig_2d, sample_rate=1, num_channels=1)
+        self.assertTrue(result.shape == (9, ))
+        self.assertTrue(np.allclose(result,
+                                    [0.5, 0, 1, 0, 0.5, 0.5, 0.5, 0, 1]))
+
     def test_values_file(self):
         result = Signal(sample_file)
         self.assertTrue(np.allclose(result[:5],

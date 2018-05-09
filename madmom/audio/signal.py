@@ -600,6 +600,9 @@ class Signal(np.ndarray):
         if not isinstance(data, Signal):
             data = np.asarray(data).view(cls)
             data.sample_rate = sample_rate
+        # remix to desired number of channels
+        if num_channels:
+            data = remix(data, num_channels)
         # normalize signal if needed
         if norm:
             data = normalize(data)
