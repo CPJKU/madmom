@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import mido
+import warnings
 
 DEFAULT_TEMPO = 500000  # microseconds per quarter note (i.e. 120 bpm in 4/4)
 DEFAULT_TICKS_PER_BEAT = 480  # ticks per quarter note
@@ -336,8 +337,9 @@ class MIDIFile(mido.MidiFile):
             Array with notes (onset time, pitch, duration, velocity, channel).
 
         """
-        # list for all notes
+        # lists to collect notes and sustain messages
         notes = []
+        sustain_msgs = []
         # dictionary for storing the last onset time and velocity for each
         # individual note (i.e. same pitch and channel)
         sounding_notes = {}
@@ -349,20 +351,22 @@ class MIDIFile(mido.MidiFile):
 
         # process all events
         for msg in self:
+            # keep track of sustain information
+            if msg.type == 'control_change' and msg.control == 64:
+                sustain_msgs.append(msg)
             # use only note on or note off events
             note_on = msg.type == 'note_on'
             note_off = msg.type == 'note_off'
             # hash sounding note
             if note_on or note_off:
                 note = note_hash(msg.channel, msg.note)
-            # if it's a note on event with a velocity > 0,
+            # start note if it's a 'note on' event with velocity > 0
             if note_on and msg.velocity > 0:
                 # save the onset time and velocity
                 sounding_notes[note] = (msg.time, msg.velocity)
-            # if it's a note off or a note on event with a velocity of 0,
+            # end note if it's a 'note off' event or 'note on' with velocity 0
             elif note_off or (note_on and msg.velocity == 0):
                 if note not in sounding_notes:
-                    import warnings
                     warnings.warn('ignoring MIDI message %s' % msg)
                     continue
                 # append the note to the list
@@ -373,7 +377,41 @@ class MIDIFile(mido.MidiFile):
                 del sounding_notes[note]
 
         # sort the notes and convert to numpy array
-        return np.asarray(sorted(notes), dtype=np.float)
+        notes = np.asarray(sorted(notes), dtype=np.float)
+
+        # apply sustain information
+        # keep track of sustain start times (channel = key)
+        sustain_starts = {}
+        note_offsets = notes[:, 0] + notes[:, 2]
+        for msg in sustain_msgs:
+            # remember sustain start
+            if msg.value >= 64:
+                sustain_starts[msg.channel] = msg.time
+            # expand all notes in this channel until sustain end
+            else:
+                if msg.channel not in sustain_starts:
+                    warnings.warn('ignoring sustain message %s' % msg)
+                    continue
+                # end all notes with i) offsets between sustain start and end
+                sustained = np.logical_and(
+                    note_offsets >= sustain_starts[msg.channel],
+                    note_offsets <= msg.time)
+                # and ii) same channel
+                sustained = np.logical_and(sustained,
+                                           notes[:, 4] == msg.channel)
+                # update duration of notes (sustain end time - onset time)
+                notes[sustained, 2] = msg.time - notes[sustained, 0]
+                # remove sustain start time for this channel
+                del sustain_starts[msg.channel]
+        # end all notes latest when next note (of same pitch) starts
+        for pitch in np.unique(notes[:, 1]):
+            note_idx = np.nonzero(notes[:, 1] == pitch)[0]
+            max_duration = np.diff(notes[note_idx, 0])
+            notes[note_idx[:-1], 2] = np.minimum(notes[note_idx[:-1], 2],
+                                                 max_duration)
+
+        # finally return notes
+        return notes
 
     @classmethod
     def from_notes(cls, notes, unit='seconds', tempo=DEFAULT_TEMPO,
