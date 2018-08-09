@@ -662,6 +662,8 @@ class TempoEstimationProcessor(OnlineProcessor):
                 histogram_processor = CombFilterTempoHistogramProcessor
             elif method == 'dbn':
                 histogram_processor = DBNTempoHistogramProcessor
+                # do not smooth the activations for the DBN
+                self.act_smooth = None
             else:
                 raise ValueError('tempo histogram method unknown.')
             # instantiate histogram processor
@@ -715,9 +717,10 @@ class TempoEstimationProcessor(OnlineProcessor):
             relative strengths (second column).
 
         """
-        # smooth the activations
-        act_smooth = int(round(self.fps * self.act_smooth))
-        activations = smooth_signal(activations, act_smooth)
+        # smooth the activations if needed
+        if self.act_smooth is not None:
+            act_smooth = int(round(self.fps * self.act_smooth))
+            activations = smooth_signal(activations, act_smooth)
         # generate a histogram of beat intervals
         histogram = self.interval_histogram(activations.astype(np.float))
         # smooth the histogram
