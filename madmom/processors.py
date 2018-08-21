@@ -801,6 +801,8 @@ class BufferProcessor(Processor):
         # cast the data to have that many dimensions
         if data.ndim < ndmin:
             data = np.array(data, copy=False, subok=True, ndmin=ndmin)
+        # trim data to always fit into buffer
+        data = data[-self.buffer_size[0]:]
         # length of the data
         data_length = len(data)
         # remove `data_length` from buffer at the beginning and append new data
