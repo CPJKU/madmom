@@ -64,12 +64,6 @@ class Processor(object):
             except TypeError:
                 # Python 2 doesn't have/need the encoding
                 obj = pickle.load(f)
-        # warn if the unpickled Processor is of other type
-        if obj.__class__ is not cls:
-            import warnings
-            warnings.warn("Expected Processor of class '%s' but loaded "
-                          "Processor is of class '%s', processing anyways." %
-                          (cls.__name__, obj.__class__.__name__))
         return obj
 
     def dump(self, outfile):
