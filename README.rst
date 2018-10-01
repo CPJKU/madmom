@@ -355,10 +355,9 @@ References
     Proceedings of IEEE International Workshop on Machine Learning for Signal
     Processing (MLSP), 2016.
 .. [18] Filip Korzeniowski and Gerhard Widmer,
-    *End-to-End Musical Key Estimation Using a Convolutional Neural Network*,
-    Proceedings of the 25th European Signal Processing Conference (EUSIPCO),
-    2017.
-
+    *Genre-Agnostic Key Classification with Convolutional Neural Networks*,
+    Proceedings of the 19th International Society for Music Information
+    Retrieval Conference (ISMIR), 2018.
 
 Acknowledgements
 ================

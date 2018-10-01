@@ -23,13 +23,9 @@ def main():
     using a Convolutional Neural Network, as described in
 
     Filip Korzeniowski and Gerhard Widmer,
-    "End-to-End Musical Key Estimation Using a Convolutional Neural Network",
-    In Proceedings of the 25th European Signal Processing Conference (EUSIPCO),
-    Kos, Greece, 2017.
-
-    The model used here differs slightly from the one in the paper: it was
-    trained on snippets of audio instead of full songs, and using a dataset
-    that includes (mostly piano) classical music.
+    "Genre-Agnostic Key Classification with Convolutional Neural Networks",
+    In Proceedings of the 19th International Society for Music Information 
+    Retrieval Conference (ISMIR), Paris, France, 2018.
 
     This program can be run in 'single' file mode to process a single audio
     file and write the recognised chords to STDOUT or the given output file.
@@ -42,7 +38,7 @@ def main():
       $ KeyRecognition batch [-o OUTPUT_DIR] [-s OUTPUT_SUFFIX] FILES
 
     If no output directory is given, the program writes the files with the
-    extracted chords to the same location as the audio files.
+    extracted key to the same location as the audio files.
 
     The 'pickle' mode can be used to store the used parameters to be able to
     exactly reproduce experiments.
@@ -51,7 +47,7 @@ def main():
     )
     # version
     p.add_argument('--version', action='version',
-                   version='KeyRecognition.2017')
+                   version='KeyRecognition.2018')
     io_arguments(p, output_suffix='.key.txt')
     ActivationsProcessor.add_arguments(p)
 

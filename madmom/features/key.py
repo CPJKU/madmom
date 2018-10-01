@@ -38,6 +38,10 @@ def key_prediction_to_label(prediction):
     return KEY_LABELS[prediction[0].argmax()]
 
 
+def add_axis(x):
+    return x[np.newaxis, ...]
+
+
 class CNNKeyRecognitionProcessor(SequentialProcessor):
     """
     Recognise the global key of a musical piece using a Convolutional Neural
@@ -48,16 +52,13 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
     nn_files : list, optional
         List with trained CNN model files. Per default ('None'), an ensemble
         of networks will be used.
-    single_net : bool, optional
-        Use only a single CNN for prediction. This speeds up processing, but
-        slightly worsens the results.
 
     References
     ----------
     .. [1] Filip Korzeniowski and Gerhard Widmer,
-           "End-to-End Musical Key Estimation Using a Convolutional Neural
-           Network", In Proceedings of the 25th European Signal Processing
-           Conference (EUSIPCO), Kos, Greece, 2017.
+           "Genre-Agnostic Key Classification with Convolutional Neural
+           Networks", In Proceedings of the 19th International Society for
+           Music Information Retrieval Conference (ISMIR), Paris, France, 2018.
 
     Examples
     --------
@@ -68,12 +69,10 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.key.CNNKeyRecognitionProcessor object at 0x...>
     >>> proc('tests/data/audio/sample.wav')  # doctest: +NORMALIZE_WHITESPACE
-    array([[0.     , 0.     , 0.00001, 0.00012, 0.     , 0.     ,
-            0.00151, 0.     , 0.     , 0.     , 0.00003, 0.81958,
-            0.     , 0.     , 0.     , 0.01747, 0.     , 0.     ,
-            0.00001, 0.     , 0.00006, 0.     , 0.00001, 0.16119]],
-          dtype=float32)
-
+    array([[0.03426, 0.0331 , 0.02979, 0.04423, 0.04215, 0.0311 , 0.05225,
+            0.04263, 0.04141, 0.02907, 0.03755, 0.09546, 0.0431 , 0.02792,
+            0.02138, 0.05589, 0.03276, 0.02786, 0.02415, 0.04608, 0.05329,
+            0.02804, 0.03868, 0.08786]])
     """
 
     def __init__(self, nn_files=None, **kwargs):
@@ -81,6 +80,7 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
         from ..audio.stft import ShortTimeFourierTransformProcessor
         from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
         from ..ml.nn import NeuralNetworkEnsemble
+        from ..ml.nn.activations import softmax
         from ..models import KEY_CNN
 
         # spectrogram computation
@@ -97,5 +97,5 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
 
         # create processing pipeline
         super(CNNKeyRecognitionProcessor, self).__init__([
-            sig, frames, stft, spec, nn
+            sig, frames, stft, spec, nn, add_axis, softmax
         ])
