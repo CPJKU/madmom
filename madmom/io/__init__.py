@@ -118,6 +118,7 @@ def write_events(events, filename, fmt='%.3f', delimiter='\t', header=None):
             except TypeError:
                 string = fmt % e
             f.write(bytes((string + '\n').encode(ENCODING)))
+            f.flush()
 
 
 load_onsets = load_events
