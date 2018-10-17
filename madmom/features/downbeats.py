@@ -942,16 +942,17 @@ class RNNBarProcessor(Processor):
     >>> proc  # doctest: +ELLIPSIS
     <madmom.features.downbeats.RNNBarProcessor object at 0x...>
     >>> beats = np.loadtxt('tests/data/detections/sample.dbn_beat_tracker.txt')
-    >>> proc(('tests/data/audio/sample.wav', beats))
-    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([[0.1  , 0.37781],
-           [0.45 , 0.18954],
-           [0.8  , 0.11194],
-           [1.12 , 0.32767],
-           [1.48 , 0.27009],
-           [1.8  , 0.18147],
-           [2.15 , 0.16247],
-           [2.49 ,     nan]])
+    >>> downbeat_prob = proc(('tests/data/audio/sample.wav', beats))
+    >>> np.around(downbeat_prob, decimals=3)
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_ARRAYS
+    array([[0.1  , 0.378],
+           [0.45 , 0.19 ],
+           [0.8  , 0.112],
+           [1.12 , 0.328],
+           [1.48 , 0.27 ],
+           [1.8  , 0.181],
+           [2.15 , 0.162],
+           [2.49 ,   nan]])
 
     """
 
