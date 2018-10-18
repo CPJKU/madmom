@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import warnings
 import numpy as np
+import objgraph
 
 from ..processors import BufferProcessor, Processor
 from ..utils import integer_types
@@ -1264,6 +1265,7 @@ class FramedSignalProcessor(Processor):
         self.origin = origin
         self.end = end
         self.num_frames = num_frames
+        self.num_slices = 0
 
     def process(self, data, **kwargs):
         """
@@ -1282,6 +1284,10 @@ class FramedSignalProcessor(Processor):
             FramedSignal instance
 
         """
+        num_slices = len(objgraph.by_type('slice'))
+        print('DEBUG: leaking %d references (%d total)' %
+              (num_slices - self.num_slices, num_slices))
+        self.num_slices = num_slices
         # update arguments passed to FramedSignal
         args = dict(frame_size=self.frame_size, hop_size=self.hop_size,
                     fps=self.fps, origin=self.origin, end=self.end,
@@ -1290,7 +1296,7 @@ class FramedSignalProcessor(Processor):
         # always use the last `frame_size` samples if we operate on a live
         # audio stream, otherwise we get the wrong portion of the signal
         if self.origin == 'stream':
-            data = data[-self.frame_size:]
+            data = data[-self.frame_size:, ]
         # instantiate a FramedSignal from the data and return it
         return FramedSignal(data, **args)
 
