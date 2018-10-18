@@ -36,11 +36,16 @@ def setup():
     np.set_printoptions(precision=5, edgeitems=2, suppress=True)
 
 
+setup_module = setup
+
+
 def teardown():
     # pylint: disable=missing-docstring
     # restore the environment after doctests (when run through nose)
     np.set_printoptions(**_NP_PRINT_OPTIONS)
 
+
+teardown_module = teardown
 
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
