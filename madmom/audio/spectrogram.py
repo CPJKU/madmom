@@ -1050,7 +1050,7 @@ class SpectrogramDifference(Spectrogram):
         if diff_max_bins is not None and diff_max_bins > 1:
             from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
-            size = [1, int(diff_max_bins)]
+            size = (1, int(diff_max_bins))
             diff_spec = maximum_filter(spectrogram, size=size)
         else:
             diff_spec = spectrogram
@@ -1193,9 +1193,9 @@ class SpectrogramDifferenceProcessor(Processor):
                 hop_size=data.stft.frames.hop_size, window=data.stft.window)
         # init buffer or shift it
         if self._buffer is None or reset:
-            # put diff_frames NaNs before the data (will be replaced by 0s)
+            # put diff_frames infs before the data (will be replaced by 0s)
             init = np.empty((self.diff_frames, data.shape[1]))
-            init[:] = np.nan
+            init[:] = np.inf
             data = np.insert(data, 0, init, axis=0)
             # use the data for the buffer
             self._buffer = BufferProcessor(init=data)
@@ -1204,8 +1204,8 @@ class SpectrogramDifferenceProcessor(Processor):
             data = self._buffer(data)
         # compute difference based on this data (reduce 1st dimension)
         diff = SpectrogramDifference(data, keep_dims=False, **args)
-        # set all NaN-diffs to 0
-        diff[np.isnan(diff)] = 0
+        # set all inf-diffs to 0
+        diff[np.isinf(diff)] = 0
         # stack the diff and the data if needed
         if self.stack_diffs is None:
             return diff

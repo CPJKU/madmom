@@ -1,13 +1,25 @@
 language: python
-sudo: required
-dist: trusty
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
+matrix:
+  include:
+    - python: 2.7
+      dist: trusty
+      sudo: required
+      script: nosetests --with-coverage --with-doctest -v
+    - python: 3.5
+      dist: trusty
+      sudo: required
+      script: nosetests --with-coverage --with-doctest -v
+    - python: 3.6
+      dist: trusty
+      sudo: required
+      script: nosetests --with-coverage -v
+    - python: 3.7
+      dist: xenial
+      sudo: required
+      script: nosetests --with-coverage -v
 before_install:
   # get a working ffmpeg
-  - sudo add-apt-repository --yes ppa:mc3man/trusty-media
+  - sudo add-apt-repository --yes ppa:jonathonf/ffmpeg-3
   - sudo apt-get update -qq
   - sudo apt-get install -qq ffmpeg
   # install numpy etc. via miniconda
@@ -32,9 +44,6 @@ install:
   - pip install coveralls
 before_script:
   - pep8 --ignore=E402 madmom tests bin
-script:
-  - nosetests --with-coverage --with-doctest
-  # TODO: add executable programs
 after_success:
   - codecov
   - coveralls

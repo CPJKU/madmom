@@ -1102,7 +1102,6 @@ class PadLayer(Layer):
         for a in self.axes:
             shape[a] += self.width * 2
             data_idxs[a] = slice(self.width, -self.width)
-        data_padded = np.empty(tuple(shape))
-        data_padded[:] = self.value
-        data_padded[data_idxs] = data
+        data_padded = np.full(tuple(shape), self.value)
+        data_padded[tuple(data_idxs)] = data
         return data_padded
