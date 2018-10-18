@@ -8,7 +8,6 @@ This file contains tests for the madmom.features.key module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-import numpy as np
 from os.path import join as pj
 
 from madmom.features import Activations
@@ -24,21 +23,21 @@ sample2_key_act = Activations(pj(ACTIVATIONS_PATH, 'sample2.key_cnn.npz'))
 class TestHelperFunctions(unittest.TestCase):
 
     def test_key_prediction_to_label_function(self):
-        self.assertEquals(key_prediction_to_label(sample_key_act), 'Ab major')
-        self.assertEquals(
+        self.assertEqual(key_prediction_to_label(sample_key_act), 'Ab major')
+        self.assertEqual(
             key_prediction_to_label(sample_key_act[0]), 'Ab major')
-        self.assertEquals(
+        self.assertEqual(
             key_prediction_to_label(np.roll(sample_key_act[0], 1)), 'A minor')
-        self.assertEquals(
+        self.assertEqual(
             key_prediction_to_label(np.roll(sample_key_act[0], -3)), 'F major')
 
-        self.assertEquals(key_prediction_to_label(sample2_key_act), 'A minor')
-        self.assertEquals(
+        self.assertEqual(key_prediction_to_label(sample2_key_act), 'A minor')
+        self.assertEqual(
             key_prediction_to_label(sample2_key_act[0]), 'A minor')
-        self.assertEquals(
+        self.assertEqual(
             key_prediction_to_label(np.roll(sample2_key_act[0], 1)),
             'Bb minor')
-        self.assertEquals(
+        self.assertEqual(
             key_prediction_to_label(np.roll(sample2_key_act[0], -3)),
             'F# major')
 
