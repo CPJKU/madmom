@@ -1050,7 +1050,7 @@ class SpectrogramDifference(Spectrogram):
         if diff_max_bins is not None and diff_max_bins > 1:
             from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
-            size = [1, int(diff_max_bins)]
+            size = (1, int(diff_max_bins))
             diff_spec = maximum_filter(spectrogram, size=size)
         else:
             diff_spec = spectrogram
