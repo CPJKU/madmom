@@ -92,11 +92,6 @@ class _OutputChecker(_doctest_OutputChecker):
 
         """
         import re
-        import sys
-        if optionflags & _IGNORE_UNICODE and sys.version_info[0] > 2:
-            # remove unicode indicators
-            want = re.sub("u'(.*?)'", "'\\1'", want)
-            want = re.sub('u"(.*?)"', '"\\1"', want)
         if optionflags & _NORMALIZE_ARRAYS:
             # in different versions of numpy arrays sometimes are displayed as
             # 'array([ 0. ,' or 'array([0.0,', thus correct both whitespace
