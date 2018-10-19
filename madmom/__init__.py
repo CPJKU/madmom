@@ -101,14 +101,14 @@ class _OutputChecker(_doctest_OutputChecker):
             # in different versions of numpy arrays sometimes are displayed as
             # 'array([ 0. ,' or 'array([0.0,', thus correct both whitespace
             # after parenthesis and before commas as well as .0 decimals
-            got = re.sub("\\( ", '(', got)
-            got = re.sub("\\[ ", '[', got)
-            got = re.sub("0\\.0", '0.', got)
-            got = re.sub("\s*,", ',', got)
-            want = re.sub("\\( ", '(', want)
-            want = re.sub("\\[ ", '[', want)
-            want = re.sub("0\\.0", '0.', want)
-            want = re.sub("\s*,", ',', want)
+            got = re.sub(r'\( ', '(', got)
+            got = re.sub(r'\[ ', '[', got)
+            got = re.sub(r'0\.0', '0.', got)
+            got = re.sub(r'\s*,', ',', got)
+            want = re.sub(r'\( ', '(', want)
+            want = re.sub(r'\[ ', '[', want)
+            want = re.sub(r'0\.0', '0.', want)
+            want = re.sub(r'\s*,', ',', want)
         super_check_output = _doctest_OutputChecker.check_output
         return super_check_output(self, want, got, optionflags)
 
