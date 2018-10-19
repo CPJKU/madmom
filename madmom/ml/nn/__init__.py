@@ -157,6 +157,7 @@ class NeuralNetworkEnsemble(SequentialProcessor):
     @classmethod
     def load(cls, nn_files, **kwargs):
         """
+        Instantiate a new Neural Network ensemble from a list of files.
 
         Parameters
         ----------
