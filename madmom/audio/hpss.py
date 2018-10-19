@@ -190,5 +190,6 @@ class HarmonicPercussiveSourceSeparation(Processor):
         # return the argument group so it can be modified if needed
         return g
 
+
 # alias
 HPSS = HarmonicPercussiveSourceSeparation

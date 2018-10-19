@@ -112,6 +112,7 @@ class _OutputChecker(_doctest_OutputChecker):
         super_check_output = _doctest_OutputChecker.check_output
         return super_check_output(self, want, got, optionflags)
 
+
 # monkey-patching
 doctest.OutputChecker = _OutputChecker
 
