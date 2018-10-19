@@ -65,7 +65,8 @@ To install the ``madmom`` package, you must have either Python 2.7 or Python
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
-- `nose <https://github.com/nose-devs/nose>`_ (to run the tests)
+- `mido <https://github.com/olemb/mido>`_ (for MIDI handling)
+- `pytest <https://www.pytest.org/>`_ (to run the tests)
 - `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_ (to process live
   audio input)
 - `pyfftw <https://github.com/pyFFTW/pyFFTW/>`_ (for better FFT performance)
@@ -131,7 +132,7 @@ Then you can simply install the package in development mode::
 
 To run the included tests::
 
-    python setup.py test
+    python setup.py pytest
 
 Upgrade of existing installations
 ---------------------------------

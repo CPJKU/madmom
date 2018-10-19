@@ -91,5 +91,6 @@ setup(name='madmom',
       scripts=scripts,
       install_requires=requirements,
       cmdclass={'build_ext': build_ext},
-      test_suite='nose.collector',
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest'],
       classifiers=classifiers)

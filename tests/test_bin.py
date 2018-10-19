@@ -1027,6 +1027,6 @@ class TestTempoDetectorProgram(unittest.TestCase):
 
 
 # clean up
-def teardown():
+def teardown_module():
     os.unlink(tmp_act)
     os.unlink(tmp_result)

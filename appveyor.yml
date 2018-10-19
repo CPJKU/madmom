@@ -62,4 +62,4 @@ build_script:
 test_script:
   - "set PATH=C:\\projects\\madmom\\bin;%PATH%"
   - "set PYTHONPATH=C:\\projects\\madmom;%PYTHONPATH%"
-  - python setup.py test
+  - python setup.py pytest
