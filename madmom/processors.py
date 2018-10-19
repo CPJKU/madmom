@@ -100,7 +100,8 @@ class Processor(object):
             pass
         # dump the Processor to the given file
         # Note: for Python 2 / 3 compatibility reason use protocol 2
-        pickle.dump(self, open(outfile, 'wb'), protocol=2)
+        with open(outfile, 'wb') as f:
+            pickle.dump(self, f, protocol=2)
 
     def process(self, data, **kwargs):
         """
