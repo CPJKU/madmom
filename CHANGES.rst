@@ -11,7 +11,7 @@ New features:
 * Bar tracking functionality (#316)
 * Added `quantize_notes` function (#327)
 * Added global key evaluation (#336)
-* Added key recognition feature and program (#345)
+* Added key recognition feature and program (#345, #381)
 
 Bug fixes:
 
