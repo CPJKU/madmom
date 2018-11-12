@@ -30,12 +30,16 @@ API relevant changes:
 * Write/load functions moved to `io` module (#346)
 * Write functions do not return any data (#346)
 * Evaluation classes expect annotations/detections, cannot handle files (#346)
+* New MIDI module (io.midi) replacing (utils.midi) based on mido (#46)
 
 Other changes:
 
 * Viterbi decoding of `HMM` raises a warning if no valid path is found (#279)
 * Add option to include Nyquist frequency in `STFT` (#280)
 * Use `pyfftw` to compute FFT (#363)
+* Python 3.7 support (#374)
+* Use pytest instead of nose to run tests (#385)
+* Removed obsolete code (#385)
 
 
 Version 0.15.1 (release date: 2017-07-07)
