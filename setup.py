@@ -60,9 +60,10 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 # requirements
-requirements = ['numpy>=1.8.1',
+requirements = ['numpy>=1.13.4',
                 'scipy>=0.16',
                 'cython>=0.25',
+                'mido>=1.2.8',
                 ]
 
 # docs to be included
