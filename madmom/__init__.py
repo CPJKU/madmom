@@ -26,20 +26,6 @@ from . import audio, evaluation, features, io, ml, models, processors, utils
 # define a version variable
 __version__ = pkg_resources.get_distribution("madmom").version
 
-# set and restore numpy's print options for doctests
-_NP_PRINT_OPTIONS = np.get_printoptions()
-
-
-def setup_module():
-    """Set up the environment for doctests (when run through pytest)."""
-    np.set_printoptions(precision=5, edgeitems=2, suppress=True)
-
-
-def teardown_module():
-    """Restore the environment after doctests (when run through pytest)."""
-    np.set_printoptions(**_NP_PRINT_OPTIONS)
-
-
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
 
