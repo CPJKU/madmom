@@ -21,10 +21,11 @@ Madmom documentation
 
    modules/audio
    modules/features
-   modules/evaluation
+   modules/io
    modules/ml
    modules/utils
    modules/processors
+   modules/evaluation
 
 Indices and tables
 ------------------
