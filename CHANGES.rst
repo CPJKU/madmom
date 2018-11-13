@@ -1,8 +1,8 @@
 Release Notes
 =============
 
-Version 0.16.dev0
------------------
+Version 0.16 (release date: 2017-11-13)
+---------------------------------------
 
 New features:
 
