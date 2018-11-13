@@ -1,3 +1,9 @@
+# encoding: utf-8
+"""
+This module contains key evaluation functionality.
+
+"""
+
 from collections import Counter
 
 from . import EvaluationMixin, evaluation_io

@@ -79,6 +79,6 @@ class TestBufferProcessor(unittest.TestCase):
 
 
 # clean up
-def teardown():
+def teardown_module():
     import os
     os.unlink(tmp_file)

@@ -1168,6 +1168,8 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         ----------
         activations : numpy array
             Onset activation function.
+        reset : bool, optional
+            Reset the processor to its initial state before processing.
 
         Returns
         -------

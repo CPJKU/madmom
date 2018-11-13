@@ -253,6 +253,7 @@ def interval_list(intervals_str, given_pitch_classes=None):
             given_pitch_classes[interval(int_def)] = 1
     return given_pitch_classes
 
+
 # mapping of shorthand interval notations to the actual interval representation
 _shorthands = {
     'maj': interval_list('(1,3,5)'),

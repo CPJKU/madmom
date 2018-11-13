@@ -116,7 +116,7 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
 
     >>> chroma = dcp('tests/data/audio/sample2.wav')
     >>> decode(chroma)
-    ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS +IGNORE_UNICODE
+    ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS
     array([(0. , 1.6, 'F:maj'), (1.6, 2.5, 'A:maj'), (2.5, 4.1, 'D:maj')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
 
@@ -125,7 +125,7 @@ class DeepChromaChordRecognitionProcessor(SequentialProcessor):
     >>> from madmom.processors import SequentialProcessor
     >>> chordrec = SequentialProcessor([dcp, decode])
     >>> chordrec('tests/data/audio/sample2.wav')
-    ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS +IGNORE_UNICODE
+    ... # doctest: +NORMALIZE_WHITESPACE +NORMALIZE_ARRAYS
     array([(0. , 1.6, 'F:maj'), (1.6, 2.5, 'A:maj'), (2.5, 4.1, 'D:maj')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
     """

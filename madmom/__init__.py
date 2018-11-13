@@ -26,27 +26,6 @@ from . import audio, evaluation, features, io, ml, models, processors, utils
 # define a version variable
 __version__ = pkg_resources.get_distribution("madmom").version
 
-# set and restore numpy's print options for doctests
-_NP_PRINT_OPTIONS = np.get_printoptions()
-
-
-def setup():
-    # pylint: disable=missing-docstring
-    # sets up the environment for doctests (when run through nose)
-    np.set_printoptions(precision=5, edgeitems=2, suppress=True)
-
-
-setup_module = setup
-
-
-def teardown():
-    # pylint: disable=missing-docstring
-    # restore the environment after doctests (when run through nose)
-    np.set_printoptions(**_NP_PRINT_OPTIONS)
-
-
-teardown_module = teardown
-
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
 
@@ -92,25 +71,21 @@ class _OutputChecker(_doctest_OutputChecker):
 
         """
         import re
-        import sys
-        if optionflags & _IGNORE_UNICODE and sys.version_info[0] > 2:
-            # remove unicode indicators
-            want = re.sub("u'(.*?)'", "'\\1'", want)
-            want = re.sub('u"(.*?)"', '"\\1"', want)
         if optionflags & _NORMALIZE_ARRAYS:
             # in different versions of numpy arrays sometimes are displayed as
             # 'array([ 0. ,' or 'array([0.0,', thus correct both whitespace
             # after parenthesis and before commas as well as .0 decimals
-            got = re.sub("\\( ", '(', got)
-            got = re.sub("\\[ ", '[', got)
-            got = re.sub("0\\.0", '0.', got)
-            got = re.sub("\s*,", ',', got)
-            want = re.sub("\\( ", '(', want)
-            want = re.sub("\\[ ", '[', want)
-            want = re.sub("0\\.0", '0.', want)
-            want = re.sub("\s*,", ',', want)
+            got = re.sub(r'\( ', '(', got)
+            got = re.sub(r'\[ ', '[', got)
+            got = re.sub(r'0\.0', '0.', got)
+            got = re.sub(r'\s*,', ',', got)
+            want = re.sub(r'\( ', '(', want)
+            want = re.sub(r'\[ ', '[', want)
+            want = re.sub(r'0\.0', '0.', want)
+            want = re.sub(r'\s*,', ',', want)
         super_check_output = _doctest_OutputChecker.check_output
         return super_check_output(self, want, got, optionflags)
+
 
 # monkey-patching
 doctest.OutputChecker = _OutputChecker

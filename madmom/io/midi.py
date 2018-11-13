@@ -473,11 +473,10 @@ class MIDIFile(mido.MidiFile):
             The MIDI file name.
 
         """
-        # if we get a filename, open the file
-        if not hasattr(filename, 'write'):
-            filename = open(filename, 'wb')
+        from . import open_file
         # write the MIDI stream
-        self._save(filename)
+        with open_file(filename, 'wb') as f:
+            self._save(f)
 
 
 def load_midi(filename):

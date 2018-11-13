@@ -96,13 +96,13 @@ class TestLoadKeyFunction(unittest.TestCase):
 
     def test_load_key_from_file(self):
         key = load_key(join(ANNOTATIONS_PATH, 'dummy.key'))
-        self.assertEquals(key, 'F# minor')
+        self.assertEqual(key, 'F# minor')
         key = load_key(join(DETECTIONS_PATH, 'dummy.key.txt'))
-        self.assertEquals(key, 'a maj')
+        self.assertEqual(key, 'a maj')
         key = load_key(open(join(ANNOTATIONS_PATH, 'dummy.key')))
-        self.assertEquals(key, 'F# minor')
+        self.assertEqual(key, 'F# minor')
         key = load_key(open(join(DETECTIONS_PATH, 'dummy.key.txt')))
-        self.assertEquals(key, 'a maj')
+        self.assertEqual(key, 'a maj')
 
 
 class TestLoadNotesFunction(unittest.TestCase):

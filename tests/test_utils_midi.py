@@ -105,5 +105,5 @@ class TestMIDIFileClass(unittest.TestCase):
 
 
 # clean up
-def teardown():
+def teardown_module():
     os.unlink(tmp_file)

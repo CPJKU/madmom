@@ -50,9 +50,9 @@ package_data = ['models/LICENSE',
 # some PyPI metadata
 classifiers = ['Development Status :: 3 - Alpha',
                'Programming Language :: Python :: 2.7',
-               'Programming Language :: Python :: 3.4',
                'Programming Language :: Python :: 3.5',
                'Programming Language :: Python :: 3.6',
+               'Programming Language :: Python :: 3.7',
                'Environment :: Console',
                'License :: OSI Approved :: BSD License',
                'License :: Free for non-commercial use',
@@ -60,9 +60,10 @@ classifiers = ['Development Status :: 3 - Alpha',
                'Topic :: Scientific/Engineering :: Artificial Intelligence']
 
 # requirements
-requirements = ['numpy>=1.8.1',
+requirements = ['numpy>=1.13.4',
                 'scipy>=0.16',
                 'cython>=0.25',
+                'mido>=1.2.8',
                 ]
 
 # docs to be included
@@ -91,5 +92,6 @@ setup(name='madmom',
       scripts=scripts,
       install_requires=requirements,
       cmdclass={'build_ext': build_ext},
-      test_suite='nose.collector',
+      setup_requires=['pytest-runner'],
+      tests_require=['pytest'],
       classifiers=classifiers)

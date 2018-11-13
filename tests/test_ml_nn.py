@@ -431,17 +431,17 @@ class TestAverageLayerClass(unittest.TestCase):
 
         al = layers.AverageLayer(axis=(0, 2))
         out = al(TestAverageLayerClass.IN)
-        self.assertEquals(out.shape, (3,))
+        self.assertEqual(out.shape, (3,))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02))
 
         al = layers.AverageLayer(axis=(0, 2), keepdims=True)
         out = al(TestAverageLayerClass.IN)
-        self.assertEquals(out.shape, (1, 3, 1))
+        self.assertEqual(out.shape, (1, 3, 1))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02_KD))
 
         al = layers.AverageLayer(axis=(0, 2), dtype=np.float32)
         out = al(TestAverageLayerClass.IN)
-        self.assertEquals(out.dtype, np.float32)
+        self.assertEqual(out.dtype, np.float32)
 
 
 class TestReshapeLayerClass(unittest.TestCase):
@@ -450,11 +450,11 @@ class TestReshapeLayerClass(unittest.TestCase):
 
     def test_reshape_layer(self):
         rl = layers.ReshapeLayer(newshape=(3, 4, 2))
-        self.assertEquals(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
         rl = layers.ReshapeLayer(newshape=(3, -1, 2))
-        self.assertEquals(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
         rl = layers.ReshapeLayer(newshape=(-1,))
-        self.assertEquals(rl(TestReshapeLayerClass.IN).shape, (24,))
+        self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (24,))
 
         with self.assertRaises(ValueError):
             rl = layers.ReshapeLayer(newshape=(3, 2, 2))
@@ -467,10 +467,10 @@ class TestTransposeLayerClass(unittest.TestCase):
 
     def test_transpose_layer(self):
         tl = layers.TransposeLayer()
-        self.assertEquals(tl(TestTransposeLayerClass.IN).shape, (5, 4, 3, 2))
+        self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (5, 4, 3, 2))
 
         tl = layers.TransposeLayer(axes=(2, 0, 1, 3))
-        self.assertEquals(tl(TestTransposeLayerClass.IN).shape, (4, 2, 3, 5))
+        self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (4, 2, 3, 5))
 
         with self.assertRaises(ValueError):
             tl = layers.TransposeLayer(axes=(0, 1, 3))

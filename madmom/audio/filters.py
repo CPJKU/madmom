@@ -679,6 +679,7 @@ class RectangularFilter(Filter):
             # increase counter
             index += 1
 
+
 # default values for filter banks
 FMIN = 30.
 FMAX = 17000.
