@@ -4,7 +4,8 @@
 # pylint: disable=too-many-arguments
 # pylint: disable=too-few-public-methods
 """
-This module contains MIDI functionality.
+This module contains MIDI functionality, but is deprecated as of version 0.16.
+Please use madmom.io.midi instead. This module will be removed in version 0.18.
 
 Almost all code is taken from Giles Hall's python-midi package:
 https://github.com/vishnubob/python-midi
