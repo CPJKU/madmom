@@ -15,7 +15,7 @@ from .test_audio_filters import FFT_FREQS_1024, LOG_FILTERBANK_CENTER_FREQS
 
 from madmom.audio.spectrogram import *
 from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
-                                  MelFilterbank, BarkFilterbank)
+                                  MelFilterbank)
 from madmom.audio.stft import ShortTimeFourierTransform
 from madmom.audio.signal import Signal
 
@@ -180,14 +180,6 @@ class TestFilteredSpectrogramClass(unittest.TestCase):
                                     [8.42887115, 17.98174477, 19.50165367,
                                      6.48194313, 2.96991181, 4.06280804]))
         self.assertTrue(result.shape == (281, 40))
-        # with Bark filterbank
-        result = FilteredSpectrogram(sample_file,
-                                     filterbank=BarkFilterbank,
-                                     num_bands='normal')
-        self.assertTrue(np.allclose(result[0, :6],
-                                    [16.42251968, 17.36715126, 2.81979132,
-                                     4.27050114, 3.08699131, 1.50553513]))
-        self.assertTrue(result.shape == (281, 23))
 
     def test_from_spec(self):
         spec = Spectrogram(AUDIO_PATH + '/sample.wav')

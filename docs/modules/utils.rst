@@ -10,4 +10,3 @@ Submodules
 .. toctree::
 
    utils/midi
-   utils/stats
