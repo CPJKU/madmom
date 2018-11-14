@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.16.1 (release date: 2017-11-14)
+-----------------------------------------
+
+This is a maintenance release.
+
+* Include .pyx files in source distribution
+
 Version 0.16 (release date: 2017-11-13)
 ---------------------------------------
 
