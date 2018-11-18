@@ -386,11 +386,14 @@ class MIDIFile(mido.MidiFile):
         for msg in sustain_msgs:
             # remember sustain start
             if msg.value >= 64:
+                if msg.channel in sustain_starts:
+                    # sustain is ON already, ignoring
+                    continue
                 sustain_starts[msg.channel] = msg.time
             # expand all notes in this channel until sustain end
             else:
                 if msg.channel not in sustain_starts:
-                    warnings.warn('ignoring sustain message %s' % msg)
+                    # sustain is OFF already, ignoring
                     continue
                 # end all notes with i) offsets between sustain start and end
                 sustained = np.logical_and(
