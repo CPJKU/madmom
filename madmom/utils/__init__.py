@@ -477,7 +477,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
     rows, columns = notes.shape
-    if columns == 4:
+    if columns >= 4:
         return notes
     elif columns == 3:
         new_columns = np.ones((rows, 1)) * velocity
