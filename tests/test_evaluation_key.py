@@ -62,35 +62,47 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
 class TestErrorTypeFunction(unittest.TestCase):
 
     def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,
-                        parallel):
+                        relative_of_fifth_up, relative_of_fifth_down, parallel):
         for det_key in range(24):
-            score, cat = error_type(det_key, correct)
-            score_st, cat_st = error_type(det_key, correct, strict_fifth=True)
+            cat = error_type(det_key, correct)
+            cat_st = error_type(det_key, correct, strict_fifth=True)
+            cat_rf = error_type(det_key, correct, relative_of_fifth=True)
+            cat_st_rf = error_type(det_key, correct, strict_fifth=True, relative_of_fifth=True)
             if det_key == correct:
                 self.assertEqual(cat, 'correct')
-                self.assertEqual(score, 1.0)
                 self.assertEqual(cat_st, cat)
-                self.assertEqual(score_st, score)
-            if det_key == fifth_strict:
+                self.assertEqual(cat_rf, cat)
+                self.assertEqual(cat_st_rf, cat)
+            elif det_key == fifth_strict:
                 self.assertEqual(cat, 'fifth')
-                self.assertEqual(score, 0.5)
                 self.assertEqual(cat_st, cat)
-                self.assertEqual(score_st, score)
-            if det_key == fifth_lax:
+                self.assertEqual(cat_rf, cat)
+                self.assertEqual(cat_st_rf, cat)
+            elif det_key == fifth_lax:
                 self.assertEqual(cat, 'fifth')
-                self.assertEqual(score, 0.5)
                 self.assertEqual(cat_st, 'other')
-                self.assertEqual(score_st, 0.0)
-            if det_key == relative:
+                self.assertEqual(cat_rf, 'fifth')
+                self.assertEqual(cat_st_rf, 'other')
+            elif det_key == relative:
                 self.assertEqual(cat, 'relative')
-                self.assertEqual(score, 0.3)
                 self.assertEqual(cat_st, cat)
-                self.assertEqual(score_st, score)
-            if det_key == parallel:
+                self.assertEqual(cat_rf, cat)
+                self.assertEqual(cat_st_rf, cat)
+            elif det_key == relative_of_fifth_down:
+                self.assertEqual(cat, 'other')
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(cat_rf, 'relative_of_fifth')
+                self.assertEqual(cat_st_rf, cat)
+            elif det_key == relative_of_fifth_up:
+                self.assertEqual(cat, 'other')
+                self.assertEqual(cat_st, cat)
+                self.assertEqual(cat_rf, 'relative_of_fifth')
+                self.assertEqual(cat_st_rf, 'relative_of_fifth')
+            elif det_key == parallel:
                 self.assertEqual(cat, 'parallel')
-                self.assertEqual(score, 0.2)
                 self.assertEqual(cat_st, cat)
-                self.assertEqual(score_st, score)
+                self.assertEqual(cat_rf, cat)
+                self.assertEqual(cat_st_rf, cat)
 
     def test_values(self):
         self._compare_scores(
@@ -98,6 +110,8 @@ class TestErrorTypeFunction(unittest.TestCase):
             fifth_strict=key_label_to_class('g maj'),
             fifth_lax=key_label_to_class('f maj'),
             relative=key_label_to_class('a min'),
+            relative_of_fifth_up=key_label_to_class('e min'),
+            relative_of_fifth_down=key_label_to_class('d min'),
             parallel=key_label_to_class('c min')
         )
 
@@ -106,6 +120,8 @@ class TestErrorTypeFunction(unittest.TestCase):
             fifth_strict=key_label_to_class('bb maj'),
             fifth_lax=key_label_to_class('ab maj'),
             relative=key_label_to_class('c min'),
+            relative_of_fifth_up=key_label_to_class('g min'),
+            relative_of_fifth_down=key_label_to_class('f min'),
             parallel=key_label_to_class('eb min')
         )
 
@@ -114,6 +130,8 @@ class TestErrorTypeFunction(unittest.TestCase):
             fifth_strict=key_label_to_class('e min'),
             fifth_lax=key_label_to_class('d min'),
             relative=key_label_to_class('c maj'),
+            relative_of_fifth_up=key_label_to_class('g maj'),
+            relative_of_fifth_down=key_label_to_class('f maj'),
             parallel=key_label_to_class('a maj')
         )
 
@@ -122,6 +140,8 @@ class TestErrorTypeFunction(unittest.TestCase):
             fifth_strict=key_label_to_class('gb min'),
             fifth_lax=key_label_to_class('e min'),
             relative=key_label_to_class('d maj'),
+            relative_of_fifth_up=key_label_to_class('a maj'),
+            relative_of_fifth_down=key_label_to_class('g maj'),
             parallel=key_label_to_class('b maj')
         )
 
@@ -129,46 +149,109 @@ class TestErrorTypeFunction(unittest.TestCase):
 class TestKeyEvaluationClass(unittest.TestCase):
 
     def setUp(self):
-        self.eval = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+        # this one should have a score of 1
+        self.eval_correct = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.correct.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
-            name='TestEval'
+            name='eval_correct'
+        )
+        # this one should have a score of 0.5
+        self.eval_fifth = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.fifth.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_fifth'
+        )
+
+        # this one should have a score of 0.3
+        self.eval_relative = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.relative.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_relative'
+        )
+        # this one should have a score of 0.2
+        self.eval_parallel = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.parallel.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_parallel'
+        )
+        # this one should have a score of 0.0
+        self.eval_relative_of_fifth = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.relative_of_fifth.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            relative_of_fifth=True,
+            name='eval_relative_of_fifth'
+        )
+        # this one should have a score of 0.0
+        self.eval_other = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.other.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_other'
         )
 
     def test_init(self):
-        self.assertTrue(self.eval.name == 'TestEval')
-        self.assertTrue(self.eval.detection, 9)
-        self.assertTrue(self.eval.annotation, 18)
+        self.assertTrue(self.eval_relative.name == 'eval_relative')
+        self.assertTrue(self.eval_relative.detection, 9)
+        self.assertTrue(self.eval_relative.annotation, 18)
 
     def test_results(self):
-        self.assertEqual(self.eval.error_category, 'relative')
-        self.assertEqual(self.eval.score, 0.3)
+        # Correct
+        self.assertEqual(self.eval_correct.error_category, 'correct')
+        self.assertEqual(self.eval_correct.score, 1.0)
+        # Fifth
+        self.assertEqual(self.eval_fifth.error_category, 'fifth')
+        self.assertEqual(self.eval_fifth.score, 0.5)
+        # Relative
+        self.assertEqual(self.eval_relative.error_category, 'relative')
+        self.assertEqual(self.eval_relative.score, 0.3)
+        # Relative of Fifth
+        self.assertEqual(self.eval_relative_of_fifth.error_category, 'relative_of_fifth')
+        self.assertEqual(self.eval_relative_of_fifth.score, 0.0)
+        # Parallel
+        self.assertEqual(self.eval_parallel.error_category, 'parallel')
+        self.assertEqual(self.eval_parallel.score, 0.2)
+        # Other
+        self.assertEqual(self.eval_other.error_category, 'other')
+        self.assertEqual(self.eval_other.score, 0.0)
 
 
 class TestKeyMeanEvaluation(unittest.TestCase):
 
     def setUp(self):
         # this one should have a score of 1
-        self.eval1 = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
-            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
-            name='eval1'
-        )
-        # this one should have a score of 0.3
-        self.eval2 = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
+        self.eval_correct = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.correct.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
-            name='eval2'
+            name='eval_correct'
+        )
+        # this one should have a score of 0.2
+        self.eval_parallel = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.parallel.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_parallel'
+        )
+        # this one should have a score of 0.0
+        self.eval_relative = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.relative.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_relative'
+        )
+        # this one should have a score of 0.0
+        self.eval_other = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.key.other.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_other'
         )
 
     def test_mean_results(self):
-        mean_eval = KeyMeanEvaluation([self.eval1, self.eval2])
-        self.assertAlmostEqual(mean_eval.correct, 0.5)
-        self.assertAlmostEqual(mean_eval.fifth, 0.)
-        self.assertAlmostEqual(mean_eval.relative, 0.5)
-        self.assertAlmostEqual(mean_eval.parallel, 0.0)
-        self.assertAlmostEqual(mean_eval.other, 0.0)
-        self.assertAlmostEqual(mean_eval.weighted, 0.65)
+        evals = [self.eval_correct, self.eval_parallel, self.eval_relative, self.eval_other]
+        mean_eval = KeyMeanEvaluation(evals)
+        self.assertAlmostEqual(mean_eval.correct, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.fifth, 0.0)
+        self.assertAlmostEqual(mean_eval.relative, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.relative_of_fifth, 0.0)
+        self.assertAlmostEqual(mean_eval.parallel, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.other, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.weighted, 0.375)
 
 
 class TestAddParserFunction(unittest.TestCase):
