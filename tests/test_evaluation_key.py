@@ -151,39 +151,39 @@ class TestKeyEvaluationClass(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1
         self.eval_correct = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.correct.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_correct'
         )
         # this one should have a score of 0.5
         self.eval_fifth = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.fifth.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.fifth.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_fifth'
         )
 
         # this one should have a score of 0.3
         self.eval_relative = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.relative.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_relative'
         )
         # this one should have a score of 0.2
         self.eval_parallel = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.parallel.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.parallel.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_parallel'
         )
         # this one should have a score of 0.0
         self.eval_relative_of_fifth = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.relative_of_fifth.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.relative_of_fifth.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             relative_of_fifth=True,
             name='eval_relative_of_fifth'
         )
         # this one should have a score of 0.0
         self.eval_other = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.other.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.other.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_other'
         )
@@ -219,25 +219,25 @@ class TestKeyMeanEvaluation(unittest.TestCase):
     def setUp(self):
         # this one should have a score of 1
         self.eval_correct = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.correct.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_correct'
         )
         # this one should have a score of 0.2
         self.eval_parallel = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.parallel.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.parallel.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_parallel'
         )
         # this one should have a score of 0.0
         self.eval_relative = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.relative.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_relative'
         )
         # this one should have a score of 0.0
         self.eval_other = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.key.other.txt')),
+            load_key(join(DETECTIONS_PATH, 'dummy.other.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_other'
         )

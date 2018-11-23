@@ -64,7 +64,12 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]
 
 DETECTION_FILES = [pj(DETECTIONS_PATH, 'dummy.chords.txt'),
-                   pj(DETECTIONS_PATH, 'dummy.key.relative.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.key.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.correct.key.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.fifth.key.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.other.key.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.parallel.key.txt'),
+                   pj(DETECTIONS_PATH, 'dummy.relative_of_fifth.key.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.beat_tracker.txt'),
                    pj(DETECTIONS_PATH, 'sample.cnn_chord_recognition.txt'),

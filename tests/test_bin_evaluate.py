@@ -87,7 +87,7 @@ class TestEvaluateScript(unittest.TestCase):
         res = run_script('key')
         # second line contains the results
         res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
-        self.assertTrue(np.allclose(res, [0, 0, 1, 0, 0, 0.3]))
+        self.assertTrue(np.allclose(res, [0, 0, 1, 0, 0, 0, 0.3]))
 
     def test_notes(self):
         res = run_script('notes', det_suffix='.piano_transcriptor.txt')
