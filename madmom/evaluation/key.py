@@ -72,7 +72,7 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     If `strict_fifth` is `True`, only the former case is considered. This is
     the mode used for MIREX.
 
-    There is an optional category: relative of fifth. This allows to separate
+    There is an optional category: 'relative of fifth'. This allows to separate
     keys that are closely related to the annotated key on the circle of fifth
     from the 'other' error category.
 
@@ -85,7 +85,8 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     strict_fifth: bool
         Use strict interpretation of the 'fifth' category, as in MIREX.
     relative_of_fifth: bool
-        Differentiate relative keys of the fifth wrt the annotated key.
+        Differentiate relative keys of the fifth wrt the annotated key. Is coherent with strict_fifth in the sense that
+        it only considers the relative key of the strict fifth.
 
     Returns
     -------
@@ -247,7 +248,25 @@ class KeyMeanEvaluation(EvaluationMixin):
         self.relative_of_fifth= float(c['relative_of_fifth']) / n
         self.parallel = float(c['parallel']) / n
         self.other = float(c['other']) / n
-        self.weighted = sum(e.score for e in eval_objects) / n
+        # Check that all the error_scores in the eval_objects are the same
+        # (otherwise a weighted result would be hard to interpret)
+        if self._check_error_scores(eval_objects):
+            self.weighted = sum(e.score for e in eval_objects) / n
+        else:
+            raise ValueError('Different error_scores found in the KeyEvaluation objects.')
+
+
+    def _check_error_scores(self, eval_objects):
+        all_the_same = True
+        indScores = 0
+        while (indScores < len(eval_objects)-1) and all_the_same:
+            if eval_objects[indScores].error_scores != eval_objects[indScores+1].error_scores:
+                all_the_same = False
+                break
+            else:
+                indScores+=1
+        return all_the_same
+
 
     def tostring(self, **kwargs):
         return ('{}\n  Weighted: {:.3f}  Correct: {:.3f}  Fifth: {:.3f}  '

@@ -241,6 +241,18 @@ class TestKeyMeanEvaluation(unittest.TestCase):
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_other'
         )
+        # this one has has the same key BUT a different set of error scores
+        self.eval_different_scores = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            name='eval_correct_different_scores'
+        )
+        self.eval_different_scores.error_scores={'correct':0.5}
+
+    def test_check_error_scores(self):
+        evals = [self.eval_correct, self.eval_parallel, self.eval_different_scores, self.eval_other]
+        with self.assertRaises(ValueError):
+            KeyMeanEvaluation(evals)
 
     def test_mean_results(self):
         evals = [self.eval_correct, self.eval_parallel, self.eval_relative, self.eval_other]
