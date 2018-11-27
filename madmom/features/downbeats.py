@@ -1089,7 +1089,9 @@ class DBNBarTrackingProcessor(Processor):
                  observation_weight=OBSERVATION_WEIGHT,
                  meter_change_prob=METER_CHANGE_PROB, **kwargs):
         # pylint: disable=unused-argument
-        # save variables
+        from madmom.utils import integer_types
+        if isinstance(beats_per_bar, integer_types):
+            beats_per_bar = (beats_per_bar, )
         self.beats_per_bar = beats_per_bar
         # state space & transition model for each bar length
         state_spaces = []

@@ -463,11 +463,13 @@ class MultiPatternTransitionModel(TransitionModel):
         if isinstance(transition_prob, float) and transition_prob:
             # create a pattern transition probability matrix
             self.transition_prob = np.ones((num_patterns, num_patterns))
-            # transition to other patterns
-            self.transition_prob *= transition_prob / (num_patterns - 1)
-            # transition to same pattern
-            diag = np.diag_indices_from(self.transition_prob)
-            self.transition_prob[diag] = 1. - transition_prob
+            # if there is more than 1 pattern, create transitions between them
+            if num_patterns > 1:
+                # transition to other patterns
+                self.transition_prob *= transition_prob / (num_patterns - 1)
+                # transition to same pattern
+                diag = np.diag_indices_from(self.transition_prob)
+                self.transition_prob[diag] = 1. - transition_prob
         else:
             self.transition_prob = transition_prob
         # update/add transitions between patterns

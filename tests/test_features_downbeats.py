@@ -205,3 +205,9 @@ class TestDBNBarTrackingProcessorClass(unittest.TestCase):
         beats = self.processor(sample_bar_act)
         self.assertTrue(np.allclose(beats, [[0.0913, 1.], [0.7997, 2.],
                                             [1.4806, 3.], [2.1478, 1.]]))
+
+    def test_single_bar_length(self):
+        processor = DBNBarTrackingProcessor(beats_per_bar=3)
+        beats = processor(sample_bar_act)
+        self.assertTrue(np.allclose(beats, [[0.0913, 1.], [0.7997, 2.],
+                                            [1.4806, 3.], [2.1478, 1.]]))
