@@ -350,7 +350,9 @@ class MIDIFile(mido.MidiFile):
             return channel * 128 + pitch
 
         # process all events
+        last_msg_time = None
         for msg in self:
+            last_msg_time = msg.time
             # keep track of sustain information
             if msg.type == 'control_change' and msg.control == 64:
                 sustain_msgs.append(msg)
@@ -375,6 +377,14 @@ class MIDIFile(mido.MidiFile):
                               sounding_notes[note][1], msg.channel))
                 # remove hash from dict
                 del sounding_notes[note]
+
+        # if the last sustain message is 'sustain on', append a fake sustain
+        # message to end sustain with the last note
+        if sustain_msgs and sustain_msgs[-1].value >= 64:
+            msg = sustain_msgs[-1].copy()
+            msg.time = last_msg_time
+            msg.value = 0
+            sustain_msgs.append(msg)
 
         # sort the notes and convert to numpy array
         notes = np.asarray(sorted(notes), dtype=np.float)
@@ -406,6 +416,7 @@ class MIDIFile(mido.MidiFile):
                 notes[sustained, 2] = msg.time - notes[sustained, 0]
                 # remove sustain start time for this channel
                 del sustain_starts[msg.channel]
+
         # end all notes latest when next note (of same pitch) starts
         for pitch in np.unique(notes[:, 1]):
             note_idx = np.nonzero(notes[:, 1] == pitch)[0]
