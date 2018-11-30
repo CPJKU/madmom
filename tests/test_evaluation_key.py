@@ -254,6 +254,10 @@ class TestKeyMeanEvaluation(unittest.TestCase):
         with self.assertRaises(ValueError):
             KeyMeanEvaluation(evals)
 
+    def test_empty_eval_list(self):
+        with self.assertRaises(ValueError):
+            KeyMeanEvaluation([])
+
     def test_mean_results(self):
         evals = [self.eval_correct, self.eval_parallel, self.eval_relative, self.eval_other]
         mean_eval = KeyMeanEvaluation(evals)

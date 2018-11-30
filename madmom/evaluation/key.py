@@ -240,20 +240,23 @@ class KeyMeanEvaluation(EvaluationMixin):
         self.name = name or 'mean for {:d} files'.format(len(eval_objects))
 
         n = len(eval_objects)
-        c = Counter(e.error_category for e in eval_objects)
+        if n > 0:
+            c = Counter(e.error_category for e in eval_objects)
 
-        self.correct = float(c['correct']) / n
-        self.fifth = float(c['fifth']) / n
-        self.relative = float(c['relative']) / n
-        self.relative_of_fifth= float(c['relative_of_fifth']) / n
-        self.parallel = float(c['parallel']) / n
-        self.other = float(c['other']) / n
-        # Check that all the error_scores in the eval_objects are the same
-        # (otherwise a weighted result would be hard to interpret)
-        if self._check_error_scores(eval_objects):
-            self.weighted = sum(e.score for e in eval_objects) / n
+            self.correct = float(c['correct']) / n
+            self.fifth = float(c['fifth']) / n
+            self.relative = float(c['relative']) / n
+            self.relative_of_fifth= float(c['relative_of_fifth']) / n
+            self.parallel = float(c['parallel']) / n
+            self.other = float(c['other']) / n
+            # Check that all the error_scores in the eval_objects are the same
+            # (otherwise a weighted result would be hard to interpret)
+            if self._check_error_scores(eval_objects):
+                self.weighted = sum(e.score for e in eval_objects) / n
+            else:
+                raise ValueError('Different error_scores found in the KeyEvaluation objects.')
         else:
-            raise ValueError('Different error_scores found in the KeyEvaluation objects.')
+            raise ValueError('The list of evaluations is empty.')
 
 
     def _check_error_scores(self, eval_objects):
