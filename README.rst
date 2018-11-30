@@ -60,16 +60,19 @@ Prerequisites
 -------------
 
 To install the ``madmom`` package, you must have either Python 2.7 or Python
-3.3 or newer and the following packages installed:
+3.5 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
 - `cython <http://www.cython.org>`_
-- `mido <https://github.com/olemb/mido>`_ (for MIDI handling)
-- `pytest <https://www.pytest.org/>`_ (to run the tests)
-- `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_ (to process live
-  audio input)
-- `pyfftw <https://github.com/pyFFTW/pyFFTW/>`_ (for better FFT performance)
+- `mido <https://github.com/olemb/mido>`_
+
+In order to test your installation, process live audio input, or have improved
+FFT performance, additionally install these packages:
+
+- `pytest <https://www.pytest.org/>`_
+- `pyaudio <http://people.csail.mit.edu/hubert/pyaudio/>`_
+- `pyfftw <https://github.com/pyFFTW/pyFFTW/>`_
 
 If you need support for audio files other than ``.wav`` with a sample rate of
 44.1kHz and 16 bit depth, you need ``ffmpeg`` (``avconv`` on Ubuntu Linux has
