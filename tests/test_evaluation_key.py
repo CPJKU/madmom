@@ -62,12 +62,16 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
 class TestErrorTypeFunction(unittest.TestCase):
 
     def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,
-                        relative_of_fifth_up, relative_of_fifth_down, parallel):
+                        relative_of_fifth_up, relative_of_fifth_down,
+                        parallel):
         for det_key in range(24):
             cat = error_type(det_key, correct)
             cat_st = error_type(det_key, correct, strict_fifth=True)
             cat_rf = error_type(det_key, correct, relative_of_fifth=True)
-            cat_st_rf = error_type(det_key, correct, strict_fifth=True, relative_of_fifth=True)
+            cat_st_rf = error_type(det_key,
+                                   correct,
+                                   strict_fifth=True,
+                                   relative_of_fifth=True)
             if det_key == correct:
                 self.assertEqual(cat, 'correct')
                 self.assertEqual(cat_st, cat)
@@ -204,7 +208,8 @@ class TestKeyEvaluationClass(unittest.TestCase):
         self.assertEqual(self.eval_relative.error_category, 'relative')
         self.assertEqual(self.eval_relative.score, 0.3)
         # Relative of Fifth
-        self.assertEqual(self.eval_relative_of_fifth.error_category, 'relative_of_fifth')
+        self.assertEqual(self.eval_relative_of_fifth.error_category,
+                         'relative_of_fifth')
         self.assertEqual(self.eval_relative_of_fifth.score, 0.0)
         # Parallel
         self.assertEqual(self.eval_parallel.error_category, 'parallel')
@@ -247,10 +252,11 @@ class TestKeyMeanEvaluation(unittest.TestCase):
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
             name='eval_correct_different_scores'
         )
-        self.eval_different_scores.error_scores={'correct':0.5}
+        self.eval_different_scores.error_scores = {'correct': 0.5}
 
     def test_check_error_scores(self):
-        evals = [self.eval_correct, self.eval_parallel, self.eval_different_scores, self.eval_other]
+        evals = [self.eval_correct, self.eval_parallel,
+                 self.eval_different_scores, self.eval_other]
         with self.assertRaises(ValueError):
             KeyMeanEvaluation(evals)
 
@@ -259,7 +265,8 @@ class TestKeyMeanEvaluation(unittest.TestCase):
             KeyMeanEvaluation([])
 
     def test_mean_results(self):
-        evals = [self.eval_correct, self.eval_parallel, self.eval_relative, self.eval_other]
+        evals = [self.eval_correct, self.eval_parallel, self.eval_relative,
+                 self.eval_other]
         mean_eval = KeyMeanEvaluation(evals)
         self.assertAlmostEqual(mean_eval.correct, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.fifth, 0.0)

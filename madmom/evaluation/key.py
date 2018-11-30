@@ -145,29 +145,29 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     elif not strict_fifth and \
             (det_mode == ann_mode and ((det_root - ann_root) % 12 == 5)):
         error_type = 'fifth'
-    elif (ann_mode == major and det_mode != ann_mode
-          and ((det_root - ann_root) % 12 == 9)):
+    elif (ann_mode == major and det_mode != ann_mode and
+          ((det_root - ann_root) % 12 == 9)):
         error_type = 'relative'
-    elif (ann_mode == minor and det_mode != ann_mode
-          and ((det_root - ann_root) % 12 == 3)):
+    elif (ann_mode == minor and det_mode != ann_mode and
+          ((det_root - ann_root) % 12 == 3)):
         error_type = 'relative'
     elif relative_of_fifth \
-            and (ann_mode == major and det_mode != ann_mode
-                 and ((det_root - ann_root) % 12 == 4)):
+            and (ann_mode == major and det_mode != ann_mode and
+                 ((det_root - ann_root) % 12 == 4)):
         error_type = 'relative_of_fifth'
     elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == major
-                                    and det_mode != ann_mode
-                                    and ((det_root - ann_root) % 12 == 2))):
+            (relative_of_fifth and (ann_mode == major and
+                                    det_mode != ann_mode and
+                                    ((det_root - ann_root) % 12 == 2))):
         error_type = 'relative_of_fifth'
-    elif relative_of_fifth \
-            and (ann_mode == minor and det_mode != ann_mode
-                 and ((det_root - ann_root) % 12 == 10)):
+    elif relative_of_fifth and \
+            (ann_mode == minor and det_mode != ann_mode and
+             ((det_root - ann_root) % 12 == 10)):
         error_type = 'relative_of_fifth'
     elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == minor
-                                    and det_mode != ann_mode
-                                    and ((det_root - ann_root) % 12 == 8))):
+            (relative_of_fifth and (ann_mode == minor and
+                                    det_mode != ann_mode and
+                                    ((det_root - ann_root) % 12 == 8))):
         error_type = 'relative_of_fifth'
     elif det_mode != ann_mode and det_root == ann_root:
         error_type = 'parallel'
@@ -285,9 +285,9 @@ class KeyMeanEvaluation(EvaluationMixin):
     def _check_error_scores(self, eval_objects):
         all_the_same = True
         indScores = 0
-        while (indScores < len(eval_objects)-1) and all_the_same:
+        while (indScores < len(eval_objects) - 1) and all_the_same:
             if eval_objects[indScores].error_scores \
-                    != eval_objects[indScores+1].error_scores:
+                    != eval_objects[indScores + 1].error_scores:
                 all_the_same = False
                 break
             else:
