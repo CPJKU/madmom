@@ -61,7 +61,8 @@ def key_label_to_class(key_label):
 
 def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     """
-    Compute the error category for a predicted key compared to the annotated key.
+    Compute the error category for a predicted key compared to
+    the annotated key.
 
     Categories follow the evaluation strategy used
     for MIREX (see http://music-ir.org/mirex/wiki/2017:Audio_Key_Detection).
@@ -85,8 +86,9 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     strict_fifth: bool
         Use strict interpretation of the 'fifth' category, as in MIREX.
     relative_of_fifth: bool
-        Differentiate relative keys of the fifth wrt the annotated key. Is coherent with strict_fifth in the sense that
-        it only considers the relative key of the strict fifth.
+        Differentiate relative keys of the fifth wrt the annotated key.
+        Is coherent with strict_fifth in the sense that it only considers the
+        relative key of the strict fifth.
 
     Returns
     -------
@@ -101,27 +103,31 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     >>> error_type(0, 0)
     'correct'
 
-    # annotated: 'C major' / detected: 'G major': + 7 semitones from annotated key
+    # annotated: 'C major' / detected: 'G major': +7 semitones
     >>> error_type(7,0)
     'fifth'
 
-    # annotated: 'C major' / detected: 'F major': -7 semitones from annotated key (modulo 12)
+    # annotated: 'C major' / detected: 'F major': -7 semitones (modulo 12)
     >>> error_type(5,0)
     'fifth'
 
-    # annotated: 'C major' / detected: 'F major': -7 semitones from annotated key (modulo 12), the MIREX way
+    # annotated: 'C major' / detected: 'F major': -7 semitones (modulo 12),
+    # the MIREX way
     >>> error_type(5, 0, strict_fifth=True)
     'other'
 
-    # annotated: 'C major' / detected: 'E minor': E minor is the relative key of G Major, which is the fifth of C Major
+    # annotated: 'C major' / detected: 'E minor': E minor is the relative key
+    # of G Major, which is the fifth of C Major
     >>> error_type(16, 0, relative_of_fifth=True)
     'relative_of_fifth'
 
-    # annotated: 'C major' / detected: 'D minor': D minor is the relative key of F Major, of which C Major is the fifth
+    # annotated: 'C major' / detected: 'D minor': D minor is the relative key
+    # of F Major, of which C Major is the fifth
     >>> error_type(14, 0, relative_of_fifth=True)
     'relative_of_fifth'
 
-    # annotated: 'C major' / detected: 'D minor': D minor is the relative key of F Major, of which C Major is the fifth
+    # annotated: 'C major' / detected: 'D minor': D minor is the relative key
+    # of F Major, of which C Major is the fifth
     # - using MIREX definition of 'fifth'
     >>> error_type(14, 0, relative_of_fifth=True, strict_fifth=True)
     'other'
@@ -133,34 +139,43 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     major, minor = 0, 1
 
     if det_root == ann_root and det_mode == ann_mode:
-        return 'correct'
+        error_type = 'correct'
     elif det_mode == ann_mode and ((det_root - ann_root) % 12 == 7):
-        return 'fifth'
+        error_type = 'fifth'
     elif not strict_fifth and \
             (det_mode == ann_mode and ((det_root - ann_root) % 12 == 5)):
-        return 'fifth'
-    elif (ann_mode == major and det_mode != ann_mode and ((det_root - ann_root) % 12 == 9)):
-        return 'relative'
-    elif (ann_mode == minor and det_mode != ann_mode and ((det_root - ann_root) % 12 == 3)):
-        return 'relative'
-    elif relative_of_fifth and \
-            (ann_mode == major and det_mode != ann_mode and ((det_root - ann_root) % 12 == 4)):
-        return 'relative_of_fifth'
+        error_type = 'fifth'
+    elif (ann_mode == major and det_mode != ann_mode
+          and ((det_root - ann_root) % 12 == 9)):
+        error_type = 'relative'
+    elif (ann_mode == minor and det_mode != ann_mode
+          and ((det_root - ann_root) % 12 == 3)):
+        error_type = 'relative'
+    elif relative_of_fifth \
+            and (ann_mode == major and det_mode != ann_mode
+                 and ((det_root - ann_root) % 12 == 4)):
+        error_type = 'relative_of_fifth'
     elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == major and det_mode != ann_mode and (
-                    (det_root - ann_root) % 12 == 2))):
-        return 'relative_of_fifth'
-    elif relative_of_fifth and (ann_mode == minor and det_mode != ann_mode and (
-            (det_root - ann_root) % 12 == 10)):
-        return 'relative_of_fifth'
+            (relative_of_fifth and (ann_mode == major
+                                    and det_mode != ann_mode
+                                    and ((det_root - ann_root) % 12 == 2))):
+        error_type = 'relative_of_fifth'
+    elif relative_of_fifth \
+            and (ann_mode == minor and det_mode != ann_mode
+                 and ((det_root - ann_root) % 12 == 10)):
+        error_type = 'relative_of_fifth'
     elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == minor and det_mode != ann_mode and (
-            (det_root - ann_root) % 12 == 8))):
-        return 'relative_of_fifth'
+            (relative_of_fifth and (ann_mode == minor
+                                    and det_mode != ann_mode
+                                    and ((det_root - ann_root) % 12 == 8))):
+        error_type = 'relative_of_fifth'
     elif det_mode != ann_mode and det_root == ann_root:
-        return 'parallel'
+        error_type = 'parallel'
     else:
-        return 'other'
+        error_type = 'other'
+
+    return error_type
+
 
 class KeyEvaluation(EvaluationMixin):
     """
@@ -191,11 +206,19 @@ class KeyEvaluation(EvaluationMixin):
                     'parallel': 0.2,
                     'other': 0.0}
 
-    def __init__(self, detection, annotation, strict_fifth=False, name=None, relative_of_fifth=False, **kwargs):
+    def __init__(self, detection,
+                 annotation,
+                 strict_fifth=False,
+                 name=None,
+                 relative_of_fifth=False,
+                 **kwargs):
         self.name = name or ''
         self.detection = key_label_to_class(detection)
         self.annotation = key_label_to_class(annotation)
-        self.error_category = error_type(self.detection, self.annotation, strict_fifth, relative_of_fifth)
+        self.error_category = error_type(self.detection,
+                                         self.annotation,
+                                         strict_fifth,
+                                         relative_of_fifth)
         self.score = self.error_scores.get(self.error_category, 0.0)
 
     def tostring(self, **kwargs):
@@ -246,7 +269,7 @@ class KeyMeanEvaluation(EvaluationMixin):
             self.correct = float(c['correct']) / n
             self.fifth = float(c['fifth']) / n
             self.relative = float(c['relative']) / n
-            self.relative_of_fifth= float(c['relative_of_fifth']) / n
+            self.relative_of_fifth = float(c['relative_of_fifth']) / n
             self.parallel = float(c['parallel']) / n
             self.other = float(c['other']) / n
             # Check that all the error_scores in the eval_objects are the same
@@ -254,29 +277,31 @@ class KeyMeanEvaluation(EvaluationMixin):
             if self._check_error_scores(eval_objects):
                 self.weighted = sum(e.score for e in eval_objects) / n
             else:
-                raise ValueError('Different error_scores found in the KeyEvaluation objects.')
+                raise ValueError('Different error_scores found in the '
+                                 'KeyEvaluation objects.')
         else:
             raise ValueError('The list of evaluations is empty.')
-
 
     def _check_error_scores(self, eval_objects):
         all_the_same = True
         indScores = 0
         while (indScores < len(eval_objects)-1) and all_the_same:
-            if eval_objects[indScores].error_scores != eval_objects[indScores+1].error_scores:
+            if eval_objects[indScores].error_scores \
+                    != eval_objects[indScores+1].error_scores:
                 all_the_same = False
                 break
             else:
-                indScores+=1
+                indScores += 1
         return all_the_same
-
 
     def tostring(self, **kwargs):
         return ('{}\n  Weighted: {:.3f}  Correct: {:.3f}  Fifth: {:.3f}  '
                 'Relative: {:.3f}  Relative of Fifth: {:.3f} '
-                'Parallel: {:.3f}  Other: {:.3f}'.format(
-                    self.name, self.weighted, self.correct, self.fifth,
-                    self.relative, self.relative_of_fifth, self.parallel, self.other))
+                'Parallel: {:.3f}  '
+                'Other: {:.3f}'.format(self.name, self.weighted, self.correct,
+                                       self.fifth, self.relative,
+                                       self.relative_of_fifth, self.parallel,
+                                       self.other))
 
 
 def add_parser(parser):
