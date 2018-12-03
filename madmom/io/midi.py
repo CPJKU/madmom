@@ -295,7 +295,7 @@ class MIDIFile(mido.MidiFile):
         if not tempi or tempi[0][0] > 0:
             tempi.insert(0, (0, DEFAULT_TEMPO))
         # tempo is given in microseconds per quarter note
-        # TODO: add otption to return in BPM
+        # TODO: add option to return in BPM
         return np.asarray(tempi, np.float)
 
     @property
@@ -349,9 +349,7 @@ class MIDIFile(mido.MidiFile):
             return channel * 128 + pitch
 
         # process all events
-        last_msg_time = None
         for msg in self:
-            last_msg_time = msg.time
             # use only note on or note off events
             note_on = msg.type == 'note_on'
             note_off = msg.type == 'note_off'
@@ -378,14 +376,29 @@ class MIDIFile(mido.MidiFile):
         return np.asarray(sorted(notes), dtype=np.float)
 
     @property
-    def sustain_msgs(self):
+    def sustain_messages(self):
+        """
+        Sustain messages of the MIDI file.
+
+        Returns
+        -------
+        sustain_messages : list
+            List with MIDI sustain messages.
+
+        Notes
+        -----
+        If the last sustain message is a 'sustain on' message (i.e. it has a
+        value >= 64), an artificial sustain message with a value of 0 and the
+        timing of the last MIDI message is appended to the list.
+
+        """
         sustain_msgs = []
+        last_msg_time = None
         for msg in self:
             last_msg_time = msg.time
             # keep track of sustain information
             if msg.type == 'control_change' and msg.control == 64:
                 sustain_msgs.append(msg)
-
         # if the last sustain message is 'sustain on', append a fake sustain
         # message to end sustain with the last note
         if sustain_msgs and sustain_msgs[-1].value >= 64:
@@ -397,14 +410,21 @@ class MIDIFile(mido.MidiFile):
 
     @property
     def sustained_notes(self):
-        notes = self.notes
-        sustain_msgs = self.sustain_msgs
+        """
+        Notes of the MIDI file with applied sustain information.
 
+        Returns
+        -------
+        notes : numpy array
+            Array with notes (onset time, pitch, duration, velocity, channel).
+
+        """
+        notes = np.copy(self.notes)
         # apply sustain information
         # keep track of sustain start times (channel = key)
         sustain_starts = {}
         note_offsets = notes[:, 0] + notes[:, 2]
-        for msg in sustain_msgs:
+        for msg in self.sustain_messages:
             # remember sustain start
             if msg.value >= 64:
                 if msg.channel in sustain_starts:
@@ -427,14 +447,12 @@ class MIDIFile(mido.MidiFile):
                 notes[sustained, 2] = msg.time - notes[sustained, 0]
                 # remove sustain start time for this channel
                 del sustain_starts[msg.channel]
-
         # end all notes latest when next note (of same pitch) starts
         for pitch in np.unique(notes[:, 1]):
             note_idx = np.nonzero(notes[:, 1] == pitch)[0]
             max_duration = np.diff(notes[note_idx, 0])
             notes[note_idx[:-1], 2] = np.minimum(notes[note_idx[:-1], 2],
                                                  max_duration)
-
         # finally return notes
         return notes
 
