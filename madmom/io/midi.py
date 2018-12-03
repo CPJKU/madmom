@@ -520,13 +520,12 @@ class MIDIFile(mido.MidiFile):
         for note in notes:
             try:
                 onset, pitch, duration, velocity, channel = note
-                channel = int(channel)
-                velocity = int(velocity)
             except ValueError:
                 onset, pitch, duration, velocity = note
                 channel = 0
             pitch = int(pitch)
             velocity = int(velocity)
+            channel = int(channel)
             offset = onset + duration
             # create MIDI messages
             onset = second2tick(onset, ticks_per_beat, tempo)

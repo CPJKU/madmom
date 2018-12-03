@@ -102,6 +102,25 @@ class TestMIDIFileClass(unittest.TestCase):
         self.assertTrue(np.allclose(midi.tempi, [[0, 500000]]))
 
 
+class TestWriteMidiFunction(unittest.TestCase):
+
+    def test_write_midi(self):
+        notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
+        # write to a temporary file
+        write_midi(notes, tmp_file)
+        # read in that file and compare notes
+        tmp_midi = MIDIFile(tmp_file)
+        self.assertTrue(np.allclose(notes, tmp_midi.notes[:, :4], atol=1e-3))
+
+
+class TestLoadMidiFunction(unittest.TestCase):
+
+    def test_load_midi(self):
+        notes = load_midi(pj(ANNOTATIONS_PATH, 'stereo_sample.mid'))
+        notes_txt = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
+        self.assertTrue(np.allclose(notes[:, :4], notes_txt, atol=1e-3))
+
+
 # clean up
 def teardown_module():
     os.unlink(tmp_file)
