@@ -93,6 +93,14 @@ class TestMIDIFileClass(unittest.TestCase):
                                      [3.36875, 75., 0.78020833, 64., 0.],
                                      [3.44895833, 43., 0.7, 35., 0.]]))
 
+    def test_time_signature(self):
+        midi = MIDIFile(pj(ANNOTATIONS_PATH, 'stereo_sample.mid'))
+        self.assertTrue(np.allclose(midi.time_signatures, [[0, 4, 4]]))
+
+    def test_tempi(self):
+        midi = MIDIFile(pj(ANNOTATIONS_PATH, 'stereo_sample.mid'))
+        self.assertTrue(np.allclose(midi.tempi, [[0, 500000]]))
+
 
 # clean up
 def teardown_module():

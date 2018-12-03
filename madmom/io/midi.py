@@ -273,7 +273,7 @@ class MIDIFile(mido.MidiFile):
     @property
     def tempi(self):
         """
-        Tempi (mircoseconds per quarter note) of the MIDI file.
+        Tempi (microseconds per quarter note) of the MIDI file.
 
         Returns
         -------
