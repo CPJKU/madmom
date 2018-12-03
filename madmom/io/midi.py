@@ -124,7 +124,7 @@ class MIDIFile(mido.MidiFile):
 
         - 'absolute', 'abs', 'a': use absolute timing.
         - 'relative', 'rel', 'r': use relative timing, i.e. delta to
-        previous message.
+          previous message.
 
     Examples
     --------
@@ -210,12 +210,9 @@ class MIDIFile(mido.MidiFile):
 
     """
 
-    UNIT = 'seconds'
-    TIMING = 'absolute'
-
     def __init__(self, filename=None, file_format=0,
-                 ticks_per_beat=DEFAULT_TICKS_PER_BEAT, unit=UNIT,
-                 timing=TIMING, **kwargs):
+                 ticks_per_beat=DEFAULT_TICKS_PER_BEAT, unit='seconds',
+                 timing='absolute', **kwargs):
         # instantiate a MIDIFile
         super(MIDIFile, self).__init__(filename=filename, type=file_format,
                                        ticks_per_beat=ticks_per_beat, **kwargs)
@@ -353,9 +350,10 @@ class MIDIFile(mido.MidiFile):
             # use only note on or note off events
             note_on = msg.type == 'note_on'
             note_off = msg.type == 'note_off'
+            if not (note_on or note_off):
+                continue
             # hash sounding note
-            if note_on or note_off:
-                note = note_hash(msg.channel, msg.note)
+            note = note_hash(msg.channel, msg.note)
             # start note if it's a 'note on' event with velocity > 0
             if note_on and msg.velocity > 0:
                 # save the onset time and velocity
