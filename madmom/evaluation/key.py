@@ -80,29 +80,39 @@ def _compute_root_distance(det_root, ann_root):
     return (det_root - ann_root) % 12
 
 
-def _is_correct(det_root, det_mode, ann_root, ann_mode):
+def _is_correct(det_key, ann_key):
+    det_root, det_mode = key_class_to_root_and_mode(det_key)
+    ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     return det_mode == ann_mode and det_root == ann_root
 
 
-def _is_fifth(det_root, det_mode, ann_root, ann_mode, strict_fifth):
+def _is_fifth(det_key, ann_key, strict_fifth):
+    det_root, det_mode = key_class_to_root_and_mode(det_key)
+    ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     root_distance = _compute_root_distance(det_root, ann_root)
     return det_mode == ann_mode and (root_distance == 7 or
                                      (root_distance == 5 and not strict_fifth))
 
 
-def _is_parallel(det_root, det_mode, ann_root, ann_mode):
+def _is_parallel(det_key, ann_key):
+    det_root, det_mode = key_class_to_root_and_mode(det_key)
+    ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     return det_root == ann_root and det_mode != ann_mode
 
 
-def _is_relative(det_root, det_mode, ann_root, ann_mode, major, minor):
+def _is_relative(det_key, ann_key, major, minor):
+    det_root, det_mode = key_class_to_root_and_mode(det_key)
+    ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     root_distance = _compute_root_distance(det_root, ann_root)
     ann_mode_is_major = (ann_mode == major and root_distance == 9)
     ann_mode_is_minor = (ann_mode == minor and root_distance == 3)
     return det_mode != ann_mode and (ann_mode_is_major or ann_mode_is_minor)
 
 
-def _is_relative_of_fifth(det_root, det_mode, ann_root, ann_mode, major, minor,
-                          strict_fifth, relative_of_fifth):
+def _is_relative_of_fifth(det_key, ann_key, major, minor, strict_fifth,
+                          relative_of_fifth):
+    det_root, det_mode = key_class_to_root_and_mode(det_key)
+    ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     root_distance = _compute_root_distance(det_root, ann_root)
     ann_mode_is_major = ann_mode == major and ((root_distance == 4) or
                                                (root_distance == 2 and
@@ -187,20 +197,18 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     >>> error_type(14, 0, relative_of_fifth=True, strict_fifth=True)
     'other'
     """
-    (ann_root, ann_mode) = key_class_to_root_and_mode(ann_key)
-    (det_root, det_mode) = key_class_to_root_and_mode(det_key)
     major, minor = 0, 1
 
-    if _is_correct(det_root, det_mode, ann_root, ann_mode):
+    if _is_correct(det_key, ann_key):
         error_type = 'correct'
-    elif _is_fifth(det_root, det_mode, ann_root, ann_mode, strict_fifth):
+    elif _is_fifth(det_key, ann_key, strict_fifth):
         error_type = 'fifth'
-    elif _is_parallel(det_root, det_mode, ann_root, ann_mode):
+    elif _is_parallel(det_key, ann_key):
         error_type = 'parallel'
-    elif _is_relative(det_root, det_mode, ann_root, ann_mode, major, minor):
+    elif _is_relative(det_key, ann_key, major, minor):
         error_type = 'relative'
-    elif _is_relative_of_fifth(det_root, det_mode, ann_root, ann_mode, major,
-                               minor, strict_fifth, relative_of_fifth):
+    elif _is_relative_of_fifth(det_key, ann_key, major, minor, strict_fifth,
+                               relative_of_fifth):
         error_type = 'relative_of_fifth'
     else:
         error_type = 'other'
