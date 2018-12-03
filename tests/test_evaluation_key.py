@@ -59,11 +59,44 @@ class TestKeyLabelToClassFunction(unittest.TestCase):
                          key_label_to_class('F# major'))
 
 
+class TestKeyClassToRootAndModeFunction(unittest.TestCase):
+
+    def test_values(self):
+        self.assertEqual(key_class_to_root_and_mode(0), (0, 0))
+        self.assertEqual(key_class_to_root_and_mode(1), (1, 0))
+        self.assertEqual(key_class_to_root_and_mode(2), (2, 0))
+        self.assertEqual(key_class_to_root_and_mode(3), (3, 0))
+        self.assertEqual(key_class_to_root_and_mode(4), (4, 0))
+        self.assertEqual(key_class_to_root_and_mode(5), (5, 0))
+        self.assertEqual(key_class_to_root_and_mode(6), (6, 0))
+        self.assertEqual(key_class_to_root_and_mode(7), (7, 0))
+        self.assertEqual(key_class_to_root_and_mode(8), (8, 0))
+        self.assertEqual(key_class_to_root_and_mode(9), (9, 0))
+        self.assertEqual(key_class_to_root_and_mode(10), (10, 0))
+        self.assertEqual(key_class_to_root_and_mode(11), (11, 0))
+        self.assertEqual(key_class_to_root_and_mode(12), (0, 1))
+        self.assertEqual(key_class_to_root_and_mode(13), (1, 1))
+        self.assertEqual(key_class_to_root_and_mode(14), (2, 1))
+        self.assertEqual(key_class_to_root_and_mode(15), (3, 1))
+        self.assertEqual(key_class_to_root_and_mode(16), (4, 1))
+        self.assertEqual(key_class_to_root_and_mode(17), (5, 1))
+        self.assertEqual(key_class_to_root_and_mode(18), (6, 1))
+        self.assertEqual(key_class_to_root_and_mode(19), (7, 1))
+        self.assertEqual(key_class_to_root_and_mode(20), (8, 1))
+        self.assertEqual(key_class_to_root_and_mode(21), (9, 1))
+        self.assertEqual(key_class_to_root_and_mode(22), (10, 1))
+        self.assertEqual(key_class_to_root_and_mode(23), (11, 1))
+        with self.assertRaises(ValueError):
+            key_class_to_root_and_mode(-4)
+        with self.assertRaises(ValueError):
+            key_class_to_root_and_mode(24)
+
+
 class TestErrorTypeFunction(unittest.TestCase):
 
-    def _compare_scores(self, correct, fifth_strict, fifth_lax, relative,
-                        relative_of_fifth_up, relative_of_fifth_down,
-                        parallel):
+    def _compare_error_types(self, correct, fifth_strict, fifth_lax, relative,
+                             relative_of_fifth_up, relative_of_fifth_down,
+                             parallel):
         for det_key in range(24):
             cat = error_type(det_key, correct)
             cat_st = error_type(det_key, correct, strict_fifth=True)
@@ -109,7 +142,7 @@ class TestErrorTypeFunction(unittest.TestCase):
                 self.assertEqual(cat_st_rf, cat)
 
     def test_values(self):
-        self._compare_scores(
+        self._compare_error_types(
             correct=key_label_to_class('c maj'),
             fifth_strict=key_label_to_class('g maj'),
             fifth_lax=key_label_to_class('f maj'),
@@ -119,7 +152,7 @@ class TestErrorTypeFunction(unittest.TestCase):
             parallel=key_label_to_class('c min')
         )
 
-        self._compare_scores(
+        self._compare_error_types(
             correct=key_label_to_class('eb maj'),
             fifth_strict=key_label_to_class('bb maj'),
             fifth_lax=key_label_to_class('ab maj'),
@@ -129,7 +162,7 @@ class TestErrorTypeFunction(unittest.TestCase):
             parallel=key_label_to_class('eb min')
         )
 
-        self._compare_scores(
+        self._compare_error_types(
             correct=key_label_to_class('a min'),
             fifth_strict=key_label_to_class('e min'),
             fifth_lax=key_label_to_class('d min'),
@@ -139,7 +172,7 @@ class TestErrorTypeFunction(unittest.TestCase):
             parallel=key_label_to_class('a maj')
         )
 
-        self._compare_scores(
+        self._compare_error_types(
             correct=key_label_to_class('b min'),
             fifth_strict=key_label_to_class('gb min'),
             fifth_lax=key_label_to_class('e min'),

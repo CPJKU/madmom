@@ -59,6 +59,23 @@ def key_label_to_class(key_label):
     return key_class
 
 
+def key_class_to_root_and_mode(key_class):
+    """
+    Extract the root and mode from a key class id
+    :param key_class: number
+    :type key_class: int
+    :return: root id in terms of semi-tones apart from C  and
+    mode id (0: major; 1: minor)
+    :rtype: tuple(int, int)
+    """
+    if 0 <= key_class <= 23:
+        root = key_class % 12
+        mode = key_class // 12
+    else:
+        raise ValueError("{} is outside the [0; 23] range]".format(key_class))
+    return root, mode
+
+
 def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     """
     Compute the error category for a predicted key compared to
@@ -132,48 +149,36 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     >>> error_type(14, 0, relative_of_fifth=True, strict_fifth=True)
     'other'
     """
-    ann_root = ann_key % 12
-    ann_mode = ann_key // 12
-    det_root = det_key % 12
-    det_mode = det_key // 12
+    (ann_root, ann_mode) = key_class_to_root_and_mode(ann_key)
+    (det_root, det_mode) = key_class_to_root_and_mode(det_key)
     major, minor = 0, 1
 
-    if det_root == ann_root and det_mode == ann_mode:
-        error_type = 'correct'
-    elif det_mode == ann_mode and ((det_root - ann_root) % 12 == 7):
-        error_type = 'fifth'
-    elif not strict_fifth and \
-            (det_mode == ann_mode and ((det_root - ann_root) % 12 == 5)):
-        error_type = 'fifth'
-    elif (ann_mode == major and det_mode != ann_mode and
-          ((det_root - ann_root) % 12 == 9)):
-        error_type = 'relative'
-    elif (ann_mode == minor and det_mode != ann_mode and
-          ((det_root - ann_root) % 12 == 3)):
-        error_type = 'relative'
-    elif relative_of_fifth \
-            and (ann_mode == major and det_mode != ann_mode and
-                 ((det_root - ann_root) % 12 == 4)):
-        error_type = 'relative_of_fifth'
-    elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == major and
-                                    det_mode != ann_mode and
-                                    ((det_root - ann_root) % 12 == 2))):
-        error_type = 'relative_of_fifth'
-    elif relative_of_fifth and \
-            (ann_mode == minor and det_mode != ann_mode and
-             ((det_root - ann_root) % 12 == 10)):
-        error_type = 'relative_of_fifth'
-    elif not strict_fifth and \
-            (relative_of_fifth and (ann_mode == minor and
-                                    det_mode != ann_mode and
-                                    ((det_root - ann_root) % 12 == 8))):
-        error_type = 'relative_of_fifth'
-    elif det_mode != ann_mode and det_root == ann_root:
-        error_type = 'parallel'
-    else:
-        error_type = 'other'
+    root_distance = (det_root - ann_root) % 12
 
+    error_type = 'other'
+
+    if det_mode == ann_mode:
+        # Same modes ...
+        if det_root == ann_root:
+            error_type = 'correct'
+        if root_distance == 7 or (root_distance == 5 and not strict_fifth):
+            error_type = 'fifth'
+    else:
+        # Different modes ...
+        if det_root == ann_root:
+            error_type = 'parallel'
+        if (ann_mode == major and root_distance == 9) or \
+                (ann_mode == minor and root_distance == 3):
+            error_type = 'relative'
+        if relative_of_fifth:
+            if ann_mode == major:
+                if (root_distance == 4) or \
+                        (root_distance == 2 and not strict_fifth):
+                    error_type = 'relative_of_fifth'
+            if ann_mode == minor:
+                if (root_distance == 10) or \
+                        (root_distance == 8 and not strict_fifth):
+                    error_type = 'relative_of_fifth'
     return error_type
 
 
