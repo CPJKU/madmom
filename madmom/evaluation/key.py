@@ -76,6 +76,44 @@ def key_class_to_root_and_mode(key_class):
     return root, mode
 
 
+def _compute_root_distance(det_root, ann_root):
+    return (det_root - ann_root) % 12
+
+
+def _is_correct(det_root, det_mode, ann_root, ann_mode):
+    return det_mode == ann_mode and det_root == ann_root
+
+
+def _is_fifth(det_root, det_mode, ann_root, ann_mode, strict_fifth):
+    root_distance = _compute_root_distance(det_root, ann_root)
+    return det_mode == ann_mode and (root_distance == 7 or
+                                     (root_distance == 5 and not strict_fifth))
+
+
+def _is_parallel(det_root, det_mode, ann_root, ann_mode):
+    return det_root == ann_root and det_mode != ann_mode
+
+
+def _is_relative(det_root, det_mode, ann_root, ann_mode, major, minor):
+    root_distance = _compute_root_distance(det_root, ann_root)
+    ann_mode_is_major = (ann_mode == major and root_distance == 9)
+    ann_mode_is_minor = (ann_mode == minor and root_distance == 3)
+    return det_mode != ann_mode and (ann_mode_is_major or ann_mode_is_minor)
+
+
+def _is_relative_of_fifth(det_root, det_mode, ann_root, ann_mode, major, minor,
+                          strict_fifth, relative_of_fifth):
+    root_distance = _compute_root_distance(det_root, ann_root)
+    ann_mode_is_major = ann_mode == major and ((root_distance == 4) or
+                                               (root_distance == 2 and
+                                                not strict_fifth))
+    ann_mode_is_minor = ann_mode == minor and ((root_distance == 10) or
+                                               (root_distance == 8 and
+                                                not strict_fifth))
+    return ann_mode != det_mode and relative_of_fifth and (ann_mode_is_major or
+                                                           ann_mode_is_minor)
+
+
 def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     """
     Compute the error category for a predicted key compared to
@@ -153,32 +191,19 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     (det_root, det_mode) = key_class_to_root_and_mode(det_key)
     major, minor = 0, 1
 
-    root_distance = (det_root - ann_root) % 12
-
-    error_type = 'other'
-
-    if det_mode == ann_mode:
-        # Same modes ...
-        if det_root == ann_root:
-            error_type = 'correct'
-        if root_distance == 7 or (root_distance == 5 and not strict_fifth):
-            error_type = 'fifth'
+    if _is_correct(det_root, det_mode, ann_root, ann_mode):
+        error_type = 'correct'
+    elif _is_fifth(det_root, det_mode, ann_root, ann_mode, strict_fifth):
+        error_type = 'fifth'
+    elif _is_parallel(det_root, det_mode, ann_root, ann_mode):
+        error_type = 'parallel'
+    elif _is_relative(det_root, det_mode, ann_root, ann_mode, major, minor):
+        error_type = 'relative'
+    elif _is_relative_of_fifth(det_root, det_mode, ann_root, ann_mode, major,
+                               minor, strict_fifth, relative_of_fifth):
+        error_type = 'relative_of_fifth'
     else:
-        # Different modes ...
-        if det_root == ann_root:
-            error_type = 'parallel'
-        if (ann_mode == major and root_distance == 9) or \
-                (ann_mode == minor and root_distance == 3):
-            error_type = 'relative'
-        if relative_of_fifth:
-            if ann_mode == major:
-                if (root_distance == 4) or \
-                        (root_distance == 2 and not strict_fifth):
-                    error_type = 'relative_of_fifth'
-            if ann_mode == minor:
-                if (root_distance == 10) or \
-                        (root_distance == 8 and not strict_fifth):
-                    error_type = 'relative_of_fifth'
+        error_type = 'other'
     return error_type
 
 
