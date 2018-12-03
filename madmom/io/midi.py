@@ -339,7 +339,6 @@ class MIDIFile(mido.MidiFile):
         """
         # lists to collect notes and sustain messages
         notes = []
-        sustain_msgs = []
         # dictionary for storing the last onset time and velocity for each
         # individual note (i.e. same pitch and channel)
         sounding_notes = {}
@@ -353,9 +352,6 @@ class MIDIFile(mido.MidiFile):
         last_msg_time = None
         for msg in self:
             last_msg_time = msg.time
-            # keep track of sustain information
-            if msg.type == 'control_change' and msg.control == 64:
-                sustain_msgs.append(msg)
             # use only note on or note off events
             note_on = msg.type == 'note_on'
             note_off = msg.type == 'note_off'
@@ -378,6 +374,18 @@ class MIDIFile(mido.MidiFile):
                 # remove hash from dict
                 del sounding_notes[note]
 
+        # sort the notes and convert to numpy array
+        return np.asarray(sorted(notes), dtype=np.float)
+
+    @property
+    def sustain_msgs(self):
+        sustain_msgs = []
+        for msg in self:
+            last_msg_time = msg.time
+            # keep track of sustain information
+            if msg.type == 'control_change' and msg.control == 64:
+                sustain_msgs.append(msg)
+
         # if the last sustain message is 'sustain on', append a fake sustain
         # message to end sustain with the last note
         if sustain_msgs and sustain_msgs[-1].value >= 64:
@@ -385,9 +393,12 @@ class MIDIFile(mido.MidiFile):
             msg.time = last_msg_time
             msg.value = 0
             sustain_msgs.append(msg)
+        return sustain_msgs
 
-        # sort the notes and convert to numpy array
-        notes = np.asarray(sorted(notes), dtype=np.float)
+    @property
+    def sustained_notes(self):
+        notes = self.notes
+        sustain_msgs = self.sustain_msgs
 
         # apply sustain information
         # keep track of sustain start times (channel = key)
