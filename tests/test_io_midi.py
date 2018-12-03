@@ -30,7 +30,7 @@ class TestMIDIFileClass(unittest.TestCase):
     def test_recreate_midi(self):
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         # create a MIDI file from the notes
-        midi = MIDIFile.from_notes(notes)
+        midi = MIDIFile.from_notes(notes, tempo=120)
         self.assertTrue(np.allclose(notes, midi.notes[:, :4], atol=1e-3))
         # write to a temporary file
         midi.save(tmp_file)
@@ -43,6 +43,15 @@ class TestMIDIFileClass(unittest.TestCase):
         midi.unit = 'b'
         notes = np.loadtxt(pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats'))
         self.assertTrue(np.allclose(notes, midi.notes[:, :4]))
+
+    def test_notes_in_ticks(self):
+        # read a MIDI file
+        midi = MIDIFile(pj(ANNOTATIONS_PATH, 'piano_sample.mid'))
+        midi.unit = 't'
+        note_times = [0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160,
+                      2400, 2640, 2880, 3120, 3360, 3600, 3840, 3840, 3840,
+                      4320, 4800, 4800, 5280]
+        self.assertTrue(np.allclose(note_times, midi.notes[:, 0]))
 
     def test_multitrack(self):
         # read a multi-track MIDI file
