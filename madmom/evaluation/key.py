@@ -114,14 +114,20 @@ def _is_relative_of_fifth(det_key, ann_key, major, minor, strict_fifth,
     det_root, det_mode = key_class_to_root_and_mode(det_key)
     ann_root, ann_mode = key_class_to_root_and_mode(ann_key)
     root_distance = _compute_root_distance(det_root, ann_root)
+    distance_criterion = _compute_relative_of_fifth_distance_criterion(
+        root_distance, ann_mode, strict_fifth, minor, major)
+    return ann_mode != det_mode and relative_of_fifth and distance_criterion
+
+
+def _compute_relative_of_fifth_distance_criterion(root_distance, ann_mode,
+                                                  strict_fifth, minor, major):
     ann_mode_is_major = ann_mode == major and ((root_distance == 4) or
                                                (root_distance == 2 and
                                                 not strict_fifth))
     ann_mode_is_minor = ann_mode == minor and ((root_distance == 10) or
                                                (root_distance == 8 and
                                                 not strict_fifth))
-    return ann_mode != det_mode and relative_of_fifth and (ann_mode_is_major or
-                                                           ann_mode_is_minor)
+    return ann_mode_is_major or ann_mode_is_minor
 
 
 def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
