@@ -760,6 +760,11 @@ class BufferProcessor(Processor):
         self.init = init
         self.data = init
 
+    @property
+    def buffer_length(self):
+        """Length of the buffer (time steps)."""
+        return self.buffer_size[0]
+
     def reset(self, init=None):
         """
         Reset BufferProcessor to its initial state.
@@ -786,6 +791,12 @@ class BufferProcessor(Processor):
         numpy array or subclass thereof
             Data with buffered context.
 
+        Notes
+        -----
+        If the length of data is the same as the buffer's length, the data of
+        the buffer is completely overwritten by new data. If it exceeds the
+        length, only the latest 'buffer_length' items of data are used.
+
         """
         # expected minimum number of dimensions
         ndmin = len(self.buffer_size)
@@ -794,9 +805,14 @@ class BufferProcessor(Processor):
             data = np.array(data, copy=False, subok=True, ndmin=ndmin)
         # length of the data
         data_length = len(data)
-        # remove `data_length` from buffer at the beginning and append new data
-        self.data = np.roll(self.data, -data_length, axis=0)
-        self.data[-data_length:] = data
+        # if length of data exceeds buffer length simply replace buffer data
+        if data_length >= self.buffer_length:
+            self.data = data[-self.buffer_length:]
+        else:
+            # roll buffer by `data_length`, i.e. move data to the 'left'
+            self.data = np.roll(self.data, -data_length, axis=0)
+            # overwrite 'right' part with new data
+            self.data[-data_length:] = data
         # return the complete buffer
         return self.data
 
