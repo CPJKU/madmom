@@ -4,6 +4,10 @@ Release Notes
 Version 0.17.dev0
 -----------------
 
+Bug fixes:
+
+* `BufferProcessor` can handle data longer than buffer length (#398)
+
 Version 0.16.1 (release date: 2017-11-14)
 -----------------------------------------
 
