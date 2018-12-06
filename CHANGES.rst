@@ -4,6 +4,10 @@ Release Notes
 Version 0.17.dev0
 -----------------
 
+New features:
+
+* New `cepstrogram` module, includes `MFCC` data class and processors (#269)
+
 Bug fixes:
 
 * `BufferProcessor` can handle data longer than buffer length (#398)
