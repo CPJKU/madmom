@@ -7,19 +7,19 @@ This file contains tests for the madmom.audio.signal module.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sys
-import tempfile
 import unittest
 from os.path import join as pj
 
 from madmom.io.audio import *
 from . import AUDIO_PATH, DATA_PATH
-from .test_audio_comb_filters import sig_1d, sig_2d
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22k = pj(AUDIO_PATH, 'sample_22050.wav')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
+flac_file = pj(AUDIO_PATH, 'stereo_sample.flac')
+rg_flac_file = pj(AUDIO_PATH, 'stereo_sample_rg.flac')
+loud_rg_flac_file = pj(AUDIO_PATH, 'stereo_chirp_rg.flac')
+
 tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
 
@@ -71,7 +71,7 @@ class TestLoadWaveFileFunction(unittest.TestCase):
 
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
+        self.assertTrue(signal.shape == (182919,))
 
     def test_upmix(self):
         signal, sample_rate = load_wave_file(sample_file, num_channels=2)
@@ -216,7 +216,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
                                     [35, 35, 31, 33, 33]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
+        self.assertTrue(signal.shape == (182919,))
         # test ffmpeg loader
         signal, sample_rate = load_audio_file(stereo_sample_file,
                                               num_channels=1)
@@ -263,6 +263,37 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # avconv results in a different length of 91450 samples
         self.assertTrue(np.allclose(len(signal), 91460, atol=10))
 
+    def test_replaygain_disabled(self):
+        original = load_signal(flac_file)
+        signal = load_signal(rg_flac_file, rg_mode=None)
+        self.assertEqual(signal.spl(), original.spl())
+
+    def test_replaygain_track(self):
+        original = load_signal(flac_file)
+        data, sample_rate = load_audio_file(rg_flac_file, rg_mode='track')
+        signal = Signal(data)
+        self.assertEqual(sample_rate, 44100)
+        # The FLAC file has an RG track gain of +8.39
+        self.assertAlmostEqual(signal.spl() - original.spl(), 8.39, places=3)
+
+    def test_replaygain_album(self):
+        original = load_signal(flac_file)
+        signal = load_signal(rg_flac_file, rg_mode='album')
+        # The FLAC file has an RG album gain of -8.12 (the other track is loud)
+        self.assertAlmostEqual(signal.spl() - original.spl(), -8.12, places=3)
+
+    def test_replaygain_preamp(self):
+        signal = load_signal(loud_rg_flac_file)
+        base_spl = signal.spl()
+        rg_sig = load_signal(loud_rg_flac_file, rg_mode='track')
+        # Remember, ffmpeg will limit gain to avoid clipping,
+        # so the SPL difference is non-obvious here.
+        self.assertTrue(base_spl > rg_sig.spl())
+        # Preamp on a file with track RG at -12.44 should happily go to -6.44dB
+        pre_rg_sig = load_signal(loud_rg_flac_file,
+                                 rg_mode='track', rg_preamp_db=+6.0)
+        self.assertAlmostEqual(rg_sig.spl() + 6.0, pre_rg_sig.spl(), places=3)
+
     def test_errors(self):
         # file not found
         with self.assertRaises(IOError):
@@ -270,6 +301,10 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # not an audio file
         with self.assertRaises(LoadAudioFileError):
             load_audio_file(pj(DATA_PATH, 'README'))
+
+
+def load_signal(fn, *args, **kwargs):
+    return Signal(load_audio_file(fn, *args, **kwargs)[0])
 
 
 # clean up
