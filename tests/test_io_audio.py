@@ -319,8 +319,12 @@ class TestDecodeToDisk(unittest.TestCase):
         outfile = decode_to_disk(loud_rg_flac_file, tmp_suffix='.raw')
         outfile_rg = decode_to_disk(loud_rg_flac_file, tmp_suffix='.raw',
                                     replaygain_mode='track')
-        orig_spl = load_signal(outfile).spl()
-        adjusted_spl = load_signal(outfile_rg).spl()
+        with open(outfile, 'rb') as f:
+            data = np.frombuffer(f.read(), dtype=np.int16).reshape((-1, 2))
+            orig_spl = Signal(data).spl()
+        with open(outfile_rg, 'rb') as f:
+            data = np.frombuffer(f.read(), dtype=np.int16).reshape((-1, 2))
+            adjusted_spl = Signal(data).spl()
         self.assertGreater(orig_spl, adjusted_spl)
 
 
