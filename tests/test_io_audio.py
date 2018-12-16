@@ -265,12 +265,13 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_replaygain_disabled(self):
         original = load_signal(flac_file)
-        signal = load_signal(rg_flac_file, rg_mode=None)
+        signal = load_signal(rg_flac_file, replaygain_mode=None)
         self.assertEqual(signal.spl(), original.spl())
 
     def test_replaygain_track(self):
         original = load_signal(flac_file)
-        data, sample_rate = load_audio_file(rg_flac_file, rg_mode='track')
+        data, sample_rate = load_audio_file(rg_flac_file,
+                                            replaygain_mode='track')
         signal = Signal(data)
         self.assertEqual(sample_rate, 44100)
         # The FLAC file has an RG track gain of +8.39
@@ -278,20 +279,21 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_replaygain_album(self):
         original = load_signal(flac_file)
-        signal = load_signal(rg_flac_file, rg_mode='album')
+        signal = load_signal(rg_flac_file, replaygain_mode='album')
         # The FLAC file has an RG album gain of -8.12 (the other track is loud)
         self.assertAlmostEqual(signal.spl() - original.spl(), -8.12, places=3)
 
     def test_replaygain_preamp(self):
         signal = load_signal(loud_rg_flac_file)
         base_spl = signal.spl()
-        rg_sig = load_signal(loud_rg_flac_file, rg_mode='track')
+        rg_sig = load_signal(loud_rg_flac_file, replaygain_mode='track')
         # Remember, ffmpeg will limit gain to avoid clipping,
         # so the SPL difference is non-obvious here.
         self.assertTrue(base_spl > rg_sig.spl())
         # Preamp on a file with track RG at -12.44 should happily go to -6.44dB
         pre_rg_sig = load_signal(loud_rg_flac_file,
-                                 rg_mode='track', rg_preamp_db=+6.0)
+                                 replaygain_mode='track',
+                                 replaygain_preamp=+6.0)
         self.assertAlmostEqual(rg_sig.spl() + 6.0, pre_rg_sig.spl(), places=3)
 
     def test_errors(self):
