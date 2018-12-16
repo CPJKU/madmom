@@ -158,7 +158,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
 
 def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, max_len=None, outfile=None, tmp_dir=None,
-                   tmp_suffix=None, cmd='ffmpeg'):
+                   tmp_suffix=None, cmd='ffmpeg',
+                   replaygain_mode=None, replaygain_preamp=0.0):
     """
     Decode the given audio file to another file.
 
@@ -189,6 +190,10 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         ".pcm" (including the dot).
     cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -217,7 +222,9 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     # call ffmpeg (throws exception on error)
     try:
         call = _ffmpeg_call(infile, outfile, fmt, sample_rate, num_channels,
-                            skip, max_len, cmd)
+                            skip, max_len, cmd,
+                            replaygain_mode=replaygain_mode,
+                            replaygain_preamp=replaygain_preamp)
         subprocess.check_call(call)
     except Exception:
         if delete_on_fail:
