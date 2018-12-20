@@ -70,7 +70,8 @@ def _ffmpeg_fmt(dtype):
 
 
 def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
-                 skip=None, max_len=None, cmd='ffmpeg'):
+                 skip=None, max_len=None, cmd='ffmpeg',
+                 replaygain_mode=None, replaygain_preamp=0.0):
     """
     Create a sequence of strings indicating ffmpeg how to be called as well as
     the parameters necessary to decode the given input (file) to the given
@@ -96,6 +97,10 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         Maximum length in seconds to decode.
     cmd : {'ffmpeg','avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -133,6 +138,10 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
     if infile == "pipe:0":
         call.extend(["-f", in_fmt, "-ac", in_ac, "-ar", in_ar])
     call.extend(["-i", infile])
+    if replaygain_mode:
+        audio_filter = ("volume=replaygain=%s:replaygain_preamp=%.1f"
+                        % (replaygain_mode, replaygain_preamp))
+        call.extend(["-af", audio_filter])
     # output options
     call.extend(["-f", str(fmt)])
     if max_len:
@@ -149,7 +158,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
 
 def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                    skip=None, max_len=None, outfile=None, tmp_dir=None,
-                   tmp_suffix=None, cmd='ffmpeg'):
+                   tmp_suffix=None, cmd='ffmpeg',
+                   replaygain_mode=None, replaygain_preamp=0.0):
     """
     Decode the given audio file to another file.
 
@@ -180,6 +190,10 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         ".pcm" (including the dot).
     cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -208,7 +222,9 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     # call ffmpeg (throws exception on error)
     try:
         call = _ffmpeg_call(infile, outfile, fmt, sample_rate, num_channels,
-                            skip, max_len, cmd)
+                            skip, max_len, cmd,
+                            replaygain_mode=replaygain_mode,
+                            replaygain_preamp=replaygain_preamp)
         subprocess.check_call(call)
     except Exception:
         if delete_on_fail:
@@ -218,7 +234,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
 
 def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                   skip=None, max_len=None, buf_size=-1, cmd='ffmpeg'):
+                   skip=None, max_len=None, buf_size=-1, cmd='ffmpeg',
+                   replaygain_mode=None, replaygain_preamp=0.0):
     """
     Decode the given audio and return a file-like object for reading the
     samples, as well as a process object.
@@ -246,6 +263,10 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
         - '1' means line-buffered, any other value is the buffer size in bytes.
     cmd : {'ffmpeg','avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -269,7 +290,9 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     #       explicitly, but this is only available in Python 2.6+. proc.wait
     #       needs to be called in any case.
     call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate, num_channels, skip,
-                        max_len, cmd)
+                        max_len, cmd,
+                        replaygain_mode=replaygain_mode,
+                        replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
     if isinstance(infile, Signal):
         proc = subprocess.Popen(call, stdin=subprocess.PIPE,
@@ -280,7 +303,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
 
 def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                     skip=None, max_len=None, cmd='ffmpeg'):
+                     skip=None, max_len=None, cmd='ffmpeg',
+                     replaygain_mode=None, replaygain_preamp=0.0):
     """
     Decode the given audio and return it as a binary string representation.
 
@@ -302,6 +326,10 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Maximum length in seconds to decode.
     cmd : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -316,7 +344,9 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
     # prepare decoding to pipe
     _, proc = decode_to_pipe(infile, fmt=fmt, sample_rate=sample_rate,
                              num_channels=num_channels, skip=skip,
-                             max_len=max_len, cmd=cmd)
+                             max_len=max_len, cmd=cmd,
+                             replaygain_mode=replaygain_mode,
+                             replaygain_preamp=replaygain_preamp)
     # decode the input to memory
     if isinstance(infile, Signal):
         # Note: np.getbuffer was removed in Python 3, but Python 2 memoryviews
@@ -374,7 +404,8 @@ def get_file_info(infile, cmd='ffprobe'):
 
 def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
                      start=None, stop=None, dtype=None,
-                     cmd_decode='ffmpeg', cmd_probe='ffprobe'):
+                     cmd_decode='ffmpeg', cmd_probe='ffprobe',
+                     replaygain_mode=None, replaygain_preamp=0.0):
     """
     Load the audio data from the given file and return it as a numpy array.
 
@@ -404,6 +435,10 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
     cmd_probe : {'ffprobe', 'avprobe'}, optional
         Probing command (defaults to ffprobe, alternatively supports avprobe).
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -429,7 +464,10 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
                                             skip=start, max_len=max_len,
-                                            cmd=cmd_decode),
+                                            cmd=cmd_decode,
+                                            replaygain_mode=replaygain_mode,
+                                            replaygain_preamp=replaygain_preamp
+                                            ),
                            dtype=dtype)
     # get the needed information from the file
     if sample_rate is None or num_channels is None:
@@ -549,7 +587,8 @@ def write_wave_file(signal, filename, sample_rate=None):
 
 # function for automatically determining how to open audio files
 def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
-                    stop=None, dtype=None):
+                    stop=None, dtype=None,
+                    replaygain_mode=None, replaygain_preamp=0.0):
     """
     Load the audio data from the given file and return it as a numpy array.
     This tries load_wave_file() load_ffmpeg_file() (for ffmpeg and avconv).
@@ -572,6 +611,10 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
         The data is returned with the given dtype. If 'None', it is returned
         with its original dtype, otherwise the signal gets rescaled. Integer
         dtypes use the complete value range, float dtypes the range [-1, +1].
+    replaygain_mode : {None, 'track','album'}, optional
+        Specify the ReplayGain volume-levelling mode (None to disable).
+    replaygain_preamp : float, optional
+        ReplayGain preamp volume change level (in dB).
 
     Returns
     -------
@@ -609,7 +652,9 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     try:
         return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                 num_channels=num_channels, start=start,
-                                stop=stop, dtype=dtype)
+                                stop=stop, dtype=dtype,
+                                replaygain_mode=replaygain_mode,
+                                replaygain_preamp=replaygain_preamp)
     except OSError as e:
         # if it's not a file not found error, raise it!
         if e.errno != errno.ENOENT:
@@ -620,7 +665,9 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
             return load_ffmpeg_file(filename, sample_rate=sample_rate,
                                     num_channels=num_channels, start=start,
                                     stop=stop, dtype=dtype,
-                                    cmd_decode='avconv', cmd_probe='avprobe')
+                                    cmd_decode='avconv', cmd_probe='avprobe',
+                                    replaygain_mode=replaygain_mode,
+                                    replaygain_preamp=replaygain_preamp)
         except OSError as e:
             if e.errno == errno.ENOENT:
                 error += " Try installing ffmpeg (or avconv on Ubuntu Linux)."

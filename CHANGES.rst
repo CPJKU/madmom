@@ -4,6 +4,10 @@ Release Notes
 Version 0.17.dev0
 -----------------
 
+New features:
+
+* Volume changes according to `ReplayGain` tags can be applied (#400)
+
 Bug fixes:
 
 * `BufferProcessor` can handle data longer than buffer length (#398)
