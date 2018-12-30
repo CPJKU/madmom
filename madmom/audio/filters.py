@@ -871,22 +871,84 @@ class Filterbank(np.ndarray):
         return self.bin_frequencies[np.nonzero(self)[0][-1]]
 
 
-class FilterbankProcessor(Processor, Filterbank):
+class FilterbankProcessor(Processor):
     """
     Generic filterbank processor class.
 
-    A FilterbankProcessor is a simple wrapper for Filterbank which adds a
-    process() method.
-
-    See Also
-    --------
-    :class:`Filterbank`
+    filterbank : str or :class:`.audio.filters.Filterbank`
+        Filterbank class (name)
+    bin_frequencies : numpy array, shape (num_bins, ), optional
+        Frequencies of the bins (of the spectrogram to be filtered) [Hz].
+        If 'None', `sample_rate` and `frame_size` or `fft_size` must be given.
+    num_bands : int, optional
+        Number of filter bands (per octave, depending on the type of the
+        `filterbank`).
+    fmin : float, optional
+        Minimum frequency of the filterbank [Hz].
+    fmax : float, optional
+        Maximum frequency of the filterbank [Hz].
+    fref : float, optional
+        Tuning frequency of the filterbank [Hz].
+    norm_filters : bool, optional
+        Normalize the filter bands of the filterbank to area 1.
+    unique_filters : bool, optional
+        Indicate if the filterbank should contain only unique filters, i.e.
+        remove duplicate filters resulting from insufficient resolution at
+        low frequencies.
+    kwargs : dict, optional
+        If no :class:`Spectrogram` instance was given, one is instantiated
+        with these additional keyword arguments.
 
     """
-    # Note: this class is only for consistency of the naming scheme. Basically
-    #       the process()
+    # pylint: disable=super-on-old-class
+    # pylint: disable=super-init-not-called
+    # pylint: disable=attribute-defined-outside-init
 
-    def process(self, data):
+    def __init__(self, filterbank, bin_frequencies=None, num_bands=None,
+                 fmin=None, fmax=None, fref=None, norm_filters=None,
+                 unique_filters=None, **kwargs):
+        # pylint: disable=unused-argument
+        # determine the frequencies of the (spectrogram) bins if not given
+        if bin_frequencies is None:
+            from .stft import fft_frequencies
+            # if bin_frequencies are not given, infer them from sample_rate
+            # and either fft_size or frame_size
+            num_bins = kwargs.get('fft_size', kwargs.get('frame_size'))
+            if num_bins is None:
+                raise ValueError("either 'fft_size' or 'frame_size' must be "
+                                 "given if 'bin_frequencies' is None.")
+            num_bins = num_bins >> 1
+            if kwargs.get('include_nyquist'):
+                num_bins += 1
+            sample_rate = kwargs.get('sample_rate')
+            if sample_rate is None:
+                raise ValueError("'sample_rate' must be given if "
+                                 "'bin_frequencies' is None.")
+            bin_frequencies = fft_frequencies(num_bins, sample_rate)
+        # instantiate a Filterbank
+        from ..utils import string_types
+        if isinstance(filterbank, string_types):
+            raise NotImplementedError('str filterbank type not implemented')
+        # add non-None values to the passed kwargs
+        args = {}
+        if num_bands is not None:
+            args['num_bands'] = num_bands
+        if fmin is not None:
+            args['fmin'] = fmin
+        if fmax is not None:
+            args['fmax'] = fmax
+        if fref is not None:
+            args['fref'] = fref
+        if norm_filters is not None:
+            args['norm_filters'] = norm_filters
+        if unique_filters is not None:
+            args['unique_filters'] = unique_filters
+        if num_bands is not None:
+            args['num_bands'] = num_bands
+        # create and save the filterbank
+        self.filterbank = filterbank(bin_frequencies, **args)
+
+    def process(self, data, **kwargs):
         """
         Filter the given data with the Filterbank.
 
@@ -899,14 +961,8 @@ class FilterbankProcessor(Processor, Filterbank):
         filt_data : numpy array
             Filtered data.
 
-        Notes
-        -----
-        This method makes the :class:`Filterbank` act as a :class:`Processor`.
-
         """
-        # Note: we do not inherit from Processor, since instantiation gets
-        #       messed up
-        return np.dot(data, self)
+        return np.dot(data, self.filterbank)
 
     @staticmethod
     def add_arguments(parser, filterbank=None, num_bands=None,

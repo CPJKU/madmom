@@ -837,12 +837,22 @@ class TestFilterbankClass(unittest.TestCase):
 class TestFilterbankProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = FilterbankProcessor.from_filters(
-            TestFilterbankClass.triang_filters, np.arange(100))
+        self.processor = FilterbankProcessor(
+            filterbank=LogarithmicFilterbank,
+            bin_frequencies=np.arange(20) * 10)
+
+    def test_filterbank(self):
+        self.assertTrue(np.allclose(
+            np.nonzero(self.processor.filterbank),
+            (np.arange(4, 19), np.arange(15))))
+        self.assertTrue(np.sum(self.processor.filterbank[:4]) == 0)
+        self.assertTrue(np.allclose(self.processor.filterbank[4:19],
+                                    np.diag(np.full(15, 1))))
+        self.assertTrue(np.sum(self.processor.filterbank[19]) == 0)
 
     def test_process(self):
-        result = self.processor.process(np.zeros((20, 100)))
-        self.assertTrue(np.allclose(result, np.zeros((20, 4))))
+        result = self.processor.process(np.zeros((100, 20)))
+        self.assertTrue(np.allclose(result, np.zeros((100, 15))))
 
 
 class TestMelFilterbankClass(unittest.TestCase):

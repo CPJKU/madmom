@@ -960,7 +960,7 @@ class SpectrogramDifference(Spectrogram):
                 diff_frames=DIFF_FRAMES, diff_max_bins=DIFF_MAX_BINS,
                 positive_diffs=POSITIVE_DIFFS, keep_dims=True, **kwargs):
         # instantiate a Spectrogram if needed
-        if not isinstance(spectrogram, Spectrogram):
+        if not isinstance(spectrogram, np.ndarray):
             # try to instantiate a Spectrogram object
             spectrogram = Spectrogram(spectrogram, **kwargs)
 
