@@ -19,7 +19,7 @@ from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
                           SequentialProcessor)
 
 
-# classes for tracking (down-)beats with RNNs
+# classes for tracking beats with RNNs
 class RNNBeatProcessor(SequentialProcessor):
     """
     Processor to get a beat activation function from multiple RNNs.
@@ -72,36 +72,44 @@ class RNNBeatProcessor(SequentialProcessor):
         # pylint: disable=unused-argument
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
-        from ..audio.spectrogram import (
-            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
-            SpectrogramDifferenceProcessor)
+        from ..audio.filters import FilterbankProcessor, LogarithmicFilterbank
+        from ..audio.spectrogram import (ScalingProcessor,
+                                         SpectrogramDifferenceProcessor)
         from ..ml.nn import NeuralNetworkEnsemble
         from ..models import BEATS_LSTM, BEATS_BLSTM
-        # choose the appropriate models and set frame sizes accordingly
+        # choose the appropriate models and set parameters
         if online:
             if nn_files is None:
                 nn_files = BEATS_LSTM
             frame_sizes = [2048]
+            diff_frames = [1]
             num_bands = 12
         else:
             if nn_files is None:
                 nn_files = BEATS_BLSTM
             frame_sizes = [1024, 2048, 4096]
+            diff_frames = [1, 1, 2]
             num_bands = 6
+        kwargs['sample_rate'] = 44100
+        kwargs['num_channels'] = 1
         # define pre-processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        sig = SignalProcessor(**kwargs)
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
-        for frame_size in frame_sizes:
+        for frame_size, diff_frame in zip(frame_sizes, diff_frames):
             frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
             stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-            filt = FilteredSpectrogramProcessor(num_bands=num_bands, fmin=30,
-                                                fmax=17000, norm_filters=True)
-            spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
-            diff = SpectrogramDifferenceProcessor(
-                diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
+            filt = FilterbankProcessor(LogarithmicFilterbank,
+                                       num_bands=num_bands, fmin=30,
+                                       fmax=17000, norm_filters=True,
+                                       frame_size=frame_size, **kwargs)
+            log = ScalingProcessor(scaling_fn=np.log10, mul=1, add=1)
+            diff = SpectrogramDifferenceProcessor(diff_frames=diff_frame,
+                                                  positive_diffs=True,
+                                                  stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, stft, filt, spec, diff)))
+            multi.append(SequentialProcessor((frames, stft, np.abs, filt, log,
+                                              diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
         # process the pre-processed signal with a NN ensemble and the given

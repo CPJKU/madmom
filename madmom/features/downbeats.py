@@ -63,28 +63,36 @@ class RNNDownBeatProcessor(SequentialProcessor):
         from functools import partial
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
-        from ..audio.spectrogram import (
-            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor,
-            SpectrogramDifferenceProcessor)
+        from ..audio.filters import FilterbankProcessor, LogarithmicFilterbank
+        from ..audio.spectrogram import (ScalingProcessor,
+                                         SpectrogramDifferenceProcessor)
         from ..ml.nn import NeuralNetworkEnsemble
         from ..models import DOWNBEATS_BLSTM
-
+        # set parameters
+        kwargs['sample_rate'] = 44100
+        kwargs['num_channels'] = 1
         # define pre-processing chain
-        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        sig = SignalProcessor(**kwargs)
         # process the multi-resolution spec & diff in parallel
         multi = ParallelProcessor([])
         frame_sizes = [1024, 2048, 4096]
+        diff_frames = [1, 1, 2]
         num_bands = [3, 6, 12]
-        for frame_size, num_bands in zip(frame_sizes, num_bands):
+        for frame_size, num_bands, diff_frame in \
+                zip(frame_sizes, num_bands, diff_frames):
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
             stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-            filt = FilteredSpectrogramProcessor(
-                num_bands=num_bands, fmin=30, fmax=17000, norm_filters=True)
-            spec = LogarithmicSpectrogramProcessor(mul=1, add=1)
-            diff = SpectrogramDifferenceProcessor(
-                diff_ratio=0.5, positive_diffs=True, stack_diffs=np.hstack)
+            filt = FilterbankProcessor(LogarithmicFilterbank,
+                                       num_bands=num_bands, fmin=30,
+                                       fmax=17000, norm_filters=True,
+                                       frame_size=frame_size, **kwargs)
+            log = ScalingProcessor(scaling_fn=np.log10, mul=1, add=1)
+            diff = SpectrogramDifferenceProcessor(diff_frames=diff_frame,
+                                                  positive_diffs=True,
+                                                  stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, stft, filt, spec, diff)))
+            multi.append(SequentialProcessor((frames, stft, np.abs, filt, log,
+                                              diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
         # process the pre-processed signal with a NN ensemble
