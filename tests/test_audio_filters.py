@@ -854,6 +854,25 @@ class TestFilterbankProcessorClass(unittest.TestCase):
         result = self.processor.process(np.zeros((100, 20)))
         self.assertTrue(np.allclose(result, np.zeros((100, 15))))
 
+    def test_literal_types(self):
+        fb = FilterbankProcessor('Mel', bin_frequencies=np.arange(5),
+                                 fmin=0, fmax=4)
+        self.assertTrue(isinstance(fb.filterbank, MelFilterbank))
+        self.assertTrue(np.allclose(np.nonzero(fb.filterbank),
+                                    ([1, 2, 3], [0, 1, 2])))
+        fb = FilterbankProcessor('bark', bin_frequencies=np.arange(15000))
+        self.assertTrue(isinstance(fb.filterbank, BarkFilterbank))
+        fb = FilterbankProcessor('LOGARITHMIC', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        fb = FilterbankProcessor('semitone', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        self.assertEqual(fb.filterbank.num_bands, 48)
+        fb = FilterbankProcessor('quartertone', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        self.assertEqual(fb.filterbank.num_bands, 96)
+        with self.assertRaises(ValueError):
+            fb = FilterbankProcessor('foo', bin_frequencies=np.arange(500))
+
 
 class TestMelFilterbankClass(unittest.TestCase):
 

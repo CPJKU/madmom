@@ -876,7 +876,8 @@ class FilterbankProcessor(Processor):
     Generic filterbank processor class.
 
     filterbank : str or :class:`.audio.filters.Filterbank`
-        Filterbank class (name)
+        Filterbank class or string indicating the type of the filterbank,
+        possible values: Mel, Bark, logarithmic, semitone, quartertone
     bin_frequencies : numpy array, shape (num_bins, ), optional
         Frequencies of the bins (of the spectrogram to be filtered) [Hz].
         If 'None', `sample_rate` and `frame_size` or `fft_size` must be given.
@@ -928,7 +929,20 @@ class FilterbankProcessor(Processor):
         # instantiate a Filterbank
         from ..utils import string_types
         if isinstance(filterbank, string_types):
-            raise NotImplementedError('str filterbank type not implemented')
+            if filterbank.lower() == 'mel':
+                filterbank = MelFilterbank
+            elif filterbank.lower() == 'bark':
+                filterbank = BarkFilterbank
+            elif filterbank.lower() == 'logarithmic':
+                filterbank = LogarithmicFilterbank
+            elif filterbank.lower() == 'semitone':
+                filterbank = LogarithmicFilterbank
+                num_bands = 12
+            elif filterbank.lower() == 'quartertone':
+                filterbank = LogarithmicFilterbank
+                num_bands = 24
+            else:
+                raise ValueError('unknown filterbank type: %s.' % filterbank)
         # add non-None values to the passed kwargs
         args = {}
         if num_bands is not None:
