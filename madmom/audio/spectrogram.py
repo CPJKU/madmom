@@ -475,6 +475,52 @@ MUL = 1.
 ADD = 1.
 
 
+class ScalingProcessor(Processor):
+    """
+    Scaling Processor class.
+
+    Parameters
+    ----------
+    scaling_fn : numpy ufunc, optional
+        Scaling function to apply to data. Must support the 'out' keyword.
+    mul : float, optional
+        Multiply data with this factor before scaling it.
+    add : float, optional
+        Add this value to data before scaling it.
+
+    """
+
+    def __init__(self, scaling_fn=np.log, mul=None, add=np.spacing(1),
+                 **kwargs):
+        # pylint: disable=unused-argument
+        self.scaling_fn = scaling_fn
+        self.mul = mul
+        self.add = add
+
+    def process(self, data, **kwargs):
+        """
+        Perform scaling of a data.
+
+        Parameters
+        ----------
+        data : numpy array
+            Data to be scaled.
+
+        Returns
+        -------
+        numpy array
+            Scaled data.
+
+        """
+        if self.mul is not None:
+            data *= self.mul
+        if self.add is not None:
+            data += self.add
+        if self.scaling_fn is not None:
+            self.scaling_fn(data, out=data)
+        return data
+
+
 class LogarithmicSpectrogram(Spectrogram):
     """
     LogarithmicSpectrogram class.
