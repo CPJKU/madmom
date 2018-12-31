@@ -73,6 +73,7 @@ def main():
     args.num_channels = 1
     args.onset_method = 'superflux'
     args.filterbank = LogarithmicFilterbank
+    args.complex = False
 
     # print arguments
     if args.verbose:

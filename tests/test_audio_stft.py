@@ -101,6 +101,12 @@ class TestStftFunction(unittest.TestCase):
         res = [3. + 0.j, 4. + 0.j, 6. + 0.j]
         self.assertTrue(np.allclose(result[:, 0], res))
 
+    def test_complex(self):
+        result = stft(sig_2d, window=None, fft_size=25, complex=False)
+        self.assertTrue(result.dtype == np.float32)
+        self.assertTrue(result.shape == (3, 12))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+
 
 class TestPhaseFunction(unittest.TestCase):
 

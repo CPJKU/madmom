@@ -90,7 +90,7 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
         # spectrogram computation
         sig = SignalProcessor(**kwargs)
         frames = FramedSignalProcessor(fps=5, **kwargs)
-        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+        stft = ShortTimeFourierTransformProcessor(complex=False)
         filt = FilterbankProcessor(LogarithmicFilterbank, num_bands=24,
                                    fmin=65, fmax=2100, unique_filters=True,
                                    **kwargs)
@@ -100,5 +100,5 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
         nn = NeuralNetworkEnsemble.load(nn_files)
         # create processing pipeline
         super(CNNKeyRecognitionProcessor, self).__init__([
-            sig, frames, stft, np.abs, filt, log, nn, add_axis, softmax
+            sig, frames, stft, filt, log, nn, add_axis, softmax
         ])

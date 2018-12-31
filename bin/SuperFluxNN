@@ -83,6 +83,7 @@ def main():
     args.fps = 100
     args.onset_method = 'superflux'
     args.filterbank = LogarithmicFilterbank
+    args.complex = False
 
     # print arguments
     if args.verbose:

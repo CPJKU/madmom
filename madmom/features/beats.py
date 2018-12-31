@@ -98,7 +98,7 @@ class RNNBeatProcessor(SequentialProcessor):
         multi = ParallelProcessor([])
         for frame_size, diff_frame in zip(frame_sizes, diff_frames):
             frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
-            stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+            stft = ShortTimeFourierTransformProcessor(complex=False)
             filt = FilterbankProcessor(LogarithmicFilterbank,
                                        num_bands=num_bands, fmin=30,
                                        fmax=17000, norm_filters=True,
@@ -108,8 +108,7 @@ class RNNBeatProcessor(SequentialProcessor):
                                                   positive_diffs=True,
                                                   stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, stft, np.abs, filt, log,
-                                              diff)))
+            multi.append(SequentialProcessor((frames, stft, filt, log, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
         # process the pre-processed signal with a NN ensemble and the given

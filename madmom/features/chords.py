@@ -200,7 +200,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
         # spectrogram computation
         sig = SignalProcessor(**kwargs)
         frames = FramedSignalProcessor(**kwargs)
-        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+        stft = ShortTimeFourierTransformProcessor(complex=False)
         filt = FilterbankProcessor(LogarithmicFilterbank, num_bands=24,
                                    fmin=60, fmax=2600, unique_filters=True,
                                    **kwargs)
@@ -212,7 +212,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
         avg = _cnncfp_avg
         # create processing pipeline
         super(CNNChordFeatureProcessor, self).__init__([
-            sig, frames, stft, np.abs, filt, log, pad, nn, superframes, avg
+            sig, frames, stft, filt, log, pad, nn, superframes, avg
         ])
 
 

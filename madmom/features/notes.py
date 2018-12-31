@@ -65,7 +65,7 @@ class RNNPianoNoteProcessor(SequentialProcessor):
         multi = ParallelProcessor([])
         for frame_size, diff_frame in zip([1024, 2048, 4096], [1, 1, 2]):
             frames = FramedSignalProcessor(frame_size=frame_size, **kwargs)
-            stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+            stft = ShortTimeFourierTransformProcessor(complex=False)
             filt = FilterbankProcessor(LogarithmicFilterbank,
                                        num_bands=12, fmin=30, fmax=17000,
                                        norm_filters=True,
@@ -75,8 +75,7 @@ class RNNPianoNoteProcessor(SequentialProcessor):
                                                   positive_diffs=True,
                                                   stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, stft, np.abs, filt, log,
-                                              diff)))
+            multi.append(SequentialProcessor((frames, stft, filt, log, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
 

@@ -69,6 +69,7 @@ def main():
                                             post_avg=0, combine=0.03, delay=0)
     # parse arguments
     args = p.parse_args()
+    args.complex = False
 
     # print arguments
     if args.verbose:
