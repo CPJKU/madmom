@@ -742,6 +742,37 @@ class Filterbank(np.ndarray):
         # set default values here
         self.bin_frequencies = getattr(obj, 'bin_frequencies', None)
 
+    @staticmethod
+    def _bin_frequencies(sample_rate, frame_size=None, fft_size=None,
+                         include_nyquist=None, **kwargs):
+        """
+        Infer bin_frequencies from sample_rate and fft_size or frame_size.
+
+        Parameters
+        ----------
+        kwargs : dict
+            Keyword arguments to extract the needed arguments from.
+
+        Returns
+        -------
+        bin_frequencies : numpy array
+            Bin frequencies.
+
+        """
+        # infer bin_frequencies from sample_rate and fft_size or frame_size
+        if sample_rate is None:
+            raise ValueError("'sample_rate' must be given if "
+                             "'bin_frequencies' is None.")
+        from .stft import fft_frequencies
+        num_bins = fft_size if fft_size is not None else frame_size
+        if num_bins is None:
+            raise ValueError("either 'fft_size' or 'frame_size' must be "
+                             "given if 'bin_frequencies' is None.")
+        num_bins = num_bins >> 1
+        if include_nyquist:
+            num_bins += 1
+        return fft_frequencies(num_bins, sample_rate)
+
     @classmethod
     def _put_filter(cls, filt, band):
         """
@@ -909,23 +940,8 @@ class FilterbankProcessor(Processor):
                  fmin=None, fmax=None, fref=None, norm_filters=None,
                  unique_filters=None, **kwargs):
         # pylint: disable=unused-argument
-        # determine the frequencies of the (spectrogram) bins if not given
         if bin_frequencies is None:
-            from .stft import fft_frequencies
-            # if bin_frequencies are not given, infer them from sample_rate
-            # and either fft_size or frame_size
-            num_bins = kwargs.get('fft_size', kwargs.get('frame_size'))
-            if num_bins is None:
-                raise ValueError("either 'fft_size' or 'frame_size' must be "
-                                 "given if 'bin_frequencies' is None.")
-            num_bins = num_bins >> 1
-            if kwargs.get('include_nyquist'):
-                num_bins += 1
-            sample_rate = kwargs.get('sample_rate')
-            if sample_rate is None:
-                raise ValueError("'sample_rate' must be given if "
-                                 "'bin_frequencies' is None.")
-            bin_frequencies = fft_frequencies(num_bins, sample_rate)
+            bin_frequencies = Filterbank._bin_frequencies(**kwargs)
         # instantiate a Filterbank
         from ..utils import string_types
         if isinstance(filterbank, string_types):
@@ -1138,16 +1154,18 @@ class MelFilterbank(Filterbank):
     NORM_FILTERS = True
     UNIQUE_FILTERS = True
 
-    def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+    def __init__(self, bin_frequencies=None, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+    def __new__(cls, bin_frequencies=None, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=arguments-differ
+        if bin_frequencies is None:
+            bin_frequencies = cls._bin_frequencies(**kwargs)
         # get a list of frequencies aligned on the Mel scale
         # request 2 more bands, because these are the edge frequencies
         frequencies = mel_frequencies(num_bands + 2, fmin, fmax)
@@ -1192,16 +1210,18 @@ class BarkFilterbank(Filterbank):
     NORM_FILTERS = True
     UNIQUE_FILTERS = True
 
-    def __init__(self, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+    def __init__(self, bin_frequencies=None, num_bands=NUM_BANDS, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
                  unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS, fmin=FMIN,
+    def __new__(cls, bin_frequencies=None, num_bands=NUM_BANDS, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=arguments-differ
+        if bin_frequencies is None:
+            bin_frequencies = cls._bin_frequencies(**kwargs)
         # get a list of frequencies
         if num_bands == 'normal':
             frequencies = bark_frequencies(fmin, fmax)
@@ -1259,16 +1279,20 @@ class LogarithmicFilterbank(Filterbank):
 
     NUM_BANDS_PER_OCTAVE = 12
 
-    def __init__(self, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
+    def __init__(self, bin_frequencies=None, num_bands=NUM_BANDS_PER_OCTAVE,
                  fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
+                 unique_filters=UNIQUE_FILTERS, bands_per_octave=True,
+                 **kwargs):
         # this method is for documentation purposes only
         pass
 
-    def __new__(cls, bin_frequencies, num_bands=NUM_BANDS_PER_OCTAVE,
+    def __new__(cls, bin_frequencies=None, num_bands=NUM_BANDS_PER_OCTAVE,
                 fmin=FMIN, fmax=FMAX, fref=A4, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS, bands_per_octave=True):
+                unique_filters=UNIQUE_FILTERS, bands_per_octave=True,
+                **kwargs):
         # pylint: disable=arguments-differ
+        if bin_frequencies is None:
+            bin_frequencies = cls._bin_frequencies(**kwargs)
         # decide whether num_bands is bands per octave or total number of bands
         if bands_per_octave:
             num_bands_per_octave = num_bands
@@ -1333,14 +1357,16 @@ class RectangularFilterbank(Filterbank):
 
     def __init__(self, bin_frequencies, crossover_frequencies, fmin=FMIN,
                  fmax=FMAX, norm_filters=NORM_FILTERS,
-                 unique_filters=UNIQUE_FILTERS):
+                 unique_filters=UNIQUE_FILTERS, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, bin_frequencies, crossover_frequencies, fmin=FMIN,
                 fmax=FMAX, norm_filters=NORM_FILTERS,
-                unique_filters=UNIQUE_FILTERS):
+                unique_filters=UNIQUE_FILTERS, **kwargs):
         # pylint: disable=arguments-differ
+        if bin_frequencies is None:
+            bin_frequencies = cls._bin_frequencies(**kwargs)
         # create an empty filterbank
         fb = np.zeros((len(bin_frequencies), len(crossover_frequencies) + 1),
                       dtype=FILTER_DTYPE)
