@@ -81,17 +81,17 @@ class RNNDownBeatProcessor(SequentialProcessor):
         for frame_size, num_bands, diff_frame in \
                 zip(frame_sizes, num_bands, diff_frames):
             frames = FramedSignalProcessor(frame_size=frame_size, fps=100)
-            stft = ShortTimeFourierTransformProcessor(complex=False)
             filt = FilterbankProcessor(LogarithmicFilterbank,
                                        num_bands=num_bands, fmin=30,
                                        fmax=17000, norm_filters=True,
                                        frame_size=frame_size, **kwargs)
+            stft = ShortTimeFourierTransformProcessor(filterbank=filt)
             log = ScalingProcessor(scaling_fn=np.log10, mul=1, add=1)
             diff = SpectrogramDifferenceProcessor(diff_frames=diff_frame,
                                                   positive_diffs=True,
                                                   stack_diffs=np.hstack)
             # process each frame size with spec and diff sequentially
-            multi.append(SequentialProcessor((frames, stft, filt, log, diff)))
+            multi.append(SequentialProcessor((frames, stft, log, diff)))
         # stack the features and processes everything sequentially
         pre_processor = SequentialProcessor((sig, multi, np.hstack))
         # process the pre-processed signal with a NN ensemble

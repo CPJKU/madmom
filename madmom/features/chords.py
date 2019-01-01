@@ -200,10 +200,10 @@ class CNNChordFeatureProcessor(SequentialProcessor):
         # spectrogram computation
         sig = SignalProcessor(**kwargs)
         frames = FramedSignalProcessor(**kwargs)
-        stft = ShortTimeFourierTransformProcessor(complex=False)
         filt = FilterbankProcessor(LogarithmicFilterbank, num_bands=24,
                                    fmin=60, fmax=2600, unique_filters=True,
                                    **kwargs)
+        stft = ShortTimeFourierTransformProcessor(filterbank=filt)
         log = ScalingProcessor(scaling_fn=np.log10, add=1)
         # padding, neural network and global average pooling
         pad = _cnncfp_pad
@@ -212,7 +212,7 @@ class CNNChordFeatureProcessor(SequentialProcessor):
         avg = _cnncfp_avg
         # create processing pipeline
         super(CNNChordFeatureProcessor, self).__init__([
-            sig, frames, stft, filt, log, pad, nn, superframes, avg
+            sig, frames, stft, log, pad, nn, superframes, avg
         ])
 
 
