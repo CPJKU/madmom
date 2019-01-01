@@ -24,6 +24,7 @@ from ..processors import Processor
 from .signal import Signal, FramedSignal
 
 STFT_DTYPE = np.complex64
+SPEC_DTYPE = np.abs(np.empty(0, dtype=STFT_DTYPE)).dtype
 
 
 def fft_frequencies(num_fft_bins, sample_rate):
@@ -47,7 +48,7 @@ def fft_frequencies(num_fft_bins, sample_rate):
 
 
 def stft(frames, window, fft_size=None, circular_shift=False,
-         include_nyquist=False, complex=True, fftw=None):
+         include_nyquist=False, complex=True, fftw=None, filterbank=None):
     """
     Calculates the (complex) Short-Time Fourier Transform (STFT) of the given
     framed signal.
@@ -73,11 +74,16 @@ def stft(frames, window, fft_size=None, circular_shift=False,
     fftw : :class:`pyfftw.FFTW` instance, optional
         If a :class:`pyfftw.FFTW` object is given it is used to compute the
         STFT with the FFTW library. Requires 'pyfftw'.
+    filterbank : :class:`.audio.filters.Filterbank`, optional
+        If a filterbank is given, the magnitudes of the STFT are filtered. This
+        option automatically sets `complex` and `circular_shift` to 'False'.
 
     Returns
     -------
-    stft : numpy array, shape (num_frames, frame_size)
-        The complex STFT of the framed signal.
+    stft : numpy array, shape (num_frames, num_bins)
+        The (complex) STFT of the framed signal. 'num_bins' depends on the
+        parameters given, either 'frame_size' or 'fft_size' / 2 (+1 in case
+        the Nyquist frequency is included) or 'num_bands' of the filterbank.
 
     """
     # check for correct shape of input
@@ -102,11 +108,13 @@ def stft(frames, window, fft_size=None, circular_shift=False,
         fft_shift = frame_size >> 1
 
     # init objects
-    if complex:
+    if isinstance(filterbank, np.ndarray):
+        data = np.empty((num_frames, filterbank.shape[1]), dtype=SPEC_DTYPE)
+        circular_shift = complex = False
+    elif complex:
         data = np.empty((num_frames, num_fft_bins), dtype=STFT_DTYPE)
     else:
-        data = np.empty((num_frames, num_fft_bins),
-                        dtype=np.abs(np.empty(0, dtype=STFT_DTYPE)).dtype)
+        data = np.empty((num_frames, num_fft_bins), dtype=SPEC_DTYPE)
 
     # iterate over all frames
     for f, frame in enumerate(frames):
@@ -139,6 +147,9 @@ def stft(frames, window, fft_size=None, circular_shift=False,
         # save only the magnitudes
         if not complex:
             dft = np.abs(dft)
+        # filter if needed
+        if isinstance(filterbank, np.ndarray):
+            dft = np.dot(dft, filterbank)
         data[f] = dft
     # return STFT
     return data
@@ -237,6 +248,9 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         If a :class:`pyfftw.FFTW` object is given it is used to compute the
         STFT with the FFTW library. If 'None', a new :class:`pyfftw.FFTW`
         object is built. Requires 'pyfftw'.
+    filterbank : :class:`.audio.filters.Filterbank`, optional
+        If a filterbank is given, the magnitudes of the STFT are filtered. This
+        option automatically sets `complex` and `circular_shift` to 'False'.
     kwargs : dict, optional
         If no :class:`.audio.signal.FramedSignal` instance was given, one is
         instantiated with these additional keyword arguments.
@@ -323,14 +337,14 @@ frame_size=2048, fps=100, sample_rate=22050)
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
-                 circular_shift=False, include_nyquist=False, fft_window=None,
-                 complex=True, fftw=None, **kwargs):
+                 circular_shift=False, include_nyquist=False, complex=True,
+                 filterbank=None, fft_window=None, fftw=None, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
-                circular_shift=False, include_nyquist=False, fft_window=None,
-                complex=True, fftw=None, **kwargs):
+                circular_shift=False, include_nyquist=False, complex=True,
+                filterbank=None, fft_window=None, fftw=None, **kwargs):
         # pylint: disable=unused-argument
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT, use the frames thereof
@@ -373,7 +387,7 @@ frame_size=2048, fps=100, sample_rate=22050)
         data = stft(frames, fft_window, fft_size=fft_size,
                     circular_shift=circular_shift,
                     include_nyquist=include_nyquist, complex=complex,
-                    fftw=fftw)
+                    filterbank=filterbank, fftw=fftw)
 
         # cast as ShortTimeFourierTransform
         obj = np.asarray(data).view(cls)
@@ -488,13 +502,18 @@ class ShortTimeFourierTransformProcessor(Processor):
     """
 
     def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
-                 include_nyquist=False, complex=True, **kwargs):
+                 include_nyquist=False, complex=True, filterbank=None,
+                 **kwargs):
         # pylint: disable=unused-argument
+        from .filters import FilterbankProcessor
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
         self.include_nyquist = include_nyquist
         self.complex = complex
+        if isinstance(filterbank, FilterbankProcessor):
+            filterbank = filterbank.filterbank
+        self.filterbank = filterbank
         # caching only, not intended for general use
         self.fft_window = None
         self.fftw = None
@@ -519,7 +538,8 @@ class ShortTimeFourierTransformProcessor(Processor):
         args = dict(window=self.window, fft_size=self.fft_size,
                     circular_shift=self.circular_shift,
                     include_nyquist=self.include_nyquist, complex=self.complex,
-                    fft_window=self.fft_window, fftw=self.fftw)
+                    filterbank=self.filterbank, fft_window=self.fft_window,
+                    fftw=self.fftw)
         args.update(kwargs)
         # instantiate a STFT
         data = ShortTimeFourierTransform(data, **args)
