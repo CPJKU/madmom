@@ -119,6 +119,16 @@ class TestStftFunction(unittest.TestCase):
         self.assertTrue(result.shape == (3, 6))
         self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
 
+    def test_block_processing(self):
+        result = stft(sig_2d, window=None, fft_size=25)
+        self.assertTrue(result.dtype == np.complex64)
+        self.assertTrue(result.shape == (3, 12))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+        result_1 = stft(sig_2d, window=None, fft_size=25, block_size=None)
+        self.assertTrue(np.allclose(result, result_1))
+        result_2 = stft(sig_2d, window=None, fft_size=25, block_size=2)
+        self.assertTrue(np.allclose(result, result_2))
+
 
 class TestPhaseFunction(unittest.TestCase):
 

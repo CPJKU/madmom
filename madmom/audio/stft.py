@@ -48,7 +48,8 @@ def fft_frequencies(num_fft_bins, sample_rate):
 
 
 def stft(frames, window, fft_size=None, circular_shift=False,
-         include_nyquist=False, complex=True, fftw=None, filterbank=None):
+         include_nyquist=False, complex=True, fftw=None, filterbank=None,
+         block_size=2048):
     """
     Calculates the (complex) Short-Time Fourier Transform (STFT) of the given
     framed signal.
@@ -107,10 +108,25 @@ def stft(frames, window, fft_size=None, circular_shift=False,
     if circular_shift:
         fft_shift = frame_size >> 1
 
-    # init objects
+    # init return objects
     if isinstance(filterbank, np.ndarray):
         data = np.empty((num_frames, filterbank.shape[1]), dtype=SPEC_DTYPE)
-        circular_shift = complex = False
+        # process in blocks of this size
+        if block_size is None:
+            block_size = num_frames
+        # iterate over the frames in blocks of the given size
+        for b, start in enumerate(range(0, num_frames, block_size)):
+            # determine stop index of the block
+            stop = min(start + block_size, num_frames)
+            # compute STFT of block by recursively calling stft()
+            # Note: do not pass filterbank so that each block is processed
+            #       frame by frame
+            dft = stft(frames[start: stop], window=window,
+                       fft_size=fft_size, include_nyquist=include_nyquist,
+                       complex=False, fftw=fftw)
+            # filter that block and put it in the return data
+            data[start: stop] = np.dot(dft, filterbank)
+        return data
     elif complex:
         data = np.empty((num_frames, num_fft_bins), dtype=STFT_DTYPE)
     else:
@@ -147,9 +163,6 @@ def stft(frames, window, fft_size=None, circular_shift=False,
         # save only the magnitudes
         if not complex:
             dft = np.abs(dft)
-        # filter if needed
-        if isinstance(filterbank, np.ndarray):
-            dft = np.dot(dft, filterbank)
         data[f] = dft
     # return STFT
     return data
