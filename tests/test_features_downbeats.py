@@ -101,6 +101,16 @@ class TestDBNDownBeatTrackingProcessorClass(unittest.TestCase):
         downbeats = self.processor(sample_downbeat_act)
         self.assertTrue(np.allclose(downbeats, np.empty((0, 2))))
 
+    def test_weighting_measure(self):
+        self.processor = DBNDownBeatTrackingProcessor(
+            [3, 4], fps=sample_downbeat_act.fps,
+            beats_per_bar_weights=[100, 1], correct=False)
+        downbeats = self.processor(sample_downbeat_act)
+        correct = np.array([[0.08, 1], [0.43, 2], [0.77, 3],
+                            [1.11, 1], [1.45, 2], [1.79, 3],
+                            [2.13, 1], [2.47, 2]])
+        self.assertTrue(np.allclose(downbeats, correct))
+
 
 class TestPatternTrackingProcessorClass(unittest.TestCase):
 
