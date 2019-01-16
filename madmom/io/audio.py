@@ -69,7 +69,8 @@ def _ffmpeg_fmt(dtype):
     return str(fmt)
 
 
-def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
+def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None,
+                 num_channels=1, channel=None,
                  skip=None, max_len=None, cmd='ffmpeg',
                  replaygain_mode=None, replaygain_preamp=0.0):
     """
@@ -91,6 +92,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+    channel : int, optional
+        Single channel to select if `num_channels` is '1'.
     skip : float, optional
         Number of seconds to skip at beginning of file.
     max_len : float, optional
@@ -150,13 +153,16 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
     # output options
     if num_channels:
         call.extend(["-ac", str(int(num_channels))])
+    if channel is not None and num_channels == 1:
+        call.extend(["-af", "pan=mono|c0=c%d" % int(channel)])
     if sample_rate:
         call.extend(["-ar", str(int(sample_rate))])
     call.append(output)
     return call
 
 
-def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
+def decode_to_disk(infile, fmt='f32le', sample_rate=None,
+                   num_channels=1, channel=None,
                    skip=None, max_len=None, outfile=None, tmp_dir=None,
                    tmp_suffix=None, cmd='ffmpeg',
                    replaygain_mode=None, replaygain_preamp=0.0):
@@ -175,6 +181,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+    channe : int, optional
+        Single channel to select if `num_channels` is '1'.
     skip : float, optional
         Number of seconds to skip at beginning of file.
     max_len : float, optional
@@ -221,7 +229,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          % outfile)
     # call ffmpeg (throws exception on error)
     try:
-        call = _ffmpeg_call(infile, outfile, fmt, sample_rate, num_channels,
+        call = _ffmpeg_call(infile, outfile, fmt, sample_rate,
+                            num_channels, channel,
                             skip, max_len, cmd,
                             replaygain_mode=replaygain_mode,
                             replaygain_preamp=replaygain_preamp)
@@ -233,7 +242,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
     return outfile
 
 
-def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
+def decode_to_pipe(infile, fmt='f32le', sample_rate=None,
+                   num_channels=1, channel=None,
                    skip=None, max_len=None, buf_size=-1, cmd='ffmpeg',
                    replaygain_mode=None, replaygain_preamp=0.0):
     """
@@ -252,6 +262,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+    channel : int, optional
+        Single channel to select if `num_channels` is '1'.
     skip : float, optional
         Number of seconds to skip at beginning of file.
     max_len : float, optional
@@ -289,8 +301,9 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     #       reacts on that. A cleaner solution would be calling proc.terminate
     #       explicitly, but this is only available in Python 2.6+. proc.wait
     #       needs to be called in any case.
-    call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate, num_channels, skip,
-                        max_len, cmd,
+    call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
+                        num_channels, channel,
+                        skip, max_len, cmd,
                         replaygain_mode=replaygain_mode,
                         replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
@@ -302,7 +315,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     return proc.stdout, proc
 
 
-def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
+def decode_to_memory(infile, fmt='f32le', sample_rate=None,
+                     num_channels=1, channel=None,
                      skip=None, max_len=None, cmd='ffmpeg',
                      replaygain_mode=None, replaygain_preamp=0.0):
     """
@@ -320,6 +334,8 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+    channel : int, optional
+        The single channel to select, if `num_channels` is '1'.
     skip : float, optional
         Number of seconds to skip at beginning of file.
     max_len : float, optional
@@ -343,8 +359,8 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          "as `infile`, not %s." % infile)
     # prepare decoding to pipe
     _, proc = decode_to_pipe(infile, fmt=fmt, sample_rate=sample_rate,
-                             num_channels=num_channels, skip=skip,
-                             max_len=max_len, cmd=cmd,
+                             num_channels=num_channels, channel=channel,
+                             skip=skip, max_len=max_len, cmd=cmd,
                              replaygain_mode=replaygain_mode,
                              replaygain_preamp=replaygain_preamp)
     # decode the input to memory
@@ -402,7 +418,8 @@ def get_file_info(infile, cmd='ffprobe'):
     return info
 
 
-def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
+def load_ffmpeg_file(filename, sample_rate=None,
+                     num_channels=None, channel=None,
                      start=None, stop=None, dtype=None,
                      cmd_decode='ffmpeg', cmd_probe='ffprobe',
                      replaygain_mode=None, replaygain_preamp=0.0):
@@ -423,6 +440,8 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     num_channels : int, optional
         Reduce or expand the signal to `num_channels` channels; 'None' returns
         the signal with its original channels.
+    channel : int, optional
+        Single channel to select if `num_channels` is '1'.
     start : float, optional
         Start position [seconds].
     stop : float, optional
@@ -463,6 +482,7 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     signal = np.frombuffer(decode_to_memory(filename, fmt=fmt,
                                             sample_rate=sample_rate,
                                             num_channels=num_channels,
+                                            channel=channel,
                                             skip=start, max_len=max_len,
                                             cmd=cmd_decode,
                                             replaygain_mode=replaygain_mode,
@@ -483,8 +503,8 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
 
 
 # functions for loading/saving wave files
-def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
-                   stop=None, dtype=None):
+def load_wave_file(filename, sample_rate=None, num_channels=None, channel=None,
+                   start=None, stop=None, dtype=None):
     """
     Load the audio data from the given file and return it as a numpy array.
 
@@ -502,6 +522,8 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
     num_channels : int, optional
         Reduce or expand the signal to `num_channels` channels, or 'None'
         to return the signal with its original channels.
+    channel : int, optional
+        Single channel to select if `num_channels` is '1' (or 'None')
     start : float, optional
         Start position [seconds].
     stop : float, optional
@@ -545,10 +567,12 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, start=None,
         stop = min(len(signal), int(stop * file_sample_rate))
     if start is not None or stop is not None:
         signal = signal[start: stop]
-    # up-/down-mix if needed
+    if channel is not None and num_channels is None:
+        # It's clear what the caller means here
+        num_channels = 1
     if num_channels is not None:
         from ..audio.signal import remix
-        signal = remix(signal, num_channels)
+        signal = remix(signal, num_channels, channel)
     # return the signal
     return signal, file_sample_rate
 
@@ -586,8 +610,9 @@ def write_wave_file(signal, filename, sample_rate=None):
 
 
 # function for automatically determining how to open audio files
-def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
-                    stop=None, dtype=None,
+def load_audio_file(filename, sample_rate=None,
+                    num_channels=None, channel=None,
+                    start=None, stop=None, dtype=None,
                     replaygain_mode=None, replaygain_preamp=0.0):
     """
     Load the audio data from the given file and return it as a numpy array.
@@ -600,9 +625,11 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     sample_rate : int, optional
         Desired sample rate of the signal [Hz], or 'None' to return the
         signal in its original rate.
-    num_channels: int, optional
+    num_channels : int, optional
         Reduce or expand the signal to `num_channels` channels, or 'None'
         to return the signal with its original channels.
+    channel : int, optional
+        Single channel to select if `num_channels` is '1'.
     start : float, optional
         Start position [seconds].
     stop : float, optional
@@ -644,15 +671,15 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
     error = "All attempts to load audio file %r failed." % filename
     try:
         return load_wave_file(filename, sample_rate=sample_rate,
-                              num_channels=num_channels, start=start,
-                              stop=stop, dtype=dtype)
+                              num_channels=num_channels, channel=channel,
+                              start=start, stop=stop, dtype=dtype)
     except ValueError:
         pass
     # not a wave file (or other sample rate requested), try ffmpeg
     try:
         return load_ffmpeg_file(filename, sample_rate=sample_rate,
-                                num_channels=num_channels, start=start,
-                                stop=stop, dtype=dtype,
+                                num_channels=num_channels, channel=channel,
+                                start=start, stop=stop, dtype=dtype,
                                 replaygain_mode=replaygain_mode,
                                 replaygain_preamp=replaygain_preamp)
     except OSError as e:
@@ -663,8 +690,8 @@ def load_audio_file(filename, sample_rate=None, num_channels=None, start=None,
         # ffmpeg is not present, try avconv
         try:
             return load_ffmpeg_file(filename, sample_rate=sample_rate,
-                                    num_channels=num_channels, start=start,
-                                    stop=stop, dtype=dtype,
+                                    num_channels=num_channels, channel=channel,
+                                    start=start, stop=stop, dtype=dtype,
                                     cmd_decode='avconv', cmd_probe='avprobe',
                                     replaygain_mode=replaygain_mode,
                                     replaygain_preamp=replaygain_preamp)

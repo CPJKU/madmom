@@ -73,6 +73,13 @@ class TestLoadWaveFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919,))
 
+    def test_channel_choice(self):
+        signal, sample_rate = load_wave_file(stereo_sample_file, channel=0)
+        self.assertTrue(signal.shape == (182919,))
+        self.assertTrue(np.allclose(signal[:4], [33, 35, 29, 36]))
+        signal, sample_rate = load_wave_file(stereo_sample_file, channel=1)
+        self.assertTrue(np.allclose(signal[:4], [38, 36, 34, 31]))
+
     def test_upmix(self):
         signal, sample_rate = load_wave_file(sample_file, num_channels=2)
         self.assertTrue(np.allclose(signal[:5],
@@ -193,6 +200,11 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, 2))
 
+    def test_wave_channel_selection(self):
+        signal, sample_rate = load_audio_file(stereo_sample_file, channel=1)
+        self.assertTrue(signal.shape == (182919,))
+        self.assertTrue(np.allclose(signal[:4], [38, 36, 34, 31]))
+
     def test_start_stop(self):
         # test wave loader
         signal, sample_rate = load_audio_file(sample_file, start=1. / 44100,
@@ -262,6 +274,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(np.allclose(signal[:5], [36, 33, 34, 35, 33], atol=1))
         # avconv results in a different length of 91450 samples
         self.assertTrue(np.allclose(len(signal), 91460, atol=10))
+
+    def test_choose_channel(self):
+        signal, sample_rate = load_audio_file(flac_file,
+                                              sample_rate=22050,
+                                              num_channels=1, channel=0)
+        # avconv results in a different length of 91450 samples
+        self.assertTrue(np.allclose(len(signal), 91460, atol=10))
+        self.assertTrue(np.allclose(signal[:5], [34, 32, 37, 35, 32], atol=1))
 
     def test_replaygain_disabled(self):
         original = load_signal(flac_file)
